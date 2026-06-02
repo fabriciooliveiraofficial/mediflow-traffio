@@ -303,22 +303,15 @@ export const DashboardLayout = ({ children, activeScreen, onNavigate }: {
                 )}
             >
                 {/* Logo Section */}
-                <div className="h-24 flex items-center px-8 justify-between">
-                    <div className={clsx("flex items-center gap-3 overflow-hidden transition-all duration-300", !isSidebarOpen && "opacity-0 invisible")}>
-                        <div className="w-10 h-10 bg-brand-primary rounded-2xl flex items-center justify-center shadow-lg shadow-brand-primary/20 shrink-0">
-                            <span className="text-white font-black text-xl italic leading-none">T</span>
-                        </div>
-                        <span className="font-black text-xl tracking-tighter whitespace-nowrap">Traffio <span className="text-brand-primary">Med</span></span>
-                    </div>
-                    {!isSidebarOpen && (
-                        <div className="w-10 h-10 bg-brand-primary/10 rounded-2xl flex items-center justify-center mx-auto">
-                            <span className="text-brand-primary font-black text-xl italic leading-none">T</span>
-                        </div>
-                    )}
+                <div className="h-20 flex items-center justify-center px-4 overflow-hidden shrink-0">
+                    {isSidebarOpen
+                        ? <img src="/logo_dark.png" alt="Traffio" className="h-14 w-auto object-contain" />
+                        : <img src="/favicon.png"   alt="Traffio" className="w-10 h-10 rounded-xl object-cover shrink-0" />
+                    }
                 </div>
 
                 {/* Nav Items */}
-                <nav className="flex-1 px-4 space-y-1 mt-4 overflow-y-auto custom-scrollbar relative">
+                <nav className="flex-1 px-4 space-y-1 mt-4 overflow-y-auto overflow-x-hidden custom-scrollbar relative">
                     <motion.div layout className="space-y-1">
                         {isTenantLoading && !tenant ? (
                             // Loading Skeletons to preserve space

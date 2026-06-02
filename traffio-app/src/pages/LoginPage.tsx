@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Activity, Mail, Lock, Loader2, ArrowRight } from 'lucide-react';
+import { Mail, Lock, Loader2, ArrowRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
 
@@ -52,9 +52,7 @@ export const LoginPage = () => {
         <div className="min-h-screen bg-ice-50 flex items-center justify-center p-4">
             <div className="max-w-md w-full bg-white rounded-[32px] shadow-xl p-8 md:p-12 border border-ice-100 animate-in fade-in zoom-in duration-500">
                 <div className="flex justify-center mb-8">
-                    <div className="w-16 h-16 bg-brand-primary rounded-2xl flex items-center justify-center text-white shadow-lg shadow-brand-primary/20">
-                        <Activity size={32} />
-                    </div>
+                    <img src="/logo_dark.png" alt="Traffio" className="w-16 h-16 rounded-2xl object-cover" />
                 </div>
 
                 <div className="text-center mb-8">
