@@ -28,16 +28,39 @@ git push -u origin main
 
 O Cloudflare Pages conecta-se diretamente ao repositório do GitHub e recompila a aplicação automaticamente a cada novo `git push`.
 
-### Passos no Painel do Cloudflare:
-1. Acesse o painel da **Cloudflare** > **Workers & Pages** > **Create application** > **Pages** > **Connect to Git**.
-2. Selecione sua conta do GitHub e selecione o repositório `mediflow-traffio`.
-3. Defina as seguintes configurações de build:
-   - **Project Name:** `mediflow-traffio`
-   - **Production branch:** `main`
-   - **Framework preset:** `Vite` (ou selecione *None*)
-   - **Root directory:** `traffio-app` *(Importante: o código React está dentro deste subdiretório)*
-   - **Build command:** `npm run build`
-   - **Build output directory:** `dist`
+### Passo a Passo para Conectar o GitHub à Cloudflare:
+
+1. **Acesse o Painel da Cloudflare**:
+   * Faça login em [dash.cloudflare.com](https://dash.cloudflare.com/).
+
+2. **Navegue até a Área de Pages**:
+   * No menu lateral esquerdo, clique em **Workers & Pages**.
+   * Clique no botão **Create application** (Criar aplicativo).
+   * Selecione a aba **Pages** na parte superior.
+   * Clique no botão **Connect to Git** (Conectar ao Git).
+
+3. **Vincule sua Conta do GitHub**:
+   * Clique em **Connect GitHub** (Conectar GitHub).
+   * Você será redirecionado para a página de autorização do GitHub.
+   * Escolha em qual conta ou organização deseja instalar o aplicativo do Cloudflare Pages.
+   * **Recomendação de Segurança**: Na seção *Repository access*, você pode escolher:
+     * **Only select repositories** (Apenas repositórios selecionados) e marcar o repositório `fabriciooliveiraofficial/mediflow-traffio`.
+     * Ou **All repositories** (Todos os repositórios) para facilitar futuros projetos.
+   * Clique em **Install & Authorize** (Instalar e Autorizar) e insira sua senha do GitHub se solicitado.
+
+4. **Selecione o Repositório**:
+   * Ao retornar ao painel da Cloudflare, selecione a sua conta do GitHub em *GitHub account*.
+   * Selecione o repositório `mediflow-traffio` na lista.
+   * Clique em **Begin setup** (Iniciar configuração).
+
+5. **Defina as Configurações de Build**:
+   Configure as propriedades do projeto exatamente como abaixo:
+   * **Project Name (Nome do projeto):** `mediflow-traffio` (será usado no subdomínio temporário `.pages.dev`)
+   * **Production branch (Branch de produção):** `main`
+   * **Framework preset (Predefinição do framework):** Selecione **Vite** (ou deixe como *None*)
+   * **Root directory (Diretório raiz):** `traffio-app` *(Importante: o código do frontend está nesta subpasta!)*
+   * **Build command (Comando de build):** `npm run build`
+   * **Build output directory (Diretório de saída):** `dist`
 
 ### 4. Configuração das Variáveis de Ambiente (Environment Variables)
 Ainda nas configurações do projeto no Cloudflare Pages (ou em *Settings* > *Environment Variables* após a criação), adicione as seguintes chaves com os valores correspondentes obtidos do arquivo `.env.local`:
