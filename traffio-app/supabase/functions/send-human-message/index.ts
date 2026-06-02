@@ -43,6 +43,7 @@ serve(async (req: Request) => {
         tenant_id, 
         omnichannel_status, 
         assigned_to_user_id,
+        channel,
         tenants (
           whatsapp_provider,
           zapi_instance_id,
@@ -97,18 +98,35 @@ serve(async (req: Request) => {
       console.log(`[send-human-message] Reply to internal id=${replied_to_id}, wa_id=${quotedMsgId ?? 'not found'}`);
     }
 
-    // 4. IMMEDIATE DISPATCH: Enviar agora via Z-API/Cloud-API (Zero Latency)
-    const outbox = new OutboxDispatcher(supabase);
-    try {
-      const waMsgId = await outbox.sendNow(tenantDetails, session.patient_phone, { text: text.trim() }, 0, quotedMsgId);
-      console.log(`[send-human-message] Immediate dispatch success for ${session.patient_phone}, waMsgId: ${waMsgId}`);
-      
-      if (dbMsgId && waMsgId) {
-        await supabase.from('conversation_messages').update({ whatsapp_message_id: waMsgId }).eq('id', dbMsgId);
+    // 4. IMMEDIATE DISPATCH: Enviar agora via Z-API/Cloud-API (Zero Latency) ou Broadcast para Live Chat
+    const isLiveChat = session.channel === 'livechat';
+
+    if (isLiveChat) {
+      const realtimeChannel = supabase.channel(`livechat:${session_id}`);
+      await realtimeChannel.send({
+        type: 'broadcast',
+        event: 'message',
+        payload: {
+          id: dbMsgId,
+          role: 'human',
+          content: text.trim(),
+          created_at: new Date().toISOString()
+        }
+      });
+      console.log(`[send-human-message] Broadcast sent to livechat:${session_id}`);
+    } else {
+      const outbox = new OutboxDispatcher(supabase);
+      try {
+        const waMsgId = await outbox.sendNow(tenantDetails, session.patient_phone, { text: text.trim() }, 0, quotedMsgId);
+        console.log(`[send-human-message] Immediate dispatch success for ${session.patient_phone}, waMsgId: ${waMsgId}`);
+        
+        if (dbMsgId && waMsgId) {
+          await supabase.from('conversation_messages').update({ whatsapp_message_id: waMsgId }).eq('id', dbMsgId);
+        }
+      } catch (dispatchErr: any) {
+        console.error(`[send-human-message] Immediate dispatch failed, falling back to outbox:`, dispatchErr.message);
+        await outbox.enqueue(tenant_id, session.patient_phone, { text: text.trim(), quotedMsgId });
       }
-    } catch (dispatchErr: any) {
-      console.error(`[send-human-message] Immediate dispatch failed, falling back to outbox:`, dispatchErr.message);
-      await outbox.enqueue(tenant_id, session.patient_phone, { text: text.trim(), quotedMsgId });
     }
 
     return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });

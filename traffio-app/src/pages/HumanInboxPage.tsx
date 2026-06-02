@@ -50,6 +50,7 @@ interface ConversationSession {
   last_read_at?: string
   recent_messages: Array<{ role: string; content: string; timestamp: string }>
   context?: any
+  channel?: string
 }
 
 interface Message {
@@ -198,7 +199,11 @@ function ConversationRow({
           'w-9 h-9 rounded-full flex items-center justify-center shrink-0 mt-0.5',
           isQueued ? 'bg-amber-100' : 'bg-gray-100',
         )}>
-          <User className={clsx('w-4 h-4', isQueued ? 'text-amber-600' : 'text-gray-500')} />
+          {session.channel === 'livechat' ? (
+            <MessageCircle className={clsx('w-4 h-4', isQueued ? 'text-amber-600' : 'text-gray-500')} />
+          ) : (
+            <User className={clsx('w-4 h-4', isQueued ? 'text-amber-600' : 'text-gray-500')} />
+          )}
         </div>
 
         <div className="flex-1 min-w-0">
@@ -206,6 +211,8 @@ function ConversationRow({
             <span className="text-sm font-semibold text-gray-900 truncate">
               {patientName
                 ? patientName
+                : session.channel === 'livechat'
+                ? (session.context?.visitor_name || 'Visitante Web')
                 : `${phoneFlag(session.patient_phone)} ${formatPhone(session.patient_phone)}`}
             </span>
             <div className="flex items-center gap-2 shrink-0">
@@ -214,8 +221,14 @@ function ConversationRow({
               </span>
             </div>
           </div>
-          {patientName && (
-            <p className="text-[11px] text-gray-400 truncate mt-0.5">{formatPhone(session.patient_phone)}</p>
+          {session.channel === 'livechat' ? (
+            <p className="text-[11px] text-gray-400 truncate mt-0.5">
+              {session.context?.visitor_phone || session.context?.visitor_email || 'Live Chat'}
+            </p>
+          ) : (
+            patientName && (
+              <p className="text-[11px] text-gray-400 truncate mt-0.5">{formatPhone(session.patient_phone)}</p>
+            )
           )}
 
           {(session.kanban_stage || session.tags?.temperature || session.tags?.priority) && (
@@ -253,6 +266,12 @@ function ConversationRow({
           </div>
           <div className="mt-2 flex items-center gap-1.5">
             <StatusBadge status={session.omnichannel_status} />
+            <span className={clsx(
+              "inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-bold border",
+              session.channel === 'livechat' ? "bg-indigo-50 text-indigo-700 border-indigo-100" : "bg-green-50 text-green-700 border-green-100"
+            )}>
+              {session.channel === 'livechat' ? 'Live Chat' : 'WhatsApp'}
+            </span>
             {isQueued && (
               <span className="flex items-center gap-0.5 text-[10px] text-amber-600 font-medium">
                 <AlertTriangle className="w-3 h-3" /> aguardando
@@ -1627,6 +1646,7 @@ export function HumanInboxPage() {
   const [transferring, setTransferring] = useState(false);
   const [selectedStage, setSelectedStage] = useState<string>('Todos')
   const [rescheduleData, setRescheduleData] = useState<any | null>(null);
+  const [channelFilter, setChannelFilter] = useState<'all' | 'whatsapp' | 'livechat'>('all');
   
   // Scripts state
   const [salesScripts, setSalesScripts] = useState<any[]>([]);
@@ -2277,11 +2297,17 @@ export function HumanInboxPage() {
     const matchesSearch = !search ||
       s.patient_phone.includes(search) ||
       (patientNames[s.patient_phone] ?? '').toLowerCase().includes(search.toLowerCase()) ||
-      (s.kanban_stage ?? '').toLowerCase().includes(search.toLowerCase())
+      (s.kanban_stage ?? '').toLowerCase().includes(search.toLowerCase()) ||
+      (s.channel === 'livechat' && (
+        (s.context?.visitor_name ?? '').toLowerCase().includes(search.toLowerCase()) ||
+        (s.context?.visitor_email ?? '').toLowerCase().includes(search.toLowerCase()) ||
+        (s.context?.visitor_phone ?? '').toLowerCase().includes(search.toLowerCase())
+      ))
 
     const matchesStage = selectedStage === 'Todos' || (s.kanban_stage || 'Novos Leads') === selectedStage
+    const matchesChannel = channelFilter === 'all' || (s.channel || 'whatsapp') === channelFilter
 
-    return matchesSearch && matchesStage
+    return matchesSearch && matchesStage && matchesChannel
   })
 
   // ─────────────────────────────────────────────
@@ -2312,6 +2338,43 @@ export function HumanInboxPage() {
                 placeholder="Buscar paciente..."
                 className="flex-1 bg-transparent text-xs outline-none placeholder:text-gray-400"
               />
+            </div>
+
+            {/* Filtro de Canais */}
+            <div className="flex items-center gap-1.5 py-0.5 border-b border-gray-100 pb-2">
+              <button
+                onClick={() => setChannelFilter('all')}
+                className={clsx(
+                  "px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-all shrink-0 cursor-pointer",
+                  channelFilter === 'all'
+                    ? "bg-gray-800 text-white border-gray-800 shadow-sm"
+                    : "bg-white text-gray-500 border-gray-200 hover:border-gray-300"
+                )}
+              >
+                Todos
+              </button>
+              <button
+                onClick={() => setChannelFilter('whatsapp')}
+                className={clsx(
+                  "px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-all shrink-0 cursor-pointer",
+                  channelFilter === 'whatsapp'
+                    ? "bg-green-600 text-white border-green-600 shadow-sm"
+                    : "bg-white text-gray-500 border-gray-200 hover:border-green-300"
+                )}
+              >
+                WhatsApp
+              </button>
+              <button
+                onClick={() => setChannelFilter('livechat')}
+                className={clsx(
+                  "px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-all shrink-0 cursor-pointer",
+                  channelFilter === 'livechat'
+                    ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                    : "bg-white text-gray-500 border-gray-200 hover:border-indigo-300"
+                )}
+              >
+                Live Chat
+              </button>
             </div>
 
             {/* Kanban Stage Filter Pills */}
@@ -2439,12 +2502,18 @@ export function HumanInboxPage() {
           <div className="flex items-center justify-between px-5 py-3 bg-white border-b border-gray-200 shrink-0">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
-                <User className="w-4 h-4 text-blue-600" />
+                {selected.channel === 'livechat' ? (
+                  <MessageCircle className="w-4 h-4 text-blue-600" />
+                ) : (
+                  <User className="w-4 h-4 text-blue-600" />
+                )}
               </div>
               <div>
                 <p className="text-sm font-bold text-gray-900">
                   {patient?.full_name
                     ? patient.full_name
+                    : selected.channel === 'livechat'
+                    ? (selected.context?.visitor_name || 'Visitante Web')
                     : `${phoneFlag(selected.patient_phone)} ${formatPhone(selected.patient_phone)}`}
                 </p>
                 <div className="flex items-center gap-2 mt-0.5">

@@ -87,7 +87,7 @@ serve(async (req: Request) => {
     const { data: session, error: sessionError } = await supabase
       .from('conversation_sessions')
       .select(`
-        id, patient_phone, tenant_id, omnichannel_status, assigned_to_user_id,
+        id, patient_phone, tenant_id, omnichannel_status, assigned_to_user_id, channel,
         tenants (
           whatsapp_provider, zapi_instance_id, zapi_token, zapi_client_token,
           cloud_api_phone_number_id, cloud_api_access_token
@@ -143,23 +143,44 @@ serve(async (req: Request) => {
       quotedMsgId = repliedMsg?.whatsapp_message_id ?? undefined;
     }
 
-    // ── Enviar via WhatsApp ──────────────────────────────────────────────────
-    const outbox = new OutboxDispatcher(supabase);
-    try {
-      const waMsgId = await outbox.sendMedia(tenantDetails, session.patient_phone, {
-        media_url,
-        media_type,
-        mime_type,
-        caption,
-        file_name,
-      }, quotedMsgId);
-      
-      if (dbMsgId && waMsgId) {
-        await supabase.from('conversation_messages').update({ whatsapp_message_id: waMsgId }).eq('id', dbMsgId);
+    // ── Enviar via WhatsApp ou Broadcast para Live Chat ───────────────────────
+    const isLiveChat = session.channel === 'livechat';
+
+    if (isLiveChat) {
+      const realtimeChannel = supabase.channel(`livechat:${session_id}`);
+      await realtimeChannel.send({
+        type: 'broadcast',
+        event: 'message',
+        payload: {
+          id: dbMsgId,
+          role: 'human',
+          content: caption || `[${media_type}]`,
+          media_url,
+          message_type: media_type,
+          file_name,
+          mime_type,
+          created_at: new Date().toISOString()
+        }
+      });
+      console.log(`[send-human-media] Broadcast sent to livechat:${session_id}`);
+    } else {
+      const outbox = new OutboxDispatcher(supabase);
+      try {
+        const waMsgId = await outbox.sendMedia(tenantDetails, session.patient_phone, {
+          media_url,
+          media_type,
+          mime_type,
+          caption,
+          file_name,
+        }, quotedMsgId);
+        
+        if (dbMsgId && waMsgId) {
+          await supabase.from('conversation_messages').update({ whatsapp_message_id: waMsgId }).eq('id', dbMsgId);
+        }
+      } catch (dispatchErr: any) {
+        console.error('[send-human-media] Dispatch failed:', dispatchErr.message);
+        // Não retorna erro ao cliente — a mensagem foi salva no histórico e pode ser re-enviada se necessário por outros meios
       }
-    } catch (dispatchErr: any) {
-      console.error('[send-human-media] Dispatch failed:', dispatchErr.message);
-      // Não retorna erro ao cliente — a mensagem foi salva no histórico e pode ser re-enviada se necessário por outros meios
     }
 
     return json({ success: true });

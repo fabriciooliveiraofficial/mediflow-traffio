@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teste de Widget Live Chat - Traffio</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #f1f5f9;
+      color: #0f172a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+    }
+    .card {
+      background: white;
+      padding: 32px;
+      border-radius: 20px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+      max-width: 600px;
+      width: 100%;
+      text-align: center;
+    }
+    h1 {
+      color: #1152d4;
+      font-size: 24px;
+      margin-top: 0;
+    }
+    p {
+      color: #64748b;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .form-group {
+      text-align: left;
+      margin: 20px 0;
+    }
+    label {
+      font-size: 12px;
+      font-weight: bold;
+      color: #475569;
+      display: block;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+    input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      font-size: 14px;
+      outline: none;
+    }
+    input:focus {
+      border-color: #1152d4;
+    }
+    .btn {
+      background: #1152d4;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 10px;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .btn:hover {
+      background: #0037a8;
+    }
+    .code-box {
+      background: #0f172a;
+      color: #38bdf8;
+      padding: 16px;
+      border-radius: 10px;
+      font-family: monospace;
+      font-size: 12px;
+      text-align: left;
+      overflow-x: auto;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h1>Teste Integrado - Live Chat</h1>
+    <p>Esta página simula a Landing Page externa da clínica odontológica em Auckland.</p>
+    <p>Insira abaixo o <strong>Tenant ID</strong> da clínica que receberá os atendimentos para iniciar o widget de testes.</p>
+    
+    <div class="form-group">
+      <label for="tenant-id-input">Tenant ID (UUID)</label>
+      <input type="text" id="tenant-id-input" placeholder="Cole aqui o UUID do Tenant" value="" />
+    </div>
+    
+    <button class="btn" id="load-widget-btn">Carregar Widget de Chat</button>
+
+    <div class="code-box" id="code-snippet" style="display: none;">
+      <!-- Snippet de código gerado -->
+    </div>
+  </div>
+
+  <script>
+    const loadBtn = document.getElementById("load-widget-btn");
+    const tenantInput = document.getElementById("tenant-id-input");
+    const codeBox = document.getElementById("code-snippet");
+
+    // Salvar/recuperar tenant ID no localStorage para facilidade de testes
+    const savedTenantId = localStorage.getItem("traffio_test_tenant_id");
+    if (savedTenantId) {
+      tenantInput.value = savedTenantId;
+    }
+
+    loadBtn.addEventListener("click", () => {
+      const tenantId = tenantInput.value.trim();
+      if (!tenantId) {
+        alert("Por favor, insira o Tenant ID para testar.");
+        return;
+      }
+
+      localStorage.setItem("traffio_test_tenant_id", tenantId);
+
+      // Injetar dinamicamente o script do livechat com os parâmetros de homologação
+      const livechatScript = document.createElement("script");
+      livechatScript.src = "/livechat-widget.js";
+      livechatScript.setAttribute("data-tenant-id", tenantId);
+      livechatScript.setAttribute("data-supabase-url", "https://fyyhxmugxcfqhvoevuwf.supabase.co");
+      livechatScript.setAttribute("data-supabase-anon-key", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ5eWh4bXVneGNmcWh2b2V2dXdmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3NTk0MDIsImV4cCI6MjA4NjMzNTQwMn0.4P_7_DpEFS51QcsyWk0s0DLUqPZEXA7NJf4sAy6jqrg");
+      document.body.appendChild(livechatScript);
+
+      // Mostrar código de incorporação
+      codeBox.style.display = "block";
+      codeBox.innerHTML = `
+        &lt;!-- Insira este script no final da tag &lt;body&gt; da sua Landing Page --&gt;<br>
+        &lt;script src="https://fyyhxmugxcfqhvoevuwf.supabase.co/storage/v1/object/public/chat-media/livechat-widget.js"<br>
+        &nbsp;&nbsp;data-tenant-id="${tenantId}"<br>
+        &nbsp;&nbsp;data-supabase-url="https://fyyhxmugxcfqhvoevuwf.supabase.co"<br>
+        &nbsp;&nbsp;data-supabase-anon-key="[SUA_ANON_KEY]"&gt;&lt;/script&gt;
+      `;
+
+      loadBtn.disabled = true;
+      loadBtn.textContent = "Widget Carregado! (Olhe no canto inferior direito)";
+    });
+  </script>
+
+</body>
+</html>
