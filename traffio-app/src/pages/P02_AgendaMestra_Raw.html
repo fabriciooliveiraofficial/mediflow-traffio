@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html class="light" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>P02 Agenda Mestra Blue Master - Traffio Medical</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1152d4",
+                        "background-light": "#f8fafc",
+                        "background-dark": "#0f172a",
+                        "neutral-soft": "#e2e8f0",
+                        "accent-warning": "#f59e0b",
+                    },
+                    fontFamily: {
+                        "display": ["Plus Jakarta Sans", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style type="text/tailwindcss">
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .snap-grid {
+            background-size: 100% 40px;
+            background-image: linear-gradient(to bottom, #e2e8f0 1px, transparent 1px);
+        }
+        .ios-blur {
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+        body {
+            min-height: max(884px, 100dvh);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 font-display min-h-screen">
+<div class="h-11 w-full bg-background-light dark:bg-background-dark sticky top-0 z-50 flex items-center justify-between px-6">
+<span class="text-sm font-semibold">9:41</span>
+<div class="flex items-center gap-1">
+<span class="material-icons-round text-sm">signal_cellular_alt</span>
+<span class="material-icons-round text-sm">wifi</span>
+<span class="material-icons-round text-sm">battery_full</span>
+</div>
+</div>
+<header class="bg-background-light/80 dark:bg-background-dark/80 ios-blur sticky top-11 z-40 border-b border-neutral-soft dark:border-white/5">
+<div class="px-5 py-4 flex items-center justify-between">
+<div>
+<h1 class="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Traffio Medical</h1>
+<h2 class="text-xl font-bold tracking-tight">Agenda Mestra</h2>
+</div>
+<div class="flex gap-2">
+<button class="p-2 rounded-full bg-neutral-soft/50 dark:bg-white/5">
+<span class="material-icons-round text-lg">search</span>
+</button>
+<div class="relative">
+<img alt="Perfil do Médico Dr. Silva" class="w-10 h-10 rounded-full border-2 border-primary object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAyQ-YorgsRx6HXaH3_LlUjATHnjt3aU_uWHbnJBNVENwhAyXaps2Nw2HATHLctlB6zuafb3ekzEB_Bhsz692Gu4fmsaztmVwcPN1L3VwUOOjrwYzY9-46hrwXsZYd69wxp2T21kpYhUSA7_iFlJNdOSt-15J8YvsHpr6K3sVCTuIylX8JfHwoyt7dUX_N4dpqs6ZIJa5hBZav0Vry-267n8GnJ5sPXDlTHLYOWTAoLZTx19JmubTZCt-3lgUNMpDmJNNJ2F0adNA8"/>
+</div>
+</div>
+</div>
+<div class="flex overflow-x-auto px-5 pb-4 gap-4 hide-scrollbar">
+<div class="flex flex-col items-center min-w-[48px] py-3 rounded-2xl bg-primary text-white font-bold shadow-lg shadow-primary/25">
+<span class="text-[10px] uppercase opacity-80 tracking-wider">Qui</span>
+<span class="text-lg">12</span>
+</div>
+<div class="flex flex-col items-center min-w-[48px] py-3 rounded-2xl bg-white dark:bg-white/5 border border-neutral-soft dark:border-white/10">
+<span class="text-[10px] uppercase text-slate-400 tracking-wider">Sex</span>
+<span class="text-lg font-semibold">13</span>
+</div>
+<div class="flex flex-col items-center min-w-[48px] py-3 rounded-2xl bg-white dark:bg-white/5 border border-neutral-soft dark:border-white/10">
+<span class="text-[10px] uppercase text-slate-400 tracking-wider">Sáb</span>
+<span class="text-lg font-semibold">14</span>
+</div>
+<div class="flex flex-col items-center min-w-[48px] py-3 rounded-2xl bg-white dark:bg-white/5 border border-neutral-soft dark:border-white/10 opacity-50">
+<span class="text-[10px] uppercase text-slate-400 tracking-wider">Dom</span>
+<span class="text-lg font-semibold">15</span>
+</div>
+<div class="flex flex-col items-center min-w-[48px] py-3 rounded-2xl bg-white dark:bg-white/5 border border-neutral-soft dark:border-white/10">
+<span class="text-[10px] uppercase text-slate-400 tracking-wider">Seg</span>
+<span class="text-lg font-semibold">16</span>
+</div>
+<div class="flex flex-col items-center min-w-[48px] py-3 rounded-2xl bg-white dark:bg-white/5 border border-neutral-soft dark:border-white/10">
+<span class="text-[10px] uppercase text-slate-400 tracking-wider">Ter</span>
+<span class="text-lg font-semibold">17</span>
+</div>
+</div>
+</header>
+<main class="relative bg-background-light dark:bg-background-dark pb-32">
+<div class="flex">
+<div class="w-16 flex flex-col border-r border-neutral-soft dark:border-white/5 pt-4">
+<div class="h-10 text-[10px] text-slate-400 text-right pr-3 font-medium">08:00</div>
+<div class="h-10 text-[10px] text-slate-300 text-right pr-3 font-light">08:10</div>
+<div class="h-10 text-[10px] text-slate-300 text-right pr-3 font-light">08:20</div>
+<div class="h-10 text-[10px] text-slate-300 text-right pr-3 font-light">08:30</div>
+<div class="h-10 text-[10px] text-slate-300 text-right pr-3 font-light">08:40</div>
+<div class="h-10 text-[10px] text-slate-300 text-right pr-3 font-light">08:50</div>
+<div class="h-10 text-[10px] text-slate-400 text-right pr-3 font-medium">09:00</div>
+<div class="h-10 text-[10px] text-slate-300 text-right pr-3 font-light">09:10</div>
+<div class="h-10 text-[10px] text-slate-300 text-right pr-3 font-light">09:20</div>
+<div class="h-10 text-[10px] text-slate-300 text-right pr-3 font-light">09:30</div>
+<div class="h-10 text-[10px] text-slate-300 text-right pr-3 font-light">09:40</div>
+<div class="h-10 text-[10px] text-slate-300 text-right pr-3 font-light">09:50</div>
+<div class="h-10 text-[10px] text-slate-400 text-right pr-3 font-medium">10:00</div>
+<div class="h-10 text-[10px] text-slate-300 text-right pr-3 font-light">10:10</div>
+<div class="h-10 text-[10px] text-slate-300 text-right pr-3 font-light">10:20</div>
+<div class="h-10 text-[10px] text-slate-300 text-right pr-3 font-light">10:30</div>
+<div class="h-10 text-[10px] text-slate-300 text-right pr-3 font-light">10:40</div>
+<div class="h-10 text-[10px] text-slate-300 text-right pr-3 font-light">10:50</div>
+</div>
+<div class="flex-1 relative snap-grid min-h-[720px] pt-4">
+<div class="absolute top-[164px] left-0 right-0 z-30 flex items-center pointer-events-none">
+<div class="w-2.5 h-2.5 rounded-full bg-primary -ml-1.5 ring-4 ring-primary/20"></div>
+<div class="h-px flex-1 bg-primary/60 shadow-[0_0_8px_rgba(17,82,212,0.4)]"></div>
+</div>
+<div class="absolute top-10 left-2 right-4 h-28 bg-white dark:bg-white/10 rounded-xl shadow-md border-l-4 border-primary p-3 flex flex-col justify-between group active:scale-[0.98] transition-all">
+<div class="flex justify-between items-start">
+<div>
+<span class="text-[9px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full uppercase tracking-wider">Confirmado</span>
+<h3 class="text-sm font-bold mt-1.5">Ana Beatriz Fontes</h3>
+<p class="text-[11px] text-slate-500 dark:text-slate-400">Check-up Cardiovascular</p>
+</div>
+<span class="material-icons-round text-slate-300 text-sm">more_vert</span>
+</div>
+<div class="flex items-center gap-2 text-[10px] text-slate-400 font-medium">
+<span class="material-icons-round text-xs">schedule</span>
+<span>08:10 — 08:40 (30 min)</span>
+</div>
+</div>
+<div class="absolute top-[170px] left-2 right-4 h-20 bg-accent-warning/5 dark:bg-accent-warning/10 rounded-xl border border-accent-warning/30 border-dashed p-3 flex flex-col justify-between">
+<div class="flex justify-between items-start">
+<div class="flex items-center gap-1.5">
+<span class="material-icons-round text-accent-warning text-sm">warning</span>
+<h3 class="text-sm font-bold">Ricardo Alencar</h3>
+</div>
+<span class="text-[9px] font-bold text-accent-warning uppercase tracking-wide">Conflito de Horário</span>
+</div>
+<p class="text-[11px] text-slate-500">Exame de Retorno - Pendente</p>
+</div>
+<div class="absolute top-[210px] left-6 right-2 h-28 bg-white dark:bg-white/10 rounded-xl shadow-xl shadow-slate-200/60 dark:shadow-none border-l-4 border-slate-300 dark:border-white/20 p-3 flex flex-col justify-between z-10 scale-[0.96] origin-right">
+<div class="flex justify-between items-start">
+<div>
+<span class="text-[9px] font-bold text-slate-400 bg-slate-100 dark:bg-white/5 px-2 py-0.5 rounded-full uppercase tracking-wider">Aguardando</span>
+<h3 class="text-sm font-bold mt-1.5">Sérgio Matos</h3>
+<p class="text-[11px] text-slate-500">Primeira Consulta</p>
+</div>
+</div>
+<div class="flex items-center gap-2 text-[10px] text-slate-400 font-medium">
+<span class="material-icons-round text-xs">schedule</span>
+<span>09:30 — 10:00</span>
+</div>
+</div>
+<div class="absolute top-[480px] left-0 right-0 h-10 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-primary/5 cursor-pointer">
+<span class="text-[11px] text-primary font-bold flex items-center gap-1">
+<span class="material-icons-round text-sm">add</span> Adicionar Horário
+                </span>
+</div>
+<div class="absolute top-[560px] left-2 right-4 h-20 bg-white/40 dark:bg-white/5 rounded-xl border border-neutral-soft dark:border-white/5 p-3 flex flex-col justify-center opacity-60">
+<h3 class="text-sm font-medium">Clara Mendes</h3>
+<p class="text-[10px] text-slate-400">10:20 — 10:40</p>
+</div>
+</div>
+</div>
+</main>
+<nav class="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-background-dark/95 ios-blur border-t border-neutral-soft dark:border-white/5 px-6 pb-8 pt-3 z-50 flex justify-between items-center">
+<div class="flex flex-col items-center gap-1 text-primary">
+<span class="material-icons-round">calendar_today</span>
+<span class="text-[10px] font-bold tracking-tight">Agenda</span>
+</div>
+<div class="flex flex-col items-center gap-1 text-slate-400">
+<span class="material-icons-round">people_outline</span>
+<span class="text-[10px] tracking-tight">Pacientes</span>
+</div>
+<div class="relative -top-8">
+<button class="w-15 h-15 w-[60px] h-[60px] bg-primary text-white rounded-full shadow-xl shadow-primary/40 flex items-center justify-center active:scale-90 transition-transform">
+<span class="material-icons-round text-3xl font-bold">add</span>
+</button>
+</div>
+<div class="flex flex-col items-center gap-1 text-slate-400">
+<span class="material-icons-round">bar_chart</span>
+<span class="text-[10px] tracking-tight">Relatórios</span>
+</div>
+<div class="flex flex-col items-center gap-1 text-slate-400">
+<span class="material-icons-round">settings</span>
+<span class="text-[10px] tracking-tight">Ajustes</span>
+</div>
+</nav>
+<div class="fixed bottom-28 right-6 pointer-events-none">
+<div class="bg-primary/15 backdrop-blur-md px-3 py-1.5 rounded-full border border-primary/20 shadow-lg">
+<p class="text-[9px] font-bold text-primary uppercase tracking-widest">Snap Magnético Ativo</p>
+</div>
+</div>
+
+</body></html>

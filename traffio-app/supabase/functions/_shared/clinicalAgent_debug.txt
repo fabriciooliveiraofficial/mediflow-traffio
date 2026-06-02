@@ -1,0 +1,3041 @@
+/**
+ * ClinicalAgent — LLM-native scheduling agent with function calling.
+ *
+ * Replaces the XState state machine + deterministic button flow with a
+ * GPT-4o agent that uses tool calls to fetch real data and book appointments.
+ *
+ * Anti-hallucination guarantee: the LLM cannot invent doctors, slots, or
+ * availability — all data comes from verified tool results.
+ */
+
+import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
+import { resolveDate } from "./dateResolver.ts";
+import { AsaasClient } from "./asaasClient.ts";
+
+export type SpecialistType = 'ROUTER' | 'TRIAGE' | 'BOOKING' | 'RAG_FAQ' | 'SALES' | 'SUPPORT';
+
+/**
+ * Normalizes a Brazilian WhatsApp phone number to E.164 format: 55 + DDD (2) + number (8 or 9) = 12–13 digits.
+ * Accepts any format: "(41) 99775-9569", "41997759569", "5541997759569", etc.
+ * Returns null if the number is clearly invalid (wrong digit count).
+ */
+function normalizePhone(raw: string): { phone: string } | { error: string } {
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length < 7) {
+    return { error: `Número muito curto (${digits.length} dígitos). Exemplo: 41 99775-9569 ou +1 404 925-7024.` };
+  }
+
+  // ── Already has known international prefix → keep as-is ──────────────────
+  // USA/Canada (+1): 1 + 10 digits = 11
+  if (digits.startsWith("1") && digits.length === 11) return { phone: digits };
+  // Argentina (+54): 54 + 10-12 digits
+  if (digits.startsWith("54") && digits.length >= 12 && digits.length <= 14) return { phone: digits };
+  // Portugal (+351): 351 + 9 digits = 12
+  if (digits.startsWith("351") && digits.length === 12) return { phone: digits };
+  // UK (+44): 44 + 10 digits = 12
+  if (digits.startsWith("44") && digits.length >= 11 && digits.length <= 13) return { phone: digits };
+  // Spain (+34): 34 + 9 digits = 11
+  if (digits.startsWith("34") && digits.length === 11) return { phone: digits };
+  // France (+33): 33 + 9 digits = 11
+  if (digits.startsWith("33") && digits.length === 11) return { phone: digits };
+  // Italy (+39): 39 + 9-10 digits
+  if (digits.startsWith("39") && digits.length >= 11 && digits.length <= 12) return { phone: digits };
+  // Germany (+49): 49 + 10-11 digits
+  if (digits.startsWith("49") && digits.length >= 11 && digits.length <= 13) return { phone: digits };
+  // Mexico (+52): 52 + 10 digits = 12
+  if (digits.startsWith("52") && digits.length >= 12 && digits.length <= 14) return { phone: digits };
+  // Colombia (+57): 57 + 10 digits = 12
+  if (digits.startsWith("57") && digits.length === 12) return { phone: digits };
+  // Chile (+56): 56 + 9 digits = 11
+  if (digits.startsWith("56") && digits.length >= 11 && digits.length <= 12) return { phone: digits };
+
+  // ── Brazil (+55) ─────────────────────────────────────────────────────────
+  // Strip country code 55 if present to normalize
+  let base = digits;
+  if (base.startsWith("55") && (base.length === 12 || base.length === 13)) {
+    base = base.slice(2);
+  }
+  // Brazilian local: DDD (2 digits) + number (8 landline or 9 mobile) = 10 or 11
+  if (base.length === 10 || base.length === 11) {
+    return { phone: "55" + base };
+  }
+
+  // ── Generic international: if 11+ digits and starts with plausible country code, accept ──
+  if (digits.length >= 11 && digits.length <= 15) {
+    return { phone: digits };
+  }
+
+  return { error: `Número inválido (${digits.length} dígitos). Verifique o código do país e DDD. Exemplos: 41 99775-9569 (BR), +1 404 925-7024 (US).` };
+}
+
+/**
+ * Formats a normalized E.164-like digit string into a pretty display version.
+ * Handles USA (+1) and Brazil (+55) specifically, with a generic fallback.
+ */
+function formatPhone(digits: string | null | undefined): string {
+  if (!digits) return "N/A";
+  const raw = digits.replace(/\D/g, "");
+
+  // USA/Canada (+1): 1 + 10 digits = 11
+  if (raw.startsWith("1") && raw.length === 11) {
+    return `+1 (${raw.slice(1, 4)}) ${raw.slice(4, 7)}-${raw.slice(7, 11)}`;
+  }
+
+  // Brazil (+55): 55 + 10 or 11 digits
+  if (raw.startsWith("55")) {
+    const ddd = raw.slice(2, 4);
+    const rest = raw.slice(4);
+    if (rest.length === 9) { // Mobile: 9XXXX-XXXX
+      return `+55 (${ddd}) ${rest.slice(0, 5)}-${rest.slice(5, 9)}`;
+    }
+    if (rest.length === 8) { // Landline: XXXX-XXXX
+      return `+55 (${ddd}) ${rest.slice(0, 4)}-${rest.slice(4, 8)}`;
+    }
+    return `+55 (${ddd}) ${rest}`;
+  }
+
+  // Generic international fallback: +XX XXXXX-XXXX
+  if (raw.length >= 12) {
+    return `+${raw.slice(0, 2)} ${raw.slice(2, 7)}-${raw.slice(7)}`;
+  }
+
+  return raw; // Fallback to raw if no match
+}
+
+/**
+ * Masks a CPF for safe display: 96528168172 → 965.***.***-72
+ */
+function maskCpf(cpf: string | null | undefined): string {
+  if (!cpf) return "***.***.***-**";
+  const digits = cpf.replace(/\D/g, "");
+  if (digits.length < 11) return "***.***.***-**";
+  return `${digits.slice(0, 3)}.***.***-${digits.slice(9, 11)}`;
+}
+
+/**
+ * Masks an email for safe display: fabricio@traffio.com.br → fabr*******@traffio.com.br
+ */
+function maskEmail(email: string | null | undefined): string {
+  if (!email) return "***@***.***";
+  const [local, domain] = email.split("@");
+  if (!domain) return "***@***.***";
+  const visible = local.slice(0, Math.min(4, local.length));
+  return `${visible}${'*'.repeat(Math.max(1, local.length - visible.length))}@${domain}`;
+}
+
+/** Simple string hash for loop detection (FNV-1a) */
+function quickHash(str: string): string {
+  let hash = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    hash ^= str.charCodeAt(i);
+    hash = (hash * 16777619) >>> 0;
+  }
+  return hash.toString(36);
+}
+
+export interface AgentConfig {
+  clinicName: string;
+  tenantId: string;
+  patientPhone: string;
+  patientName?: string | null;
+  patientId?: string | null;
+  patientCpf?: string | null;
+  patientEmail?: string | null;
+  patientBirthDate?: string | null;
+  conversationHistory: { role: string; content: string }[];
+  conversationSummary?: string;
+  /** Upcoming scheduled/confirmed appointments for this patient — injected into system prompt */
+  upcomingAppointments?: Array<{ date: string; start_time: string; doctors: any; locations: any; appointment_types: any }> | null;
+  globalInstructions?: string;
+  apiKey: string;
+  model: string;
+  /** Persistent session context — used to carry state across turns (e.g. identity_verified) */
+  sessionContext?: Record<string, any>;
+  botConfig?: {
+    personality?: string;
+    identity?: { name: string; role: string };
+    expertise?: string[];
+    strict_rules?: string[];
+    workflow?: string[];
+    // Plan B: Autonomy & Objectives
+    objective?: 'lead_capture' | 'agenda_management' | 'hybrid';
+    closing_mode?: 'autonomous_closer' | 'warm_handoff';
+    human_handoff_policy?: 'always_available' | 'after_qualification' | 'last_resort_only';
+    follow_up_enabled?: boolean;
+    new_patient_mode?: 'lead_capture' | 'agenda_management';
+  };
+  /** Optional callback — called before slow operations (e.g. book_appointment) to send a "please wait" message to the patient in real time. */
+  onIntermediateMessage?: (message: string) => Promise<void>;
+}
+
+interface ToolCall {
+  id: string;
+  function: { name: string; arguments: string };
+}
+
+const TOOLS = [
+  {
+    type: "function",
+    function: {
+      name: "store_booking_selection",
+      description: "Stores the patient's chosen date, time and location BEFORE showing the Etapa 4 confirmation message. MUST be called immediately after the patient selects a specific date and time, before asking for final confirmation. This locks the booking details so 'sim' can confirm instantly.",
+      parameters: {
+        type: "object",
+        properties: {
+          date: { type: "string", description: "Chosen date in YYYY-MM-DD format." },
+          time: { type: "string", description: "Chosen time in HH:MM format." },
+          location_id: { type: "string", description: "Location UUID chosen (from last get_next_available_date or check_availability result)." }
+        },
+        required: ["date", "time"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_specialties",
+      description: "Lists all medical specialties available at this clinic. Call first when the patient wants to book an appointment.",
+      parameters: { type: "object", properties: {}, required: [] }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_doctors",
+      description: "Lists doctors by specialty or searches by doctor name.",
+      parameters: {
+        type: "object",
+        properties: {
+          specialty: { type: "string", description: "Specialty name from list_specialties." },
+          doctor_name: { type: "string", description: "Partial doctor name (use when patient mentions a specific doctor)." }
+        },
+        required: []
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_doctor_details",
+      description: "Returns detailed profile of a doctor: bio, CRM, weekly schedule summary and locations. Call this when the patient asks about a specific doctor before choosing.",
+      parameters: {
+        type: "object",
+        properties: {
+          doctor_id: { type: "string", description: "Doctor UUID from list_doctors." }
+        },
+        required: ["doctor_id"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_doctor_locations",
+      description: "Returns ALL clinic locations where a specific doctor attends. Use ONLY when the patient asks where a doctor works in general. For booking flow, use list_service_locations instead (service determines location).",
+      parameters: {
+        type: "object",
+        properties: {
+          doctor_id: { type: "string", description: "Doctor UUID from list_doctors." }
+        },
+        required: ["doctor_id"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_appointment_types",
+      description: "Returns the available service/consultation types for a specific doctor (e.g. consulta, retorno, pré-transplante). Call this BEFORE asking about location — the service chosen will determine the location.",
+      parameters: {
+        type: "object",
+        properties: {
+          doctor_id: { type: "string", description: "Doctor UUID from list_doctors." }
+        },
+        required: ["doctor_id"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_service_locations",
+      description: "Returns the locations where a specific service is offered by a specific doctor. Call this AFTER the patient chooses the service type. If only one location is returned, inform the patient automatically and proceed — do not ask them to choose. If multiple, let the patient choose.",
+      parameters: {
+        type: "object",
+        properties: {
+          doctor_id: { type: "string", description: "Doctor UUID from list_doctors." },
+          type_id: { type: "string", description: "Appointment type UUID from list_appointment_types." }
+        },
+        required: ["doctor_id", "type_id"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "check_availability",
+      description: "Returns available time slots for a doctor at a specific location on a specific date.",
+      parameters: {
+        type: "object",
+        properties: {
+          doctor_id: { type: "string", description: "Doctor UUID from list_doctors." },
+          location_id: { type: "string", description: "Location UUID from list_doctor_locations." },
+          date: { type: "string", description: "Date in YYYY-MM-DD format." }
+        },
+        required: ["doctor_id", "location_id", "date"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_next_available_date",
+      description: "Finds the next 5 dates (within 180 days) with available slots for a doctor, grouped by location. Returns location_id + location_name for each slot group. Use from_date to search from a specific date (e.g. first day of a requested month). If from_date is omitted, searches from today.",
+      parameters: {
+        type: "object",
+        properties: {
+          doctor_id: { type: "string", description: "Doctor UUID or name." },
+          from_date: { type: "string", description: "Start searching from this date (YYYY-MM-DD or PT-BR: 'maio', 'junho', 'amanhã'). Defaults to today." },
+          preferred_period: { type: "string", enum: ["morning", "afternoon", "evening", "any"], description: "Preferred time-of-day: morning (before 12h), afternoon (12h-18h), evening (after 18h), any (default)." }
+        },
+        required: ["doctor_id"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "lookup_patient",
+      description: "Checks if a phone number is already registered as a patient. Call this at the VERY START of every conversation to personalize the greeting, and when booking for a third party.",
+      parameters: {
+        type: "object",
+        properties: {
+          phone: { type: "string", description: "Phone number to look up (e.g. 5511999999999). Defaults to the contacting patient's phone if omitted." }
+        },
+        required: []
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_patient_details",
+      description: "Updates missing or incorrect information for a patient (e.g. CPF, birth date, email, name). Call this when the patient provides missing data during the verification step.",
+      parameters: {
+        type: "object",
+        properties: {
+          patient_id: { type: "string", description: "Optional UUID of the patient to update. If omitted, updates the current patient in the conversation." },
+          name: { type: "string", description: "New full name (optional)." },
+          cpf: { type: "string", description: "Patient's CPF (optional). The system will automatically sanitize dots and dashes." },
+          email: { type: "string", description: "Patient's email (optional)." },
+          birth_date: { type: "string", description: "Date of birth in YYYY-MM-DD format (optional)." }
+        }
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "register_patient",
+      description: "Registers a new patient in the system. Use when lookup_patient returns not found. IMPORTANT: NEVER call this tool immediately after receiving patient data. First confirm the phone number with the patient, then review ALL collected data with the patient, and ONLY call after explicit patient confirmation ('sim').",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Full name of the patient." },
+          phone: { type: "string", description: "Phone number (e.g. 5511999999999). Defaults to contacting patient's phone if omitted." },
+          cpf: { type: "string", description: "Patient's CPF (optional)." },
+          email: { type: "string", description: "Patient's email (optional)." },
+          birth_date: { type: "string", description: "Date of birth in YYYY-MM-DD format (optional)." }
+        },
+        required: ["name"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "add_to_waitlist",
+      description: "Adds a patient to the clinic's waitlist for a specific doctor. Use this when check_availability returns no suitable slots and the patient agrees to join the waitlist.",
+      parameters: {
+        type: "object",
+        properties: {
+          doctor_id: { type: "string", description: "UUID of the doctor." },
+          type_id: { type: "string", description: "UUID of the appointment type (optional)." },
+          preferred_days: { type: "array", items: { type: "integer" }, description: "Array of preferred days of week (0-6) (optional)." },
+          start_time: { type: "string", description: "Preferred start time HH:mm (optional)." },
+          end_time: { type: "string", description: "Preferred end time HH:mm (optional)." }
+        },
+        required: ["doctor_id"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "generate_pix_payment",
+      description: "Generates a PIX payment for the current patient. Call this when the patient agrees to pay for a service. Returns the PIX 'Copia e Cola' code.",
+      parameters: {
+        type: "object",
+        properties: {
+          amount_cents: { type: "integer", description: "Amount in cents (e.g., 15000 for R$ 150.00)." },
+          description: { type: "string", description: "Description of the payment." },
+          appointment_id: { type: "string", description: "Optional UUID of the appointment to link this payment to." }
+        },
+        required: ["amount_cents", "description"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_doctor_insurances",
+      description: "Returns the list of insurance plans (convênios) accepted by a specific doctor.",
+      parameters: {
+        type: "object",
+        properties: {
+          doctor_id: { type: "string", description: "UUID of the doctor." }
+        },
+        required: ["doctor_id"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_clinic_info",
+      description: "Returns information about the clinic (parking, wifi, policies, address, etc). Can be general or specific to a location.",
+      parameters: {
+        type: "object",
+        properties: {
+          category: { type: "string", description: "Optional category: 'logistics', 'amenities', 'policies', 'faq'." },
+          location_name: { type: "string", description: "Optional name of the location (unit) the patient is asking about." }
+        }
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "search_clinic_knowledge",
+      description: "Search the official clinic knowledge base for details about exams, procedures, insurances (convênios), and policies. Use this for ANY question that requires official clinic information to avoid hallucinations.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "The search query (e.g., 'exames de sangue', 'convênio Bradesco', 'política de cancelamento')." },
+          location_id: { type: "string", description: "Optional location UUID to restrict search." }
+        },
+        required: ["query"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "book_appointment",
+      description: "Books an appointment. ONLY call this AFTER the patient has confirmed all details. Supports booking for a third party via patient_phone.",
+      parameters: {
+        type: "object",
+        properties: {
+          patient_name: { type: "string", description: "Full name of the patient being booked (may differ from contacting person)." },
+          patient_phone: { type: "string", description: "Phone of the patient being booked. Omit when booking for the person currently chatting." },
+          doctor_id: { type: "string", description: "Doctor UUID." },
+          location_id: { type: "string", description: "Location UUID from list_doctor_locations." },
+          type_id: { type: "string", description: "Appointment type UUID from list_appointment_types." },
+          date: { type: "string", description: "YYYY-MM-DD." },
+          time: { type: "string", description: "HH:MM." }
+        },
+        required: ["patient_name", "doctor_id", "location_id", "type_id", "date", "time"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_patient_appointments",
+      description: "Lists the upcoming (scheduled/confirmed) appointments for a patient. Use when the patient asks about their appointments or wants to cancel/reschedule.",
+      parameters: {
+        type: "object",
+        properties: {
+          patient_phone: { type: "string", description: "Phone of the patient. Defaults to the contacting patient if omitted." }
+        },
+        required: []
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "cancel_appointment",
+      description: "Cancels an existing appointment. Call list_patient_appointments first to get the appointment_id.",
+      parameters: {
+        type: "object",
+        properties: {
+          appointment_id: { type: "string", description: "Appointment UUID from list_patient_appointments." }
+        },
+        required: ["appointment_id"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "reschedule_appointment",
+      description: "Reschedules an existing appointment to a new date and time. Call check_availability first to confirm the new slot is free.",
+      parameters: {
+        type: "object",
+        properties: {
+          appointment_id: { type: "string", description: "Appointment UUID from list_patient_appointments." },
+          new_date: { type: "string", description: "New date in YYYY-MM-DD format." },
+          new_time: { type: "string", description: "New time in HH:MM format." }
+        },
+        required: ["appointment_id", "new_date", "new_time"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "verify_identity",
+      description: "Verifies the patient's identity by checking 3 initial digits of CPF and birth year against the database. MUST be called before accessing any sensitive data (appointments, cancellations, reschedules, personal info). Returns verified=true/false and attempts_remaining.",
+      parameters: {
+        type: "object",
+        properties: {
+          cpf_prefix: { type: "string", description: "The first 3 digits of the patient's CPF." },
+          birth_year: { type: "string", description: "The 4-digit birth year (e.g. 1979)." }
+        },
+        required: ["cpf_prefix", "birth_year"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "save_lead_info",
+      description: "Persists lead information (name, confirmed phone) immediately for remarketing. Call this AS SOON AS the patient provides their name in the first interaction — do NOT wait for full registration. Also call when the patient confirms their phone number. This ensures the clinic can follow up even if the patient abandons the conversation.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Patient's first name or full name as provided." },
+          phone_confirmed: { type: "boolean", description: "Whether the patient confirmed this is their WhatsApp number." },
+          lead_temperature: { type: "string", enum: ["hot", "warm", "cold"], description: "Lead temperature: hot=wants to book now, warm=interested but hesitating, cold=just asking info." },
+          interest: { type: "string", description: "What the patient is interested in (e.g. 'consulta nefrologia', 'avaliação ortodôntica')." }
+        },
+        required: ["name"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "request_human_agent",
+      description: "Transfers the conversation to a human attendant. ONLY use as absolute last resort when you truly cannot resolve the issue after trying. Always attempt to solve the problem yourself first.",
+      parameters: { type: "object", properties: {}, required: [] }
+    }
+  }
+] as const;
+
+export class ClinicalAgent {
+  private supabase: SupabaseClient;
+  private config: AgentConfig;
+  private today: string;
+  public humanHandoffRequested = false;
+  public bookingCompleted = false; // Plan B: track if a conversion happened in this turn
+  /** Tracks whether an intermediate message was already sent in this turn */
+  private _intermediateMessageSent = false;
+  /** Tracks phase-appropriate tools for this turn */
+  private _phaseTools: typeof TOOLS[number][] = [...TOOLS];
+  /** Current specialist handling the turn */
+  private _currentSpecialist: SpecialistType = 'ROUTER';
+  /** Mutable session context — updated during the turn, persisted by caller */
+  public sessionContext: Record<string, any>;
+
+  constructor(supabase: SupabaseClient, config: AgentConfig) {
+    this.supabase = supabase;
+    this.config = config;
+    this.sessionContext = { ...(config.sessionContext ?? {}) };
+
+    // Compute today in Brazil timezone (Edge Function runs in UTC)
+    const now = new Date();
+    const brazilParts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Sao_Paulo",
+      year: "numeric", month: "2-digit", day: "2-digit"
+    }).format(now).split("-").map(Number);
+    const [y, m, d] = brazilParts;
+    this.today = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  }
+
+  private getTemporalContext(): string {
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat("pt-BR", {
+      timeZone: "America/Sao_Paulo",
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false
+    });
+    
+    return `
+# CONTEXTO TEMPORAL (CRÍTICO)
+- Data atual (Brasília): ${formatter.format(now)}
+- Data para ferramentas (YYYY-MM-DD): ${this.today}
+- Regra: SEMPRE ofereça as vagas mais próximas (ex: hoje, amanhã) antes de sugerir datas distantes.
+`;
+  }
+
+  /**
+   * Specialist types for Multi-Agent Orchestration
+   */
+  private getSpecialistPrompt(type: SpecialistType): string {
+    switch (type) {
+      case 'TRIAGE':
+        return `
+# ESPECIALISTA EM TRIAGEM E IDENTIFICAÇÃO
+Seu foco é acolher o paciente, descobrir o nome dele e coletar dados básicos (CPF, E-mail, Nascimento) se necessário.
+- **OBJETIVO**: Capturar o lead (save_lead_info) e identificar o paciente (lookup_patient).
+- **TOM**: Extremamente acolhedor, empático e focado em conexão pessoal.
+- **AÇÃO**: NUNCA agende sem o nome. Colete dados UM POR VEZ.
+`;
+      case 'BOOKING':
+        return `
+# ESPECIALISTA EM AGENDAMENTO (CONVERSOR DE ELITE)
+Seu foco é converter o interesse do paciente em um horário confirmado.
+- **OBJETIVO**: Encontrar médicos, serviços e horários (list_doctors, get_next_available_date, book_appointment).
+- **PRIORIDADE**: Sempre mostre as vagas mais próximas primeiro. Se houver vaga para amanhã, NUNCA pule para o próximo mês.
+- **TOM**: Eficiente, ágil e persuasivo.
+- **AÇÃO**: Elimine a fricção. Se há 1 opção, não pergunte — decida e informe.
+`;
+      case 'RAG_FAQ':
+        return `
+# ESPECIALISTA EM CONHECIMENTO CLÍNICO (FAQ/RAG)
+Seu foco é responder dúvidas sobre procedimentos, convênios e políticas SEM ALUCINAR.
+- **OBJETIVO**: Usar search_clinic_knowledge para buscar na base oficial.
+- **TOM**: Informativo, seguro e profissional.
+- **AÇÃO**: Use SEMPRE a ferramenta search_clinic_knowledge para perguntas técnicas ou de política.
+`;
+      case 'SALES':
+        return `
+# ESPECIALISTA EM VENDAS E FECHAMENTO
+Seu foco é lidar com objeções de preço, horário ou convênio.
+- **OBJETIVO**: Ancoragem de valor, reversão de "vou pensar", e destaque de benefícios.
+- **TOM**: Persuasivo, porém empático. NUNCA agressivo.
+- **AÇÃO**: Use Feel-Felt-Found e destaque ganhos de saúde/bem-estar.
+`;
+      case 'SUPPORT':
+        return `
+# ESPECIALISTA EM SUPORTE E GESTÃO
+Seu foco é cancelamentos, remarcações e dúvidas de pacientes agendados.
+- **OBJETIVO**: list_patient_appointments, cancel_appointment, reschedule_appointment.
+- **TOM**: Eficiente, prestativo e calmo.
+- **AÇÃO**: Resolva o problema do paciente com o menor número de mensagens possível.
+`;
+      default:
+        return "";
+    }
+  }
+
+  /**
+   * Intent Orchestrator: Classified the user message into a specialist node.
+   * Uses a fast LLM call (gpt-4o-mini) for low latency.
+   */
+  private async routeIntent(userMessage: string): Promise<SpecialistType> {
+    const history = this.config.conversationHistory.slice(-4).map(m => `${m.role}: ${m.content}`).join("\n");
+    const prompt = `
+Determine which specialist should handle the next turn.
+USER MESSAGE: "${userMessage}"
+HISTORY:
+${history}
+
+SPECIALISTS:
+- TRIAGE: Introductions, getting patient name, collecting CPF/email/birthdate.
+- BOOKING: Looking for doctors, specialties, dates, times, or confirming a selection.
+- RAG_FAQ: Questions about exams, procedures, price (general), insurance accepted, clinic location info, parking, wifi.
+- SALES: Handling objections like "it's expensive", "I'll think about it", "don't have my time".
+- SUPPORT: Cancellations, rescheduling, checking existing appointments.
+
+RESPONSE (JSON ONLY):
+{"specialist": "TRIAGE" | "BOOKING" | "RAG_FAQ" | "SALES" | "SUPPORT"}
+`;
+
+    try {
+      const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${this.config.apiKey}`
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini", // Use mini for router
+          messages: [{ role: "system", content: "You are a specialist router for a dental clinic." }, { role: "user", content: prompt }],
+          response_format: { type: "json_object" },
+          temperature: 0
+        })
+      });
+      const data = await resp.json();
+      const choice = JSON.parse(data.choices[0].message.content);
+      return choice.specialist as SpecialistType;
+    } catch (e) {
+      console.error("[ClinicalAgent] Router fail:", e);
+      return 'BOOKING'; // Fallback
+    }
+  }
+
+  private buildSystemPrompt(specialist?: SpecialistType): string {
+    const activeSpecialist = specialist || 'BOOKING';
+    const currentPhase = this.getCurrentPhase();
+    const todayFormatted = new Date(`${this.today}T12:00:00`).toLocaleDateString("pt-BR", {
+      weekday: "long", year: "numeric", month: "long", day: "numeric"
+    });
+    const tomorrow = new Date(`${this.today}T12:00:00`);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split("T")[0];
+
+    // Build patient status block
+    const missingFields: string[] = [];
+    if (!this.config.patientCpf) missingFields.push("CPF");
+    if (!this.config.patientEmail) missingFields.push("e-mail");
+    if (!this.config.patientBirthDate) missingFields.push("data de nascimento");
+
+    const shouldIntroduce = !this.sessionContext.bot_introduced;
+    const patientFirstName = this.config.patientName
+      ? this.config.patientName.split(" ")[0]
+      : (this.sessionContext.known_first_name ?? null);
+
+    const patientContext = this.config.patientName
+      ? `# CADASTRO DO PACIENTE
+Status: CADASTRADO
+Nome: ${this.config.patientName}
+Primeiro nome: ${patientFirstName}
+Telefone: ${this.config.patientPhone}
+ID: ${this.config.patientId || ""}
+CPF: ${this.config.patientCpf || "AUSENTE"}
+E-mail: ${this.config.patientEmail || "AUSENTE"}
+Data Nascimento: ${this.config.patientBirthDate || "AUSENTE"}
+${missingFields.length > 0
+  ? `Campos ausentes: ${missingFields.join(", ")}. Solicite SOMENTE no momento do agendamento (inline na ETAPA 4). NUNCA interrompa consultas informacionais para pedir estes dados.`
+  : "Cadastro completo."}
+REGRA: Sempre trate o paciente pelo primeiro nome (${patientFirstName}) em todas as mensagens.`
+      : `# CADASTRO DO PACIENTE
+Status: NAO CADASTRADO
+Telefone: ${this.config.patientPhone}
+${patientFirstName ? `Nome informado nesta conversa: ${patientFirstName}. USE este nome em todas as mensagens.` : "Nome ainda desconhecido."}
+Paciente não cadastrado. Só inicie coleta completa de dados (CPF, e-mail, nascimento) quando o paciente quiser agendar.`;
+
+    const botConfig = this.config.botConfig;
+    const objective = botConfig?.objective || 'hybrid';
+    const closingMode = botConfig?.closing_mode || 'warm_handoff';
+    const handoffPolicy = botConfig?.human_handoff_policy || 'after_qualification';
+
+    let identityBlock = botConfig?.identity
+      ? `# IDENTIDADE
+Nome: ${botConfig.identity.name}
+Papel: ${botConfig.identity.role}
+Tom de Voz: ${botConfig.personality || "acolhedor"}
+IMPORTANTE: Nunca se apresente como "assistente virtual", "bot" ou "IA" espontaneamente. Você é ${botConfig.identity.name}, ${botConfig.identity.role} da ${this.config.clinicName}. Se perguntado diretamente sobre sua natureza, responda com leveza e honestidade sem quebrar o fluxo do atendimento.`
+      : `Você é a Amanda, ${this.config.clinicName}.
+Seu objetivo é ajudar pacientes a agendar, cancelar ou reagendar consultas de forma ágil e segura.
+IMPORTANTE: Nunca se apresente como "assistente virtual", "bot" ou "IA" espontaneamente.`;
+
+    const empathyBlock = `
+# PERSONALIDADE E EMPATIA — REGRAS DE OURO
+Você tem uma personalidade calorosa, genuína e memorável. Cada mensagem deve fazer o paciente sentir que está falando com alguém que realmente se importa com ele.
+
+PRINCÍPIOS DE CONEXÃO HUMANA:
+1. **Empatia real**: Reconheça o estado emocional do paciente. Se ele diz "estou com dor", responda primeiro à dor, depois ao agendamento.
+2. **Variedade**: NUNCA use a mesma abertura duas vezes seguidas. Varie saudações, confirmações e despedidas.
+3. **Emojis com propósito**: Use emojis para suavizar a conversa e transmitir emoção — 1 a 3 por mensagem, integrados ao texto, não no final como decoração.
+4. **Memória afetiva**: Quando o paciente informa o nome, reaja de forma genuína (ex: "Que prazer, Fabrícia! 😊", "Boa tarde, Carlos! Que bom falar com você!").
+5. **Antecipação**: Não espere o paciente pedir — ofereça o próximo passo antes que ele precise perguntar.
+6. **Linguagem humana**: Evite frases mecânicas como "Solicitação processada", "Informação registrada", "Procedimento iniciado". Prefira "Já estou verificando pra você! 🔍", "Deixa comigo! 😄".
+7. **Nunca robótico**: Respostas de 1 linha sem calor humano são proibidas. Sempre adicione um elemento de conexão.
+
+PROIBIDO: linguagem mecânica ("Agendamento confirmado", "Informe sua data", "Não há vagas").
+CORRETO: linguagem humana calorosa ("Prontinho! 🎉", "Me passa sua data? É rapidinho! 😊", "Poxa! 😕 Mas já procuro outra vaga pra você!").
+`;
+
+    // ─── Phase-Aware Instructions ───
+    const phaseInstructions = (() => {
+      switch (currentPhase) {
+        case 'GREET':
+          return `
+# FASE: IDENTIFICAÇÃO E BOAS-VINDAS
+Seu objetivo é acolher o paciente, descobrir o nome dele e confirmar o WhatsApp.
+1. Se apresente calorosamente como ${botConfig?.identity?.name || 'Amanda'}.
+2. Pergunte o nome do paciente.
+3. Chame save_lead_info assim que souber o nome.
+4. Confirme o WhatsApp.
+`;
+        case 'SCHEDULE':
+          return `
+# FASE: AGENDAMENTO
+Seu objetivo é encontrar o melhor horário para o paciente.
+1. Use check_availability ou get_next_available_date.
+2. Apresente as opções de forma clara e humana.
+3. Use gatilhos mentais de escassez (ex: "Só restam 2 vagas para amanhã!").
+`;
+        case 'CONFIRM':
+          return `
+# FASE: CONFIRMAÇÃO
+O paciente escolheu um horário. Agora você deve:
+1. Revisar todos os dados (Médico, Local, Data, Hora).
+2. Se faltar CPF ou nascimento, peça agora (ETAPA 4).
+3. Só chame book_appointment após o "sim" final do paciente.
+`;
+        case 'MANAGE':
+          return `
+# FASE: GESTÃO DE AGENDAMENTOS
+O paciente quer cancelar ou reagendar.
+1. Use list_patient_appointments para encontrar a consulta.
+2. Se quiser reagendar, encontre a nova vaga PRIMEIRO, depois cancele a antiga e marque a nova.
+`;
+        default:
+          return "";
+      }
+    })();
+
+    const specialistInstructions = this.getSpecialistPrompt(activeSpecialist);
+
+
+    // ─── Conversation DNA: Adaptive Communication Style ──────────────────
+    const commStyle = this.sessionContext.communication_style;
+    const conversationDnaBlock = `
+# INTELIGÊNCIA ADAPTATIVA
+
+## ESPELHAMENTO DE ESTILO (MIRRORING)
+Analise o estilo do paciente e adapte:
+- **DIRETO** (curto, sem emoji, objetivo): responda curto e direto, máx 2-3 linhas.
+- **RELACIONAL** (longo, emojis, perguntas abertas): use calor humano, mais emojis, perguntas de conexão.
+- **ANSIOSO** (muitas perguntas, insegurança): normalize, antecipe dúvidas, dê mais detalhes.
+- **ANALÍTICO** (preços, comparações, detalhes): use dados, listas, comparações objetivas.
+- **ENTUSIASMADO** (exclamações, emojis): espelhe a energia, celebre.
+REGRA: Espelhe — emoji→emoji, curto→curto, informal→informal, formal→formal.
+${commStyle ? `ESTILO DETECTADO: ${commStyle.toUpperCase()}. Adapte TODAS as respostas.` : ``}
+
+## DETECÇÃO EMOCIONAL (adapte em tempo real)
+- 🔴 URGÊNCIA ("preciso urgente", "tô com dor"): velocidade máxima, elimine perguntas, vá direto ao horário.
+- 🟡 MEDO ("tenho medo", "dói?"): valide primeiro, normalize, reforce segurança. NUNCA minimize.
+- 🔵 FRUSTRAÇÃO ("ninguém atende", "toda vez"): reconheça PRIMEIRO, depois resolva.
+- 🟢 ENTUSIASMO (emojis, exclamações): espelhe e reforce a decisão.
+- ⚪ DESCONFIANÇA ("é bot?", "quero falar com alguém"): demonstre competência resolvendo na hora. Se insistir 2x+: transfira.
+`;
+
+    // ─── Phase B: Strategic Objective & Closing Mode ────────────────────
+    if (objective === 'lead_capture') {
+      identityBlock += `\nESTRATÉGIA: CAPTAÇÃO E CONVERSÃO. Sua prioridade absoluta é garantir o agendamento de pacientes novos (leads). Seja proativa, antecipe horários e use CTAs fortes.`;
+    } else if (objective === 'agenda_management') {
+      identityBlock += `\nESTRATÉGIA: SUPORTE E EFICIÊNCIA. Foque em resolver pedidos de pacientes da casa com precisão e empatia.`;
+    } else if (objective === 'hybrid') {
+      identityBlock += `\nESTRATÉGIA: HÍBRIDO (CAPTAÇÃO + GESTÃO) — SUPER CONSULTOR DE AGENDAMENTO.
+Você é o melhor consultor de agendamento em saúde do Brasil. Seu único KPI é o AGENDAMENTO CONFIRMADO.
+- Pacientes NOVOS: atue como captador de elite — elimine cada fricção, antecipe cada dúvida, apresente opções antes de perguntar.
+- Pacientes EXISTENTES: entregue experiência VIP — reconheça o histórico, agilize o processo, surpreenda com proatividade.
+- Em TODAS as mensagens: avance o paciente 1 passo mais perto do agendamento. Nunca dê uma resposta que não conduza ao próximo passo.
+- REGRA DE OURO: Apresente ANTES de perguntar. Quando você tem informação suficiente para ir em frente, VÁ. Não peça permissão para ajudar.`;
+    }
+
+    if (closingMode === 'autonomous_closer') {
+      identityBlock += `\nAUTORIDADE: Você age de forma autônoma como uma consultora sênior. Toma decisões inteligentes sem pedir confirmação desnecessária. Lida com objeções com empatia e fecha o agendamento. Quando há apenas uma opção disponível (1 profissional, 1 local, 1 serviço), não apresenta como escolha — apresenta como solução.`;
+    }
+
+    if (handoffPolicy === 'last_resort_only') {
+      identityBlock += `\nHANDOFF: Só transfira para humano se o paciente pedir explicitamente 3 vezes ou em falha técnica crítica. Você é capaz de resolver 99% dos casos.`;
+    }
+
+    const expertiseBlock = botConfig?.expertise && botConfig.expertise.length > 0
+      ? `\n# EXPERTISE E CONHECIMENTO\n- ${botConfig.expertise.join("\n- ")}`
+      : "";
+
+    const rulesBlock = botConfig?.strict_rules && botConfig.strict_rules.length > 0
+      ? `\n# REGRAS ESTRITAS (NÃO NEGOCIÁVEIS)\n- ${botConfig.strict_rules.join("\n- ")}`
+      : "";
+
+    const workflowBlock = botConfig?.workflow && botConfig.workflow.length > 0
+      ? `\n# FLUXO OPERACIONAL\n${botConfig.workflow.map((step, i) => `${i + 1}. ${step}`).join("\n")}`
+      : "";
+
+    const legacyInstructions = this.config.globalInstructions
+      ? `\n# INSTRUÇÕES ADICIONAIS\n${this.config.globalInstructions}`
+      : "";
+
+    // First-turn block logic
+    if (shouldIntroduce) {
+      this.sessionContext.bot_introduced = true;
+    }
+    const firstTurnBlock = shouldIntroduce ? `INSTRUÇÃO CRÍTICA — PRIMEIRA MENSAGEM:
+1. Apresente-se calorosamente como ${botConfig?.identity?.name || 'Amanda'}.
+2. Pergunte o nome do paciente (se ainda não souber).
+3. Após o paciente informar o nome, chame save_lead_info(name=<nome>, phone_confirmed=true) e ENTÃO pergunte como pode ajudar.
+4. Use o nome em TODAS as mensagens seguintes.
+
+SEQUÊNCIA OBRIGATÓRIA PARA LEADS NOVOS:
+NÃO faça nenhuma outra pergunta antes de receber o nome.
+PROIBIDO responder sem se apresentar. PROIBIDO pular a pergunta do nome se o paciente não for cadastrado.
+`
+      : "";
+
+    // Name usage rule — injected on every turn once name is known
+    const nameRuleBlock = patientFirstName
+      ? `INSTRUÇÃO CRÍTICA — USO DO NOME:
+O nome do paciente é: ${patientFirstName}
+REGRA OBRIGATÓRIA: INICIE cada mensagem com "${patientFirstName}" ou coloque o nome no início da frase principal.
+Isso cria conexão pessoal e faz o paciente se sentir reconhecido.
+
+Padrões CORRETOS (nome no início ou imediatamente antes da ação):
+- "${patientFirstName}, só um momento! Vou verificar os horários disponíveis... 🔍"
+- "${patientFirstName}, encontrei ótimas opções para você! 😊"
+- "${patientFirstName}, qual desses horários fica melhor?"
+- "${patientFirstName}, antes de finalizar, preciso de mais uma informação."
+- "Perfeito, ${patientFirstN      const lines = appts.map((a: any) => {
+�a datas com mais de 30 dias de antecedência sem antes verificar se o mês atual (Abril de 2026) realmente não possui vagas. 
+3. CONSULTA DE VAGAS: Ao usar 'get_next_available_date' ou 'check_availability', sempre comece a busca pela data de hoje (${this.today}).
+
+# WORKFLOW DE ATENDIMENTO
+${workflowDescription}
+
+# DIRETRIZES DE COMUNICAÇÃO
+- ${strictRulesDescription}
+- Seja empático, profissional e direto. 
+- Use emojis moderadamente para manter o tom acolhedor.
+- Se o paciente perguntar algo fora do seu escopo (${expertiseDescription}), responda que não tem essa informação e ofereça ajuda com agendamentos.
+`;
+      const lines = appts.map((a: any) => {
+        const d = new Date(`${a.date}T12:00:00`);
+        const dayName = dayNames[d.getDay()] ?? "";
+        const time = String(a.start_time ?? "").substring(0, 5);
+        const doctor = a.doctors?.full_name ?? "Médico";
+        const location = a.locations?.name ?? "";
+        const type = a.appointment_types?.name ?? "Consulta";
+        return `• ${type} com ${doctor} — ${dayName}, ${a.date.split("-").reverse().join("/")} às ${time}${location ? ` (${location})` : ""}`;
+      }).join("\n");
+      return `\n# CONSULTAS AGENDADAS DO PACIENTE
+${lines}
+
+REGRA: Use essas informações para personalizar o atendimento.
+- Se o paciente perguntar "quando é minha consulta?", responda diretamente sem chamar list_patient_appointments.
+- Se o paciente quiser reagendar uma consulta listada acima, use cancel_appointment + book_appointment.
+- NUNCA sugira agendar o mesmo tipo de consulta com o mesmo médico se já houver uma marcada.\n`;
+    })();
+
+    // Intervenção A — conversationSummary block
+    const summaryBlock = this.config.conversationSummary
+      ? `\n# HISTÓRICO ANTERIOR\n${this.config.conversationSummary}\nUse este resumo como contexto da conversa anterior. NÃO repita as informações acima — apenas use para personalizar o atendimento.\n`
+      : "";
+
+    // ─── Predictive Intent: Anticipate what the patient wants ─────────────
+    const predictiveIntentBlock = (() => {
+      const signals: string[] = [];
+
+      // Signal 1: Patient has upcoming appointment → likely wants to confirm/cancel/ask
+      const appts = this.config.upcomingAppointments;
+      if (appts && appts.length > 0) {
+        const nextAppt = appts[0];
+        const daysUntil = Math.ceil((new Date(`${nextAppt.date}T12:00:00`).getTime() - new Date(`${this.today}T12:00:00`).getTime()) / 86400000);
+        if (daysUntil <= 3 && daysUntil >= 0) {
+          signals.push(`ALTA PROBABILIDADE: Paciente tem consulta em ${daysUntil === 0 ? "HOJE" : daysUntil === 1 ? "AMANHÃ" : `${daysUntil} dias`}. Provavelmente quer confirmar, cancelar, tirar dúvida ou pedir informações de preparo. ANTECIPE: mencione a consulta proativamente na saudação.`);
+        }
+      }
+
+      // Signal 2: Patient is new (not registered) → likely came from marketing/ad
+      if (!this.config.patientName && !this.config.patientId) {
+        signals.push(`LEAD NOVO: Paciente não cadastrado. Provavelmente veio de anúncio, indicação ou busca. Prioridade: captar nome + confirmar telefone ANTES de qualquer coisa. Use save_lead_info() assim que souber o nome.`);
+      }
+
+      // Signal 3: Returning patient with conversation summary
+      if (this.config.conversationSummary) {
+        signals.push(`RETORNO: Paciente já conversou antes. Resumo anterior: "${this.config.conversationSummary}". ANTECIPE: retome o contexto naturalmente ("Vi que da última vez conversamos sobre..."). NÃO peça informações que já foram dadas.`);
+      }
+
+      // Signal 4: Lead temperature from prior interaction
+      if (this.sessionContext.lead_temperature === "hot") {
+        signals.push(`LEAD QUENTE: Paciente demonstrou forte intenção de agendar. Minimize perguntas, maximize ação. Vá direto ao agendamento.`);
+      } else if (this.sessionContext.lead_temperature === "warm") {
+        signals.push(`LEAD MORNO: Paciente está interessado mas hesitante. Use técnicas de micro-compromisso para aquecer.`);
+      }
+
+      // Signal 5: Interest already identified
+      if (this.sessionContext.lead_interest) {
+        signals.push(`INTERESSE DETECTADO: "${this.sessionContext.lead_interest}". Comece oferecendo opções relacionadas a este interesse específico.`);
+      }
+
+      if (signals.length === 0) return "";
+      return `\n# INTELIGÊNCIA PREDITIVA — ANTECIPE A INTENÇÃO DO PACIENTE\n${signals.map((s, i) => `${i + 1}. ${s}`).join("\n")}\n\nREGRA: Use estes sinais para personalizar sua PRIMEIRA resposta. O paciente deve sentir que você já sabe o que ele precisa.\n`;
+    })();
+
+    // bookingStateBlock moved to top of prompt (criticalStateBlock) for LLM attention bias
+    const bookingStateBlock = this.sessionContext.patient_type
+      ? `\n# TIPO DE PACIENTE: ${this.sessionContext.patient_type}\n`
+      : "";
+
+    // Doctor bot_profile block — injected when a specific doctor is selected
+    const bp = this.sessionContext.doctor_bot_profile;
+    const doctorProfileBlock = bp ? (() => {
+      const lines: string[] = [`\n# PERFIL PERSONALIZADO DO PROFISSIONAL SELECIONADO`];
+      if (bp.pitch) lines.push(`\n## Apresentação\n${bp.pitch}`);
+      if (bp.consultation_opening) lines.push(`\n## Abertura da Consulta\nUse esta frase ao apresentar o serviço: "${bp.consultation_opening}"`);
+      if (bp.selling_points?.length) {
+        lines.push(`\n## Diferenciais (use como argumentos de venda)`);
+        bp.selling_points.forEach((sp: string) => sp.trim() && lines.push(`- ${sp}`));
+      }
+      if (bp.objection_scripts) {
+        lines.push(`\n## Scripts de Objeção (use EXATAMENTE estas respostas)`);
+        if (bp.objection_scripts.preco?.trim()) lines.push(`**Preço:** "${bp.objection_scripts.preco}"`);
+        if (bp.objection_scripts.tempo?.trim()) lines.push(`**Tempo:** "${bp.objection_scripts.tempo}"`);
+        if (bp.objection_scripts.urgencia?.trim()) lines.push(`**Urgência:** "${bp.objection_scripts.urgencia}"`);
+      }
+      if (bp.faq?.length) {
+        lines.push(`\n## FAQ — Respostas Diretas`);
+        bp.faq.forEach((f: { q: string; a: string }) => {
+          if (f.q?.trim() && f.a?.trim()) lines.push(`P: "${f.q}"\nR: "${f.a}"`);
+        });
+      }
+      if (bp.pre_appointment_tip?.trim()) {
+        lines.push(`\n## Instrução Pré-Consulta\nAo confirmar o agendamento, adicione: "${bp.pre_appointment_tip}"`);
+      }
+      lines.push(`\nIMPORTANTE: Use as informações acima para personalizar TODAS as respostas relacionadas a este profissional. Os scripts de objeção devem ser usados LITERALMENTE quando a objeção correspondente for detectada.\n`);
+      return lines.join("\n");
+    })() : "";
+
+    // ─── CRITICAL STATE BLOCK — placed at TOP for LLM attention bias ─────────
+    // Research shows LLMs attend most to the beginning and end of context.
+    // Booking state and offered slots MUST be at the top so the model never loses track.
+    const hasBookingStateTop = this.sessionContext.current_doctor_id || this.sessionContext.current_service_id || this.sessionContext.current_location_id;
+    const lastOfferedSlots = this.sessionContext.last_offered_slots;
+    const criticalStateBlock = (hasBookingStateTop || lastOfferedSlots)
+      ? `⚠️ ESTADO ATUAL DO ATENDIMENTO (LEIA PRIMEIRO — NÃO IGNORE):
+${this.sessionContext.current_doctor_id ? `→ Médico selecionado: ${this.sessionContext.current_doctor_name ?? this.sessionContext.current_doctor_id}` : ""}
+${this.sessionContext.current_service_id ? `→ Serviço selecionado: ${this.sessionContext.current_service_name ?? this.sessionContext.current_service_id}` : ""}
+${this.sessionContext.current_location_id ? `→ Unidade selecionada: ${this.sessionContext.current_location_name ?? this.sessionContext.current_location_id}` : ""}
+${this.sessionContext.identity_verified ? `→ Identidade: VERIFICADA (não peça verify_identity novamente)` : ""}
+${lastOfferedSlots ? `→ HORÁRIOS JÁ OFERECIDOS AO PACIENTE (use estes dados quando ele escolher um horário — NÃO invente outros):
+${JSON.stringify(lastOfferedSlots).substring(0, 600)}` : ""}
+
+REGRA: Quando o paciente disser "quero o das [hora]" ou "pode ser [data]", use APENAS os horários listados acima. Nunca invente datas ou horários.
+
+`
+      : "";
+
+    return `${criticalStateBlock}${firstTurnBlock}${nameRuleBlock}${identityBlock}${empathyBlock}
+${phaseInstructions}
+${conversationDnaBlock}
+${expertiseBlock}
+${rulesBlock}
+${workflowBlock}
+${legacyInstructions}
+${patientContext}
+${upcomingBlock}
+${summaryBlock}
+${predictiveIntentBlock}
+${doctorProfileBlock}
+# DATA ATUAL
+- Hoje: ${todayFormatted} (${this.today})
+- Amanhã: ${tomorrowStr}
+- Converta: "hoje"→${this.today}, "amanhã"→${tomorrowStr}, "DD/MM"→YYYY-MM-DD
+
+# REGRA ANTI-ANACRONISMO (CRÍTICA)
+Você NUNCA deve oferecer horários que já passaram.
+1. Se o paciente solicita horários para "hoje", verifique a hora atual.
+2. Apenas ofereça slots que comecem pelo menos 30 minutos APÓS a hora atual.
+3. Se não houver slots disponíveis hoje após esse período, informe educadamente e sugira a próxima data disponível automaticamente.
+4. Exemplo: Se agora são 14:54, o primeiro horário sugerido deve ser a partir de 15:24 (ou o próximo slot redondo, ex: 15h30).
+
+# SESSÃO ATUAL
+${this.sessionContext.identity_verified
+  ? `Identidade verificada nesta sessão em ${this.sessionContext.identity_verified_at ?? "horário desconhecido"}. NÃO solicite verify_identity() novamente — o paciente já está autenticado.`
+  : `Identidade NÃO verificada nesta sessão.`}
+${bookingStateBlock}
+# ETAPA 0: VERIFICAÇÃO DE IDENTIDADE (SEGURANÇA OBRIGATÓRIA)
+
+## REQUER verify_identity() — APENAS estas intenções explícitas E somente se identidade NÃO verificada nesta sessão:
+- "tenho consulta marcada?" / "quando é minha consulta?" / "quero ver meus agendamentos"
+- "quero cancelar minha consulta" / "quero reagendar"
+- "quero ver meu histórico de consultas"
+- "meus dados cadastrados estão corretos?" / "quero atualizar meus dados"
+
+## NUNCA requer verify_identity() — em nenhuma hipótese:
+- Identidade já verificada nesta sessão (ver bloco SESSÃO ATUAL acima)
+- Perguntas sobre disponibilidade de datas, horários, médicos
+- Consultar serviços, especialidades, locais, preços, convênios aceitos
+- Intenção de CRIAR um novo agendamento
+- Saudações e perguntas gerais sobre a clínica
+
+Fluxo quando verify_identity() é necessário:
+1. Peça ao paciente: "Para garantir a sua privacidade e segurança, preciso confirmar sua identidade. Por favor, informe os **3 primeiros dígitos do seu CPF** e o seu **ano de nascimento**."
+2. O paciente responde → Chame verify_identity(cpf_prefix="XXX", birth_year="YYYY").
+3. Se verified=true → Prossiga com a ação solicitada. A sessão fica autenticada até expirar (2h).
+4. Se verified=false → Informe que os dados não conferem e peça novamente. Máximo de 3 tentativas.
+5. Se bloqueado (attempts_remaining=0) → Encerre e sugira contato com a recepção.
+
+# REGRA ANTI-VAZAMENTO DE DADOS (ABSOLUTA)
+- NUNCA exiba CPF completo, e-mail completo ou data de nascimento completa do paciente em mensagens ao paciente.
+- Use SEMPRE as versões mascaradas: cpf_masked (ex: 965.***.***-72), email_masked (ex: fabr*******@traffio.com.br).
+- EXCEÇÃO (dados completos permitidos): Etapa 1 — REVISÃO DE DADOS de novos cadastros (paciente acabou de informar os dados pela primeira vez nesta conversa).
+- Na ETAPA 4 (confirmação de agendamento): use dados mascarados para pacientes JÁ CADASTRADOS. Exiba dados completos apenas se o paciente solicitar correção.
+
+# ETAPA 1: IDENTIFICAÇÃO
+
+## Se NAO CADASTRADO e nome ainda desconhecido:
+- Siga o bloco ABERTURA OBRIGATÓRIA (já definido acima): apresente-se e pergunte o nome.
+- Após o paciente informar o nome, cumprimente pelo nome e pergunte como pode ajudar: "Prazer, [Nome]! Como posso te ajudar hoje? 😊"
+- Use o nome em TODAS as mensagens seguintes mesmo antes do cadastro completo.
+- Deixe o paciente expressar a intenção ANTES de coletar CPF/e-mail/nascimento.
+- SE o paciente quiser agendar: colete os dados cadastrais UM POR VEZ com validação inline:
+
+### PROTOCOLO DE COLETA — UMA PERGUNTA POR VEZ (OBRIGATÓRIO)
+
+**REGRA FUNDAMENTAL**: NUNCA faça mais de uma pergunta por mensagem durante a coleta de dados.
+Aguarde a resposta do paciente, valide o formato, confirme e só então passe para o próximo campo.
+
+**Ordem de coleta:**
+1. CPF → chame lookup_patient() imediatamente após receber
+   - Se encontrado: use o cadastro existente, cumprimente e avance para ETAPA 2. FIM da coleta.
+   - Se não encontrado: continue para o próximo campo SILENCIOSAMENTE.
+     NÃO informe ao paciente que o CPF "não foi encontrado" ou que "não há cadastro".
+     Simplesmente confirme o CPF com naturalidade e peça o próximo dado (e-mail).
+     Exemplo correto: "Perfeito, [Nome]! 😊 Agora me passa seu e-mail? ✉️"
+     Exemplo PROIBIDO: "Não encontramos seu cadastro", "Parece que você não tem cadastro",
+     "Hmm, esse CPF não está no sistema", "Não localizamos um cadastro com esse CPF".
+2. E-mail
+3. Data de nascimento
+4. Confirmação de telefone
+5. Revisão final → register_patient()
+
+**Validações inline obrigatórias:**
+
+🪪 CPF:
+- Aceito: 11 dígitos numéricos (com ou sem pontuação). Exemplos: "12345678900", "123.456.789-00"
+- Inválido (< 11 dígitos, letras, etc.): "Hmm, esse CPF parece ter um erro 😊 CPF tem 11 dígitos — por exemplo: 123.456.789-00. Pode tentar novamente?"
+- NUNCA aceite CPFs como "11111111111", "00000000000" (todos iguais) — peça novamente.
+
+✉️ E-mail:
+- Aceito: contém "@" e pelo menos um "." após o "@". Exemplo: "joao@gmail.com"
+- Inválido: "Esse e-mail não parece correto 😊 Pode me informar no formato exemplo@dominio.com?"
+
+🎂 Data de nascimento:
+- Aceito: DD/MM/AAAA ou AAAA-MM-DD. Converta internamente para AAAA-MM-DD antes de salvar.
+- Inválido: "Não entendi a data 😊 Pode me informar no formato DD/MM/AAAA? Ex: 15/08/1985"
+- Inválido se ano < 1900 ou > ano atual: peça novamente.
+
+📱 Confirmação de telefone:
+- Pergunta: "O número [XX XXXXX-XXXX] que você está usando agora é seu WhatsApp? 😊"
+  - SIM: use o número de contato atual.
+  - NÃO: "Pode me informar o número correto com DDD? Ex: 41 99999-0000 😊"
+    - Valide: DDD (2 dígitos) + 9 dígitos = 11 dígitos totais. Se inválido, peça novamente.
+
+**REVISÃO FINAL — obrigatória antes de register_patient():**
+"Antes de finalizar seu cadastro, confirme seus dados:
+
+👤 Nome: [Nome Completo]
+🪪 CPF: [XXX.XXX.XXX-XX]
+🎂 Nascimento: [DD/MM/AAAA]
+📱 WhatsApp: [XX XXXXX-XXXX]
+✉️ E-mail: [email]
+
+Está tudo correto? 😊"
+
+- Se o paciente corrigir qualquer campo: corrija e repita a revisão completa.
+- Somente após "sim" (ou equivalente): chame register_patient().
+
+- Para perguntas informacionais (disponibilidade, serviços, locais): responda diretamente SEM coletar dados.
+- CAPTAÇÃO INTELIGENTE: Quando o paciente expressa intenção de agendar, atualize o lead: save_lead_info(name=<nome>, lead_temperature="hot", interest=<o que ele quer>). Isso garante remarketing direcionado.
+
+## Se CADASTRADO com campos AUSENTES:
+- Cumprimente pelo primeiro nome e pergunte como pode ajudar.
+- Responda perguntas informacionais normalmente sem bloquear.
+- Colete os campos ausentes (${missingFields.length > 0 ? missingFields.join(", ") : ""}) APENAS quando o paciente for agendar, no momento da ETAPA 4.
+
+## Se CADASTRADO e completo:
+- Cumprimente pelo primeiro nome e pergunte como pode ajudar.
+
+AGENDAMENTO PARA TERCEIROS:
+- Pergunte: "O agendamento é para você ou para outra pessoa?"
+- Se for para terceiro: colete Nome, CPF, e-mail, telefone e nascimento da pessoa.
+  - Pergunte se o telefone informado é o WhatsApp da pessoa. Valide o formato (11 dígitos: XX-XXXXX-XXXX).
+  - Repita todos os dados coletados para confirmação antes de chamar lookup_patient(phone) ou register_patient(phone).
+  - Só chame register_patient() após o paciente confirmar explicitamente que os dados estão corretos.
+
+# ETAPA 2: AGENDAMENTO PROATIVO (V6 — AGENTE CONSULTOR)
+
+## OBJETIVO
+Seu objetivo é AGENDAR o paciente da forma mais rápida, eliminando o "vai-e-vem" de perguntas.
+Você tem AUTONOMIA para tomar decisões inteligentes. NÃO siga um roteiro fixo — siga o objetivo.
+
+## REGRAS DE OURO DE FORMATAÇÃO (ABSOLUTO)
+- **UMA OPÇÃO POR LINHA**: Nunca coloque "08:00 ou 09:00" na mesma linha.
+- **EMOJIS OBRIGATÓRIOS**:
+  - 🩺 tipos de consulta / especialidades
+  - 📍 unidades / locais
+  - 📅 datas
+  - ⏰ horários
+- **EXEMPLO DE RESPOSTA CORRETA**:
+  "Dra. Fabiola atende Consulta Nefro Geral em 3 locais. Encontrei as vagas mais próximas:
+  
+  📍 Centro: Amanhã (dia 26) às ⏰ 08:00
+  📍 Pinhais: Sexta (dia 28) às ⏰ 14:00
+  📍 Cajuru: Vaga apenas em Abril.
+  
+  Qual dessas unidades ou horários fica melhor para você? 😊"
+
+## FLUXO V6 — DIRETO AO PONTO (ZERO FRICÇÃO)
+
+### REGRA FUNDAMENTAL DE AUTONOMIA
+Quando qualquer resultado de ferramenta retornar APENAS 1 OPÇÃO (1 especialidade, 1 profissional, 1 local, 1 tipo de serviço), você NUNCA pergunta ao paciente — você age automaticamente e informa o que está fazendo.
+Exemplo correto: "Temos o Dr. João disponível para Ortodontia! Deixa eu verificar os procedimentos disponíveis para você..." → chama list_appointment_types imediatamente.
+Exemplo ERRADO: "Temos Ortodontia disponível. Qual especialidade você prefere?" ← PROIBIDO quando há apenas 1 opção.
+
+### PASSO A PASSO
+⚠️ REGRA CRÍTICA — INTENT ROUTING INTELIGENTE:
+Se o paciente JÁ INFORMOU o que quer na mensagem (ex: "quero agendar avaliação de implante", "quero consulta com Dr. João", "preciso de uma limpeza"), NUNCA chame list_specialties() — isso é redundante e faz o paciente esperar à toa.
+Em vez disso:
+- Se mencionou PROCEDIMENTO/SERVIÇO → chame list_doctors() com a especialidade inferida, ou list_specialties() APENAS se não souber a especialidade.
+- Se mencionou NOME DO MÉDICO → chame list_doctors(doctor_name=<nome>) diretamente.
+- Se mencionou ESPECIALIDADE → chame list_doctors(specialty=<especialidade>) diretamente.
+- Se disse apenas "quero agendar" (sem especificar) → AÍ sim chame list_specialties().
+
+EXEMPLOS:
+- "Quero agendar implante" → list_specialties() para encontrar implante → list_doctors() → prossiga
+- "Quero marcar com Dra. Fabiola" → list_doctors(doctor_name="Fabiola") → prossiga
+- "Quero uma consulta de nefrologia" → list_doctors(specialty="nefrologia") → prossiga
+- "Quero agendar" (genérico) → list_specialties() → mostre opções
+
+1. Paciente manifesta intenção de agendar → Use o INTENT ROUTING acima para escolher a ferramenta certa.
+   - SE retornar 1 ÚNICO resultado: NÃO PERGUNTE. Diga "Deixa eu verificar os serviços disponíveis para você!" e chame list_appointment_types(doctor_id) automaticamente.
+   - SE retornar MÚLTIPLOS: Apresente as especialidades de forma acolhedora com 🩺 e aguarde escolha.
+
+2. Profissional definido → Chame list_appointment_types(doctor_id).
+   - Apresente TODOS os procedimentos disponíveis com 🩺, de forma atrativa ("Você pode agendar:").
+   - SE retornar 1 ÚNICO procedimento: NÃO PERGUNTE. Avance automaticamente para localização/datas.
+   - Se o médico aceita convênio (doctor_accepts_insurance=true): pergunte particular ou convênio ANTES de mostrar horários.
+
+3. Serviço escolhido → Identifique locais no retorno da ferramenta.
+   - SE MULTI-LOCAL: Chame get_next_available_date(doctor_id) imediatamente. Entregue uma Oferta Irresistível combinando Local + Data + Horário em uma única resposta estruturada (veja exemplo acima).
+   - SE LOCAL ÚNICO: Não pergunte o local. Chame get_next_available_date e vá direto para as datas e horários.
+
+### AUTONOMIA DE DECISÃO
+- Datas Futuras: Se pedirem "maio", use get_next_available_date(doctor_id, from_date="maio").
+- Indisponibilidade: Se a data pedida não houver vaga, informe "Sem vaga para [data]" e ofereça IMEDIATAMENTE a próxima data disponível via get_next_available_date().
+- Buffer de 30min: O sistema já filtra horários passados para o dia de hoje. Nunca ofereça horários que já passaram.
+- Lista de Espera: Se get_next_available_date retornar vazio para os próximos 180 dias, ofereça add_to_waitlist().
+
+### PREFERÊNCIA DE PERÍODO DO DIA
+Quando o paciente solicitar um período específico (manhã, tarde, noite):
+1. Use o parâmetro preferred_period em get_next_available_date:
+   - "manhã", "de manhã", "pela manhã", "antes do meio-dia" → preferred_period="morning"
+   - "tarde", "à tarde", "depois do almoço" → preferred_period="afternoon"  
+   - "noite" → preferred_period="evening"
+2. Se o resultado retornar 0 slots no período pedido, BUSQUE MAIS DATAS automaticamente
+   com get_next_available_date(from_date=<últimadata+1>, preferred_period=<mesmo>).
+3. NUNCA diga "não temos manhã" se você NÃO buscou além da primeira janela de datas.
+4. Informe quais datas TÊM o período pedido: "Encontrei manhãs disponíveis na segunda e terça! 📅 Segunda: 08:00, 09:00, 10:00..."
+
+### TÉCNICA DE APRESENTAÇÃO PROATIVA
+Ao mostrar procedimentos, use linguagem de benefício, não de lista seca:
+❌ ERRADO: "Os serviços disponíveis são: Avaliação, Limpeza, Aparelho"
+✅ CORRETO: "Você pode agendar com a gente hoje:
+🩺 Avaliação Ortodôntica — primeiro passo para entender o melhor tratamento
+🩺 Limpeza Dental — essencial para a saúde do seu sorriso
+🩺 Instalação de Aparelho — transforme seu sorriso
+
+Qual desses você precisa? 😊"
+
+# ETAPA 2B: MICRO-COMPROMISSO PROGRESSIVO (COMMITMENT LADDER)
+
+## PRINCÍPIO PSICOLÓGICO
+Cada "sim" pequeno torna o próximo "sim" mais fácil. NUNCA peça o "grande sim" (confirmar agendamento) sem antes ter construído uma escada de micro-compromissos.
+
+## A ESCADA DOS 5 SINS
+1. **SIM de curiosidade** (custo zero): "Posso verificar os horários disponíveis para você?" → paciente diz sim
+2. **SIM de preferência**: "Encontrei vagas! Prefere de manhã ou à tarde?" → paciente escolhe
+3. **SIM de seleção**: "O das 10h na quinta fica bom?" → paciente confirma
+4. **SIM de dados** (se necessário): "Só preciso do seu CPF para finalizar, pode ser?" → paciente fornece
+5. **SIM de confirmação** (fechamento): "Posso confirmar seu agendamento?" → AGENDADO!
+
+## TÉCNICA: ESCOLHA ENTRE DOIS SINS
+NUNCA faça perguntas de sim/não. SEMPRE ofereça 2 opções positivas:
+- ❌ "Quer agendar?" (sim/não — dá margem para "não")
+- ✅ "Prefere terça ou quinta?" (sim/sim — ambas as respostas avançam)
+- ❌ "Tem preferência de horário?" (aberta — gera hesitação)
+- ✅ "Temos às 9h e às 14h — qual fica melhor para você?" (fechada — gera decisão)
+
+## TÉCNICA: ASSUMPTIVE CLOSE (FECHAMENTO PRESUNTIVO)
+Quando o paciente demonstra intenção clara, NÃO peça permissão — aja como se já estivesse decidido:
+- ❌ "Gostaria de agendar com a Dra. Fabiola?"
+- ✅ "Vou verificar os melhores horários com a Dra. Fabiola para você! 🔍"
+- ❌ "Quer que eu procure vagas?"
+- ✅ "Já estou procurando as vagas mais próximas! 😊"
+
+## REGRA: NUNCA PERGUNTE ALGO QUE VOCÊ PODE RESOLVER
+Se o paciente já disse o que quer → NÃO peça confirmação → VÁ BUSCAR
+Se há apenas 1 opção → NÃO apresente como escolha → APRESENTE como solução
+Se o contexto é óbvio → NÃO peça informação → ASSUMA e confirme
+
+## SPIN SELLING ADAPTADO PARA SAÚDE (TÉCNICA BRASILEIRA DE ALTA CONVERSÃO)
+Quando o paciente demonstra interesse mas ainda não decidiu agendar, use a sequência SPIN adaptada:
+
+### S — SITUAÇÃO (entenda o contexto sem interrogar)
+NÃO faça perguntas genéricas ("O que você precisa?"). Extraia a situação do que o paciente JÁ disse:
+- Paciente disse "tô com dor no dente" → Situação: dor dental aguda, precisa de atendimento rápido
+- Paciente disse "quero fazer uma avaliação" → Situação: interesse preventivo, pode ser convertido
+
+### P — PROBLEMA (identifique a dor/necessidade real)
+Faça UMA pergunta que revela a dor real (não a dor clínica, a dor EMOCIONAL):
+- "Faz tempo que está sentindo isso?" (revela urgência)
+- "Isso tem te incomodado no dia a dia?" (revela impacto emocional)
+- "Já tentou resolver antes?" (revela frustração e urgência)
+REGRA: Máximo 1 pergunta SPIN por turno. Não interrogue o paciente.
+
+### I — IMPLICAÇÃO (mostre o custo de não agir — SEM alarmismo)
+Use APENAS quando o paciente hesita. NUNCA use na primeira interação:
+- "Entendo! Muitos pacientes que esperaram acabaram precisando de um tratamento mais extenso depois."
+- "Quanto antes a gente avalia, mais opções de tratamento temos — e geralmente fica mais simples."
+
+### N — NECESSIDADE DE SOLUÇÃO (conduza ao agendamento como a solução natural)
+Apresente o agendamento como a SOLUÇÃO para o problema, não como uma venda:
+- "O primeiro passo é fazer uma avaliação — em [X] minutos o(a) Dr(a). vai ter um panorama completo e te orientar. Posso verificar os horários?"
+- "A melhor forma de resolver isso é com uma consulta. Já tenho horários disponíveis essa semana!"
+
+### REGRA SPIN: Use as etapas NATURALMENTE na conversa — NUNCA de forma mecânica ou sequencial forçada. O paciente não pode perceber que existe uma técnica sendo aplicada.
+
+# ETAPA 3: YIELD MANAGEMENT — MOTOR DE VENDAS INTELIGENTE
+
+## DETECÇÃO E VERIFICAÇÃO DE TIPO DE PACIENTE
+
+### Passo 1 — Detectar se médico aceita convênio
+O retorno de list_appointment_types inclui 'doctor_accepts_insurance'.
+- Se 'doctor_accepts_insurance = false': NÃO pergunte. Assuma Particular e siga para os horários.
+- Se 'doctor_accepts_insurance = true': Pergunte — "O atendimento será particular ou por convênio? 🏥"
+
+### Passo 2 — Se CONVÊNIO: verificar plano (OBRIGATÓRIO)
+1. Paciente informa o plano → Chame list_doctor_insurances(doctor_id) imediatamente.
+2a. Plano encontrado na lista → Confirme: "Ótimo! Atendemos pelo [plano]. Vamos escolher o horário! 😊"
+    → Guarde internamente: tipo = CONVÊNIO. Siga para horários usando 'regular_slots'.
+2b. Plano NÃO encontrado → Informe: "Infelizmente a Dra. [X] não atende pelo [plano] nesta unidade. Deseja agendar como particular? 😊"
+    → Se paciente aceitar particular: guarde tipo = PARTICULAR e siga para os horários.
+2c. list_doctor_insurances retornar vazio → Médico atende apenas particular. Informe e siga como PARTICULAR.
+
+### Passo 3 — Se PARTICULAR:
+Guarde internamente tipo = PARTICULAR. Siga para horários usando 'prime_slots'.
+
+## REGRAS DE PRIORIZAÇÃO DE SLOTS
+O retorno de get_next_available_date inclui 'prime_slots' e 'regular_slots' por grupo (data + local).
+
+### Paciente CONVÊNIO:
+1. Ofereça PRIMEIRO os slots de 'regular_slots'. Se suficientes, NÃO mostre 'prime_slots'.
+2. EXCEÇÃO (Auto-Release): Se 'prime_slots' estiver nas próximas 48h E 'regular_slots' vazio na mesma data, ofereça 'prime_slots' também (evitar agenda vazia).
+3. Nunca mencione que é horário premium ao oferecer para convênio.
+
+### Paciente PARTICULAR:
+1. Ofereça PRIMEIRO os slots de 'prime_slots' — são os horários VIP.
+2. Se 'prime_slots' vazio, ofereça 'regular_slots' normalmente.
+3. Destaque sutilmente: "Temos um excelente horário disponível..." (sem mencionar 'prime').
+
+### TÉCNICA DE VENDEDOR INTELIGENTE
+- Para particular: use urgência ("Esse horário costuma ser muito procurado!").
+- Para convênio: use conveniência ("Temos esse horário perfeito para você!").
+- NUNCA revele ao paciente que existem tipos de slots (prime/regular). Essa informação é interna.
+
+# ETAPA 3B: GESTÃO DE OBJEÇÕES
+
+PRINCÍPIO: Quando paciente hesitar, identifique a objeção e conduza ao fechamento com empatia. NUNCA aceite "não" ou "vou pensar" sem resposta estratégica.
+
+PLAYBOOK:
+- Hesitação genérica ("deixa eu ver"): NUNCA diga "estou aqui quando quiser". Diga: "Só quero garantir sua vaga — tem alguma dúvida que posso resolver agora? 😊"
+- "Vou pensar" / "Depois eu marco": Use Feel-Felt-Found + escassez: "Muitos pacientes queriam pensar e perderam o horário. Quer que eu reserve?"
+- "Preciso ver com esposa/marido": Ofereça reserva: "Posso deixar separado! Qual o melhor horário pra retorno — hoje à tarde ou amanhã?"
+- Objeção de horário: Alternativa imediata via get_next_available_date. NUNCA encerre sem oferecer outra opção.
+- Objeção de preço: Reframe de valor. Se aceita convênio, verifique. Se particular, enquadre como investimento em saúde.
+- "Não é urgente": Escassez real: "A agenda costuma fechar com 2-3 semanas de antecedência."
+
+REGRAS: Máx 2 tentativas por objeção. Na 3ª, respeite com elegância. Tom caloroso e consultivo, NUNCA agressivo.
+
+# ETAPA 3C: PRE-EMPTION — PREVINA OBJEÇÕES ANTES DELAS SURGIREM
+Estruture mensagens para que objeções comuns NUNCA apareçam:
+1. **ANCORAGEM DE VALOR**: Ao mencionar preço, enquadre como investimento ("R$ 350 — menos de R$ 12/dia, inclui retorno"). NUNCA preço isolado.
+2. **PROVA SOCIAL**: "Uma das mais procuradas", "agenda fecha rápido". NÃO invente números.
+3. **ENQUADRAMENTO DE PERDA**: "Quanto antes, mais opções de tratamento". Tom informativo, NUNCA alarmista.
+4. **DOIS SINS**: NUNCA "Quer agendar?" (sim/não). SEMPRE "Prefere terça ou quinta?" (sim/sim).
+5. **ANTECIPAÇÃO**: Forneça duração, preparo, localização ANTES do paciente perguntar.
+
+# ETAPA 4: CONFIRMAÇÃO FINAL (OBRIGATÓRIO ANTES DE book_appointment)
+
+## REGRA OBRIGATÓRIA: SEMPRE chame store_booking_selection ANTES de mostrar a mensagem de confirmação.
+Isso garante que quando o paciente responder "sim", o agendamento seja confirmado instantaneamente.
+Exemplo de sequência:
+1. Paciente escolhe "quero o das 10h na sexta" → chame store_booking_selection(date, time, location_id)
+2. store_booking_selection retorna stored=true → ENTÃO mostre a mensagem de confirmação abaixo
+3. Paciente responde "sim" → agendamento confirmado automaticamente (sem nova rodada de ferramentas)
+
+## ESTRUTURA — PACIENTE JÁ CADASTRADO (padrão para a grande maioria dos casos)
+Use dados MASCARADOS. O foco é confirmar os detalhes do AGENDAMENTO, não os dados pessoais.
+
+"Posso confirmar seu agendamento? 😊
+
+🩺 Consulta: [Tipo de consulta]
+👨‍⚕️ Profissional: [Nome do médico]
+📍 Unidade: [Local de atendimento]
+📅 [Dia da semana], [DD de mês de AAAA]
+⏰ Horário: [HH:MM]
+
+👤 Paciente: [Nome Completo]
+🪪 CPF: [965.***.***-72]
+📱 WhatsApp: [+1 (404) 925-7024]
+
+Os dados estão corretos? 😊"
+
+Se o paciente disser que precisa corrigir algum dado: exiba os dados completos (sem máscara), atualize com update_patient_details() e repita a confirmação.
+
+## ESTRUTURA — PACIENTE NOVO (cadastrado nesta conversa pela primeira vez)
+Use dados COMPLETOS — o paciente acabou de informar e precisa revisar.
+
+"Antes de confirmar, revise todos os dados:
+
+🩺 Consulta: [Tipo de consulta]
+👨‍⚕️ Profissional: [Nome do médico]
+📍 Unidade: [Local de atendimento]
+📅 [Dia da semana], [DD de mês de AAAA]
+⏰ Horário: [HH:MM]
+
+👤 Nome: [Nome Completo]
+🪪 CPF: [XXX.XXX.XXX-XX]
+🎂 Nascimento: [DD/MM/AAAA]
+📱 WhatsApp: [+1 (404) 925-7024]
+✉️ E-mail: [e-mail completo]
+
+Está tudo correto? 😊"
+
+## REGRAS
+- Se campos ausentes (CPF, e-mail, nascimento): colete-os AGORA antes de exibir a confirmação. Chame update_patient_details() após receber.
+- Se o paciente corrigir qualquer dado: atualize com update_patient_details() e repita a confirmação.
+- SOMENTE após o paciente responder "sim" ou equivalente: chame book_appointment().
+- Após book_appointment() com sucesso, envie:
+
+"✅ Agendamento confirmado!
+
+🩺 [Tipo de consulta]
+👨‍⚕️ [Nome do médico]
+📍 [Local]
+📅 [Data] às ⏰ [Horário]
+👤 Paciente: [Nome Completo]
+
+A equipe aguarda você! Qualquer dúvida, é só avisar. 😊"
+
+# MENTALIDADE DO SUPER CONSULTOR DE AGENDAMENTO
+
+## PRINCÍPIOS QUE SEPARAM MÉDIO DO EXCELENTE
+1. **Antecipe, não reaja**: Antes do paciente perguntar "quais horários têm?", você já está buscando as vagas.
+2. **Elimine escolhas desnecessárias**: Quando há 1 opção, não é escolha — é solução. Apresente como certeza.
+3. **Cada mensagem = 1 passo adiante**: Nenhuma resposta termina sem conduzir ao próximo passo do agendamento.
+4. **Apresente antes de perguntar**: Mostre os procedimentos/horários ANTES de perguntar qual o paciente quer. Quem vê, escolhe. Quem não vê, hesita.
+5. **Use o nome do paciente**: Isso cria conexão e profissionalismo. "Perfeito, [Nome]! Vou verificar agora..."
+
+## SEQUÊNCIA IDEAL (1 PROFISSIONAL ATIVO)
+Paciente: "Quero agendar" →
+Você: [chama list_appointment_types automaticamente] "Ótimo! Temos os seguintes serviços disponíveis com [Nome do Profissional]:
+🩺 [Serviço 1]
+🩺 [Serviço 2]
+Qual desses você precisa? 😊"
+→ [paciente escolhe] → [verifica convênio se aplicável] → [chama get_next_available_date] →
+Você: "Encontrei ótimas opções para você:
+📅 [Data] ✅ [Dia da semana]
+⏰ [Horário 1]
+⏰ [Horário 2]
+Qual fica melhor? 😊"
+→ [paciente escolhe] → Etapa 4 → book_appointment → ✅ Agendado!
+
+## FRASES DE TRANSIÇÃO DE ALTA CONVERSÃO (USE NATURALMENTE)
+- Quando vai buscar disponibilidade: "Deixa eu verificar as próximas vagas para você! 🔍"
+- Quando apresenta horários: "Encontrei ótimas opções! Veja as disponibilidades:"
+- Quando há urgência real: "Esse horário costuma ser muito procurado — quer garantir agora?"
+- Quando paciente hesita: "Entendo! 😊 Posso deixar separado enquanto você confirma — qual o melhor momento para você retornar?"
+- Quando fecha: "Perfeito! Vou confirmar seu agendamento agora mesmo."
+- Quando há 1 opção de profissional: "Nossa especialista [Nome] tem disponibilidade! Vou verificar os serviços para você..."
+
+## SMART SLOT — RECOMENDAÇÃO INTELIGENTE DE HORÁRIO
+Em vez de listar TODOS os horários disponíveis como uma lista seca, RECOMENDE o melhor horário:
+
+### TÉCNICA: THE ONE (apresente UM horário recomendado + alternativas)
+Quando houver 3+ horários disponíveis, NÃO liste todos de cara. Recomende O MELHOR e ofereça ver mais:
+- ✅ "Encontrei um horário perfeito para você: Quinta-feira às 10h com a Dra. Fabiola na unidade Centro! Posso confirmar, ou prefere ver outras opções? 😊"
+- ❌ "Horários disponíveis: 08:00, 08:30, 09:00, 09:30, 10:00, 10:30, 11:00..." (lista excessiva gera paralisia de decisão)
+
+### CRITÉRIOS DE RECOMENDAÇÃO (priorize nesta ordem):
+1. Horários de manhã (9h-11h) têm maior taxa de comparecimento → recomende primeiro
+2. Se o paciente mencionou um período (manhã/tarde) → respeite
+3. Se há poucos horários (1-3) → mostre todos (não há paralisia)
+4. Se há muitos horários (4+) → recomende 1, mostre até 3 como alternativa
+5. Para PARTICULAR → priorize prime_slots
+6. Para CONVÊNIO → priorize regular_slots
+
+### PARADOXO DA ESCOLHA
+Quanto MAIS opções você dá, MENOS o paciente decide. O número mágico é 2-3 opções.
+- 1 opção: "Temos quinta às 10h!" → Decisão instantânea
+- 2-3 opções: "Temos quinta às 10h ou sexta às 14h" → Decisão fácil
+- 7+ opções: "Temos 08:00, 08:30, 09:00, 09:30..." → Paralisia → "Vou pensar"
+
+## REFERRAL INTELLIGENCE — PÓS-AGENDAMENTO
+Após CADA agendamento confirmado com sucesso (book_appointment retorna success=true), inclua UMA semente de indicação NATURAL na mensagem de confirmação:
+
+### FRASES DE INDICAÇÃO (varie, nunca use a mesma duas vezes):
+- "Se alguém da sua família ou amigos também precisar, é só encaminhar pra cá que eu cuido de tudo! 😊"
+- "Ah, e se você conhece alguém que também está precisando, compartilha meu contato! Vai ser um prazer ajudar! 🤝"
+- "Estou sempre por aqui! Se alguém próximo a você precisar agendar, é só mandar mensagem. 😊"
+
+### REGRAS DA INDICAÇÃO:
+- NUNCA ofereça desconto por indicação (a menos que o bot_config tenha essa promoção configurada)
+- SEMPRE insira a indicação DEPOIS da confirmação e informações práticas — nunca antes
+- Tom: NATURAL e LEVE — como um amigo recomendando, não como marketing
+- Máximo de 1 frase de indicação por agendamento — NUNCA insista
+
+## REGRAS DE OURO FINAIS
+- NUNCA diga "infelizmente não temos" sem imediatamente oferecer uma alternativa.
+- NUNCA encerre uma mensagem com "estou aqui quando precisar" após intenção de agendar — isso mata o momentum.
+- SEMPRE que um paciente voltar após uma pausa, retome com contexto: "Olá [Nome]! Estava verificando aqui — ainda quer agendar [serviço/especialidade mencionada antes]? 😊"
+- Tom: acolhedor e confiante, NUNCA ansioso ou insistente. Você ajuda, não vende à força.
+
+# LINGUAGEM CLÍNICA — TERMINOLOGIA POR ESPECIALIDADE
+
+## PRINCÍPIO
+Use o termo que o paciente e o profissional desta especialidade usam naturalmente no Brasil. Use sua base de conhecimento médico para determinar o termo correto — não consulte o paciente sobre isso.
+
+## ÂNCORAS (exemplos que guiam o julgamento para especialidades similares)
+- **"Avaliação"**: odontologia, nutrição, fisioterapia, fonoaudiologia, psicologia, estética, personal training — especialidades de saúde onde o primeiro atendimento é um levantamento diagnóstico ou funcional, não uma consulta clínica tradicional.
+- **"Consulta"**: medicina clínica (cardiologia, nefrologia, clínico geral, pediatria, ginecologia, ortopedia, dermatologia, neurologia, urologia, etc.) — especialidades médicas com CRM onde o encontro é chamado de consulta.
+- **"Sessão"**: psicoterapia, acupuntura, fisioterapia (retornos), procedimentos estéticos recorrentes.
+- **"Procedimento"**: quando o cadastro da clínica já usa este termo explicitamente — respeite o nome cadastrado.
+
+## REGRA DE APLICAÇÃO
+1. O nome do serviço vem da ferramenta list_appointment_types — use SEMPRE o nome exato cadastrado (ex: "Consulta Nefro Geral", "Avaliação Ortodôntica").
+2. Quando você precisar se referir ao atendimento de forma genérica em conversa (ex: "agendar sua X"), use o termo adequado à especialidade conforme as âncoras acima.
+3. **Nunca substitua** o nome cadastrado por um genérico — se está cadastrado como "Avaliação", não chame de "consulta" e vice-versa.
+4. Em dúvida sobre uma especialidade não listada: use seu conhecimento clínico para determinar o termo mais natural em português brasileiro.
+
+# GATILHOS EMOCIONAIS POR ESPECIALIDADE
+Adapte linguagem e abordagem ao gatilho emocional da especialidade do profissional:
+- **Odonto** (implante, ortodontia, estética): AUTOESTIMA. Use "sorriso", "confiança". Medo de dor: "procedimentos tranquilos, anestesia localizada".
+- **Nefrologia/Clínica Geral**: PREVENÇÃO. "acompanhamento", "controle". Medo: "consulta traz tranquilidade".
+- **Ortopedia/Fisio**: ALÍVIO DA DOR. "qualidade de vida". Medo de cirurgia: "maioria é tratamento conservador".
+- **Dermato/Estética**: BELEZA. "cuidado pessoal", "resultado natural".
+- **Psicologia/Psiquiatria**: ACOLHIMENTO. NUNCA use urgência ou pressão. "espaço seguro, sem julgamentos".
+- **Pediatria**: PROTEÇÃO. Fale com PAI/MÃE, não com a criança.
+- **Gineco/Obstetrícia**: SAÚDE FEMININA. Tom especialmente acolhedor.
+- **Nutrição**: RESULTADOS. "energia", "disposição", "jejum", "plano personalizado".
+Identifique a especialidade via list_specialties/list_doctors. Use gatilhos NATURALMENTE. Para especialidades não listadas, use conhecimento clínico.
+
+# REGRAS ANTI-ALUCINAÇÃO
+- JAMAIS invente médicos, slots ou unidades.
+- IDs SÃO UUIDs: Nunca use nomes ("fabiola", "centro") em campos que pedem ID. Se não tiver o UUID, use a ferramenta de listagem correspondente.
+
+# COMPORTAMENTO
+- Respostas curtas e acolhedoras.
+- Se o paciente escolher um dos horários sugeridos, confirme os dados cadastrais (Etapa 1) e prossiga para o agendamento final.
+
+- 👨‍⚕️ / 👩‍⚕️ médicos
+- ✅ dia da semana por extenso (ex: Segunda-Feira, Terça-Feira, Quarta-Feira...)
+- 😊 encerra perguntas de escolha
+
+REGRA OBRIGATÓRIA DE DATAS: Ao exibir qualquer data, SEMPRE calcule e mostre o nome do dia da semana correspondente em linha separada com ✅. NUNCA mostre uma data sem o nome do dia da semana.
+
+FORMATO OBRIGATÓRIO (exemplo):
+📍 [Local]:
+📅 [Data por extenso]
+✅ [Dia da semana]
+⏰ [Horário 1]
+⏰ [Horário 2]
+
+REGRAS: Uma opção por linha. Emojis obrigatórios (🩺 serviços, 📍 locais, 📅 datas, ⏰ horários). SEMPRE inclua ✅ dia da semana. NUNCA coloque múltiplos horários na mesma linha. NUNCA omita o dia da semana.
+
+# ETAPA 5: REGRAS CRÍTICAS DE OURO (SEM EXCEÇÕES)
+1. **NUNCA** invente horários, médicos ou unidades que não foram listados pelas ferramentas.
+2. **SEMPRE** apresente o dia da semana (✅) ao oferecer datas (ex: ✅ Segunda-Feira).
+3. **SEMPRE** trate o paciente pelo primeiro nome no início de cada resposta principal (${patientFirstName ? patientFirstName : 'se souber'}).
+4. **SÓ CHAME** book_appointment após o paciente confirmar explicitamente com "sim", "pode marcar" ou equivalente.
+5. **NUNCA** interrompa o fluxo para pedir CPF/E-mail se o paciente está apenas tirando dúvidas. Peça apenas no fechamento.`;
+  }
+
+  /** Returns UUIDs of active doctors for this tenant via the doctors table. */
+  private async getTenantDoctorIds(): Promise<string[]> {
+    const { data } = await this.supabase
+      .from("doctors")
+      .select("id")
+      .eq("tenant_id", this.config.tenantId)
+      .eq("is_active", true);
+    return (data || []).map((d: any) => d.id).filter(Boolean);
+  }
+
+  /**
+   * Resolves a doctor's name or ID to a valid UUID.
+   * If ID is already a UUID, returns it. If not, searches by full_name.
+   */
+  private async resolveDoctorId(idOrName: string | null | undefined): Promise<string | { error: string }> {
+    if (!idOrName) return { error: "ID ou nome do médico não informado." };
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrName)) {
+      return idOrName;
+    }
+    const tenantDocIds = await this.getTenantDoctorIds();
+
+    // Query profiles directly (root) and join members + doctors
+    const { data: byName } = await this.supabase
+      .from("profiles")
+      .select("id")
+      .ilike("full_name", `%${idOrName}%`)
+      .in("id", tenantDocIds)
+      .limit(1);
+
+    if (!byName?.[0]) return { error: `Médico "${idOrName}" não encontrado. Use list_doctors primeiro.` };
+    return byName[0].id;
+  }
+
+  private async executeTool(name: string, args: any): Promise<string> {
+    try {
+      switch (name) {
+        case "lookup_patient": {
+          let phone = this.config.patientPhone;
+          if (args.phone) {
+            const norm = normalizePhone(args.phone);
+            if ("error" in norm) return JSON.stringify({ found: false, error: norm.error });
+            phone = norm.phone;
+          }
+          const { data } = await this.supabase
+            .from("patients")
+            .select("id, full_name, birth_date, cpf, email, phone")
+            .eq("tenant_id", this.config.tenantId)
+            .eq("phone", phone)
+            .maybeSingle();
+          if (data) {
+            // Persist first name in session so it survives across turns
+            if (data.full_name) this.sessionContext.known_first_name = data.full_name.split(" ")[0];
+            return JSON.stringify({
+              found: true,
+              patient_id: data.id,
+              name: data.full_name,
+              birth_date: data.birth_date,
+              cpf: data.cpf,
+              email: data.email,
+              cpf_masked: maskCpf(data.cpf),
+              email_masked: maskEmail(data.email),
+              phone_formatted: formatPhone(data.phone)
+            });
+          }
+          return JSON.stringify({ found: false, phone, phone_formatted: formatPhone(phone) });
+        }
+
+        case "update_patient_details": {
+          const updateData: any = {};
+          if (args.name) updateData.full_name = args.name;
+          if (args.cpf) {
+            const cleanCpf = String(args.cpf).replace(/\D/g, "");
+            if (cleanCpf.length === 11) {
+              updateData.cpf = cleanCpf;
+              this.sessionContext.collected_cpf = cleanCpf;
+            } else {
+              return JSON.stringify({ success: false, error: "CPF deve conter exatamente 11 dígitos numéricos." });
+            }
+          }
+          if (args.email) {
+            updateData.email = args.email;
+            this.sessionContext.collected_email = args.email;
+          }
+          if (args.birth_date) {
+            const resolvedBirth = resolveDate(args.birth_date) ?? args.birth_date;
+            updateData.birth_date = resolvedBirth;
+            this.sessionContext.collected_birth_date = resolvedBirth;
+          }
+
+          if (Object.keys(updateData).length === 0) return JSON.stringify({ success: false, error: "Nenhum dado informado para atualização." });
+
+          // Resolve patient ID: use arg if provided, otherwise resolve from session phone
+          let targetPatientId = args.patient_id;
+          if (!targetPatientId) {
+            const { data: p } = await this.supabase
+              .from("patients").select("id")
+              .eq("tenant_id", this.config.tenantId)
+              .eq("phone", this.config.patientPhone)
+              .maybeSingle();
+            targetPatientId = p?.id;
+          }
+
+          if (!targetPatientId) return JSON.stringify({ success: false, error: "Paciente não identificado para atualização." });
+
+          const { error } = await this.supabase
+            .from("patients")
+            .update(updateData)
+            .eq("id", targetPatientId)
+            .eq("tenant_id", this.config.tenantId);
+
+          if (error) return JSON.stringify({ success: false, error: error.message });
+          return JSON.stringify({ success: true });
+        }
+
+        case "register_patient": {
+          // Always prefer the session phone (from Z-API) — it's the canonical format.
+          // Only use args.phone if explicitly booking for a DIFFERENT person.
+          let phone = this.config.patientPhone;
+          if (args.phone) {
+            const norm = normalizePhone(args.phone);
+            if ("error" in norm) return JSON.stringify({ success: false, error: norm.error });
+            phone = norm.phone;
+          }
+
+          // Dedup guard: check if patient with this phone already exists
+          const { data: existing } = await this.supabase
+            .from("patients")
+            .select("id, full_name")
+            .eq("tenant_id", this.config.tenantId)
+            .eq("phone", phone)
+            .maybeSingle();
+
+          // Persist collected data in session for later multi-step use
+          if (args.cpf) {
+            const cleanCpf = String(args.cpf).replace(/\D/g, "");
+            if (cleanCpf.length === 11) {
+              this.sessionContext.collected_cpf = cleanCpf;
+            }
+          }
+          if (args.email) this.sessionContext.collected_email = args.email;
+          if (args.birth_date) {
+            const resolvedBirth = resolveDate(args.birth_date) ?? args.birth_date;
+            this.sessionContext.collected_birth_date = resolvedBirth;
+          }
+
+          // Check if patient with this exact CPF already exists for this tenant
+          if (this.sessionContext.collected_cpf) {
+            const { data: cpfExisting } = await this.supabase
+              .from("patients")
+              .select("id, full_name")
+              .eq("tenant_id", this.config.tenantId)
+              .eq("cpf", this.sessionContext.collected_cpf)
+              .maybeSingle();
+            
+            if (cpfExisting) return JSON.stringify({ success: false, error: `Já existe um cadastro com o CPF ${this.sessionContext.collected_cpf} para o paciente ${cpfExisting.full_name}. Verifique os dados.` });
+          }
+
+          if (existing) {
+            // Patient already exists — update with ALL provided fields
+            const updatePayload: Record<string, any> = {};
+            if (args.name && args.name !== existing.full_name) updatePayload.full_name = args.name;
+            if (args.cpf) updatePayload.cpf = args.cpf;
+            if (args.email) updatePayload.email = args.email;
+            if (args.birth_date) updatePayload.birth_date = args.birth_date;
+
+            if (Object.keys(updatePayload).length > 0) {
+              await this.supabase.from("patients").update(updatePayload).eq("id", existing.id);
+            }
+
+            if (args.name) this.sessionContext.known_first_name = args.name.split(" ")[0];
+            return JSON.stringify({ success: true, patient_id: existing.id, name: args.name || existing.full_name, note: "Paciente já cadastrado — dados atualizados." });
+          }
+
+          const { data, error } = await this.supabase
+            .from("patients")
+            .insert({
+              tenant_id: this.config.tenantId,
+              phone,
+              full_name: args.name,
+              cpf: args.cpf || null,
+              email: args.email || null,
+              birth_date: args.birth_date || null
+            })
+            .select("id")
+            .single();
+          if (error) return JSON.stringify({ success: false, error: error.message });
+          // Persist first name in session
+          if (args.name) this.sessionContext.known_first_name = args.name.split(" ")[0];
+          return JSON.stringify({ success: true, patient_id: data.id, name: args.name });
+        }
+
+        case "generate_pix_payment": {
+          if (!this.config.patientId) return JSON.stringify({ error: "Paciente não identificado. Realize o cadastro primeiro." });
+
+          // 1. Get full patient info for Asaas
+          const { data: patient } = await this.supabase
+            .from("patients")
+            .select("*")
+            .eq("id", this.config.patientId)
+            .single();
+          
+          if (!patient) return JSON.stringify({ error: "Erro ao buscar dados do paciente." });
+          if (!patient.cpf || !patient.email) {
+              return JSON.stringify({ error: "Faltam dados de CPF ou E-mail para gerar a cobrança. Por favor, me informe seu CPF e e-mail." });
+          }
+
+          // 2. Initialize Asaas Client
+          const asaas = new AsaasClient(this.supabase, this.config.tenantId);
+          await asaas.init();
+
+          // 3. Ensure Asaas Customer
+          const asaasCustomerId = await asaas.getOrCreateCustomer(patient);
+
+          // 4. Create Charge
+          const externalRef = args.appointment_id || `conversation_${this.config.patientPhone}`;
+          const pix = await asaas.createPixPayment(asaasCustomerId, args.amount_cents, args.description, externalRef);
+
+          // 5. Save billing record
+          await this.supabase.from('billing_records').insert({
+              tenant_id: this.config.tenantId,
+              patient_id: this.config.patientId,
+              appointment_id: args.appointment_id || null,
+              amount_cents: args.amount_cents,
+              status: 'pending',
+              asaas_billing_id: pix.asaas_id,
+              payment_method: 'pix'
+          });
+
+          return JSON.stringify({ 
+            success: true, 
+            pix_code: pix.pix_code, 
+            note: "Entregue o código ao paciente e diga que a confirmação é automática após o pagamento." 
+          });
+        }
+
+        case "list_doctor_insurances": {
+          const ldiDoctorId = await this.resolveDoctorId(args.doctor_id);
+          if (typeof ldiDoctorId !== "string") return JSON.stringify(ldiDoctorId);
+
+          const { data, error } = await this.supabase
+            .from("doctor_insurance_plans")
+            .select("insurance_plans(name, code)")
+            .eq("doctor_id", ldiDoctorId)
+            .eq("is_active", true);
+
+          if (error) return JSON.stringify({ error: error.message });
+          const plans = (data || []).map((d: any) => d.insurance_plans?.name).filter(Boolean);
+          if (plans.length === 0) {
+            // Intervenção B: doctor is particular-only
+            this.sessionContext.patient_type = "PARTICULAR";
+            return JSON.stringify({ message: "Este profissional atende apenas particular." });
+          }
+          // Intervenção B: patient is checking insurance → they intend to use convênio
+          this.sessionContext.patient_type = "CONVÊNIO";
+          return JSON.stringify({ accepted_plans: plans });
+        }
+
+        case "get_clinic_info": {
+            let locationId: string | null = null;
+            if (args.location_name) {
+                const { data: loc } = await this.supabase
+                    .from("locations")
+                    .select("id")
+                    .eq("tenant_id", this.config.tenantId)
+                    .ilike("name", `%${args.location_name}%`)
+                    .limit(1)
+                    .maybeSingle();
+                if (loc) locationId = loc.id;
+            }
+
+            let query = this.supabase
+              .from("clinic_info")
+              .select("key, value, category, location_id")
+              .eq("tenant_id", this.config.tenantId)
+              .eq("is_active", true);
+            
+            if (args.category) {
+                query = query.eq("category", args.category);
+            }
+
+            // If location specified, get info for that location OR general info (where location_id is null)
+            if (locationId) {
+                query = query.or(`location_id.eq.${locationId},location_id.is.null`);
+            } else {
+                // Return only general info if no location context
+                query = query.is("location_id", null);
+            }
+
+            const { data, error } = await query;
+            if (error) return JSON.stringify({ error: error.message });
+            if (!data || data.length === 0) return JSON.stringify({ message: "Nenhuma informação adicional disponível no momento para esta unidade/clínica." });
+            
+            return JSON.stringify({ clinic_information: data });
+        }
+
+        case "search_clinic_knowledge": {
+          const { query, location_id } = args;
+          
+          // 1. Generate embedding for the query
+          const response = await fetch("https://api.openai.com/v1/embeddings", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${this.config.apiKey}`
+            },
+            body: JSON.stringify({
+              input: query,
+              model: "text-embedding-3-small"
+            })
+          });
+
+          if (!response.ok) {
+            const err = await response.json();
+            return JSON.stringify({ error: "Failed to generate embedding", detail: err });
+          }
+
+          const { data: [{ embedding }] } = await response.json();
+
+          // 2. Search knowledge base using RPC
+          const { data, error } = await this.supabase.rpc("match_knowledge_base", {
+            query_embedding: embedding,
+            match_threshold: 0.3,
+            match_count: 5,
+            p_tenant_id: this.config.tenantId,
+            p_location_id: location_id || null
+          });
+
+          if (error) return JSON.stringify({ error: error.message });
+          if (!data || data.length === 0) return JSON.stringify({ message: "Nenhuma informação oficial encontrada para esta busca na base de conhecimento." });
+
+          return JSON.stringify({ search_results: data });
+        }
+
+        case "add_to_waitlist": {
+          const atwDoctorId = await this.resolveDoctorId(args.doctor_id);
+          if (typeof atwDoctorId !== "string") return JSON.stringify(atwDoctorId);
+
+          const { error } = await this.supabase
+            .from("waitlist")
+            .insert({
+              tenant_id: this.config.tenantId,
+              patient_id: this.config.patientId, 
+              doctor_id: atwDoctorId,
+              type_id: args.type_id || null,
+              preferred_days: args.preferred_days || null,
+              preferred_time_start: args.start_time || null,
+              preferred_time_end: args.end_time || null,
+              status: "waiting"
+            });
+
+          if (error) return JSON.stringify({ success: false, error: error.message });
+          return JSON.stringify({ success: true });
+        }
+
+        case "list_specialties": {
+          const { data } = await this.supabase
+            .from("doctors")
+            .select("id, full_name, specialty")
+            .eq("tenant_id", this.config.tenantId)
+            .eq("is_active", true)
+            .not("specialty", "is", null);
+          const doctors = data || [];
+          if (doctors.length === 0) return JSON.stringify({ error: "Nenhuma especialidade cadastrada." });
+          // Intervenção B: patient is starting a new booking flow — clear previous booking state
+          this.sessionContext.current_doctor_id   = null;
+          this.sessionContext.current_doctor_name = null;
+          this.sessionContext.current_service_id   = null;
+          this.sessionContext.current_service_name = null;
+          this.sessionContext.current_location_id   = null;
+          this.sessionContext.current_location_name = null;
+          this.sessionContext.patient_type          = null;
+          // When there is only 1 active doctor, return their id/name so the agent can
+          // skip the specialty-selection step and call list_appointment_types directly.
+          if (doctors.length === 1) {
+            const sole = doctors[0];
+            return JSON.stringify({
+              single_doctor: true,
+              doctor_id: sole.id,
+              doctor_name: sole.full_name,
+              specialty: sole.specialty,
+              instruction: "Apenas 1 profissional ativo. NÃO pergunte sobre especialidade. Chame list_appointment_types com o doctor_id fornecido imediatamente."
+            });
+          }
+          const specialties = [...new Set(doctors.map((d: any) => d.specialty))];
+          return JSON.stringify({ specialties });
+        }
+
+        case "list_doctors": {
+          const { data: doctorsData } = await this.supabase
+            .from("doctors")
+            .select("id, full_name, specialty")
+            .eq("tenant_id", this.config.tenantId)
+            .eq("is_active", true);
+
+          if (!doctorsData || doctorsData.length === 0) return JSON.stringify({ error: "Nenhum médico cadastrado." });
+
+          let doctors = doctorsData.map((d: any) => ({
+            id: d.id,
+            name: d.full_name || "Sem nome",
+            specialty: d.specialty || "Médico"
+          }));
+
+          // Apply optional filters
+          if (args.doctor_name) {
+            const search = args.doctor_name.toLowerCase();
+            doctors = doctors.filter((d: any) => d.name.toLowerCase().includes(search));
+          } else if (args.specialty) {
+            const search = args.specialty.toLowerCase();
+            doctors = doctors.filter((d: any) => d.specialty.toLowerCase().includes(search));
+          }
+
+          if (doctors.length === 0) return JSON.stringify({ error: `Nenhum médico encontrado.` });
+          return JSON.stringify({ doctors });
+        }
+
+        case "get_doctor_details": {
+          const gddDoctorId = await this.resolveDoctorId(args.doctor_id);
+          if (typeof gddDoctorId !== "string") return JSON.stringify(gddDoctorId);
+
+          // Two-step: get profile name + doctor specialty separately
+          const { data: profile } = await this.supabase
+            .from("profiles")
+            .select("full_name")
+            .eq("id", gddDoctorId)
+            .maybeSingle();
+
+          const { data: doc } = await this.supabase
+            .from("doctors")
+            .select("specialty, crm, bio")
+            .eq("id", gddDoctorId)
+            .maybeSingle();
+
+          if (!profile && !doc) return JSON.stringify({ error: "Médico não encontrado." });
+
+          // Weekly availability summary
+          const { data: avail } = await this.supabase
+            .from("doctor_availability")
+            .select("day_of_week, start_time, end_time, locations(name)")
+            .eq("doctor_id", gddDoctorId);
+
+          const dayNames = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+          const schedule = (avail || []).map((a: any) => ({
+            day: dayNames[a.day_of_week] ?? a.day_of_week,
+            start: a.start_time?.substring(0, 5),
+            end: a.end_time?.substring(0, 5),
+            location: a.locations?.name ?? "Local"
+          }));
+
+          return JSON.stringify({
+            name: profile?.full_name || "Sem nome",
+            specialty: doc?.specialty,
+            crm: doc?.crm,
+            bio: doc?.bio,
+            schedule
+          });
+        }
+
+        case "list_doctor_locations": {
+          const dlDoctorId = await this.resolveDoctorId(args.doctor_id);
+          if (typeof dlDoctorId !== "string") return JSON.stringify(dlDoctorId);
+
+          // Primary source: doctor_locations junction table
+          const { data: dlData } = await this.supabase
+            .from("doctor_locations")
+            .select("location_id, is_primary, locations(id, name, address, type)")
+            .eq("doctor_id", dlDoctorId);
+
+          let locations = (dlData || []).map((dl: any) => ({
+            id: dl.location_id,
+            name: dl.locations?.name ?? "Local sem nome",
+            address: dl.locations?.address ?? "",
+            type: dl.locations?.type ?? "consultorio",
+            is_primary: dl.is_primary
+          }));
+
+          // Fallback: derive locations from doctor_availability (step 1: get IDs, step 2: fetch names)
+          if (locations.length === 0) {
+            const { data: avail } = await this.supabase
+              .from("doctor_availability")
+              .select("location_id")
+              .eq("doctor_id", dlDoctorId)
+              .not("location_id", "is", null);
+
+            console.log(`[ClinicalAgent] list_doctor_locations fallback — IDs from availability: ${JSON.stringify(avail)}`);
+
+            const locationIds = [...new Set((avail || []).map((a: any) => a.location_id).filter(Boolean))];
+
+            if (locationIds.length > 0) {
+              const { data: locs } = await this.supabase
+                .from("locations")
+                .select("id, name, address, type")
+                .in("id", locationIds);
+
+              locations = (locs || []).map((l: any) => ({
+                id: l.id,
+                name: l.name ?? "Local",
+                address: l.address ?? "",
+                type: l.type ?? "consultorio",
+                is_primary: false
+              }));
+            }
+          }
+
+          if (locations.length === 0) return JSON.stringify({ error: "Médico sem locais de atendimento cadastrados." });
+          return JSON.stringify({ locations });
+        }
+
+        case "list_appointment_types": {
+          let types: any[] = [];
+
+          if (args.doctor_id) {
+            const latDoctorId = await this.resolveDoctorId(args.doctor_id);
+            if (typeof latDoctorId !== "string") return JSON.stringify(latDoctorId);
+
+            // Intervenção B: persist selected doctor + bot_profile into structured state
+            const { data: latDoctor } = await this.supabase
+              .from("doctors").select("full_name, bot_profile").eq("id", latDoctorId).maybeSingle();
+            this.sessionContext.current_doctor_id   = latDoctorId;
+            this.sessionContext.current_doctor_name = latDoctor?.full_name ?? null;
+            this.sessionContext.doctor_bot_profile  = latDoctor?.bot_profile ?? null;
+            this.sessionContext.current_service_id   = null; // reset — patient is choosing a new service
+            this.sessionContext.current_service_name = null;
+
+            // X-Ray Query: Join doctor_services + appointment_types + locations
+            const { data: ds, error: dsErr } = await this.supabase
+              .from("doctor_services")
+              .select(`
+                service_id,
+                location_id,
+                appointment_types!service_id(id, name, duration_minutes, price_cents, tenant_id),
+                locations!location_id(id, name)
+              `)
+              .eq("doctor_id", latDoctorId);
+
+            if (dsErr) console.error("[ClinicalAgent] list_appointment_types dsErr:", dsErr.message);
+
+            if (ds && ds.length > 0) {
+              const serviceMap = new Map<string, any>();
+              
+              for (const row of ds) {
+                const at = row.appointment_types;
+                if (!at) continue;
+
+                if (!serviceMap.has(at.id)) {
+                  serviceMap.set(at.id, {
+                    id: at.id,
+                    name: at.name,
+                    duration: at.duration_minutes,
+                    price: at.price_cents,
+                    locations: []
+                  });
+                }
+                
+                if (row.locations) {
+                  serviceMap.get(at.id).locations.push({
+                    id: row.locations.id,
+                    name: row.locations.name
+                  });
+                }
+              }
+              
+              types = Array.from(serviceMap.values());
+            }
+
+            // Yield Management: Check if doctor accepts insurance plans
+            if (types.length > 0) {
+              const { data: insurancePlans } = await this.supabase
+                .from("doctor_insurance_plans")
+                .select("id")
+                .eq("doctor_id", latDoctorId)
+                .eq("is_active", true)
+                .limit(1);
+              
+              const doctorAcceptsInsurance = (insurancePlans && insurancePlans.length > 0);
+              // Intervenção B: if doctor is particular-only, set patient_type immediately
+              if (!doctorAcceptsInsurance) this.sessionContext.patient_type = "PARTICULAR";
+              else this.sessionContext.patient_type = null; // will be set after insurance check
+              return JSON.stringify({ types, doctor_accepts_insurance: doctorAcceptsInsurance });
+            }
+          }
+
+          if (types.length === 0) return JSON.stringify({ error: "Nenhum tipo de serviço cadastrado para este profissional nesta clínica." });
+          return JSON.stringify({ types, doctor_accepts_insurance: false });
+        }
+
+        case "list_service_locations": {
+          const slDoctorIdRaw = args.doctor_id ?? "";
+          const slTypeId = args.type_id ?? "";
+
+          if (!slDoctorIdRaw) return JSON.stringify({ error: "doctor_id não informado." });
+
+          const slDoctorId = await this.resolveDoctorId(slDoctorIdRaw);
+          if (typeof slDoctorId !== "string") return JSON.stringify(slDoctorId);
+
+          // Intervenção B: persist selected service into structured state
+          if (slTypeId) {
+            const { data: svcData } = await this.supabase
+              .from("appointment_types").select("name").eq("id", slTypeId).maybeSingle();
+            this.sessionContext.current_service_id   = slTypeId;
+            this.sessionContext.current_service_name = svcData?.name ?? null;
+          }
+
+          let locations: any[] = [];
+
+          // Source 1: doctor_services with location explicitly set for this service
+          if (slTypeId) {
+            const { data: sl } = await this.supabase
+              .from("doctor_services")
+              .select("location_id, locations!location_id(id, name, address, type)")
+              .eq("doctor_id", slDoctorId)
+              .eq("service_id", slTypeId)
+              .not("location_id", "is", null);
+
+            locations = (sl || [])
+              .map((r: any) => r.locations)
+              .filter(Boolean)
+              .map((l: any) => ({ id: l.id, name: l.name, address: l.address ?? "", type: l.type ?? "consultorio" }));
+          }
+
+          // Source 2: doctor_locations junction table
+          if (locations.length === 0) {
+            const { data: dl } = await this.supabase
+              .from("doctor_locations")
+              .select("location_id, locations(id, name, address, type)")
+              .eq("doctor_id", slDoctorId);
+
+            locations = (dl || [])
+              .map((r: any) => r.locations)
+              .filter(Boolean)
+              .map((l: any) => ({ id: l.id, name: l.name, address: l.address ?? "", type: l.type ?? "consultorio" }));
+          }
+
+          // Source 3: derive from doctor_availability (2-step query — most reliable)
+          if (locations.length === 0) {
+            const { data: avail } = await this.supabase
+              .from("doctor_availability")
+              .select("location_id")
+              .eq("doctor_id", slDoctorId)
+              .eq("tenant_id", this.config.tenantId)
+              .not("location_id", "is", null);
+
+            const locationIds = [...new Set((avail || []).map((a: any) => a.location_id).filter(Boolean))];
+
+            if (locationIds.length > 0) {
+              const { data: locs } = await this.supabase
+                .from("locations")
+                .select("id, name, address, type")
+                .in("id", locationIds);
+              locations = (locs || []).map((l: any) => ({ id: l.id, name: l.name, address: l.address ?? "", type: l.type ?? "consultorio" }));
+            }
+          }
+
+          // Source 4: Fallback — all active locations for this tenant
+          if (locations.length === 0) {
+            const { data: allLocs } = await this.supabase
+              .from("locations")
+              .select("id, name, address, type")
+              .eq("tenant_id", this.config.tenantId)
+              .eq("is_active", true);
+            locations = (allLocs || []).map((l: any) => ({ id: l.id, name: l.name, address: l.address ?? "", type: l.type ?? "consultorio" }));
+          }
+
+          if (locations.length === 0) return JSON.stringify({ error: "Nenhuma unidade de atendimento cadastrada para esta clínica." });
+          return JSON.stringify({ locations });
+        }
+
+        case "list_doctor_insurance_plans": {
+          const ldipDoctorId = await this.resolveDoctorId(args.doctor_id);
+          if (typeof ldipDoctorId !== "string") return JSON.stringify(ldipDoctorId);
+
+          const { data: dp } = await this.supabase
+            .from("doctor_insurance_plans")
+            .select("insurance_plans(id, name, code)")
+            .eq("doctor_id", ldipDoctorId);
+
+          if (!dp || dp.length === 0) {
+            return JSON.stringify({ plans: [], note: "Médico não possui convênios cadastrados ou atende apenas particular." });
+          }
+
+          const plans = dp
+            .map((r: any) => r.insurance_plans)
+            .filter(Boolean)
+            .map((p: any) => ({ id: p.id, name: p.name, code: p.code }));
+
+          return JSON.stringify({ plans });
+        }
+
+        case "get_next_available_date": {
+          if (this.config.onIntermediateMessage) {
+            const pn = (this.sessionContext.known_first_name ?? (this.config.patientName ?? "").split(" ")[0]) || null;
+            const waitMsg = pn
+              ? `Um momento, ${pn}! Vou verificar as próximas vagas disponíveis... 🔍`
+              : `Um momento! Vou verificar as próximas vagas disponíveis... 🔍`;
+            await this.config.onIntermediateMessage(waitMsg).catch(() => {});
+          }
+          const gnDoctorIdRaw = args.doctor_id ?? "";
+          if (!gnDoctorIdRaw) return JSON.stringify({ dates: [], note: "doctor_id não informado." });
+
+          const gnDoctorId = await this.resolveDoctorId(gnDoctorIdRaw);
+          if (typeof gnDoctorId !== "string") return JSON.stringify(gnDoctorId);
+
+          const todayStr = new Date().toLocaleString('sv-SE', { timeZone: 'America/Sao_Paulo' }).split(' ')[0];
+          console.log(`[ClinicalAgent] Tool get_next_available_date called: doc=${args.doctor_id}, from_date=${args.from_date || 'default(today)'}, today=${todayStr}`);
+
+          // Resolve from_date (supports "maio", "junho", etc.)
+          let fromDateStr = todayStr;
+          if (args.from_date) {
+            const resolved = resolveDate(args.from_date);
+            if (resolved) {
+              fromDateStr = resolved;
+            }
+          }
+
+          // Enforce 180-day cap
+          const todayDate = new Date(`${todayStr}T12:00:00`);
+          const fromDate = new Date(`${fromDateStr}T12:00:00`);
+          const maxDate = new Date(todayDate);
+          maxDate.setDate(maxDate.getDate() + 180);
+          const maxDateStr = maxDate.toISOString().split('T')[0];
+
+          // If from_date is in the past, use today
+          if (fromDate < todayDate) {
+            fromDateStr = todayStr;
+          }
+
+          // If from_date is beyond 180 days, inform the patient
+          if (fromDate > maxDate) {
+            return JSON.stringify({
+              dates: [],
+              note: `A data solicitada está além do limite de agendamento (máximo: ${maxDateStr}). Por favor, escolha uma data dentro dos próximos 180 dias.`,
+              max_date: maxDateStr
+            });
+          }
+
+          // V2: location-aware query (180-day window)
+          // Compute "now" in Brazil timezone safely for RPC and filtering
+          const brazilTimeStr = new Intl.DateTimeFormat("pt-BR", {
+            timeZone: "America/Sao_Paulo",
+            hour: "2-digit", minute: "2-digit", hour12: false
+          }).format(new Date()); // Formato "HH:mm"
+          
+          const [curHH, curMM] = brazilTimeStr.split(':').map(Number);
+          const BOOKING_BUFFER_MINUTES = 120; // 2h mínimo para o profissional se preparar
+          const bufferMinutes = curHH * 60 + curMM + BOOKING_BUFFER_MINUTES;
+          const isToday = fromDateStr === todayStr;
+
+          const { data, error } = await this.supabase.rpc("find_next_available_dates", {
+            p_doctor_id: gnDoctorId,
+            p_from_date: fromDateStr,
+            p_limit: 5,
+            p_duration_minutes: 30,
+            p_current_time: brazilTimeStr // Passa a hora atual de Brasília para o SQL
+          });
+
+          if (error) {
+            console.error("[ClinicalAgent] find_next_available_dates error:", error.message);
+            return JSON.stringify({ dates: [], note: "Não foi possível verificar disponibilidade." });
+          }
+
+          const dates = Array.isArray(data) ? data : [];
+
+          if (dates.length === 0) {
+            return JSON.stringify({
+              dates: [],
+              note: `Não há disponibilidade nos próximos 180 dias para este médico a partir de ${fromDateStr}. Gostaria de entrar na Lista de Espera?`,
+              max_date: maxDateStr
+            });
+          }
+
+          const filterByBuffer = (slots: string[]) => {
+            if (!isToday) return slots;
+            return (slots ?? []).filter((t: string) => {
+              const [hh, mm] = t.split(':').map(Number);
+              return hh * 60 + mm >= bufferMinutes;
+            });
+          };
+
+          // Period Filter
+          const filterByPeriod = (slots: string[], period: string) => {
+            if (!period || period === "any") return slots;
+            return slots.filter((t: string) => {
+              const hour = parseInt(t.split(':')[0]);
+              if (period === "morning") return hour < 12;
+              if (period === "afternoon") return hour >= 12 && hour < 18;
+              if (period === "evening") return hour >= 18;
+              return true;
+            });
+          };
+
+          const filteredDates = dates.map((match: any) => ({
+            ...match,
+            prime_slots:   filterByPeriod(filterByBuffer(match.prime_slots   ?? []), args.preferred_period),
+            regular_slots: filterByPeriod(filterByBuffer(match.regular_slots ?? []), args.preferred_period),
+          })).filter((match: any) =>
+            match.prime_slots.length > 0 || match.regular_slots.length > 0
+          );
+
+          if (filteredDates.length === 0) {
+            return JSON.stringify({
+              dates: [],
+              note: `Agora são ${brazilTimeStr}. Com o intervalo mínimo de 2 horas necessário para preparo do profissional, não há mais vagas disponíveis hoje. Informe o paciente com empatia que não há mais vagas para hoje e ofereça o próximo dia disponível.`,
+              max_date: maxDateStr
+            });
+          }
+
+          // Persist offered slots in sessionContext so the model can reference them
+          this.sessionContext.last_offered_slots = filteredDates.map((d: any) => ({
+            date: d.date,
+            location_id: d.location_id,
+            location_name: d.location_name,
+            prime_slots: d.prime_slots ?? [],
+            regular_slots: d.regular_slots ?? []
+          }));
+          this.sessionContext.last_offered_doctor_id = gnDoctorId;
+
+          return JSON.stringify({
+            dates: filteredDates,
+            from_date: fromDateStr,
+          });
+        }
+
+        case "check_availability": {
+          if (this.config.onIntermediateMessage) {
+            const pn = (this.sessionContext.known_first_name ?? (this.config.patientName ?? "").split(" ")[0]) || null;
+            const waitMsg = pn
+              ? `Verificando os horários disponíveis para você, ${pn}... 🔍`
+              : `Verificando os horários disponíveis... 🔍`;
+            await this.config.onIntermediateMessage(waitMsg).catch(() => {});
+          }
+          const resolvedDate = resolveDate(args.date) ?? args.date;
+
+          const caDoctorIdRaw = args.doctor_id ?? "";
+          if (!caDoctorIdRaw) return JSON.stringify({ dates: [], note: "doctor_id não informado." });
+
+          const caDoctorId = await this.resolveDoctorId(caDoctorIdRaw);
+          if (typeof caDoctorId !== "string") return JSON.stringify(caDoctorId);
+
+          // Compute "now" in Brazil timezone safely
+          const brazilTimeStr = new Intl.DateTimeFormat("pt-BR", {
+            timeZone: "America/Sao_Paulo",
+            hour: "2-digit", minute: "2-digit", hour12: false
+          }).format(new Date()); 
+          
+          const [curHH, curMM] = brazilTimeStr.split(':').map(Number);
+          const BOOKING_BUFFER_MINUTES = 120; // 2h mínimo para o profissional se preparar
+          const bufferMinutes = curHH * 60 + curMM + BOOKING_BUFFER_MINUTES;
+
+          // Fetch structured dates and locations via the robust V2 RPC
+          const { data: nextData, error: nextErr } = await this.supabase.rpc("find_next_available_dates", {
+            p_doctor_id: caDoctorId,
+            p_from_date: resolvedDate,
+            p_limit: 2,
+            p_duration_minutes: 30,
+            p_current_time: brazilTimeStr
+          });
+
+          if (nextErr) {
+            console.error("[ClinicalAgent] find_next_available_dates error:", nextErr.message);
+            return JSON.stringify({ dates: [], note: "Sem horários disponíveis nos próximos 180 dias. Gostaria de entrar na Lista de Espera?" });
+          }
+
+          const nextDates = Array.isArray(nextData) ? nextData : [];
+          if (nextDates.length === 0) {
+            return JSON.stringify({ dates: [], note: `Sem horários disponíveis a partir de ${resolvedDate}. Gostaria de entrar na Lista de Espera?` });
+          }
+
+          const filteredDates = nextDates.map(match => {
+            const allSlots = [...(match.prime_slots ?? []), ...(match.regular_slots ?? [])].sort();
+            let validSlots = allSlots;
+            
+            // Apply 2h buffer for today
+            if (match.date === this.today) {
+               validSlots = validSlots.filter((timeStr: string) => {
+                  const [hh, mm] = timeStr.split(':').map(Number);
+                  return hh * 60 + mm >= bufferMinutes;
+               });
+            }
+            return { ...match, slots: validSlots };
+          }).filter(match => match.slots.length > 0);
+
+          // Anti-hallucination guard: If earliest date is > 60 days, warn
+          if (filteredDates.length > 0) {
+            const earliest = new Date(filteredDates[0].date);
+            const diff = Math.ceil((earliest.getTime() - new Date(this.today).getTime()) / (1000 * 60 * 60 * 24));
+            if (diff > 60) {
+              return JSON.stringify({
+                dates: filteredDates.slice(0, 2),
+                note: `AVISO: Não há vagas próximas. A primeira disponível é ${filteredDates[0].date}. Informe isso ao paciente.`
+              });
+            }
+          }
+
+          let exactDateMatches = filteredDates.filter(d => d.date === resolvedDate);
+
+          if (exactDateMatches.length > 0) {
+             return JSON.stringify({
+                 dates: exactDateMatches,
+                 note: `Encontrados horários para a data solicitada (${resolvedDate}).`
+             });
+          }
+
+          // Persist offered slots in sessionContext
+          this.sessionContext.last_offered_slots = filteredDates.map((d: any) => ({
+            date: d.date,
+            location_id: d.location_id,
+            location_name: d.location_name,
+            slots: d.slots ?? []
+          }));
+          this.sessionContext.last_offered_doctor_id = caDoctorId;
+
+          return JSON.stringify({
+            dates: filteredDates.slice(0, 3),
+            note: `Sem horários exatos em ${resolvedDate}. Essas são as próximas datas e unidades disponíveis.`
+          });
+        }
+
+        case "book_appointment": {
+          // Send intermediate "please wait" message before the multi-step booking flow
+          if (this.config.onIntermediateMessage) {
+            const patientFirstName = (this.config.patientName ?? "").split(" ")[0] || null;
+            const waitMsg = patientFirstName
+              ? `Perfeito, ${patientFirstName}! Um momento enquanto confirmo seu agendamento... 🔄`
+              : `Perfeito! Um momento enquanto confirmo seu agendamento... 🔄`;
+            await this.config.onIntermediateMessage(waitMsg).catch(() => {});
+          }
+
+          const resolvedDate = resolveDate(args.date) ?? args.date;
+
+          const baDoctorIdRaw = args.doctor_id ?? "";
+          if (!baDoctorIdRaw) return JSON.stringify({ success: false, error: "doctor_id não informado." });
+
+          const baDoctorId = await this.resolveDoctorId(baDoctorIdRaw);
+          if (typeof baDoctorId !== "string") return JSON.stringify(baDoctorId);
+
+          // location_id and type_id must come from prior tool calls (list_doctor_locations / list_appointment_types)
+          const locationId = args.location_id ?? null;
+          const typeId = args.type_id ?? null;
+
+          if (!locationId) return JSON.stringify({ success: false, error: "Local de atendimento não informado. Use list_doctor_locations e peça ao paciente que escolha." });
+          if (!typeId) return JSON.stringify({ success: false, error: "Tipo de serviço não informado. Use list_appointment_types e peça ao paciente que escolha." });
+
+          // Resolve patient — supports third-party booking via patient_phone
+          let bookingPhone = this.config.patientPhone;
+          if (args.patient_phone) {
+            const norm = normalizePhone(args.patient_phone);
+            if ("error" in norm) return JSON.stringify({ success: false, error: norm.error });
+            bookingPhone = norm.phone;
+          }
+          let patientId: string | null = null;
+          const { data: existingPatient } = await this.supabase
+            .from("patients").select("id")
+            .eq("tenant_id", this.config.tenantId)
+            .eq("phone", bookingPhone)
+            .maybeSingle();
+
+          if (existingPatient) {
+            patientId = existingPatient.id;
+          } else {
+            if (!args.patient_name) return JSON.stringify({ success: false, error: "Nome do paciente não informado." });
+            const { data: newPatient, error: insertErr } = await this.supabase
+              .from("patients")
+              .insert({
+                tenant_id: this.config.tenantId,
+                phone: bookingPhone,
+                full_name: args.patient_name,
+                cpf: this.sessionContext.collected_cpf || null,
+                email: this.sessionContext.collected_email || null,
+                birth_date: this.sessionContext.collected_birth_date || null
+              })
+              .select("id")
+              .single();
+            if (insertErr || !newPatient) return JSON.stringify({ success: false, error: "Não foi possível registrar o paciente." });
+            patientId = newPatient.id;
+          }
+
+          if (!patientId) return JSON.stringify({ success: false, error: "Paciente não encontrado." });
+
+          // Pre-booking conflict check — guard against race conditions and
+          // stale availability data shown to the patient
+          const { count: conflictCount } = await this.supabase
+            .from("appointments")
+            .select("id", { count: "exact", head: true })
+            .eq("doctor_id", baDoctorId)
+            .eq("date", resolvedDate)
+            .eq("start_time", args.time)
+            .not("status", "in", '("canceled","noshow","cancelled","no_show")');
+
+          if (conflictCount && conflictCount > 0) {
+            return JSON.stringify({
+              success: false,
+              error: "SLOT_CONFLICT",
+              message: "Este horário acabou de ser preenchido por outro paciente. Por favor, escolha outro horário.",
+              action: "call get_next_available_date to suggest alternatives"
+            });
+          }
+
+          const { data, error } = await this.supabase.rpc("book_appointment", {
+            p_tenant_id: this.config.tenantId,
+            p_patient_id: patientId,
+            p_doctor_id: baDoctorId,
+            p_location_id: locationId,
+            p_type_id: typeId,
+            p_date: resolvedDate,
+            p_start_time: args.time,
+            p_booked_by: "ai_agent"
+          });
+
+          if (error) {
+            console.error("[ClinicalAgent] book_appointment RPC error:", error.message);
+            return JSON.stringify({ success: false, error: error.message });
+          }
+
+          const result = data as any;
+          if (!result?.success) {
+            const reason = result?.reason ?? result?.error ?? "unknown";
+            if (reason === "slot_taken" || reason === "SLOT_CONFLICT") {
+              return JSON.stringify({
+                success: false,
+                error: "SLOT_CONFLICT",
+                message: "Este horário acabou de ser preenchido por outro paciente. Chame get_next_available_date para sugerir novas datas disponíveis."
+              });
+            }
+            return JSON.stringify({ success: false, error: reason });
+          }
+
+          // Reset booking state in sessionContext
+          this.sessionContext.current_doctor_id    = null;
+          this.sessionContext.current_doctor_name  = null;
+          this.sessionContext.current_service_id   = null;
+          this.sessionContext.current_service_name = null;
+          this.sessionContext.current_location_id  = null;
+          this.sessionContext.current_location_name = null;
+          this.sessionContext.last_offered_slots   = null;
+          this.sessionContext.last_offered_doctor_id = null;
+
+          this.bookingCompleted = true; // SINAL DE CONVERSÃO (Plan B)
+          return JSON.stringify(data);
+        }
+
+        case "list_patient_appointments": {
+          let phone = this.config.patientPhone;
+          if (args.patient_phone) {
+            const norm = normalizePhone(args.patient_phone);
+            if ("error" in norm) return JSON.stringify({ appointments: [], error: norm.error });
+            phone = norm.phone;
+          }
+          const { data: pat } = await this.supabase
+            .from("patients").select("id")
+            .eq("tenant_id", this.config.tenantId).eq("phone", phone).maybeSingle();
+          if (!pat) return JSON.stringify({ appointments: [], note: "Paciente não encontrado." });
+
+          const { data } = await this.supabase
+            .from("appointments")
+            .select("id, date, start_time, status, doctors(full_name), locations(name), appointment_types(name)")
+            .eq("tenant_id", this.config.tenantId)
+            .eq("patient_id", pat.id)
+            .in("status", ["scheduled", "confirmed"])
+            .order("date", { ascending: true })
+            .order("start_time", { ascending: true })
+            .limit(10);
+
+          const appts = (data || []).map((a: any) => ({
+            id: a.id,
+            date: a.date,
+            time: String(a.start_time).substring(0, 5),
+            status: a.status,
+            doctor: a.doctors?.full_name ?? "Médico",
+            doctor_id: a.doctor_id,
+            location: a.locations?.name ?? "Local",
+            location_id: a.location_id,
+            type: a.appointment_types?.name ?? "Consulta",
+            type_id: a.type_id
+          }));
+          if (appts.length === 0) return JSON.stringify({ appointments: [], note: "Nenhum agendamento futuro encontrado." });
+          return JSON.stringify({ appointments: appts });
+        }
+
+        case "cancel_appointment": {
+          const { error } = await this.supabase
+            .from("appointments")
+            .update({ status: "canceled" })
+            .eq("id", args.appointment_id)
+            .eq("tenant_id", this.config.tenantId);
+          if (error) return JSON.stringify({ success: false, error: error.message });
+          return JSON.stringify({ success: true });
+        }
+
+        case "reschedule_appointment": {
+          const newDate = resolveDate(args.new_date) ?? args.new_date;
+          const { error } = await this.supabase
+            .from("appointments")
+            .update({ date: newDate, start_time: args.new_time, status: "scheduled" })
+            .eq("id", args.appointment_id)
+            .eq("tenant_id", this.config.tenantId);
+          if (error) return JSON.stringify({ success: false, error: error.message });
+          return JSON.stringify({ success: true, new_date: newDate, new_time: args.new_time });
+        }
+
+        case "verify_identity": {
+          if (!this.config.patientCpf || !this.config.patientBirthDate) {
+            return JSON.stringify({ verified: false, attempts_remaining: 0, note: "Cadastro base incompleto (CPF ou Data de Nascimento ausentes). O acesso não pode ser concedido sem esses dados no sistema." });
+          }
+          
+          const dbCpf = this.config.patientCpf.replace(/\D/g, "");
+          const dbYear = this.config.patientBirthDate.split("-")[0];
+          
+          const inCpf = (args.cpf_prefix || "").replace(/\D/g, "");
+          const inYear = String(args.birth_year || "").trim();
+          
+          const verified = dbCpf.startsWith(inCpf) && dbYear === inYear;
+          
+          if (verified) {
+             this.sessionContext.identity_verified    = true;
+             this.sessionContext.identity_verified_at = new Date().toISOString();
+             return JSON.stringify({ verified: true, note: "Identidade confirmada! Você pode prosseguir e fornecer as informações sensíveis solicitadas." });
+          } else {
+             return JSON.stringify({ verified: false, attempts_remaining: 2, note: "Dados incorretos. Peça para o paciente tentar novamente." });
+          }
+        }
+
+        case "store_booking_selection": {
+          if (!args.date || !args.time) return JSON.stringify({ error: "date e time são obrigatórios." });
+          this.sessionContext.pending_booking = {
+            date: args.date,
+            time: args.time,
+            location_id: args.location_id ?? this.sessionContext.current_location_id ?? null,
+            doctor_id: this.sessionContext.current_doctor_id ?? null,
+            type_id: this.sessionContext.current_service_id ?? null,
+            patient_name: this.config.patientName ?? this.sessionContext.known_first_name ?? null
+          };
+          return JSON.stringify({ stored: true, note: "Seleção registrada. Agora mostre a mensagem de confirmação Etapa 4 ao paciente." });
+        }
+
+        case "save_lead_info": {
+          const leadName = args.name?.trim();
+          if (!leadName) return JSON.stringify({ success: false, error: "Nome não informado." });
+
+          // Anti-hallucination check: name must be valid text, not just a number
+          const nameWithoutDigits = leadName.replace(/\d/g, "").trim();
+          if (nameWithoutDigits.length < 2) {
+            console.warn(`[ClinicalAgent] Rejected invalid name: ${leadName}`);
+            return JSON.stringify({ success: false, error: "O nome informado parece inválido. Por favor, poderia me dizer seu nome completo?" });
+          }
+
+          this.sessionContext.known_first_name = leadName.split(" ")[0];
+          if (args.lead_temperature) this.sessionContext.lead_temperature = args.lead_temperature;
+          if (args.interest) this.sessionContext.lead_interest = args.interest;
+          if (args.phone_confirmed) this.sessionContext.phone_confirmed = true;
+
+          const funnelData: any = {
+            tenant_id: this.config.tenantId,
+            patient_phone: this.config.patientPhone,
+            patient_name: leadName,
+            last_interaction_at: new Date().toISOString(),
+          };
+          if (args.lead_temperature) funnelData.lead_temperature = args.lead_temperature;
+          if (args.interest) funnelData.lead_interest = args.interest;
+
+          await this.supabase
+            .from("patient_funnel_stage")
+            .update(funnelData)
+            .eq("tenant_id", this.config.tenantId)
+            .eq("patient_phone", this.config.patientPhone);
+
+          return JSON.stringify({
+            success: true,
+            note: "Lead salvo. Continue a conversa naturalmente — NÃO mencione ao paciente que salvou os dados."
+          });
+        }
+
+        case "request_human_agent": {
+          this.humanHandoffRequested = true;
+          return JSON.stringify({ transferred: true });
+        }
+
+        default:
+          return JSON.stringify({ error: `Ferramenta desconhecida: ${name}` });
+      }
+    } catch (e: any) {
+      console.error(`[ClinicalAgent] Tool error (${name}):`, e.message);
+      return JSON.stringify({ error: e.message, isTechnical: true });
+    }
+  }
+
+  /**
+   * Pre-router: detects simple confirmation/rejection intent BEFORE calling the LLM.
+   */
+  private preRoute(userMessage: string): string | { directBook: true } | null {
+    const msg = userMessage.trim().toLowerCase();
+    const patientName = this.sessionContext.known_first_name ?? (this.config.patientName ?? "").split(" ")[0] ?? null;
+
+    const CONFIRM_YES = /^(sim|s|yes|confirmo|confirmar|confirma|pode|pode ser|tá|ta|ok|okay|certo|perfeito|ótimo|otimo|isso|exato|exatamente|pode confirmar|confirme)[\s!.,]*$/i;
+    if (CONFIRM_YES.test(msg) && this.sessionContext.pending_booking?.date && this.sessionContext.pending_booking?.time) {
+      return { directBook: true };
+    }
+
+    const SIMPLE_NO = /^(não|nao|nope|negativo|desistir|não quero|nao quero|não precisa|não vou|cancela|cancelar)[\s!.,]*$/i;
+    if (SIMPLE_NO.test(msg) && this.sessionContext.pending_booking) {
+      this.sessionContext.pending_booking = null;
+      return `Sem problema, ${patientName || "tudo bem"}! 😊 Se quiser agendar depois ou precisar de outra coisa, é só me chamar. Como posso te ajudar?`;
+    }
+
+    const GREETING = /^(oi|olá|ola|bom dia|boa tarde|boa noite|hello|hi|e aí|eai|opa|hey)[\s!?.,]*$/i;
+    if (GREETING.test(msg) && !this.sessionContext.current_doctor_id && !this.sessionContext.last_offered_slots) {
+      if (!this.sessionContext.bot_introduced) return null;
+      const h = new Date().getHours();
+      const greeting = h < 12 ? "Bom dia" : h < 18 ? "Boa tarde" : "Boa noite";
+      return `${greeting}${patientName ? `, ${patientName}` : ""}! 😊 Que bom falar com você! Como posso te ajudar hoje?`;
+    }
+
+    return null;
+  }
+
+  private getCurrentPhase(): 'GREET' | 'IDENTIFY' | 'SCHEDULE' | 'CONFIRM' | 'FAQ' | 'MANAGE' {
+    const ctx = this.sessionContext;
+    if (!ctx.bot_introduced || !ctx.name_captured) return 'GREET';
+    if (ctx.reminder_cancel_requested || ctx.reminder_reschedule_requested) return 'MANAGE';
+    if (ctx.pending_booking?.date && ctx.pending_booking?.time) return 'CONFIRM';
+    if (ctx.current_doctor_id || ctx.current_service_id) return 'SCHEDULE';
+    return 'SCHEDULE';
+  }
+
+  private getPhaseTools(): typeof TOOLS[number][] {
+    const ctx = this.sessionContext;
+    
+    if (!ctx.bot_introduced || !ctx.name_captured) {
+      return TOOLS.filter(t => 
+        ['lookup_patient', 'save_lead_info'].includes(t.function.name)
+      );
+    }
+    
+    if (ctx.reminder_cancel_requested || ctx.reminder_reschedule_requested) {
+      return TOOLS.filter(t => 
+        ['list_patient_appointments', 'cancel_appointment', 'reschedule_appointment', 
+         'verify_identity', 'check_availability', 'get_next_available_date'].includes(t.function.name)
+      );
+    }
+    
+    if (ctx.pending_booking?.date && ctx.pending_booking?.time) {
+      return TOOLS.filter(t => 
+        ['store_booking_selection', 'book_appointment', 'update_patient_details', 
+         'register_patient', 'generate_pix_payment'].includes(t.function.name)
+      );
+    }
+    
+    if (ctx.current_doctor_id || ctx.current_service_id || ctx.last_offered_slots) {
+      return TOOLS.filter(t => 
+        ['list_appointment_types', 'list_service_locations', 'get_next_available_date',
+         'check_availability', 'store_booking_selection', 'book_appointment',
+         'list_doctor_insurances', 'add_to_waitlist', 'get_doctor_details',
+         'register_patient', 'update_patient_details', 'save_lead_info',
+         'request_human_agent', 'search_clinic_knowledge'].includes(t.function.name)
+      );
+    }
+    
+    return [...TOOLS];
+  }
+
+  private getSpecialistTools(type: SpecialistType): typeof TOOLS[number][] {
+     switch (type) {
+       case 'TRIAGE':
+         return TOOLS.filter(t => ['lookup_patient', 'save_lead_info', 'register_patient', 'update_patient_details'].includes(t.function.name));
+       case 'BOOKING':
+         return TOOLS.filter(t => ['list_specialties', 'list_doctors', 'list_appointment_types', 'list_service_locations', 'get_next_available_date', 'check_availability', 'store_booking_selection', 'book_appointment', 'list_doctor_insurances', 'add_to_waitlist'].includes(t.function.name));
+       case 'RAG_FAQ':
+         return TOOLS.filter(t => ['search_clinic_knowledge', 'get_clinic_info', 'get_doctor_details', 'list_doctor_locations'].includes(t.function.name));
+       case 'SALES':
+         return TOOLS.filter(t => ['search_clinic_knowledge', 'list_doctor_insurances', 'get_doctor_details', 'generate_pix_payment'].includes(t.function.name));
+       case 'SUPPORT':
+         return TOOLS.filter(t => ['list_patient_appointments', 'cancel_appointment', 'reschedule_appointment', 'verify_identity', 'check_availability'].includes(t.function.name));
+       default:
+         return [...TOOLS];
+     }
+  }
+
+  async processMessage(userMessage: string): Promise<string> {
+    this._intermediateMessageSent = false;
+    this.sessionContext.total_turns = (this.sessionContext.total_turns || 0) + 1;
+    this.sessionContext.turns_since_last_tool_success = (this.sessionContext.turns_since_last_tool_success || 0) + 1;
+
+    if (this.sessionContext.total_turns > 25 && !this.bookingCompleted) {
+      this.humanHandoffRequested = true;
+      const pName = this.sessionContext.known_first_name ?? (this.config.patientName ?? "").split(" ")[0] ?? null;
+      return `${pName ? `${pName}, ` : ""}percebi que nosso atendimento está demorando mais do que o normal. 😊 Vou chamar um de nossos atendentes para te ajudar de forma mais rápida. Um momento, por favor! 🙏`;
+    }
+
+    const preRouted = this.preRoute(userMessage);
+    if (preRouted !== null) {
+      if (typeof preRouted === "object" && preRouted.directBook) {
+        const pb = this.sessionContext.pending_booking;
+        const result = await this.executeTool("book_appointment", {
+          patient_name: pb.patient_name ?? this.config.patientName,
+          doctor_id: pb.doctor_id ?? this.sessionContext.current_doctor_id,
+          location_id: pb.location_id ?? this.sessionContext.current_location_id,
+          type_id: pb.type_id ?? this.sessionContext.current_service_id,
+          date: pb.date,
+          time: pb.time,
+        });
+        this.sessionContext.pending_booking = null;
+        const parsed = JSON.parse(result);
+        const pName = this.sessionContext.known_first_name ?? (this.config.patientName ?? "").split(" ")[0] ?? null;
+        if (parsed.success) {
+          const doctorName = this.sessionContext.current_doctor_name ?? "médico";
+          const locationName = this.sessionContext.current_location_name ?? "";
+          return `✅ Agendamento confirmado${pName ? `, ${pName}` : ""}! 🎉\n\n👨‍⚕️ ${doctorName}\n📍 ${locationName}\n📅 ${pb.date.split("-").reverse().join("/")} às ⏰ ${pb.time}\n👤 ${pb.patient_name ?? this.config.patientName}\n\nA equipe aguarda você! Qualquer dúvida é só me chamar. 😊`;
+        }
+        if (parsed.error === "SLOT_CONFLICT") {
+          return `Que pena${pName ? `, ${pName}` : ""}! 😕 Esse horário acabou de ser ocupado por outro paciente. Deixa eu verificar as próximas vagas disponíveis para você!`;
+        }
+      } else {
+        return preRouted as string;
+      }
+    }
+
+    this._currentSpecialist = await this.routeIntent(userMessage);
+    const messages: any[] = [
+      { role: "system", content: this.buildSystemPrompt(this._currentSpecialist) },
+      ...this.config.conversationHistory.slice(-12).map(m => ({
+        role: m.role === "assistant" ? "assistant" : "user",
+        content: (m.content ?? "").substring(0, 500)
+      })),
+      { role: "user", content: userMessage }
+    ];
+
+    const bookingIntent = /\b(agendar|marcar|agendar|consulta|avaliação|avaliaç|implante|limpeza|tratamento|horário|horario|vaga|disponib)\b/i.test(userMessage);
+    this._phaseTools = this.getSpecialistTools(this._currentSpecialist);
+
+    for (let round = 0; round < 8; round++) {
+      let data: any;
+      try {
+        const forceToolUse = (round === 0 && bookingIntent);
+        data = await this.callOpenAI(messages, 0, forceToolUse);
+      } catch (llmErr: any) {
+        const pn = this.sessionContext.known_first_name ?? (this.config.patientName ?? "").split(" ")[0] ?? null;
+        return `${pn ? `${pn}, ` : ""}desculpe, tive um probleminha técnico! 😅 Pode repetir o que precisa? Estou aqui para te ajudar!`;
+      }
+
+      const choice = data.choices?.[0];
+      if (!choice) {
+        const pn = this.sessionContext.known_first_name ?? (this.config.patientName ?? "").split(" ")[0] ?? null;
+        return `${pn ? `${pn}, ` : ""}desculpe, tive um probleminha técnico! 😅 Pode repetir o que precisa?`;
+      }
+
+      const msg = choice.message;
+      messages.push(msg);
+
+      if (choice.finish_reason === "stop" || !msg.tool_calls?.length) {
+        return msg.content ?? "Desculpe, não consegui processar sua solicitação.";
+      }
+
+      if (msg.content && msg.content.trim() && this.config.onIntermediateMessage) {
+        if (!this._intermediateMessageSent) {
+          await this.config.onIntermediateMessage(msg.content.trim()).catch(() => {});
+          this._intermediateMessageSent = true;
+        }
+      }
+
+      const STATEFUL_TOOLS = new Set([
+        "list_specialties", "list_appointment_types", "list_service_locations",
+        "get_next_available_date", "check_availability", "book_appointment",
+        "list_doctor_insurances", "verify_identity", "register_patient", "update_patient_details",
+        "save_lead_info"
+      ]);
+      const toolCalls = msg.tool_calls as ToolCall[];
+      const hasStatefulCall = toolCalls.some(tc => STATEFUL_TOOLS.has(tc.function.name));
+
+      let results: any[];
+      if (hasStatefulCall || toolCalls.length === 1) {
+        results = [];
+        for (const tc of toolCalls) {
+          const args = JSON.parse(tc.function.arguments);
+          try {
+            // Local tool timeout (5s) to avoid Edge Function timeout
+            const toolResult = await Promise.race([
+              this.executeTool(tc.function.name, args),
+              new Promise<string>((_, reject) => setTimeout(() => reject(new Error("TOOL_TIMEOUT")), 5000))
+            ]);
+            results.push({ role: "tool", tool_call_id: tc.id, content: toolResult.substring(0, 3000) });
+          } catch (toolErr: any) {
+            console.error(`[ClinicalAgent] Tool ${tc.function.name} failed:`, toolErr.message);
+            const errorMsg = toolErr.message === "TOOL_TIMEOUT" 
+              ? JSON.stringify({ error: "TIMEOUT", isTechnical: true }) 
+              : JSON.stringify({ error: "INTERNAL_ERROR", isTechnical: true });
+            results.push({ role: "tool", tool_call_id: tc.id, content: errorMsg });
+          }
+        }
+      } else {
+        results = await Promise.all(
+          toolCalls.map(async (tc) => {
+            const args = JSON.parse(tc.function.arguments);
+            try {
+              const toolResult = await Promise.race([
+                this.executeTool(tc.function.name, args),
+                new Promise<string>((_, reject) => setTimeout(() => reject(new Error("TOOL_TIMEOUT")), 5000))
+              ]);
+              return { role: "tool", tool_call_id: tc.id, content: toolResult.substring(0, 3000) };
+            } catch (toolErr: any) {
+              console.error(`[ClinicalAgent] Parallel tool ${tc.function.name} failed:`, toolErr.message);
+              const errorMsg = toolErr.message === "TOOL_TIMEOUT" 
+                ? JSON.stringify({ error: "TIMEOUT", isTechnical: true }) 
+                : JSON.stringify({ error: "INTERNAL_ERROR", isTechnical: true });
+              return { role: "tool", tool_call_id: tc.id, content: errorMsg };
+            }
+          })
+        );
+      }
+
+      // Track consecutive tool failures
+      const failedTools = results.filter(r => {
+        try { 
+          const parsed = JSON.parse(r.content);
+          return parsed.error && parsed.isTechnical === true; 
+        } catch { return false; }
+      });
+
+      if (failedTools.length === toolCalls.length) {
+        this.sessionContext.consecutive_tool_failures = (this.sessionContext.consecutive_tool_failures || 0) + 1;
+        console.warn(`[ClinicalAgent] All tools failed this round. Consecutive failures: ${this.sessionContext.consecutive_tool_failures}`);
+        
+        if (this.sessionContext.consecutive_tool_failures >= 3) {
+          console.warn(`[ClinicalAgent] 3+ consecutive tool failures — escalating to human`);
+          this.humanHandoffRequested = true;
+          const pName = this.sessionContext.known_first_name ?? (this.config.patientName ?? "").split(" ")[0] ?? null;
+          return `${pName ? `${pName}, ` : ""}desculpe, estou com uma dificuldade técnica no momento. 😊 Vou chamar um atendente para te ajudar. Um momento! 🙏`;
+        }
+      } else {
+        this.sessionContext.consecutive_tool_failures = 0;
+      }
+
+      messages.push(...results);
+    }
+
+    // Round limit reached — graceful recovery instead of generic error.
+    // Signal human handoff so the conversation is queued for a human agent.
+    this.humanHandoffRequested = true;
+    const pName = this.sessionContext.known_first_name ?? (this.config.patientName ?? "").split(" ")[0] ?? null;
+    console.warn(`[ClinicalAgent] Round limit reached for ${this.config.patientPhone} — triggering human handoff`);
+    return `${pName ? `${pName}, ` : ""}desculpe a demora! 😊 Sua solicitação é um pouquinho mais complexa e vou chamar um de nossos atendentes para te ajudar pessoalmente. Em instantes alguém entrará em contato. 🙏`;
+  }
+
+  private async callOpenAI(messages: any[], attempt = 0, forceToolUse = false): Promise<any> {
+    console.log(`[ClinicalAgent] Calling OpenAI [${this.config.model}] Round ${attempt} — Messages: ${messages.length} — ForceTool: ${forceToolUse}`);
+    
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${this.config.apiKey}`
+    };
+
+    // Inject LangSmith headers for observability
+    const langsmithKey = Deno.env.get("LANGSMITH_API_KEY") || this.sessionContext.langsmith_api_key;
+    if (langsmithKey) {
+      headers["X-Langsmith-Api-Key"] = langsmithKey;
+      headers["X-Langsmith-Project"] = Deno.env.get("LANGSMITH_PROJECT") || "traffio-clinical-agent";
+    }
+
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        model: this.config.model,
+        messages,
+        tools: this._phaseTools,
+        tool_choice: forceToolUse ? "required" : "auto",
+        parallel_tool_calls: true,
+        temperature: 0.3
+      })
+    });
+
+    if (res.status === 429 && attempt < 3) {
+      // Respect Retry-After header if present, otherwise use exponential backoff
+      const retryAfter = res.headers.get("retry-after");
+      const waitMs = retryAfter ? parseFloat(retryAfter) * 1000 : (attempt + 1) * 2000;
+      console.warn(`[ClinicalAgent] Rate limited (429). Retrying in ${waitMs}ms (attempt ${attempt + 1}/3)`);
+      await new Promise((r) => setTimeout(r, waitMs));
+      return this.callOpenAI(messages, attempt + 1, forceToolUse);
+    }
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error(`[ClinicalAgent] OpenAI API error ${res.status}:`, errText);
+      throw new Error(`OpenAI API error ${res.status}: ${errText}`);
+    }
+
+    return res.json();
+  }
+}

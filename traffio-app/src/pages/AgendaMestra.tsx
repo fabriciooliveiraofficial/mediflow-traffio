@@ -1,0 +1,1110 @@
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import {
+    Calendar as CalendarIcon,
+    ChevronLeft,
+    ChevronRight,
+    Clock,
+    Plus,
+    CheckCircle2,
+    X,
+    Save,
+    XCircle,
+    UserCheck,
+    AlertTriangle,
+    Search,
+    Star,
+    Unlock,
+    FileText,
+    Shield,
+    User,
+    MapPin,
+    Stethoscope as StethoscopeIcon,
+    Wallet
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { supabase } from '../lib/supabase';
+import { clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+import { useToast } from '../contexts/ToastContext';
+import { smartSchedulingService } from '../services/smartSchedulingService';
+import { CheckoutModal } from '../components/CheckoutModal';
+import type { SmartSlot, BookAppointmentPayload } from '../services/smartSchedulingService';
+
+function cn(...inputs: any[]) {
+    return twMerge(clsx(inputs));
+}
+
+// ─── Calendar Constants ─────────────────────
+const DAY_START = 7;   // 07:00
+const DAY_END = 21;    // 21:00
+const HOUR_PX = 72;    // pixels per hour
+const SNAP_MIN = 15;   // snap to 15-minute intervals
+const TOTAL_HOURS = DAY_END - DAY_START;
+const TOTAL_PX = TOTAL_HOURS * HOUR_PX;
+const DEFAULT_DURATION = 30; // minutes
+
+// ─── Time ↔ Pixel helpers ───────────────────
+const timeToMin = (t: string): number => {
+    const [h, m] = t.substring(0, 5).split(':').map(Number);
+    return h * 60 + m;
+};
+const minToTime = (m: number): string => {
+    const h = Math.floor(m / 60);
+    const mm = m % 60;
+    return `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+};
+const minToY = (m: number): number => ((m - DAY_START * 60) / 60) * HOUR_PX;
+const yToMin = (y: number): number => (y / HOUR_PX) * 60 + DAY_START * 60;
+const snap = (m: number): number => Math.round(m / SNAP_MIN) * SNAP_MIN;
+const clampMin = (m: number) => Math.max(DAY_START * 60, Math.min(DAY_END * 60, m));
+
+// ─── Types ──────────────────────────────────
+interface Doctor {
+    id: string;
+    full_name: string;
+    specialty: string | null;
+    color: string | null;
+    auto_release_hours: number;
+}
+
+interface AppointmentType {
+    id: string;
+    name: string;
+    duration_minutes: number;
+    price_cents: number | null;
+    color_hex: string | null;
+}
+
+interface Patient {
+    id: string;
+    full_name: string;
+    phone: string | null;
+    email: string | null;
+    insurance_provider: string | null;
+}
+
+interface DragState {
+    type: 'move' | 'resize-top' | 'resize-bottom' | 'create';
+    apptId?: string;
+    docId: string;
+    origStart: number;
+    origEnd: number;
+    offsetY: number;       // for move: mouse offset within card
+    currentDocId: string;
+    currentStart: number;
+    currentEnd: number;
+}
+
+interface GhostState {
+    colIndex: number;
+    top: number;
+    height: number;
+    label: string;
+}
+
+// ─── Hours array for grid lines ─────────────
+const HOURS = Array.from({ length: TOTAL_HOURS + 1 }, (_, i) => DAY_START + i);
+
+// ─────────────────────────────────────────────
+export const AgendaMestra: React.FC = () => {
+    const { showToast } = useToast();
+    const [selectedTenant, setSelectedTenant] = useState<string | null>(null);
+    const [tenants, setTenants] = useState<any[]>([]);
+    const [selectedDate, setSelectedDate] = useState(new Date());
+
+    const [doctors, setDoctors] = useState<Doctor[]>([]);
+    const [selectedDoctors, setSelectedDoctors] = useState<string[]>([]);
+    const [appointmentTypes, setAppointmentTypes] = useState<AppointmentType[]>([]);
+    const [slotsByDoctor, setSlotsByDoctor] = useState<Record<string, SmartSlot[]>>({});
+    const [appointmentsByDoctor, setAppointmentsByDoctor] = useState<Record<string, any[]>>({});
+    const [loading, setLoading] = useState(false);
+
+    // Booking modal
+    const [bookingModal, setBookingModal] = useState<{
+        open: boolean;
+        doctorId: string;
+        slot: SmartSlot | null;
+        prefillStart?: string;
+        prefillEnd?: string;
+    }>({ open: false, doctorId: '', slot: null });
+    const [bookingForm, setBookingForm] = useState({
+        patientSearch: '',
+        selectedPatient: null as Patient | null,
+        patientType: 'private' as 'private' | 'insurance',
+        insurancePlanId: '',
+        typeId: '',
+        notes: '',
+    });
+    const [patientResults, setPatientResults] = useState<Patient[]>([]);
+    const [doctorPlans, setDoctorPlans] = useState<any[]>([]);
+    const [bookingSaving, setBookingSaving] = useState(false);
+    const searchTimeout = useRef<any>(null);
+    const [scrollTop, setScrollTop] = useState(0);
+
+    // Edit modal
+    const [editingAppt, setEditingAppt] = useState<any>(null);
+    const [editNotes, setEditNotes] = useState('');
+    const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+
+    // Drag & Drop
+    const gridRef = useRef<HTMLDivElement>(null);
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const dragRef = useRef<DragState | null>(null);
+    const rafRef = useRef<number>(0);
+    const [ghost, setGhost] = useState<GhostState | null>(null);
+    const [isDragging, setIsDragging] = useState(false);
+
+    // Current time indicator
+    const [now, setNow] = useState(new Date());
+    useEffect(() => {
+        const iv = setInterval(() => setNow(new Date()), 60_000);
+        return () => clearInterval(iv);
+    }, []);
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+
+    const formatDateLabel = (date: Date) =>
+        date.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' });
+    const changeDate = (days: number) => {
+        const next = new Date(selectedDate);
+        next.setDate(next.getDate() + days);
+        setSelectedDate(next);
+    };
+    const goToToday = () => setSelectedDate(new Date());
+    const isToday = selectedDate.toDateString() === new Date().toDateString();
+    const dateStr = selectedDate.toISOString().split('T')[0];
+
+    const visibleDoctors = useMemo(() => doctors.filter(d => selectedDoctors.includes(d.id)), [doctors, selectedDoctors]);
+
+    // ── Data fetching ──────────────────────
+    useEffect(() => {
+        (async () => {
+            const { data } = await supabase.from('tenants').select('*');
+            if (data?.length) {
+                setTenants(data);
+                if (!selectedTenant) setSelectedTenant(data[0].id);
+            }
+        })();
+    }, []);
+
+    useEffect(() => {
+        if (!selectedTenant) return;
+        (async () => {
+            const [docs, types] = await Promise.all([
+                smartSchedulingService.getActiveDoctors(selectedTenant),
+                smartSchedulingService.getAppointmentTypes(selectedTenant),
+            ]);
+            setDoctors(docs as Doctor[]);
+            setAppointmentTypes(types as AppointmentType[]);
+            if (docs.length > 0 && selectedDoctors.length === 0) {
+                setSelectedDoctors(docs.map((d: any) => d.id));
+            }
+        })();
+    }, [selectedTenant]);
+
+    const fetchData = useCallback(async () => {
+        if (!selectedTenant || selectedDoctors.length === 0) return;
+        setLoading(true);
+        const defaultDur = appointmentTypes[0]?.duration_minutes || 30;
+        try {
+            const [slotsResults, appts] = await Promise.all([
+                Promise.all(selectedDoctors.map(async (docId) => {
+                    try {
+                        return { docId, slots: await smartSchedulingService.getAvailableSlots(docId, dateStr, selectedTenant, defaultDur) };
+                    } catch { return { docId, slots: [] }; }
+                })),
+                smartSchedulingService.getAppointmentsForDate(selectedTenant, dateStr, selectedDoctors),
+            ]);
+            const sm: Record<string, SmartSlot[]> = {};
+            slotsResults.forEach(({ docId, slots }) => { sm[docId] = slots; });
+            setSlotsByDoctor(sm);
+
+            const am: Record<string, any[]> = {};
+            selectedDoctors.forEach(id => { am[id] = []; });
+            (appts || []).forEach((a: any) => { if (a.doctor_id && am[a.doctor_id]) am[a.doctor_id].push(a); });
+            setAppointmentsByDoctor(am);
+        } catch (err) { console.error(err); }
+        setLoading(false);
+    }, [selectedTenant, selectedDoctors, dateStr, appointmentTypes]);
+
+    useEffect(() => { fetchData(); }, [fetchData]);
+
+    // Auto-scroll to current time on load
+    // Auto-scroll to current time on load
+    useEffect(() => {
+        if (!loading && scrollRef.current && isToday) {
+            const y = minToY(nowMin);
+            scrollRef.current.scrollTop = Math.max(0, y - 200);
+        }
+    }, [loading]);
+
+    useEffect(() => {
+        const handleScroll = () => {
+            if (scrollRef.current) setScrollTop(scrollRef.current.scrollTop);
+        };
+        const el = scrollRef.current;
+        el?.addEventListener('scroll', handleScroll);
+        // Initial sync
+        if (el) setScrollTop(el.scrollTop);
+        return () => el?.removeEventListener('scroll', handleScroll);
+    }, [loading]);
+
+    const toggleDoctor = (id: string) => {
+        setSelectedDoctors(prev => prev.includes(id) ? prev.filter(d => d !== id) : [...prev, id]);
+    };
+
+    // ── Booking ─────────────────────────────
+    const openBookingModal = (doctorId: string, slot: SmartSlot) => {
+        setBookingForm({ patientSearch: '', selectedPatient: null, patientType: 'private', insurancePlanId: '', typeId: appointmentTypes[0]?.id || '', notes: '' });
+        setPatientResults([]);
+        setDoctorPlans([]);
+        setBookingModal({ open: true, doctorId, slot });
+        smartSchedulingService.getDoctorInsurancePlans(doctorId).then(setDoctorPlans);
+    };
+
+    const openBookingFromDrag = (doctorId: string, startMin: number, endMin: number) => {
+        setBookingForm({ patientSearch: '', selectedPatient: null, patientType: 'private', insurancePlanId: '', typeId: appointmentTypes[0]?.id || '', notes: '' });
+        setPatientResults([]);
+        setDoctorPlans([]);
+        setBookingModal({
+            open: true,
+            doctorId,
+            slot: null,
+            prefillStart: minToTime(startMin),
+            prefillEnd: minToTime(endMin),
+        });
+        smartSchedulingService.getDoctorInsurancePlans(doctorId).then(setDoctorPlans);
+    };
+
+    const handlePatientSearch = (query: string) => {
+        setBookingForm(prev => ({ ...prev, patientSearch: query, selectedPatient: null }));
+        if (searchTimeout.current) clearTimeout(searchTimeout.current);
+        if (query.length < 2) { setPatientResults([]); return; }
+        searchTimeout.current = setTimeout(async () => {
+            if (!selectedTenant) return;
+            setPatientResults((await smartSchedulingService.searchPatients(selectedTenant, query)) as Patient[]);
+        }, 300);
+    };
+
+    const handleBook = async () => {
+        if (!bookingForm.selectedPatient || !selectedTenant) return;
+        setBookingSaving(true);
+
+        try {
+            const startTime = bookingModal.slot?.slot_time || bookingModal.prefillStart || '08:00';
+            const endTime = bookingModal.slot?.slot_end || bookingModal.prefillEnd || '08:30';
+            const slot = bookingModal.slot;
+            const slotType = slot ? (slot.is_auto_released ? 'auto_released' : slot.block_type) : 'regular';
+
+            const payload: BookAppointmentPayload = {
+                tenant_id: selectedTenant,
+                doctor_id: bookingModal.doctorId,
+                patient_id: bookingForm.selectedPatient.id,
+                type_id: bookingForm.typeId || undefined,
+                date: dateStr,
+                start_time: startTime,
+                end_time: endTime,
+                patient_type: bookingForm.patientType,
+                insurance_plan_id: bookingForm.patientType === 'insurance' ? bookingForm.insurancePlanId || undefined : undefined,
+                slot_type: slotType,
+                notes: bookingForm.notes || undefined,
+                location_id: slot?.location_id || '',
+            };
+
+            await smartSchedulingService.bookAppointment(payload);
+            showToast('success', `Agendamento criado para ${bookingForm.selectedPatient.full_name}!`);
+            setBookingModal({ open: false, doctorId: '', slot: null });
+            fetchData();
+        } catch (err: any) {
+            showToast('error', 'Erro ao agendar: ' + err.message);
+        }
+        setBookingSaving(false);
+    };
+
+    // ── Update / Delete ─────────────────────
+    const handleUpdateStatus = async (id: string, status: string) => {
+        try {
+            const updates: any = { status };
+            if (status === 'checkin_done') updates.checkin_at = new Date().toISOString();
+            await supabase.from('appointments').update(updates).eq('id', id);
+            setEditingAppt(null);
+            fetchData();
+            showToast('success', 'Status atualizado!');
+        } catch (err: any) { showToast('error', 'Erro: ' + err.message); }
+    };
+
+    const handleSaveNotes = async () => {
+        if (!editingAppt) return;
+        try {
+            await supabase.from('appointments').update({ notes: editNotes }).eq('id', editingAppt.id);
+            setEditingAppt(null);
+            fetchData();
+            showToast('success', 'Notas salvas!');
+        } catch (err: any) { showToast('error', 'Erro: ' + err.message); }
+    };
+
+    const handleDelete = async (id: string) => {
+        try {
+            await supabase.from('appointments').delete().eq('id', id);
+            setConfirmDelete(null);
+            setEditingAppt(null);
+            fetchData();
+            showToast('success', 'Agendamento removido!');
+        } catch (err: any) { showToast('error', 'Erro: ' + err.message); }
+    };
+
+    // ── Drag & Drop Engine ──────────────────
+    const getGridCoords = useCallback((e: MouseEvent) => {
+        if (!gridRef.current || !scrollRef.current) return null;
+        const rect = gridRef.current.getBoundingClientRect();
+        const scrollTop = scrollRef.current.scrollTop;
+        const relX = e.clientX - rect.left;
+        const relY = e.clientY - rect.top + scrollTop;
+        const colW = rect.width / visibleDoctors.length;
+        const colIdx = Math.max(0, Math.min(visibleDoctors.length - 1, Math.floor(relX / colW)));
+        const minutes = yToMin(relY);
+        return { colIdx, minutes, docId: visibleDoctors[colIdx]?.id || '' };
+    }, [visibleDoctors]);
+
+    // Mouse down on APPOINTMENT → start MOVE
+    const onApptMouseDown = useCallback((e: React.MouseEvent, appt: any, docId: string) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const startMin = timeToMin(appt.start_time);
+        const endMin = appt.end_time ? timeToMin(appt.end_time) : startMin + (appt.appointment_types?.duration_minutes || DEFAULT_DURATION);
+        const cardTop = minToY(startMin);
+
+        if (!scrollRef.current || !gridRef.current) return;
+        const gridRect = gridRef.current.getBoundingClientRect();
+        const scrollTop = scrollRef.current.scrollTop;
+        const mouseYInGrid = e.clientY - gridRect.top + scrollTop;
+        const offsetY = mouseYInGrid - cardTop;
+        const colIdx = visibleDoctors.findIndex(d => d.id === docId);
+
+        dragRef.current = {
+            type: 'move', apptId: appt.id, docId, origStart: startMin, origEnd: endMin,
+            offsetY, currentDocId: docId, currentStart: startMin, currentEnd: endMin,
+        };
+        setGhost({ colIndex: colIdx, top: cardTop, height: minToY(endMin) - cardTop, label: `${minToTime(startMin)} – ${minToTime(endMin)}` });
+        setIsDragging(true);
+    }, [visibleDoctors]);
+
+    // Mouse down on RESIZE HANDLE
+    const onResizeMouseDown = useCallback((e: React.MouseEvent, appt: any, docId: string, edge: 'top' | 'bottom') => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const startMin = timeToMin(appt.start_time);
+        const endMin = appt.end_time ? timeToMin(appt.end_time) : startMin + (appt.appointment_types?.duration_minutes || DEFAULT_DURATION);
+
+        dragRef.current = {
+            type: edge === 'top' ? 'resize-top' : 'resize-bottom',
+            apptId: appt.id, docId, origStart: startMin, origEnd: endMin,
+            offsetY: 0, currentDocId: docId, currentStart: startMin, currentEnd: endMin,
+        };
+        const colIdx = visibleDoctors.findIndex(d => d.id === docId);
+        setGhost({ colIndex: colIdx, top: minToY(startMin), height: minToY(endMin) - minToY(startMin), label: `${minToTime(startMin)} – ${minToTime(endMin)}` });
+        setIsDragging(true);
+    }, [visibleDoctors]);
+
+    // Mouse down on EMPTY GRID → start CREATE
+    const onGridMouseDown = useCallback((e: React.MouseEvent, docId: string) => {
+        if (e.button !== 0 || dragRef.current) return;
+        const coords = getGridCoords(e.nativeEvent);
+        if (!coords) return;
+        const startMin = clampMin(snap(coords.minutes));
+        const colIdx = visibleDoctors.findIndex(d => d.id === docId);
+
+        dragRef.current = {
+            type: 'create', docId, origStart: startMin, origEnd: startMin + SNAP_MIN,
+            offsetY: 0, currentDocId: docId, currentStart: startMin, currentEnd: startMin + SNAP_MIN,
+        };
+        setGhost({ colIndex: colIdx, top: minToY(startMin), height: minToY(startMin + SNAP_MIN) - minToY(startMin), label: `${minToTime(startMin)} – ${minToTime(startMin + SNAP_MIN)}` });
+        setIsDragging(true);
+    }, [visibleDoctors, getGridCoords]);
+
+    // Global mousemove + mouseup
+    useEffect(() => {
+        const handleMouseMove = (e: MouseEvent) => {
+            if (!dragRef.current) return;
+            cancelAnimationFrame(rafRef.current);
+            rafRef.current = requestAnimationFrame(() => {
+                const drag = dragRef.current;
+                if (!drag) return;
+                const coords = getGridCoords(e);
+                if (!coords) return;
+
+                const rawMin = coords.minutes;
+
+                if (drag.type === 'move') {
+                    const duration = drag.origEnd - drag.origStart;
+                    const newStart = clampMin(snap(rawMin - (drag.offsetY / HOUR_PX) * 60));
+                    const newEnd = clampMin(newStart + duration);
+                    drag.currentStart = newEnd > DAY_END * 60 ? DAY_END * 60 - duration : newStart;
+                    drag.currentEnd = drag.currentStart + duration;
+                    drag.currentDocId = coords.docId;
+                    setGhost({
+                        colIndex: coords.colIdx,
+                        top: minToY(drag.currentStart),
+                        height: minToY(drag.currentEnd) - minToY(drag.currentStart),
+                        label: `${minToTime(drag.currentStart)} – ${minToTime(drag.currentEnd)}`,
+                    });
+                } else if (drag.type === 'resize-bottom') {
+                    const newEnd = clampMin(Math.max(drag.currentStart + SNAP_MIN, snap(rawMin)));
+                    drag.currentEnd = newEnd;
+                    setGhost({
+                        colIndex: visibleDoctors.findIndex(d => d.id === drag.docId),
+                        top: minToY(drag.currentStart),
+                        height: minToY(newEnd) - minToY(drag.currentStart),
+                        label: `${minToTime(drag.currentStart)} – ${minToTime(newEnd)}`,
+                    });
+                } else if (drag.type === 'resize-top') {
+                    const newStart = clampMin(Math.min(drag.currentEnd - SNAP_MIN, snap(rawMin)));
+                    drag.currentStart = newStart;
+                    setGhost({
+                        colIndex: visibleDoctors.findIndex(d => d.id === drag.docId),
+                        top: minToY(newStart),
+                        height: minToY(drag.currentEnd) - minToY(newStart),
+                        label: `${minToTime(newStart)} – ${minToTime(drag.currentEnd)}`,
+                    });
+                } else if (drag.type === 'create') {
+                    const a = drag.origStart;
+                    const b = snap(rawMin);
+                    const s = clampMin(Math.min(a, b));
+                    const ed = clampMin(Math.max(a, b));
+                    drag.currentStart = s;
+                    drag.currentEnd = Math.max(ed, s + SNAP_MIN);
+                    setGhost({
+                        colIndex: visibleDoctors.findIndex(d => d.id === drag.docId),
+                        top: minToY(drag.currentStart),
+                        height: Math.max(minToY(drag.currentEnd) - minToY(drag.currentStart), SNAP_MIN / 60 * HOUR_PX),
+                        label: `${minToTime(drag.currentStart)} – ${minToTime(drag.currentEnd)}`,
+                    });
+                }
+            });
+        };
+
+        const handleMouseUp = async () => {
+            cancelAnimationFrame(rafRef.current);
+            const drag = dragRef.current;
+            dragRef.current = null;
+            setGhost(null);
+            setIsDragging(false);
+            if (!drag) return;
+
+            // Ignore micro-drags (less than 1 snap interval of movement)
+            const moved = Math.abs(drag.currentStart - drag.origStart) >= SNAP_MIN ||
+                          Math.abs(drag.currentEnd - drag.origEnd) >= SNAP_MIN ||
+                          drag.currentDocId !== drag.docId;
+
+            if (drag.type === 'move' && drag.apptId && moved) {
+                try {
+                    await supabase.from('appointments').update({
+                        doctor_id: drag.currentDocId,
+                        start_time: minToTime(drag.currentStart) + ':00',
+                        end_time: minToTime(drag.currentEnd) + ':00',
+                    }).eq('id', drag.apptId);
+                    showToast('success', 'Agendamento movido!');
+                    fetchData();
+                } catch (err: any) { showToast('error', 'Erro ao mover: ' + err.message); }
+            } else if ((drag.type === 'resize-top' || drag.type === 'resize-bottom') && drag.apptId && moved) {
+                try {
+                    await supabase.from('appointments').update({
+                        start_time: minToTime(drag.currentStart) + ':00',
+                        end_time: minToTime(drag.currentEnd) + ':00',
+                    }).eq('id', drag.apptId);
+                    showToast('success', 'Duração atualizada!');
+                    fetchData();
+                } catch (err: any) { showToast('error', 'Erro ao redimensionar: ' + err.message); }
+            } else if (drag.type === 'create' && drag.currentEnd - drag.currentStart >= SNAP_MIN) {
+                openBookingFromDrag(drag.docId, drag.currentStart, drag.currentEnd);
+            } else if (drag.type === 'move' && drag.apptId && !moved) {
+                // Click without drag → open edit modal
+                const allAppts = Object.values(appointmentsByDoctor).flat();
+                const appt = allAppts.find((a: any) => a.id === drag.apptId);
+                if (appt) { setEditingAppt(appt); setEditNotes(appt.notes || ''); }
+            }
+        };
+
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+        return () => {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [getGridCoords, visibleDoctors, fetchData, appointmentsByDoctor]);
+
+    // ── Helpers ──────────────────────────────
+    const apptCount = (docId: string) => (appointmentsByDoctor[docId] || []).length;
+    const totalAppts = selectedDoctors.reduce((s, id) => s + apptCount(id), 0);
+    const totalSlots = selectedDoctors.reduce((s, id) => s + (slotsByDoctor[id] || []).length, 0);
+
+    const statusStyle = (status: string) => {
+        const map: Record<string, string> = {
+            scheduled: 'bg-white border-l-4 border-l-blue-400 border-y border-r border-ice-200',
+            confirmed: 'bg-brand-primary/8 border-l-4 border-l-brand-primary border-y border-r border-brand-primary/20',
+            checkin_done: 'bg-emerald-50 border-l-4 border-l-emerald-500 border-y border-r border-emerald-200',
+            in_progress: 'bg-blue-50 border-l-4 border-l-blue-500 border-y border-r border-blue-200',
+            completed: 'bg-green-50/60 border-l-4 border-l-green-400 border-y border-r border-green-200 opacity-60',
+        };
+        return map[status] || 'bg-white border-l-4 border-l-gray-300 border-y border-r border-ice-200';
+    };
+
+    const slotBg = (slot: SmartSlot) => {
+        if (slot.is_auto_released) return 'bg-amber-50/60 border-amber-200';
+        if (slot.block_type === 'prime') return 'bg-yellow-50/50 border-yellow-200';
+        return 'bg-blue-50/30 border-ice-200';
+    };
+
+    // Slot badge inline
+    const SlotBadge = ({ slot }: { slot: SmartSlot }) => {
+        if (slot.is_auto_released) return <span className="flex items-center gap-0.5 text-[8px] font-black uppercase text-amber-600"><Unlock size={8} />Liberado</span>;
+        if (slot.block_type === 'prime') return <span className="flex items-center gap-0.5 text-[8px] font-black uppercase text-yellow-700"><Star size={8} />Nobre</span>;
+        return <span className="flex items-center gap-0.5 text-[8px] font-black uppercase text-graphite-400"><FileText size={8} />Regular</span>;
+    };
+
+    // ─────────────────────────────────────────
+    // RENDER
+    // ─────────────────────────────────────────
+    return (
+        <div className="flex flex-col h-[calc(100vh-64px)] overflow-hidden bg-white">
+            {/* ── TOP BAR ── */}
+            <div className="flex items-center gap-3 px-4 py-2 border-b border-ice-100 shrink-0 bg-white z-20">
+                {/* Date nav */}
+                <div className="flex items-center bg-ice-50 rounded-xl p-0.5">
+                    <button onClick={() => changeDate(-1)} className="p-1.5 hover:bg-white rounded-lg transition-colors border-none bg-transparent cursor-pointer text-graphite-700"><ChevronLeft size={16} /></button>
+                    <button onClick={goToToday} className="px-3 py-1.5 flex items-center gap-1.5 border-none bg-transparent cursor-pointer hover:bg-white rounded-lg transition-colors">
+                        <CalendarIcon size={14} className="text-brand-primary" />
+                        <span className={cn("text-sm font-black whitespace-nowrap", isToday && "text-brand-primary")}>
+                            {isToday ? 'Hoje' : formatDateLabel(selectedDate)}
+                        </span>
+                    </button>
+                    <button onClick={() => changeDate(1)} className="p-1.5 hover:bg-white rounded-lg transition-colors border-none bg-transparent cursor-pointer text-graphite-700"><ChevronRight size={16} /></button>
+                </div>
+
+                <div className="w-px h-6 bg-ice-200" />
+
+                {/* Doctor pills */}
+                <div className="flex gap-1.5 overflow-x-auto no-scrollbar flex-1 min-w-0">
+                    {doctors.map(doc => {
+                        const isSel = selectedDoctors.includes(doc.id);
+                        const c = doc.color || '#1152d4';
+                        const cnt = apptCount(doc.id);
+                        return (
+                            <button key={doc.id} onClick={() => toggleDoctor(doc.id)}
+                                className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all border cursor-pointer whitespace-nowrap shrink-0",
+                                    isSel ? "text-white shadow-sm" : "bg-white text-graphite-600 border-ice-200 hover:border-ice-300"
+                                )} style={isSel ? { backgroundColor: c, borderColor: c } : {}}>
+                                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: isSel ? 'rgba(255,255,255,0.5)' : c }} />
+                                {doc.full_name.split(' ').slice(0, 2).join(' ')}
+                                {isSel && cnt > 0 && <span className="bg-white/25 text-[9px] font-black px-1.5 py-0.5 rounded-md">{cnt}</span>}
+                            </button>
+                        );
+                    })}
+                </div>
+
+                <div className="w-px h-6 bg-ice-200" />
+
+                {tenants.length > 1 && (
+                    <div className="flex bg-ice-50 p-0.5 rounded-xl shrink-0">
+                        {tenants.map(t => (
+                            <button key={t.id} onClick={() => setSelectedTenant(t.id)}
+                                className={cn("px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all border-none cursor-pointer",
+                                    selectedTenant === t.id ? "bg-white text-brand-primary shadow-sm" : "text-graphite-400 bg-transparent"
+                                )}>{t.name?.split(' ').slice(0, 2).join(' ')}</button>
+                        ))}
+                    </div>
+                )}
+
+                <div className="flex items-center gap-2 shrink-0 text-[10px] font-bold text-graphite-400">
+                    <span className="bg-brand-primary/10 text-brand-primary px-2 py-1 rounded-lg">{totalAppts} agendado{totalAppts !== 1 ? 's' : ''}</span>
+                    <span className="bg-emerald-50 text-emerald-600 px-2 py-1 rounded-lg">{totalSlots} livre{totalSlots !== 1 ? 's' : ''}</span>
+                </div>
+            </div>
+
+            {/* ── CALENDAR BODY ── */}
+            {loading ? (
+                <div className="flex-1 flex items-center justify-center">
+                    <div className="w-8 h-8 border-4 border-brand-primary/30 border-t-brand-primary rounded-full animate-spin" />
+                </div>
+            ) : visibleDoctors.length === 0 ? (
+                <div className="flex-1 flex items-center justify-center">
+                    <div className="text-center">
+                        <StethoscopeIcon size={48} className="mx-auto text-graphite-200 mb-4" />
+                        <p className="text-graphite-400 font-bold">Selecione ao menos um profissional</p>
+                    </div>
+                </div>
+            ) : (
+                <>
+                    {/* Column Headers (sticky) */}
+                    <div className="flex shrink-0 border-b border-ice-200 bg-ice-50/80 backdrop-blur-sm z-10">
+                        <div className="w-14 shrink-0" />
+                        {visibleDoctors.map(doc => (
+                            <div key={doc.id} className="flex-1 min-w-[180px] px-3 py-2 border-l border-ice-100">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: doc.color || '#1152d4' }} />
+                                    <span className="text-[11px] font-black text-graphite-900 truncate">{doc.full_name}</span>
+                                    {doc.specialty && <span className="text-[9px] text-graphite-400 font-medium truncate">{doc.specialty}</span>}
+                                    <span className="ml-auto text-[9px] font-bold text-graphite-300">{apptCount(doc.id)}/{(slotsByDoctor[doc.id] || []).length + apptCount(doc.id)}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Scrollable Time Grid */}
+                    <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-auto" style={{ userSelect: isDragging ? 'none' : 'auto' }}>
+                        <div className="flex" style={{ height: TOTAL_PX, minWidth: 180 * visibleDoctors.length + 56 }}>
+                            {/* Time Gutter */}
+                            <div className="w-16 shrink-0 relative border-r border-ice-100 bg-ice-50/50">
+                                {HOURS.map(h => (
+                                    <div key={h} className="absolute w-full flex items-start justify-end pr-3" style={{ top: (h - DAY_START) * HOUR_PX }}>
+                                        <span className={cn("text-[11px] font-black -mt-[7px]", h === DAY_START ? "text-transparent" : "text-graphite-700")}>
+                                            {String(h).padStart(2, '0')}:00
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Doctor Columns */}
+                            <div ref={gridRef} className="flex-1 flex relative">
+                                {visibleDoctors.map((doc) => {
+                                    const docSlots = slotsByDoctor[doc.id] || [];
+                                    const docAppts = appointmentsByDoctor[doc.id] || [];
+
+                                    return (
+                                        <div
+                                            key={doc.id}
+                                            className="flex-1 min-w-[180px] relative border-l border-ice-100"
+                                            style={{ height: TOTAL_PX }}
+                                            onMouseDown={(e) => {
+                                                // Only trigger create if clicking on empty space
+                                                if ((e.target as HTMLElement).closest('[data-appt]') || (e.target as HTMLElement).closest('[data-slot]')) return;
+                                                onGridMouseDown(e, doc.id);
+                                            }}
+                                        >
+                                            {/* Hour grid lines */}
+                                            {HOURS.map(h => (
+                                                <React.Fragment key={h}>
+                                                    <div className="absolute left-0 right-0 border-b border-ice-200" style={{ top: (h - DAY_START) * HOUR_PX }} />
+                                                    <div className="absolute left-0 right-0 border-b border-ice-100" style={{ top: (h - DAY_START) * HOUR_PX + HOUR_PX / 2 }} />
+                                                </React.Fragment>
+                                            ))}
+
+                                            {/* Available Slots (background indicators) */}
+                                            {docSlots.map((slot, i) => {
+                                                const sMin = timeToMin(slot.slot_time);
+                                                const eMin = timeToMin(slot.slot_end);
+                                                const top = minToY(sMin);
+                                                const h = minToY(eMin) - top;
+                                                return (
+                                                    <div
+                                                        key={i}
+                                                        data-slot
+                                                        className={cn("absolute left-1 right-1 rounded-lg border border-dashed cursor-pointer transition-all hover:opacity-90 group/slot", slotBg(slot))}
+                                                        style={{ top, height: h }}
+                                                        onClick={(e) => { e.stopPropagation(); openBookingModal(doc.id, slot); }}
+                                                    >
+                                                        <div className="flex items-center justify-between px-2 py-1">
+                                                            <SlotBadge slot={slot} />
+                                                            <Plus size={12} className="text-brand-primary opacity-0 group-hover/slot:opacity-100 transition-opacity" />
+                                                        </div>
+                                                        {slot.location_name && (
+                                                            <div className="flex items-center gap-0.5 px-2 text-[8px] text-graphite-400"><MapPin size={7} />{slot.location_name}</div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+
+                                            {/* Appointments */}
+                                            {docAppts.map((appt: any) => {
+                                                const sMin = timeToMin(appt.start_time);
+                                                const eMin = appt.end_time ? timeToMin(appt.end_time) : sMin + (appt.appointment_types?.duration_minutes || DEFAULT_DURATION);
+                                                const top = minToY(sMin);
+                                                const h = Math.max(minToY(eMin) - top, 24);
+                                                const isBeingDragged = isDragging && dragRef.current?.apptId === appt.id;
+
+                                                return (
+                                                    <div
+                                                        key={appt.id}
+                                                        data-appt
+                                                        className={cn(
+                                                            "absolute left-1.5 right-1.5 rounded-xl shadow-sm transition-shadow hover:shadow-md group/card",
+                                                            statusStyle(appt.status),
+                                                            isBeingDragged && "opacity-30",
+                                                            isDragging ? "pointer-events-none" : "cursor-grab active:cursor-grabbing"
+                                                        )}
+                                                        style={{ top, height: h, zIndex: isBeingDragged ? 1 : 5 }}
+                                                        onMouseDown={(e) => onApptMouseDown(e, appt, doc.id)}
+                                                    >
+                                                        {/* Resize handle TOP */}
+                                                        <div
+                                                            className="absolute top-0 left-2 right-2 h-2 cursor-n-resize z-10 flex items-center justify-center opacity-0 group-hover/card:opacity-100 transition-opacity"
+                                                            onMouseDown={(e) => onResizeMouseDown(e, appt, doc.id, 'top')}
+                                                        >
+                                                            <div className="w-8 h-1 rounded-full bg-graphite-300/50" />
+                                                        </div>
+
+                                                        {/* Content */}
+                                                        <div className="px-2.5 py-1.5 overflow-hidden h-full flex flex-col justify-center">
+                                                            <div className="flex items-center gap-1.5">
+                                                                {appt.status === 'confirmed' && <CheckCircle2 size={10} className="text-brand-primary shrink-0" />}
+                                                                {appt.status === 'checkin_done' && <UserCheck size={10} className="text-emerald-500 shrink-0" />}
+                                                                <span className="text-[11px] font-black text-graphite-900 truncate leading-tight">
+                                                                    {appt.patients?.full_name || 'Paciente'}
+                                                                </span>
+                                                                {appt.patient_type === 'insurance' && <Shield size={9} className="text-emerald-400 shrink-0" />}
+                                                            </div>
+                                                            {h > 36 && (
+                                                                <div className="flex items-center gap-1 mt-0.5">
+                                                                    <span className="text-[9px] text-graphite-400 font-medium truncate">
+                                                                        {appt.appointment_types?.name || appt.notes || 'Consulta'}
+                                                                    </span>
+                                                                </div>
+                                                            )}
+                                                            {h > 52 && (
+                                                                <span className="text-[9px] text-graphite-300 font-medium mt-0.5">
+                                                                    {appt.start_time?.substring(0, 5)} – {appt.end_time?.substring(0, 5) || ''}
+                                                                </span>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Resize handle BOTTOM */}
+                                                        <div
+                                                            className="absolute bottom-0 left-2 right-2 h-2 cursor-s-resize z-10 flex items-center justify-center opacity-0 group-hover/card:opacity-100 transition-opacity"
+                                                            onMouseDown={(e) => onResizeMouseDown(e, appt, doc.id, 'bottom')}
+                                                        >
+                                                            <div className="w-8 h-1 rounded-full bg-graphite-300/50" />
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    );
+                                })}
+
+                                {/* ── Current Time Indicator ── */}
+                                {isToday && nowMin >= DAY_START * 60 && nowMin <= DAY_END * 60 && (
+                                    <div className="absolute left-0 right-0 z-20 pointer-events-none flex items-center" style={{ top: minToY(nowMin) }}>
+                                        <div className="w-2.5 h-2.5 rounded-full bg-red-500 -ml-1 shrink-0 shadow-sm" />
+                                        <div className="flex-1 h-[2px] bg-red-500 shadow-sm" />
+                                    </div>
+                                )}
+
+                                {/* ── Drag Ghost ── */}
+                                {ghost && (
+                                    <div
+                                        className="absolute rounded-xl bg-brand-primary/15 border-2 border-brand-primary/40 z-30 pointer-events-none backdrop-blur-[1px] flex items-center justify-center"
+                                        style={{
+                                            top: ghost.top,
+                                            height: ghost.height,
+                                            left: `calc(${(ghost.colIndex / visibleDoctors.length) * 100}% + 4px)`,
+                                            width: `calc(${100 / visibleDoctors.length}% - 8px)`,
+                                        }}
+                                    >
+                                        <span className="text-[11px] font-black text-brand-primary bg-white/80 px-2 py-0.5 rounded-lg shadow-sm">
+                                            {ghost.label}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {/* ========== BOOKING MODAL ========== */}
+            <AnimatePresence>
+                {bookingModal.open && (
+                    <>
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-graphite-900/40 backdrop-blur-sm z-[100]"
+                            onClick={() => setBookingModal({ open: false, doctorId: '', slot: null })} />
+                        <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="fixed inset-0 z-[110] flex items-center justify-center p-4 pointer-events-none">
+                            <div className="bg-white pointer-events-auto w-full max-w-lg rounded-[32px] shadow-2xl overflow-hidden border border-white/20">
+                                <div className="px-8 py-5 border-b border-ice-100 bg-ice-50/50 flex justify-between items-center">
+                                    <div>
+                                        <h3 className="text-lg font-black text-graphite-900">Novo Agendamento</h3>
+                                        <div className="flex items-center gap-3 mt-1">
+                                            <span className="text-xs text-graphite-500 font-medium flex items-center gap-1">
+                                                <Clock size={12} />
+                                                {bookingModal.slot
+                                                    ? `${bookingModal.slot.slot_time.substring(0, 5)} – ${bookingModal.slot.slot_end.substring(0, 5)}`
+                                                    : bookingModal.prefillStart
+                                                        ? `${bookingModal.prefillStart} – ${bookingModal.prefillEnd}`
+                                                        : ''}
+                                            </span>
+                                            {bookingModal.slot && <SlotBadge slot={bookingModal.slot} />}
+                                        </div>
+                                    </div>
+                                    <button onClick={() => setBookingModal({ open: false, doctorId: '', slot: null })}
+                                        className="w-10 h-10 rounded-xl bg-white border border-ice-200 flex items-center justify-center text-graphite-400 hover:text-brand-primary transition-all cursor-pointer">
+                                        <X size={20} />
+                                    </button>
+                                </div>
+
+                                <div className="p-6 space-y-5 max-h-[60vh] overflow-y-auto">
+                                    {/* Patient Search */}
+                                    <div>
+                                        <label className="text-xs font-black text-graphite-400 uppercase mb-2 block">Paciente *</label>
+                                        {bookingForm.selectedPatient ? (
+                                            <div className="flex items-center gap-3 p-3 bg-brand-primary/5 border border-brand-primary/20 rounded-xl">
+                                                <div className="w-10 h-10 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary"><User size={18} /></div>
+                                                <div className="flex-1">
+                                                    <p className="text-sm font-black text-graphite-900">{bookingForm.selectedPatient.full_name}</p>
+                                                    <p className="text-xs text-graphite-400">{bookingForm.selectedPatient.phone || bookingForm.selectedPatient.email || ''}</p>
+                                                </div>
+                                                <button onClick={() => setBookingForm(prev => ({ ...prev, selectedPatient: null, patientSearch: '' }))}
+                                                    className="p-1.5 hover:bg-white rounded-lg transition-colors border-none bg-transparent cursor-pointer text-graphite-400"><X size={16} /></button>
+                                            </div>
+                                        ) : (
+                                            <div className="relative">
+                                                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-graphite-300" />
+                                                <input type="text" value={bookingForm.patientSearch} onChange={(e) => handlePatientSearch(e.target.value)}
+                                                    placeholder="Buscar por nome..." autoFocus
+                                                    className="w-full bg-ice-50 border border-ice-200 rounded-xl pl-10 pr-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors" />
+                                                {patientResults.length > 0 && (
+                                                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-ice-200 rounded-xl shadow-lg z-10 max-h-48 overflow-y-auto">
+                                                        {patientResults.map(p => (
+                                                            <button key={p.id} onClick={() => { setBookingForm(prev => ({ ...prev, selectedPatient: p, patientSearch: p.full_name, patientType: p.insurance_provider ? 'insurance' : 'private' })); setPatientResults([]); }}
+                                                                className="w-full text-left px-4 py-2.5 hover:bg-ice-50 transition-colors border-none bg-transparent cursor-pointer flex items-center gap-3">
+                                                                <User size={14} className="text-graphite-300" />
+                                                                <div>
+                                                                    <p className="text-sm font-bold text-graphite-900">{p.full_name}</p>
+                                                                    <p className="text-xs text-graphite-400">{p.phone || p.email || ''}</p>
+                                                                </div>
+                                                                {p.insurance_provider && <Shield size={12} className="ml-auto text-emerald-400" />}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Patient Type */}
+                                    <div>
+                                        <label className="text-xs font-black text-graphite-400 uppercase mb-2 block">Tipo de Paciente</label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <button onClick={() => setBookingForm(prev => ({ ...prev, patientType: 'private' }))}
+                                                className={cn("py-2.5 rounded-xl text-xs font-bold border cursor-pointer transition-all flex items-center justify-center gap-2",
+                                                    bookingForm.patientType === 'private' ? "bg-brand-primary text-white border-brand-primary" : "bg-white text-graphite-600 border-ice-200")}>
+                                                <User size={14} /> Particular
+                                            </button>
+                                            <button onClick={() => setBookingForm(prev => ({ ...prev, patientType: 'insurance' }))}
+                                                className={cn("py-2.5 rounded-xl text-xs font-bold border cursor-pointer transition-all flex items-center justify-center gap-2",
+                                                    bookingForm.patientType === 'insurance' ? "bg-emerald-500 text-white border-emerald-500" : "bg-white text-graphite-600 border-ice-200")}>
+                                                <Shield size={14} /> Convênio
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {bookingForm.patientType === 'insurance' && (
+                                        <div>
+                                            <label className="text-xs font-black text-graphite-400 uppercase mb-2 block">Convênio</label>
+                                            {doctorPlans.length === 0 ? (
+                                                <p className="text-xs text-amber-500 font-medium bg-amber-50 p-3 rounded-xl border border-amber-200">Este profissional não tem convênios vinculados</p>
+                                            ) : (
+                                                <select value={bookingForm.insurancePlanId} onChange={(e) => setBookingForm(prev => ({ ...prev, insurancePlanId: e.target.value }))}
+                                                    className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium cursor-pointer focus:outline-none focus:border-brand-primary transition-colors">
+                                                    <option value="">Selecione o convênio</option>
+                                                    {doctorPlans.map((dp: any) => <option key={dp.insurance_plan_id} value={dp.insurance_plan_id}>{dp.insurance_plans?.name || 'Convênio'}</option>)}
+                                                </select>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    <div>
+                                        <label className="text-xs font-black text-graphite-400 uppercase mb-2 block">Tipo de Consulta</label>
+                                        <select value={bookingForm.typeId} onChange={(e) => setBookingForm(prev => ({ ...prev, typeId: e.target.value }))}
+                                            className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium cursor-pointer focus:outline-none focus:border-brand-primary transition-colors">
+                                            <option value="">Selecione o tipo</option>
+                                            {appointmentTypes.map(t => <option key={t.id} value={t.id}>{t.name} ({t.duration_minutes}min)</option>)}
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="text-xs font-black text-graphite-400 uppercase mb-2 block">Observações</label>
+                                        <textarea value={bookingForm.notes || ''} onChange={(e) => setBookingForm(prev => ({ ...prev, notes: e.target.value }))}
+                                            placeholder="Observações opcionais..."
+                                            className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors resize-none min-h-[60px]" />
+                                    </div>
+
+                                    <div className="flex gap-3 pt-2">
+                                        <button onClick={() => setBookingModal({ open: false, doctorId: '', slot: null })}
+                                            className="flex-1 py-3 rounded-2xl font-bold text-graphite-700 hover:bg-ice-50 border border-ice-200 cursor-pointer transition-all bg-transparent">Cancelar</button>
+                                        <button onClick={handleBook} disabled={!bookingForm.selectedPatient || bookingSaving}
+                                            className={cn("flex-[2] py-3 rounded-2xl font-bold shadow-lg transition-all flex items-center justify-center gap-2 border-none cursor-pointer",
+                                                bookingForm.selectedPatient ? "bg-brand-primary text-white shadow-brand-primary/20 hover:scale-[1.02] active:scale-[0.98]" : "bg-ice-200 text-graphite-400 cursor-not-allowed shadow-none")}>
+                                            {bookingSaving ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><CheckCircle2 size={16} /> Confirmar</>}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
+
+            {/* ========== EDIT MODAL ========== */}
+            {editingAppt && (
+                <>
+                    <div className="fixed inset-0 bg-graphite-900/40 backdrop-blur-sm z-[100]" onClick={() => setEditingAppt(null)} />
+                    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 pointer-events-none">
+                        <div className="bg-white pointer-events-auto w-full max-w-md rounded-[32px] shadow-2xl overflow-hidden border border-white/20">
+                            <div className="px-8 py-5 border-b border-ice-100 flex justify-between items-center bg-ice-50/50">
+                                <div>
+                                    <h3 className="text-lg font-black text-graphite-900">{editingAppt.patients?.full_name || 'Paciente'}</h3>
+                                    <p className="text-xs text-graphite-400 font-medium">
+                                        {editingAppt.start_time?.substring(0, 5)} – {editingAppt.end_time?.substring(0, 5)} · {formatDateLabel(selectedDate)}
+                                    </p>
+                                </div>
+                                <button onClick={() => setEditingAppt(null)} className="w-10 h-10 rounded-xl bg-white border border-ice-200 flex items-center justify-center text-graphite-400 hover:text-brand-primary transition-all cursor-pointer"><X size={20} /></button>
+                            </div>
+                            <div className="p-6 space-y-5">
+                                <div>
+                                    <label className="text-xs font-black text-graphite-400 uppercase mb-2 block">Status</label>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {[
+                                            { status: 'confirmed', label: 'Confirmado', icon: CheckCircle2, ac: 'bg-brand-primary text-white border-brand-primary' },
+                                            { status: 'checkin_done', label: 'Check-in', icon: UserCheck, ac: 'bg-emerald-500 text-white border-emerald-500' },
+                                            { status: 'canceled', label: 'Cancelar', icon: XCircle, ac: 'bg-rose-500 text-white border-rose-500' },
+                                            { status: 'noshow', label: 'No-Show', icon: AlertTriangle, ac: 'bg-amber-500 text-white border-amber-500' },
+                                        ].map(({ status, label, icon: Icon, ac }) => (
+                                            <button key={status} onClick={() => handleUpdateStatus(editingAppt.id, status)}
+                                                className={cn("flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold border cursor-pointer transition-all",
+                                                    editingAppt.status === status ? ac : "bg-white text-graphite-600 border-ice-200 hover:border-ice-300")}>
+                                                <Icon size={14} /> {label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {editingAppt.slot_type && (
+                                    <div className="flex items-center gap-2 p-3 rounded-xl bg-ice-50 border border-ice-100">
+                                        <span className="text-xs font-bold text-graphite-400">Slot:</span>
+                                        <span className={cn("px-2 py-0.5 rounded-lg text-[10px] font-black uppercase",
+                                            editingAppt.slot_type === 'prime' ? "bg-yellow-100 text-yellow-700" :
+                                                editingAppt.slot_type === 'auto_released' ? "bg-amber-100 text-amber-700" : "bg-ice-100 text-graphite-500")}>
+                                            {editingAppt.slot_type === 'prime' ? 'Nobre' : editingAppt.slot_type === 'auto_released' ? 'Liberado' : 'Regular'}
+                                        </span>
+                                        {editingAppt.patient_type === 'insurance' && <span className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase bg-emerald-100 text-emerald-700">Convênio</span>}
+                                    </div>
+                                )}
+
+                                <div>
+                                    <label className="text-xs font-black text-graphite-400 uppercase mb-2 block">Observações</label>
+                                    <textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="Observações..."
+                                        className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors resize-none min-h-[80px]" />
+                                </div>
+
+                                <div className="flex gap-3">
+                                    <button onClick={() => setEditingAppt(null)} className="flex-1 py-3 rounded-2xl font-bold text-graphite-700 hover:bg-ice-50 border border-ice-200 cursor-pointer transition-all bg-transparent">Fechar</button>
+                                    <button onClick={handleSaveNotes} className="flex-[2] bg-brand-primary text-white py-3 rounded-2xl font-bold shadow-lg shadow-brand-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 border-none cursor-pointer">
+                                        <Save size={16} /> Salvar
+                                    </button>
+                                </div>
+
+                                <button onClick={() => setIsCheckoutModalOpen(true)}
+                                    className="w-full py-4 bg-emerald-500 text-white rounded-2xl font-black shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 border-none cursor-pointer">
+                                    <Wallet size={18} /> Receber Pagamento
+                                </button>
+
+                                <button onClick={() => setConfirmDelete(editingAppt.id)}
+                                    className="w-full py-2.5 rounded-xl text-xs font-bold text-rose-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 cursor-pointer transition-all bg-transparent">
+                                    Excluir Agendamento
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {/* ========== CONFIRM DELETE ========== */}
+            <AnimatePresence>
+                {confirmDelete && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/40 flex items-center justify-center z-[120] p-4" onClick={() => setConfirmDelete(null)}>
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+                            className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                            <div className="text-center">
+                                <div className="w-12 h-12 bg-rose-100 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-4"><AlertTriangle size={24} /></div>
+                                <h3 className="text-lg font-bold text-graphite-900 mb-2">Excluir Agendamento?</h3>
+                                <p className="text-sm text-graphite-500 mb-6">Esta ação não pode ser desfeita.</p>
+                                <div className="flex gap-3">
+                                    <button onClick={() => setConfirmDelete(null)} className="flex-1 py-3 rounded-xl font-bold text-graphite-700 hover:bg-ice-50 border border-ice-200 cursor-pointer transition-all bg-transparent">Cancelar</button>
+                                    <button onClick={() => handleDelete(confirmDelete)} className="flex-1 py-3 rounded-xl font-bold text-white bg-rose-500 hover:bg-rose-600 border-none cursor-pointer transition-all">Excluir</button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {editingAppt && (
+                <CheckoutModal
+                    isOpen={isCheckoutModalOpen}
+                    onClose={() => setIsCheckoutModalOpen(false)}
+                    patientId={editingAppt.patient_id}
+                    patientName={editingAppt.patients?.full_name || 'Paciente'}
+                    initialAmount={editingAppt.appointment_types?.price_cents ? (editingAppt.appointment_types.price_cents / 100) : 0}
+                    tenantId={selectedTenant || ''}
+                />
+            )}
+            {/* ========== GLOBAL SELECTION PREVIEW (ABOVE BACKDROP) ========== */}
+            {bookingModal.open && gridRef.current && (
+                <div className="fixed inset-0 pointer-events-none z-[105] overflow-hidden">
+                    {(() => {
+                        const rect = gridRef.current.getBoundingClientRect();
+                        const colIndex = visibleDoctors.findIndex(d => d.id === bookingModal.doctorId);
+                        if (colIndex === -1) return null;
+                        
+                        const colW = rect.width / visibleDoctors.length;
+                        const sMin = timeToMin(bookingModal.slot?.slot_time || bookingModal.prefillStart || '08:00');
+                        const eMin = timeToMin(bookingModal.slot?.slot_end || bookingModal.prefillEnd || '08:30');
+                        
+                        const top = rect.top + minToY(sMin) - scrollTop;
+                        const height = minToY(eMin) - minToY(sMin);
+                        const left = rect.left + colIndex * colW;
+
+                        if (top + height < rect.top || top > rect.bottom) return null;
+
+                        return (
+                            <div 
+                                className="absolute rounded-xl bg-brand-primary border-2 border-brand-primary shadow-2xl flex flex-col items-center justify-center pointer-events-auto"
+                                style={{
+                                    top: Math.max(rect.top, top),
+                                    height: Math.min(rect.bottom, top + height) - Math.max(rect.top, top),
+                                    left: left + 6,
+                                    width: colW - 12,
+                                    opacity: (top < rect.top - 10 || top + height > rect.bottom + 10) ? 0 : 1,
+                                    transition: 'opacity 0.2s',
+                                    visibility: (top + height < rect.top || top > rect.bottom) ? 'hidden' : 'visible'
+                                }}
+                            >
+                                <div className="absolute top-2 right-2">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setBookingModal({ open: false, doctorId: '', slot: null });
+                                        }}
+                                        className="w-8 h-8 rounded-full bg-white shadow-xl flex items-center justify-center text-brand-primary hover:scale-110 active:scale-95 transition-all border-none cursor-pointer"
+                                    >
+                                        <X size={18} strokeWidth={3} />
+                                    </button>
+                                </div>
+                                <span className="text-[11px] font-black text-white px-2 py-1 bg-white/10 rounded-lg">
+                                    {bookingModal.slot 
+                                        ? `${bookingModal.slot.slot_time.substring(0, 5)} – ${bookingModal.slot.slot_end.substring(0, 5)}`
+                                        : `${bookingModal.prefillStart} – ${bookingModal.prefillEnd}`}
+                                </span>
+                                <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-10 h-1.5 rounded-full bg-white/30" />
+                            </div>
+                        );
+                    })()}
+                </div>
+            )}
+        </div>
+    );
+};

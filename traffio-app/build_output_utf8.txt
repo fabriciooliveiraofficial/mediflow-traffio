@@ -1,0 +1,72 @@
+﻿
+> traffio-app@0.0.0 build
+> tsc -b && vite build
+
+src/backend/check_ai_config.ts(5,25): error TS2591: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+src/backend/check_ai_config.ts(6,25): error TS2591: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+src/backend/check_ai_config.ts(6,66): error TS2591: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+src/backend/list_models.ts(5,25): error TS2591: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+src/backend/list_models.ts(6,25): error TS2591: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+src/backend/list_models.ts(6,66): error TS2591: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+src/backend/server.ts(2,63): error TS2307: Cannot find module 'http' or its corresponding type declarations.
+src/backend/server.ts(4,21): error TS1484: 'BotConfig' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/backend/server.ts(4,21): error TS6133: 'BotConfig' is declared but its value is never read.
+src/backend/server.ts(9,21): error TS2591: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+src/backend/server.ts(10,28): error TS2591: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+src/backend/server.ts(10,69): error TS2591: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+src/backend/server.ts(73,32): error TS2591: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+src/backend/server.ts(89,49): error TS6133: 'pError' is declared but its value is never read.
+src/components/ChatAgentComponent.tsx(27,32): error TS2554: Expected 3-5 arguments, but got 2.
+src/components/ChatAgentComponent.tsx(51,25): error TS2345: Argument of type '(prev: Message[]) => (Message | { role: "assistant"; content: AgentResponse; })[]' is not assignable to parameter of type 'SetStateAction<Message[]>'.
+  Type '(prev: Message[]) => (Message | { role: "assistant"; content: AgentResponse; })[]' is not assignable to type '(prevState: Message[]) => Message[]'.
+    Type '(Message | { role: "assistant"; content: AgentResponse; })[]' is not assignable to type 'Message[]'.
+      Type 'Message | { role: "assistant"; content: AgentResponse; }' is not assignable to type 'Message'.
+        Type '{ role: "assistant"; content: AgentResponse; }' is not assignable to type 'Message'.
+          Types of property 'content' are incompatible.
+            Type 'AgentResponse' is not assignable to type 'string'.
+src/components/flow/nodes.tsx(2,25): error TS6133: 'MousePointerClick' is declared but its value is never read.
+src/components/flow/nodes.tsx(2,49): error TS6133: 'GitBranch' is declared but its value is never read.
+src/components/flow/nodes.tsx(2,60): error TS6133: 'Database' is declared but its value is never read.
+src/components/FlowSimulator.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/components/FlowSimulator.tsx(2,21): error TS6133: 'User' is declared but its value is never read.
+src/components/NewPatientModal.tsx(6,1): error TS6133: 'twMerge' is declared but its value is never read.
+src/components/TenantAddressForm.tsx(22,31): error TS2503: Cannot find namespace 'NodeJS'.
+src/components/WebhookSimulator.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/components/WebhookSimulator.tsx(2,21): error TS6133: 'User' is declared but its value is never read.
+src/layouts/PatientAuthLayout.tsx(1,1): error TS6133: 'React' is declared but its value is never read.
+src/layouts/PatientPortalLayout.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/layouts/PatientPortalLayout.tsx(18,12): error TS6133: 'session' is declared but its value is never read.
+src/lib/supabase.ts(8,16): error TS2591: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+src/lib/supabase.ts(8,43): error TS2591: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+src/lib/supabase.ts(9,16): error TS2591: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+src/pages/admin/Professionals.tsx(508,81): error TS2304: Cannot find name 'CalendarClock'.
+src/pages/AdminWhatsApp.tsx(6,5): error TS6133: 'XCircle' is declared but its value is never read.
+src/pages/AdminWhatsApp.tsx(31,11): error TS6133: 'CURRENT_TENANT_ID' is declared but its value is never read.
+src/pages/api/whatsapp-webhook.ts(14,10): error TS6133: 'validateSignature' is declared but its value is never read.
+src/pages/api/whatsapp-webhook.ts(14,28): error TS6133: 'req' is declared but its value is never read.
+src/pages/api/whatsapp-webhook.ts(28,32): error TS6133: 'type' is declared but its value is never read.
+src/pages/api/whatsapp-webhook.ts(44,23): error TS2554: Expected 3-5 arguments, but got 2.
+src/pages/Dashboard.tsx(11,5): error TS6133: 'Search' is declared but its value is never read.
+src/pages/Dashboard.tsx(53,12): error TS6133: 'loading' is declared but its value is never read.
+src/pages/Intelligence.tsx(14,5): error TS6133: 'AlertCircle' is declared but its value is never read.
+src/pages/Intelligence.tsx(71,33): error TS18047: 'member' is possibly 'null'.
+src/pages/Intelligence.tsx(71,48): error TS2339: Property 'bot_config' does not exist on type '{ bot_config: any; }[]'.
+src/pages/master/MasterDashboard.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/pages/master/MasterTenants.tsx(11,5): error TS6133: 'Edit3' is declared but its value is never read.
+src/pages/master/MasterWhatsApp.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/pages/master/MasterWhatsApp.tsx(9,5): error TS6133: 'CheckCircle2' is declared but its value is never read.
+src/pages/master/MasterWhatsApp.tsx(10,5): error TS6133: 'XCircle' is declared but its value is never read.
+src/pages/master/MasterWhatsApp.tsx(12,5): error TS6133: 'MoreVertical' is declared but its value is never read.
+src/pages/patient/WaitingRoom.tsx(15,11): error TS6133: '_appointmentId' is declared but its value is never read.
+src/pages/portal/PortalDashboard.tsx(3,26): error TS6133: 'Clock' is declared but its value is never read.
+src/pages/portal/PortalLogin.tsx(4,35): error TS6133: 'LogIn' is declared but its value is never read.
+src/pages/portal/PortalLogin.tsx(24,36): error TS6133: 'error' is declared but its value is never read.
+src/services/flowExecutor.ts(2,1): error TS6192: All imports in import declaration are unused.
+src/services/flowExecutor.ts(2,10): error TS1484: 'Node' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/services/flowExecutor.ts(2,16): error TS1484: 'Edge' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/services/flowOrchestrator.ts(4,11): error TS6196: 'FlowContext' is declared but never used.
+src/services/flowOrchestrator.ts(120,13): error TS6133: 'nextNodeId' is declared but its value is never read.
+src/services/flowOrchestrator.ts(214,63): error TS2589: Type instantiation is excessively deep and possibly infinite.
+src/services/flowOrchestrator.ts(268,96): error TS6133: 'input' is declared but its value is never read.
+src/services/smartSchedulingService.ts(105,34): error TS6133: 'tenantId' is declared but its value is never read.
+src/services/tenantService.ts(1,1): error TS6133: 'supabase' is declared but its value is never read.

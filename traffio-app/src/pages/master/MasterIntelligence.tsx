@@ -1,0 +1,353 @@
+import { useState, useEffect } from 'react';
+import {
+    BrainCircuit,
+    Key,
+    Activity,
+    TrendingUp,
+    ShieldCheck,
+    AlertCircle,
+    Save,
+    Cpu,
+    BarChart3,
+    Zap
+} from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+import { useToast } from '../../contexts/ToastContext';
+
+interface MasterConfig {
+    key: string;
+    value: string;
+    description: string;
+}
+
+interface TenantUsage {
+    tenant_name: string;
+    total_tokens: number;
+    total_cost: number;
+    profit_margin: number;
+}
+
+export const MasterIntelligence = () => {
+    const { showToast } = useToast();
+    const [configs, setConfigs] = useState<MasterConfig[]>([]);
+    const [usageData, setUsageData] = useState<TenantUsage[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState<string | null>(null);
+    const [stats, setStats] = useState({
+        totalTokens: 0,
+        avgLatency: 'N/A', // Not tracking latency yet
+        activeBots: 0,
+        monthlyCost: 0
+    });
+
+    useEffect(() => {
+        fetchData();
+    }, []);
+
+    const fetchData = async () => {
+        try {
+            setLoading(true);
+
+            // 1. Fetch Configs
+            const { data: configData, error: configError } = await supabase
+                .from('master_config')
+                .select('*');
+            if (configError) throw configError;
+            setConfigs(configData || []);
+
+            // 2. Fetch Usage Logs (Last 30 days)
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+            const { data: logs, error: logsError } = await supabase
+                .from('ai_usage_logs')
+                .select(`
+                    id,
+                    tenant_id,
+                    prompt_tokens,
+                    completion_tokens,
+                    estimated_cost_usd,
+                    tenants (name)
+                `)
+                .gte('created_at', thirtyDaysAgo.toISOString());
+
+            if (logsError) throw logsError;
+
+            // 3. Process Stats
+            let totalTokens = 0;
+            let totalCost = 0;
+            const uniqueTenants = new Set();
+            const tenantMap: Record<string, TenantUsage> = {};
+
+            logs?.forEach(log => {
+                const tokens = (log.prompt_tokens || 0) + (log.completion_tokens || 0);
+                const cost = log.estimated_cost_usd || 0;
+
+                totalTokens += tokens;
+                totalCost += cost;
+
+                if (log.tenant_id) {
+                    uniqueTenants.add(log.tenant_id);
+                    // @ts-ignore - Supabase types join handling
+                    const tName = log.tenants?.name || 'Unknown';
+
+                    if (!tenantMap[log.tenant_id]) {
+                        tenantMap[log.tenant_id] = {
+                            tenant_name: tName,
+                            total_tokens: 0,
+                            total_cost: 0,
+                            profit_margin: 0
+                        };
+                    }
+
+                    tenantMap[log.tenant_id].total_tokens += tokens;
+                    tenantMap[log.tenant_id].total_cost += cost;
+                    // Mock Profit Logic: We charge R$0.0002 per token (approx) vs Cost
+                    // In real world, fetch plan price
+                    const revenue = tokens * 0.00004; // ~$40 per 1M tokens revenue example
+                    tenantMap[log.tenant_id].profit_margin += (revenue - cost);
+                }
+            });
+
+            setStats({
+                totalTokens,
+                avgLatency: '0ms', // Implementation pending
+                activeBots: uniqueTenants.size,
+                monthlyCost: totalCost
+            });
+
+            setUsageData(Object.values(tenantMap).sort((a, b) => b.total_tokens - a.total_tokens));
+
+        } catch (error) {
+            console.error('Error fetching master data:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleUpdateConfig = async (key: string, value: string) => {
+        setSaving(key);
+        try {
+            const { error } = await supabase
+                .from('master_config')
+                .update({ value, updated_at: new Date().toISOString() })
+                .eq('key', key);
+
+            if (error) throw error;
+
+            setConfigs(prev => prev.map(c => c.key === key ? { ...c, value } : c));
+            showToast('success', 'Configuração salva!');
+        } catch (error) {
+            showToast('error', 'Erro ao salvar: ' + (error as any).message);
+        } finally {
+            setSaving(null);
+        }
+    };
+
+    return (
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-7xl mx-auto">
+            {/* Header */}
+            <div>
+                <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                        <BrainCircuit className="text-white" size={24} />
+                    </div>
+                    <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400">Platform Core</p>
+                        <h1 className="text-3xl font-black text-white tracking-tight">AI Orchestrator</h1>
+                    </div>
+                </div>
+                <p className="text-slate-500 font-medium text-sm">Gerenciamento centralizado de modelos, chaves e custos de IA.</p>
+            </div>
+
+            {/* Stats Overview */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {[
+                    { label: 'Tokens Processados (30d)', value: stats.totalTokens.toLocaleString(), icon: Activity, color: 'text-indigo-400' },
+                    { label: 'Latência Média', value: stats.avgLatency, icon: Zap, color: 'text-amber-400' },
+                    { label: 'Robôs Ativos', value: stats.activeBots.toString(), icon: Cpu, color: 'text-emerald-400' },
+                    { label: 'Custo API (30d)', value: `$${stats.monthlyCost.toFixed(4)}`, icon: TrendingUp, color: 'text-sky-400' },
+                ].map((stat, i) => (
+                    <div key={i} className="bg-[#0F1629] border border-[#1E293B] p-5 rounded-2xl">
+                        <div className="flex justify-between items-start mb-4">
+                            <div className={`p-2 rounded-lg bg-[#1A2035] ${stat.color}`}>
+                                <stat.icon size={20} />
+                            </div>
+                        </div>
+                        <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">{stat.label}</p>
+                        <h3 className="text-2xl font-black text-white mt-1">{stat.value}</h3>
+                    </div>
+                ))}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* API Keys Configuration */}
+                <div className="lg:col-span-2 space-y-6">
+                    <div className="bg-[#0F1629] border border-[#1E293B] rounded-2xl overflow-hidden shadow-xl shadow-black/20">
+                        <div className="p-6 border-b border-[#1E293B] flex items-center justify-between bg-[#131B31]">
+                            <div className="flex items-center gap-3">
+                                <Key className="text-indigo-400" size={20} />
+                                <h3 className="font-bold text-white uppercase tracking-wider text-sm">Configuração de Credenciais</h3>
+                            </div>
+                            <ShieldCheck className="text-emerald-500" size={18} />
+                        </div>
+
+                        <div className="p-6 space-y-8">
+                            {loading ? (
+                                <div className="py-12 flex justify-center"><Zap className="animate-spin text-indigo-500" /></div>
+                            ) : (
+                                <>
+                                    {/* AI Configuration Section */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 rounded-2xl bg-[#131B31] border border-[#1E293B]">
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-black text-indigo-400 uppercase tracking-widest">IA Provider</label>
+                                            <select
+                                                value={configs.find(c => c.key === 'AI_MODEL_PROVIDER')?.value || 'google'}
+                                                onChange={(e) => handleUpdateConfig('AI_MODEL_PROVIDER', e.target.value)}
+                                                className="w-full bg-[#1A2035] border border-[#2D3B55] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500"
+                                            >
+                                                <option value="google">Google Gemini</option>
+                                                <option value="openai">OpenAI ChatGPT</option>
+                                            </select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-black text-indigo-400 uppercase tracking-widest">Modelo Ativo</label>
+                                            <select
+                                                value={configs.find(c => c.key === 'AI_MODEL_NAME')?.value || ''}
+                                                onChange={(e) => handleUpdateConfig('AI_MODEL_NAME', e.target.value)}
+                                                className="w-full bg-[#1A2035] border border-[#2D3B55] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500"
+                                            >
+                                                {configs.find(c => c.key === 'AI_MODEL_PROVIDER')?.value === 'openai' ? (
+                                                    <>
+                                                        <option value="gpt-4o">GPT-4o (Standard)</option>
+                                                        <option value="gpt-4o-2024-08-06">GPT-4o (Structured Outputs)</option>
+                                                        <option value="gpt-4o-mini">GPT-4o Mini</option>
+                                                        <option value="gpt-5-mini">GPT-5 Mini</option>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                                                        <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                                                    </>
+                                                )}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {/* API Keys */}
+                                    {configs.filter(c => c.key.includes('_API_KEY')).map((config) => (
+                                        <div key={config.key} className="space-y-2">
+                                            <div className="flex justify-between items-end">
+                                                <label className="text-xs font-black text-slate-400 uppercase tracking-widest">{config.key}</label>
+                                                <span className="text-[10px] text-slate-600 font-medium">{config.description}</span>
+                                            </div>
+                                            <div className="relative flex items-center gap-2">
+                                                <input
+                                                    type="password"
+                                                    value={config.value}
+                                                    onChange={(e) => {
+                                                        const newValue = e.target.value;
+                                                        setConfigs(prev => prev.map(c => c.key === config.key ? { ...c, value: newValue } : c));
+                                                    }}
+                                                    placeholder="Inserir chave de API..."
+                                                    className="flex-1 bg-[#1A2035] border border-[#2D3B55] rounded-xl px-4 py-3.5 text-white focus:outline-none focus:border-indigo-500 transition-all font-mono text-sm leading-none"
+                                                />
+                                                <button
+                                                    onClick={() => handleUpdateConfig(config.key, config.value)}
+                                                    disabled={saving === config.key}
+                                                    className="p-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                                >
+                                                    {saving === config.key ? <Zap className="animate-spin" size={16} /> : <Save size={16} />}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+
+                                    {/* Global Switch */}
+                                    {configs.filter(c => !c.key.includes('_API_KEY') && !['AI_MODEL_PROVIDER', 'AI_MODEL_NAME'].includes(c.key)).map((config) => (
+                                        <div key={config.key} className="flex items-center justify-between p-4 rounded-xl bg-[#1A2035]/50 border border-[#2D3B55]">
+                                            <div>
+                                                <p className="text-xs font-black text-slate-400 uppercase tracking-widest">{config.key}</p>
+                                                <p className="text-[10px] text-slate-600">{config.description}</p>
+                                            </div>
+                                            <button
+                                                onClick={() => handleUpdateConfig(config.key, config.value === 'true' ? 'false' : 'true')}
+                                                className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase transition-all ${config.value === 'true' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-slate-500/10 text-slate-500 border border-slate-500/20'}`}
+                                            >
+                                                {config.value === 'true' ? 'Ativo' : 'Inativo'}
+                                            </button>
+                                        </div>
+                                    ))}
+                                </>
+                            )}
+                        </div>
+
+                    </div>
+
+                    {/* Cost Analytics */}
+                    <div className="bg-[#0F1629] border border-[#1E293B] rounded-2xl p-6">
+                        <div className="flex items-center gap-3 mb-6">
+                            <BarChart3 className="text-sky-400" size={20} />
+                            <h3 className="font-bold text-white uppercase tracking-wider text-sm">Analítico de ROI por Cliente</h3>
+                        </div>
+                        <div className="space-y-4">
+                            {usageData.length === 0 ? (
+                                <div className="text-center py-8 text-slate-600 text-xs">
+                                    Nenhum dado de uso registrado nos últimos 30 dias.
+                                </div>
+                            ) : usageData.map((row, i) => (
+                                <div key={i} className="flex items-center justify-between p-4 rounded-xl bg-[#131B31] border border-[#1E293B] group hover:border-indigo-500/30 transition-all">
+                                    <div className="font-bold text-sm text-white">{row.tenant_name}</div>
+                                    <div className="flex items-center gap-8 text-xs">
+                                        <div className="flex flex-col items-end">
+                                            <span className="text-slate-500 uppercase font-black text-[9px]">Uso</span>
+                                            <span className="text-slate-300 font-mono">{row.total_tokens.toLocaleString()} tok</span>
+                                        </div>
+                                        <div className="flex flex-col items-end">
+                                            <span className="text-slate-500 uppercase font-black text-[9px]">Custo API</span>
+                                            <span className="text-slate-300 font-mono">${row.total_cost.toFixed(4)}</span>
+                                        </div>
+                                        <div className="flex flex-col items-end">
+                                            <span className="text-slate-500 uppercase font-black text-[9px]">Lucro Plataforma</span>
+                                            <span className="text-emerald-400 font-bold">
+                                                {row.profit_margin >= 0 ? '+' : ''}${row.profit_margin.toFixed(2)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Sidebar Info/Policy */}
+                <div className="space-y-6">
+                    <div className="bg-gradient-to-br from-indigo-600/20 to-sky-600/20 border border-indigo-500/20 rounded-2xl p-6">
+                        <div className="flex items-center gap-3 mb-4">
+                            <ShieldCheck className="text-indigo-400" size={20} />
+                            <h4 className="font-black text-white text-xs uppercase tracking-widest">Protocolo de Segurança</h4>
+                        </div>
+                        <p className="text-xs text-slate-400 leading-relaxed font-medium">
+                            As chaves de API cadastradas aqui são criptografadas em repouso e acessíveis apenas pelo motor de execução em ambientes isolados (Edge Functions).
+                            <br /><br />
+                            Tenants jamais terão acesso visual ou programático a estes dados.
+                        </p>
+                    </div>
+
+                    <div className="bg-[#0F1629] border border-[#1E293B] rounded-2xl p-6">
+                        <div className="flex items-center gap-3 mb-4">
+                            <AlertCircle className="text-amber-400" size={20} />
+                            <h4 className="font-black text-white text-xs uppercase tracking-widest">Atenção ao Rate Limit</h4>
+                        </div>
+                        <p className="text-xs text-slate-400 leading-relaxed font-medium">
+                            O uso do **Gemini 1.5 Flash (Tier Trial)** possui limites de requisições por minuto. Para produção em larga escala, certifique-se de configurar o billing no Google Cloud Console.
+                        </p>
+                        <button className="w-full mt-4 py-2 bg-amber-500/10 text-amber-500 rounded-lg text-xs font-black uppercase hover:bg-amber-500/20 transition-all border-none cursor-pointer">
+                            Ver Documentação
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};

@@ -1,0 +1,124 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+
+  /* Palette Premium Traffio (Ice Glaze) */
+  --color-brand-primary: #1152d4;
+  /* Royal Blue */
+  --color-brand-secondary: #dbeafe;
+  /* Ice Blue Hybrid */
+
+  /* Neutrals */
+  --color-graphite-900: #0f172a;
+  --color-graphite-700: #334155;
+  --color-graphite-400: #94a3b8;
+  --color-graphite-300: #cbd5e1;
+
+  /* Ice Scale */
+  --color-ice-50: #f8fafc;
+  --color-ice-100: #f1f5f9;
+  --color-ice-200: #e2e8f0;
+
+  /* Semantic */
+  --color-accent-success: #10b981;
+  --color-accent-warning: #f59e0b;
+  --color-accent-error: #ef4444;
+  --color-accent-info: #3b82f6;
+
+  /* Border Radius */
+  --radius-xl: 0.75rem;
+  /* 12px (Badges) */
+  --radius-2xl: 1rem;
+  /* 16px (Buttons/Inputs) */
+  --radius-3xl: 1.5rem;
+  /* 24px (Cards) */
+
+  /* Shadows (Custom) */
+  --shadow-premium-sm: 0 1px 2px 0 rgb(17 82 212 / 0.05);
+  --shadow-premium-md: 0 4px 6px -1px rgb(17 82 212 / 0.1);
+  --shadow-premium-lg: 0 10px 15px -3px rgb(17 82 212 / 0.1);
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  background-color: var(--color-ice-50);
+  color: var(--color-graphite-900);
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  min-height: 100vh;
+}
+
+/* Glassmorphism Utilities */
+.glass {
+  background-color: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dark .glass {
+  background-color: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Custom Scrollbar - Ice Glaze */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-ice-200);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-brand-primary);
+}
+
+/* Print Styles */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  
+  .printable-area,
+  .printable-area * {
+    visibility: visible;
+  }
+  
+  .printable-area {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 40px;
+    background: white !important;
+    box-shadow: none !important;
+    border: none !important;
+    z-index: 9999;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  @page {
+    margin: 0;
+    size: auto;
+  }
+}
