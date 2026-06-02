@@ -36,6 +36,7 @@ import { TenantProvider } from './contexts/TenantContext'
 import { NotificationProvider } from './contexts/NotificationContext'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import './App.css'
+
 import { motion, AnimatePresence } from 'framer-motion'
 
 // --- Patient Portal Imports ---

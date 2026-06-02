@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
+import type { PlanId, SubscriptionStatus, BillingCycle } from '../config/planConfig';
 
 interface Tenant {
     id: string;
@@ -17,6 +18,13 @@ interface Tenant {
     cloud_api_business_account_id?: string;
     whatsapp_status?: string;
     whatsapp_phone?: string;
+    // Assinatura
+    plan: PlanId;
+    subscription_status: SubscriptionStatus;
+    billing_cycle: BillingCycle;
+    subscription_started_at: string | null;
+    subscription_renews_at: string | null;
+    trial_ends_at: string | null;
 }
 
 export interface UserProfile {
@@ -36,7 +44,7 @@ interface TenantContextType {
     updateTenant: (updates: Partial<Tenant>) => Promise<void>;
 }
 
-const TenantContext = createContext<TenantContextType | undefined>(undefined);
+export const TenantContext = createContext<TenantContextType | undefined>(undefined);
 
 export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { user, loading: authLoading } = useAuth();
