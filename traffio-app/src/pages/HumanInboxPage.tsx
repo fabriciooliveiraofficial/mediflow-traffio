@@ -9,7 +9,7 @@ import {
   AlertTriangle, MoreVertical, ArrowRightLeft, UserCircle2,
   UserPlus, Users, Building2, Tag, CalendarSearch, DollarSign,
   Mic, Paperclip, Camera, Smile, Film, Play, Pause,
-  FileText, Download, Reply, Pencil, Copy, Forward, Trash2, Zap, ArrowRight
+  FileText, Download, Reply, Pencil, Copy, Forward, Trash2, Zap, ArrowRight, Instagram, Facebook
 } from 'lucide-react'
 import data from '@emoji-mart/data'
 import Picker from '@emoji-mart/react'
@@ -201,6 +201,10 @@ function ConversationRow({
         )}>
           {session.channel === 'livechat' ? (
             <MessageCircle className={clsx('w-4 h-4', isQueued ? 'text-amber-600' : 'text-gray-500')} />
+          ) : session.channel === 'instagram' ? (
+            <Instagram className={clsx('w-4 h-4', isQueued ? 'text-amber-600' : 'text-gray-500')} />
+          ) : session.channel === 'facebook' ? (
+            <Facebook className={clsx('w-4 h-4', isQueued ? 'text-amber-600' : 'text-gray-500')} />
           ) : (
             <User className={clsx('w-4 h-4', isQueued ? 'text-amber-600' : 'text-gray-500')} />
           )}
@@ -211,8 +215,8 @@ function ConversationRow({
             <span className="text-sm font-semibold text-gray-900 truncate">
               {patientName
                 ? patientName
-                : session.channel === 'livechat'
-                ? (session.context?.visitor_name || 'Visitante Web')
+                : (session.channel === 'livechat' || session.channel === 'instagram' || session.channel === 'facebook')
+                ? (session.context?.visitor_name || session.context?.username || session.context?.name || (session.channel === 'instagram' ? 'Usuário do Instagram' : session.channel === 'facebook' ? 'Usuário do Messenger' : 'Visitante Web'))
                 : `${phoneFlag(session.patient_phone)} ${formatPhone(session.patient_phone)}`}
             </span>
             <div className="flex items-center gap-2 shrink-0">
@@ -224,6 +228,10 @@ function ConversationRow({
           {session.channel === 'livechat' ? (
             <p className="text-[11px] text-gray-400 truncate mt-0.5">
               {session.context?.visitor_phone || session.context?.visitor_email || 'Live Chat'}
+            </p>
+          ) : (session.channel === 'instagram' || session.channel === 'facebook') ? (
+            <p className="text-[11px] text-gray-400 truncate mt-0.5 flex items-center gap-1">
+              {session.channel === 'instagram' ? '@' : ''}{session.context?.username || session.context?.visitor_name || (session.channel === 'instagram' ? 'Instagram Direct' : 'Facebook Messenger')}
             </p>
           ) : (
             patientName && (
@@ -268,9 +276,21 @@ function ConversationRow({
             <StatusBadge status={session.omnichannel_status} />
             <span className={clsx(
               "inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-bold border",
-              session.channel === 'livechat' ? "bg-indigo-50 text-indigo-700 border-indigo-100" : "bg-green-50 text-green-700 border-green-100"
+              session.channel === 'livechat'
+                ? "bg-indigo-50 text-indigo-700 border-indigo-100"
+                : session.channel === 'instagram'
+                ? "bg-pink-50 text-pink-700 border-pink-100"
+                : session.channel === 'facebook'
+                ? "bg-blue-50 text-blue-700 border-blue-100"
+                : "bg-green-50 text-green-700 border-green-100"
             )}>
-              {session.channel === 'livechat' ? 'Live Chat' : 'WhatsApp'}
+              {session.channel === 'livechat'
+                ? 'Live Chat'
+                : session.channel === 'instagram'
+                ? 'Instagram'
+                : session.channel === 'facebook'
+                ? 'Messenger'
+                : 'WhatsApp'}
             </span>
             {isQueued && (
               <span className="flex items-center gap-0.5 text-[10px] text-amber-600 font-medium">
@@ -1646,7 +1666,7 @@ export function HumanInboxPage() {
   const [transferring, setTransferring] = useState(false);
   const [selectedStage, setSelectedStage] = useState<string>('Todos')
   const [rescheduleData, setRescheduleData] = useState<any | null>(null);
-  const [channelFilter, setChannelFilter] = useState<'all' | 'whatsapp' | 'livechat'>('all');
+  const [channelFilter, setChannelFilter] = useState<'all' | 'whatsapp' | 'livechat' | 'instagram' | 'facebook'>('all');
   
   // Scripts state
   const [salesScripts, setSalesScripts] = useState<any[]>([]);
@@ -1716,6 +1736,7 @@ export function HumanInboxPage() {
     if (!selected) return
     const capturedReplyId = replyingTo?.id
     try {
+      const { data: { session: authSession } } = await supabase.auth.getSession()
       const { data, error } = await supabase.functions.invoke('send-human-media', {
         body: {
           session_id: selected.id,
@@ -1729,7 +1750,8 @@ export function HumanInboxPage() {
           file_size:  opts.fileSize,
           duration_s: opts.durationS,
           replied_to_id: capturedReplyId || null,
-        }
+        },
+        headers: { Authorization: `Bearer ${authSession?.access_token}` }
       })
       if (error) throw new Error(error.message)
       if (data?.error) throw new Error(data.error)
@@ -2269,13 +2291,15 @@ export function HumanInboxPage() {
     setMessages(prev => prev.filter(m => m.id !== msg.id));
 
     try {
+      const { data: { session: authSession } } = await supabase.auth.getSession()
       const { data, error } = await supabase.functions.invoke('delete-human-message', {
         body: {
           message_id: msg.id,
           tenant_id: tenantId,
           user_id: userId,
           delete_on_whatsapp: msg.role !== 'internal'
-        }
+        },
+        headers: { Authorization: `Bearer ${authSession?.access_token}` }
       });
 
       if (error || data?.error) {
@@ -2298,10 +2322,12 @@ export function HumanInboxPage() {
       s.patient_phone.includes(search) ||
       (patientNames[s.patient_phone] ?? '').toLowerCase().includes(search.toLowerCase()) ||
       (s.kanban_stage ?? '').toLowerCase().includes(search.toLowerCase()) ||
-      (s.channel === 'livechat' && (
+      ((s.channel === 'livechat' || s.channel === 'instagram' || s.channel === 'facebook') && (
         (s.context?.visitor_name ?? '').toLowerCase().includes(search.toLowerCase()) ||
         (s.context?.visitor_email ?? '').toLowerCase().includes(search.toLowerCase()) ||
-        (s.context?.visitor_phone ?? '').toLowerCase().includes(search.toLowerCase())
+        (s.context?.visitor_phone ?? '').toLowerCase().includes(search.toLowerCase()) ||
+        (s.context?.username ?? '').toLowerCase().includes(search.toLowerCase()) ||
+        (s.context?.name ?? '').toLowerCase().includes(search.toLowerCase())
       ))
 
     const matchesStage = selectedStage === 'Todos' || (s.kanban_stage || 'Novos Leads') === selectedStage
@@ -2341,7 +2367,7 @@ export function HumanInboxPage() {
             </div>
 
             {/* Filtro de Canais */}
-            <div className="flex items-center gap-1.5 py-0.5 border-b border-gray-100 pb-2">
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 border-b border-gray-100 pb-2">
               <button
                 onClick={() => setChannelFilter('all')}
                 className={clsx(
@@ -2374,6 +2400,28 @@ export function HumanInboxPage() {
                 )}
               >
                 Live Chat
+              </button>
+              <button
+                onClick={() => setChannelFilter('instagram')}
+                className={clsx(
+                  "px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-all shrink-0 cursor-pointer",
+                  channelFilter === 'instagram'
+                    ? "bg-pink-600 text-white border-pink-600 shadow-sm"
+                    : "bg-white text-gray-500 border-gray-200 hover:border-pink-300"
+                )}
+              >
+                Instagram
+              </button>
+              <button
+                onClick={() => setChannelFilter('facebook')}
+                className={clsx(
+                  "px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-all shrink-0 cursor-pointer",
+                  channelFilter === 'facebook'
+                    ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                    : "bg-white text-gray-500 border-gray-200 hover:border-blue-300"
+                )}
+              >
+                Messenger
               </button>
             </div>
 
@@ -2504,6 +2552,10 @@ export function HumanInboxPage() {
               <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
                 {selected.channel === 'livechat' ? (
                   <MessageCircle className="w-4 h-4 text-blue-600" />
+                ) : selected.channel === 'instagram' ? (
+                  <Instagram className="w-4 h-4 text-blue-600" />
+                ) : selected.channel === 'facebook' ? (
+                  <Facebook className="w-4 h-4 text-blue-600" />
                 ) : (
                   <User className="w-4 h-4 text-blue-600" />
                 )}
@@ -2512,8 +2564,8 @@ export function HumanInboxPage() {
                 <p className="text-sm font-bold text-gray-900">
                   {patient?.full_name
                     ? patient.full_name
-                    : selected.channel === 'livechat'
-                    ? (selected.context?.visitor_name || 'Visitante Web')
+                    : (selected.channel === 'livechat' || selected.channel === 'instagram' || selected.channel === 'facebook')
+                    ? (selected.context?.visitor_name || selected.context?.username || selected.context?.name || (selected.channel === 'instagram' ? 'Usuário do Instagram' : selected.channel === 'facebook' ? 'Usuário do Messenger' : 'Visitante Web'))
                     : `${phoneFlag(selected.patient_phone)} ${formatPhone(selected.patient_phone)}`}
                 </p>
                 <div className="flex items-center gap-2 mt-0.5">

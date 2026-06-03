@@ -98,8 +98,10 @@ serve(async (req: Request) => {
       console.log(`[send-human-message] Reply to internal id=${replied_to_id}, wa_id=${quotedMsgId ?? 'not found'}`);
     }
 
-    // 4. IMMEDIATE DISPATCH: Enviar agora via Z-API/Cloud-API (Zero Latency) ou Broadcast para Live Chat
+    // 4. IMMEDIATE DISPATCH: Enviar agora via Z-API/Cloud-API (Zero Latency) ou Broadcast para Live Chat / Meta
     const isLiveChat = session.channel === 'livechat';
+    const isInstagram = session.channel === 'instagram';
+    const isFacebook = session.channel === 'facebook';
 
     if (isLiveChat) {
       const realtimeChannel = supabase.channel(`livechat:${session_id}`);
@@ -114,6 +116,21 @@ serve(async (req: Request) => {
         }
       });
       console.log(`[send-human-message] Broadcast sent to livechat:${session_id}`);
+    } else if (isInstagram || isFacebook) {
+      // No futuro, isso fará a chamada para a Meta Graph API.
+      // Por enquanto, enviamos broadcast em tempo real para atualizar o painel do atendente.
+      const realtimeChannel = supabase.channel(`meta:${session_id}`);
+      await realtimeChannel.send({
+        type: 'broadcast',
+        event: 'message',
+        payload: {
+          id: dbMsgId,
+          role: 'human',
+          content: text.trim(),
+          created_at: new Date().toISOString()
+        }
+      });
+      console.log(`[send-human-message] Broadcast sent to meta:${session_id} for channel ${session.channel}`);
     } else {
       const outbox = new OutboxDispatcher(supabase);
       try {

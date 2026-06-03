@@ -85,7 +85,8 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
             return;
         }
 
-        const functionUrl = `https://fyyhxmugxcfqhvoevuwf.supabase.co/functions/v1/auth-${platform}`;
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://fyyhxmugxcfqhvoevuwf.supabase.co';
+        const functionUrl = `${supabaseUrl.replace(/\/$/, '')}/functions/v1/auth-${platform}`;
         const authUrl = `${functionUrl}?tenant_id=${tenant.id}`;
         
         // Open OAuth flow in a new tab
