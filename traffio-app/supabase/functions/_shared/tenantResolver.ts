@@ -22,14 +22,17 @@ export class TenantResolver {
      * This is crucial for multi-tenancy security.
      */
     async resolveByInstanceId(instanceId: string): Promise<Tenant | null> {
+        // Normaliza para maiúsculo — Z-API pode enviar o instanceId em qualquer case
+        const normalizedId = (instanceId ?? '').toUpperCase();
+
         const { data, error } = await this.supabase
             .from('tenants')
             .select('*')
-            .eq('zapi_instance_id', instanceId)
-            .single();
+            .ilike('zapi_instance_id', normalizedId)
+            .maybeSingle();
 
         if (error || !data) {
-            console.error("❌ Tenant resolution failed:", error);
+            console.error(`❌ Tenant resolution failed for instanceId="${normalizedId}":`, error?.message ?? 'not found');
             return null;
         }
         return data as Tenant;

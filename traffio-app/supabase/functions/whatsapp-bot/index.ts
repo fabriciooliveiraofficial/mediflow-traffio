@@ -48,6 +48,9 @@ serve(async (req: Request) => {
   try {
     const body = await req.json();
 
+    // Log de entrada — confirma que o webhook chegou na função
+    console.log(`[whatsapp-bot] ▶ POST recebido | provider=${body.object === 'whatsapp_business_account' ? 'cloud_api' : 'zapi'} | instanceId=${body.instanceId ?? 'n/a'} | phone=${body.phone ?? 'n/a'}`);
+
     // --- Route: Cloud API vs Z-API ---
     if (body.object === "whatsapp_business_account") {
       return await handleCloudApi(supabase, body);

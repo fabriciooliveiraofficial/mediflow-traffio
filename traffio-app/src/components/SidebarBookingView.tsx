@@ -192,7 +192,8 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
 
         const { data } = await query;
         const activeServices = (data?.map((d: any) => d.appointment_types).filter(Boolean) || [])
-            .filter((s: any) => s.is_active !== false);
+            .filter((s: any) => s.is_active !== false)
+            .sort((a: any, b: any) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
         setServices(activeServices);
         setLoading(false);
     };

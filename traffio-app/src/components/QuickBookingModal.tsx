@@ -64,7 +64,8 @@ export const QuickBookingModal: React.FC<QuickBookingModalProps> = ({ isOpen, on
             .select('service_id, appointment_types(*)')
             .eq('doctor_id', selectedDoctor);
         
-        const validServices = data?.map((d: any) => d.appointment_types).filter(Boolean) || [];
+        const validServices = (data?.map((d: any) => d.appointment_types).filter(Boolean) || [])
+            .sort((a: any, b: any) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
         setServices(validServices);
     };
 
