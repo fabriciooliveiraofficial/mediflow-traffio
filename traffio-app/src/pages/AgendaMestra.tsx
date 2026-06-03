@@ -229,6 +229,28 @@ export const AgendaMestra: React.FC = () => {
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
+    // Sincronização em tempo real (Supabase Realtime)
+    useEffect(() => {
+        const channel = supabase
+            .channel('agenda-mestra-appointments')
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'appointments'
+                },
+                () => {
+                    fetchData();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [fetchData]);
+
     // Auto-scroll to current time on load
     // Auto-scroll to current time on load
     useEffect(() => {

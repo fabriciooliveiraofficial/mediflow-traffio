@@ -30,20 +30,40 @@ export const smartSchedulingService = {
         doctorId: string,
         date: string,
         tenantId: string,
-        durationMinutes: number = 30
+        durationMinutes: number = 30,
+        locationId?: string
     ): Promise<SmartSlot[]> {
         const { data, error } = await supabase.rpc('find_next_available_dates', {
             p_doctor_id: doctorId,
             p_from_date: date,
             p_limit: 1,
             p_duration_minutes: durationMinutes,
-            p_tenant_id: tenantId
+            p_location_id: locationId ?? null
         });
 
         if (error) throw error;
-        // The unified RPC returns an array of dates; we extract slots for the requested date.
         const dayData = (data || []).find((d: any) => d.date === date);
-        return (dayData?.slots || []) as SmartSlot[];
+        if (!dayData) return [];
+
+        return (dayData.slots || [])
+            .filter((slot: any) => slot.available)
+            .map((slot: any) => {
+                const [h, m] = slot.time.split(':').map(Number);
+                const total = h * 60 + m + durationMinutes;
+                const endH = Math.floor(total / 60);
+                const endM = total % 60;
+                const slot_end = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+
+                return {
+                    slot_time: slot.time,
+                    slot_end,
+                    block_type: slot.block_type || 'regular',
+                    allowed_patient_type: 'any',
+                    location_id: dayData.location_id,
+                    location_name: dayData.location_name,
+                    is_auto_released: false
+                } as SmartSlot;
+            });
     },
 
     async getActiveDoctors(tenantId: string) {

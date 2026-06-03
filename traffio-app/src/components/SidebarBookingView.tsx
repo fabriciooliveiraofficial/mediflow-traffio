@@ -119,6 +119,31 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
         }
     }, [step, selectedDoctor, selectedLocation, currentMonth]);
 
+    // Sincronização em tempo real (Supabase Realtime)
+    useEffect(() => {
+        if (!selectedDoctor || !selectedLocation || !selectedDate) return;
+
+        const channel = supabase
+            .channel('sidebar-booking-appointments')
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'appointments'
+                },
+                () => {
+                    loadSlotsForDate(selectedDate);
+                    loadAvailableDatesMarkers();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [selectedDoctor, selectedLocation, selectedDate]);
+
     const loadDoctors = async () => {
         const { data } = await supabase
             .from('doctors')
@@ -201,6 +226,12 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
     const loadAvailableDatesMarkers = async () => {
         if (!selectedDoctor || !selectedLocation) return;
         try {
+            console.log('[DEBUG] loadAvailableDatesMarkers inputs:', {
+                p_doctor_id: selectedDoctor,
+                p_location_id: selectedLocation,
+                p_duration_minutes: selectedService?.duration_minutes || 15,
+                p_from_date: format(startOfMonth(currentMonth), 'yyyy-MM-dd')
+            });
             const { data, error } = await supabase.rpc('find_next_available_dates', {
                 p_doctor_id: selectedDoctor,
                 p_location_id: selectedLocation,
@@ -208,6 +239,7 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                 p_limit: 60,
                 p_from_date: format(startOfMonth(currentMonth), 'yyyy-MM-dd')
             });
+            console.log('[DEBUG] loadAvailableDatesMarkers result:', { data, error });
             if (error) throw error;
             const dates = (data || []).map((d: any) => d.date);
             setAvailableDates(dates);
@@ -228,6 +260,12 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
         setSelectedSlot(null);
         setDragMode(null);
         try {
+            console.log('[DEBUG] loadSlotsForDate inputs:', {
+                p_doctor_id: selectedDoctor,
+                p_location_id: selectedLocation,
+                p_duration_minutes: selectedService?.duration_minutes || 15,
+                p_from_date: date
+            });
             // 1. Fetch available slots using the dense grid RPC
             const { data, error } = await supabase.rpc('find_next_available_dates', {
                 p_doctor_id: selectedDoctor,
@@ -236,9 +274,11 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                 p_limit: 1,
                 p_from_date: date
             });
+            console.log('[DEBUG] loadSlotsForDate RPC response:', { data, error });
             if (error) throw error;
             
             const dayData = (data || []).find((d: any) => d.date === date);
+            console.log('[DEBUG] loadSlotsForDate dayData:', dayData);
             if (dayData) {
                 // The updated RPC returns a unified 'slots' array including blocked/occupied status
                 setSlots(dayData.slots || []);
@@ -412,24 +452,38 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                 }).eq('id', rescheduleFrom.id);
             }
 
-            // 3. Insert new appointment
-            const { data: booking, error } = await supabase.from('appointments').insert({
-                tenant_id: tenant.id,
-                doctor_id: selectedDoctor,
-                patient_id: patientId,
-                location_id: selectedLocation,
-                type_id: selectedService.id,
-                date: selectedDate,
-                start_time: selectedSlot.time + ':00',
-                end_time: endTime + ':00',
-                status: 'scheduled'
-            }).select().single();
+            let bookingId = '';
+
+            // 3. Insert new appointment using concurrency-safe RPC
+            const { data, error } = await supabase.rpc('book_appointment', {
+                p_tenant_id: tenant.id,
+                p_patient_id: patientId,
+                p_doctor_id: selectedDoctor,
+                p_location_id: selectedLocation,
+                p_type_id: selectedService.id,
+                p_date: selectedDate,
+                p_start_time: selectedSlot.time,
+                p_booked_by: 'user'
+            });
 
             if (error) throw error;
 
+            if (data && typeof data === 'object') {
+                const res = data as { success: boolean; appointment_id?: string; reason?: string };
+                if (!res.success) {
+                    if (res.reason === 'slot_taken') {
+                        throw new Error('Este horário já foi preenchido por outro atendente. Por favor, escolha outro horário.');
+                    }
+                    throw new Error(res.reason || 'Erro desconhecido ao agendar.');
+                }
+                bookingId = res.appointment_id || '';
+            } else {
+                throw new Error('Resposta de agendamento inválida.');
+            }
+
             const baseUrl = window.location.origin;
-            const payLink = `https://checkout.traffio.com/pay/${booking.id}`;
-            const checkinLink = `${baseUrl}/checkin?apt=${booking.id}&loc=${selectedLocation}`;
+            const payLink = `https://checkout.traffio.com/pay/${bookingId}`;
+            const checkinLink = `${baseUrl}/checkin?apt=${bookingId}&loc=${selectedLocation}`;
             
             setPaymentLink(payLink);
             setStep(5);

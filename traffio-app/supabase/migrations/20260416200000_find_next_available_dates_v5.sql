@@ -57,7 +57,6 @@ BEGIN
         FROM candidate_dates cd
         JOIN doctor_availability da
           ON  da.doctor_id   = p_doctor_id
-         AND  da.is_active   = true
          AND  COALESCE(da.block_type, 'regular') != 'blocked'
          AND  (p_location_id IS NULL OR da.location_id = p_location_id)
          AND  (

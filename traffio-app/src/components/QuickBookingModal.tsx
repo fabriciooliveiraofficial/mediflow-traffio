@@ -75,15 +75,43 @@ export const QuickBookingModal: React.FC<QuickBookingModalProps> = ({ isOpen, on
         loadSlots();
     }, [selectedDoctor, selectedService, selectedLocation]);
 
+    // Realtime subscription to appointments changes
+    useEffect(() => {
+        if (!selectedDoctor || !selectedService || !selectedLocation) return;
+
+        const channel = supabase
+            .channel('quick-booking-appointments')
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'appointments'
+                },
+                () => {
+                    loadSlots();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [selectedDoctor, selectedService, selectedLocation]);
+
     const loadSlots = async () => {
         setLoading(true);
         try {
             const { data, error } = await supabase.rpc('find_next_available_dates', {
                 p_doctor_id: selectedDoctor,
                 p_duration_minutes: selectedService.duration_minutes || 30,
-                p_limit: 7
+                p_limit: 7,
+                p_location_id: selectedLocation
             });
+            if (error) throw error;
             setAvailableDates(data || []);
+        } catch (err) {
+            console.error('Erro ao carregar slots:', err);
         } finally {
             setLoading(false);
         }
@@ -93,38 +121,41 @@ export const QuickBookingModal: React.FC<QuickBookingModalProps> = ({ isOpen, on
         if (!selectedSlot || !selectedService || !tenant?.id) return;
         setLoading(true);
         try {
-            const { data: booking, error } = await supabase.from('appointments').insert({
-                tenant_id: tenant.id,
-                doctor_id: selectedDoctor,
-                patient_id: patientId,
-                location_id: selectedLocation,
-                appointment_type_id: selectedService.id,
-                date: selectedSlot.date,
-                start_time: selectedSlot.time,
-                end_time: calculateEndTime(selectedSlot.time, selectedService.duration_minutes),
-                status: 'confirmed'
-            }).select().single();
+            const { data, error } = await supabase.rpc('book_appointment', {
+                p_tenant_id: tenant.id,
+                p_patient_id: patientId,
+                p_doctor_id: selectedDoctor,
+                p_location_id: selectedLocation,
+                p_type_id: selectedService.id,
+                p_date: selectedSlot.date,
+                p_start_time: selectedSlot.time,
+                p_booked_by: 'user'
+            });
 
             if (error) throw error;
 
-            showToast('success', 'Agendamento realizado com sucesso!');
-            
-            // Simular geração de link de pagamento
-            setPaymentLink(`https://checkout.traffio.com/pay/${booking.id}`);
-            setStep(4);
+            if (data && typeof data === 'object') {
+                const res = data as { success: boolean; appointment_id?: string; reason?: string };
+                if (!res.success) {
+                    if (res.reason === 'slot_taken') {
+                        throw new Error('Este horário já foi preenchido por outro atendente. Por favor, escolha outro horário.');
+                    }
+                    throw new Error(res.reason || 'Erro desconhecido ao realizar agendamento.');
+                }
+
+                showToast('success', 'Agendamento realizado com sucesso!');
+                setPaymentLink(`https://checkout.traffio.com/pay/${res.appointment_id}`);
+                setStep(4);
+            } else {
+                throw new Error('Resposta do agendamento inválida.');
+            }
         } catch (e: any) {
             showToast('error', 'Erro ao agendar: ' + e.message);
+            // Refresh slots on failure (especially slot_taken)
+            loadSlots();
         } finally {
             setLoading(false);
         }
-    };
-
-    const calculateEndTime = (start: string, duration: number = 30) => {
-        const [h, m] = start.split(':').map(Number);
-        const total = h * 60 + m + duration;
-        const nh = Math.floor(total / 60);
-        const nm = total % 60;
-        return `${String(nh).padStart(2, '0')}:${String(nm).padStart(2, '0')}`;
     };
 
     const copyToClipboard = () => {

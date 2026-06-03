@@ -15,8 +15,10 @@ import {
     Shield,
     Clock,
     Users,
+    Globe,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { TIMEZONE_OPTIONS, TIMEZONE_REGIONS } from '../lib/timezoneUtils';
 import { useToast } from '../contexts/ToastContext';
 import { locationService, type ClinicLocation } from '../services/locationService';
 import { insurancePlanService, type InsurancePlan } from '../services/insurancePlanService';
@@ -362,7 +364,7 @@ export const Settings = () => {
             </div>
 
             {/* Tabs */}
-            <div className="flex bg-white p-1.5 rounded-2xl border border-ice-100 shadow-sm w-full md:w-fit">
+            <div className="flex bg-white p-1.5 rounded-2xl border border-ice-100 shadow-sm w-full">
                 {[
                     { id: 'clinics', label: 'Clínicas', icon: Building2 },
                     { id: 'locations', label: 'Unidades', icon: MapPin },
@@ -373,7 +375,7 @@ export const Settings = () => {
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
-                        className={`flex-1 md:flex-none flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all border-none cursor-pointer ${activeTab === tab.id
+                        className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold transition-all border-none cursor-pointer ${activeTab === tab.id
                             ? 'bg-brand-primary text-white shadow-md'
                             : 'text-graphite-400 hover:text-brand-primary hover:bg-ice-50'
                             }`}
@@ -552,6 +554,36 @@ export const Settings = () => {
                                                                 className="w-full bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm font-medium text-graphite-700 focus:outline-none focus:border-brand-primary transition-colors"
                                                             />
                                                         </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Timezone Config */}
+                                                <div className="border-t border-ice-100 pt-4 mt-4">
+                                                    <h4 className="text-xs font-black text-graphite-400 uppercase flex items-center gap-1.5 mb-3">
+                                                        <Globe size={12} /> Fuso Horário
+                                                    </h4>
+                                                    <div>
+                                                        <label className="text-[10px] font-bold text-graphite-400 block mb-1">Timezone da Clínica</label>
+                                                        <select
+                                                            key={`tz-${tenant.id}`}
+                                                            defaultValue={tenant.timezone || 'America/Sao_Paulo'}
+                                                            onChange={(e) => {
+                                                                handleSaveTenant(tenant.id, { timezone: e.target.value });
+                                                                if (currentTenant?.id === tenant.id) updateTenantContext({ timezone: e.target.value });
+                                                            }}
+                                                            className="w-full bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm font-medium text-graphite-700 focus:outline-none focus:border-brand-primary transition-colors"
+                                                        >
+                                                            {TIMEZONE_REGIONS.map(region => (
+                                                                <optgroup key={region} label={region}>
+                                                                    {TIMEZONE_OPTIONS.filter(tz => tz.region === region).map(tz => (
+                                                                        <option key={tz.value} value={tz.value}>{tz.label}</option>
+                                                                    ))}
+                                                                </optgroup>
+                                                            ))}
+                                                        </select>
+                                                        <p className="text-[10px] text-graphite-400 mt-1">
+                                                            Aplica-se a agendamentos, lembretes, WhatsApp, Messenger, Instagram e todos os cron jobs.
+                                                        </p>
                                                     </div>
                                                 </div>
 

@@ -9,6 +9,7 @@ interface Tenant {
     slug: string;
     specialty: string[];
     settings: any;
+    timezone: string;
     whatsapp_provider?: 'zapi' | 'cloud_api';
     zapi_instance_id?: string;
     zapi_token?: string;
