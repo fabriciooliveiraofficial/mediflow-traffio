@@ -24,7 +24,7 @@ serve(async (req: Request) => {
 
     const fbAuthUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${metaClientId}&redirect_uri=${encodeURIComponent(
       redirectUri
-    )}&state=${targetTenant}&scope=ads_management,ads_read,read_insights`;
+    )}&state=${targetTenant}&scope=ads_management,ads_read`;
 
     return Response.redirect(fbAuthUrl, 302);
   }
