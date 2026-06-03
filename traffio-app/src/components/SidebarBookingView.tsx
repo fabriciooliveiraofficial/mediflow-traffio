@@ -319,7 +319,7 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                 const nextDate = data[0].date;
                 setCurrentMonth(new Date(nextDate + 'T12:00:00'));
                 loadSlotsForDate(nextDate);
-                showToast('neutral', `Pulando para ${format(new Date(nextDate + 'T12:00:00'), "dd/MM")}`);
+                showToast('info', `Pulando para ${format(new Date(nextDate + 'T12:00:00'), "dd/MM")}`);
             } else {
                 showToast('warning', 'Nenhum outro horário disponível nos próximos dias.');
             }
@@ -439,9 +439,6 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
         if (!selectedSlot || !selectedService || !tenant?.id) return;
         setLoading(true);
         try {
-            // 1. Calculate end_time
-            const duration = selectedService.duration_minutes || 15;
-            const endTime = calculateEndTime(selectedSlot.time, duration);
 
             // 2. If rescheduling, clear the old slot FIRST to avoid overlap constraint violation
             // Note: Postgres constraint now unified to 'canceled' (American spelling)
@@ -756,7 +753,7 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                                             {/* Unified Occupied/Blocked Layer */}
                                             <div className="absolute inset-x-4 top-0 bottom-0 pointer-events-none">
                                               {(() => {
-                                                const overlays = [];
+                                                const overlays: { time: string; label: string; color: string; border: string; text?: string }[] = [];
                                                 for (let h = agendaRange.start; h <= agendaRange.end; h++) {
                                                   ['00', '15', '30', '45'].forEach(m => {
                                                     const timeStr = `${h.toString().padStart(2, '0')}:${m}`;

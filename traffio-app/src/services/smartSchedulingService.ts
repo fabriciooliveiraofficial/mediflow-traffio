@@ -29,7 +29,7 @@ export const smartSchedulingService = {
     async getAvailableSlots(
         doctorId: string,
         date: string,
-        tenantId: string,
+        _tenantId: string,
         durationMinutes: number = 30,
         locationId?: string
     ): Promise<SmartSlot[]> {
