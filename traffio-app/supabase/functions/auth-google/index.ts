@@ -13,7 +13,7 @@ serve(async (req: Request) => {
   const googleClientId = Deno.env.get("GOOGLE_CLIENT_ID") ?? "INSERIR_CLIENT_ID_AQUI";
   const googleClientSecret = Deno.env.get("GOOGLE_CLIENT_SECRET") ?? "INSERIR_CLIENT_SECRET_AQUI";
   
-  const redirectUri = `${urlObj.protocol}//${urlObj.host}${urlObj.pathname}`;
+  const redirectUri = `${supabaseUrl.replace(/\/$/, "")}/functions/v1/auth-google`;
 
   // 1. Initial request: redirect user to Google OAuth
   if (!code) {

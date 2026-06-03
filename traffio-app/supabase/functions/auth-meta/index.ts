@@ -13,8 +13,7 @@ serve(async (req: Request) => {
   const metaClientId = Deno.env.get("META_CLIENT_ID") ?? Deno.env.get("FACEBOOK_APP_ID") ?? "INSERIR_APP_ID_AQUI";
   const metaClientSecret = Deno.env.get("META_CLIENT_SECRET") ?? Deno.env.get("FACEBOOK_APP_SECRET") ?? "INSERIR_APP_SECRET_AQUI";
   
-  // Use HTTPS callback in production, HTTP callback in local dev
-  const redirectUri = `${urlObj.protocol}//${urlObj.host}${urlObj.pathname}`;
+  const redirectUri = `${supabaseUrl.replace(/\/$/, "")}/functions/v1/auth-meta`;
 
   // 1. Initial request: redirect user to Facebook OAuth
   if (!code) {
