@@ -16,6 +16,9 @@ export interface OutboundQueueRow {
     error_message?: string;
     is_edited: boolean;
     created_at: string;
+    // Multi-canal
+    notification_channel?: 'whatsapp' | 'instagram' | 'facebook' | 'sms';
+    channel_recipient_id?: string;
 }
 
 interface UseOutboundQueueOptions {

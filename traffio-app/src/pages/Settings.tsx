@@ -16,6 +16,18 @@ import {
     Clock,
     Users,
     Globe,
+    MessageCircle,
+    Instagram,
+    RefreshCw,
+    ExternalLink,
+    CheckCircle2,
+    AlertCircle,
+    Phone,
+    Hash,
+    ToggleLeft,
+    ToggleRight,
+    MessageSquare,
+    Voicemail,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { TIMEZONE_OPTIONS, TIMEZONE_REGIONS } from '../lib/timezoneUtils';
@@ -29,6 +41,48 @@ import { Activity, Stethoscope, Apple } from 'lucide-react';
 import { clsx } from 'clsx';
 
 
+
+// Sub-componente: lista de números do tenant
+function PhoneNumbersList({ tenantId }: { tenantId: string }) {
+    const [numbers, setNumbers] = useState<any[]>([]);
+
+    useEffect(() => {
+        supabase
+            .from('tenant_phone_numbers')
+            .select('id, phone_number, friendly_name, country_code, is_active, capabilities')
+            .eq('tenant_id', tenantId)
+            .eq('is_active', true)
+            .order('created_at')
+            .then(({ data }) => setNumbers(data ?? []));
+    }, [tenantId]);
+
+    if (numbers.length === 0) {
+        return (
+            <div className="text-center py-6">
+                <p className="text-sm text-graphite-300 font-medium">Nenhum número ativo.</p>
+                <p className="text-xs text-graphite-300 mt-1">Clique em "Comprar número" para adicionar.</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-2">
+            {numbers.map((num) => (
+                <div key={num.id} className="flex items-center justify-between p-3 bg-ice-50 rounded-xl border border-ice-100">
+                    <div>
+                        <p className="text-sm font-black text-graphite-800 font-mono">{num.phone_number}</p>
+                        <p className="text-xs text-graphite-400">
+                            {num.friendly_name ?? num.country_code}
+                            {num.capabilities?.voice && ' · Voz'}
+                            {num.capabilities?.sms && ' · SMS'}
+                        </p>
+                    </div>
+                    <div className="w-2 h-2 rounded-full bg-green-500" />
+                </div>
+            ))}
+        </div>
+    );
+}
 
 export const Settings = () => {
     const { tenant: currentTenant, updateTenant: updateTenantContext, userRole, userProfile } = useTenant();
@@ -72,9 +126,120 @@ export const Settings = () => {
     const [showInsForm, setShowInsForm] = useState(false);
     const [editingInsId, setEditingInsId] = useState<string | null>(null);
 
+    // Meta Messaging Pages state
+    const [metaPages, setMetaPages] = useState<any[]>([]);
+    const [connectingMeta, setConnectingMeta] = useState(false);
+
+    // Modal: Comprar número Telnyx
+    const [showBuyNumber, setShowBuyNumber]       = useState(false);
+    const [buyCountry, setBuyCountry]             = useState('BR');
+    const [buyResults, setBuyResults]             = useState<any[]>([]);
+    const [buyLoading, setBuyLoading]             = useState(false);
+    const [buyPurchasing, setBuyPurchasing]       = useState<string | null>(null);
+    const [buyFriendlyName, setBuyFriendlyName]   = useState('');
+
+    const searchNumbers = async (country: string) => {
+        setBuyLoading(true);
+        setBuyResults([]);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return;
+            const res = await fetch(
+                `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/telnyx-numbers?action=search&country=${country}&limit=10`,
+                { headers: { 'Authorization': `Bearer ${session.access_token}` } }
+            );
+            const json = await res.json();
+            if (json.data) setBuyResults(json.data);
+            else showToast('error', json.error ?? 'Erro ao buscar números');
+        } catch (e: any) {
+            showToast('error', 'Erro ao buscar números: ' + e.message);
+        } finally {
+            setBuyLoading(false);
+        }
+    };
+
+    const purchaseNumber = async (phoneNumber: string) => {
+        setBuyPurchasing(phoneNumber);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return;
+            const res = await fetch(
+                `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/telnyx-numbers`,
+                {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'purchase', phone_number: phoneNumber, friendly_name: buyFriendlyName || undefined }),
+                }
+            );
+            const json = await res.json();
+            if (json.data) {
+                showToast('success', `Número ${phoneNumber} adquirido com sucesso!`);
+                setShowBuyNumber(false);
+                setBuyResults([]);
+                setBuyFriendlyName('');
+                // Recarregar lista de números
+                fetchSettingsData();
+            } else {
+                showToast('error', json.error ?? 'Erro ao comprar número');
+            }
+        } catch (e: any) {
+            showToast('error', 'Erro ao comprar número: ' + e.message);
+        } finally {
+            setBuyPurchasing(null);
+        }
+    };
+
     useEffect(() => {
         fetchSettingsData();
+        fetchMetaPages();
+
+        // Ouvir mensagem do popup de OAuth Meta Messaging
+        const handleOAuthMessage = (event: MessageEvent) => {
+            if (event.data?.type === 'META_MESSAGING_CONNECTED') {
+                fetchMetaPages();
+                showToast('Páginas Meta conectadas com sucesso!', 'success');
+                setConnectingMeta(false);
+            } else if (event.data?.type === 'META_MESSAGING_ERROR') {
+                showToast(`Erro ao conectar: ${event.data.message}`, 'error');
+                setConnectingMeta(false);
+            }
+        };
+        window.addEventListener('message', handleOAuthMessage);
+        return () => window.removeEventListener('message', handleOAuthMessage);
     }, []);
+
+    const fetchMetaPages = async () => {
+        const tenantId = currentTenant?.id;
+        if (!tenantId) return;
+        const { data } = await supabase
+            .from('tenant_meta_pages')
+            .select('id, page_id, page_name, page_category, instagram_account_id, instagram_username, is_active, last_refreshed_at')
+            .eq('tenant_id', tenantId)
+            .order('page_name');
+        setMetaPages(data ?? []);
+    };
+
+    const openMetaMessagingOAuth = () => {
+        const tenantId = currentTenant?.id;
+        if (!tenantId) { showToast('Selecione uma clínica primeiro', 'error'); return; }
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ?? '';
+        const oauthUrl = `${supabaseUrl}/functions/v1/auth-meta-messaging?tenant_id=${tenantId}`;
+        setConnectingMeta(true);
+        const popup = window.open(oauthUrl, 'meta_messaging_oauth', 'width=580,height=680,left=200,top=100');
+        if (!popup) {
+            showToast('Permita popups para conectar o Meta', 'error');
+            setConnectingMeta(false);
+        }
+    };
+
+    const disconnectMetaPage = async (pageId: string) => {
+        await supabase
+            .from('tenant_meta_pages')
+            .update({ is_active: false })
+            .eq('id', pageId);
+        fetchMetaPages();
+        showToast('Página desconectada', 'success');
+    };
 
     const fetchSettingsData = async () => {
         try {
@@ -355,6 +520,7 @@ export const Settings = () => {
     }, [tenants]);
 
     return (
+        <>
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto">
 
             {/* Header */}
@@ -370,6 +536,7 @@ export const Settings = () => {
                     { id: 'locations', label: 'Unidades', icon: MapPin },
                     { id: 'insurance', label: 'Convênios', icon: Shield },
                     { id: 'team', label: 'Equipe', icon: Users },
+                    { id: 'communications', label: 'Comunicações', icon: Phone },
                     { id: 'profile', label: 'Meu Perfil', icon: User },
                 ].map((tab) => (
                     <button
@@ -630,6 +797,75 @@ export const Settings = () => {
                                                             />
                                                         </div>
                                                     </div>
+                                                </div>
+
+                                                {/* Meta Messaging — Instagram DM + Facebook Messenger */}
+                                                <div className="border-t border-ice-100 pt-4 mt-4">
+                                                    <div className="flex items-center justify-between mb-3">
+                                                        <h4 className="text-xs font-black text-graphite-400 uppercase flex items-center gap-1.5">
+                                                            <MessageCircle size={12} /> Mensagens — Instagram DM &amp; Facebook Messenger
+                                                        </h4>
+                                                        <button
+                                                            onClick={openMetaMessagingOAuth}
+                                                            disabled={connectingMeta}
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border-none cursor-pointer"
+                                                        >
+                                                            {connectingMeta ? (
+                                                                <><RefreshCw size={12} className="animate-spin" /> Conectando...</>
+                                                            ) : (
+                                                                <><ExternalLink size={12} /> Conectar Páginas</>
+                                                            )}
+                                                        </button>
+                                                    </div>
+
+                                                    {metaPages.length === 0 ? (
+                                                        <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 border border-amber-100">
+                                                            <AlertCircle size={14} className="text-amber-500 shrink-0" />
+                                                            <p className="text-xs text-amber-700 font-medium">
+                                                                Nenhuma página conectada. Clique em "Conectar Páginas" para autorizar o Instagram DM e Facebook Messenger.
+                                                            </p>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="space-y-2">
+                                                            {metaPages.map((page) => (
+                                                                <div key={page.id} className="flex items-center justify-between p-3 rounded-xl bg-ice-50 border border-ice-100">
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className={`w-2 h-2 rounded-full ${page.is_active ? 'bg-green-500' : 'bg-red-400'}`} />
+                                                                        <div>
+                                                                            <p className="text-sm font-bold text-graphite-700">{page.page_name}</p>
+                                                                            {page.instagram_username && (
+                                                                                <p className="text-xs text-graphite-400 flex items-center gap-1">
+                                                                                    <Instagram size={10} />
+                                                                                    @{page.instagram_username}
+                                                                                </p>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        {page.is_active ? (
+                                                                            <span className="flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                                                                                <CheckCircle2 size={10} /> Ativo
+                                                                            </span>
+                                                                        ) : (
+                                                                            <span className="flex items-center gap-1 text-[10px] font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-full">
+                                                                                <AlertCircle size={10} /> Inativo
+                                                                            </span>
+                                                                        )}
+                                                                        <button
+                                                                            onClick={() => disconnectMetaPage(page.id)}
+                                                                            className="p-1 text-graphite-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors border-none cursor-pointer"
+                                                                            title="Desconectar"
+                                                                        >
+                                                                            <X size={12} />
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                            <p className="text-[10px] text-graphite-400 mt-1">
+                                                                Clique em "Conectar Páginas" novamente para adicionar mais páginas ou renovar o acesso.
+                                                            </p>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
 
@@ -979,6 +1215,172 @@ export const Settings = () => {
                     </div>
                 )}
 
+                {/* Communications Tab */}
+                {activeTab === 'communications' && (
+                    <div className="p-8 space-y-8 max-w-3xl">
+                        <div>
+                            <h3 className="text-xl font-black text-graphite-900">Comunicações (Softphone)</h3>
+                            <p className="text-sm text-graphite-400 mt-1">
+                                Gerencie voz, SMS e números de telefone da plataforma. Powered by Telnyx.
+                            </p>
+                        </div>
+
+                        {tenants.map((tenant) => (
+                            <div key={tenant.id} className="space-y-6">
+
+                                {/* Banner informativo — modelo de revendedor */}
+                                <div className="flex items-start gap-3 p-4 rounded-2xl bg-blue-50 border border-blue-100">
+                                    <div className="w-8 h-8 rounded-xl bg-blue-100 flex items-center justify-center shrink-0 mt-0.5">
+                                        <Phone size={16} className="text-blue-600" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-black text-blue-800">Comunicações gerenciadas pela Traffio</p>
+                                        <p className="text-xs text-blue-600 mt-0.5 leading-relaxed">
+                                            A infraestrutura de voz e SMS é provida diretamente pela plataforma.
+                                            Nenhuma credencial externa é necessária — basta ativar e contratar números abaixo.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Ativar/desativar Softphone — sem campos de credenciais */}
+                                <div className={`bg-white rounded-2xl p-6 border-2 transition-all ${tenant.telnyx_enabled ? 'border-brand-primary/30' : 'border-ice-100'}`}>
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors ${tenant.telnyx_enabled ? 'bg-brand-primary' : 'bg-ice-100'}`}>
+                                                <Phone size={22} className={tenant.telnyx_enabled ? 'text-white' : 'text-graphite-400'} />
+                                            </div>
+                                            <div>
+                                                <h4 className="text-sm font-black text-graphite-800">
+                                                    Softphone — Voz + SMS
+                                                </h4>
+                                                <p className="text-xs text-graphite-400 mt-0.5">
+                                                    {tenant.telnyx_enabled
+                                                        ? '✅ Ativo — widget de discagem disponível para toda a equipe'
+                                                        : 'Ativa chamadas e SMS pelo navegador para toda a equipe'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => handleSaveTenant(tenant.id, { telnyx_enabled: !tenant.telnyx_enabled })}
+                                            className={`p-1 rounded-full transition-colors border-none cursor-pointer ${
+                                                tenant.telnyx_enabled ? 'text-brand-primary' : 'text-graphite-300'
+                                            }`}
+                                        >
+                                            {tenant.telnyx_enabled
+                                                ? <ToggleRight size={40} />
+                                                : <ToggleLeft size={40} />}
+                                        </button>
+                                    </div>
+
+                                    {/* O que está incluído */}
+                                    {!tenant.telnyx_enabled && (
+                                        <div className="mt-4 pt-4 border-t border-ice-50 grid grid-cols-2 gap-3">
+                                            {[
+                                                { icon: Phone,        label: 'Chamadas pelo navegador',    sub: 'Sem app, sem telefone físico' },
+                                                { icon: MessageSquare, label: 'SMS bidirecional',           sub: 'Enviar e receber SMS' },
+                                                { icon: Voicemail,    label: 'Voicemail com gravação',     sub: 'Caixa postal digital' },
+                                                { icon: Hash,         label: 'Múltiplos números',          sub: 'Contratar por país/cidade' },
+                                            ].map((item) => (
+                                                <div key={item.label} className="flex items-start gap-2 p-3 bg-ice-50 rounded-xl">
+                                                    <item.icon size={14} className="text-brand-primary mt-0.5 shrink-0" />
+                                                    <div>
+                                                        <p className="text-xs font-bold text-graphite-700">{item.label}</p>
+                                                        <p className="text-[10px] text-graphite-400">{item.sub}</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Gravar chamadas */}
+                                {tenant.telnyx_enabled && (
+                                    <div className="bg-white border border-ice-100 rounded-2xl p-6">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <h4 className="text-sm font-black text-graphite-800">Gravar todas as chamadas</h4>
+                                                <p className="text-xs text-graphite-400 mt-1">
+                                                    As gravações ficam disponíveis em Comunicações → Chamadas.
+                                                </p>
+                                            </div>
+                                            <button
+                                                onClick={() => handleSaveTenant(tenant.id, { telnyx_auto_record: !tenant.telnyx_auto_record })}
+                                                className={`p-1 rounded-full transition-colors border-none cursor-pointer ${
+                                                    tenant.telnyx_auto_record !== false ? 'text-brand-primary' : 'text-graphite-300'
+                                                }`}
+                                            >
+                                                {tenant.telnyx_auto_record !== false
+                                                    ? <ToggleRight size={36} />
+                                                    : <ToggleLeft size={36} />}
+                                            </button>
+                                        </div>
+
+                                        <div className="mt-4 pt-4 border-t border-ice-50">
+                                            <label className="text-[10px] font-bold text-graphite-400">Retenção de gravações</label>
+                                            <select
+                                                defaultValue={tenant.telnyx_recording_retention_days ?? 90}
+                                                onBlur={(e) => handleSaveTenant(tenant.id, { telnyx_recording_retention_days: parseInt(e.target.value) })}
+                                                className="w-full mt-1 bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm text-graphite-700 focus:outline-none focus:border-brand-primary"
+                                            >
+                                                <option value={30}>30 dias</option>
+                                                <option value={60}>60 dias</option>
+                                                <option value={90}>90 dias</option>
+                                                <option value={180}>180 dias</option>
+                                                <option value={365}>1 ano</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Números de telefone */}
+                                {tenant.telnyx_enabled && (
+                                    <div className="bg-white border border-ice-100 rounded-2xl p-6">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h4 className="text-sm font-black text-graphite-800 flex items-center gap-2">
+                                                <Hash size={16} className="text-brand-primary" />
+                                                Números de Telefone
+                                            </h4>
+                                            <button
+                                                onClick={() => { setShowBuyNumber(true); setBuyResults([]); }}
+                                                className="flex items-center gap-1 text-xs font-bold text-brand-primary hover:underline border-none bg-transparent cursor-pointer"
+                                            >
+                                                <Plus size={12} /> Comprar número
+                                            </button>
+                                        </div>
+
+                                        <PhoneNumbersList tenantId={tenant.id} />
+                                    </div>
+                                )}
+
+                                {/* SMS */}
+                                <div className="bg-white border border-ice-100 rounded-2xl p-6">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <h4 className="text-sm font-black text-graphite-800 flex items-center gap-2">
+                                                <MessageCircle size={16} className="text-brand-primary" />
+                                                SMS nas Automações
+                                            </h4>
+                                            <p className="text-xs text-graphite-400 mt-1">
+                                                Permite enviar alertas de No-Show e NPS por SMS quando o paciente preferir.
+                                            </p>
+                                        </div>
+                                        <button
+                                            onClick={() => handleSaveTenant(tenant.id, { sms_enabled: !tenant.sms_enabled })}
+                                            className={`p-1 rounded-full transition-colors border-none cursor-pointer ${
+                                                tenant.sms_enabled ? 'text-brand-primary' : 'text-graphite-300'
+                                            }`}
+                                        >
+                                            {tenant.sms_enabled
+                                                ? <ToggleRight size={36} />
+                                                : <ToggleLeft size={36} />}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
                 {/* Profile Tab */}
                 {activeTab === 'profile' && profile && (
                     <div className="p-8 space-y-8">
@@ -1054,5 +1456,114 @@ export const Settings = () => {
 
             </div>
         </div>
+
+        {/* ── Modal: Comprar número Telnyx ──────────────────────────────────── */}
+        {showBuyNumber && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowBuyNumber(false)} />
+                <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden animate-in zoom-in-95 duration-200">
+
+                    {/* Header */}
+                    <div className="px-6 py-5 border-b border-ice-100 flex items-center justify-between">
+                        <div>
+                            <h3 className="text-lg font-black text-graphite-900">Comprar Número de Telefone</h3>
+                            <p className="text-xs text-graphite-400 mt-0.5">Busque e adquira um número para voz e SMS</p>
+                        </div>
+                        <button onClick={() => setShowBuyNumber(false)} className="w-8 h-8 rounded-full bg-ice-50 flex items-center justify-center text-graphite-400 hover:bg-ice-100 border-none cursor-pointer">
+                            <X size={16} />
+                        </button>
+                    </div>
+
+                    {/* Busca */}
+                    <div className="px-6 py-4 border-b border-ice-50 space-y-3">
+                        <div>
+                            <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">Nome amigável (opcional)</label>
+                            <input
+                                type="text"
+                                value={buyFriendlyName}
+                                onChange={(e) => setBuyFriendlyName(e.target.value)}
+                                placeholder="Ex: Recepção, WhatsApp, Suporte..."
+                                className="w-full mt-1 bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm text-graphite-700 focus:outline-none focus:border-brand-primary"
+                            />
+                        </div>
+                        <div className="flex gap-2">
+                            <div className="flex-1">
+                                <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">País</label>
+                                <select
+                                    value={buyCountry}
+                                    onChange={(e) => setBuyCountry(e.target.value)}
+                                    className="w-full mt-1 bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm text-graphite-700 focus:outline-none focus:border-brand-primary"
+                                >
+                                    <option value="BR">🇧🇷 Brasil</option>
+                                    <option value="US">🇺🇸 Estados Unidos</option>
+                                    <option value="CA">🇨🇦 Canadá</option>
+                                    <option value="GB">🇬🇧 Reino Unido</option>
+                                    <option value="MX">🇲🇽 México</option>
+                                    <option value="NZ">🇳🇿 Nova Zelândia</option>
+                                </select>
+                            </div>
+                            <div className="flex items-end">
+                                <button
+                                    onClick={() => searchNumbers(buyCountry)}
+                                    disabled={buyLoading}
+                                    className="px-4 py-2 bg-brand-primary text-white text-sm font-bold rounded-xl hover:bg-brand-primary/90 disabled:opacity-50 border-none cursor-pointer flex items-center gap-2"
+                                >
+                                    {buyLoading ? <RefreshCw size={14} className="animate-spin" /> : <Hash size={14} />}
+                                    Buscar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Resultados */}
+                    <div className="px-6 py-4 max-h-72 overflow-y-auto space-y-2">
+                        {buyLoading && (
+                            <div className="flex flex-col items-center justify-center py-8 gap-2">
+                                <RefreshCw size={24} className="animate-spin text-brand-primary" />
+                                <p className="text-sm text-graphite-400">Buscando números disponíveis...</p>
+                            </div>
+                        )}
+                        {!buyLoading && buyResults.length === 0 && (
+                            <div className="text-center py-8 text-graphite-300">
+                                <Hash size={32} className="mx-auto mb-2 opacity-40" />
+                                <p className="text-sm font-bold">Selecione um país e clique em Buscar</p>
+                            </div>
+                        )}
+                        {buyResults.map((num) => (
+                            <div key={num.phoneNumber} className="flex items-center justify-between p-3 bg-ice-50 border border-ice-100 rounded-2xl hover:border-brand-primary/30 transition-all">
+                                <div>
+                                    <p className="text-sm font-black text-graphite-800 font-mono">{num.phoneNumber}</p>
+                                    <p className="text-xs text-graphite-400 mt-0.5">
+                                        {num.city || num.regionCode || num.countryCode}
+                                        {num.features?.includes('voice') && ' · Voz'}
+                                        {num.features?.includes('sms') && ' · SMS'}
+                                        {num.monthlyCost && num.monthlyCost !== '0' && ` · $${num.monthlyCost}/mês`}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => purchaseNumber(num.phoneNumber)}
+                                    disabled={buyPurchasing === num.phoneNumber}
+                                    className="px-4 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold rounded-xl disabled:opacity-50 border-none cursor-pointer flex items-center gap-1.5"
+                                >
+                                    {buyPurchasing === num.phoneNumber ? (
+                                        <><RefreshCw size={12} className="animate-spin" /> Comprando...</>
+                                    ) : (
+                                        <><CheckCircle2 size={12} /> Adquirir</>
+                                    )}
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Footer */}
+                    <div className="px-6 py-4 border-t border-ice-50 bg-ice-50/50">
+                        <p className="text-[10px] text-graphite-400 text-center">
+                            Os números são cobrados mensalmente via Telnyx. O custo é repassado conforme o plano contratado.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        )}
+        </>
     );
 };

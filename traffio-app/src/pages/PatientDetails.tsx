@@ -46,7 +46,9 @@ interface PatientDetailsProps {
 
 export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBack }) => {
     const { tenant } = useTenant();
-    const [activeTab, setActiveTab] = useState<'timeline' | 'medical-record' | 'dental' | 'exams' | 'nutrition'>('timeline');
+    const [activeTab, setActiveTab] = useState<'timeline' | 'medical-record' | 'dental' | 'exams' | 'nutrition' | 'calls'>('timeline');
+    const [callRecords, setCallRecords]   = useState<any[]>([]);
+    const [callsLoading, setCallsLoading] = useState(false);
     const [patient, setPatient] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
@@ -65,6 +67,21 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
 
     const { showToast } = useToast();
     const { events: timelineEvents, loading: timelineLoading, refresh: refreshTimeline } = usePatientTimeline(patientId);
+
+    // I.4 — Buscar histórico de chamadas do paciente
+    useEffect(() => {
+        if (activeTab !== 'calls' || !patient) return;
+        setCallsLoading(true);
+        const phone = patient.mobile || patient.phone || '';
+        if (!phone) { setCallsLoading(false); return; }
+        supabase
+            .from('call_records')
+            .select('id, direction, from_number, to_number, status, duration_seconds, recording_url, started_at, answered_at, call_notes')
+            .or(`from_number.eq.${phone},to_number.eq.${phone}`)
+            .order('started_at', { ascending: false })
+            .limit(20)
+            .then(({ data }) => { setCallRecords(data ?? []); setCallsLoading(false); });
+    }, [activeTab, patient]);
 
     useEffect(() => {
         fetchPatientData();
@@ -255,10 +272,20 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
                                 <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-brand-primary shadow-sm">
                                     <Phone size={20} />
                                 </div>
-                                <div>
+                                <div className="flex-1 min-w-0">
                                     <p className="text-xs font-black text-graphite-400 uppercase tracking-wider">Celular</p>
                                     <p className="font-bold text-graphite-900">{patient.mobile || 'Não cadastrado'}</p>
                                 </div>
+                                {/* I.1 — Click-to-call: dispara o softphone via evento global */}
+                                {patient.mobile && (tenant as any)?.telnyx_enabled && (
+                                    <button
+                                        onClick={() => window.dispatchEvent(new CustomEvent('softphone:dial', { detail: { number: patient.mobile } }))}
+                                        className="w-9 h-9 rounded-xl bg-green-500 hover:bg-green-600 flex items-center justify-center text-white transition-colors border-none cursor-pointer shrink-0"
+                                        title={`Ligar para ${patient.mobile}`}
+                                    >
+                                        <Phone size={16} />
+                                    </button>
+                                )}
                             </div>
                             <div className="p-4 rounded-2xl bg-ice-50 border border-ice-100 flex items-center gap-4">
                                 <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-brand-primary shadow-sm">
@@ -283,6 +310,16 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
                     <History size={14} />
                     LINHA DO TEMPO
                 </button>
+                {/* I.4 — Aba de chamadas (visível quando softphone ativo) */}
+                {(tenant as any)?.telnyx_enabled && (
+                    <button
+                        onClick={() => setActiveTab('calls')}
+                        className={`px-6 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${activeTab === 'calls' ? 'bg-white text-brand-primary shadow-sm' : 'text-graphite-400 hover:text-graphite-600'}`}
+                    >
+                        <Phone size={14} />
+                        CHAMADAS
+                    </button>
+                )}
                 <button
                     onClick={() => setActiveTab('medical-record')}
                     className={`px-6 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${activeTab === 'medical-record' ? 'bg-white text-brand-primary shadow-sm' : 'text-graphite-400 hover:text-graphite-600'}`}
@@ -354,6 +391,57 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
                                 )}
                             </div>
                         </>
+                    )}
+
+                    {/* I.4 — Aba de chamadas do paciente */}
+                    {activeTab === 'calls' && (
+                        <div className="space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                            {callsLoading ? (
+                                <div className="flex justify-center py-12">
+                                    <div className="w-8 h-8 border-2 border-ice-100 border-t-brand-primary rounded-full animate-spin" />
+                                </div>
+                            ) : callRecords.length === 0 ? (
+                                <div className="bg-white border border-ice-100 rounded-[32px] p-12 text-center space-y-3">
+                                    <div className="w-16 h-16 rounded-full bg-ice-50 flex items-center justify-center mx-auto">
+                                        <Phone size={28} className="text-graphite-300" />
+                                    </div>
+                                    <p className="font-black text-graphite-500">Nenhuma chamada registrada</p>
+                                    <p className="text-sm text-graphite-400">As chamadas feitas ou recebidas deste paciente aparecerão aqui.</p>
+                                </div>
+                            ) : callRecords.map((call) => (
+                                <div key={call.id} className="bg-white border border-ice-100 rounded-2xl p-4 flex items-center gap-4">
+                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                                        call.status === 'missed' ? 'bg-red-50' :
+                                        call.direction === 'inbound' ? 'bg-green-50' : 'bg-blue-50'
+                                    }`}>
+                                        <Phone size={18} className={
+                                            call.status === 'missed' ? 'text-red-400' :
+                                            call.direction === 'inbound' ? 'text-green-500' : 'text-blue-500'
+                                        } />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-black text-graphite-800">
+                                            {call.direction === 'inbound' ? 'Recebida' : 'Realizada'}
+                                            {call.status === 'missed' && ' (Perdida)'}
+                                        </p>
+                                        <p className="text-xs text-graphite-400">
+                                            {new Date(call.started_at).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                            {call.duration_seconds && ` · ${Math.floor(call.duration_seconds / 60)}m${call.duration_seconds % 60}s`}
+                                        </p>
+                                    </div>
+                                    {call.recording_url && (
+                                        <audio controls src={call.recording_url} className="h-8 w-40" />
+                                    )}
+                                    <button
+                                        onClick={() => window.dispatchEvent(new CustomEvent('softphone:dial', { detail: { number: call.direction === 'inbound' ? call.from_number : call.to_number } }))}
+                                        className="w-8 h-8 rounded-xl bg-green-50 hover:bg-green-100 text-green-600 flex items-center justify-center border-none cursor-pointer shrink-0"
+                                        title="Retornar chamada"
+                                    >
+                                        <Phone size={14} />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
                     )}
 
                     {activeTab === 'medical-record' && (

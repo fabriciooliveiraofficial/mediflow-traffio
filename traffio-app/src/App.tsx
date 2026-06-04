@@ -9,6 +9,7 @@ import { PatientDetails } from './pages/PatientDetails'
 import { Settings } from './pages/Settings'
 import { ReceptionDashboard } from './pages/ReceptionDashboard'
 import { AdminWhatsApp } from './pages/AdminWhatsApp'
+import { CommunicationsHub } from './pages/CommunicationsHub'
 import { Professionals } from './pages/admin/Professionals'
 import { Services } from './pages/admin/Services'
 import { OdontologyHub } from './pages/OdontologyHub'
@@ -75,6 +76,7 @@ function TenantApp() {
       case 'payments': return <PaymentsPage key="payments" />
       case 'billing': return <BillingPage key="billing" />
       case 'whatsapp': return <AdminWhatsApp key="whatsapp" />
+      case 'communications': return <CommunicationsHub key="communications" />
       case 'professionals': return <Professionals key="professionals" />
       case 'services': return <Services key="services" />
       case 'odontology': 

@@ -11,7 +11,6 @@ import {
     Bell,
     Menu,
     X,
-    Zap,
     Plus,
     MessageCircle,
     Headphones,
@@ -24,7 +23,10 @@ import {
     PhoneCall,
     CreditCard,
     Crown,
+    Phone,
 } from 'lucide-react'
+// Phone used in navItems below
+import { FloatingCommunicationsButton } from '../components/softphone/FloatingCommunicationsButton'
 import { motion, AnimatePresence } from 'framer-motion'
 import { clsx } from 'clsx'
 import { supabase } from '../lib/supabase'
@@ -77,6 +79,7 @@ const navItems: NavItem[] = [
     { id: 'professionals', label: 'Corpo Clínico', icon: Stethoscope },
     { id: 'services', label: 'Procedimentos', icon: Tag },
     { id: 'whatsapp', label: 'WhatsApp', icon: MessageCircle, badge: 'Z-API' },
+    { id: 'communications', label: 'Comunicações', icon: Phone, badge: 'Softphone' },
     { id: 'intelligence', label: 'Inteligência', icon: Brain, badge: 'AI Hub' },
     { id: 'dashboard', label: 'Analytics Pro', icon: LayoutDashboard },
     { id: 'notifications', label: 'Notificações', icon: Bell },
@@ -442,54 +445,69 @@ export const DashboardLayout = ({ children, activeScreen, onNavigate }: {
             {/* Main Content Area */}
             <main
                 className={clsx(
-                    "transition-all duration-500 ease-in-out min-h-screen",
+                    "transition-all duration-500 ease-in-out",
+                    // Inbox e Communications: tela cheia sem scroll externo
+                    (activeScreen === 'inbox' || activeScreen === 'communications')
+                        ? "h-screen flex flex-col overflow-hidden"
+                        : "min-h-screen",
                     isSidebarOpen ? "lg:pl-72" : "lg:pl-24"
                 )}
             >
-                {/* Global Header */}
+                {/* Global Header — oculto na página de comunicações (tem nav própria) */}
                 <header
                     className={clsx(
                         "sticky top-0 z-40 transition-all duration-300 px-6 lg:px-12 py-4 flex items-center justify-between no-print",
+                        activeScreen === 'communications' ? "hidden" : "",
                         scrolled ? "bg-[#F7F9FC]/80 backdrop-blur-xl border-b border-ice-100/50 py-3" : "bg-transparent"
                     )}
                 >
-                    <div className="flex items-center gap-6 flex-1">
+                    <div className="flex items-center gap-3 lg:gap-6 flex-1 min-w-0">
                         {/* Mobile Menu Toggle */}
                         <button
                             onClick={() => setIsMobileMenuOpen(true)}
-                            className="lg:hidden w-12 h-12 flex items-center justify-center bg-white rounded-2xl shadow-sm border-none cursor-pointer"
+                            className="lg:hidden w-12 h-12 flex items-center justify-center bg-white rounded-2xl shadow-sm border-none cursor-pointer shrink-0"
                         >
                             <Menu size={24} />
                         </button>
 
-                        <div className="hidden lg:flex items-center gap-3 bg-white border border-ice-100 px-4 py-2.5 rounded-2xl w-full max-w-md shadow-sm group hover:border-brand-primary/30 transition-all">
-                            <Search size={18} className="text-graphite-400 group-focus-within:text-brand-primary transition-colors" />
-                            <input
-                                type="text"
-                                placeholder="Busca global integrada..."
-                                className="bg-transparent border-none outline-none text-sm font-medium w-full placeholder:text-graphite-300"
-                            />
-                        </div>
+                        {activeScreen === 'inbox' || activeScreen === 'communications' ? (
+                            <div id="inbox-header-slot" className="flex-1 w-full min-w-0" />
+                        ) : (
+                            <div className="hidden lg:flex items-center gap-3 bg-white border border-ice-100 px-4 py-2.5 rounded-2xl w-full max-w-md shadow-sm group hover:border-brand-primary/30 transition-all">
+                                <Search size={18} className="text-graphite-400 group-focus-within:text-brand-primary transition-colors" />
+                                <input
+                                    type="text"
+                                    placeholder="Busca global integrada..."
+                                    className="bg-transparent border-none outline-none text-sm font-medium w-full placeholder:text-graphite-300"
+                                />
+                            </div>
+                        )}
                     </div>
 
                     <div className="flex items-center gap-3 lg:gap-4">
-                        <button className="lg:hidden w-12 h-12 flex items-center justify-center bg-white rounded-2xl shadow-sm border-none cursor-pointer">
-                            <Search size={20} />
-                        </button>
+                        {activeScreen !== 'inbox' && (
+                            <button className="lg:hidden w-12 h-12 flex items-center justify-center bg-white rounded-2xl shadow-sm border-none cursor-pointer">
+                                <Search size={20} />
+                            </button>
+                        )}
                         <button className="w-12 h-12 flex items-center justify-center bg-white rounded-2xl shadow-sm group hover:scale-105 transition-all border-none relative cursor-pointer">
                             <Bell size={20} className="group-hover:text-brand-primary" />
                             <span className="absolute top-3 right-3 w-2 h-2 bg-brand-primary rounded-full border-2 border-white"></span>
-                        </button>
-                        <button className="w-12 h-12 flex items-center justify-center bg-graphite-900 text-white rounded-2xl shadow-lg shadow-graphite-900/20 hover:scale-105 transition-all border-none cursor-pointer">
-                            <Zap size={20} />
                         </button>
                     </div>
                 </header>
 
                 {/* Page Content */}
-                <div className="px-6 lg:px-12 py-8">
-                    {children}
-                </div>
+                {activeScreen === 'inbox' || activeScreen === 'communications' ? (
+                    // Tela cheia sem padding — ocupa todo o espaço restante após o header
+                    <div className="flex-1 overflow-hidden">
+                        {children}
+                    </div>
+                ) : (
+                    <div className="px-6 lg:px-12 py-8">
+                        {children}
+                    </div>
+                )}
             </main>
 
             {/* Mobile Tab Bar (iOS/Android Style) */}
@@ -691,6 +709,12 @@ export const DashboardLayout = ({ children, activeScreen, onNavigate }: {
                     </>
                 )}
             </AnimatePresence>
+
+            {/* Botão flutuante de comunicações — arrastável, sempre visível */}
+            <FloatingCommunicationsButton
+                enabled={!!(tenant as any)?.telnyx_enabled}
+                tenantId={(tenant as any)?.id}
+            />
         </div>
     )
 }

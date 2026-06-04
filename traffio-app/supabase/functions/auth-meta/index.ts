@@ -1,18 +1,23 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { getMetaClientId, getMetaClientSecret } from "../_shared/masterConfig.ts";
 
 serve(async (req: Request) => {
   const urlObj = new URL(req.url);
   const code = urlObj.searchParams.get("code");
-  const state = urlObj.searchParams.get("state"); // This stores tenant_id
+  const state = urlObj.searchParams.get("state");
   const tenantId = urlObj.searchParams.get("tenant_id");
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-  
-  const metaClientId = Deno.env.get("META_CLIENT_ID") ?? Deno.env.get("FACEBOOK_APP_ID") ?? "INSERIR_APP_ID_AQUI";
-  const metaClientSecret = Deno.env.get("META_CLIENT_SECRET") ?? Deno.env.get("FACEBOOK_APP_SECRET") ?? "INSERIR_APP_SECRET_AQUI";
-  
+  const serviceKey  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const supabase    = createClient(supabaseUrl, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  // Prioridade: Supabase Secret → master_config (UI /master/intelligence)
+  const metaClientId     = await getMetaClientId(supabase)     || Deno.env.get("FACEBOOK_APP_ID")     || "";
+  const metaClientSecret = await getMetaClientSecret(supabase) || Deno.env.get("FACEBOOK_APP_SECRET") || "";
+
   const redirectUri = `${supabaseUrl.replace(/\/$/, "")}/functions/v1/auth-meta`;
 
   // 1. Initial request: redirect user to Facebook OAuth
@@ -31,9 +36,7 @@ serve(async (req: Request) => {
 
   // 2. Callback request: Meta returned authorization code
   try {
-    const supabaseAdmin = createClient(supabaseUrl, serviceKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
+    const supabaseAdmin = supabase; // reutiliza o client já criado
 
     // A. Exchange code for short-lived access token
     const tokenExchangeUrl = `https://graph.facebook.com/v19.0/oauth/access_token?client_id=${metaClientId}&redirect_uri=${encodeURIComponent(

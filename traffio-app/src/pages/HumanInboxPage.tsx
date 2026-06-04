@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, memo, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase'
 import { formatPhone, phoneFlag } from '../lib/formatPhone'
 import { formatDisplayDate } from '../lib/dateUtils'
@@ -9,7 +10,7 @@ import {
   AlertTriangle, MoreVertical, ArrowRightLeft, UserCircle2,
   UserPlus, Users, Building2, Tag, CalendarSearch, DollarSign,
   Mic, Paperclip, Camera, Smile, Film, Play, Pause,
-  FileText, Download, Reply, Pencil, Copy, Forward, Trash2, Zap, ArrowRight, Instagram, Facebook
+  FileText, Download, Reply, Pencil, Copy, Forward, Trash2, Zap, ArrowRight, Instagram, Facebook, ChevronDown, ArrowLeft
 } from 'lucide-react'
 import data from '@emoji-mart/data'
 import Picker from '@emoji-mart/react'
@@ -26,6 +27,7 @@ import { SidebarPaymentView } from '../components/SidebarPaymentView'
 import { SidebarDirectoryView } from '../components/SidebarDirectoryView'
 import { SidebarLeadClassifyView } from '../components/SidebarLeadClassifyView'
 import { SidebarPatientEditView } from '../components/SidebarPatientEditView'
+import { ChannelPreferenceSelector } from '../components/channel/ChannelPreferenceSelector'
 
 // ─────────────────────────────────────────────
 // Types
@@ -1506,6 +1508,15 @@ function PatientPanel({
         </div>
       )}
 
+      {/* Canal de Notificação (No-Show + NPS) */}
+      <div className="p-4 border-b border-gray-100">
+        <ChannelPreferenceSelector
+          tenantId={session.tenant_id}
+          patientPhone={session.patient_phone}
+          compact
+        />
+      </div>
+
       {/* Additional Identity Details */}
       <div className="p-4 border-b border-gray-100 space-y-2">
           <div className="flex items-center gap-2 text-xs text-gray-600">
@@ -1665,9 +1676,24 @@ export function HumanInboxPage() {
   const [selectedUserToTransfer, setSelectedUserToTransfer] = useState<string | null>(null);
   const [transferring, setTransferring] = useState(false);
   const [selectedStage, setSelectedStage] = useState<string>('Todos')
+  const [stageDropdownOpen, setStageDropdownOpen] = useState(false)
   const [rescheduleData, setRescheduleData] = useState<any | null>(null);
   const [channelFilter, setChannelFilter] = useState<'all' | 'whatsapp' | 'livechat' | 'instagram' | 'facebook'>('all');
-  
+  const [headerSlot, setHeaderSlot] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    // Attempt to grab the slot immediately and also set up an observer or interval just in case
+    const el = document.getElementById('inbox-header-slot');
+    if (el) setHeaderSlot(el);
+    else {
+      // Retry after a short delay since it might render slightly after
+      const timeout = setTimeout(() => {
+        setHeaderSlot(document.getElementById('inbox-header-slot'));
+      }, 100);
+      return () => clearTimeout(timeout);
+    }
+  }, []);
+
   // Scripts state
   const [salesScripts, setSalesScripts] = useState<any[]>([]);
   const [clinicName, setClinicName] = useState<string>('');
@@ -2317,6 +2343,34 @@ export function HumanInboxPage() {
 
 
 
+  const channelCounts = useMemo(() => {
+    const counts = { all: 0, whatsapp: 0, livechat: 0, instagram: 0, facebook: 0 }
+    sessions.forEach(s => {
+      const chan = s.channel || 'whatsapp'
+      if (chan === 'whatsapp' || chan === 'livechat' || chan === 'instagram' || chan === 'facebook') {
+        counts[chan]++
+      }
+    })
+    counts.all = sessions.length
+    return counts
+  }, [sessions])
+
+  const stageCounts = useMemo(() => {
+    const counts: Record<string, number> = { Todos: sessions.length }
+    KANBAN_STAGES.forEach(s => {
+      counts[s] = 0
+    })
+    sessions.forEach(s => {
+      const stage = s.kanban_stage || 'Novos Leads'
+      if (stage in counts) {
+        counts[stage]++
+      } else {
+        counts[stage] = 1
+      }
+    })
+    return counts
+  }, [sessions])
+
   const filtered = sessions.filter(s => {
     const matchesSearch = !search ||
       s.patient_phone.includes(search) ||
@@ -2341,11 +2395,170 @@ export function HumanInboxPage() {
   // ─────────────────────────────────────────────
   return (
     <div className="flex h-[calc(100vh-120px)] bg-white rounded-2xl overflow-hidden border border-gray-200 shadow-sm">
+      {headerSlot && createPortal(
+        <div className="flex items-center justify-between w-full h-full px-1 lg:px-2 gap-2 lg:gap-4">
+          {/* Left: Channels segmented control */}
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar flex-1 min-w-0">
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 select-none hidden lg:block shrink-0">Canais:</span>
+            <div className="flex bg-slate-100/90 border border-slate-200/60 p-0.5 rounded-xl shrink-0 gap-0.5">
+               <button
+                  onClick={() => setChannelFilter('all')}
+                  className={clsx(
+                    "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer",
+                    channelFilter === 'all'
+                      ? "bg-white text-slate-900 shadow-sm border border-slate-200/50"
+                      : "text-slate-500 hover:text-slate-900 hover:bg-slate-200/50"
+                  )}
+                >
+                  Todos
+                  <span className={clsx(
+                    "px-1.5 py-0.5 rounded-full text-[9px] font-extrabold transition-all",
+                    channelFilter === 'all' ? "bg-slate-100 text-slate-600" : "bg-slate-200/50 text-slate-500"
+                  )}>
+                    {channelCounts.all}
+                  </span>
+                </button>
+               <button
+                  onClick={() => setChannelFilter('whatsapp')}
+                  className={clsx(
+                    "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer",
+                    channelFilter === 'whatsapp'
+                      ? "bg-emerald-600 text-white shadow-sm shadow-emerald-600/10 border border-emerald-500/50"
+                      : "text-slate-500 hover:text-slate-900 hover:bg-slate-200/50"
+                  )}
+                >
+                  WhatsApp
+                  <span className={clsx(
+                    "px-1.5 py-0.5 rounded-full text-[9px] font-extrabold transition-all",
+                    channelFilter === 'whatsapp' ? "bg-white/20 text-white" : "bg-slate-200/50 text-slate-500"
+                  )}>
+                    {channelCounts.whatsapp}
+                  </span>
+                </button>
+               <button
+                  onClick={() => setChannelFilter('livechat')}
+                  className={clsx(
+                    "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer",
+                    channelFilter === 'livechat'
+                      ? "bg-indigo-600 text-white shadow-sm shadow-indigo-600/10 border border-indigo-500/50"
+                      : "text-slate-500 hover:text-slate-900 hover:bg-slate-200/50"
+                  )}
+                >
+                  Live Chat
+                  <span className={clsx(
+                    "px-1.5 py-0.5 rounded-full text-[9px] font-extrabold transition-all",
+                    channelFilter === 'livechat' ? "bg-white/20 text-white" : "bg-slate-200/50 text-slate-500"
+                  )}>
+                    {channelCounts.livechat}
+                  </span>
+                </button>
+               <button
+                  onClick={() => setChannelFilter('instagram')}
+                  className={clsx(
+                    "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer",
+                    channelFilter === 'instagram'
+                      ? "bg-gradient-to-r from-purple-600 to-pink-500 text-white shadow-sm shadow-pink-600/10 border border-pink-500/50"
+                      : "text-slate-500 hover:text-slate-900 hover:bg-slate-200/50"
+                  )}
+                >
+                  Instagram
+                  <span className={clsx(
+                    "px-1.5 py-0.5 rounded-full text-[9px] font-extrabold transition-all",
+                    channelFilter === 'instagram' ? "bg-white/20 text-white" : "bg-slate-200/50 text-slate-500"
+                  )}>
+                    {channelCounts.instagram}
+                  </span>
+                </button>
+               <button
+                  onClick={() => setChannelFilter('facebook')}
+                  className={clsx(
+                    "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer",
+                    channelFilter === 'facebook'
+                      ? "bg-blue-600 text-white shadow-sm shadow-blue-600/10 border border-blue-500/50"
+                      : "text-slate-500 hover:text-slate-900 hover:bg-slate-200/50"
+                  )}
+                >
+                  Messenger
+                  <span className={clsx(
+                    "px-1.5 py-0.5 rounded-full text-[9px] font-extrabold transition-all",
+                    channelFilter === 'facebook' ? "bg-white/20 text-white" : "bg-slate-200/50 text-slate-500"
+                  )}>
+                    {channelCounts.facebook}
+                  </span>
+                </button>
+            </div>
+          </div>
+
+          {/* Right: Dropdown for Kanban Stages */}
+          <div className="relative shrink-0">
+            <button 
+              onClick={() => setStageDropdownOpen(!stageDropdownOpen)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition-all font-bold text-xs cursor-pointer shadow-sm"
+            >
+              <span className="text-slate-400 font-extrabold text-[9px] uppercase tracking-wider hidden lg:inline-block">Estágio:</span>
+              <span className={clsx(
+                "px-1 py-0.5 rounded-lg text-xs font-bold",
+                selectedStage === 'Todos' ? "text-indigo-600" :
+                selectedStage === 'Perdido' ? "text-slate-600" :
+                selectedStage === 'Vendido/Procedimento' ? "text-emerald-600" :
+                selectedStage === 'Avaliação' ? "text-violet-600" : "text-blue-600"
+              )}>{selectedStage}</span>
+              <span className="px-1.5 py-0.5 rounded-full text-[9px] font-extrabold bg-slate-100 text-slate-600">
+                {stageCounts[selectedStage]}
+              </span>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 ml-1" />
+            </button>
+
+            {stageDropdownOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setStageDropdownOpen(false)} />
+                <div className="absolute right-0 mt-2 w-64 bg-white/95 backdrop-blur-xl border border-slate-200/80 rounded-2xl shadow-xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="px-3 py-1 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 mb-1">Selecionar Estágio</div>
+                  <button
+                    onClick={() => { setSelectedStage('Todos'); setStageDropdownOpen(false); }}
+                    className={clsx(
+                      "w-full flex items-center justify-between px-4 py-2.5 text-left text-xs font-bold hover:bg-slate-50 cursor-pointer transition-colors",
+                      selectedStage === 'Todos' ? "text-indigo-600 bg-indigo-50/50" : "text-slate-700"
+                    )}
+                  >
+                    <span>Todos</span>
+                    <span className="px-1.5 py-0.5 rounded-full text-[9px] font-extrabold bg-slate-100 text-slate-500">{stageCounts.Todos}</span>
+                  </button>
+                  <div className="h-px bg-slate-100 my-1" />
+                  <div className="max-h-[300px] overflow-y-auto no-scrollbar">
+                    {KANBAN_STAGES.map(s => (
+                      <button
+                        key={s}
+                        onClick={() => { setSelectedStage(s); setStageDropdownOpen(false); }}
+                        className={clsx(
+                          "w-full flex items-center justify-between px-4 py-2.5 text-left text-xs font-bold hover:bg-slate-50 cursor-pointer transition-colors",
+                          selectedStage === s ? "text-blue-600 bg-blue-50/50" : "text-slate-700"
+                        )}
+                      >
+                        <span className="truncate pr-2">{s}</span>
+                        {stageCounts[s] > 0 ? (
+                          <span className="px-1.5 py-0.5 rounded-full text-[9px] font-extrabold bg-slate-100 text-slate-500">{stageCounts[s]}</span>
+                        ) : (
+                          <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold text-slate-300">0</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>,
+        headerSlot
+      )}
 
       {/* ══════════════════════════════════════════
           LEFT — Queue / Session list
       ══════════════════════════════════════════ */}
-      <div className="w-[280px] shrink-0 flex flex-col bg-white border-r border-gray-200">
+      <div className={clsx(
+        "w-full lg:w-[280px] shrink-0 flex flex-col bg-white border-r border-gray-200 h-full",
+        selected ? "hidden lg:flex" : "flex"
+      )}>
 
         {/* Header */}
         <div className="px-4 py-4 border-b border-gray-100 space-y-3">
@@ -2365,94 +2578,7 @@ export function HumanInboxPage() {
                 className="flex-1 bg-transparent text-xs outline-none placeholder:text-gray-400"
               />
             </div>
-
-            {/* Filtro de Canais */}
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 border-b border-gray-100 pb-2">
-              <button
-                onClick={() => setChannelFilter('all')}
-                className={clsx(
-                  "px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-all shrink-0 cursor-pointer",
-                  channelFilter === 'all'
-                    ? "bg-gray-800 text-white border-gray-800 shadow-sm"
-                    : "bg-white text-gray-500 border-gray-200 hover:border-gray-300"
-                )}
-              >
-                Todos
-              </button>
-              <button
-                onClick={() => setChannelFilter('whatsapp')}
-                className={clsx(
-                  "px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-all shrink-0 cursor-pointer",
-                  channelFilter === 'whatsapp'
-                    ? "bg-green-600 text-white border-green-600 shadow-sm"
-                    : "bg-white text-gray-500 border-gray-200 hover:border-green-300"
-                )}
-              >
-                WhatsApp
-              </button>
-              <button
-                onClick={() => setChannelFilter('livechat')}
-                className={clsx(
-                  "px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-all shrink-0 cursor-pointer",
-                  channelFilter === 'livechat'
-                    ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
-                    : "bg-white text-gray-500 border-gray-200 hover:border-indigo-300"
-                )}
-              >
-                Live Chat
-              </button>
-              <button
-                onClick={() => setChannelFilter('instagram')}
-                className={clsx(
-                  "px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-all shrink-0 cursor-pointer",
-                  channelFilter === 'instagram'
-                    ? "bg-pink-600 text-white border-pink-600 shadow-sm"
-                    : "bg-white text-gray-500 border-gray-200 hover:border-pink-300"
-                )}
-              >
-                Instagram
-              </button>
-              <button
-                onClick={() => setChannelFilter('facebook')}
-                className={clsx(
-                  "px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-all shrink-0 cursor-pointer",
-                  channelFilter === 'facebook'
-                    ? "bg-blue-600 text-white border-blue-600 shadow-sm"
-                    : "bg-white text-gray-500 border-gray-200 hover:border-blue-300"
-                )}
-              >
-                Messenger
-              </button>
-            </div>
-
-            {/* Kanban Stage Filter Pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 pointer-events-auto">
-              <button
-                onClick={() => setSelectedStage('Todos')}
-                className={clsx(
-                  "px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all shrink-0 cursor-pointer",
-                  selectedStage === 'Todos' 
-                    ? "bg-blue-600 text-white border-blue-600 shadow-sm" 
-                    : "bg-white text-gray-500 border-gray-200 hover:border-blue-300"
-                )}
-              >
-                Todos
-              </button>
-              {KANBAN_STAGES.map(s => (
-                <button
-                  key={s}
-                  onClick={() => setSelectedStage(s)}
-                  className={clsx(
-                    "px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all shrink-0 cursor-pointer",
-                    selectedStage === s 
-                      ? "bg-blue-600 text-white border-blue-600 shadow-sm" 
-                      : "bg-white text-gray-500 border-gray-200 hover:border-blue-300"
-                  )}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
+            {/* Filters moved to Header Portal */}
           </div>
 
           {/* Tabs */}
@@ -2549,6 +2675,15 @@ export function HumanInboxPage() {
           {/* Chat header */}
           <div className="flex items-center justify-between px-5 py-3 bg-white border-b border-gray-200 shrink-0">
             <div className="flex items-center gap-3">
+              {/* Mobile Back Button */}
+              <button
+                onClick={() => setSelected(null)}
+                className="lg:hidden p-1 mr-1 hover:bg-slate-100 rounded-lg text-slate-500 cursor-pointer"
+                title="Voltar para a lista"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+
               <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
                 {selected.channel === 'livechat' ? (
                   <MessageCircle className="w-4 h-4 text-blue-600" />
@@ -2664,7 +2799,7 @@ export function HumanInboxPage() {
           />
         </div>
       ) : (
-        <div className="flex-1 flex items-center justify-center text-gray-400 bg-gray-50/30">
+        <div className="hidden lg:flex flex-1 items-center justify-center text-gray-400 bg-gray-50/30">
           <div className="text-center space-y-3">
             <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto">
               <MessageCircle className="w-8 h-8 opacity-30" />

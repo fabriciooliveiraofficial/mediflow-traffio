@@ -27,7 +27,12 @@ interface Tenant {
     created_at?: string;
     whatsapp_status?: string;
     zapi_instance_id?: string;
-    owner_email?: string; // Fetched via join if possible, or separate query
+    owner_email?: string;
+    // Telnyx (gerenciado pela Traffio, invisível ao tenant)
+    telnyx_enabled?: boolean;
+    telnyx_api_key?: string;
+    telnyx_app_id?: string;
+    sms_enabled?: boolean;
 }
 
 export const MasterTenants = () => {
@@ -212,6 +217,29 @@ export const MasterTenants = () => {
                                             <div>
                                                 <p className="text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1">Usuários</p>
                                                 <p className="text-xs text-slate-400">Total: 3 (1 Admin)</p>
+                                            </div>
+                                        </div>
+
+                                        {/* Telnyx — visível apenas para super-admin da Traffio */}
+                                        <div className="pt-4 border-t border-[#1E293B] space-y-3">
+                                            <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                                                Comunicações (Telnyx) — apenas Traffio Admin
+                                            </p>
+                                            <div className="grid grid-cols-3 gap-3">
+                                                <div>
+                                                    <p className="text-[10px] text-slate-500 mb-1">Softphone</p>
+                                                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${tenant.telnyx_enabled ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-700 text-slate-500'}`}>
+                                                        {tenant.telnyx_enabled ? 'Ativo' : 'Inativo'}
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] text-slate-500 mb-1">API Key própria</p>
+                                                    <span className="text-xs text-slate-400">{tenant.telnyx_api_key ? '●●●●●●●' : 'Usa master key'}</span>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] text-slate-500 mb-1">Connection ID próprio</p>
+                                                    <span className="text-xs text-slate-400">{tenant.telnyx_app_id ?? 'Usa master'}</span>
+                                                </div>
                                             </div>
                                         </div>
 

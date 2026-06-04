@@ -1,18 +1,21 @@
 /**
  * schedule-reminders — Edge Function (Supabase Cron)
- * Final Production Version v3.0 — Multi-timezone support
+ * v4.0 — Multi-Canal + Multi-timezone
+ *
+ * Novidades v4:
+ *   - Consulta patient_channel_preferences para rotear cada lembrete
+ *     pelo canal preferido do paciente (WhatsApp, Instagram, Facebook, SMS)
+ *   - Auto-detect: se sem preferência manual, usa o canal da última sessão ativa
+ *   - Popula notification_channel + channel_recipient_id na fila
+ *   - Vídeos de lembrete só se aplicam ao canal WhatsApp
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { corsHeaders } from "../_shared/cors.ts";
 
-console.log("schedule-reminders v3.0 (multi-timezone) initialized");
+console.log("schedule-reminders v4.0 (multi-canal + multi-timezone) initialized");
 
-/**
- * Returns the UTC offset string (e.g. "-03:00", "+05:30") for an IANA timezone
- * at the given date, accounting for DST transitions.
- */
 function getUTCOffsetString(timezone: string, refDate: Date): string {
     try {
         const parts = new Intl.DateTimeFormat("en-US", {
@@ -32,9 +35,6 @@ function getUTCOffsetString(timezone: string, refDate: Date): string {
     }
 }
 
-/**
- * Returns the local hour (0–23) in the given IANA timezone.
- */
 function getLocalHour(date: Date, timezone: string): number {
     try {
         return parseInt(
@@ -46,21 +46,14 @@ function getLocalHour(date: Date, timezone: string): number {
     }
 }
 
-/**
- * Shifts delivery time to avoid the quiet hours (22:00–08:00) in the tenant's local timezone.
- * Replaces the previous hardcoded Brazil-only version.
- */
 function getSafeScheduledTime(target: Date, type: string, timezone: string): string {
     const localHour = getLocalHour(target, timezone);
     const isQuiet = localHour >= 22 || localHour < 8;
     if (!isQuiet) return target.toISOString();
 
-    // Extract local date parts in tenant timezone
     const localParts = new Intl.DateTimeFormat("en-US", {
         timeZone: timezone,
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
+        year: "numeric", month: "2-digit", day: "2-digit",
     }).formatToParts(target);
     const localYear  = parseInt(localParts.find((p) => p.type === "year")!.value, 10);
     const localMonth = parseInt(localParts.find((p) => p.type === "month")!.value, 10) - 1;
@@ -70,37 +63,21 @@ function getSafeScheduledTime(target: Date, type: string, timezone: string): str
     let dayOffset  = 0;
 
     if (type.startsWith("reminder")) {
-        if (localHour < 8) {
-            // Early morning: send previous evening at 21:00
-            targetHour = 21;
-            dayOffset  = -1;
-        } else {
-            // Late night: send same-day at 21:00
-            targetHour = 21;
-        }
+        targetHour = localHour < 8 ? 21 : 21;
+        dayOffset  = localHour < 8 ? -1 : 0;
     } else {
-        if (localHour >= 22) {
-            // Late night confirmation: shift to next-day 08:00
-            targetHour = 8;
-            dayOffset  = 1;
-        } else {
-            // Early morning confirmation: shift to 08:00 same day
-            targetHour = 8;
-        }
+        targetHour = 8;
+        dayOffset  = localHour >= 22 ? 1 : 0;
     }
 
-    // Build a UTC Date that represents targetHour:00 local time on the shifted day.
-    // We construct a candidate ISO string and adjust using the real UTC offset at that instant.
     const shiftedDate = new Date(Date.UTC(localYear, localMonth, localDay + dayOffset, targetHour, 0, 0));
     const offset = getUTCOffsetString(timezone, shiftedDate);
-    // offset is e.g. "-03:00"; parse hours+minutes and apply
-    const sign    = offset[0] === "-" ? 1 : -1; // invert: if local is UTC-3, add 3h to get UTC
+    const sign    = offset[0] === "-" ? 1 : -1;
     const [offH, offM] = offset.slice(1).split(":").map(Number);
     const offsetMs = sign * (offH * 60 + offM) * 60 * 1000;
     return new Date(shiftedDate.getTime() + offsetMs).toISOString();
 }
 
-/** Replaces variables in string with patient/appointment data */
 function renderCustomCaption(template: string, vars: any): string {
     if (!template) return "";
     let rendered = template;
@@ -125,6 +102,15 @@ function renderCustomCaption(template: string, vars: any): string {
     return rendered;
 }
 
+// ─── Tipos ───────────────────────────────────────────────────────────────────
+
+interface ChannelInfo {
+    channel:     "whatsapp" | "instagram" | "facebook" | "sms";
+    recipientId: string;   // phone para whatsapp/sms; IGSID/PSID para instagram/facebook
+}
+
+// ─── Handler principal ───────────────────────────────────────────────────────
+
 serve(async (req: Request) => {
     if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -133,11 +119,11 @@ serve(async (req: Request) => {
     const supabase           = createClient(supabaseUrl, supabaseServiceKey);
 
     try {
-        const now     = new Date();
-        const today   = now.toISOString().split("T")[0];
+        const now       = new Date();
+        const today     = now.toISOString().split("T")[0];
         const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
 
-        // 1. Fetch appointments with procedural and location details
+        // 1. Buscar agendamentos
         const { data: appointments, error: fetchErr } = await supabase
             .from("appointments")
             .select(`
@@ -152,11 +138,11 @@ serve(async (req: Request) => {
             .order("date", { ascending: true });
 
         if (fetchErr) throw fetchErr;
-        if (!appointments || appointments.length === 0) {
+        if (!appointments?.length) {
             return new Response(JSON.stringify({ scheduled: 0, count: 0 }), { headers: corsHeaders });
         }
 
-        // 2. Fetch configurations — now includes timezone
+        // 2. Buscar configurações dos tenants
         const tenantIds = [...new Set(appointments.map((a: any) => a.tenant_id))];
         const { data: tenants } = await supabase
             .from("tenants")
@@ -164,15 +150,68 @@ serve(async (req: Request) => {
             .in("id", tenantIds);
 
         const tenantConfigMap: Record<string, any> = Object.fromEntries(
-            (tenants ?? []).map((t: any) => [
-                t.id,
-                {
-                    bot_config: t.bot_config ?? {},
-                    name:       t.name,
-                    timezone:   t.timezone || "America/Sao_Paulo",
-                },
-            ])
+            (tenants ?? []).map((t: any) => [t.id, {
+                bot_config: t.bot_config ?? {},
+                name:       t.name,
+                timezone:   t.timezone || "America/Sao_Paulo",
+            }])
         );
+
+        // 3. ── NOVO: Buscar preferências de canal dos pacientes ────────────────
+        const patientPhones = [
+            ...new Set(
+                appointments
+                    .map((a: any) => (Array.isArray(a.patients) ? a.patients[0] : a.patients)?.phone)
+                    .filter(Boolean)
+            )
+        ];
+
+        const channelMap: Record<string, ChannelInfo> = {};
+
+        if (patientPhones.length > 0) {
+            // 3a. Preferências explícitas salvas
+            const { data: prefs } = await supabase
+                .from("patient_channel_preferences")
+                .select("patient_phone, preferred_channel, instagram_user_id, facebook_user_id, sms_phone, whatsapp_phone")
+                .in("patient_phone", patientPhones);
+
+            for (const pref of prefs ?? []) {
+                let recipientId = pref.whatsapp_phone ?? pref.patient_phone;
+                if (pref.preferred_channel === "instagram") recipientId = pref.instagram_user_id ?? pref.patient_phone;
+                if (pref.preferred_channel === "facebook")  recipientId = pref.facebook_user_id  ?? pref.patient_phone;
+                if (pref.preferred_channel === "sms")       recipientId = pref.sms_phone         ?? pref.patient_phone;
+                channelMap[pref.patient_phone] = {
+                    channel:     pref.preferred_channel as ChannelInfo["channel"],
+                    recipientId,
+                };
+            }
+
+            // 3b. Auto-detect para pacientes sem preferência salva
+            const phonesMissing = patientPhones.filter((p) => !channelMap[p]);
+            if (phonesMissing.length > 0) {
+                const { data: sessions } = await supabase
+                    .from("conversation_sessions")
+                    .select("patient_phone, channel, platform_user_id, updated_at")
+                    .in("patient_phone", phonesMissing)
+                    .order("updated_at", { ascending: false });
+
+                const seenPhones = new Set<string>();
+                for (const s of sessions ?? []) {
+                    if (seenPhones.has(s.patient_phone)) continue;
+                    seenPhones.add(s.patient_phone);
+                    // livechat não tem canal de notificação — fallback para whatsapp
+                    const ch = (s.channel === "livechat" || !s.channel) ? "whatsapp" : s.channel;
+                    const recipientId = (ch === "instagram" || ch === "facebook")
+                        ? (s.platform_user_id ?? s.patient_phone)
+                        : s.patient_phone;
+                    channelMap[s.patient_phone] = {
+                        channel:     ch as ChannelInfo["channel"],
+                        recipientId,
+                    };
+                }
+            }
+        }
+        // ─────────────────────────────────────────────────────────────────────
 
         let enqueuedCount = 0;
 
@@ -185,19 +224,24 @@ serve(async (req: Request) => {
 
             if (!botConfig.no_show_prevention && !botConfig.test_mode_15m) continue;
 
-            // Build appointment UTC timestamp using the tenant's actual timezone offset
-            const apptRefDate = new Date(`${appt.date}T${appt.start_time}Z`);
-            const utcOffset   = getUTCOffsetString(timezone, apptRefDate);
-            const apptTimestamp = new Date(`${appt.date}T${appt.start_time}:00${utcOffset}`).getTime();
+            // Normalizar start_time: PostgreSQL retorna "HH:MM:SS", precisamos de "HH:MM:SS"
+            // Evitar duplicar os segundos se já estiverem presentes
+            const startTimeSec  = appt.start_time.length <= 5
+                ? `${appt.start_time}:00`   // "HH:MM"    → "HH:MM:00"
+                : appt.start_time;           // "HH:MM:SS" → sem alteração
 
-            const doctorData   = Array.isArray(appt.doctors)           ? appt.doctors[0]           : appt.doctors;
-            const locationData = Array.isArray(appt.locations)         ? appt.locations[0]         : appt.locations;
-            const typeData     = Array.isArray(appt.appointment_types) ? appt.appointment_types[0] : appt.appointment_types;
+            const apptRefDate   = new Date(`${appt.date}T${startTimeSec}Z`);
+            const utcOffset     = getUTCOffsetString(timezone, apptRefDate);
+            const apptTimestamp = new Date(`${appt.date}T${startTimeSec}${utcOffset}`).getTime();
 
-            const doctorName    = doctorData?.full_name   || "Especialista";
-            const locationName  = locationData?.name      || "Clínica";
-            const addressText   = locationData?.address   || "";
-            const procedureName = typeData?.name          || "Consulta";
+            const doctorData    = Array.isArray(appt.doctors)           ? appt.doctors[0]           : appt.doctors;
+            const locationData  = Array.isArray(appt.locations)         ? appt.locations[0]         : appt.locations;
+            const typeData      = Array.isArray(appt.appointment_types) ? appt.appointment_types[0] : appt.appointment_types;
+
+            const doctorName    = doctorData?.full_name || "Especialista";
+            const locationName  = locationData?.name    || "Clínica";
+            const addressText   = locationData?.address || "";
+            const procedureName = typeData?.name        || "Consulta";
 
             let locationLink = locationData?.google_maps_url || "";
             if (!locationLink && addressText) {
@@ -221,53 +265,59 @@ serve(async (req: Request) => {
                 checkin_link:      publicUrl + "/checkin?apt=" + appt.id,
             };
 
+            // Canal preferido deste paciente (ou fallback whatsapp)
+            const channelInfo: ChannelInfo = channelMap[patientData.phone] ?? {
+                channel:     "whatsapp",
+                recipientId: patientData.phone,
+            };
+
             const queueBatch: any[] = [];
 
             const addMessage = (type: string, targetAt: number, stageKey?: string) => {
                 if (targetAt < now.getTime()) return;
 
-                // Use tenant's timezone for quiet-hours check
                 const scheduledTime = getSafeScheduledTime(new Date(targetAt), type, timezone);
 
+                // Vídeos de lembrete: apenas para WhatsApp
                 let media_url  = null;
                 let media_type = null;
-                const finalStageKey = stageKey ?? null;
-
-                if (botConfig.reminder_videos_enabled && finalStageKey && botConfig.reminder_videos?.[finalStageKey]) {
-                    media_url  = botConfig.reminder_videos[finalStageKey];
+                if (
+                    channelInfo.channel === "whatsapp" &&
+                    botConfig.reminder_videos_enabled &&
+                    stageKey &&
+                    botConfig.reminder_videos?.[stageKey]
+                ) {
+                    media_url  = botConfig.reminder_videos[stageKey];
                     media_type = "video";
                 }
 
                 let override_message = null;
-                if (finalStageKey && botConfig.reminder_captions?.[finalStageKey]) {
-                    override_message = renderCustomCaption(botConfig.reminder_captions[finalStageKey], vars);
+                if (stageKey && botConfig.reminder_captions?.[stageKey]) {
+                    override_message = renderCustomCaption(botConfig.reminder_captions[stageKey], vars);
                 }
 
                 queueBatch.push({
-                    tenant_id:      appt.tenant_id,
-                    patient_phone:  patientData.phone,
-                    message_type:   type,
-                    template_key:   type === "reminder_15m" ? "appointment_reminder_15m" : "appointment_" + type,
-                    template_vars:  { ...vars, override_message },
-                    scheduled_at:   scheduledTime,
-                    reference_id:   appt.id,
-                    reference_type: "appointment",
+                    tenant_id:            appt.tenant_id,
+                    patient_phone:        patientData.phone,
+                    message_type:         type,
+                    template_key:         type === "reminder_15m" ? "appointment_reminder_15m" : "appointment_" + type,
+                    template_vars:        { ...vars, override_message },
+                    scheduled_at:         scheduledTime,
+                    reference_id:         appt.id,
+                    reference_type:       "appointment",
                     media_url,
                     media_type,
-                    is_edited:      !!override_message,
-                    status:         "pending",
+                    is_edited:            !!override_message,
+                    status:               "pending",
+                    // ── Multi-canal ──────────────────────────────────────────
+                    notification_channel: channelInfo.channel,
+                    channel_recipient_id: channelInfo.recipientId,
                 });
             };
 
-            if (botConfig.active_reminders?.["48h"] !== false) {
-                addMessage("reminder_48h", apptTimestamp - (48 * 60 * 60 * 1000), "48h");
-            }
-            if (botConfig.active_reminders?.["24h"] !== false) {
-                addMessage("reminder_24h", apptTimestamp - (24 * 60 * 60 * 1000), "24h");
-            }
-            if (botConfig.active_reminders?.["2h"] !== false) {
-                addMessage("reminder_2h",  apptTimestamp - (2 * 60 * 60 * 1000),  "2h");
-            }
+            if (botConfig.active_reminders?.["48h"] !== false) addMessage("reminder_48h", apptTimestamp - (48 * 60 * 60 * 1000), "48h");
+            if (botConfig.active_reminders?.["24h"] !== false) addMessage("reminder_24h", apptTimestamp - (24 * 60 * 60 * 1000), "24h");
+            if (botConfig.active_reminders?.["2h"]  !== false) addMessage("reminder_2h",  apptTimestamp - (2 * 60 * 60 * 1000),  "2h");
             if (botConfig.test_mode_15m && botConfig.active_reminders?.["15m"] !== false) {
                 addMessage("reminder_15m", apptTimestamp - (5 * 60 * 1000), "15m");
             }
@@ -276,14 +326,14 @@ serve(async (req: Request) => {
                 const { error: upsertErr } = await supabase
                     .from("outbound_message_queue")
                     .upsert(queueBatch, {
-                        onConflict:      "tenant_id,patient_phone,template_key,reference_id",
+                        onConflict:       "tenant_id,patient_phone,template_key,reference_id",
                         ignoreDuplicates: true,
                     });
 
                 if (upsertErr) {
                     console.error(`[schedule-reminders] Upsert failed for Appt ${appt.id}:`, upsertErr.message);
                 } else {
-                    console.log(`[schedule-reminders] ${queueBatch.length} reminders queued for Appt ${appt.id} (tz: ${timezone})`);
+                    console.log(`[schedule-reminders] ${queueBatch.length} reminders queued | Appt ${appt.id} | canal: ${channelInfo.channel} | tz: ${timezone}`);
                     enqueuedCount += queueBatch.length;
                 }
             }
@@ -295,7 +345,7 @@ serve(async (req: Request) => {
         });
 
     } catch (err: any) {
-        console.error("Critical Failure:", err.message);
+        console.error("[schedule-reminders] Critical Failure:", err.message);
         return new Response(JSON.stringify({ error: err.message }), {
             status:  500,
             headers: corsHeaders,

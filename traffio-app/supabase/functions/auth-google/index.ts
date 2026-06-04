@@ -1,18 +1,32 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 
+// Lê credencial: Supabase Secret → master_config (UI /master/intelligence)
+async function getGoogleCred(supabase: any, key: string): Promise<string> {
+  const fromEnv = Deno.env.get(key);
+  if (fromEnv) return fromEnv;
+  try {
+    const { data } = await supabase.from("master_config").select("value").eq("key", key).maybeSingle();
+    return data?.value ?? "";
+  } catch { return ""; }
+}
+
 serve(async (req: Request) => {
   const urlObj = new URL(req.url);
   const code = urlObj.searchParams.get("code");
-  const state = urlObj.searchParams.get("state"); // This stores tenant_id
+  const state = urlObj.searchParams.get("state");
   const tenantId = urlObj.searchParams.get("tenant_id");
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-  
-  const googleClientId = Deno.env.get("GOOGLE_CLIENT_ID") ?? "INSERIR_CLIENT_ID_AQUI";
-  const googleClientSecret = Deno.env.get("GOOGLE_CLIENT_SECRET") ?? "INSERIR_CLIENT_SECRET_AQUI";
-  
+  const serviceKey  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const supabase    = createClient(supabaseUrl, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  // Prioridade: Supabase Secret → master_config (UI /master/intelligence)
+  const googleClientId     = await getGoogleCred(supabase, "GOOGLE_CLIENT_ID",     "GOOGLE_CLIENT_ID");
+  const googleClientSecret = await getGoogleCred(supabase, "GOOGLE_CLIENT_SECRET", "GOOGLE_CLIENT_SECRET");
+
   const redirectUri = `${supabaseUrl.replace(/\/$/, "")}/functions/v1/auth-google`;
 
   // 1. Initial request: redirect user to Google OAuth
@@ -33,9 +47,7 @@ serve(async (req: Request) => {
 
   // 2. Callback request: Google returned authorization code
   try {
-    const supabaseAdmin = createClient(supabaseUrl, serviceKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
+    const supabaseAdmin = supabase; // reutiliza o client já criado
 
     // Exchange code for access & refresh tokens
     const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {

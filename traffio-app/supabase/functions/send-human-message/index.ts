@@ -13,6 +13,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { corsHeaders } from "../_shared/cors.ts";
 import { OutboxDispatcher } from "../_shared/outboxDispatcher.ts";
 import { SessionManager } from "../_shared/sessionManager.ts";
+import { MetaSocialClient } from "../_shared/metaSocialClient.ts";
 
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -34,16 +35,17 @@ serve(async (req: Request) => {
 
     console.log('[send-human-message] Request from user:', user_id);
 
-    // 1. Buscar sessão, validar tenant e preparar credenciais Z-API
+    // 1. Buscar sessão com credenciais de todos os canais
     const { data: session, error: sessionError } = await supabase
       .from('conversation_sessions')
       .select(`
-        id, 
-        patient_phone, 
-        tenant_id, 
-        omnichannel_status, 
+        id,
+        patient_phone,
+        tenant_id,
+        omnichannel_status,
         assigned_to_user_id,
         channel,
+        platform_user_id,
         tenants (
           whatsapp_provider,
           zapi_instance_id,
@@ -117,20 +119,42 @@ serve(async (req: Request) => {
       });
       console.log(`[send-human-message] Broadcast sent to livechat:${session_id}`);
     } else if (isInstagram || isFacebook) {
-      // No futuro, isso fará a chamada para a Meta Graph API.
-      // Por enquanto, enviamos broadcast em tempo real para atualizar o painel do atendente.
-      const realtimeChannel = supabase.channel(`meta:${session_id}`);
-      await realtimeChannel.send({
-        type: 'broadcast',
-        event: 'message',
-        payload: {
-          id: dbMsgId,
-          role: 'human',
-          content: text.trim(),
-          created_at: new Date().toISOString()
+      // Enviar via Meta Graph API usando platform_user_id (PSID ou IGSID)
+      const recipientId = session.platform_user_id ?? session.patient_phone;
+
+      // Buscar Page Access Token do tenant
+      const pageQuery = isInstagram
+        ? supabase.from('tenant_meta_pages').select('page_access_token, instagram_account_id').eq('tenant_id', tenant_id).not('instagram_account_id', 'is', null).eq('is_active', true).limit(1).maybeSingle()
+        : supabase.from('tenant_meta_pages').select('page_access_token').eq('tenant_id', tenant_id).eq('is_active', true).limit(1).maybeSingle();
+
+      const { data: metaPage } = await pageQuery;
+
+      if (!metaPage?.page_access_token) {
+        console.error(`[send-human-message] No Meta page token for tenant ${tenant_id}. Message saved but not delivered.`);
+      } else {
+        try {
+          if (isInstagram) {
+            await MetaSocialClient.sendInstagramMessage(
+              metaPage.page_access_token,
+              metaPage.instagram_account_id,
+              recipientId,
+              text.trim()
+            );
+            console.log(`[send-human-message] Instagram DM sent to ${recipientId}`);
+          } else {
+            await MetaSocialClient.sendFacebookMessage(
+              metaPage.page_access_token,
+              recipientId,
+              text.trim()
+            );
+            console.log(`[send-human-message] Facebook Messenger sent to ${recipientId}`);
+          }
+        } catch (metaErr: any) {
+          console.error(`[send-human-message] Meta dispatch failed: ${metaErr.message}`);
+          // Não falhar silenciosamente — informar o atendente
+          throw new Error(`Falha ao enviar via ${session.channel}: ${metaErr.message}`);
         }
-      });
-      console.log(`[send-human-message] Broadcast sent to meta:${session_id} for channel ${session.channel}`);
+      }
     } else {
       const outbox = new OutboxDispatcher(supabase);
       try {

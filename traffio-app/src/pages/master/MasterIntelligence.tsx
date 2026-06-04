@@ -9,7 +9,11 @@ import {
     Save,
     Cpu,
     BarChart3,
-    Zap
+    Zap,
+    Phone,
+    MessageCircle,
+    Globe,
+    Info,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../contexts/ToastContext';
@@ -263,8 +267,85 @@ export const MasterIntelligence = () => {
                                         </div>
                                     ))}
 
+                                    {/* ── Comunicações — Telnyx ──────────────────────────────────────────── */}
+                                    {configs.some(c => c.key.startsWith('TELNYX_')) && (
+                                        <div className="space-y-4">
+                                            <div className="flex items-center gap-2 pb-2 border-b border-[#1E293B]">
+                                                <Phone className="text-blue-400" size={16} />
+                                                <h4 className="text-xs font-black text-blue-400 uppercase tracking-widest">Comunicações (Telnyx)</h4>
+                                                <div className="ml-auto flex items-center gap-1.5 text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                                                    <Info size={10} /> Valores devem coincidir com Supabase Secrets
+                                                </div>
+                                            </div>
+                                            {configs.filter(c => c.key.startsWith('TELNYX_')).map((config) => (
+                                                <div key={config.key} className="space-y-2">
+                                                    <div className="flex justify-between items-end">
+                                                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest">{config.key}</label>
+                                                        <span className="text-[10px] text-slate-600 font-medium">{config.description}</span>
+                                                    </div>
+                                                    <div className="relative flex items-center gap-2">
+                                                        <input
+                                                            type="password"
+                                                            value={config.value}
+                                                            onChange={(e) => {
+                                                                const v = e.target.value;
+                                                                setConfigs(prev => prev.map(c => c.key === config.key ? { ...c, value: v } : c));
+                                                            }}
+                                                            placeholder={`Inserir ${config.key}...`}
+                                                            className="flex-1 bg-[#1A2035] border border-blue-500/20 rounded-xl px-4 py-3.5 text-white focus:outline-none focus:border-blue-500 transition-all font-mono text-sm"
+                                                        />
+                                                        <button
+                                                            onClick={() => handleUpdateConfig(config.key, config.value)}
+                                                            disabled={saving === config.key}
+                                                            className="p-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                                        >
+                                                            {saving === config.key ? <Zap className="animate-spin" size={16} /> : <Save size={16} />}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* ── Meta (Instagram DM + Facebook Messenger) ───────────────────────── */}
+                                    {configs.some(c => c.key.startsWith('META_')) && (
+                                        <div className="space-y-4">
+                                            <div className="flex items-center gap-2 pb-2 border-b border-[#1E293B]">
+                                                <Globe className="text-blue-500" size={16} />
+                                                <h4 className="text-xs font-black text-blue-500 uppercase tracking-widest">Meta (Instagram DM + Facebook Messenger)</h4>
+                                            </div>
+                                            {configs.filter(c => c.key.startsWith('META_')).map((config) => (
+                                                <div key={config.key} className="space-y-2">
+                                                    <div className="flex justify-between items-end">
+                                                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest">{config.key}</label>
+                                                        <span className="text-[10px] text-slate-600 font-medium">{config.description}</span>
+                                                    </div>
+                                                    <div className="relative flex items-center gap-2">
+                                                        <input
+                                                            type="password"
+                                                            value={config.value}
+                                                            onChange={(e) => {
+                                                                const v = e.target.value;
+                                                                setConfigs(prev => prev.map(c => c.key === config.key ? { ...c, value: v } : c));
+                                                            }}
+                                                            placeholder={`Inserir ${config.key}...`}
+                                                            className="flex-1 bg-[#1A2035] border border-blue-500/20 rounded-xl px-4 py-3.5 text-white focus:outline-none focus:border-blue-500 transition-all font-mono text-sm"
+                                                        />
+                                                        <button
+                                                            onClick={() => handleUpdateConfig(config.key, config.value)}
+                                                            disabled={saving === config.key}
+                                                            className="p-3.5 rounded-xl bg-blue-700 hover:bg-blue-600 text-white shadow-lg shadow-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                                        >
+                                                            {saving === config.key ? <Zap className="animate-spin" size={16} /> : <Save size={16} />}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
                                     {/* Global Switch */}
-                                    {configs.filter(c => !c.key.includes('_API_KEY') && !['AI_MODEL_PROVIDER', 'AI_MODEL_NAME'].includes(c.key)).map((config) => (
+                                    {configs.filter(c => !c.key.includes('_API_KEY') && !c.key.startsWith('TELNYX_') && !c.key.startsWith('META_') && !['AI_MODEL_PROVIDER', 'AI_MODEL_NAME'].includes(c.key)).map((config) => (
                                         <div key={config.key} className="flex items-center justify-between p-4 rounded-xl bg-[#1A2035]/50 border border-[#2D3B55]">
                                             <div>
                                                 <p className="text-xs font-black text-slate-400 uppercase tracking-widest">{config.key}</p>

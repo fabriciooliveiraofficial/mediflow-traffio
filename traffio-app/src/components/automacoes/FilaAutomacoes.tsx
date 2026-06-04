@@ -1,20 +1,41 @@
 import React, { useState } from 'react';
 import { useOutboundQueue } from '../../hooks/useOutboundQueue';
 import type { OutboundQueueRow } from '../../hooks/useOutboundQueue';
-import { 
-    Clock, 
-    CheckCircle, 
-    AlertCircle, 
-    Ban, 
-    Search, 
-    ChevronLeft, 
-    ChevronRight, 
-    Edit, 
-    Send, 
+import {
+    Clock,
+    CheckCircle,
+    AlertCircle,
+    Ban,
+    Search,
+    ChevronLeft,
+    ChevronRight,
+    Edit,
+    Send,
     RefreshCcw,
     Eye,
-    Star
+    Star,
+    MessageCircle,
+    Instagram,
+    Facebook,
+    Phone,
 } from 'lucide-react';
+
+// Badge de canal de notificação
+function ChannelBadge({ channel }: { channel?: string }) {
+    const map: Record<string, { icon: React.ElementType; label: string; className: string }> = {
+        whatsapp: { icon: MessageCircle, label: 'WhatsApp', className: 'text-green-600 bg-green-50 border-green-100' },
+        instagram: { icon: Instagram,    label: 'Instagram', className: 'text-pink-500 bg-pink-50 border-pink-100' },
+        facebook:  { icon: Facebook,     label: 'Messenger', className: 'text-blue-600 bg-blue-50 border-blue-100' },
+        sms:       { icon: Phone,        label: 'SMS',       className: 'text-graphite-600 bg-ice-50 border-ice-100' },
+    };
+    const ch = map[channel ?? 'whatsapp'] ?? map['whatsapp'];
+    return (
+        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[10px] font-bold ${ch.className}`}>
+            <ch.icon size={9} />
+            {ch.label}
+        </span>
+    );
+}
 import { formatDistanceToNow, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { clsx } from 'clsx';
@@ -136,6 +157,7 @@ export const FilaAutomacoes: React.FC<FilaAutomacoesProps> = ({ tenantId, dateRa
                         <tr className="bg-ice-25/50 border-b border-ice-100">
                             <th className="px-6 py-4 text-[10px] font-black uppercase text-graphite-300 tracking-widest leading-none">Status</th>
                             <th className="px-6 py-4 text-[10px] font-black uppercase text-graphite-300 tracking-widest leading-none">Paciente</th>
+                            <th className="px-6 py-4 text-[10px] font-black uppercase text-graphite-300 tracking-widest leading-none">Canal</th>
                             <th className="px-6 py-4 text-[10px] font-black uppercase text-graphite-300 tracking-widest leading-none">Tipo</th>
                             <th className="px-6 py-4 text-[10px] font-black uppercase text-graphite-300 tracking-widest leading-none">Agendado Para</th>
                             <th className="px-6 py-4 text-[10px] font-black uppercase text-graphite-300 tracking-widest leading-none text-right">Ações</th>
@@ -144,13 +166,13 @@ export const FilaAutomacoes: React.FC<FilaAutomacoesProps> = ({ tenantId, dateRa
                     <tbody className="divide-y divide-ice-50">
                         {isLoading && data.length === 0 ? (
                             <tr>
-                                <td colSpan={5} className="py-24 text-center">
+                                <td colSpan={6} className="py-24 text-center">
                                     <div className="w-10 h-10 border-2 border-ice-100 border-t-brand-primary rounded-full animate-spin mx-auto" />
                                 </td>
                             </tr>
                         ) : data.length === 0 ? (
                             <tr>
-                                <td colSpan={5} className="py-24 text-center">
+                                <td colSpan={6} className="py-24 text-center">
                                     <p className="text-sm font-bold text-graphite-300">Nenhuma automação encontrada para os filtros selecionados.</p>
                                 </td>
                             </tr>
@@ -164,6 +186,9 @@ export const FilaAutomacoes: React.FC<FilaAutomacoesProps> = ({ tenantId, dateRa
                                         </span>
                                         <span className="text-[10px] font-bold text-graphite-400">{phoneFlag(msg.patient_phone)} {formatPhone(msg.patient_phone)}</span>
                                     </div>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <ChannelBadge channel={msg.notification_channel} />
                                 </td>
                                 <td className="px-6 py-4">
                                     <div className="flex flex-col gap-1 items-start">

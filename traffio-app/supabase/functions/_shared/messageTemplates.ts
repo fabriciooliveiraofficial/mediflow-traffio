@@ -57,3 +57,69 @@ export function getRenderedMessage(key: string, vars: any): string {
     if (!template) return `[Template ${key} não encontrado]`;
     return template(vars);
 }
+
+// ─── SMS TEMPLATES ──────────────────────────────────────────────────────────
+// Versão compacta: sem emojis, sem markdown, máx ~155 chars para 1 segmento.
+// Emojis em SMS usam UCS-2 (70 chars/segmento) — EVITAR.
+
+export const SMS_TEMPLATES: Record<string, (vars: any) => string> = {
+
+    'appointment_reminder_48h': (v) =>
+        `Ola ${v.patient_name}! Lembrete: consulta com ${v.doctor_name} em ${v.date} as ${v.time}` +
+        `${v.location_name ? ` - ${v.location_name}` : ''}. Confirme respondendo SIM ou REAGENDAR.`,
+
+    'appointment_reminder_24h': (v) =>
+        `Ola ${v.patient_name}! Amanha: consulta com ${v.doctor_name} as ${v.time}` +
+        `${v.location_name ? ` em ${v.location_name}` : ''}. Responda SIM para confirmar ou REAGENDAR.`,
+
+    'appointment_reminder_2h': (v) =>
+        `${v.patient_name}, sua consulta e em 2h (${v.time})` +
+        `${v.location_name ? ` - ${v.location_name}` : ''}. Ate logo!`,
+
+    'appointment_reminder_15m': (v) =>
+        `${v.patient_name}, sua consulta e em 15 minutos (${v.time})` +
+        `${v.location_name ? ` - ${v.location_name}` : ''}. Ate logo!`,
+
+    'booking_confirmed': (v) =>
+        `Agendado! ${v.patient_name}, consulta com ${v.doctor_name} em ${v.date} as ${v.time}` +
+        `${v.location_name ? ` - ${v.location_name}` : ''}. ${v.clinic_name}`,
+
+    'nps_survey': (v) =>
+        `Ola ${v.patient_name}! Como foi sua consulta na ${v.clinic_name} hoje? ` +
+        `Responda com nota de 0 a 10. Sua opiniao e muito importante!`,
+
+    'post_treatment_followup': (v) =>
+        `Ola! Como voce esta se sentindo apos o atendimento? Qualquer duvida, responda esta mensagem.`,
+
+    'follow_up_1': (v) =>
+        `Ola ${v.patient_name}! Aqui e a ${v.clinic_name}. Notamos que nao concluiu ` +
+        `seu agendamento. Posso ajudar? Responda esta mensagem.`,
+
+    'follow_up_2': (v) =>
+        `Oi! Ainda tenho vagas esta semana na ${v.clinic_name}. Quer que eu reserve uma para voce?`,
+
+    'follow_up_3': (v) =>
+        `Tudo bem? Notei que voce ainda nao agendou. Prefere que alguem te ligue para ajudar?`,
+
+    'follow_up_4': (v) =>
+        `Oi! A agenda da ${v.clinic_name} esta ficando cheia. Se tiver interesse, me avisa logo!`,
+
+    'follow_up_5': (v) =>
+        `Ola! Encerraremos o atendimento por agora. Se precisar no futuro, estamos aqui. Abs!`,
+};
+
+export function getSmsTemplate(key: string, vars: any): string {
+    // Procura template SMS específico; fallback para versão WhatsApp sem emojis
+    const smsTemplate = SMS_TEMPLATES[key];
+    if (smsTemplate) return smsTemplate(vars);
+
+    // Fallback: usa template WhatsApp mas remove markdown e emojis
+    const waTemplate = MESSAGE_TEMPLATES[key];
+    if (!waTemplate) return `[Template ${key} nao encontrado]`;
+    return waTemplate(vars)
+        .replace(/\*/g, '')          // remove *negrito*
+        .replace(/_/g, '')           // remove _italico_
+        .replace(/[\u{1F300}-\u{1F9FF}]/gu, '')  // remove emojis
+        .replace(/\n{2,}/g, '\n')    // compacta quebras de linha
+        .trim();
+}
