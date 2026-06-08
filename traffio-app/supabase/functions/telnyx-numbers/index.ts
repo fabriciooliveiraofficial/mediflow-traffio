@@ -68,8 +68,23 @@ serve(async (req: Request) => {
       const url     = new URL(req.url);
       const country = url.searchParams.get("country") ?? "BR";
       const limit   = parseInt(url.searchParams.get("limit") ?? "10");
+      const ndc     = url.searchParams.get("ndc") ?? undefined;  // DDD / NDC
 
-      const numbers = await searchAvailableNumbers(apiKey, country, ["voice", "sms"], limit);
+      let numbers: any[] = [];
+      try {
+        numbers = await searchAvailableNumbers(apiKey, country, ["voice", "sms"], limit, ndc);
+      } catch (telnyxErr: any) {
+        const msg = telnyxErr.message ?? "Telnyx API error";
+        const lower = msg.toLowerCase();
+        if (lower.includes("no coverage found") || lower.includes("no results") || lower.includes("not found in the specified country")) {
+          return json({ data: [], message: `Nenhum número disponível em ${country} com voz+SMS` });
+        }
+        const isAuthErr = lower.includes("401") || lower.includes("unauthorized") || lower.includes("authentication") || lower.includes("not authorized");
+        if (isAuthErr) {
+          return json({ error: "Chave Telnyx inválida. Verifique TELNYX_API_KEY em /master/intelligence" }, 400);
+        }
+        return json({ error: `Telnyx: ${msg}` }, 502);
+      }
       return json({ data: numbers });
     }
 

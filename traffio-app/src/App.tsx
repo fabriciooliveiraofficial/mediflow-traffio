@@ -29,6 +29,7 @@ import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { AcceptInvitePage } from './pages/AcceptInvitePage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
+import { LinkRedirectPage } from './pages/LinkRedirectPage'
 import { MasterProtectedRoute } from './components/MasterProtectedRoute'
 import { AuthRedirector } from './components/AuthRedirector'
 import { MasterApp } from './pages/master/MasterApp'
@@ -138,6 +139,7 @@ function AppRoutes() {
             <Route path="/invite/:token" element={<AcceptInvitePage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/pagarme-callback" element={<PagarmeCallback />} />
+            <Route path="/l/:code" element={<LinkRedirectPage />} />
 
             {/* Public Patient Routes */}
             <Route path="/waiting-room" element={<WaitingRoom />} />

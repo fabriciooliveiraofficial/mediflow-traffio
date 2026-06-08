@@ -1,5 +1,5 @@
 # TASKLIST — Sistema de Comunicações Traffio
-**Atualizado:** 2026-06-04  
+**Atualizado:** 2026-06-05  
 **Referências:** `PLANO_MASTER_COMUNICACOES.md` | `PLANO_SOFTPHONE_TELNYX.md` | `PLANO_MULTI_CANAL_AUTOMACOES.md`
 
 > Marque `[x]` ao concluir cada task. Execute sempre na ordem listada — cada bloco depende do anterior.
@@ -175,6 +175,113 @@
 
 ---
 
+## BLOCO K — Compra de Números com KYC (Validação de Documentos)
+> Países como Brasil, Argentina, Portugal e outros exigem documentos antes da ativação.  
+> Bloco independente — pode ser executado em paralelo com J.
+
+### K.1 — Database
+
+- [ ] **K.1.1** — Criar tabela `number_order_requests`  
+  Colunas: `id`, `tenant_id`, `phone_number`, `country_code`, `status` (`pending_docs` | `docs_submitted` | `under_review` | `approved` | `rejected` | `completed`), `telnyx_order_id`, `rejection_reason`, `submitted_at`, `approved_at`, `created_at`, `updated_at`  
+  RLS: tenant isolado (members) + service_role full
+
+- [ ] **K.1.2** — Criar tabela `number_order_documents`  
+  Colunas: `id`, `order_id` (FK → `number_order_requests`), `tenant_id`, `document_type` (`cpf` | `cnpj` | `passport` | `id_card` | `proof_of_address` | `power_of_attorney`), `file_path` (Supabase Storage), `file_name`, `status` (`pending` | `approved` | `rejected`), `created_at`  
+  RLS: tenant isolado
+
+- [ ] **K.1.3** — Criar tabela `number_order_holder_info`  
+  Colunas: `order_id` (FK, unique), `holder_type` (`individual` | `business`), `full_name`, `company_name`, `cpf`, `cnpj`, `email`, `phone`, `address_street`, `address_number`, `address_city`, `address_state`, `address_zip`, `address_country`, `created_at`  
+  RLS: tenant isolado
+
+- [ ] **K.1.4** — Criar Supabase Storage bucket `number-order-documents`  
+  Privado (sem acesso público). RLS: tenant só acessa seus próprios arquivos.
+
+- [ ] **K.1.5** — Mapa de requisitos por país (constante compartilhada)  
+  Arquivo `src/constants/numberOrderRequirements.ts`:
+  ```ts
+  // countryRequirements['BR'] = { needsDocs: true, holderTypes: ['individual','business'],
+  //   requiredDocs: { individual: ['cpf','proof_of_address'], business: ['cnpj','proof_of_address','power_of_attorney'] },
+  //   processingDays: 3, notes: 'Prazo: até 3 dias úteis' }
+  // countryRequirements['US'] = { needsDocs: false }
+  ```
+  Países com `needsDocs: true`: BR, AR, PT, ES, MX, CO
+
+---
+
+### K.2 — Backend (Edge Functions)
+
+- [ ] **K.2.1** — Criar `supabase/functions/telnyx-number-orders/index.ts`  
+  **POST** `action=create_order` — cria `number_order_requests` + salva `holder_info`. Para países sem docs: chama `purchaseNumber` direto e retorna sucesso imediato.  
+  **GET** `action=get_order&order_id=...` — retorna status atual + documentos.  
+  **POST** `action=submit_docs` — atualiza status para `docs_submitted`, dispara revisão.  
+  **POST** `action=cancel_order` — cancela pedido pendente.  
+  Deploy: `npx supabase functions deploy telnyx-number-orders --project-ref fyyhxmugxcfqhvoevuwf`
+
+- [ ] **K.2.2** — Integrar com Telnyx Number Orders API  
+  `POST /v2/number_orders` — cria pedido formal na Telnyx com `phone_numbers[]` + `connection_id`.  
+  `GET /v2/number_orders/{id}` — polling de status (`pending`, `success`, `failure`).  
+  Adicionar `createNumberOrder` + `getNumberOrder` em `_shared/telnyxClient.ts`.
+
+- [ ] **K.2.3** — Criar `supabase/functions/telnyx-order-webhook/index.ts` (--no-verify-jwt)  
+  Recebe callbacks da Telnyx quando order muda de status → atualiza `number_order_requests.status` → se `success`: insere em `tenant_phone_numbers` e ativa o número.  
+  Deploy com `--no-verify-jwt`.
+
+- [ ] **K.2.4** — Upload de documentos via Supabase Storage (cliente frontend)  
+  Função auxiliar `src/lib/uploadOrderDocument.ts`:  
+  - Upload para `number-order-documents/{tenant_id}/{order_id}/{doc_type}_{filename}`
+  - Insere linha em `number_order_documents` com `file_path` + `document_type`
+  - Validação: máx 10 MB, formatos aceitos: PDF, JPG, PNG
+
+---
+
+### K.3 — Frontend
+
+- [ ] **K.3.1** — Refatorar modal "Comprar Número" em `Settings.tsx` para fluxo em etapas  
+  **Etapa 1 — Busca:** país + DDD + resultados (já implementado)  
+  **Etapa 2 — Dados do Titular:** aparece somente se `countryRequirements[country].needsDocs === true`  
+  - Tipo de pessoa: Física / Jurídica  
+  - Campos dinâmicos conforme tipo (CPF ou CNPJ, nome/razão social, endereço completo)  
+  **Etapa 3 — Documentos:** upload de cada documento obrigatório  
+  - Lista de docs exigidos com status visual (pendente / carregado ✅)  
+  - Componente de drag-and-drop por documento  
+  - Preview de arquivo carregado + botão remover  
+  **Etapa 4 — Confirmação:** resumo + botão "Enviar para Análise"  
+  Para países sem docs (US, CA, GB, AU, NZ): pula etapas 2-3, compra imediata.
+
+- [ ] **K.3.2** — Criar `src/components/numbers/DocumentUploadField.tsx`  
+  Props: `documentType`, `label`, `required`, `onUploaded(filePath)`  
+  - Área de drop com ícone + instrução  
+  - Barra de progresso durante upload  
+  - Estado: idle / uploading / done / error  
+
+- [ ] **K.3.3** — Criar `src/components/numbers/OrderStatusBadge.tsx`  
+  Badge colorido: `pending_docs` (cinza) | `docs_submitted` (azul) | `under_review` (amarelo) | `approved` (verde) | `rejected` (vermelho) | `completed` (verde escuro)
+
+- [ ] **K.3.4** — Seção "Pedidos em Andamento" em Settings → Comunicações  
+  Lista pedidos com status `pending_docs`, `docs_submitted` ou `under_review`.  
+  - Mostra número, país, status badge, data de envio  
+  - Botão "Complementar documentos" se status for `pending_docs` ou `rejected`  
+  - Botão "Ver detalhes" abre modal com todos os documentos enviados e feedback de rejeição
+
+- [ ] **K.3.5** — Notificação in-app quando pedido for aprovado ou rejeitado  
+  Supabase Realtime subscription em `number_order_requests` filtrada por `tenant_id`.  
+  Toast + badge de notificação na sidebar.
+
+---
+
+### K.4 — Validações e Segurança
+
+- [ ] **K.4.1** — Validação de CPF (algoritmo mod 11) e CNPJ no frontend antes do envio  
+  Arquivo `src/lib/validators/brazilianDocs.ts`
+
+- [ ] **K.4.2** — Signed URLs para documentos sensíveis  
+  Documentos nunca expostos via URL pública. Sempre acessados via `supabase.storage.createSignedUrl()` com TTL de 60 min.
+
+- [ ] **K.4.3** — Auditoria: log em `audit_logs` a cada transição de status de pedido  
+  `action: 'number_order_status_change'`, `old_data: { status: 'X' }`, `new_data: { status: 'Y' }`
+
+---
+
 ## BLOCO J — Testes e Validação
 > Executar somente após todos os blocos anteriores concluídos.
 
@@ -212,4 +319,5 @@
 | H — UI Canal + Settings | 5 | 5 | 100% ✅ |
 | I — Integrações | 4 | 4 | 100% ✅ |
 | J — Testes | 9 | 0 | 0% |
-| **TOTAL** | **59** | **0** | **0%** |
+| K — KYC / Compra com Documentos | 15 | 0 | 0% |
+| **TOTAL** | **74** | **58** | **78%** |

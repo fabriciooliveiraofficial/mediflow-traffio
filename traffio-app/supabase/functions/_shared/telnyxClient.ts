@@ -59,24 +59,50 @@ export interface TenantNumber {
 export async function searchAvailableNumbers(
   apiKey: string,
   countryCode: string,
-  features: ("voice" | "sms")[] = ["voice", "sms"],
-  limit = 10
+  _features: ("voice" | "sms")[] = ["voice", "sms"],
+  limit = 10,
+  nationalDestinationCode?: string
 ): Promise<AvailableNumber[]> {
-  const params = new URLSearchParams({
-    "filter[country_code]": countryCode,
-    "filter[limit]": String(limit),
-  });
-  features.forEach((f) => params.append("filter[features][]", f));
+  const ndcParam = nationalDestinationCode
+    ? `&filter[national_destination_code]=${encodeURIComponent(nationalDestinationCode)}`
+    : "";
 
-  const data = await telnyxRequest(apiKey, "GET", `/available_phone_numbers?${params}`);
-  return (data.data ?? []).map((n: any) => ({
-    phoneNumber: n.phone_number,
-    countryCode: n.region_information?.[0]?.region_name ?? countryCode,
-    regionCode:  n.region_information?.[0]?.region_code ?? "",
-    city:        n.region_information?.[1]?.region_name ?? "",
-    monthlyCost: n.cost_information?.monthly_cost ?? "0",
-    features:    n.features?.map((f: any) => f.name) ?? [],
-  }));
+  // Cascade: voice+sms → voice-only.
+  // SMS-only numbers are never useful; voice-only numbers can still be shown
+  // (SMS may be available via Telnyx messaging profile after purchase).
+  const attempts: Array<{ featureQs: string }> = [
+    { featureQs: "&filter[features][]=voice&filter[features][]=sms" },
+    { featureQs: "&filter[features][]=voice" },
+  ];
+
+  for (const { featureQs } of attempts) {
+    const qs = `filter[country_code]=${countryCode}&filter[limit]=${limit}${ndcParam}${featureQs}`;
+    try {
+      const data = await telnyxRequest(apiKey, "GET", `/available_phone_numbers?${qs}`);
+      const rows: any[] = data.data ?? [];
+
+      // Rejeitar placeholders mascarados — E.164 válido: apenas dígitos após o '+'
+      const purchasable = rows.filter((n) => /^\+\d{7,15}$/.test(n.phone_number ?? ""));
+
+      if (purchasable.length > 0) {
+        return purchasable.map((n) => ({
+          phoneNumber: n.phone_number,
+          countryCode: n.region_information?.[0]?.region_name ?? countryCode,
+          regionCode:  n.region_information?.[0]?.region_code ?? "",
+          city:        n.region_information?.[1]?.region_name ?? "",
+          monthlyCost: n.cost_information?.monthly_cost ?? "0",
+          features:    n.features?.map((f: any) => f.name) ?? [],
+        }));
+      }
+    } catch (err: any) {
+      const msg = (err.message ?? "").toLowerCase();
+      if (!msg.includes("no coverage") && !msg.includes("not found in the specified country")) {
+        throw err;
+      }
+    }
+  }
+
+  return [];
 }
 
 export async function purchaseNumber(
@@ -200,6 +226,44 @@ export async function speakText(
     voice,
     language,
   });
+}
+
+// ─── Number Orders ────────────────────────────────────────────────────────────
+
+export interface TelnyxNumberOrder {
+  id:          string;
+  status:      string;  // "pending" | "success" | "failure"
+  phoneNumbers: string[];
+}
+
+export async function createNumberOrder(
+  apiKey: string,
+  phoneNumbers: string[],
+  connectionId?: string
+): Promise<TelnyxNumberOrder> {
+  const body: any = {
+    phone_numbers: phoneNumbers.map((n) => ({ phone_number: n })),
+  };
+  if (connectionId) body.connection_id = connectionId;
+
+  const data = await telnyxRequest(apiKey, "POST", "/number_orders", body);
+  return {
+    id:           data.data.id,
+    status:       data.data.status,
+    phoneNumbers: (data.data.phone_numbers ?? []).map((n: any) => n.phone_number),
+  };
+}
+
+export async function getNumberOrder(
+  apiKey: string,
+  orderId: string
+): Promise<TelnyxNumberOrder> {
+  const data = await telnyxRequest(apiKey, "GET", `/number_orders/${orderId}`);
+  return {
+    id:           data.data.id,
+    status:       data.data.status,
+    phoneNumbers: (data.data.phone_numbers ?? []).map((n: any) => n.phone_number),
+  };
 }
 
 // ─── SMS ─────────────────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
     Building2,
     X,
@@ -39,6 +39,8 @@ import { TeamManagement } from '../components/settings/TeamManagement';
 import { useTenant } from '../contexts/TenantContext';
 import { Activity, Stethoscope, Apple } from 'lucide-react';
 import { clsx } from 'clsx';
+import { BuyNumberModal } from '../components/numbers/BuyNumberModal';
+import { PendingOrdersList } from '../components/numbers/PendingOrdersList';
 
 
 
@@ -132,62 +134,8 @@ export const Settings = () => {
 
     // Modal: Comprar número Telnyx
     const [showBuyNumber, setShowBuyNumber]       = useState(false);
-    const [buyCountry, setBuyCountry]             = useState('BR');
-    const [buyResults, setBuyResults]             = useState<any[]>([]);
-    const [buyLoading, setBuyLoading]             = useState(false);
-    const [buyPurchasing, setBuyPurchasing]       = useState<string | null>(null);
-    const [buyFriendlyName, setBuyFriendlyName]   = useState('');
+    const [ordersRefreshKey, setOrdersRefreshKey] = useState(0);
 
-    const searchNumbers = async (country: string) => {
-        setBuyLoading(true);
-        setBuyResults([]);
-        try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-            const res = await fetch(
-                `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/telnyx-numbers?action=search&country=${country}&limit=10`,
-                { headers: { 'Authorization': `Bearer ${session.access_token}` } }
-            );
-            const json = await res.json();
-            if (json.data) setBuyResults(json.data);
-            else showToast('error', json.error ?? 'Erro ao buscar números');
-        } catch (e: any) {
-            showToast('error', 'Erro ao buscar números: ' + e.message);
-        } finally {
-            setBuyLoading(false);
-        }
-    };
-
-    const purchaseNumber = async (phoneNumber: string) => {
-        setBuyPurchasing(phoneNumber);
-        try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-            const res = await fetch(
-                `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/telnyx-numbers`,
-                {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'purchase', phone_number: phoneNumber, friendly_name: buyFriendlyName || undefined }),
-                }
-            );
-            const json = await res.json();
-            if (json.data) {
-                showToast('success', `Número ${phoneNumber} adquirido com sucesso!`);
-                setShowBuyNumber(false);
-                setBuyResults([]);
-                setBuyFriendlyName('');
-                // Recarregar lista de números
-                fetchSettingsData();
-            } else {
-                showToast('error', json.error ?? 'Erro ao comprar número');
-            }
-        } catch (e: any) {
-            showToast('error', 'Erro ao comprar número: ' + e.message);
-        } finally {
-            setBuyPurchasing(null);
-        }
-    };
 
     useEffect(() => {
         fetchSettingsData();
@@ -1334,14 +1282,14 @@ export const Settings = () => {
 
                                 {/* Números de telefone */}
                                 {tenant.telnyx_enabled && (
-                                    <div className="bg-white border border-ice-100 rounded-2xl p-6">
-                                        <div className="flex items-center justify-between mb-4">
+                                    <div className="bg-white border border-ice-100 rounded-2xl p-6 space-y-4">
+                                        <div className="flex items-center justify-between">
                                             <h4 className="text-sm font-black text-graphite-800 flex items-center gap-2">
                                                 <Hash size={16} className="text-brand-primary" />
                                                 Números de Telefone
                                             </h4>
                                             <button
-                                                onClick={() => { setShowBuyNumber(true); setBuyResults([]); }}
+                                                onClick={() => setShowBuyNumber(true)}
                                                 className="flex items-center gap-1 text-xs font-bold text-brand-primary hover:underline border-none bg-transparent cursor-pointer"
                                             >
                                                 <Plus size={12} /> Comprar número
@@ -1349,6 +1297,14 @@ export const Settings = () => {
                                         </div>
 
                                         <PhoneNumbersList tenantId={tenant.id} />
+
+                                        <PendingOrdersList
+                                            tenantId={tenant.id}
+                                            refreshKey={ordersRefreshKey}
+                                            onResubmit={(_orderId, phoneNumber) => {
+                                                setShowBuyNumber(true);
+                                            }}
+                                        />
                                     </div>
                                 )}
 
@@ -1457,112 +1413,17 @@ export const Settings = () => {
             </div>
         </div>
 
-        {/* ── Modal: Comprar número Telnyx ──────────────────────────────────── */}
-        {showBuyNumber && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowBuyNumber(false)} />
-                <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden animate-in zoom-in-95 duration-200">
-
-                    {/* Header */}
-                    <div className="px-6 py-5 border-b border-ice-100 flex items-center justify-between">
-                        <div>
-                            <h3 className="text-lg font-black text-graphite-900">Comprar Número de Telefone</h3>
-                            <p className="text-xs text-graphite-400 mt-0.5">Busque e adquira um número para voz e SMS</p>
-                        </div>
-                        <button onClick={() => setShowBuyNumber(false)} className="w-8 h-8 rounded-full bg-ice-50 flex items-center justify-center text-graphite-400 hover:bg-ice-100 border-none cursor-pointer">
-                            <X size={16} />
-                        </button>
-                    </div>
-
-                    {/* Busca */}
-                    <div className="px-6 py-4 border-b border-ice-50 space-y-3">
-                        <div>
-                            <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">Nome amigável (opcional)</label>
-                            <input
-                                type="text"
-                                value={buyFriendlyName}
-                                onChange={(e) => setBuyFriendlyName(e.target.value)}
-                                placeholder="Ex: Recepção, WhatsApp, Suporte..."
-                                className="w-full mt-1 bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm text-graphite-700 focus:outline-none focus:border-brand-primary"
-                            />
-                        </div>
-                        <div className="flex gap-2">
-                            <div className="flex-1">
-                                <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">País</label>
-                                <select
-                                    value={buyCountry}
-                                    onChange={(e) => setBuyCountry(e.target.value)}
-                                    className="w-full mt-1 bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm text-graphite-700 focus:outline-none focus:border-brand-primary"
-                                >
-                                    <option value="BR">🇧🇷 Brasil</option>
-                                    <option value="US">🇺🇸 Estados Unidos</option>
-                                    <option value="CA">🇨🇦 Canadá</option>
-                                    <option value="GB">🇬🇧 Reino Unido</option>
-                                    <option value="MX">🇲🇽 México</option>
-                                    <option value="NZ">🇳🇿 Nova Zelândia</option>
-                                </select>
-                            </div>
-                            <div className="flex items-end">
-                                <button
-                                    onClick={() => searchNumbers(buyCountry)}
-                                    disabled={buyLoading}
-                                    className="px-4 py-2 bg-brand-primary text-white text-sm font-bold rounded-xl hover:bg-brand-primary/90 disabled:opacity-50 border-none cursor-pointer flex items-center gap-2"
-                                >
-                                    {buyLoading ? <RefreshCw size={14} className="animate-spin" /> : <Hash size={14} />}
-                                    Buscar
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Resultados */}
-                    <div className="px-6 py-4 max-h-72 overflow-y-auto space-y-2">
-                        {buyLoading && (
-                            <div className="flex flex-col items-center justify-center py-8 gap-2">
-                                <RefreshCw size={24} className="animate-spin text-brand-primary" />
-                                <p className="text-sm text-graphite-400">Buscando números disponíveis...</p>
-                            </div>
-                        )}
-                        {!buyLoading && buyResults.length === 0 && (
-                            <div className="text-center py-8 text-graphite-300">
-                                <Hash size={32} className="mx-auto mb-2 opacity-40" />
-                                <p className="text-sm font-bold">Selecione um país e clique em Buscar</p>
-                            </div>
-                        )}
-                        {buyResults.map((num) => (
-                            <div key={num.phoneNumber} className="flex items-center justify-between p-3 bg-ice-50 border border-ice-100 rounded-2xl hover:border-brand-primary/30 transition-all">
-                                <div>
-                                    <p className="text-sm font-black text-graphite-800 font-mono">{num.phoneNumber}</p>
-                                    <p className="text-xs text-graphite-400 mt-0.5">
-                                        {num.city || num.regionCode || num.countryCode}
-                                        {num.features?.includes('voice') && ' · Voz'}
-                                        {num.features?.includes('sms') && ' · SMS'}
-                                        {num.monthlyCost && num.monthlyCost !== '0' && ` · $${num.monthlyCost}/mês`}
-                                    </p>
-                                </div>
-                                <button
-                                    onClick={() => purchaseNumber(num.phoneNumber)}
-                                    disabled={buyPurchasing === num.phoneNumber}
-                                    className="px-4 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold rounded-xl disabled:opacity-50 border-none cursor-pointer flex items-center gap-1.5"
-                                >
-                                    {buyPurchasing === num.phoneNumber ? (
-                                        <><RefreshCw size={12} className="animate-spin" /> Comprando...</>
-                                    ) : (
-                                        <><CheckCircle2 size={12} /> Adquirir</>
-                                    )}
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Footer */}
-                    <div className="px-6 py-4 border-t border-ice-50 bg-ice-50/50">
-                        <p className="text-[10px] text-graphite-400 text-center">
-                            Os números são cobrados mensalmente via Telnyx. O custo é repassado conforme o plano contratado.
-                        </p>
-                    </div>
-                </div>
-            </div>
+        {/* ── Modal: Comprar número Telnyx (com KYC) ───────────────────────── */}
+        {showBuyNumber && currentTenant && (
+            <BuyNumberModal
+                tenantId={currentTenant.id}
+                onClose={() => setShowBuyNumber(false)}
+                onPurchased={() => {
+                    setOrdersRefreshKey((k) => k + 1);
+                    fetchSettingsData();
+                }}
+                showToast={showToast}
+            />
         )}
         </>
     );

@@ -10,7 +10,7 @@ import {
   AlertTriangle, MoreVertical, ArrowRightLeft, UserCircle2,
   UserPlus, Users, Building2, Tag, CalendarSearch, DollarSign,
   Mic, Paperclip, Camera, Smile, Film, Play, Pause,
-  FileText, Download, Reply, Pencil, Copy, Forward, Trash2, Zap, ArrowRight, Instagram, Facebook, ChevronDown, ArrowLeft
+  FileText, Download, Reply, Pencil, Copy, Forward, Trash2, Zap, ArrowRight, Instagram, Facebook, ChevronDown, ArrowLeft, Settings, Plus
 } from 'lucide-react'
 import data from '@emoji-mart/data'
 import Picker from '@emoji-mart/react'
@@ -28,6 +28,8 @@ import { SidebarDirectoryView } from '../components/SidebarDirectoryView'
 import { SidebarLeadClassifyView } from '../components/SidebarLeadClassifyView'
 import { SidebarPatientEditView } from '../components/SidebarPatientEditView'
 import { ChannelPreferenceSelector } from '../components/channel/ChannelPreferenceSelector'
+import { salesScriptService } from '../services/salesScriptService'
+import { ScriptManagerDrawer } from '../components/ScriptManagerDrawer'
 
 // ─────────────────────────────────────────────
 // Types
@@ -581,12 +583,15 @@ interface ChatInputProps {
   patient?: any
   currentUserName?: string
   clinicName?: string
+  onOpenScriptManager: (editingId?: string | null) => void
+  onDeleteScript?: (id: string) => Promise<void>
 }
 
 export const ChatInput = memo(({ 
   isOwned, canClaim, isClosed, onSend, onSendMedia, onUploadFile, sending, 
   uploadingMedia, setUploadingMedia, replyingTo, editingMsg, onCancelContext,
-  salesScripts = [], patient, currentUserName = '', clinicName = ''
+  salesScripts = [], patient, currentUserName = '', clinicName = '',
+  onOpenScriptManager, onDeleteScript
 }: ChatInputProps) => {
   const { showToast } = useToast()
   const [input, setInput]           = useState('')
@@ -779,10 +784,25 @@ export const ChatInput = memo(({
       setPromptVars(manualMatches);
       setPromptValues({});
       setPendingScriptText(content);
+      setPendingScript(script);
       setPromptOpen(true);
       setSlashMenuOpen(false);
     } else {
-      insertTextIntoInput(content);
+      let finalContent = content;
+      if (script.attachments && script.attachments.length > 0) {
+        script.attachments.forEach((att: any) => {
+          if (att.type === 'link') {
+            finalContent += `\n\n${att.name}: ${att.url}`;
+          } else {
+            onSendMedia(att.url, att.type, {
+              fileName: att.name,
+              mimeType: att.mimeType,
+              fileSize: att.fileSize
+            });
+          }
+        });
+      }
+      insertTextIntoInput(finalContent);
     }
   }
 
@@ -796,8 +816,24 @@ export const ChatInput = memo(({
       const regex3 = new RegExp(`\\[${safeVar}\\]`, 'gi');
       finalContent = finalContent.replace(regex1, val).replace(regex2, val).replace(regex3, val);
     });
+
+    if (pendingScript && pendingScript.attachments && pendingScript.attachments.length > 0) {
+      pendingScript.attachments.forEach((att: any) => {
+        if (att.type === 'link') {
+          finalContent += `\n\n${att.name}: ${att.url}`;
+        } else {
+          onSendMedia(att.url, att.type, {
+            fileName: att.name,
+            mimeType: att.mimeType,
+            fileSize: att.fileSize
+          });
+        }
+      });
+    }
+
     insertTextIntoInput(finalContent);
     setPromptOpen(false);
+    setPendingScript(null);
   }
 
   const handleInputText = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -968,29 +1004,92 @@ export const ChatInput = memo(({
                   <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
                   Scripts Inteligentes
                 </p>
-                <span className="text-[10px] text-gray-400 font-medium">↑↓ Navegar</span>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); onOpenScriptManager(); setSlashMenuOpen(false); }}
+                    className="p-1 hover:bg-gray-200/50 rounded text-gray-500 hover:text-gray-900 border-none bg-transparent cursor-pointer"
+                    title="Gerenciar Scripts"
+                  >
+                    <Settings className="w-3.5 h-3.5" />
+                  </button>
+                  <span className="text-[10px] text-gray-400 font-medium">↑↓ Navegar</span>
+                </div>
               </div>
               <div className="overflow-y-auto flex-1 p-1.5 custom-scrollbar">
-                {filteredScripts.map((script, idx) => (
-                  <button
-                    key={script.id}
-                    onClick={() => handleSelectScript(script)}
-                    onMouseEnter={() => setSlashSelectedIndex(idx)}
-                    className={clsx(
-                      "w-full text-left px-3 py-2.5 rounded-xl transition-all flex flex-col gap-1 border border-transparent",
-                      idx === slashSelectedIndex ? "bg-blue-50/80 border-blue-100 shadow-sm" : "hover:bg-gray-50"
-                    )}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                       <div className="flex items-center gap-2">
-                          <span className="font-bold text-[10px] text-blue-600 bg-blue-50 border border-blue-100 rounded-md px-1.5 py-0.5 min-w-[32px] text-center">/{script.shortcut}</span>
-                          <span className="text-[11px] font-bold text-gray-800">{script.title}</span>
-                       </div>
-                       <span className="text-[9px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full uppercase tracking-tighter">{script.category}</span>
+                {filteredScripts.length === 0 ? (
+                  <div className="p-4 text-center">
+                    <p className="text-xs text-gray-400 mb-2 font-medium">Nenhum script encontrado</p>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenScriptManager();
+                        setSlashMenuOpen(false);
+                      }}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider border-none cursor-pointer flex items-center gap-1.5 mx-auto"
+                    >
+                      <Plus size={12} />
+                      Criar Script
+                    </button>
+                  </div>
+                ) : (
+                  filteredScripts.map((script, idx) => (
+                    <div
+                      key={script.id}
+                      onMouseEnter={() => setSlashSelectedIndex(idx)}
+                      className={clsx(
+                        "w-full text-left px-3 py-2 rounded-xl transition-all flex flex-col gap-1 border border-transparent group/item",
+                        idx === slashSelectedIndex ? "bg-blue-50/80 border-blue-100 shadow-sm" : "hover:bg-gray-50"
+                      )}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                         <div className="flex items-center gap-2 min-w-0 cursor-pointer" onClick={() => handleSelectScript(script)}>
+                            <span className="font-bold text-[10px] text-blue-600 bg-blue-50 border border-blue-100 rounded-md px-1.5 py-0.5 min-w-[32px] text-center shrink-0">
+                              {script.icon || '💬'}
+                            </span>
+                            <span className="font-bold text-[10px] text-slate-500 shrink-0">/{script.shortcut}</span>
+                            <span className="text-[11px] font-bold text-gray-800 truncate">{script.title}</span>
+                         </div>
+                         <div className="flex items-center gap-1 shrink-0">
+                            <span className="text-[9px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full uppercase tracking-tighter shrink-0">{script.category}</span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onOpenScriptManager(script.id);
+                                setSlashMenuOpen(false);
+                              }}
+                              className="p-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-blue-50 text-slate-500 hover:text-blue-600 hover:border-blue-200 transition-all cursor-pointer shadow-sm flex items-center justify-center shrink-0"
+                              title={(!script.tenant_id || script.tenant_id === 'null') ? "Personalizar (Editar)" : "Editar script"}
+                            >
+                              <Pencil size={11} />
+                            </button>
+                            {(script.tenant_id && script.tenant_id !== 'null') && (
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  if (window.confirm(`Deseja excluir o script "${script.title}"?`)) {
+                                    try {
+                                      if (onDeleteScript) {
+                                        await onDeleteScript(script.id);
+                                      }
+                                    } catch(err) {
+                                      console.error("Erro ao excluir script", err);
+                                    }
+                                  }
+                                }}
+                                className="p-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-red-50 text-slate-500 hover:text-red-600 hover:border-red-200 transition-all cursor-pointer shadow-sm flex items-center justify-center shrink-0"
+                                title="Excluir script"
+                              >
+                                <Trash2 size={11} />
+                              </button>
+                            )}
+                         </div>
+                      </div>
+                      <span className="text-[11px] text-gray-500 line-clamp-2 leading-relaxed italic cursor-pointer" title={script.content} onClick={() => handleSelectScript(script)}>
+                        {script.content}
+                      </span>
                     </div>
-                    <span className="text-[11px] text-gray-500 line-clamp-2 leading-relaxed italic" title={script.content}>{script.content}</span>
-                  </button>
-                ))}
+                  ))
+                )}
               </div>
             </motion.div>
           )}
@@ -1697,6 +1796,8 @@ export function HumanInboxPage() {
   // Scripts state
   const [salesScripts, setSalesScripts] = useState<any[]>([]);
   const [clinicName, setClinicName] = useState<string>('');
+  const [isScriptManagerOpen, setIsScriptManagerOpen] = useState(false);
+  const [editingScriptId, setEditingScriptId] = useState<string | null>(null);
 
   // CRM Inline Sidebar Views
   const [sidebarView, setSidebarView] = useState<'profile' | 'register' | 'lookup' | 'booking' | 'appointments' | 'edit' | 'availability' | 'payment' | 'directory' | 'classify'>('profile');
@@ -1948,11 +2049,13 @@ export function HumanInboxPage() {
         filter: `tenant_id=eq.${tenantId}`,
       }, (payload) => {
         // Silent refresh of the list to update counts and badges
-        loadSessions(tenantId, userId, true)
+        loadSessions(tenantId || undefined, userId || undefined, true)
         
         // Handle audio alerts based on event type
-        if (payload.eventType === 'INSERT' || (payload.eventType === 'UPDATE' && payload.new.omnichannel_status === 'queued')) {
-           if (payload.new.omnichannel_status === 'queued' && payload.old?.omnichannel_status !== 'queued') {
+        const newStatus = (payload.new as any)?.omnichannel_status;
+        const oldStatus = (payload.old as any)?.omnichannel_status;
+        if (payload.eventType === 'INSERT' || (payload.eventType === 'UPDATE' && newStatus === 'queued')) {
+           if (newStatus === 'queued' && oldStatus !== 'queued') {
              // New Queue Entry Bell
              const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3')
              audio.play().catch(e => console.warn('Queue alert failed:', e))
@@ -1968,7 +2071,7 @@ export function HumanInboxPage() {
     if (!tenantId) return
     const interval = setInterval(async () => {
       // Use silent load to avoid flickering
-      await loadSessions(tenantId, userId, true)
+      await loadSessions(tenantId || undefined, userId || undefined, true)
     }, 15000) // 15s is enough as a fallback
     return () => clearInterval(interval)
   }, [tenantId, loadSessions, userId])
@@ -2796,6 +2899,16 @@ export function HumanInboxPage() {
             patient={patient}
             currentUserName={currentUserName}
             clinicName={clinicName}
+            onOpenScriptManager={(editingId) => {
+              setEditingScriptId(editingId || null);
+              setIsScriptManagerOpen(true);
+            }}
+            onDeleteScript={async (id) => {
+              if (tenantId) {
+                await salesScriptService.delete(id);
+                loadSalesScripts(tenantId);
+              }
+            }}
           />
         </div>
       ) : (
@@ -3033,6 +3146,14 @@ export function HumanInboxPage() {
           </div>
         )}
       </AnimatePresence>
+
+      <ScriptManagerDrawer
+        tenantId={tenantId || ''}
+        isOpen={isScriptManagerOpen}
+        initialEditingId={editingScriptId}
+        onClose={() => setIsScriptManagerOpen(false)}
+        onScriptsUpdated={setSalesScripts}
+      />
     </div>
   )
 }
