@@ -172,18 +172,18 @@ serve(async (req: Request) => {
           return json({ error: "Número inválido. Este número não está disponível para compra. Busque novamente." }, 422);
         }
 
-        // Reusar requirement_group já preenchido para este tenant/país/tipo, se houver
-        let requirementGroupId: string | undefined;
-        if (phone_number_type) {
-          const { data: cachedGroup } = await supabase
-            .from("tenant_requirement_groups")
-            .select("telnyx_requirement_group_id")
-            .eq("tenant_id", tenantId)
-            .eq("country_code", country_code.toUpperCase())
-            .eq("phone_number_type", phone_number_type)
-            .maybeSingle();
-          requirementGroupId = cachedGroup?.telnyx_requirement_group_id;
-        }
+        // Reusar requirement_group já preenchido para este tenant/país, se houver.
+        // Busca por país (sem exigir match de tipo): o tipo enviado pelo frontend
+        // é um palpite — a Telnyx não informa o tipo em /available_phone_numbers —
+        // e na prática há um grupo por tenant+país. Priorizar match exato de tipo.
+        const { data: cachedGroups } = await supabase
+          .from("tenant_requirement_groups")
+          .select("telnyx_requirement_group_id, phone_number_type")
+          .eq("tenant_id", tenantId)
+          .eq("country_code", country_code.toUpperCase());
+        const exactMatch = (cachedGroups ?? []).find((g) => g.phone_number_type === phone_number_type);
+        const requirementGroupId: string | undefined =
+          (exactMatch ?? (cachedGroups ?? [])[0])?.telnyx_requirement_group_id;
 
         // Compra imediata — sem KYC
         let result: any;
@@ -280,6 +280,15 @@ serve(async (req: Request) => {
 
       const countryCode = country_code.toUpperCase();
 
+      // Re-resolver o tipo efetivo no servidor — o frontend pode mandar um
+      // palpite ("local") que difere do tipo real do requisito na Telnyx.
+      // Garante que chave de cache e requirement_group usem sempre o mesmo tipo.
+      let effectiveType = phone_number_type;
+      try {
+        const resolved = await getRequirements(apiKey, countryCode, phone_number_type);
+        effectiveType = resolved.phoneNumberType;
+      } catch { /* mantém o tipo enviado */ }
+
       // Resolver field_value de cada requirement conforme seu tipo
       const regulatoryRequirements: { requirement_id: string; field_value: string }[] = [];
       try {
@@ -314,7 +323,7 @@ serve(async (req: Request) => {
         .select("telnyx_requirement_group_id")
         .eq("tenant_id", tenantId)
         .eq("country_code", countryCode)
-        .eq("phone_number_type", phone_number_type)
+        .eq("phone_number_type", effectiveType)
         .maybeSingle();
 
       let groupId: string;
@@ -323,7 +332,7 @@ serve(async (req: Request) => {
           groupId = existingGroup.telnyx_requirement_group_id;
           await fillRequirementGroup(apiKey, groupId, regulatoryRequirements);
         } else {
-          groupId = await createRequirementGroup(apiKey, countryCode, phone_number_type);
+          groupId = await createRequirementGroup(apiKey, countryCode, effectiveType);
           await fillRequirementGroup(apiKey, groupId, regulatoryRequirements);
         }
       } catch (e: any) {
@@ -333,7 +342,7 @@ serve(async (req: Request) => {
       await supabase.from("tenant_requirement_groups").upsert({
         tenant_id:                   tenantId,
         country_code:                countryCode,
-        phone_number_type,
+        phone_number_type:           effectiveType,
         telnyx_requirement_group_id: groupId,
         regulatory_requirements:     regulatoryRequirements,
         status:                      "unapproved",
@@ -341,9 +350,9 @@ serve(async (req: Request) => {
       }, { onConflict: "tenant_id,country_code,phone_number_type" });
 
       await logAudit(supabase, tenantId, user.id, "regulatory_info_submitted", "", {
-        country_code: countryCode, phone_number_type, requirement_group_id: groupId,
+        country_code: countryCode, phone_number_type: effectiveType, requirement_group_id: groupId,
       });
-      console.log(`[telnyx-number-orders] ✓ Requirement group ${groupId} preenchido | ${countryCode}/${phone_number_type} | tenant: ${tenantId}`);
+      console.log(`[telnyx-number-orders] ✓ Requirement group ${groupId} preenchido | ${countryCode}/${effectiveType} | tenant: ${tenantId}`);
 
       return json({ data: { requirement_group_id: groupId } });
     }
