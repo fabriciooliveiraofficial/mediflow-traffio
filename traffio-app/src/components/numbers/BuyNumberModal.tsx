@@ -127,6 +127,35 @@ function parseAddressForSuggestion(
   return defaultForCountry;
 }
 
+function parseContactInfo(value: string | null | undefined) {
+  const safeVal = value || '';
+  let contact = '';
+  let business = '';
+  let phone = '';
+
+  const contactMatch = safeVal.match(/Contact:\s*([^|]+)/i);
+  const businessMatch = safeVal.match(/Business:\s*([^|]+)/i);
+  const phoneMatch = safeVal.match(/Phone:\s*([^|]+)/i);
+
+  if (contactMatch) contact = contactMatch[1].trim();
+  if (businessMatch) business = businessMatch[1].trim();
+  if (phoneMatch) phone = phoneMatch[1].trim();
+
+  // Se não bater no regex padrão, tentar split por pipe
+  if (!contact && !business && !phone && safeVal) {
+    const parts = safeVal.split('|').map(p => p.trim());
+    if (parts.length >= 1) contact = parts[0];
+    if (parts.length >= 2) business = parts[1];
+    if (parts.length >= 3) phone = parts[2];
+  }
+
+  return { contact, business, phone };
+}
+
+function formatContactInfo(contact: string, business: string, phone: string): string {
+  return `Contact: ${contact.trim()} | Business: ${business.trim() || 'N/A'} | Phone: ${phone.trim()}`;
+}
+
 type RegulatoryFieldValue =
   | { type: 'textual'; value: string }
   | { type: 'address'; address: RegulatoryAddress }
@@ -531,12 +560,20 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
       const val = regulatoryData[r.id];
       if (r.type === 'textual') {
         const text = (val?.type === 'textual' ? val.value : '').trim();
-        if (!text) {
-          errors[r.id] = 'Campo obrigatório';
-        } else if (r.acceptanceCriteria.minLength && text.length < r.acceptanceCriteria.minLength) {
-          errors[r.id] = `Mínimo de ${r.acceptanceCriteria.minLength} caracteres`;
-        } else if (r.acceptanceCriteria.maxLength && text.length > r.acceptanceCriteria.maxLength) {
-          errors[r.id] = `Máximo de ${r.acceptanceCriteria.maxLength} caracteres`;
+        const isContactInfo = (r.name || '').toLowerCase().includes('contact') && (r.name || '').toLowerCase().includes('business');
+        if (isContactInfo) {
+          const { contact, phone } = parseContactInfo(text);
+          if (!contact.trim() || !phone.trim()) {
+            errors[r.id] = 'Nome do contato e telefone de contato são obrigatórios';
+          }
+        } else {
+          if (!text) {
+            errors[r.id] = 'Campo obrigatório';
+          } else if (r.acceptanceCriteria.minLength && text.length < r.acceptanceCriteria.minLength) {
+            errors[r.id] = `Mínimo de ${r.acceptanceCriteria.minLength} caracteres`;
+          } else if (r.acceptanceCriteria.maxLength && text.length > r.acceptanceCriteria.maxLength) {
+            errors[r.id] = `Máximo de ${r.acceptanceCriteria.maxLength} caracteres`;
+          }
         }
       } else if (r.type === 'address') {
         const addr = val?.type === 'address' ? val.address : null;
@@ -1087,72 +1124,122 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
                 </p>
               </div>
 
-              {regulatoryRequirements.map((r) => (
-                <div key={r.id} className="space-y-1.5">
-                  <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">{r.name}</label>
-                  {r.description && <p className="text-xs text-graphite-400">{r.description}</p>}
+              {regulatoryRequirements.map((r) => {
+                const isContactInfo = r.type === 'textual' && (r.name || '').toLowerCase().includes('contact') && (r.name || '').toLowerCase().includes('business');
+                return (
+                  <div key={r.id} className="space-y-1.5">
+                    <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">{r.name}</label>
+                    {r.description && <p className="text-xs text-graphite-400">{r.description}</p>}
 
-                  {r.type === 'textual' && (
-                    r.acceptanceCriteria.acceptableValues?.length ? (
-                      <select
-                        value={regulatoryData[r.id]?.type === 'textual' ? regulatoryData[r.id].value : ''}
-                        onChange={(e) => updateRegulatoryTextual(r.id, e.target.value)}
-                        className={`w-full bg-ice-50 border rounded-xl px-3 py-2 text-sm text-graphite-700 focus:outline-none focus:border-brand-primary ${regulatoryErrors[r.id] ? 'border-red-300' : 'border-ice-200'}`}
-                      >
-                        <option value="">Selecione...</option>
-                        {r.acceptanceCriteria.acceptableValues.map((v) => <option key={v} value={v}>{v}</option>)}
-                      </select>
-                    ) : (
-                      <input
-                        type="text"
-                        value={regulatoryData[r.id]?.type === 'textual' ? regulatoryData[r.id].value : ''}
-                        onChange={(e) => updateRegulatoryTextual(r.id, e.target.value)}
-                        placeholder={r.example || undefined}
-                        maxLength={r.acceptanceCriteria.maxLength}
-                        className={`w-full bg-ice-50 border rounded-xl px-3 py-2 text-sm text-graphite-700 focus:outline-none focus:border-brand-primary ${regulatoryErrors[r.id] ? 'border-red-300' : 'border-ice-200'}`}
-                      />
-                    )
-                  )}
-
-                  {r.type === 'address' && (
-                    <div className="space-y-2 p-3 bg-ice-50 border border-ice-200 rounded-xl">
-                      <div className="flex gap-2">
-                        <div className="flex-1">{regAddressField(r.id, 'firstName', 'Nome', 'João')}</div>
-                        <div className="flex-1">{regAddressField(r.id, 'lastName', 'Sobrenome', 'Silva')}</div>
-                      </div>
-                      {regAddressField(r.id, 'businessName', 'Empresa (opcional)', 'Empresa LTDA')}
-                      {regAddressField(r.id, 'streetAddress', 'Endereço', 'Rua / Av., número')}
-                      <div className="flex gap-2">
-                        <div className="flex-1">{regAddressField(r.id, 'locality', 'Cidade', 'Auckland')}</div>
-                        <div style={{ width: 110 }}>{regAddressField(r.id, 'administrativeArea', 'Estado/Região', '')}</div>
-                        <div style={{ width: 110 }}>{regAddressField(r.id, 'postalCode', 'CEP', '')}</div>
-                      </div>
-                    </div>
-                  )}
-
-                  {r.type === 'document' && (
-                    <div>
-                      <label className="flex items-center gap-2 px-3 py-2 bg-ice-50 border border-ice-200 rounded-xl cursor-pointer hover:border-brand-primary/50 transition-colors text-sm text-graphite-500">
-                        <FileText size={14} />
-                        {regulatoryData[r.id]?.type === 'document' && regulatoryData[r.id].fileName
-                          ? regulatoryData[r.id].fileName
-                          : 'Selecionar arquivo (PDF, JPG ou PNG)'}
+                    {r.type === 'textual' && (
+                      isContactInfo ? (
+                        <div className="space-y-3 p-3 bg-ice-50 border border-ice-200 rounded-xl">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">Nome do Contato</label>
+                              <input
+                                type="text"
+                                value={parseContactInfo(regulatoryData[r.id]?.type === 'textual' ? regulatoryData[r.id].value : '').contact}
+                                onChange={(e) => {
+                                  const currentVal = regulatoryData[r.id]?.type === 'textual' ? regulatoryData[r.id].value : '';
+                                  const { business, phone } = parseContactInfo(currentVal);
+                                  updateRegulatoryTextual(r.id, formatContactInfo(e.target.value, business, phone));
+                                }}
+                                placeholder="Nome e Sobrenome"
+                                className="w-full mt-1 bg-white border border-ice-100 rounded-xl px-3 py-2 text-sm text-graphite-700 focus:outline-none focus:border-brand-primary"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">Telefone de Contato</label>
+                              <input
+                                type="text"
+                                value={parseContactInfo(regulatoryData[r.id]?.type === 'textual' ? regulatoryData[r.id].value : '').phone}
+                                onChange={(e) => {
+                                  const currentVal = regulatoryData[r.id]?.type === 'textual' ? regulatoryData[r.id].value : '';
+                                  const { contact, business } = parseContactInfo(currentVal);
+                                  updateRegulatoryTextual(r.id, formatContactInfo(contact, business, e.target.value));
+                                }}
+                                placeholder="Ex: +6498890000"
+                                className="w-full mt-1 bg-white border border-ice-100 rounded-xl px-3 py-2 text-sm text-graphite-700 focus:outline-none focus:border-brand-primary"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">Nome da Empresa (opcional)</label>
+                            <input
+                              type="text"
+                              value={parseContactInfo(regulatoryData[r.id]?.type === 'textual' ? regulatoryData[r.id].value : '').business}
+                              onChange={(e) => {
+                                const currentVal = regulatoryData[r.id]?.type === 'textual' ? regulatoryData[r.id].value : '';
+                                const { contact, phone } = parseContactInfo(currentVal);
+                                updateRegulatoryTextual(r.id, formatContactInfo(contact, e.target.value, phone));
+                              }}
+                              placeholder="Razão Social ou N/A se Pessoa Física"
+                              className="w-full mt-1 bg-white border border-ice-100 rounded-xl px-3 py-2 text-sm text-graphite-700 focus:outline-none focus:border-brand-primary"
+                            />
+                          </div>
+                        </div>
+                      ) : r.acceptanceCriteria.acceptableValues?.length ? (
+                        <select
+                          value={regulatoryData[r.id]?.type === 'textual' ? regulatoryData[r.id].value : ''}
+                          onChange={(e) => updateRegulatoryTextual(r.id, e.target.value)}
+                          className={`w-full bg-ice-50 border rounded-xl px-3 py-2 text-sm text-graphite-700 focus:outline-none focus:border-brand-primary ${regulatoryErrors[r.id] ? 'border-red-300' : 'border-ice-200'}`}
+                        >
+                          <option value="">Selecione...</option>
+                          {r.acceptanceCriteria.acceptableValues.map((v) => <option key={v} value={v}>{v}</option>)}
+                        </select>
+                      ) : (
                         <input
-                          type="file"
-                          accept="image/jpeg,image/png,application/pdf"
-                          onChange={(e) => e.target.files?.[0] && uploadRegulatoryDocument(r.id, e.target.files[0])}
-                          className="hidden"
+                          type="text"
+                          value={regulatoryData[r.id]?.type === 'textual' ? regulatoryData[r.id].value : ''}
+                          onChange={(e) => updateRegulatoryTextual(r.id, e.target.value)}
+                          placeholder={r.example || undefined}
+                          maxLength={r.acceptanceCriteria.maxLength}
+                          className={`w-full bg-ice-50 border rounded-xl px-3 py-2 text-sm text-graphite-700 focus:outline-none focus:border-brand-primary ${regulatoryErrors[r.id] ? 'border-red-300' : 'border-ice-200'}`}
                         />
-                      </label>
-                      {regulatoryData[r.id]?.type === 'document' && regulatoryData[r.id].fileName && (
-                        <p className="text-[10px] text-green-600 mt-1">✓ Documento enviado</p>
-                      )}
-                    </div>
-                  )}
+                      )
+                    )}
 
-                  {regulatoryErrors[r.id] && <p className="text-[10px] text-red-500">{regulatoryErrors[r.id]}</p>}
-                </div>
-              ))}
+                    {r.type === 'address' && (
+                      <div className="space-y-2 p-3 bg-ice-50 border border-ice-200 rounded-xl">
+                        <div className="flex gap-2">
+                          <div className="flex-1">{regAddressField(r.id, 'firstName', 'Nome', 'João')}</div>
+                          <div className="flex-1">{regAddressField(r.id, 'lastName', 'Sobrenome', 'Silva')}</div>
+                        </div>
+                        {regAddressField(r.id, 'businessName', 'Empresa (opcional)', 'Empresa LTDA')}
+                        {regAddressField(r.id, 'streetAddress', 'Endereço', 'Rua / Av., número')}
+                        <div className="flex gap-2">
+                          <div className="flex-1">{regAddressField(r.id, 'locality', 'Cidade', 'Auckland')}</div>
+                          <div style={{ width: 110 }}>{regAddressField(r.id, 'administrativeArea', 'Estado/Região', '')}</div>
+                          <div style={{ width: 110 }}>{regAddressField(r.id, 'postalCode', 'CEP', '')}</div>
+                        </div>
+                      </div>
+                    )}
+
+                    {r.type === 'document' && (
+                      <div>
+                        <label className="flex items-center gap-2 px-3 py-2 bg-ice-50 border border-ice-200 rounded-xl cursor-pointer hover:border-brand-primary/50 transition-colors text-sm text-graphite-500">
+                          <FileText size={14} />
+                          {regulatoryData[r.id]?.type === 'document' && regulatoryData[r.id].fileName
+                            ? regulatoryData[r.id].fileName
+                            : 'Selecionar arquivo (PDF, JPG ou PNG)'}
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,application/pdf"
+                            onChange={(e) => e.target.files?.[0] && uploadRegulatoryDocument(r.id, e.target.files[0])}
+                            className="hidden"
+                          />
+                        </label>
+                        {regulatoryData[r.id]?.type === 'document' && regulatoryData[r.id].fileName && (
+                          <p className="text-[10px] text-green-600 mt-1">✓ Documento enviado</p>
+                        )}
+                      </div>
+                    )}
+
+                    {regulatoryErrors[r.id] && <p className="text-[10px] text-red-500">{regulatoryErrors[r.id]}</p>}
+                  </div>
+                );
+              })}
             </div>
           )}
 
