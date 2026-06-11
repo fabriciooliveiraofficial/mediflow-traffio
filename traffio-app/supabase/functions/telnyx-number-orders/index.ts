@@ -24,7 +24,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { getTelnyxApiKey, getTelnyxConnectionId } from "../_shared/masterConfig.ts";
 import {
   purchaseNumber, createNumberOrder, releaseNumber,
-  getRequirements, createAddress, uploadDocument, createRequirementGroup, fillRequirementGroup,
+  getRequirements, createAddress, uploadDocument, createRequirementGroup, fillRequirementGroup, getAddress
 } from "../_shared/telnyxClient.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
@@ -126,7 +126,40 @@ serve(async (req: Request) => {
           .eq("phone_number_type", effectiveType)
           .maybeSingle();
 
-        return json({ data: { requirements, cached: cached ?? null, phone_number_type: effectiveType } });
+        const resolvedAddresses: Record<string, any> = {};
+        if (cached?.regulatory_requirements) {
+          for (const reqVal of cached.regulatory_requirements) {
+            const reqId = reqVal.requirement_id;
+            const reqType = requirements.find((r) => r.id === reqId);
+            if (reqType?.type === "address" && reqVal.field_value) {
+              try {
+                const addrData = await getAddress(apiKey, reqVal.field_value);
+                if (addrData) {
+                  resolvedAddresses[reqId] = {
+                    firstName:          addrData.first_name ?? "",
+                    lastName:           addrData.last_name ?? "",
+                    businessName:       addrData.business_name ?? "",
+                    streetAddress:      addrData.street_address ?? "",
+                    locality:           addrData.locality ?? "",
+                    administrativeArea: addrData.administrative_area ?? "",
+                    postalCode:         addrData.postal_code ?? "",
+                  };
+                }
+              } catch (addrErr: any) {
+                console.error(`[get_requirements] Failed to resolve address ${reqVal.field_value}:`, addrErr.message);
+              }
+            }
+          }
+        }
+
+        return json({
+          data: {
+            requirements,
+            cached: cached ?? null,
+            resolved_addresses: resolvedAddresses,
+            phone_number_type: effectiveType,
+          },
+        });
       }
 
       return json({ error: "Unknown action" }, 400);
@@ -475,7 +508,35 @@ function json(data: any, status = 200) {
   });
 }
 
+function isAddressInCountry(addressStr: string, countryCode: string): boolean {
+  const normalized = addressStr.toLowerCase();
+  const code = countryCode.toUpperCase();
+  if (code === "NZ") {
+    const nzKeywords = ["nz", "new zealand", "nova zelandia", "nova zelândia", "auckland", "wellington", "christchurch", "hamilton", "tauranga", "dunedin"];
+    return nzKeywords.some(kw => normalized.includes(kw));
+  }
+  if (code === "BR") {
+    const brKeywords = ["brasil", "brazil", "curitiba", "são paulo", "rio de janeiro", "bh", "porto alegre", "fortaleza", "recife", "salvador"];
+    return brKeywords.some(kw => normalized.includes(kw));
+  }
+  return normalized.includes(code.toLowerCase());
+}
+
 function parseAddress(addressStr: string | null | undefined, tenantName: string, countryCode: string) {
+  const code = countryCode.toUpperCase();
+
+  // Endereço padrão de fallback para a Nova Zelândia (Queen Street, Auckland — real e deliverável)
+  const nzDefault = {
+    firstName: "Clinic",
+    lastName: "Owner",
+    businessName: tenantName || "Traffio Clinic",
+    streetAddress: "101 Queen Street",
+    locality: "Auckland",
+    administrativeArea: "Auckland",
+    postalCode: "1010",
+    countryCode: "NZ"
+  };
+
   const parsed = {
     firstName: "Clinic",
     lastName: "Owner",
@@ -484,38 +545,61 @@ function parseAddress(addressStr: string | null | undefined, tenantName: string,
     locality: "Auckland",
     administrativeArea: "Auckland",
     postalCode: "1010",
-    countryCode: countryCode.toUpperCase()
+    countryCode: code
   };
 
-  if (addressStr) {
-    const parts = addressStr.split(',').map(p => p.trim());
-    if (parts.length >= 1 && parts[0]) {
+  const defaultForCountry = code === "NZ" ? nzDefault : parsed;
+
+  if (addressStr && isAddressInCountry(addressStr, code)) {
+    // Split por múltiplos delimitadores comuns (vírgula, travessão, hífen, ponto e vírgula)
+    const parts = addressStr.split(/,|\u2014|-|;/).map(p => p.trim()).filter(Boolean);
+    if (parts.length >= 1) {
       parsed.streetAddress = parts[0];
     }
-    if (parts.length >= 2 && parts[1]) {
-      parsed.locality = parts[1];
+    if (code === "NZ") {
+      if (parts.length >= 4) {
+        parsed.locality = parts[1];
+        parsed.administrativeArea = parts[2];
+        parsed.postalCode = parts[3];
+      } else {
+        if (parts.length >= 2) parsed.locality = parts[1];
+        if (parts.length >= 3) parsed.administrativeArea = parts[2];
+      }
+    } else {
+      if (parts.length >= 2) parsed.locality = parts[1];
+      if (parts.length >= 3) parsed.administrativeArea = parts[2];
+      if (parts.length >= 4) parsed.postalCode = parts[3];
     }
-    if (parts.length >= 3 && parts[2]) {
-      parsed.administrativeArea = parts[2];
+
+    // Tentar estruturar o nome com base no nome do tenant
+    if (tenantName) {
+      const nameParts = tenantName.split(' ').map(p => p.trim()).filter(Boolean);
+      if (nameParts.length > 0) {
+        parsed.firstName = nameParts[0];
+        if (nameParts.length > 1) {
+          parsed.lastName = nameParts.slice(1).join(' ');
+        } else {
+          parsed.lastName = nameParts[0];
+        }
+      }
     }
-    if (parts.length >= 4 && parts[3]) {
-      parsed.postalCode = parts[3];
-    }
+    return parsed;
   }
 
+  // Se o endereço do tenant for vazio ou de outro país, usa o default cadastrado para o país solicitado
   if (tenantName) {
     const nameParts = tenantName.split(' ').map(p => p.trim()).filter(Boolean);
     if (nameParts.length > 0) {
-      parsed.firstName = nameParts[0];
+      defaultForCountry.firstName = nameParts[0];
       if (nameParts.length > 1) {
-        parsed.lastName = nameParts.slice(1).join(' ');
+        defaultForCountry.lastName = nameParts.slice(1).join(' ');
       } else {
-        parsed.lastName = nameParts[0];
+        defaultForCountry.lastName = nameParts[0];
       }
     }
   }
 
-  return parsed;
+  return defaultForCountry;
 }
 
 async function satisfyRequirementsSilently(
@@ -568,6 +652,43 @@ async function satisfyRequirementsSilently(
 
   const parsedAddr = parseAddress(tenant?.address, tenant?.name || "Clinic", country);
 
+  // Buscar informações do dono do tenant para preenchimento dos dados textuais de contato
+  const { data: ownerMember } = await supabase
+    .from("members")
+    .select("user_id")
+    .eq("tenant_id", tenantId)
+    .eq("role", "owner")
+    .eq("is_active", true)
+    .limit(1)
+    .maybeSingle();
+
+  let ownerProfile = null;
+  if (ownerMember?.user_id) {
+    const { data } = await supabase
+      .from("profiles")
+      .select("full_name, phone, email")
+      .eq("id", ownerMember.user_id)
+      .maybeSingle();
+    ownerProfile = data;
+  }
+
+  // Sobrescrever o nome de contato do endereço com o nome real do dono do tenant
+  if (ownerProfile?.full_name) {
+    const nameParts = ownerProfile.full_name.split(' ').map(p => p.trim()).filter(Boolean);
+    if (nameParts.length > 0) {
+      parsedAddr.firstName = nameParts[0];
+      if (nameParts.length > 1) {
+        parsedAddr.lastName = nameParts.slice(1).join(' ');
+      } else {
+        parsedAddr.lastName = nameParts[0];
+      }
+    }
+  }
+
+  const contactName = ownerProfile?.full_name || tenant?.name || "Clinic Owner";
+  const contactPhone = ownerProfile?.phone || "+6498890000";
+  const contactEmail = ownerProfile?.email || "contact@traffio.com";
+
   const regulatoryRequirements: { requirement_id: string; field_value: string }[] = [];
   try {
     for (const r of requirements) {
@@ -577,12 +698,16 @@ async function satisfyRequirementsSilently(
       } else if (r.type === "textual") {
         let val = "";
         const name = (r.name || "").toLowerCase();
-        if (name.includes("name") || name.includes("nome") || name.includes("contact")) {
-          val = tenant?.name || "Clinic Owner";
+
+        // Se for o formato composto de Contato (Maria Garcia... | Business... | Phone...)
+        if (name.includes("contact") && name.includes("business")) {
+          val = `Contact: ${contactName} | Business: ${tenant?.name || "N/A"} | Phone: ${contactPhone}`;
+        } else if (name.includes("name") || name.includes("nome") || name.includes("contact")) {
+          val = contactName;
         } else if (name.includes("email")) {
-          val = "contact@traffio.com";
+          val = contactEmail;
         } else if (name.includes("phone") || name.includes("telef")) {
-          val = "+6498890000";
+          val = contactPhone;
         } else {
           val = tenant?.name || "Clinic Owner";
         }

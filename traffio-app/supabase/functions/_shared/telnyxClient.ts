@@ -228,7 +228,8 @@ export async function getRequirements(
 
   const seen = new Map<string, RegulatoryRequirementType>();
   for (const row of applicable) {
-    for (const rt of row.requirements_types ?? []) {
+    const types = row.requirement_types || row.requirements_types || [];
+    for (const rt of types) {
       if (seen.has(rt.id)) continue;
       const ac = rt.acceptance_criteria ?? {};
       seen.set(rt.id, {
@@ -272,6 +273,11 @@ export async function createAddress(apiKey: string, addr: RegulatoryAddressInput
     validate_address:    false,
   });
   return data.data.id;
+}
+
+export async function getAddress(apiKey: string, addressId: string): Promise<any> {
+  const data = await telnyxRequest(apiKey, "GET", `/addresses/${addressId}`);
+  return data.data;
 }
 
 /**

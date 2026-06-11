@@ -57,6 +57,76 @@ const EMPTY_REGULATORY_ADDRESS: RegulatoryAddress = {
   locality: '', administrativeArea: '', postalCode: '',
 };
 
+function isAddressInCountry(addressStr: string, countryCode: string): boolean {
+  const normalized = addressStr.toLowerCase();
+  const code = countryCode.toUpperCase();
+  if (code === 'NZ') {
+    const nzKeywords = ['nz', 'new zealand', 'nova zelandia', 'nova zelândia', 'auckland', 'wellington', 'christchurch', 'hamilton', 'tauranga', 'dunedin'];
+    return nzKeywords.some(kw => normalized.includes(kw));
+  }
+  if (code === 'BR') {
+    const brKeywords = ['brasil', 'brazil', 'curitiba', 'são paulo', 'rio de janeiro', 'bh', 'porto alegre', 'fortaleza', 'recife', 'salvador'];
+    return brKeywords.some(kw => normalized.includes(kw));
+  }
+  return normalized.includes(code.toLowerCase());
+}
+
+function parseAddressForSuggestion(
+  addressStr: string | null | undefined,
+  tenantName: string,
+  contactName: string,
+  countryCode: string
+): RegulatoryAddress {
+  const code = countryCode.toUpperCase();
+  const nameParts = contactName.split(' ').map(p => p.trim()).filter(Boolean);
+  const firstName = nameParts[0] || 'Clinic';
+  const lastName = nameParts.slice(1).join(' ') || 'Owner';
+
+  const nzDefault: RegulatoryAddress = {
+    firstName,
+    lastName,
+    businessName: tenantName || 'Traffio Clinic',
+    streetAddress: '101 Queen Street',
+    locality: 'Auckland',
+    administrativeArea: 'Auckland',
+    postalCode: '1010',
+  };
+
+  const parsed: RegulatoryAddress = {
+    firstName,
+    lastName,
+    businessName: tenantName || 'Traffio Clinic',
+    streetAddress: 'Main Street 123',
+    locality: 'Auckland',
+    administrativeArea: 'Auckland',
+    postalCode: '1010',
+  };
+
+  const defaultForCountry = code === 'NZ' ? nzDefault : parsed;
+
+  if (addressStr && isAddressInCountry(addressStr, code)) {
+    const parts = addressStr.split(/,|\u2014|-|;/).map(p => p.trim()).filter(Boolean);
+    if (parts.length >= 1) parsed.streetAddress = parts[0];
+    if (code === 'NZ') {
+      if (parts.length >= 4) {
+        parsed.locality = parts[1];
+        parsed.administrativeArea = parts[2];
+        parsed.postalCode = parts[3];
+      } else {
+        if (parts.length >= 2) parsed.locality = parts[1];
+        if (parts.length >= 3) parsed.administrativeArea = parts[2];
+      }
+    } else {
+      if (parts.length >= 2) parsed.locality = parts[1];
+      if (parts.length >= 3) parsed.administrativeArea = parts[2];
+      if (parts.length >= 4) parsed.postalCode = parts[3];
+    }
+    return parsed;
+  }
+
+  return defaultForCountry;
+}
+
 type RegulatoryFieldValue =
   | { type: 'textual'; value: string }
   | { type: 'address'; address: RegulatoryAddress }
@@ -123,6 +193,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
   // get_requirements — pode diferir do phoneNumberType do resultado de busca
   // (a Telnyx não informa o tipo em /available_phone_numbers).
   const [effectivePhoneNumberType, setEffectivePhoneNumberType] = useState('');
+  const [requiresReview, setRequiresReview] = useState(false);
 
   // ── Diagnóstico ─────────────────────────────────────────────────────────────
   const [diagLogs, setDiagLogs]       = useState<DiagEntry[]>([]);
@@ -265,11 +336,8 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
 
   const selectNumber = async (num: AvailableNumber) => {
     setSelected(num);
-    if (req.needsDocs) {
-      setStep(2);
-    } else {
-      setStep(4);
-    }
+    if (req.needsDocs) { setStep(2); return; }
+    await checkRegulatoryRequirements(num);
   };
 
   // Consulta a Telnyx para saber se este país/tipo exige dados regulatórios
@@ -322,13 +390,87 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
       );
       if (requirements.length === 0) setDiagOpen(true);
 
-      if (requirements.length > 0 && !cached) {
+      setRequiresReview(requirements.length > 0);
+      
+      if (requirements.length > 0) {
+        // 1. Carregar dados do tenant e proprietário para sugestões de auto-complete
+        let tenantInfo: any = null;
+        let ownerProfile: any = null;
+        try {
+          const { data: tenant } = await supabase
+            .from('tenants')
+            .select('name, address')
+            .eq('id', tenantId)
+            .maybeSingle();
+          tenantInfo = tenant;
+
+          const { data: ownerMember } = await supabase
+            .from('members')
+            .select('user_id')
+            .eq('tenant_id', tenantId)
+            .eq('role', 'owner')
+            .eq('is_active', true)
+            .limit(1)
+            .maybeSingle();
+
+          if (ownerMember?.user_id) {
+            const { data } = await supabase
+              .from('profiles')
+              .select('full_name, phone, email')
+              .eq('id', ownerMember.user_id)
+              .maybeSingle();
+            ownerProfile = data;
+          }
+        } catch (err) {
+          log('warn', 'Erro ao carregar dados do tenant/proprietário para auto-complete.', err);
+        }
+
+        const contactName = ownerProfile?.full_name || tenantInfo?.name || '';
+        const contactPhone = ownerProfile?.phone || '';
+        const contactEmail = ownerProfile?.email || '';
+
         const initial: Record<string, RegulatoryFieldValue> = {};
         for (const r of requirements) {
-          if (r.type === 'address') initial[r.id] = { type: 'address', address: { ...EMPTY_REGULATORY_ADDRESS } };
-          else if (r.type === 'document') initial[r.id] = { type: 'document' };
-          else initial[r.id] = { type: 'textual', value: '' };
+          if (r.type === 'address') {
+            // Verificar se temos o endereço resolvido vindo da API no cache
+            const cachedAddress = json.data?.resolved_addresses?.[r.id];
+            if (cachedAddress) {
+              initial[r.id] = { type: 'address', address: cachedAddress };
+            } else {
+              const suggestedAddr = parseAddressForSuggestion(tenantInfo?.address, tenantInfo?.name || '', contactName, country);
+              initial[r.id] = { type: 'address', address: suggestedAddr };
+            }
+          } else if (r.type === 'document') {
+            const cachedDocVal = cached?.regulatory_requirements?.find((cv: any) => cv.requirement_id === r.id)?.field_value;
+            initial[r.id] = { 
+              type: 'document', 
+              documentId: cachedDocVal || undefined, 
+              fileName: cachedDocVal ? 'Documento salvo anteriormente' : undefined 
+            };
+          } else {
+            // Textual
+            const cachedTextVal = cached?.regulatory_requirements?.find((cv: any) => cv.requirement_id === r.id)?.field_value;
+            if (cachedTextVal) {
+              initial[r.id] = { type: 'textual', value: cachedTextVal };
+            } else {
+              let val = '';
+              const name = (r.name || '').toLowerCase();
+              if (name.includes('contact') && name.includes('business')) {
+                val = `Contact: ${contactName} | Business: ${tenantInfo?.name || 'N/A'} | Phone: ${contactPhone}`;
+              } else if (name.includes('name') || name.includes('nome') || name.includes('contact')) {
+                val = contactName;
+              } else if (name.includes('email')) {
+                val = contactEmail;
+              } else if (name.includes('phone') || name.includes('telef')) {
+                val = contactPhone;
+              } else {
+                val = tenantInfo?.name || '';
+              }
+              initial[r.id] = { type: 'textual', value: val };
+            }
+          }
         }
+
         setRegulatoryRequirements(requirements);
         setRegulatoryData(initial);
         setRegulatoryErrors({});
@@ -916,12 +1058,11 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
                     Você receberá uma notificação quando o número for ativado.
                   </p>
                 </div>
-              ) : hasRegulatoryStep ? (
+              ) : requiresReview ? (
                 <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-xl">
                   <Info size={14} className="text-blue-500 mt-0.5 shrink-0" />
                   <p className="text-xs text-blue-700">
-                    A Telnyx pode levar alguns minutos para revisar as informações regulatórias.
-                    O número já fica disponível e ativa automaticamente após a aprovação.
+                    Este número requer aprovação regulatória local. Os dados preenchidos na etapa anterior serão enviados, mas a ativação depende da aprovação pelas operadoras locais (geralmente concluída em poucas horas).
                   </p>
                 </div>
               ) : (
@@ -1106,7 +1247,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
 
             {step === 1 && selected && (
               <button
-                onClick={() => req.needsDocs ? setStep(2) : setStep(4)}
+                onClick={() => req.needsDocs ? setStep(2) : hasRegulatoryStep ? setStep(5) : setStep(4)}
                 className="flex items-center gap-2 px-5 py-2 bg-brand-primary text-white text-sm font-bold rounded-xl hover:bg-brand-primary/90 transition-colors border-none cursor-pointer"
               >
                 Continuar <ChevronRight size={16} />
