@@ -119,6 +119,10 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
   const [regulatoryRequirements, setRegulatoryRequirements] = useState<RegulatoryRequirementType[]>([]);
   const [regulatoryData, setRegulatoryData]           = useState<Record<string, RegulatoryFieldValue>>({});
   const [regulatoryErrors, setRegulatoryErrors]       = useState<Record<string, string>>({});
+  // Tipo efetivo (local|national|toll_free|...) determinado pela Telnyx via
+  // get_requirements — pode diferir do phoneNumberType do resultado de busca
+  // (a Telnyx não informa o tipo em /available_phone_numbers).
+  const [effectivePhoneNumberType, setEffectivePhoneNumberType] = useState('');
 
   // ── Diagnóstico ─────────────────────────────────────────────────────────────
   const [diagLogs, setDiagLogs]       = useState<DiagEntry[]>([]);
@@ -273,7 +277,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
     setCheckingRequirements(true);
     try {
       const session = await getSession();
-      if (!session) { setHasRegulatoryStep(false); setStep(4); return; }
+      if (!session) { setHasRegulatoryStep(false); setEffectivePhoneNumberType(num.phoneNumberType || 'local'); setStep(4); return; }
 
       const params = new URLSearchParams({
         action: 'get_requirements',
@@ -288,12 +292,14 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
       if (json.error) {
         log('warn', `Não foi possível verificar requisitos regulatórios: ${json.error}`);
         setHasRegulatoryStep(false);
+        setEffectivePhoneNumberType(num.phoneNumberType || 'local');
         setStep(4);
         return;
       }
 
       const requirements: RegulatoryRequirementType[] = json.data?.requirements ?? [];
       const cached = json.data?.cached ?? null;
+      setEffectivePhoneNumberType(json.data?.phone_number_type || num.phoneNumberType || 'local');
 
       if (requirements.length > 0 && !cached) {
         const initial: Record<string, RegulatoryFieldValue> = {};
@@ -314,6 +320,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
     } catch (err: any) {
       log('warn', `Erro ao verificar requisitos regulatórios: ${err.message}`);
       setHasRegulatoryStep(false);
+      setEffectivePhoneNumberType(num.phoneNumberType || 'local');
       setStep(4);
     } finally {
       setCheckingRequirements(false);
@@ -406,7 +413,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
         body: JSON.stringify({
           action:             'submit_regulatory_info',
           country_code:       country,
-          phone_number_type:  selected!.phoneNumberType || 'local',
+          phone_number_type:  effectivePhoneNumberType || selected!.phoneNumberType || 'local',
           regulatory_data,
         }),
       });
@@ -500,7 +507,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
           action:            'create_order',
           phone_number:      selected!.phoneNumber,
           country_code:      country,
-          phone_number_type: selected!.phoneNumberType || 'local',
+          phone_number_type: effectivePhoneNumberType || selected!.phoneNumberType || 'local',
           friendly_name:     friendlyName || undefined,
         }),
       });
@@ -654,7 +661,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
                       if (searchBy === 'state' && next !== 'US' && next !== 'CA') setSearchBy('area_code');
                       setSearchValue('');
                       setResults([]); setSelected(null); setDiagLogs([]);
-                      setHasRegulatoryStep(false); setRegulatoryRequirements([]); setRegulatoryData({}); setRegulatoryErrors({});
+                      setHasRegulatoryStep(false); setRegulatoryRequirements([]); setRegulatoryData({}); setRegulatoryErrors({}); setEffectivePhoneNumberType('');
                     }}
                     className="w-full mt-1 bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm text-graphite-700 focus:outline-none focus:border-brand-primary"
                   >

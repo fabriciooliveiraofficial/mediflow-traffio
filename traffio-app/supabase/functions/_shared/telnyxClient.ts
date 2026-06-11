@@ -187,43 +187,63 @@ export async function releaseNumber(apiKey: string, numberId: string): Promise<v
 
 /**
  * Lista os requisitos regulatórios exigidos pela Telnyx para comprar um número
- * de um país/tipo específico (ex: NZ + local exige Contact Information + Address).
- * Retorna [] quando não há exigências — fluxo de compra permanece instantâneo.
+ * de um país/tipo específico (ex: NZ + national exige Contact Information + Address).
+ *
+ * A Telnyx não retorna `phone_number_type` em `/available_phone_numbers`, então o
+ * tipo "real" do número (para fins de regulatory requirements) é desconhecido até
+ * aqui. Tentamos o tipo informado primeiro e, se vazio, tentamos "national" — muitos
+ * países (NZ, etc.) classificam números geográficos como "national" para regulação,
+ * mesmo quando a busca não especifica tipo (fallback "local"). Retorna o
+ * `phoneNumberType` efetivo (o que teve requisitos, ou o original se nenhum tiver),
+ * para ser reaproveitado em submit_regulatory_info / create_order / cache.
  */
 export async function getRequirements(
   apiKey: string,
   countryCode: string,
   phoneNumberType: string
-): Promise<RegulatoryRequirementType[]> {
-  const qs = `filter[country_code]=${encodeURIComponent(countryCode)}` +
-             `&filter[phone_number_type]=${encodeURIComponent(phoneNumberType)}` +
-             `&filter[action]=ordering`;
+): Promise<{ requirements: RegulatoryRequirementType[]; phoneNumberType: string }> {
+  const candidates = Array.from(new Set([phoneNumberType, "national"]));
 
-  const data = await telnyxRequest(apiKey, "GET", `/requirements?${qs}`);
-  const rows: any[] = data.data ?? [];
+  for (const type of candidates) {
+    const qs = `filter[country_code]=${encodeURIComponent(countryCode)}` +
+               `&filter[phone_number_type]=${encodeURIComponent(type)}` +
+               `&filter[action]=ordering`;
 
-  const seen = new Map<string, RegulatoryRequirementType>();
-  for (const row of rows) {
-    for (const rt of row.requirements_types ?? []) {
-      if (seen.has(rt.id)) continue;
-      const ac = rt.acceptance_criteria ?? {};
-      seen.set(rt.id, {
-        id:          rt.id,
-        name:        rt.name,
-        type:        rt.type,
-        description: rt.description ?? "",
-        example:     rt.example ?? "",
-        acceptanceCriteria: {
-          minLength:            ac.min_length,
-          maxLength:            ac.max_length,
-          acceptableValues:     ac.acceptable_values,
-          acceptableCharacters: ac.acceptable_characters,
-        },
-      });
+    let rows: any[] = [];
+    try {
+      const data = await telnyxRequest(apiKey, "GET", `/requirements?${qs}`);
+      rows = data.data ?? [];
+    } catch {
+      continue;
+    }
+
+    const seen = new Map<string, RegulatoryRequirementType>();
+    for (const row of rows) {
+      for (const rt of row.requirements_types ?? []) {
+        if (seen.has(rt.id)) continue;
+        const ac = rt.acceptance_criteria ?? {};
+        seen.set(rt.id, {
+          id:          rt.id,
+          name:        rt.name,
+          type:        rt.type,
+          description: rt.description ?? "",
+          example:     rt.example ?? "",
+          acceptanceCriteria: {
+            minLength:            ac.min_length,
+            maxLength:            ac.max_length,
+            acceptableValues:     ac.acceptable_values,
+            acceptableCharacters: ac.acceptable_characters,
+          },
+        });
+      }
+    }
+
+    if (seen.size > 0) {
+      return { requirements: Array.from(seen.values()), phoneNumberType: type };
     }
   }
 
-  return Array.from(seen.values());
+  return { requirements: [], phoneNumberType };
 }
 
 /**

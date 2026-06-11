@@ -108,8 +108,11 @@ serve(async (req: Request) => {
         const countryCode = country.toUpperCase();
 
         let requirements: any[] = [];
+        let effectiveType = phoneNumberType;
         try {
-          requirements = await getRequirements(apiKey, countryCode, phoneNumberType);
+          const result = await getRequirements(apiKey, countryCode, phoneNumberType);
+          requirements  = result.requirements;
+          effectiveType = result.phoneNumberType;
         } catch (e: any) {
           console.error(`[telnyx-number-orders] getRequirements failed: ${e.message}`);
           return json({ error: `Telnyx: ${e.message}` }, 502);
@@ -120,10 +123,10 @@ serve(async (req: Request) => {
           .select("telnyx_requirement_group_id, status, regulatory_requirements, updated_at")
           .eq("tenant_id", tenantId)
           .eq("country_code", countryCode)
-          .eq("phone_number_type", phoneNumberType)
+          .eq("phone_number_type", effectiveType)
           .maybeSingle();
 
-        return json({ data: { requirements, cached: cached ?? null } });
+        return json({ data: { requirements, cached: cached ?? null, phone_number_type: effectiveType } });
       }
 
       return json({ error: "Unknown action" }, 400);
