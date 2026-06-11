@@ -50,7 +50,7 @@ serve(async (req: Request) => {
       return new Response("ok", { status: 200, headers: corsHeaders });
     }
 
-    if (status === "success") {
+    if (status === "success" || status === "successful") {
       const phoneNumbers: string[] = (payload.phone_numbers ?? []).map((n: any) => n.phone_number ?? n);
       const phoneNumber = phoneNumbers[0] ?? order.phone_number;
 
@@ -82,7 +82,7 @@ serve(async (req: Request) => {
 
       console.log(`[telnyx-order-webhook] ✓ Order completed: ${order.id} → ${phoneNumber}`);
 
-    } else if (status === "failure") {
+    } else if (status === "failure" || status === "failed") {
       const reason = payload.errors?.[0]?.description
         ?? payload.errors?.[0]?.title
         ?? "Pedido rejeitado pela operadora";

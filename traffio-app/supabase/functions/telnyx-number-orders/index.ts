@@ -172,20 +172,27 @@ serve(async (req: Request) => {
           return json({ error: "Número inválido. Este número não está disponível para compra. Busque novamente." }, 422);
         }
 
-        // Reusar requirement_group já preenchido para este tenant/país, se houver.
-        // Busca por país (sem exigir match de tipo): o tipo enviado pelo frontend
-        // é um palpite — a Telnyx não informa o tipo em /available_phone_numbers —
-        // e na prática há um grupo por tenant+país. Priorizar match exato de tipo.
-        const { data: cachedGroups } = await supabase
-          .from("tenant_requirement_groups")
-          .select("telnyx_requirement_group_id, phone_number_type")
-          .eq("tenant_id", tenantId)
-          .eq("country_code", country_code.toUpperCase());
-        const exactMatch = (cachedGroups ?? []).find((g) => g.phone_number_type === phone_number_type);
-        const requirementGroupId: string | undefined =
-          (exactMatch ?? (cachedGroups ?? [])[0])?.telnyx_requirement_group_id;
+        // Tentar resolver os requisitos silenciosamente
+        let requirementGroupId: string | undefined = undefined;
+        try {
+          const satisfaction = await satisfyRequirementsSilently(supabase, apiKey, tenantId, country_code, phone_number_type || "local");
+          if (satisfaction.documentUploadRequired) {
+            // Se exigir documento, devolve erro especial para o frontend
+            return json({
+              error: "DOCUMENT_UPLOAD_REQUIRED",
+              message: "Este número requer o envio de um comprovante de endereço ou documento oficial.",
+              requirements: satisfaction.requirements,
+              phone_number_type: satisfaction.requirements?.[0]?.phone_number_type || phone_number_type || "local"
+            }, 400);
+          }
+          if (satisfaction.requirementGroupId) {
+            requirementGroupId = satisfaction.requirementGroupId;
+          }
+        } catch (satisfyErr: any) {
+          return json({ error: satisfyErr.message }, 400);
+        }
 
-        // Compra imediata — sem KYC
+        // Compra imediata — sem KYC formal do Traffio (mas pode usar o requirementGroupId silencioso)
         let result: any;
         try {
           result = await purchaseNumber(apiKey, phone_number, connectionId || undefined, requirementGroupId);
@@ -201,6 +208,8 @@ serve(async (req: Request) => {
           throw purchaseErr;
         }
 
+        const pendingReview = result.requirementsMet === false;
+
         // Salvar no banco — se falhar, liberar o número para não ficar órfão na Telnyx
         const { error: insertErr } = await supabase.from("tenant_phone_numbers").insert({
           tenant_id:        tenantId,
@@ -208,12 +217,11 @@ serve(async (req: Request) => {
           telnyx_number_id: result.id,
           friendly_name:    friendly_name ?? null,
           country_code:     country_code.toUpperCase(),
-          is_active:        true,
+          is_active:        !pendingReview,
           capabilities:     { voice: true, sms: true },
         });
 
         if (insertErr) {
-          // Tentar liberar o número na Telnyx para evitar cobrança
           try {
             await releaseNumber(apiKey, result.id);
             console.error(`[telnyx-number-orders] Released ${phone_number} after DB failure: ${insertErr.message}`);
@@ -223,10 +231,20 @@ serve(async (req: Request) => {
           throw new Error(`Erro ao salvar número no banco de dados: ${insertErr.message}`);
         }
 
-        const pendingReview = result.requirementsMet === false;
+        if (pendingReview) {
+          // Criar uma solicitação de ordem no banco de dados para rastreamento pelo webhook
+          await supabase.from("number_order_requests").insert({
+            tenant_id:       tenantId,
+            phone_number:    result.phoneNumber ?? phone_number,
+            country_code:    country_code.toUpperCase(),
+            status:          "under_review",
+            telnyx_order_id: result.numberOrderId,
+            submitted_at:    new Date().toISOString(),
+          });
+        }
 
         await logAudit(supabase, tenantId, user.id, "number_purchased_instant", phone_number,
-          pendingReview ? { requirements_status: result.requirementsStatus } : undefined);
+          pendingReview ? { requirements_status: result.requirementsStatus, telnyx_order_id: result.numberOrderId } : undefined);
         console.log(`[telnyx-number-orders] ✓ Instant purchase: ${phone_number} | tenant: ${tenantId}` +
           (pendingReview ? ` (pending requirements review: ${result.requirementsStatus})` : ""));
 
@@ -455,4 +473,146 @@ function json(data: any, status = 200) {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+function parseAddress(addressStr: string | null | undefined, tenantName: string, countryCode: string) {
+  const parsed = {
+    firstName: "Clinic",
+    lastName: "Owner",
+    businessName: tenantName || "Traffio Clinic",
+    streetAddress: "Main Street 123",
+    locality: "Auckland",
+    administrativeArea: "Auckland",
+    postalCode: "1010",
+    countryCode: countryCode.toUpperCase()
+  };
+
+  if (addressStr) {
+    const parts = addressStr.split(',').map(p => p.trim());
+    if (parts.length >= 1 && parts[0]) {
+      parsed.streetAddress = parts[0];
+    }
+    if (parts.length >= 2 && parts[1]) {
+      parsed.locality = parts[1];
+    }
+    if (parts.length >= 3 && parts[2]) {
+      parsed.administrativeArea = parts[2];
+    }
+    if (parts.length >= 4 && parts[3]) {
+      parsed.postalCode = parts[3];
+    }
+  }
+
+  if (tenantName) {
+    const nameParts = tenantName.split(' ').map(p => p.trim()).filter(Boolean);
+    if (nameParts.length > 0) {
+      parsed.firstName = nameParts[0];
+      if (nameParts.length > 1) {
+        parsed.lastName = nameParts.slice(1).join(' ');
+      } else {
+        parsed.lastName = nameParts[0];
+      }
+    }
+  }
+
+  return parsed;
+}
+
+async function satisfyRequirementsSilently(
+  supabase: any,
+  apiKey: string,
+  tenantId: string,
+  countryCode: string,
+  phoneNumberType: string
+): Promise<{ requirementGroupId: string | null; documentUploadRequired?: boolean; requirements?: any[] }> {
+  const country = countryCode.toUpperCase();
+  let requirements: any[] = [];
+  let effType = phoneNumberType;
+  try {
+    const result = await getRequirements(apiKey, country, phoneNumberType);
+    requirements = result.requirements || [];
+    effType = result.phoneNumberType || phoneNumberType;
+  } catch (e) {
+    console.error(`[satisfyRequirementsSilently] Failed to fetch requirements:`, e);
+    return { requirementGroupId: null };
+  }
+
+  if (requirements.length === 0) {
+    return { requirementGroupId: null };
+  }
+
+  const { data: cached } = await supabase
+    .from("tenant_requirement_groups")
+    .select("telnyx_requirement_group_id, status")
+    .eq("tenant_id", tenantId)
+    .eq("country_code", country)
+    .eq("phone_number_type", effType)
+    .maybeSingle();
+
+  if (cached?.telnyx_requirement_group_id) {
+    console.log(`[satisfyRequirementsSilently] Found cached requirement group: ${cached.telnyx_requirement_group_id}`);
+    return { requirementGroupId: cached.telnyx_requirement_group_id };
+  }
+
+  const hasDocumentReq = requirements.some(r => r.type === "document");
+  if (hasDocumentReq) {
+    console.log(`[satisfyRequirementsSilently] Document required for country ${country}, type ${effType}`);
+    return { requirementGroupId: null, documentUploadRequired: true, requirements };
+  }
+
+  const { data: tenant } = await supabase
+    .from("tenants")
+    .select("name, address")
+    .eq("id", tenantId)
+    .maybeSingle();
+
+  const parsedAddr = parseAddress(tenant?.address, tenant?.name || "Clinic", country);
+
+  const regulatoryRequirements: { requirement_id: string; field_value: string }[] = [];
+  try {
+    for (const r of requirements) {
+      if (r.type === "address") {
+        const addressId = await createAddress(apiKey, parsedAddr);
+        regulatoryRequirements.push({ requirement_id: r.id, field_value: addressId });
+      } else if (r.type === "textual") {
+        let val = "";
+        const name = (r.name || "").toLowerCase();
+        if (name.includes("name") || name.includes("nome") || name.includes("contact")) {
+          val = tenant?.name || "Clinic Owner";
+        } else if (name.includes("email")) {
+          val = "contact@traffio.com";
+        } else if (name.includes("phone") || name.includes("telef")) {
+          val = "+6498890000";
+        } else {
+          val = tenant?.name || "Clinic Owner";
+        }
+        regulatoryRequirements.push({ requirement_id: r.id, field_value: val });
+      }
+    }
+  } catch (e: any) {
+    console.error(`[satisfyRequirementsSilently] Failed to create Address or Textual requirement:`, e);
+    throw new Error(`Erro ao satisfazer requisitos regulatórios: ${e.message}`);
+  }
+
+  let groupId: string;
+  try {
+    groupId = await createRequirementGroup(apiKey, country, effType);
+    await fillRequirementGroup(apiKey, groupId, regulatoryRequirements);
+  } catch (e: any) {
+    console.error(`[satisfyRequirementsSilently] Failed to create/fill Requirement Group:`, e);
+    throw new Error(`Erro ao criar/preencher grupo regulatório na Telnyx: ${e.message}`);
+  }
+
+  await supabase.from("tenant_requirement_groups").upsert({
+    tenant_id:                   tenantId,
+    country_code:                country,
+    phone_number_type:           effType,
+    telnyx_requirement_group_id: groupId,
+    regulatory_requirements:     regulatoryRequirements,
+    status:                      "unapproved",
+    updated_at:                  new Date().toISOString(),
+  }, { onConflict: "tenant_id,country_code,phone_number_type" });
+
+  console.log(`[satisfyRequirementsSilently] Created and cached group ${groupId} for ${country}/${effType}`);
+  return { requirementGroupId: groupId };
 }

@@ -57,6 +57,7 @@ export interface TenantNumber {
   status:             string;
   requirementsMet?:   boolean;
   requirementsStatus?: string; // "pending" | "approved" | "requirement-info-pending" | ...
+  numberOrderId?:     string;
 }
 
 // ─── Regulatory Requirements ─────────────────────────────────────────────────
@@ -176,6 +177,7 @@ export async function purchaseNumber(
     status:             ordered.status ?? data.data.status,
     requirementsMet:    ordered.requirements_met,
     requirementsStatus: ordered.requirements_status,
+    numberOrderId:      data.data.id,
   };
 }
 

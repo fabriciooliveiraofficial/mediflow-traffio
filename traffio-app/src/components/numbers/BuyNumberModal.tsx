@@ -265,8 +265,11 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
 
   const selectNumber = async (num: AvailableNumber) => {
     setSelected(num);
-    if (req.needsDocs) { setStep(2); return; }
-    await checkRegulatoryRequirements(num);
+    if (req.needsDocs) {
+      setStep(2);
+    } else {
+      setStep(4);
+    }
   };
 
   // Consulta a Telnyx para saber se este país/tipo exige dados regulatórios
@@ -532,6 +535,25 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
       });
       const json = await res.json();
       if (json.error) {
+        if (json.error === 'DOCUMENT_UPLOAD_REQUIRED') {
+          log('info', 'Upload de documento é obrigatório para este país/número. Redirecionando para o formulário regulatório.', json);
+          showToast('info', 'Por favor, envie o documento regulatório exigido pelas operadoras.');
+
+          const requirements = json.requirements || [];
+          const initial: Record<string, RegulatoryFieldValue> = {};
+          for (const r of requirements) {
+            if (r.type === 'address') initial[r.id] = { type: 'address', address: { ...EMPTY_REGULATORY_ADDRESS } };
+            else if (r.type === 'document') initial[r.id] = { type: 'document' };
+            else initial[r.id] = { type: 'textual', value: '' };
+          }
+          setRegulatoryRequirements(requirements);
+          setRegulatoryData(initial);
+          setRegulatoryErrors({});
+          setEffectivePhoneNumberType(json.phone_number_type || selected!.phoneNumberType || 'local');
+          setHasRegulatoryStep(true);
+          setStep(5);
+          return;
+        }
         showToast('error', json.error);
         return;
       }
