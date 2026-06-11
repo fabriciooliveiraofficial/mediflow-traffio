@@ -61,10 +61,22 @@ export async function searchAvailableNumbers(
   countryCode: string,
   _features: ("voice" | "sms")[] = ["voice", "sms"],
   limit = 10,
-  nationalDestinationCode?: string
+  nationalDestinationCode?: string,
+  phoneNumberType?: string,
+  locality?: string,
+  administrativeArea?: string
 ): Promise<AvailableNumber[]> {
   const ndcParam = nationalDestinationCode
     ? `&filter[national_destination_code]=${encodeURIComponent(nationalDestinationCode)}`
+    : "";
+  const typeParam = phoneNumberType
+    ? `&filter[phone_number_type]=${encodeURIComponent(phoneNumberType)}`
+    : "";
+  const localityParam = locality
+    ? `&filter[locality]=${encodeURIComponent(locality)}`
+    : "";
+  const areaParam = administrativeArea
+    ? `&filter[administrative_area]=${encodeURIComponent(administrativeArea)}`
     : "";
 
   // Cascade: voice+sms → voice-only.
@@ -76,7 +88,7 @@ export async function searchAvailableNumbers(
   ];
 
   for (const { featureQs } of attempts) {
-    const qs = `filter[country_code]=${countryCode}&filter[limit]=${limit}${ndcParam}${featureQs}`;
+    const qs = `filter[country_code]=${countryCode}&filter[limit]=${limit}${ndcParam}${typeParam}${localityParam}${areaParam}${featureQs}`;
     try {
       const data = await telnyxRequest(apiKey, "GET", `/available_phone_numbers?${qs}`);
       const rows: any[] = data.data ?? [];

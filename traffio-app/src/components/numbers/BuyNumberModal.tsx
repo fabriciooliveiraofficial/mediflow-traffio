@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  X, Hash, RefreshCw, ChevronRight, ChevronLeft,
+  X, Search, RefreshCw, ChevronRight, ChevronLeft,
   Phone, FileText, User, Building2, CheckCheck, Info,
   Bug, ChevronDown, ChevronUp, Copy, Check,
 } from 'lucide-react';
@@ -41,6 +41,8 @@ interface Props {
 }
 
 type Step = 1 | 2 | 3 | 4;
+type PhoneType = 'all' | 'local' | 'toll_free';
+type SearchBy  = 'area_code' | 'city' | 'state';
 
 const COUNTRY_FLAGS: Record<string, string> = {
   BR: '🇧🇷', US: '🇺🇸', CA: '🇨🇦', GB: '🇬🇧',
@@ -48,10 +50,18 @@ const COUNTRY_FLAGS: Record<string, string> = {
   CO: '🇨🇴', PT: '🇵🇹', ES: '🇪🇸',
 };
 
+const SEARCH_BY_CONFIG: Record<SearchBy, { label: string; placeholder: string }> = {
+  area_code: { label: 'Código de área / DDD', placeholder: 'Ex: 11, 415, 21...' },
+  city:      { label: 'Cidade / Região',       placeholder: 'Ex: São Paulo, Auckland...' },
+  state:     { label: 'Estado / Província',    placeholder: 'Ex: SP, CA, ON...' },
+};
+
 export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Props) {
   const [step, setStep]               = useState<Step>(1);
   const [country, setCountry]         = useState('BR');
-  const [ndc, setNdc]                 = useState('');
+  const [phoneType, setPhoneType]     = useState<PhoneType>('all');
+  const [searchBy, setSearchBy]       = useState<SearchBy>('area_code');
+  const [searchValue, setSearchValue] = useState('');
   const [friendlyName, setFriendlyName] = useState('');
   const [results, setResults]         = useState<AvailableNumber[]>([]);
   const [searching, setSearching]     = useState(false);
@@ -88,6 +98,15 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
     return session;
   };
 
+  // ── Descrição legível dos filtros ativos (para logs/toasts) ─────────────────
+  const describeFilters = () => {
+    const parts = [`país: ${country}`];
+    if (phoneType !== 'all') parts.push(`tipo: ${phoneType === 'local' ? 'local' : 'toll-free'}`);
+    const val = searchValue.trim();
+    if (val) parts.push(`${SEARCH_BY_CONFIG[searchBy].label.toLowerCase()}: ${val}`);
+    return parts.join(', ');
+  };
+
   // ── Busca com diagnóstico completo ───────────────────────────────────────────
   const searchNumbers = async () => {
     setSearching(true);
@@ -96,7 +115,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
     setDiagRaw(null);
 
     const t0 = Date.now();
-    log('info', `Iniciando busca — país: ${country}, DDD: ${ndc || '(todos)'}`);
+    log('info', `Iniciando busca — ${describeFilters()}`);
 
     try {
       const session = await getSession();
@@ -106,8 +125,15 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
       }
       log('ok', `Sessão OK — user: ${session.user.email}`);
 
-      const ndcParam = ndc.trim() ? `&ndc=${encodeURIComponent(ndc.trim())}` : '';
-      const url = `${SUPABASE_URL}/functions/v1/telnyx-numbers?action=search&country=${country}&limit=20${ndcParam}`;
+      const params = new URLSearchParams({ action: 'search', country, limit: '20' });
+      if (phoneType !== 'all') params.set('type', phoneType);
+      const val = searchValue.trim();
+      if (val) {
+        if (searchBy === 'area_code') params.set('ndc', val);
+        else if (searchBy === 'city') params.set('locality', val);
+        else if (searchBy === 'state') params.set('state', val);
+      }
+      const url = `${SUPABASE_URL}/functions/v1/telnyx-numbers?${params.toString()}`;
       log('info', `GET ${url}`);
 
       const res = await fetch(url, {
@@ -149,7 +175,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
       log('info', `Total retornado pela API: ${rawNumbers.length} números`);
 
       if (rawNumbers.length === 0) {
-        log('warn', `Nenhum número disponível para ${country}${ndc ? ` DDD ${ndc}` : ''}`);
+        log('warn', `Nenhum número disponível para ${describeFilters()}`);
         if (json.message) log('info', `Mensagem da API: ${json.message}`);
         setDiagOpen(true);
         return;
@@ -177,8 +203,8 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
       setResults(deduped);
 
       if (deduped.length === 0 && masked.length > 0) {
-        log('error', 'Todos os números retornados são placeholders mascarados. A Telnyx não tem números compráveis para esta combinação de país/DDD.');
-        showToast('error', `Nenhum número disponível para compra em ${country}${ndc ? ` DDD ${ndc}` : ''}. Tente outro país ou DDD.`);
+        log('error', 'Todos os números retornados são placeholders mascarados. A Telnyx não tem números compráveis para esta combinação de filtros.');
+        showToast('error', `Nenhum número disponível para compra (${describeFilters()}). Tente outros filtros.`);
       }
 
     } catch (err: any) {
@@ -386,7 +412,13 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
                   <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">País</label>
                   <select
                     value={country}
-                    onChange={(e) => { setCountry(e.target.value); setNdc(''); setResults([]); setSelected(null); setDiagLogs([]); }}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setCountry(next);
+                      if (searchBy === 'state' && next !== 'US' && next !== 'CA') setSearchBy('area_code');
+                      setSearchValue('');
+                      setResults([]); setSelected(null); setDiagLogs([]);
+                    }}
                     className="w-full mt-1 bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm text-graphite-700 focus:outline-none focus:border-brand-primary"
                   >
                     {Object.entries(COUNTRY_FLAGS).map(([code, flag]) => (
@@ -394,15 +426,44 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
                     ))}
                   </select>
                 </div>
-                <div style={{ width: 90 }}>
-                  <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">DDD</label>
+                <div className="flex-1">
+                  <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">Tipo</label>
+                  <select
+                    value={phoneType}
+                    onChange={(e) => setPhoneType(e.target.value as PhoneType)}
+                    className="w-full mt-1 bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm text-graphite-700 focus:outline-none focus:border-brand-primary"
+                  >
+                    <option value="all">Todos os tipos</option>
+                    <option value="local">Local</option>
+                    <option value="toll_free">Toll-Free (0800)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <div style={{ width: 160 }}>
+                  <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">Buscar por</label>
+                  <select
+                    value={searchBy}
+                    onChange={(e) => { setSearchBy(e.target.value as SearchBy); setSearchValue(''); }}
+                    className="w-full mt-1 bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm text-graphite-700 focus:outline-none focus:border-brand-primary"
+                  >
+                    <option value="area_code">Código de área</option>
+                    <option value="city">Cidade/Região</option>
+                    {(country === 'US' || country === 'CA') && (
+                      <option value="state">Estado/Província</option>
+                    )}
+                  </select>
+                </div>
+                <div className="flex-1">
+                  <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">{SEARCH_BY_CONFIG[searchBy].label}</label>
                   <input
-                    value={ndc}
-                    onChange={(e) => setNdc(e.target.value.replace(/\D/g, ''))}
+                    value={searchValue}
+                    onChange={(e) => setSearchValue(searchBy === 'area_code' ? e.target.value.replace(/\D/g, '') : e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && searchNumbers()}
-                    placeholder="ex: 41"
-                    maxLength={5}
-                    className="w-full mt-1 bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm font-mono text-graphite-700 focus:outline-none focus:border-brand-primary"
+                    placeholder={SEARCH_BY_CONFIG[searchBy].placeholder}
+                    maxLength={searchBy === 'area_code' ? 5 : 40}
+                    className={`w-full mt-1 bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm text-graphite-700 focus:outline-none focus:border-brand-primary ${searchBy === 'area_code' ? 'font-mono' : ''}`}
                   />
                 </div>
                 <div className="flex items-end">
@@ -411,7 +472,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
                     disabled={searching}
                     className="px-4 py-2 bg-brand-primary text-white text-sm font-bold rounded-xl hover:bg-brand-primary/90 disabled:opacity-50 border-none cursor-pointer flex items-center gap-2"
                   >
-                    {searching ? <RefreshCw size={14} className="animate-spin" /> : <Hash size={14} />}
+                    {searching ? <RefreshCw size={14} className="animate-spin" /> : <Search size={14} />}
                     Buscar
                   </button>
                 </div>
@@ -435,7 +496,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
 
               {!searching && results.length === 0 && diagLogs.length === 0 && (
                 <div className="text-center py-8 text-graphite-300">
-                  <Hash size={30} className="mx-auto mb-2 opacity-40" />
+                  <Search size={30} className="mx-auto mb-2 opacity-40" />
                   <p className="text-sm font-bold">Selecione um país e clique em Buscar</p>
                 </div>
               )}

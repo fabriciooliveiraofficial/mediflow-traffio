@@ -4,6 +4,10 @@
  * API para comprar e gerenciar números de telefone Telnyx por tenant.
  *
  * GET  /telnyx-numbers?action=search&country=BR&limit=10
+ *      &type=local|toll_free|mobile|national|shared_cost   (opcional)
+ *      &ndc=11           (código de área / DDD, opcional)
+ *      &locality=São+Paulo   (cidade, opcional)
+ *      &state=SP             (estado/província — apenas US/CA, opcional)
  * POST /telnyx-numbers  { action: "purchase", phone_number: "+5511..." }
  * POST /telnyx-numbers  { action: "release",  number_id: "..." }
  * POST /telnyx-numbers  { action: "update",   number_id: "...", friendly_name: "..." }
@@ -65,14 +69,17 @@ serve(async (req: Request) => {
 
     // ── GET: buscar números disponíveis ──────────────────────────────────────
     if (req.method === "GET") {
-      const url     = new URL(req.url);
-      const country = url.searchParams.get("country") ?? "BR";
-      const limit   = parseInt(url.searchParams.get("limit") ?? "10");
-      const ndc     = url.searchParams.get("ndc") ?? undefined;  // DDD / NDC
+      const url      = new URL(req.url);
+      const country  = url.searchParams.get("country") ?? "BR";
+      const limit    = parseInt(url.searchParams.get("limit") ?? "10");
+      const ndc      = url.searchParams.get("ndc") ?? undefined;       // DDD / código de área
+      const type     = url.searchParams.get("type") ?? undefined;      // local | toll_free | mobile | national | shared_cost
+      const locality = url.searchParams.get("locality") ?? undefined;  // cidade
+      const state    = url.searchParams.get("state") ?? undefined;     // estado/província (US/CA)
 
       let numbers: any[] = [];
       try {
-        numbers = await searchAvailableNumbers(apiKey, country, ["voice", "sms"], limit, ndc);
+        numbers = await searchAvailableNumbers(apiKey, country, ["voice", "sms"], limit, ndc, type, locality, state);
       } catch (telnyxErr: any) {
         const msg = telnyxErr.message ?? "Telnyx API error";
         const lower = msg.toLowerCase();

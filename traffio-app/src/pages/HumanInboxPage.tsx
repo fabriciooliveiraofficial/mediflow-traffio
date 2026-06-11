@@ -9,7 +9,7 @@ import {
   StickyNote, Info, X, Calendar, CreditCard,
   AlertTriangle, MoreVertical, ArrowRightLeft, UserCircle2,
   UserPlus, Users, Building2, Tag, CalendarSearch, DollarSign,
-  Mic, Paperclip, Camera, Smile, Film, Play, Pause,
+  Mic, Paperclip, Camera, Smile, Play, Pause,
   FileText, Download, Reply, Pencil, Copy, Forward, Trash2, Zap, ArrowRight, Instagram, Facebook, ChevronDown, ArrowLeft, Settings, Plus
 } from 'lucide-react'
 import data from '@emoji-mart/data'
@@ -28,7 +28,7 @@ import { SidebarDirectoryView } from '../components/SidebarDirectoryView'
 import { SidebarLeadClassifyView } from '../components/SidebarLeadClassifyView'
 import { SidebarPatientEditView } from '../components/SidebarPatientEditView'
 import { ChannelPreferenceSelector } from '../components/channel/ChannelPreferenceSelector'
-import { salesScriptService } from '../services/salesScriptService'
+import { salesScriptService, type SalesScript } from '../services/salesScriptService'
 import { ScriptManagerDrawer } from '../components/ScriptManagerDrawer'
 
 // ─────────────────────────────────────────────
@@ -96,6 +96,7 @@ interface Appointment {
 // Constants
 // ─────────────────────────────────────────────
 
+/*
 const QUICK_REPLIES = [
   { label: 'Saudação', text: 'Olá! 😊 Aqui é a equipe da clínica. Posso ajudar?' },
   { label: 'Aguardar', text: 'Só um momento, estou verificando as informações para você! 🔍' },
@@ -104,6 +105,7 @@ const QUICK_REPLIES = [
   { label: 'Encerramento', text: 'Obrigado pelo contato! 😊 Se precisar de mais alguma coisa, é só nos chamar.' },
   { label: 'Remarca', text: 'Claro! Posso verificar os horários disponíveis para remarcação. Qual data seria melhor para você?' },
 ]
+*/
 
 // ─────────────────────────────────────────────
 // Helpers
@@ -620,6 +622,7 @@ export const ChatInput = memo(({
   const [promptVars, setPromptVars] = useState<string[]>([])
   const [promptValues, setPromptValues] = useState<Record<string, string>>({})
   const [pendingScriptText, setPendingScriptText] = useState('')
+  const [pendingScript, setPendingScript] = useState<SalesScript | null>(null)
 
   // Sync input when editing
   useEffect(() => {
@@ -2352,6 +2355,7 @@ export function HumanInboxPage() {
   }
 
   // ── Stage Management ──────────────────────────
+  /*
   const handleUpdateStage = async (sessionId: string, stage: string) => {
     const { error } = await supabase
       .from('conversation_sessions')
@@ -2360,6 +2364,7 @@ export function HumanInboxPage() {
     if (error) showToast('error', 'Erro ao atualizar etapa: ' + error.message)
     await loadSessions()
   }
+  */
 
   // ── Send message from Sidebar ─────────────────
   const handleSidebarSendMessage = async (text: string) => {
