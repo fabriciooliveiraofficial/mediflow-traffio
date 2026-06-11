@@ -577,8 +577,8 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
         }
       } else if (r.type === 'address') {
         const addr = val?.type === 'address' ? val.address : null;
-        if (!addr?.firstName || !addr?.lastName || !addr?.streetAddress || !addr?.locality) {
-          errors[r.id] = 'Preencha o endereço completo';
+        if (!addr?.streetAddress || !addr?.locality || !addr?.postalCode) {
+          errors[r.id] = 'Preencha o endereço completo (Rua, Cidade e CEP)';
         }
       } else if (r.type === 'document') {
         const doc = val?.type === 'document' ? val : null;
@@ -588,19 +588,45 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
     setRegulatoryErrors(errors);
     return Object.keys(errors).length === 0;
   };
-
+ 
   const submitRegulatoryInfo = async () => {
     if (!validateRegulatoryInfo()) return;
-
+ 
     setSubmitting(true);
     try {
       const session = await getSession();
       if (!session) return;
-
+ 
+      // Localizar o ID do requisito de contato para extrair Nome e Empresa
+      const contactInfoReq = regulatoryRequirements.find(
+        (req) => req.type === 'textual' && (req.name || '').toLowerCase().includes('contact') && (req.name || '').toLowerCase().includes('business')
+      );
+ 
+      let parsedContact = { contact: '', business: '', phone: '' };
+      if (contactInfoReq) {
+        const contactVal = regulatoryData[contactInfoReq.id];
+        if (contactVal?.type === 'textual') {
+          parsedContact = parseContactInfo(contactVal.value);
+        }
+      }
+ 
+      // Dividir o nome completo em primeiro nome e sobrenome
+      const fullName = parsedContact.contact.trim() || 'Clinic Owner';
+      const nameParts = fullName.split(' ').map((p) => p.trim()).filter(Boolean);
+      const contactFirstName = nameParts[0] || 'Clinic';
+      const contactLastName = nameParts.slice(1).join(' ') || 'Owner';
+      const contactBusiness = parsedContact.business.trim() || 'N/A';
+ 
       const regulatory_data = regulatoryRequirements.map((r) => {
         const val = regulatoryData[r.id];
         if (r.type === 'address' && val?.type === 'address') {
-          return { requirement_id: r.id, type: 'address', address: val.address };
+          const updatedAddress = {
+            ...val.address,
+            firstName: contactFirstName,
+            lastName: contactLastName,
+            businessName: contactBusiness,
+          };
+          return { requirement_id: r.id, type: 'address', address: updatedAddress };
         }
         if (r.type === 'document' && val?.type === 'document') {
           return { requirement_id: r.id, type: 'document', document_id: val.documentId };
@@ -1202,16 +1228,11 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
 
                     {r.type === 'address' && (
                       <div className="space-y-2 p-3 bg-ice-50 border border-ice-200 rounded-xl">
-                        <div className="flex gap-2">
-                          <div className="flex-1">{regAddressField(r.id, 'firstName', 'Nome', 'João')}</div>
-                          <div className="flex-1">{regAddressField(r.id, 'lastName', 'Sobrenome', 'Silva')}</div>
-                        </div>
-                        {regAddressField(r.id, 'businessName', 'Empresa (opcional)', 'Empresa LTDA')}
                         {regAddressField(r.id, 'streetAddress', 'Endereço', 'Rua / Av., número')}
-                        <div className="flex gap-2">
-                          <div className="flex-1">{regAddressField(r.id, 'locality', 'Cidade', 'Auckland')}</div>
-                          <div style={{ width: 110 }}>{regAddressField(r.id, 'administrativeArea', 'Estado/Região', '')}</div>
-                          <div style={{ width: 110 }}>{regAddressField(r.id, 'postalCode', 'CEP', '')}</div>
+                        <div className="flex gap-2 flex-wrap sm:flex-nowrap">
+                          <div className="flex-1 min-w-[120px]">{regAddressField(r.id, 'locality', 'Cidade', 'Auckland')}</div>
+                          <div className="flex-1 min-w-[100px]">{regAddressField(r.id, 'administrativeArea', 'Estado/Região', '')}</div>
+                          <div className="w-full sm:w-[100px]">{regAddressField(r.id, 'postalCode', 'CEP', '')}</div>
                         </div>
                       </div>
                     )}
