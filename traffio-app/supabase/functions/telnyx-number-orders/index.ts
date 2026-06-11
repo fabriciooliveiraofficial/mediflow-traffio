@@ -22,7 +22,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { getTelnyxApiKey, getTelnyxConnectionId } from "../_shared/masterConfig.ts";
-import { purchaseNumber, createNumberOrder, releaseNumber } from "../_shared/telnyxClient.ts";
+import {
+  purchaseNumber, createNumberOrder, releaseNumber,
+  getRequirements, createAddress, uploadDocument, createRequirementGroup, fillRequirementGroup,
+} from "../_shared/telnyxClient.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 // Países que exigem KYC antes da compra
@@ -95,7 +98,58 @@ serve(async (req: Request) => {
         return json({ data: orders ?? [] });
       }
 
+      // Lista os requisitos regulatórios da Telnyx para país+tipo, e indica se
+      // o tenant já possui um requirement_group preenchido para reuso silencioso.
+      if (action === "get_requirements") {
+        const country         = url.searchParams.get("country");
+        const phoneNumberType = url.searchParams.get("type") ?? "local";
+        if (!country) return json({ error: "country required" }, 400);
+
+        const countryCode = country.toUpperCase();
+
+        let requirements: any[] = [];
+        try {
+          requirements = await getRequirements(apiKey, countryCode, phoneNumberType);
+        } catch (e: any) {
+          console.error(`[telnyx-number-orders] getRequirements failed: ${e.message}`);
+          return json({ error: `Telnyx: ${e.message}` }, 502);
+        }
+
+        const { data: cached } = await supabase
+          .from("tenant_requirement_groups")
+          .select("telnyx_requirement_group_id, status, regulatory_requirements, updated_at")
+          .eq("tenant_id", tenantId)
+          .eq("country_code", countryCode)
+          .eq("phone_number_type", phoneNumberType)
+          .maybeSingle();
+
+        return json({ data: { requirements, cached: cached ?? null } });
+      }
+
       return json({ error: "Unknown action" }, 400);
+    }
+
+    // ── POST (multipart) ────────────────────────────────────────────────────
+    // Upload de documento regulatório (requirement do tipo "document") direto
+    // para a Telnyx — usado por submit_regulatory_info em seguida.
+    const contentType = req.headers.get("content-type") ?? "";
+    if (contentType.includes("multipart/form-data")) {
+      const form = await req.formData();
+      const action = form.get("action");
+
+      if (action === "upload_regulatory_document") {
+        const file = form.get("file");
+        if (!(file instanceof File)) return json({ error: "file required" }, 400);
+
+        try {
+          const documentId = await uploadDocument(apiKey, file, file.name);
+          return json({ data: { document_id: documentId, file_name: file.name } });
+        } catch (e: any) {
+          return json({ error: `Telnyx: ${e.message}` }, 502);
+        }
+      }
+
+      return json({ error: `Unknown action: ${action}` }, 400);
     }
 
     // ── POST ─────────────────────────────────────────────────────────────────
@@ -104,7 +158,7 @@ serve(async (req: Request) => {
 
     // ── create_order ─────────────────────────────────────────────────────────
     if (action === "create_order") {
-      const { phone_number, country_code, holder_type, holder_info, friendly_name } = body;
+      const { phone_number, country_code, phone_number_type, holder_type, holder_info, friendly_name } = body;
       if (!phone_number || !country_code) return json({ error: "phone_number e country_code são obrigatórios" }, 400);
 
       const needsKyc = KYC_COUNTRIES.has(country_code.toUpperCase());
@@ -115,17 +169,31 @@ serve(async (req: Request) => {
           return json({ error: "Número inválido. Este número não está disponível para compra. Busque novamente." }, 422);
         }
 
+        // Reusar requirement_group já preenchido para este tenant/país/tipo, se houver
+        let requirementGroupId: string | undefined;
+        if (phone_number_type) {
+          const { data: cachedGroup } = await supabase
+            .from("tenant_requirement_groups")
+            .select("telnyx_requirement_group_id")
+            .eq("tenant_id", tenantId)
+            .eq("country_code", country_code.toUpperCase())
+            .eq("phone_number_type", phone_number_type)
+            .maybeSingle();
+          requirementGroupId = cachedGroup?.telnyx_requirement_group_id;
+        }
+
         // Compra imediata — sem KYC
         let result: any;
         try {
-          result = await purchaseNumber(apiKey, phone_number, connectionId || undefined);
+          result = await purchaseNumber(apiKey, phone_number, connectionId || undefined, requirementGroupId);
         } catch (purchaseErr: any) {
           const msg = (purchaseErr.message ?? "").toLowerCase();
           if (
             msg.includes("not be found") || msg.includes("not found") || msg.includes("404") ||
-            msg.includes("unavailable") || msg.includes("not available") || msg.includes("no longer available")
+            msg.includes("unavailable") || msg.includes("not available") || msg.includes("no longer available") ||
+            msg.includes("don't recognize") || msg.includes("do not recognize") || msg.includes("did you first search")
           ) {
-            return json({ error: "Número não disponível para compra. Ele pode ter sido reservado por outro cliente. Por favor, busque um novo número." }, 422);
+            return json({ error: "Número não disponível para compra. Ele pode ter sido reservado por outro cliente ou já foi adquirido anteriormente. Por favor, busque um novo número." }, 422);
           }
           throw purchaseErr;
         }
@@ -152,9 +220,19 @@ serve(async (req: Request) => {
           throw new Error(`Erro ao salvar número no banco de dados: ${insertErr.message}`);
         }
 
-        await logAudit(supabase, tenantId, user.id, "number_purchased_instant", phone_number);
-        console.log(`[telnyx-number-orders] ✓ Instant purchase: ${phone_number} | tenant: ${tenantId}`);
-        return json({ data: { instant: true, phone_number: result.phoneNumber ?? phone_number, status: "completed" } });
+        const pendingReview = result.requirementsMet === false;
+
+        await logAudit(supabase, tenantId, user.id, "number_purchased_instant", phone_number,
+          pendingReview ? { requirements_status: result.requirementsStatus } : undefined);
+        console.log(`[telnyx-number-orders] ✓ Instant purchase: ${phone_number} | tenant: ${tenantId}` +
+          (pendingReview ? ` (pending requirements review: ${result.requirementsStatus})` : ""));
+
+        return json({ data: {
+          instant:         true,
+          phone_number:    result.phoneNumber ?? phone_number,
+          status:          pendingReview ? "pending_review" : "completed",
+          pending_review:  pendingReview,
+        } });
       }
 
       // KYC — criar pedido
@@ -184,6 +262,87 @@ serve(async (req: Request) => {
       await logAudit(supabase, tenantId, user.id, "number_order_created", phone_number, { order_id: order.id, country_code });
       console.log(`[telnyx-number-orders] ✓ Order created: ${order.id} | ${phone_number} | tenant: ${tenantId}`);
       return json({ data: { instant: false, order_id: order.id, status: "pending_docs", phone_number } }, 201);
+    }
+
+    // ── submit_regulatory_info ───────────────────────────────────────────────
+    // Recebe os dados preenchidos pelo usuário no formulário dinâmico de
+    // requisitos regulatórios da Telnyx, cria/preenche um requirement_group e
+    // cacheia o resultado para reuso silencioso em compras futuras do mesmo
+    // tenant + país + tipo de número.
+    if (action === "submit_regulatory_info") {
+      const { country_code, phone_number_type, regulatory_data } = body;
+      if (!country_code || !phone_number_type || !Array.isArray(regulatory_data)) {
+        return json({ error: "country_code, phone_number_type e regulatory_data são obrigatórios" }, 400);
+      }
+
+      const countryCode = country_code.toUpperCase();
+
+      // Resolver field_value de cada requirement conforme seu tipo
+      const regulatoryRequirements: { requirement_id: string; field_value: string }[] = [];
+      try {
+        for (const item of regulatory_data) {
+          if (item.type === "address") {
+            const addr = item.address ?? {};
+            const addressId = await createAddress(apiKey, {
+              firstName:          addr.firstName,
+              lastName:           addr.lastName,
+              businessName:       addr.businessName,
+              streetAddress:      addr.streetAddress,
+              locality:           addr.locality,
+              administrativeArea: addr.administrativeArea,
+              postalCode:         addr.postalCode,
+              countryCode,
+            });
+            regulatoryRequirements.push({ requirement_id: item.requirement_id, field_value: addressId });
+          } else if (item.type === "document") {
+            if (!item.document_id) return json({ error: `document_id ausente para o requisito ${item.requirement_id}` }, 400);
+            regulatoryRequirements.push({ requirement_id: item.requirement_id, field_value: item.document_id });
+          } else {
+            regulatoryRequirements.push({ requirement_id: item.requirement_id, field_value: item.value ?? "" });
+          }
+        }
+      } catch (e: any) {
+        return json({ error: `Telnyx: ${e.message}` }, 502);
+      }
+
+      // Reusar requirement_group existente (se houver) ou criar um novo
+      const { data: existingGroup } = await supabase
+        .from("tenant_requirement_groups")
+        .select("telnyx_requirement_group_id")
+        .eq("tenant_id", tenantId)
+        .eq("country_code", countryCode)
+        .eq("phone_number_type", phone_number_type)
+        .maybeSingle();
+
+      let groupId: string;
+      try {
+        if (existingGroup?.telnyx_requirement_group_id) {
+          groupId = existingGroup.telnyx_requirement_group_id;
+          await fillRequirementGroup(apiKey, groupId, regulatoryRequirements);
+        } else {
+          groupId = await createRequirementGroup(apiKey, countryCode, phone_number_type);
+          await fillRequirementGroup(apiKey, groupId, regulatoryRequirements);
+        }
+      } catch (e: any) {
+        return json({ error: `Telnyx: ${e.message}` }, 502);
+      }
+
+      await supabase.from("tenant_requirement_groups").upsert({
+        tenant_id:                   tenantId,
+        country_code:                countryCode,
+        phone_number_type,
+        telnyx_requirement_group_id: groupId,
+        regulatory_requirements:     regulatoryRequirements,
+        status:                      "unapproved",
+        updated_at:                  new Date().toISOString(),
+      }, { onConflict: "tenant_id,country_code,phone_number_type" });
+
+      await logAudit(supabase, tenantId, user.id, "regulatory_info_submitted", "", {
+        country_code: countryCode, phone_number_type, requirement_group_id: groupId,
+      });
+      console.log(`[telnyx-number-orders] ✓ Requirement group ${groupId} preenchido | ${countryCode}/${phone_number_type} | tenant: ${tenantId}`);
+
+      return json({ data: { requirement_group_id: groupId } });
     }
 
     // ── submit_docs ───────────────────────────────────────────────────────────
@@ -266,13 +425,17 @@ serve(async (req: Request) => {
 });
 
 async function logAudit(supabase: any, tenantId: string, userId: string, action: string, phone: string, extra?: any) {
-  await supabase.from("audit_logs").insert({
-    tenant_id:  tenantId,
-    user_id:    userId,
-    action,
-    table_name: "number_order_requests",
-    new_data:   { phone_number: phone, ...extra },
-  }).catch(() => {});
+  try {
+    await supabase.from("audit_logs").insert({
+      tenant_id:  tenantId,
+      user_id:    userId,
+      action,
+      table_name: "number_order_requests",
+      new_data:   { phone_number: phone, ...extra },
+    });
+  } catch (e: any) {
+    console.error(`[telnyx-number-orders] logAudit failed: ${e.message}`);
+  }
 }
 
 function json(data: any, status = 200) {

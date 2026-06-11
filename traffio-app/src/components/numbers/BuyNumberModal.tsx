@@ -18,13 +18,49 @@ import {
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 
 interface AvailableNumber {
-  phoneNumber: string;
-  city:        string;
-  regionCode:  string;
-  countryCode: string;
-  monthlyCost: string;
-  features:    string[];
+  phoneNumber:     string;
+  city:            string;
+  regionCode:      string;
+  countryCode:     string;
+  monthlyCost:     string;
+  features:        string[];
+  phoneNumberType: string;
 }
+
+// ── Requisitos regulatórios da Telnyx (formulário dinâmico) ──────────────────
+interface RegulatoryRequirementType {
+  id:          string;
+  name:        string;
+  type:        'textual' | 'address' | 'document';
+  description: string;
+  example:     string;
+  acceptanceCriteria: {
+    minLength?:            number;
+    maxLength?:            number;
+    acceptableValues?:     string[];
+    acceptableCharacters?: string;
+  };
+}
+
+interface RegulatoryAddress {
+  firstName:          string;
+  lastName:           string;
+  businessName:       string;
+  streetAddress:      string;
+  locality:           string;
+  administrativeArea: string;
+  postalCode:         string;
+}
+
+const EMPTY_REGULATORY_ADDRESS: RegulatoryAddress = {
+  firstName: '', lastName: '', businessName: '', streetAddress: '',
+  locality: '', administrativeArea: '', postalCode: '',
+};
+
+type RegulatoryFieldValue =
+  | { type: 'textual'; value: string }
+  | { type: 'address'; address: RegulatoryAddress }
+  | { type: 'document'; documentId?: string; fileName?: string };
 
 interface DiagEntry {
   ts:      string;
@@ -40,7 +76,7 @@ interface Props {
   showToast:   (type: 'success' | 'error', msg: string) => void;
 }
 
-type Step = 1 | 2 | 3 | 4;
+type Step = 1 | 2 | 3 | 4 | 5;
 type PhoneType = 'all' | 'local' | 'toll_free';
 type SearchBy  = 'area_code' | 'city' | 'state';
 
@@ -76,6 +112,13 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
 
   const [submitting, setSubmitting]   = useState(false);
   const [done, setDone]               = useState(false);
+
+  // ── Requisitos regulatórios da Telnyx (etapa 5, países não-KYC) ────────────
+  const [checkingRequirements, setCheckingRequirements] = useState(false);
+  const [hasRegulatoryStep, setHasRegulatoryStep]       = useState(false);
+  const [regulatoryRequirements, setRegulatoryRequirements] = useState<RegulatoryRequirementType[]>([]);
+  const [regulatoryData, setRegulatoryData]           = useState<Record<string, RegulatoryFieldValue>>({});
+  const [regulatoryErrors, setRegulatoryErrors]       = useState<Record<string, string>>({});
 
   // ── Diagnóstico ─────────────────────────────────────────────────────────────
   const [diagLogs, setDiagLogs]       = useState<DiagEntry[]>([]);
@@ -216,10 +259,163 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
     }
   };
 
-  const selectNumber = (num: AvailableNumber) => {
+  const selectNumber = async (num: AvailableNumber) => {
     setSelected(num);
-    if (!req.needsDocs) setStep(4);
-    else setStep(2);
+    if (req.needsDocs) { setStep(2); return; }
+    await checkRegulatoryRequirements(num);
+  };
+
+  // Consulta a Telnyx para saber se este país/tipo exige dados regulatórios
+  // (endereço, contato, documentos). Se o tenant já tiver um requirement_group
+  // preenchido para essa combinação, ou se não houver exigências, segue direto
+  // para a confirmação — totalmente silencioso.
+  const checkRegulatoryRequirements = async (num: AvailableNumber) => {
+    setCheckingRequirements(true);
+    try {
+      const session = await getSession();
+      if (!session) { setHasRegulatoryStep(false); setStep(4); return; }
+
+      const params = new URLSearchParams({
+        action: 'get_requirements',
+        country,
+        type:   num.phoneNumberType || 'local',
+      });
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/telnyx-number-orders?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const json = await res.json();
+
+      if (json.error) {
+        log('warn', `Não foi possível verificar requisitos regulatórios: ${json.error}`);
+        setHasRegulatoryStep(false);
+        setStep(4);
+        return;
+      }
+
+      const requirements: RegulatoryRequirementType[] = json.data?.requirements ?? [];
+      const cached = json.data?.cached ?? null;
+
+      if (requirements.length > 0 && !cached) {
+        const initial: Record<string, RegulatoryFieldValue> = {};
+        for (const r of requirements) {
+          if (r.type === 'address') initial[r.id] = { type: 'address', address: { ...EMPTY_REGULATORY_ADDRESS } };
+          else if (r.type === 'document') initial[r.id] = { type: 'document' };
+          else initial[r.id] = { type: 'textual', value: '' };
+        }
+        setRegulatoryRequirements(requirements);
+        setRegulatoryData(initial);
+        setRegulatoryErrors({});
+        setHasRegulatoryStep(true);
+        setStep(5);
+      } else {
+        setHasRegulatoryStep(false);
+        setStep(4);
+      }
+    } catch (err: any) {
+      log('warn', `Erro ao verificar requisitos regulatórios: ${err.message}`);
+      setHasRegulatoryStep(false);
+      setStep(4);
+    } finally {
+      setCheckingRequirements(false);
+    }
+  };
+
+  const updateRegulatoryTextual = (requirementId: string, value: string) => {
+    setRegulatoryData((d) => ({ ...d, [requirementId]: { type: 'textual', value } }));
+    if (regulatoryErrors[requirementId]) setRegulatoryErrors((e) => { const c = { ...e }; delete c[requirementId]; return c; });
+  };
+
+  const updateRegulatoryAddress = (requirementId: string, key: keyof RegulatoryAddress, value: string) => {
+    setRegulatoryData((d) => {
+      const current = d[requirementId];
+      const addr = current?.type === 'address' ? current.address : EMPTY_REGULATORY_ADDRESS;
+      return { ...d, [requirementId]: { type: 'address', address: { ...addr, [key]: value } } };
+    });
+    if (regulatoryErrors[requirementId]) setRegulatoryErrors((e) => { const c = { ...e }; delete c[requirementId]; return c; });
+  };
+
+  const uploadRegulatoryDocument = async (requirementId: string, file: File) => {
+    const session = await getSession();
+    if (!session) return;
+
+    const form = new FormData();
+    form.append('action', 'upload_regulatory_document');
+    form.append('file', file);
+
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/telnyx-number-orders`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session.access_token}` },
+      body: form,
+    });
+    const json = await res.json();
+    if (json.error) { showToast('error', json.error); return; }
+
+    setRegulatoryData((d) => ({ ...d, [requirementId]: { type: 'document', documentId: json.data.document_id, fileName: json.data.file_name } }));
+    if (regulatoryErrors[requirementId]) setRegulatoryErrors((e) => { const c = { ...e }; delete c[requirementId]; return c; });
+  };
+
+  const validateRegulatoryInfo = (): boolean => {
+    const errors: Record<string, string> = {};
+    for (const r of regulatoryRequirements) {
+      const val = regulatoryData[r.id];
+      if (r.type === 'textual') {
+        const text = (val?.type === 'textual' ? val.value : '').trim();
+        if (!text) {
+          errors[r.id] = 'Campo obrigatório';
+        } else if (r.acceptanceCriteria.minLength && text.length < r.acceptanceCriteria.minLength) {
+          errors[r.id] = `Mínimo de ${r.acceptanceCriteria.minLength} caracteres`;
+        } else if (r.acceptanceCriteria.maxLength && text.length > r.acceptanceCriteria.maxLength) {
+          errors[r.id] = `Máximo de ${r.acceptanceCriteria.maxLength} caracteres`;
+        }
+      } else if (r.type === 'address') {
+        const addr = val?.type === 'address' ? val.address : null;
+        if (!addr?.firstName || !addr?.lastName || !addr?.streetAddress || !addr?.locality) {
+          errors[r.id] = 'Preencha o endereço completo';
+        }
+      } else if (r.type === 'document') {
+        const doc = val?.type === 'document' ? val : null;
+        if (!doc?.documentId) errors[r.id] = 'Envie o documento';
+      }
+    }
+    setRegulatoryErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const submitRegulatoryInfo = async () => {
+    if (!validateRegulatoryInfo()) return;
+
+    setSubmitting(true);
+    try {
+      const session = await getSession();
+      if (!session) return;
+
+      const regulatory_data = regulatoryRequirements.map((r) => {
+        const val = regulatoryData[r.id];
+        if (r.type === 'address' && val?.type === 'address') {
+          return { requirement_id: r.id, type: 'address', address: val.address };
+        }
+        if (r.type === 'document' && val?.type === 'document') {
+          return { requirement_id: r.id, type: 'document', document_id: val.documentId };
+        }
+        return { requirement_id: r.id, type: 'textual', value: val?.type === 'textual' ? val.value : '' };
+      });
+
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/telnyx-number-orders`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action:             'submit_regulatory_info',
+          country_code:       country,
+          phone_number_type:  selected!.phoneNumberType || 'local',
+          regulatory_data,
+        }),
+      });
+      const json = await res.json();
+      if (json.error) { showToast('error', json.error); return; }
+      setStep(4);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const validateHolder = (): boolean => {
@@ -301,10 +497,11 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
         method: 'POST',
         headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action:        'create_order',
-          phone_number:  selected!.phoneNumber,
-          country_code:  country,
-          friendly_name: friendlyName || undefined,
+          action:            'create_order',
+          phone_number:      selected!.phoneNumber,
+          country_code:      country,
+          phone_number_type: selected!.phoneNumberType || 'local',
+          friendly_name:     friendlyName || undefined,
         }),
       });
       const json = await res.json();
@@ -312,7 +509,11 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
         showToast('error', json.error);
         return;
       }
-      showToast('success', `Número ${selected!.phoneNumber} adquirido com sucesso!`);
+      if (json.data?.pending_review) {
+        showToast('success', `Número ${selected!.phoneNumber} adquirido! Aguardando revisão da Telnyx.`);
+      } else {
+        showToast('success', `Número ${selected!.phoneNumber} adquirido com sucesso!`);
+      }
       onPurchased(selected!.phoneNumber);
       onClose();
     } finally {
@@ -338,11 +539,46 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
     </div>
   );
 
+  const goBack = () => {
+    if (step === 5) { setStep(1); return; }
+    if (step === 4) {
+      if (hasRegulatoryStep) { setStep(5); return; }
+      if (!req.needsDocs) { setStep(1); return; }
+      setStep(3);
+      return;
+    }
+    if (step > 1) { setStep((s) => (s - 1) as Step); return; }
+    onClose();
+  };
+
+  const regAddressField = (requirementId: string, key: keyof RegulatoryAddress, label: string, placeholder: string) => {
+    const val  = regulatoryData[requirementId];
+    const addr = val?.type === 'address' ? val.address : EMPTY_REGULATORY_ADDRESS;
+    return (
+      <div>
+        <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">{label}</label>
+        <input
+          type="text"
+          value={addr[key] ?? ''}
+          onChange={(e) => updateRegulatoryAddress(requirementId, key, e.target.value)}
+          placeholder={placeholder}
+          className="w-full mt-1 bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm text-graphite-700 focus:outline-none focus:border-brand-primary"
+        />
+      </div>
+    );
+  };
+
   const STEPS = req.needsDocs
     ? ['Buscar', 'Titular', 'Documentos', 'Confirmar']
-    : ['Buscar', 'Confirmar'];
+    : hasRegulatoryStep
+      ? ['Buscar', 'Dados', 'Confirmar']
+      : ['Buscar', 'Confirmar'];
 
-  const displayStep = req.needsDocs ? step : (step === 4 ? 2 : 1);
+  const displayStep = req.needsDocs
+    ? step
+    : hasRegulatoryStep
+      ? (step === 5 ? 2 : step === 4 ? 3 : 1)
+      : (step === 4 ? 2 : 1);
 
   const diagLevelColor: Record<DiagEntry['level'], string> = {
     info:  'text-graphite-400',
@@ -418,6 +654,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
                       if (searchBy === 'state' && next !== 'US' && next !== 'CA') setSearchBy('area_code');
                       setSearchValue('');
                       setResults([]); setSelected(null); setDiagLogs([]);
+                      setHasRegulatoryStep(false); setRegulatoryRequirements([]); setRegulatoryData({}); setRegulatoryErrors({});
                     }}
                     className="w-full mt-1 bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm text-graphite-700 focus:outline-none focus:border-brand-primary"
                   >
@@ -508,8 +745,9 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
                   return (
                     <button
                       key={`${num.phoneNumber}-${idx}`}
-                      onClick={() => selectNumber(num)}
-                      className="w-full flex items-center justify-between p-3 bg-ice-50 border border-ice-100 rounded-2xl hover:border-brand-primary/50 hover:bg-brand-primary/5 transition-all cursor-pointer text-left"
+                      onClick={() => !checkingRequirements && selectNumber(num)}
+                      disabled={checkingRequirements}
+                      className="w-full flex items-center justify-between p-3 bg-ice-50 border border-ice-100 rounded-2xl hover:border-brand-primary/50 hover:bg-brand-primary/5 transition-all cursor-pointer text-left disabled:opacity-50 disabled:cursor-default"
                     >
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-black text-graphite-800 font-mono">{num.phoneNumber}</p>
@@ -527,7 +765,11 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
                           )}
                         </div>
                       </div>
-                      <ChevronRight size={16} className="text-brand-primary shrink-0 ml-2" />
+                      {checkingRequirements && selected?.phoneNumber === num.phoneNumber ? (
+                        <RefreshCw size={16} className="text-brand-primary shrink-0 ml-2 animate-spin" />
+                      ) : (
+                        <ChevronRight size={16} className="text-brand-primary shrink-0 ml-2" />
+                      )}
                     </button>
                   );
                 })}
@@ -686,6 +928,14 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
                     Você receberá uma notificação quando o número for ativado.
                   </p>
                 </div>
+              ) : hasRegulatoryStep ? (
+                <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-xl">
+                  <Info size={14} className="text-blue-500 mt-0.5 shrink-0" />
+                  <p className="text-xs text-blue-700">
+                    A Telnyx pode levar alguns minutos para revisar as informações regulatórias.
+                    O número já fica disponível e ativa automaticamente após a aprovação.
+                  </p>
+                </div>
               ) : (
                 <div className="flex items-start gap-2 p-3 bg-green-50 border border-green-200 rounded-xl">
                   <CheckCheck size={14} className="text-green-500 mt-0.5 shrink-0" />
@@ -694,6 +944,86 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
                   </p>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* ETAPA 5 — Dados regulatórios (Telnyx) */}
+          {step === 5 && (
+            <div className="space-y-4">
+              <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-xl">
+                <Info size={14} className="text-blue-500 mt-0.5 shrink-0" />
+                <p className="text-xs text-blue-700">
+                  A Telnyx exige algumas informações adicionais para números de {COUNTRY_FLAGS[country]} {country}.
+                  Esses dados ficam salvos e serão reutilizados automaticamente nas próximas compras deste país.
+                </p>
+              </div>
+
+              {regulatoryRequirements.map((r) => (
+                <div key={r.id} className="space-y-1.5">
+                  <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">{r.name}</label>
+                  {r.description && <p className="text-xs text-graphite-400">{r.description}</p>}
+
+                  {r.type === 'textual' && (
+                    r.acceptanceCriteria.acceptableValues?.length ? (
+                      <select
+                        value={regulatoryData[r.id]?.type === 'textual' ? regulatoryData[r.id].value : ''}
+                        onChange={(e) => updateRegulatoryTextual(r.id, e.target.value)}
+                        className={`w-full bg-ice-50 border rounded-xl px-3 py-2 text-sm text-graphite-700 focus:outline-none focus:border-brand-primary ${regulatoryErrors[r.id] ? 'border-red-300' : 'border-ice-200'}`}
+                      >
+                        <option value="">Selecione...</option>
+                        {r.acceptanceCriteria.acceptableValues.map((v) => <option key={v} value={v}>{v}</option>)}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        value={regulatoryData[r.id]?.type === 'textual' ? regulatoryData[r.id].value : ''}
+                        onChange={(e) => updateRegulatoryTextual(r.id, e.target.value)}
+                        placeholder={r.example || undefined}
+                        maxLength={r.acceptanceCriteria.maxLength}
+                        className={`w-full bg-ice-50 border rounded-xl px-3 py-2 text-sm text-graphite-700 focus:outline-none focus:border-brand-primary ${regulatoryErrors[r.id] ? 'border-red-300' : 'border-ice-200'}`}
+                      />
+                    )
+                  )}
+
+                  {r.type === 'address' && (
+                    <div className="space-y-2 p-3 bg-ice-50 border border-ice-200 rounded-xl">
+                      <div className="flex gap-2">
+                        <div className="flex-1">{regAddressField(r.id, 'firstName', 'Nome', 'João')}</div>
+                        <div className="flex-1">{regAddressField(r.id, 'lastName', 'Sobrenome', 'Silva')}</div>
+                      </div>
+                      {regAddressField(r.id, 'businessName', 'Empresa (opcional)', 'Empresa LTDA')}
+                      {regAddressField(r.id, 'streetAddress', 'Endereço', 'Rua / Av., número')}
+                      <div className="flex gap-2">
+                        <div className="flex-1">{regAddressField(r.id, 'locality', 'Cidade', 'Auckland')}</div>
+                        <div style={{ width: 110 }}>{regAddressField(r.id, 'administrativeArea', 'Estado/Região', '')}</div>
+                        <div style={{ width: 110 }}>{regAddressField(r.id, 'postalCode', 'CEP', '')}</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {r.type === 'document' && (
+                    <div>
+                      <label className="flex items-center gap-2 px-3 py-2 bg-ice-50 border border-ice-200 rounded-xl cursor-pointer hover:border-brand-primary/50 transition-colors text-sm text-graphite-500">
+                        <FileText size={14} />
+                        {regulatoryData[r.id]?.type === 'document' && regulatoryData[r.id].fileName
+                          ? regulatoryData[r.id].fileName
+                          : 'Selecionar arquivo (PDF, JPG ou PNG)'}
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,application/pdf"
+                          onChange={(e) => e.target.files?.[0] && uploadRegulatoryDocument(r.id, e.target.files[0])}
+                          className="hidden"
+                        />
+                      </label>
+                      {regulatoryData[r.id]?.type === 'document' && regulatoryData[r.id].fileName && (
+                        <p className="text-[10px] text-green-600 mt-1">✓ Documento enviado</p>
+                      )}
+                    </div>
+                  )}
+
+                  {regulatoryErrors[r.id] && <p className="text-[10px] text-red-500">{regulatoryErrors[r.id]}</p>}
+                </div>
+              ))}
             </div>
           )}
 
@@ -718,7 +1048,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
         {!done && (
           <div className="px-6 py-4 border-t border-ice-100 flex items-center justify-between shrink-0">
             <button
-              onClick={() => step > 1 ? setStep((s) => (s - 1) as Step) : onClose()}
+              onClick={goBack}
               className="flex items-center gap-1.5 text-sm text-graphite-400 hover:text-graphite-600 transition-colors border-none cursor-pointer bg-transparent"
             >
               <ChevronLeft size={16} />
@@ -772,6 +1102,17 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
               >
                 {submitting ? <RefreshCw size={14} className="animate-spin" /> : <FileText size={14} />}
                 Enviar para análise
+              </button>
+            )}
+
+            {step === 5 && (
+              <button
+                onClick={submitRegulatoryInfo}
+                disabled={submitting}
+                className="flex items-center gap-2 px-5 py-2 bg-brand-primary text-white text-sm font-bold rounded-xl hover:bg-brand-primary/90 disabled:opacity-50 transition-colors border-none cursor-pointer"
+              >
+                {submitting ? <RefreshCw size={14} className="animate-spin" /> : null}
+                Continuar <ChevronRight size={16} />
               </button>
             )}
           </div>

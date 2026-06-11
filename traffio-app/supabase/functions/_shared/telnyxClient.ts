@@ -42,18 +42,49 @@ async function telnyxRequest(
 // ─── Number Management ────────────────────────────────────────────────────────
 
 export interface AvailableNumber {
-  phoneNumber:   string;
-  countryCode:   string;
-  regionCode:    string;
-  city:          string;
-  monthlyCost:   string;
-  features:      string[];   // ["voice", "sms"]
+  phoneNumber:     string;
+  countryCode:     string;
+  regionCode:      string;
+  city:            string;
+  monthlyCost:     string;
+  features:        string[];   // ["voice", "sms"]
+  phoneNumberType: string;     // "local" | "toll_free" | "mobile" | "national" | "shared_cost"
 }
 
 export interface TenantNumber {
-  id:          string;
-  phoneNumber: string;
-  status:      string;
+  id:                 string;
+  phoneNumber:        string;
+  status:             string;
+  requirementsMet?:   boolean;
+  requirementsStatus?: string; // "pending" | "approved" | "requirement-info-pending" | ...
+}
+
+// ─── Regulatory Requirements ─────────────────────────────────────────────────
+
+export interface RegulatoryRequirementType {
+  id:          string;   // requirement_id usado em regulatory_requirements
+  name:        string;
+  type:        "textual" | "address" | "document";
+  description: string;
+  example:     string;
+  acceptanceCriteria: {
+    minLength?:          number;
+    maxLength?:          number;
+    acceptableValues?:   string[];
+    acceptableCharacters?: string;
+  };
+}
+
+export interface RegulatoryAddressInput {
+  firstName:          string;
+  lastName:           string;
+  businessName?:      string;
+  streetAddress:      string;
+  locality:           string;
+  administrativeArea?: string;
+  postalCode?:        string;
+  countryCode:        string;
+  phoneNumber?:       string;
 }
 
 export async function searchAvailableNumbers(
@@ -98,12 +129,13 @@ export async function searchAvailableNumbers(
 
       if (purchasable.length > 0) {
         return purchasable.map((n) => ({
-          phoneNumber: n.phone_number,
-          countryCode: n.region_information?.[0]?.region_name ?? countryCode,
-          regionCode:  n.region_information?.[0]?.region_code ?? "",
-          city:        n.region_information?.[1]?.region_name ?? "",
-          monthlyCost: n.cost_information?.monthly_cost ?? "0",
-          features:    n.features?.map((f: any) => f.name) ?? [],
+          phoneNumber:     n.phone_number,
+          countryCode:     n.region_information?.[0]?.region_name ?? countryCode,
+          regionCode:      n.region_information?.[0]?.region_code ?? "",
+          city:            n.region_information?.[1]?.region_name ?? "",
+          monthlyCost:     n.cost_information?.monthly_cost ?? "0",
+          features:        n.features?.map((f: any) => f.name) ?? [],
+          phoneNumberType: n.phone_number_type ?? phoneNumberType ?? "local",
         }));
       }
     } catch (err: any) {
@@ -120,10 +152,14 @@ export async function searchAvailableNumbers(
 export async function purchaseNumber(
   apiKey: string,
   phoneNumber: string,
-  connectionId?: string   // Credential Connection ID do softphone
+  connectionId?: string,    // Credential Connection ID do softphone
+  requirementGroupId?: string
 ): Promise<TenantNumber> {
+  const phoneEntry: any = { phone_number: phoneNumber };
+  if (requirementGroupId) phoneEntry.requirement_group_id = requirementGroupId;
+
   const body: any = {
-    phone_numbers: [{ phone_number: phoneNumber }],
+    phone_numbers: [phoneEntry],
   };
   if (connectionId) body.connection_id = connectionId;
 
@@ -135,14 +171,137 @@ export async function purchaseNumber(
   }
 
   return {
-    id:          ordered.id,
-    phoneNumber: ordered.phone_number ?? phoneNumber,
-    status:      ordered.status ?? data.data.status,
+    id:                 ordered.id,
+    phoneNumber:        ordered.phone_number ?? phoneNumber,
+    status:             ordered.status ?? data.data.status,
+    requirementsMet:    ordered.requirements_met,
+    requirementsStatus: ordered.requirements_status,
   };
 }
 
 export async function releaseNumber(apiKey: string, numberId: string): Promise<void> {
   await telnyxRequest(apiKey, "DELETE", `/phone_numbers/${numberId}`);
+}
+
+// ─── Regulatory Requirements ─────────────────────────────────────────────────
+
+/**
+ * Lista os requisitos regulatórios exigidos pela Telnyx para comprar um número
+ * de um país/tipo específico (ex: NZ + local exige Contact Information + Address).
+ * Retorna [] quando não há exigências — fluxo de compra permanece instantâneo.
+ */
+export async function getRequirements(
+  apiKey: string,
+  countryCode: string,
+  phoneNumberType: string
+): Promise<RegulatoryRequirementType[]> {
+  const qs = `filter[country_code]=${encodeURIComponent(countryCode)}` +
+             `&filter[phone_number_type]=${encodeURIComponent(phoneNumberType)}` +
+             `&filter[action]=ordering`;
+
+  const data = await telnyxRequest(apiKey, "GET", `/requirements?${qs}`);
+  const rows: any[] = data.data ?? [];
+
+  const seen = new Map<string, RegulatoryRequirementType>();
+  for (const row of rows) {
+    for (const rt of row.requirements_types ?? []) {
+      if (seen.has(rt.id)) continue;
+      const ac = rt.acceptance_criteria ?? {};
+      seen.set(rt.id, {
+        id:          rt.id,
+        name:        rt.name,
+        type:        rt.type,
+        description: rt.description ?? "",
+        example:     rt.example ?? "",
+        acceptanceCriteria: {
+          minLength:            ac.min_length,
+          maxLength:            ac.max_length,
+          acceptableValues:     ac.acceptable_values,
+          acceptableCharacters: ac.acceptable_characters,
+        },
+      });
+    }
+  }
+
+  return Array.from(seen.values());
+}
+
+/**
+ * Cria um endereço regulatório na Telnyx (sem validação de E911 — o endereço
+ * é usado apenas para fins de compliance regulatório, não para emergência).
+ * Retorna o address id, usado como field_value de um requirement do tipo "address".
+ */
+export async function createAddress(apiKey: string, addr: RegulatoryAddressInput): Promise<string> {
+  const data = await telnyxRequest(apiKey, "POST", "/addresses", {
+    first_name:          addr.firstName,
+    last_name:           addr.lastName,
+    business_name:       addr.businessName,
+    street_address:      addr.streetAddress,
+    locality:            addr.locality,
+    administrative_area: addr.administrativeArea,
+    postal_code:         addr.postalCode,
+    country_code:        addr.countryCode,
+    phone_number:        addr.phoneNumber,
+    validate_address:    false,
+  });
+  return data.data.id;
+}
+
+/**
+ * Envia um documento (multipart) para a Telnyx. Retorna o document id,
+ * usado como field_value de um requirement do tipo "document".
+ */
+export async function uploadDocument(apiKey: string, file: Blob, filename: string): Promise<string> {
+  const form = new FormData();
+  form.append("file", file, filename);
+
+  const res = await fetch(`${TELNYX_API}/documents`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${apiKey}` },
+    body: form,
+  });
+
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : {};
+
+  if (!res.ok) {
+    const errMsg = data.errors?.[0]?.detail ?? data.title ?? `HTTP ${res.status}`;
+    throw new Error(`[Telnyx] POST /documents → ${errMsg}`);
+  }
+
+  return data.data.id;
+}
+
+/**
+ * Cria um requirement_group vazio para um país/tipo. O grupo é reutilizável —
+ * deve ser cacheado por (tenant, country_code, phone_number_type) e preenchido
+ * via fillRequirementGroup.
+ */
+export async function createRequirementGroup(
+  apiKey: string,
+  countryCode: string,
+  phoneNumberType: string
+): Promise<string> {
+  const data = await telnyxRequest(apiKey, "POST", "/requirement_groups", {
+    country_code:      countryCode,
+    phone_number_type: phoneNumberType,
+    action:            "ordering",
+  });
+  return data.data.id;
+}
+
+/**
+ * Preenche (ou atualiza) os valores de um requirement_group existente.
+ */
+export async function fillRequirementGroup(
+  apiKey: string,
+  groupId: string,
+  requirements: { requirement_id: string; field_value: string }[]
+): Promise<any> {
+  const data = await telnyxRequest(apiKey, "PATCH", `/requirement_groups/${groupId}`, {
+    regulatory_requirements: requirements,
+  });
+  return data.data;
 }
 
 // ─── SIP Credentials (WebRTC por agente) ─────────────────────────────────────
