@@ -122,14 +122,22 @@ export async function purchaseNumber(
   phoneNumber: string,
   connectionId?: string   // Credential Connection ID do softphone
 ): Promise<TenantNumber> {
-  const body: any = { phone_number: phoneNumber };
+  const body: any = {
+    phone_numbers: [{ phone_number: phoneNumber }],
+  };
   if (connectionId) body.connection_id = connectionId;
 
-  const data = await telnyxRequest(apiKey, "POST", "/phone_numbers", body);
+  // Compra instantânea via Number Orders — POST /phone_numbers não existe na API v2.
+  const data = await telnyxRequest(apiKey, "POST", "/number_orders", body);
+  const ordered = data.data?.phone_numbers?.[0];
+  if (!ordered?.id) {
+    throw new Error(`[Telnyx] Number order criado mas sem número retornado para ${phoneNumber}`);
+  }
+
   return {
-    id:          data.data.id,
-    phoneNumber: data.data.phone_number,
-    status:      data.data.status,
+    id:          ordered.id,
+    phoneNumber: ordered.phone_number ?? phoneNumber,
+    status:      ordered.status ?? data.data.status,
   };
 }
 

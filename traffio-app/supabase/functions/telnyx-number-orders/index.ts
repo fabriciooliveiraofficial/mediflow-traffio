@@ -121,7 +121,10 @@ serve(async (req: Request) => {
           result = await purchaseNumber(apiKey, phone_number, connectionId || undefined);
         } catch (purchaseErr: any) {
           const msg = (purchaseErr.message ?? "").toLowerCase();
-          if (msg.includes("not be found") || msg.includes("not found") || msg.includes("404")) {
+          if (
+            msg.includes("not be found") || msg.includes("not found") || msg.includes("404") ||
+            msg.includes("unavailable") || msg.includes("not available") || msg.includes("no longer available")
+          ) {
             return json({ error: "Número não disponível para compra. Ele pode ter sido reservado por outro cliente. Por favor, busque um novo número." }, 422);
           }
           throw purchaseErr;
