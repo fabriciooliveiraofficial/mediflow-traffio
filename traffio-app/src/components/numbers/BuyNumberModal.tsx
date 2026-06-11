@@ -275,9 +275,17 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
   // para a confirmação — totalmente silencioso.
   const checkRegulatoryRequirements = async (num: AvailableNumber) => {
     setCheckingRequirements(true);
+    log('info', `Verificando requisitos regulatórios — país: ${country}, tipo (palpite): ${num.phoneNumberType || 'local'}`);
     try {
       const session = await getSession();
-      if (!session) { setHasRegulatoryStep(false); setEffectivePhoneNumberType(num.phoneNumberType || 'local'); setStep(4); return; }
+      if (!session) {
+        log('error', 'Sem sessão autenticada ao verificar requisitos regulatórios.');
+        setDiagOpen(true);
+        setHasRegulatoryStep(false);
+        setEffectivePhoneNumberType(num.phoneNumberType || 'local');
+        setStep(4);
+        return;
+      }
 
       const params = new URLSearchParams({
         action: 'get_requirements',
@@ -288,9 +296,12 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
       const json = await res.json();
+      log('info', `get_requirements → HTTP ${res.status}`);
+      setDiagRaw(json);
 
       if (json.error) {
-        log('warn', `Não foi possível verificar requisitos regulatórios: ${json.error}`);
+        log('error', `Não foi possível verificar requisitos regulatórios: ${json.error}`);
+        setDiagOpen(true);
         setHasRegulatoryStep(false);
         setEffectivePhoneNumberType(num.phoneNumberType || 'local');
         setStep(4);
@@ -299,7 +310,14 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
 
       const requirements: RegulatoryRequirementType[] = json.data?.requirements ?? [];
       const cached = json.data?.cached ?? null;
-      setEffectivePhoneNumberType(json.data?.phone_number_type || num.phoneNumberType || 'local');
+      const effType = json.data?.phone_number_type || num.phoneNumberType || 'local';
+      setEffectivePhoneNumberType(effType);
+
+      log(
+        requirements.length > 0 ? 'ok' : 'info',
+        `Requisitos retornados pela Telnyx: ${requirements.length} | cache: ${cached ? 'encontrado' : 'nenhum'} | tipo efetivo: ${effType}`
+      );
+      if (requirements.length === 0) setDiagOpen(true);
 
       if (requirements.length > 0 && !cached) {
         const initial: Record<string, RegulatoryFieldValue> = {};
@@ -318,7 +336,8 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
         setStep(4);
       }
     } catch (err: any) {
-      log('warn', `Erro ao verificar requisitos regulatórios: ${err.message}`);
+      log('error', `Erro ao verificar requisitos regulatórios: ${err.message}`, err.stack);
+      setDiagOpen(true);
       setHasRegulatoryStep(false);
       setEffectivePhoneNumberType(num.phoneNumberType || 'local');
       setStep(4);
@@ -782,66 +801,6 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
                 })}
               </div>
 
-              {/* ── Painel de Diagnóstico ───────────────────────────────────── */}
-              {diagLogs.length > 0 && (
-                <div className={`rounded-2xl border overflow-hidden ${hasErrors ? 'border-red-200 bg-red-50' : hasWarns ? 'border-yellow-200 bg-yellow-50' : 'border-graphite-100 bg-graphite-50'}`}>
-                  <div className="flex items-center justify-between px-3 py-2">
-                    <button
-                      onClick={() => setDiagOpen((o) => !o)}
-                      className="flex items-center gap-1.5 border-none cursor-pointer bg-transparent p-0"
-                    >
-                      <span className={`flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wide ${hasErrors ? 'text-red-500' : hasWarns ? 'text-yellow-600' : 'text-graphite-400'}`}>
-                        <Bug size={12} />
-                        Diagnóstico
-                        {hasErrors && <span className="bg-red-100 text-red-500 rounded-full px-1.5">erro</span>}
-                        {!hasErrors && hasWarns && <span className="bg-yellow-100 text-yellow-600 rounded-full px-1.5">aviso</span>}
-                      </span>
-                      {diagOpen ? <ChevronUp size={14} className="text-graphite-400 ml-1" /> : <ChevronDown size={14} className="text-graphite-400 ml-1" />}
-                    </button>
-                    <button
-                      onClick={() => {
-                        const lines = diagLogs.map((e) => `[${e.ts}] ${e.level.toUpperCase().padEnd(5)} ${e.message}`).join('\n');
-                        const raw   = diagRaw !== null ? '\n\n--- Raw Response ---\n' + JSON.stringify(diagRaw, null, 2) : '';
-                        navigator.clipboard.writeText(lines + raw);
-                        setCopied(true);
-                        setTimeout(() => setCopied(false), 2000);
-                      }}
-                      title="Copiar log"
-                      className={`flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg border-none cursor-pointer transition-colors ${copied ? 'bg-green-100 text-green-600' : 'bg-white/60 text-graphite-400 hover:text-graphite-600'}`}
-                    >
-                      {copied ? <Check size={11} /> : <Copy size={11} />}
-                      {copied ? 'Copiado!' : 'Copiar'}
-                    </button>
-                  </div>
-
-                  {diagOpen && (
-                    <div className="px-3 pb-3 space-y-3">
-                      {/* Log lines */}
-                      <div className="bg-graphite-900 rounded-xl p-3 font-mono text-[10px] space-y-0.5 max-h-48 overflow-y-auto">
-                        {diagLogs.map((e, i) => (
-                          <div key={i} className={`flex gap-2 ${diagLevelColor[e.level]}`}>
-                            <span className="text-graphite-500 shrink-0">{e.ts}</span>
-                            <span className={`shrink-0 uppercase font-black w-8 ${e.level === 'error' ? 'text-red-400' : e.level === 'warn' ? 'text-yellow-400' : e.level === 'ok' ? 'text-green-400' : 'text-graphite-400'}`}>
-                              {e.level}
-                            </span>
-                            <span className="text-graphite-200 break-all">{e.message}</span>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Raw response */}
-                      {diagRaw !== null && (
-                        <div>
-                          <p className="text-[10px] font-black text-graphite-400 uppercase tracking-wide mb-1">Raw Response</p>
-                          <pre className="bg-graphite-900 text-green-300 rounded-xl p-3 text-[10px] overflow-x-auto max-h-48 overflow-y-auto whitespace-pre-wrap break-all">
-                            {JSON.stringify(diagRaw, null, 2)}
-                          </pre>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
             </>
           )}
 
@@ -1047,6 +1006,67 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
                   Você será notificado quando o número for ativado.
                 </p>
               </div>
+            </div>
+          )}
+
+          {/* ── Painel de Diagnóstico ───────────────────────────────────── */}
+          {!done && diagLogs.length > 0 && (
+            <div className={`rounded-2xl border overflow-hidden ${hasErrors ? 'border-red-200 bg-red-50' : hasWarns ? 'border-yellow-200 bg-yellow-50' : 'border-graphite-100 bg-graphite-50'}`}>
+              <div className="flex items-center justify-between px-3 py-2">
+                <button
+                  onClick={() => setDiagOpen((o) => !o)}
+                  className="flex items-center gap-1.5 border-none cursor-pointer bg-transparent p-0"
+                >
+                  <span className={`flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wide ${hasErrors ? 'text-red-500' : hasWarns ? 'text-yellow-600' : 'text-graphite-400'}`}>
+                    <Bug size={12} />
+                    Diagnóstico
+                    {hasErrors && <span className="bg-red-100 text-red-500 rounded-full px-1.5">erro</span>}
+                    {!hasErrors && hasWarns && <span className="bg-yellow-100 text-yellow-600 rounded-full px-1.5">aviso</span>}
+                  </span>
+                  {diagOpen ? <ChevronUp size={14} className="text-graphite-400 ml-1" /> : <ChevronDown size={14} className="text-graphite-400 ml-1" />}
+                </button>
+                <button
+                  onClick={() => {
+                    const lines = diagLogs.map((e) => `[${e.ts}] ${e.level.toUpperCase().padEnd(5)} ${e.message}`).join('\n');
+                    const raw   = diagRaw !== null ? '\n\n--- Raw Response ---\n' + JSON.stringify(diagRaw, null, 2) : '';
+                    navigator.clipboard.writeText(lines + raw);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  }}
+                  title="Copiar log"
+                  className={`flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg border-none cursor-pointer transition-colors ${copied ? 'bg-green-100 text-green-600' : 'bg-white/60 text-graphite-400 hover:text-graphite-600'}`}
+                >
+                  {copied ? <Check size={11} /> : <Copy size={11} />}
+                  {copied ? 'Copiado!' : 'Copiar'}
+                </button>
+              </div>
+
+              {diagOpen && (
+                <div className="px-3 pb-3 space-y-3">
+                  {/* Log lines */}
+                  <div className="bg-graphite-900 rounded-xl p-3 font-mono text-[10px] space-y-0.5 max-h-48 overflow-y-auto">
+                    {diagLogs.map((e, i) => (
+                      <div key={i} className={`flex gap-2 ${diagLevelColor[e.level]}`}>
+                        <span className="text-graphite-500 shrink-0">{e.ts}</span>
+                        <span className={`shrink-0 uppercase font-black w-8 ${e.level === 'error' ? 'text-red-400' : e.level === 'warn' ? 'text-yellow-400' : e.level === 'ok' ? 'text-green-400' : 'text-graphite-400'}`}>
+                          {e.level}
+                        </span>
+                        <span className="text-graphite-200 break-all">{e.message}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Raw response */}
+                  {diagRaw !== null && (
+                    <div>
+                      <p className="text-[10px] font-black text-graphite-400 uppercase tracking-wide mb-1">Raw Response</p>
+                      <pre className="bg-graphite-900 text-green-300 rounded-xl p-3 text-[10px] overflow-x-auto max-h-48 overflow-y-auto whitespace-pre-wrap break-all">
+                        {JSON.stringify(diagRaw, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
