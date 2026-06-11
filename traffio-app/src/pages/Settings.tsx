@@ -45,18 +45,58 @@ import { PendingOrdersList } from '../components/numbers/PendingOrdersList';
 
 
 // Sub-componente: lista de números do tenant
-function PhoneNumbersList({ tenantId }: { tenantId: string }) {
+function PhoneNumbersList({ tenantId, showToast }: { tenantId: string; showToast: (msg: string, type: 'success' | 'error') => void }) {
     const [numbers, setNumbers] = useState<any[]>([]);
+    const [releasingId, setReleasingId] = useState<string | null>(null);
 
-    useEffect(() => {
-        supabase
+    const loadNumbers = useCallback(async () => {
+        const { data } = await supabase
             .from('tenant_phone_numbers')
             .select('id, phone_number, friendly_name, country_code, is_active, capabilities')
             .eq('tenant_id', tenantId)
             .eq('is_active', true)
-            .order('created_at')
-            .then(({ data }) => setNumbers(data ?? []));
+            .order('created_at');
+        setNumbers(data ?? []);
     }, [tenantId]);
+
+    useEffect(() => {
+        loadNumbers();
+    }, [loadNumbers]);
+
+    const handleRelease = async (num: any) => {
+        const confirm = window.confirm(`Deseja realmente excluir e liberar o número ${num.phone_number} permanentemente? Esta ação não pode ser desfeita.`);
+        if (!confirm) return;
+
+        setReleasingId(num.id);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                showToast('Usuário não autenticado.', 'error');
+                return;
+            }
+
+            const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/telnyx-numbers`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ action: 'release', number_id: num.id })
+            });
+
+            const json = await res.json();
+            if (!res.ok || json.error) {
+                showToast(json.error ?? 'Erro ao liberar o número.', 'error');
+            } else {
+                showToast('Número excluído e liberado com sucesso!', 'success');
+                setNumbers(prev => prev.filter(n => n.id !== num.id));
+            }
+        } catch (err: any) {
+            showToast(`Erro ao liberar número: ${err.message}`, 'error');
+        } finally {
+            setReleasingId(null);
+        }
+    };
 
     if (numbers.length === 0) {
         return (
@@ -79,7 +119,20 @@ function PhoneNumbersList({ tenantId }: { tenantId: string }) {
                             {num.capabilities?.sms && ' · SMS'}
                         </p>
                     </div>
-                    <div className="w-2 h-2 rounded-full bg-green-500" />
+                    <div className="flex items-center gap-2">
+                        {releasingId === num.id ? (
+                            <RefreshCw size={14} className="text-graphite-400 animate-spin" />
+                        ) : (
+                            <button
+                                onClick={() => handleRelease(num)}
+                                title="Excluir e liberar número"
+                                className="p-2 text-graphite-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-colors border-none cursor-pointer bg-transparent"
+                            >
+                                <Trash2 size={16} />
+                            </button>
+                        )}
+                        <div className="w-2 h-2 rounded-full bg-green-500" />
+                    </div>
                 </div>
             ))}
         </div>
@@ -1296,7 +1349,7 @@ export const Settings = () => {
                                             </button>
                                         </div>
 
-                                        <PhoneNumbersList tenantId={tenant.id} />
+                                        <PhoneNumbersList tenantId={tenant.id} showToast={showToast} />
 
                                         <PendingOrdersList
                                             tenantId={tenant.id}
