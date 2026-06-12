@@ -26,6 +26,7 @@ interface Tenant {
     subscription_started_at: string | null;
     subscription_renews_at: string | null;
     trial_ends_at: string | null;
+    card_on_file: boolean;
 }
 
 export interface UserProfile {

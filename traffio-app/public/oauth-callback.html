@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Conexão - Traffio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --card-bg: rgba(22, 28, 45, 0.4);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --text-main: #f8fafc;
+      --text-sub: #94a3b8;
+      --primary: #2563eb;
+      --success: #10b981;
+      --success-bg: rgba(16, 185, 129, 0.15);
+      --error: #ef4444;
+      --error-bg: rgba(239, 68, 68, 0.15);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background: radial-gradient(circle at top, #1e293b 0%, var(--bg) 100%);
+      color: var(--text-main);
+      overflow: hidden;
+    }
+
+    .container {
+      perspective: 1000px;
+      width: 100%;
+      max-width: 440px;
+      padding: 1.5rem;
+    }
+
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      padding: 3rem 2.5rem;
+      border-radius: 24px;
+      text-align: center;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      transform: translateY(20px);
+      opacity: 0;
+      animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes slideUp {
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    /* Animated circle/icon */
+    .icon-container {
+      position: relative;
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 1.75rem auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+    }
+
+    .icon-container.success {
+      background: var(--success-bg);
+      color: var(--success);
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+    }
+
+    .icon-container.error {
+      background: var(--error-bg);
+      color: var(--error);
+      box-shadow: 0 0 20px rgba(239, 68, 68, 0.2);
+    }
+
+    .icon-svg {
+      width: 40px;
+      height: 40px;
+      stroke-width: 2.5;
+      stroke: currentColor;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* Animations for SVG paths */
+    .draw-path {
+      stroke-dasharray: 100;
+      stroke-dashoffset: 100;
+      animation: draw 0.8s cubic-bezier(0.4, 0, 0.2, 1) 0.3s forwards;
+    }
+
+    @keyframes draw {
+      to {
+        stroke-dashoffset: 0;
+      }
+    }
+
+    h1 {
+      font-size: 1.625rem;
+      font-weight: 800;
+      margin: 0 0 0.75rem 0;
+      letter-spacing: -0.025em;
+    }
+
+    p {
+      color: var(--text-sub);
+      font-size: 0.95rem;
+      line-height: 1.6;
+      margin: 0 0 2rem 0;
+      font-weight: 400;
+    }
+
+    /* Loading / redirect indicator */
+    .timer-bar-container {
+      width: 100%;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-bottom: 0.5rem;
+    }
+
+    .timer-bar {
+      height: 100%;
+      background: var(--primary);
+      width: 100%;
+      transform-origin: left;
+      animation: shrink 3s linear forwards;
+    }
+
+    .timer-bar.success {
+      background: var(--success);
+    }
+
+    .timer-bar.error {
+      background: var(--error);
+    }
+
+    @keyframes shrink {
+      from { transform: scaleX(1); }
+      to { transform: scaleX(0); }
+    }
+
+    .footer-text {
+      font-size: 0.8rem;
+      color: var(--text-sub);
+      opacity: 0.8;
+      margin: 0;
+    }
+
+    /* Brand details */
+    .brand {
+      font-weight: 800;
+      background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="card" id="card">
+      <div id="icon-box" class="icon-container success">
+        <!-- Will be injected dynamically -->
+      </div>
+      <h1 id="title">Conectando...</h1>
+      <p id="description">Processando a autenticação com a plataforma.</p>
+      
+      <div class="timer-bar-container">
+        <div id="timer-bar" class="timer-bar"></div>
+      </div>
+      <p class="footer-text" id="footer-text">Esta janela fechará automaticamente.</p>
+    </div>
+  </div>
+
+  <script>
+    // Get query parameters
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('status') || 'success';
+    const platform = params.get('platform') || '';
+    const message = params.get('message') || '';
+    const count = parseInt(params.get('count') || '0', 10);
+
+    const titleEl = document.getElementById('title');
+    const descEl = document.getElementById('description');
+    const iconBox = document.getElementById('icon-box');
+    const timerBar = document.getElementById('timer-bar');
+
+    // SVGs
+    const successIcon = `
+      <svg class="icon-svg" viewBox="0 0 24 24">
+        <path class="draw-path" d="M20 6L9 17L4 12" />
+      </svg>
+    `;
+
+    const errorIcon = `
+      <svg class="icon-svg" viewBox="0 0 24 24">
+        <path class="draw-path" d="M18 6L6 18M6 6l12 12" />
+      </svg>
+    `;
+
+    // 1. Post message to the opener window if it exists
+    if (window.opener) {
+      if (status === 'success') {
+        if (platform === 'meta-messaging') {
+          window.opener.postMessage({ type: 'META_MESSAGING_CONNECTED', count: count }, '*');
+        } else {
+          window.opener.postMessage({ type: 'OAUTH_CONNECTED', platform: platform }, '*');
+        }
+      } else {
+        if (platform === 'meta-messaging') {
+          window.opener.postMessage({ type: 'META_MESSAGING_ERROR', message: message }, '*');
+        } else {
+          window.opener.postMessage({ type: 'OAUTH_ERROR', platform: platform, message: message }, '*');
+        }
+      }
+    }
+
+    // 2. Dynamic UI rendering based on status
+    if (status === 'success') {
+      iconBox.className = 'icon-container success';
+      iconBox.innerHTML = successIcon;
+      timerBar.className = 'timer-bar success';
+
+      if (platform === 'meta') {
+        titleEl.textContent = 'Meta Ads Conectado!';
+        descEl.innerHTML = 'Sua conta de anúncios do <span class="brand">Meta Ads</span> foi integrada com sucesso ao Traffio.';
+      } else if (platform === 'google') {
+        titleEl.textContent = 'Google Ads Conectado!';
+        descEl.innerHTML = 'Sua conta de anúncios do <span class="brand">Google Ads</span> foi integrada com sucesso ao Traffio.';
+      } else if (platform === 'meta-messaging') {
+        titleEl.textContent = 'Páginas Conectadas!';
+        descEl.innerHTML = `Sua conta do <span class="brand">Meta</span> foi vinculada com sucesso. <strong>${count}</strong> páginas prontas para receber mensagens.`;
+      } else {
+        titleEl.textContent = 'Conta Conectada!';
+        descEl.innerHTML = 'A integração foi concluída com sucesso.';
+      }
+    } else {
+      iconBox.className = 'icon-container error';
+      iconBox.innerHTML = errorIcon;
+      timerBar.className = 'timer-bar error';
+      
+      titleEl.textContent = 'Erro de Conexão';
+      descEl.textContent = message || 'Não foi possível concluir a integração com a plataforma.';
+    }
+
+    // 3. Auto-close window
+    setTimeout(() => {
+      window.close();
+    }, 3000);
+  </script>
+</body>
+</html>

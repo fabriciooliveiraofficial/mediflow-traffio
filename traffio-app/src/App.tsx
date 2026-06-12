@@ -27,11 +27,13 @@ import { MedicalRecordsHub } from './pages/MedicalRecordsHub'
 import { LandingPage } from './pages/LandingPage'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
+import { RegisterPaymentPage } from './pages/RegisterPaymentPage'
 import { AcceptInvitePage } from './pages/AcceptInvitePage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { LinkRedirectPage } from './pages/LinkRedirectPage'
 import { MasterProtectedRoute } from './components/MasterProtectedRoute'
 import { AuthRedirector } from './components/AuthRedirector'
+import { SubscriptionGuard } from './components/billing/SubscriptionGuard'
 import { MasterApp } from './pages/master/MasterApp'
 import { ToastProvider } from './contexts/ToastContext'
 import { TenantProvider } from './contexts/TenantContext'
@@ -102,18 +104,20 @@ function TenantApp() {
 
   return (
     <DashboardLayout activeScreen={activeScreen} onNavigate={setActiveScreen}>
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={activeScreen}
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -20 }}
-          transition={{ duration: 0.3 }}
-          className="h-full"
-        >
-          {renderScreen()}
-        </motion.div>
-      </AnimatePresence>
+      <SubscriptionGuard activeScreen={activeScreen} onNavigate={setActiveScreen}>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeScreen}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+            className="h-full"
+          >
+            {renderScreen()}
+          </motion.div>
+        </AnimatePresence>
+      </SubscriptionGuard>
     </DashboardLayout>
   )
 }
@@ -136,6 +140,7 @@ function AppRoutes() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/register/payment" element={<RegisterPaymentPage />} />
             <Route path="/invite/:token" element={<AcceptInvitePage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/pagarme-callback" element={<PagarmeCallback />} />

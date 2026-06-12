@@ -337,6 +337,19 @@ export async function fillRequirementGroup(
   return data.data;
 }
 
+/**
+ * Associa um requirement_group a uma sub-order existente pendente na Telnyx.
+ */
+export async function associateRequirementGroupWithSubOrder(
+  apiKey: string,
+  subOrderId: string,
+  requirementGroupId: string
+): Promise<any> {
+  return await telnyxRequest(apiKey, "POST", `/sub_number_orders/${subOrderId}/requirement_group`, {
+    requirement_group_id: requirementGroupId,
+  });
+}
+
 // ─── SIP Credentials (WebRTC por agente) ─────────────────────────────────────
 
 export interface SipCredential {

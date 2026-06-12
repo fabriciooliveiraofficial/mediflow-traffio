@@ -187,6 +187,7 @@ export const Settings = () => {
 
     // Modal: Comprar número Telnyx
     const [showBuyNumber, setShowBuyNumber]       = useState(false);
+    const [resubmitOrderId, setResubmitOrderId]   = useState<string | undefined>(undefined);
     const [ordersRefreshKey, setOrdersRefreshKey] = useState(0);
     const [syncing, setSyncing] = useState(false);
 
@@ -258,7 +259,8 @@ export const Settings = () => {
         const tenantId = currentTenant?.id;
         if (!tenantId) { showToast('Selecione uma clínica primeiro', 'error'); return; }
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ?? '';
-        const oauthUrl = `${supabaseUrl}/functions/v1/auth-meta-messaging?tenant_id=${tenantId}`;
+        const redirectBack = window.location.origin;
+        const oauthUrl = `${supabaseUrl}/functions/v1/auth-meta-messaging?tenant_id=${tenantId}&redirect_back=${encodeURIComponent(redirectBack)}`;
         setConnectingMeta(true);
         const popup = window.open(oauthUrl, 'meta_messaging_oauth', 'width=580,height=680,left=200,top=100');
         if (!popup) {
@@ -1400,7 +1402,8 @@ export const Settings = () => {
                                         <PendingOrdersList
                                             tenantId={tenant.id}
                                             refreshKey={ordersRefreshKey}
-                                            onResubmit={(_orderId, phoneNumber) => {
+                                            onResubmit={(orderId) => {
+                                                setResubmitOrderId(orderId);
                                                 setShowBuyNumber(true);
                                             }}
                                         />
@@ -1516,12 +1519,16 @@ export const Settings = () => {
         {showBuyNumber && currentTenant && (
             <BuyNumberModal
                 tenantId={currentTenant.id}
-                onClose={() => setShowBuyNumber(false)}
+                onClose={() => {
+                    setShowBuyNumber(false);
+                    setResubmitOrderId(undefined);
+                }}
                 onPurchased={() => {
                     setOrdersRefreshKey((k) => k + 1);
                     fetchSettingsData();
                 }}
                 showToast={showToast}
+                resubmitOrderId={resubmitOrderId}
             />
         )}
         </>

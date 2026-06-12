@@ -24,7 +24,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { getTelnyxApiKey, getTelnyxConnectionId } from "../_shared/masterConfig.ts";
 import {
   purchaseNumber, createNumberOrder, releaseNumber,
-  getRequirements, createAddress, uploadDocument, createRequirementGroup, fillRequirementGroup, getAddress
+  getRequirements, createAddress, uploadDocument, createRequirementGroup, fillRequirementGroup, getAddress,
+  associateRequirementGroupWithSubOrder
 } from "../_shared/telnyxClient.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
@@ -96,6 +97,136 @@ serve(async (req: Request) => {
           .order("created_at", { ascending: false });
 
         return json({ data: orders ?? [] });
+      }
+
+      if (action === "get_resubmit_details") {
+        const orderId = url.searchParams.get("order_id");
+        if (!orderId) return json({ error: "order_id required" }, 400);
+
+        const { data: order } = await supabase
+          .from("number_order_requests")
+          .select("*")
+          .eq("id", orderId)
+          .eq("tenant_id", tenantId)
+          .single();
+
+        if (!order) return json({ error: "Order not found" }, 404);
+        if (!order.telnyx_order_id) {
+          return json({ error: "Este pedido ainda não possui ID da Telnyx." }, 400);
+        }
+
+        // 1. Buscar ordem na Telnyx
+        const resOrder = await fetch(`https://api.telnyx.com/v2/number_orders/${order.telnyx_order_id}`, {
+          headers: { "Authorization": `Bearer ${apiKey}` }
+        });
+        if (!resOrder.ok) {
+          const errText = await resOrder.text();
+          throw new Error(`Failed to fetch Telnyx order: ${errText}`);
+        }
+        const telnyxOrder = await resOrder.json();
+        const telnyxOrderData = telnyxOrder.data;
+
+        const subNumberOrderId = telnyxOrderData?.sub_number_orders_ids?.[0] || null;
+
+        // 2. Extrair os requisitos pendentes/existentes da ordem
+        const phoneNumbers = telnyxOrderData?.phone_numbers || [];
+        const orderRequirements = phoneNumbers[0]?.regulatory_requirements || [];
+
+        // 3. Buscar os metadados de exigências do país
+        let requirements: any[] = [];
+        let effectiveType = "local";
+        try {
+          const result = await getRequirements(apiKey, order.country_code, "local");
+          requirements  = result.requirements;
+          effectiveType = result.phoneNumberType;
+        } catch (e: any) {
+          console.error(`[telnyx-number-orders] getRequirements failed: ${e.message}`);
+        }
+
+        // 4. Cruzar exigências do pedido com metadados detalhados
+        const mergedRequirements = orderRequirements.map((or: any) => {
+          const definition = requirements.find(r => r.id === or.requirement_id);
+          return {
+            id: or.requirement_id,
+            name: definition?.name || or.field_type,
+            type: or.field_type,
+            description: definition?.description || "",
+            example: definition?.example || "",
+            acceptanceCriteria: definition?.acceptanceCriteria || {},
+            status: or.status, // "awaiting-value", "approved", "declined" etc.
+            field_value: or.field_value
+          };
+        });
+
+        // 5. Se houver algum endereço preenchido, resolver os detalhes dele para pre-população
+        const resolvedAddresses: Record<string, any> = {};
+        for (const reqVal of orderRequirements) {
+          if (reqVal.field_type === "address" && reqVal.field_value) {
+            try {
+              const addrData = await getAddress(apiKey, reqVal.field_value);
+              if (addrData) {
+                resolvedAddresses[reqVal.requirement_id] = {
+                  firstName:          addrData.first_name ?? "",
+                  lastName:           addrData.last_name ?? "",
+                  businessName:       addrData.business_name ?? "",
+                  streetAddress:      addrData.street_address ?? "",
+                  locality:           addrData.locality ?? "",
+                  administrativeArea: addrData.administrative_area ?? "",
+                  postalCode:         addrData.postal_code ?? "",
+                };
+              }
+            } catch (addrErr: any) {
+              console.error(`Failed to resolve address ${reqVal.field_value}:`, addrErr.message);
+            }
+          }
+        }
+
+        // 6. Verificar se há cache em tenant_requirement_groups para preencher o que falta
+        const { data: cached } = await supabase
+          .from("tenant_requirement_groups")
+          .select("telnyx_requirement_group_id, status, regulatory_requirements, updated_at")
+          .eq("tenant_id", tenantId)
+          .eq("country_code", order.country_code)
+          .eq("phone_number_type", effectiveType)
+          .maybeSingle();
+
+        if (cached?.regulatory_requirements) {
+          for (const reqVal of cached.regulatory_requirements) {
+            const reqId = reqVal.requirement_id;
+            const reqType = requirements.find((r) => r.id === reqId);
+            if (reqType?.type === "address" && reqVal.field_value && !resolvedAddresses[reqId]) {
+              try {
+                const addrData = await getAddress(apiKey, reqVal.field_value);
+                if (addrData) {
+                  resolvedAddresses[reqId] = {
+                    firstName:          addrData.first_name ?? "",
+                    lastName:           addrData.last_name ?? "",
+                    businessName:       addrData.business_name ?? "",
+                    streetAddress:      addrData.street_address ?? "",
+                    locality:           addrData.locality ?? "",
+                    administrativeArea: addrData.administrative_area ?? "",
+                    postalCode:         addrData.postal_code ?? "",
+                  };
+                }
+              } catch (addrErr: any) {
+                console.error(`Failed to resolve cached address:`, addrErr.message);
+              }
+            }
+          }
+        }
+
+        return json({
+          data: {
+            order_id: order.id,
+            telnyx_order_id: order.telnyx_order_id,
+            sub_number_order_id: subNumberOrderId,
+            country_code: order.country_code,
+            phone_number: order.phone_number,
+            requirements: mergedRequirements,
+            resolved_addresses: resolvedAddresses,
+            cached: cached ?? null
+          }
+        });
       }
 
       // Lista os requisitos regulatórios da Telnyx para país+tipo, e indica se
@@ -324,7 +455,7 @@ serve(async (req: Request) => {
     // cacheia o resultado para reuso silencioso em compras futuras do mesmo
     // tenant + país + tipo de número.
     if (action === "submit_regulatory_info") {
-      const { country_code, phone_number_type, regulatory_data } = body;
+      const { country_code, phone_number_type, regulatory_data, sub_number_order_id, order_id } = body;
       if (!country_code || !phone_number_type || !Array.isArray(regulatory_data)) {
         return json({ error: "country_code, phone_number_type e regulatory_data são obrigatórios" }, 400);
       }
@@ -400,8 +531,31 @@ serve(async (req: Request) => {
         updated_at:                  new Date().toISOString(),
       }, { onConflict: "tenant_id,country_code,phone_number_type" });
 
+      // Se foi enviado um sub_number_order_id, associar o requirement_group ao sub-pedido na Telnyx
+      if (sub_number_order_id) {
+        try {
+          console.log(`Associating requirement group ${groupId} to sub-order ${sub_number_order_id}`);
+          await associateRequirementGroupWithSubOrder(apiKey, sub_number_order_id, groupId);
+        } catch (assocErr: any) {
+          console.error(`[telnyx-number-orders] Failed to associate group with sub-order:`, assocErr.message);
+          return json({ error: `Falha ao vincular exigências ao pedido Telnyx: ${assocErr.message}` }, 502);
+        }
+      }
+
+      // Se foi enviado um order_id local, voltar o status para "under_review" (em análise) e limpar erro
+      if (order_id) {
+        await supabase
+          .from("number_order_requests")
+          .update({
+            status: "under_review",
+            rejection_reason: null,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", order_id);
+      }
+
       await logAudit(supabase, tenantId, user.id, "regulatory_info_submitted", "", {
-        country_code: countryCode, phone_number_type: effectiveType, requirement_group_id: groupId,
+        country_code: countryCode, phone_number_type: effectiveType, requirement_group_id: groupId, sub_number_order_id, order_id
       });
       console.log(`[telnyx-number-orders] ✓ Requirement group ${groupId} preenchido | ${countryCode}/${effectiveType} | tenant: ${tenantId}`);
 

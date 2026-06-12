@@ -93,7 +93,7 @@ serve(async (req: Request) => {
 
     const { data: tenant } = await supabase
       .from("tenants")
-      .select("id, name, stripe_customer_id, plan, subscription_status")
+      .select("id, name, stripe_customer_id, plan, subscription_status, trial_ends_at")
       .eq("id", member.tenant_id)
       .single();
 
@@ -148,7 +148,26 @@ serve(async (req: Request) => {
         .eq("id", tenant.id);
     }
 
-    // ── 6. Criar Checkout Session ─────────────────────────────────────────────
+    // ── 6. Trial: casar o trial do Stripe com o trial do banco ────────────────
+    // Tenant em trial com data futura → o checkout só coleta o cartão e a
+    // 1ª cobrança acontece no fim do trial (mín. 1, máx. 14 dias).
+    // Tenant já ativo (upgrade) → sem trial, cobrança imediata.
+    let trialPeriodDays: number | undefined;
+    if (tenant.subscription_status === "trial" && tenant.trial_ends_at) {
+      const msLeft = new Date(tenant.trial_ends_at).getTime() - Date.now();
+      if (msLeft > 0) {
+        trialPeriodDays = Math.min(14, Math.max(1, Math.ceil(msLeft / 86_400_000)));
+      }
+    }
+
+    const sessionMetadata: Record<string, string> = {
+      tenant_id:     tenant.id,
+      plan_id:       planId,
+      billing_cycle: billingCycle,
+      ...(trialPeriodDays ? { flow: "registration_trial" } : {}),
+    };
+
+    // ── 7. Criar Checkout Session ─────────────────────────────────────────────
     const successUrl = body.success_url ?? `${appUrl}/billing?checkout=success`;
     const cancelUrl  = body.cancel_url  ?? `${appUrl}/billing`;
 
@@ -156,29 +175,26 @@ serve(async (req: Request) => {
       customer:             stripeCustomerId,
       mode:                 "subscription",
       payment_method_types: ["card"],
+      // Cartão é SEMPRE coletado, mesmo com total R$0 durante o trial
+      payment_method_collection: "always",
       line_items: [{
         price:    stripePriceId,
         quantity: 1,
       }],
       subscription_data: {
-        metadata: {
-          tenant_id:     tenant.id,
-          plan_id:       planId,
-          billing_cycle: billingCycle,
-        },
+        ...(trialPeriodDays ? { trial_period_days: trialPeriodDays } : {}),
+        metadata: sessionMetadata,
       },
-      metadata: {
-        tenant_id:     tenant.id,
-        plan_id:       planId,
-        billing_cycle: billingCycle,
-      },
+      metadata: sessionMetadata,
       success_url: successUrl,
       cancel_url:  cancelUrl,
       allow_promotion_codes: true,
       locale: "pt-BR",
       custom_text: {
         submit: {
-          message: `Assinatura do plano ${PLAN_NAMES[planId]} · Traffio`,
+          message: trialPeriodDays
+            ? `Plano ${PLAN_NAMES[planId]} · nada será cobrado durante os ${trialPeriodDays} dias de trial`
+            : `Assinatura do plano ${PLAN_NAMES[planId]} · Traffio`,
         },
       },
     });

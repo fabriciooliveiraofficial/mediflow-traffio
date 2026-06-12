@@ -16,6 +16,7 @@ serve(async (req: Request) => {
   const code = urlObj.searchParams.get("code");
   const state = urlObj.searchParams.get("state");
   const tenantId = urlObj.searchParams.get("tenant_id");
+  const redirectBackParam = urlObj.searchParams.get("redirect_back");
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const serviceKey  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -36,9 +37,15 @@ serve(async (req: Request) => {
       return new Response("Missing tenant_id parameter", { status: 400 });
     }
 
+    const statePayload = {
+      tenantId: targetTenant,
+      redirectBack: redirectBackParam || "",
+    };
+    const encodedState = btoa(JSON.stringify(statePayload));
+
     const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${googleClientId}&redirect_uri=${encodeURIComponent(
       redirectUri
-    )}&response_type=code&state=${targetTenant}&scope=${encodeURIComponent(
+    )}&response_type=code&state=${encodedState}&scope=${encodeURIComponent(
       "https://www.googleapis.com/auth/adwords"
     )}&access_type=offline&prompt=consent`;
 
@@ -46,8 +53,22 @@ serve(async (req: Request) => {
   }
 
   // 2. Callback request: Google returned authorization code
+  let activeTenantId = "";
+  let redirectBack = "";
+
+  if (state) {
+    try {
+      const decodedState = JSON.parse(atob(state));
+      activeTenantId = decodedState.tenantId;
+      redirectBack = decodedState.redirectBack;
+    } catch {
+      // Fallback for legacy calls
+      activeTenantId = state;
+    }
+  }
+
   try {
-    const supabaseAdmin = supabase; // reutiliza o client já criado
+    const supabaseAdmin = supabase;
 
     // Exchange code for access & refresh tokens
     const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
@@ -68,6 +89,9 @@ serve(async (req: Request) => {
 
     if (tokenData.error) {
       console.error("Google OAuth Code Exchange Error:", tokenData.error_description || tokenData.error);
+      if (redirectBack) {
+        return Response.redirect(`${redirectBack}/oauth-callback.html?status=error&platform=google&message=${encodeURIComponent(tokenData.error_description || tokenData.error)}`, 302);
+      }
       return new Response(`OAuth Error: ${tokenData.error_description || tokenData.error}`, { status: 400 });
     }
 
@@ -76,7 +100,7 @@ serve(async (req: Request) => {
 
     // C. Upsert connection inside the database
     const upsertData: any = {
-      tenant_id: state,
+      tenant_id: activeTenantId,
       platform: "google",
       access_token: accessToken,
       status: "active",
@@ -95,10 +119,18 @@ serve(async (req: Request) => {
 
     if (upsertError) {
       console.error("Database Upsert Error:", upsertError);
+      if (redirectBack) {
+        return Response.redirect(`${redirectBack}/oauth-callback.html?status=error&platform=google&message=${encodeURIComponent(upsertError.message)}`, 302);
+      }
       return new Response(`Database Error: ${upsertError.message}`, { status: 500 });
     }
 
-    // D. Return success HTML view and trigger window close
+    // D. Redirect back to frontend success page
+    if (redirectBack) {
+      return Response.redirect(`${redirectBack}/oauth-callback.html?status=success&platform=google`, 302);
+    }
+
+    // Legacy Fallback (HTML View)
     const html = `
       <!DOCTYPE html>
       <html lang="pt-BR">
@@ -149,9 +181,6 @@ serve(async (req: Request) => {
           <h1>Conta Conectada!</h1>
           <p>Sua conta do Google Ads foi integrada com sucesso ao Traffio. Esta janela pode ser fechada.</p>
         </div>
-        <script>
-          setTimeout(() => { window.close(); }, 3000);
-        </script>
       </body>
       </html>
     `;
@@ -162,6 +191,9 @@ serve(async (req: Request) => {
     });
   } catch (err: any) {
     console.error("Google Auth Handler Error:", err);
+    if (redirectBack) {
+      return Response.redirect(`${redirectBack}/oauth-callback.html?status=error&platform=google&message=${encodeURIComponent(err.message)}`, 302);
+    }
     return new Response(`Internal Server Error: ${err.message}`, { status: 500 });
   }
 });

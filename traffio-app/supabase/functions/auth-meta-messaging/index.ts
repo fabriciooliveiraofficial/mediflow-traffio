@@ -25,6 +25,7 @@ serve(async (req: Request) => {
   const code       = url.searchParams.get("code");
   const state      = url.searchParams.get("state");      // tenant_id (passado no redirect)
   const tenantId   = url.searchParams.get("tenant_id");  // tenant_id (chamada inicial)
+  const redirectBackParam = url.searchParams.get("redirect_back");
   const error      = url.searchParams.get("error");
   const errorDesc  = url.searchParams.get("error_description");
 
@@ -46,6 +47,16 @@ serve(async (req: Request) => {
   // ── Usuário negou permissão ──────────────────────────────────────────────
   if (error) {
     console.error("[auth-meta-messaging] User denied:", error, errorDesc);
+    let redirectBack = "";
+    if (state) {
+      try {
+        const decodedState = JSON.parse(atob(state));
+        redirectBack = decodedState.redirectBack;
+      } catch {}
+    }
+    if (redirectBack) {
+      return Response.redirect(`${redirectBack}/oauth-callback.html?status=error&platform=meta-messaging&message=${encodeURIComponent(errorDesc ?? error)}`, 302);
+    }
     return errorPage(`Permissão negada: ${errorDesc ?? error}`);
   }
 
@@ -66,19 +77,41 @@ serve(async (req: Request) => {
       "business_management",
     ].join(",");
 
+    const statePayload = {
+      tenantId: target,
+      redirectBack: redirectBackParam || "",
+    };
+    const encodedState = btoa(JSON.stringify(statePayload));
+
     const authUrl =
       `https://www.facebook.com/v21.0/dialog/oauth` +
       `?client_id=${clientId}` +
       `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-      `&state=${target}` +
+      `&state=${encodedState}` +
       `&scope=${encodeURIComponent(scopes)}`;
 
     return Response.redirect(authUrl, 302);
   }
 
   // ── Callback: processar autorização ─────────────────────────────────────
-  const activeTenantId = state;
+  let activeTenantId = "";
+  let redirectBack = "";
+
+  if (state) {
+    try {
+      const decodedState = JSON.parse(atob(state));
+      activeTenantId = decodedState.tenantId;
+      redirectBack = decodedState.redirectBack;
+    } catch {
+      // Fallback for legacy calls
+      activeTenantId = state;
+    }
+  }
+
   if (!activeTenantId) {
+    if (redirectBack) {
+      return Response.redirect(`${redirectBack}/oauth-callback.html?status=error&platform=meta-messaging&message=${encodeURIComponent("state (tenant_id) ausente no callback")}`, 302);
+    }
     return new Response("state (tenant_id) ausente no callback", { status: 400 });
   }
 
@@ -161,11 +194,18 @@ serve(async (req: Request) => {
       }
     }
 
-    // 5. Retornar HTML de sucesso e fechar popup
+    // 5. Retornar HTML de sucesso e fechar popup (ou redirecionar)
+    if (redirectBack) {
+      const successUrl = `${redirectBack}/oauth-callback.html?status=success&platform=meta-messaging&count=${savedCount}`;
+      return Response.redirect(successUrl, 302);
+    }
     return successPage(savedCount, pages);
 
   } catch (err: any) {
     console.error("[auth-meta-messaging] Error:", err.message);
+    if (redirectBack) {
+      return Response.redirect(`${redirectBack}/oauth-callback.html?status=error&platform=meta-messaging&message=${encodeURIComponent(err.message)}`, 302);
+    }
     return errorPage(err.message);
   }
 });

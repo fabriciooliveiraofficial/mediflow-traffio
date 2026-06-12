@@ -269,9 +269,12 @@ serve(async (req: Request) => {
                 let newStatus = "under_review";
                 let rejectionReason = null;
 
-                if (telnyxNum.status === "requirement-info-exception") {
+                if (telnyxNum.status === "requirement-info-pending") {
                   newStatus = "rejected";
-                  rejectionReason = "Pendência regulatória identificada nas operadoras locais.";
+                  rejectionReason = "A Telnyx exige informações adicionais (nome, endereço ou documentos) para este número.";
+                } else if (telnyxNum.status === "requirement-info-exception") {
+                  newStatus = "rejected";
+                  rejectionReason = "Documentação ou dados rejeitados. Por favor, revise e envie novamente.";
                 }
 
                 if (matchedOrder.status !== newStatus || matchedOrder.rejection_reason !== rejectionReason) {

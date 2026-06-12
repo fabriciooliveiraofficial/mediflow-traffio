@@ -173,6 +173,7 @@ interface Props {
   onClose:     () => void;
   onPurchased: (phoneNumber: string) => void;
   showToast:   (type: 'success' | 'error', msg: string) => void;
+  resubmitOrderId?: string;
 }
 
 type Step = 1 | 2 | 3 | 4 | 5;
@@ -191,7 +192,7 @@ const SEARCH_BY_CONFIG: Record<SearchBy, { label: string; placeholder: string }>
   state:     { label: 'Estado / Província',    placeholder: 'Ex: SP, CA, ON...' },
 };
 
-export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Props) {
+export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resubmitOrderId }: Props) {
   const [step, setStep]               = useState<Step>(1);
   const [country, setCountry]         = useState('BR');
   const [phoneType, setPhoneType]     = useState<PhoneType>('all');
@@ -213,6 +214,11 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
   const [done, setDone]               = useState(false);
 
   // ── Requisitos regulatórios da Telnyx (etapa 5, países não-KYC) ────────────
+  // Re-submissão de exigências (NZ, etc.)
+  const [loadingResubmit, setLoadingResubmit] = useState(false);
+  const [subNumberOrderId, setSubNumberOrderId] = useState<string | null>(null);
+
+  // Requisitos regulatórios da Telnyx (formulário dinâmico)
   const [checkingRequirements, setCheckingRequirements] = useState(false);
   const [hasRegulatoryStep, setHasRegulatoryStep]       = useState(false);
   const [regulatoryRequirements, setRegulatoryRequirements] = useState<RegulatoryRequirementType[]>([]);
@@ -221,7 +227,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
   // Tipo efetivo (local|national|toll_free|...) determinado pela Telnyx via
   // get_requirements — pode diferir do phoneNumberType do resultado de busca
   // (a Telnyx não informa o tipo em /available_phone_numbers).
-  const [effectivePhoneNumberType, setEffectivePhoneNumberType] = useState('');
+  const [effectivePhoneNumberType, setEffectivePhoneNumberType] = useState('local');
   const [requiresReview, setRequiresReview] = useState(false);
 
   // ── Diagnóstico ─────────────────────────────────────────────────────────────
@@ -244,6 +250,77 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
     const { data: { session } } = await supabase.auth.getSession();
     return session;
   };
+
+  // Efeito para carregar exigências rejeitadas/pendentes em caso de re-submissão
+  React.useEffect(() => {
+    if (!resubmitOrderId) return;
+
+    const loadResubmitDetails = async () => {
+      setLoadingResubmit(true);
+      try {
+        const session = await getSession();
+        if (!session) return;
+
+        const res = await fetch(
+          `${SUPABASE_URL}/functions/v1/telnyx-number-orders?action=get_resubmit_details&order_id=${resubmitOrderId}`,
+          { headers: { Authorization: `Bearer ${session.access_token}` } }
+        );
+        const json = await res.json();
+        if (json.error) {
+          showToast('error', json.error);
+          onClose();
+          return;
+        }
+
+        const data = json.data;
+        if (data) {
+          setOrderId(data.order_id);
+          setSubNumberOrderId(data.sub_number_order_id);
+          setCountry(data.country_code);
+
+          setSelected({
+            phoneNumber: data.phone_number,
+            city: '',
+            regionCode: '',
+            countryCode: data.country_code,
+            monthlyCost: '0',
+            features: ['voice', 'sms'],
+            phoneNumberType: 'local',
+          });
+
+          const reqs = data.requirements || [];
+          const initial: Record<string, RegulatoryFieldValue> = {};
+          
+          for (const r of reqs) {
+            if (r.type === 'address') {
+              const resAddr = data.resolved_addresses?.[r.id];
+              initial[r.id] = {
+                type: 'address',
+                address: resAddr ? { ...EMPTY_REGULATORY_ADDRESS, ...resAddr } : { ...EMPTY_REGULATORY_ADDRESS }
+              };
+            } else if (r.type === 'document') {
+              initial[r.id] = { type: 'document', documentId: r.field_value || undefined };
+            } else {
+              initial[r.id] = { type: 'textual', value: r.field_value || '' };
+            }
+          }
+
+          setRegulatoryRequirements(reqs);
+          setRegulatoryData(initial);
+          setRegulatoryErrors({});
+          setHasRegulatoryStep(true);
+          setStep(5); // Pula direto para a etapa do formulário de exigências
+        }
+      } catch (err: any) {
+        showToast('error', `Falha ao carregar detalhes do pedido: ${err.message}`);
+        onClose();
+      } finally {
+        setLoadingResubmit(false);
+      }
+    };
+
+    loadResubmitDetails();
+  }, [resubmitOrderId]);
 
   // ── Descrição legível dos filtros ativos (para logs/toasts) ─────────────────
   const describeFilters = () => {
@@ -642,11 +719,20 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
           country_code:       country,
           phone_number_type:  effectivePhoneNumberType || selected!.phoneNumberType || 'local',
           regulatory_data,
+          sub_number_order_id: subNumberOrderId || undefined,
+          order_id:           resubmitOrderId || undefined,
         }),
       });
       const json = await res.json();
       if (json.error) { showToast('error', json.error); return; }
-      setStep(4);
+      
+      if (resubmitOrderId) {
+        setDone(true);
+        showToast('success', 'Exigências enviadas com sucesso!');
+        onPurchased(selected!.phoneNumber);
+      } else {
+        setStep(4);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -793,6 +879,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
   );
 
   const goBack = () => {
+    if (resubmitOrderId) { onClose(); return; }
     if (step === 5) { setStep(1); return; }
     if (step === 4) {
       if (hasRegulatoryStep) { setStep(5); return; }
@@ -850,7 +937,9 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-ice-100 shrink-0">
           <div>
-            <h2 className="text-base font-black text-graphite-800">Comprar Número</h2>
+            <h2 className="text-base font-black text-graphite-800">
+              {resubmitOrderId ? 'Completar Cadastro' : 'Comprar Número'}
+            </h2>
             {selected && (
               <p className="text-xs text-graphite-400 mt-0.5 font-mono">{selected.phoneNumber}</p>
             )}
@@ -861,7 +950,8 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
         </div>
 
         {/* Step indicator */}
-        <div className="px-6 py-3 flex items-center gap-2 border-b border-ice-50 shrink-0">
+        {!resubmitOrderId && (
+          <div className="px-6 py-3 flex items-center gap-2 border-b border-ice-50 shrink-0">
           {STEPS.map((label, i) => {
             const stepNum = i + 1;
             const active  = displayStep === stepNum;
@@ -879,12 +969,19 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
             );
           })}
         </div>
+        )}
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+          {loadingResubmit && (
+            <div className="flex flex-col items-center justify-center py-12 gap-3 text-graphite-400">
+              <RefreshCw size={24} className="animate-spin text-brand-primary" />
+              <span className="text-sm font-medium">Carregando exigências pendentes...</span>
+            </div>
+          )}
 
           {/* ETAPA 1 — Busca */}
-          {step === 1 && (
+          {!loadingResubmit && step === 1 && (
             <>
               <div>
                 <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">Nome amigável (opcional)</label>
@@ -1343,14 +1440,14 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
         </div>
 
         {/* Footer */}
-        {!done && (
+        {!done && !loadingResubmit && (
           <div className="px-6 py-4 border-t border-ice-100 flex items-center justify-between shrink-0">
             <button
               onClick={goBack}
               className="flex items-center gap-1.5 text-sm text-graphite-400 hover:text-graphite-600 transition-colors border-none cursor-pointer bg-transparent"
             >
               <ChevronLeft size={16} />
-              {step === 1 ? 'Cancelar' : 'Voltar'}
+              {resubmitOrderId ? 'Voltar' : step === 1 ? 'Cancelar' : 'Voltar'}
             </button>
 
             {step === 1 && selected && (
@@ -1410,7 +1507,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast }: Pr
                 className="flex items-center gap-2 px-5 py-2 bg-brand-primary text-white text-sm font-bold rounded-xl hover:bg-brand-primary/90 disabled:opacity-50 transition-colors border-none cursor-pointer"
               >
                 {submitting ? <RefreshCw size={14} className="animate-spin" /> : null}
-                Continuar <ChevronRight size={16} />
+                {resubmitOrderId ? 'Reenviar Informações' : 'Continuar'} <ChevronRight size={16} />
               </button>
             )}
           </div>

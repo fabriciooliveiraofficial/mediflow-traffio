@@ -1,12 +1,26 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Activity, Mail, Lock, Loader2, User, Building2, Phone, CheckCircle2, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { PLANS, PLAN_ORDER, formatPrice, type PlanId, type BillingCycle } from '../config/planConfig';
+import { PaymentRequiredModal } from '../components/billing/PaymentRequiredModal';
 
 export const RegisterPage = () => {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+
+    // Plano e ciclo vindos da Landing (?plan=&cycle=) — default: essencial/mensal
+    const planParam = searchParams.get('plan');
+    const cycleParam = searchParams.get('cycle');
+    const selectedPlanId: PlanId = (PLAN_ORDER as string[]).includes(planParam ?? '') ? (planParam as PlanId) : 'essencial';
+    const billingCycle: BillingCycle = cycleParam === 'annual' ? 'annual' : 'monthly';
+    const selectedPlan = PLANS[selectedPlanId];
+    const selectedPrice = billingCycle === 'annual' ? selectedPlan.annualMonthlyPrice : selectedPlan.monthlyPrice;
+    const PlanIcon = selectedPlan.icon;
+
     const [loading, setLoading] = useState(false);
-    const [step, setStep] = useState(1); // 1: Form, 2: Provisioning
+    const [step, setStep] = useState(1); // 1: Form, 2: Provisioning, 3: Payment
+    const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null);
     const [provisioningStatus, setProvisioningStatus] = useState<string[]>([]);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -50,6 +64,20 @@ export const RegisterPage = () => {
 
         setLoading(true);
         setStep(2);
+
+        // ── 0. Capturar lead SEMPRE (fire-and-forget, antes do provisionamento)
+        // Mesmo que o cliente desista no meio, os dados de contato ficam
+        // registrados para remarketing (registration_leads + e-mail).
+        supabase.functions.invoke('register-lead', {
+            body: {
+                clinic_name:   form.clinicName,
+                admin_name:    form.adminName,
+                email:         form.email,
+                phone:         form.phone,
+                plan_id:       selectedPlanId,
+                billing_cycle: billingCycle,
+            },
+        }).catch(err => console.error('[register-lead] falha na captura do lead:', err));
 
         try {
             // ── 1. Criar auth user ───────────────────────────────────────────
@@ -95,9 +123,11 @@ export const RegisterPage = () => {
             const { data: tenantData, error: tenantError } = await supabase
                 .from('tenants')
                 .insert({
-                    name:     form.clinicName,
-                    slug:     `${slug}-${Date.now().toString(36)}`,
-                    specialty: [],
+                    name:          form.clinicName,
+                    slug:          `${slug}-${Date.now().toString(36)}`,
+                    specialty:     [],
+                    plan:          selectedPlanId,
+                    billing_cycle: billingCycle,
                 })
                 .select()
                 .single();
@@ -116,12 +146,13 @@ export const RegisterPage = () => {
                 });
             if (memberError) throw memberError;
 
-            // ── 5. Finalizar ─────────────────────────────────────────────────
+            // ── 5. Finalizar → modal de pagamento (NÃO vai direto ao dashboard)
             addStep('Finalizando... quase lá!');
             await new Promise(r => setTimeout(r, 600));
 
-            addStep('✅ Tudo pronto! Redirecionando...');
-            setTimeout(() => navigate('/dashboard'), 1200);
+            addStep('✅ Conta criada! Último passo: forma de pagamento.');
+            setTrialEndsAt(tenantData.trial_ends_at ?? null);
+            setTimeout(() => setStep(3), 1200);
 
         } catch (error: any) {
             setRegisterError(error.message || 'Erro ao criar conta. Tente novamente.');
@@ -130,6 +161,18 @@ export const RegisterPage = () => {
             setLoading(false);
         }
     };
+
+    if (step === 3) {
+        return (
+            <div className="min-h-screen bg-ice-50">
+                <PaymentRequiredModal
+                    planId={selectedPlanId}
+                    billingCycle={billingCycle}
+                    trialEndsAt={trialEndsAt}
+                />
+            </div>
+        );
+    }
 
     if (step === 2) {
         return (
@@ -161,6 +204,21 @@ export const RegisterPage = () => {
                     </div>
                     <h1 className="text-2xl font-black text-graphite-900 mb-2">Crie sua conta</h1>
                     <p className="text-graphite-500 font-medium">Comece a transformar sua clínica hoje</p>
+                </div>
+
+                <div className="mb-6 flex items-center justify-between gap-3 p-4 rounded-2xl border border-ice-200 bg-ice-50">
+                    <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${selectedPlan.badgeClass}`}>
+                            <PlanIcon size={20} />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-graphite-400 uppercase tracking-wider">Plano selecionado</p>
+                            <p className="text-sm font-black text-graphite-900">{selectedPlan.name} · {billingCycle === 'annual' ? 'Anual' : 'Mensal'}</p>
+                        </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                        <p className="text-lg font-black text-graphite-900">{formatPrice(selectedPrice)}<span className="text-xs font-medium text-graphite-400">/mês</span></p>
+                    </div>
                 </div>
 
                 <form onSubmit={handleRegister} className="space-y-4">

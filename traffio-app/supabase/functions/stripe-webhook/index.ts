@@ -5,20 +5,24 @@
  * e atualiza o status de assinatura do tenant no banco.
  *
  * Eventos tratados:
- *   checkout.session.completed       → ativa a assinatura (1ª compra)
- *   customer.subscription.updated    → atualiza plano/status (upgrade, renovação)
- *   customer.subscription.deleted    → cancela a assinatura
- *   invoice.payment_failed           → suspende a assinatura
- *   invoice.payment_succeeded        → reativa se estava suspensa
+ *   checkout.session.completed            → trialing: cartão coletado, trial preservado
+ *                                           active: ativa a assinatura (upgrade sem trial)
+ *   customer.subscription.updated         → atualiza plano/status (trial→active, upgrade, renovação)
+ *   customer.subscription.deleted         → cancela a assinatura
+ *   customer.subscription.trial_will_end  → e-mail SMTP ao owner (3 dias antes da 1ª cobrança)
+ *   invoice.payment_failed                → suspende a assinatura
+ *   invoice.payment_succeeded             → reativa se estava suspensa
  *
  * Variáveis de ambiente necessárias (Supabase Secrets):
  *   STRIPE_SECRET_KEY
  *   STRIPE_WEBHOOK_SECRET
+ *   SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM (e-mail trial_will_end)
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import Stripe from "https://esm.sh/stripe@14.21.0?target=deno";
+import { sendEmail } from "../_shared/email.ts";
 
 type PlanId        = "essencial" | "clinica" | "rede";
 type SubStatus     = "trial" | "active" | "suspended" | "canceled";
@@ -71,7 +75,8 @@ serve(async (req: Request) => {
     switch (event.type) {
 
       // ── checkout.session.completed ─────────────────────────────────────────
-      // Disparado quando o cliente finaliza o checkout. Ativa a assinatura.
+      // Cliente finalizou o checkout. Em trial: só registra o cartão e preserva
+      // o trial (cobrança só no fim). Sem trial (upgrade): ativa de imediato.
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
         if (session.mode !== "subscription") break;
@@ -89,15 +94,41 @@ serve(async (req: Request) => {
           session.subscription as string
         );
 
-        await activateSubscription(supabase, tenantId, planId, billingCycle, subscription);
-        await createInvoiceRecord(supabase, tenantId, planId, billingCycle, subscription);
+        if (subscription.status === "trialing") {
+          // Cartão coletado durante o trial — NÃO ativar nem zerar o trial.
+          const trialEndsAt = subscription.trial_end
+            ? new Date(subscription.trial_end * 1000).toISOString()
+            : null;
+          const renewsAt = new Date(subscription.current_period_end * 1000).toISOString();
+
+          await supabase
+            .from("tenants")
+            .update({
+              plan:                     planId,
+              subscription_status:      "trial",
+              billing_cycle:            billingCycle,
+              card_on_file:             true,
+              trial_ends_at:            trialEndsAt,
+              subscription_renews_at:   renewsAt,
+              subscription_external_id: subscription.id,
+            })
+            .eq("id", tenantId);
+
+          console.log(`[stripe-webhook] tenant=${tenantId} cartão registrado, trial até ${trialEndsAt}`);
+        } else {
+          // Upgrade/assinatura sem trial — cobrança imediata, ativa já.
+          await activateSubscription(supabase, tenantId, planId, billingCycle, subscription);
+          await createInvoiceRecord(supabase, tenantId, planId, billingCycle, subscription);
+        }
         break;
       }
 
       // ── customer.subscription.updated ─────────────────────────────────────
-      // Renovação automática ou mudança de plano via portal Stripe.
+      // Renovação automática, mudança de plano via portal ou fim do trial
+      // (transição trialing → active = 1ª cobrança bem-sucedida).
       case "customer.subscription.updated": {
         const subscription = event.data.object as Stripe.Subscription;
+        const previousStatus = (event.data.previous_attributes as any)?.status;
         const tenant = await getTenantByCustomerId(supabase, subscription.customer as string);
         if (!tenant) break;
 
@@ -107,14 +138,32 @@ serve(async (req: Request) => {
         // Tentar extrair plano dos metadados da subscription
         const planId = (subscription.metadata?.plan_id ?? tenant.plan) as PlanId;
 
-        await supabase
-          .from("tenants")
-          .update({
-            plan:                    planId,
-            subscription_status:     newStatus,
-            subscription_renews_at:  renewsAt,
-          })
-          .eq("id", tenant.id);
+        const updates: Record<string, unknown> = {
+          plan:                    planId,
+          subscription_status:     newStatus,
+          subscription_renews_at:  renewsAt,
+        };
+
+        if (newStatus === "active") {
+          // Assinatura cobrando — trial encerrado, cartão comprovadamente válido
+          updates.trial_ends_at = null;
+          updates.card_on_file  = true;
+          if (!tenant.subscription_started_at) {
+            updates.subscription_started_at = new Date(
+              subscription.current_period_start * 1000
+            ).toISOString();
+          }
+        }
+
+        await supabase.from("tenants").update(updates).eq("id", tenant.id);
+
+        // Fim do trial: registrar a 1ª fatura (idempotente — a mesma fatura
+        // também chega via invoice.payment_succeeded)
+        if (previousStatus === "trialing" && subscription.status === "active") {
+          const cycle = (subscription.metadata?.billing_cycle ?? "monthly") as BillingCycle;
+          await createInvoiceRecord(supabase, tenant.id, planId, cycle, subscription);
+          console.log(`[stripe-webhook] tenant=${tenant.id} trial encerrado → ativo (1ª cobrança)`);
+        }
 
         console.log(`[stripe-webhook] tenant=${tenant.id} status=${newStatus} renews=${renewsAt}`);
         break;
@@ -132,6 +181,68 @@ serve(async (req: Request) => {
           .eq("id", tenant.id);
 
         console.log(`[stripe-webhook] tenant=${tenant.id} cancelado`);
+        break;
+      }
+
+      // ── customer.subscription.trial_will_end ──────────────────────────────
+      // Stripe dispara ~3 dias antes do fim do trial. Avisa o owner por
+      // e-mail (SMTP) sobre a 1ª cobrança — best-effort, nunca falha o webhook.
+      case "customer.subscription.trial_will_end": {
+        const subscription = event.data.object as Stripe.Subscription;
+        const tenant = await getTenantByCustomerId(supabase, subscription.customer as string);
+        if (!tenant) break;
+
+        try {
+          // E-mail do owner do tenant
+          const { data: owner } = await supabase
+            .from("members")
+            .select("user_id")
+            .eq("tenant_id", tenant.id)
+            .eq("role", "owner")
+            .eq("is_active", true)
+            .limit(1)
+            .maybeSingle();
+
+          if (!owner) {
+            console.warn(`[stripe-webhook] trial_will_end: owner não encontrado tenant=${tenant.id}`);
+            break;
+          }
+
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("email, full_name")
+            .eq("id", owner.user_id)
+            .maybeSingle();
+
+          if (!profile?.email) {
+            console.warn(`[stripe-webhook] trial_will_end: owner sem e-mail tenant=${tenant.id}`);
+            break;
+          }
+
+          const amount = (subscription.items.data[0]?.price?.unit_amount ?? 0) / 100;
+          const amountLabel = amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+          const chargeDate = subscription.trial_end
+            ? new Date(subscription.trial_end * 1000).toLocaleDateString("pt-BR")
+            : "em breve";
+          const firstName = (profile.full_name ?? "").split(" ")[0] || "Olá";
+
+          await sendEmail({
+            to: profile.email,
+            subject: "Seu trial Traffio termina em 3 dias",
+            html: `
+              <h2>${firstName}, seu período de teste está acabando!</h2>
+              <p>Seu trial gratuito do Traffio termina em <strong>3 dias</strong>.</p>
+              <p>A cobrança de <strong>${amountLabel}</strong> será feita em <strong>${chargeDate}</strong> no cartão cadastrado.</p>
+              <p>Se quiser continuar, não precisa fazer nada — está tudo pronto. 🎉</p>
+              <p>Se preferir cancelar, acesse a página <strong>Assinatura → Gerenciar Faturamento</strong> na plataforma a qualquer momento antes da cobrança, sem custo.</p>
+              <p style="color:#999;font-size:12px;">Traffio · cadastro@traffio.com.br</p>
+            `,
+          });
+
+          console.log(`[stripe-webhook] trial_will_end: e-mail enviado para owner tenant=${tenant.id}`);
+        } catch (emailErr: any) {
+          console.error(`[stripe-webhook] trial_will_end: falha no e-mail tenant=${tenant.id}:`, emailErr.message);
+        }
         break;
       }
 
@@ -154,7 +265,7 @@ serve(async (req: Request) => {
           const planId = (sub.metadata?.plan_id ?? tenant.plan) as PlanId;
           const cycle  = (sub.metadata?.billing_cycle ?? "monthly") as BillingCycle;
 
-          await supabase.from("tenant_invoices").insert({
+          await insertInvoiceOnce(supabase, {
             tenant_id:           tenant.id,
             plan_id:             planId,
             billing_cycle:       cycle,
@@ -193,7 +304,7 @@ serve(async (req: Request) => {
           const planId = (sub.metadata?.plan_id ?? tenant.plan) as PlanId;
           const cycle  = (sub.metadata?.billing_cycle ?? "monthly") as BillingCycle;
 
-          await supabase.from("tenant_invoices").insert({
+          await insertInvoiceOnce(supabase, {
             tenant_id:           tenant.id,
             plan_id:             planId,
             billing_cycle:       cycle,
@@ -228,7 +339,7 @@ serve(async (req: Request) => {
 async function getTenantByCustomerId(supabase: any, customerId: string) {
   const { data } = await supabase
     .from("tenants")
-    .select("id, plan, subscription_status")
+    .select("id, plan, subscription_status, subscription_started_at")
     .eq("stripe_customer_id", customerId)
     .maybeSingle();
 
@@ -236,6 +347,28 @@ async function getTenantByCustomerId(supabase: any, customerId: string) {
     console.warn(`[stripe-webhook] tenant não encontrado para customer: ${customerId}`);
   }
   return data;
+}
+
+/**
+ * Insert idempotente em tenant_invoices: o mesmo external_invoice_id
+ * pode chegar por mais de um evento (ex: subscription.updated +
+ * invoice.payment_succeeded) ou por replay do webhook — grava só uma vez.
+ */
+async function insertInvoiceOnce(supabase: any, record: Record<string, unknown>) {
+  const externalId = record.external_invoice_id;
+  if (externalId) {
+    const { data: existing } = await supabase
+      .from("tenant_invoices")
+      .select("id")
+      .eq("external_invoice_id", externalId)
+      .maybeSingle();
+
+    if (existing) {
+      console.log(`[stripe-webhook] fatura ${externalId} já registrada — skip`);
+      return;
+    }
+  }
+  await supabase.from("tenant_invoices").insert(record);
 }
 
 async function activateSubscription(
@@ -284,7 +417,7 @@ async function createInvoiceRecord(
   const latestInvoice = invoices?.data?.[0];
   if (!latestInvoice) return;
 
-  await supabase.from("tenant_invoices").insert({
+  await insertInvoiceOnce(supabase, {
     tenant_id:           tenantId,
     plan_id:             planId,
     billing_cycle:       billingCycle,

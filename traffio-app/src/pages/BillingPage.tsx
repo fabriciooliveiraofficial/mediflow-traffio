@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Shield, Check, AlertTriangle, Clock, Loader2 } from 'lucide-react';
+import { Shield, Check, AlertTriangle, Clock, Loader2, CalendarClock } from 'lucide-react';
 import { useTenant } from '../contexts/TenantContext';
 import { usePlan } from '../hooks/usePlan';
+import { useToast } from '../contexts/ToastContext';
 import { supabase } from '../lib/supabase';
 import {
     PLANS,
@@ -14,46 +15,114 @@ import {
 } from '../config/planConfig';
 
 export const BillingPage = () => {
-    const { tenant } = useTenant();
+    const { tenant, refresh } = useTenant();
     const { planId, isTrialActive, isTrialExpired, trialDaysLeft } = usePlan();
+    const { showToast, showConfirm } = useToast();
     const [billingCycle, setBillingCycle] = useState<BillingCycle>(
         tenant?.billing_cycle ?? 'monthly'
     );
     const [loadingPlan, setLoadingPlan] = useState<PlanId | null>(null);
+    const [loadingPortal, setLoadingPortal] = useState(false);
+    const [scheduledChange, setScheduledChange] = useState<{ planName: string; date: string } | null>(null);
 
-    async function handleUpgrade(targetPlanId: PlanId) {
+    // Abre o Stripe Billing Portal — atualizar cartão, ver faturas e CANCELAR
+    async function handleManageBilling() {
+        setLoadingPortal(true);
+        try {
+            const res = await supabase.functions.invoke('stripe-create-portal', {
+                body: { return_url: window.location.href },
+            });
+            if (res.error) throw new Error(res.error.message);
+            if (!res.data?.url) throw new Error(res.data?.error ?? 'Não foi possível abrir o portal');
+            window.location.href = res.data.url;
+        } catch (err: any) {
+            console.error('Portal error:', err);
+            showToast('error', `Erro ao abrir o portal de faturamento: ${err.message}`);
+            setLoadingPortal(false);
+        }
+    }
+
+    // Fluxo de checkout (contas ainda sem assinatura no Stripe)
+    async function startCheckout(targetPlanId: PlanId) {
+        const res = await supabase.functions.invoke('stripe-create-checkout', {
+            body: {
+                plan_id:       targetPlanId,
+                billing_cycle: billingCycle,
+                success_url:   `${window.location.origin}/billing?checkout=success`,
+                cancel_url:    `${window.location.origin}/billing`,
+            },
+        });
+        if (res.error) throw new Error(res.error.message);
+
+        const { url, redirect_to_sales } = res.data;
+        if (redirect_to_sales) {
+            window.location.href = 'mailto:contato@traffio.com.br?subject=Plano Rede';
+            return;
+        }
+        if (url) window.location.href = url;
+    }
+
+    // Troca flexível de plano respeitando o ciclo já pago:
+    // upgrade = imediato com proração · downgrade = agendado p/ fim do período
+    async function handleChangePlan(targetPlanId: PlanId) {
         if (targetPlanId === 'rede') {
             window.location.href = 'mailto:contato@traffio.com.br?subject=Plano Rede';
             return;
         }
 
+        const isUpgrade = isPlanUpgrade(planId, targetPlanId)
+            || (targetPlanId === planId && tenant?.billing_cycle === 'monthly' && billingCycle === 'annual');
+        const isTrialing = tenant?.subscription_status === 'trial';
+
+        // Confirmação antes de mudanças com efeito financeiro
+        if (!isTrialing) {
+            const renewsAt = tenant?.subscription_renews_at
+                ? new Date(tenant.subscription_renews_at).toLocaleDateString('pt-BR')
+                : 'a próxima renovação';
+            const msg = isUpgrade
+                ? `Fazer upgrade para o plano ${PLANS[targetPlanId].name} (${billingCycle === 'annual' ? 'anual' : 'mensal'})? A diferença proporcional do período é cobrada agora e o tempo não usado do plano atual vira crédito.`
+                : `Mudar para o plano ${PLANS[targetPlanId].name} (${billingCycle === 'annual' ? 'anual' : 'mensal'})? Você mantém o plano atual até ${renewsAt} (já pago) e a mudança entra na renovação.`;
+            const ok = await showConfirm(msg);
+            if (!ok) return;
+        }
+
         setLoadingPlan(targetPlanId);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            const token = session?.access_token;
-            if (!token) throw new Error('Sessão expirada');
-
-            const res = await supabase.functions.invoke('stripe-create-checkout', {
-                body: {
-                    plan_id:      targetPlanId,
-                    billing_cycle: billingCycle,
-                    success_url:  `${window.location.origin}/billing?checkout=success`,
-                    cancel_url:   `${window.location.origin}/billing`,
-                },
+            const res = await supabase.functions.invoke('stripe-change-plan', {
+                body: { plan_id: targetPlanId, billing_cycle: billingCycle },
             });
-
             if (res.error) throw new Error(res.error.message);
 
-            const { url, redirect_to_sales } = res.data;
-            if (redirect_to_sales) {
+            const data = res.data ?? {};
+            if (data.error) throw new Error(data.error);
+
+            if (data.redirect_to_sales) {
                 window.location.href = 'mailto:contato@traffio.com.br?subject=Plano Rede';
                 return;
             }
-            if (url) window.location.href = url;
+
+            // Sem assinatura no Stripe ainda → checkout normal
+            if (data.needs_checkout) {
+                await startCheckout(targetPlanId);
+                return;
+            }
+
+            if (data.changed === 'immediate') {
+                showToast('success', data.trial
+                    ? `Plano alterado para ${PLANS[targetPlanId].name}! Nada é cobrado durante o trial.`
+                    : `Plano alterado para ${PLANS[targetPlanId].name}! A diferença proporcional foi ajustada na fatura.`);
+                await refresh(undefined, false);
+            } else if (data.changed === 'scheduled') {
+                const date = data.effective_at
+                    ? new Date(data.effective_at).toLocaleDateString('pt-BR')
+                    : 'a próxima renovação';
+                setScheduledChange({ planName: PLANS[targetPlanId].name, date });
+                showToast('success', `Mudança agendada: plano ${PLANS[targetPlanId].name} a partir de ${date}.`);
+            }
 
         } catch (err: any) {
-            console.error('Checkout error:', err);
-            alert(`Erro ao iniciar checkout: ${err.message}`);
+            console.error('Change plan error:', err);
+            showToast('error', `Erro ao alterar o plano: ${err.message}`);
         } finally {
             setLoadingPlan(null);
         }
@@ -153,11 +222,30 @@ export const BillingPage = () => {
                         <div className={`w-2 h-2 rounded-full ${statusDot()}`}></div>
                         {statusLabel()}
                     </span>
-                    <button className="px-5 py-2.5 rounded-xl border border-ice-200 text-graphite-600 text-sm font-bold hover:bg-ice-50 transition-colors">
+                    <button
+                        onClick={handleManageBilling}
+                        disabled={loadingPortal}
+                        className="px-5 py-2.5 rounded-xl border border-ice-200 text-graphite-600 text-sm font-bold hover:bg-ice-50 transition-colors flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                        title="Atualizar cartão, ver faturas e cancelar assinatura"
+                    >
+                        {loadingPortal && <Loader2 size={14} className="animate-spin" />}
                         Gerenciar Faturamento
                     </button>
                 </div>
             </div>
+
+            {/* Banner de mudança de plano agendada */}
+            {scheduledChange && (
+                <div className="flex items-start gap-3 p-5 bg-indigo-50 rounded-2xl border border-indigo-100">
+                    <CalendarClock size={20} className="text-indigo-500 shrink-0 mt-0.5" />
+                    <p className="text-sm text-indigo-700 font-medium">
+                        Mudança agendada: seu plano passa a ser{' '}
+                        <span className="font-black">{scheduledChange.planName}</span> em{' '}
+                        <span className="font-black">{scheduledChange.date}</span>. Até lá, você mantém
+                        todos os recursos do plano atual, já pagos. Para desfazer, basta escolher outro plano.
+                    </p>
+                </div>
+            )}
 
             {/* Toggle ciclo de cobrança */}
             <div className="flex justify-center">
@@ -193,11 +281,23 @@ export const BillingPage = () => {
                 {PLAN_ORDER.map((id: PlanId) => {
                     const plan = PLANS[id];
                     const Icon = plan.icon;
-                    const isCurrent = id === planId;
+                    const isCurrentPlan = id === planId;
+                    // "Plano atual" só quando plano E ciclo coincidem — assim o
+                    // cliente pode migrar mensal↔anual dentro do mesmo plano
+                    const isCurrent = isCurrentPlan && billingCycle === (tenant?.billing_cycle ?? 'monthly');
                     const isUpgrade = isPlanUpgrade(planId, id);
                     const price = billingCycle === 'annual'
                         ? plan.annualMonthlyPrice
                         : plan.monthlyPrice;
+                    const ctaLabel = isCurrent
+                        ? 'Plano atual'
+                        : id === 'rede'
+                        ? 'Falar com vendas'
+                        : isCurrentPlan
+                        ? billingCycle === 'annual' ? 'Mudar para anual' : 'Mudar para mensal'
+                        : isUpgrade
+                        ? 'Fazer upgrade'
+                        : 'Mudar de plano';
 
                     return (
                         <div
@@ -259,11 +359,11 @@ export const BillingPage = () => {
 
                             <button
                                 disabled={isCurrent || loadingPlan === id}
-                                onClick={() => !isCurrent && handleUpgrade(id)}
+                                onClick={() => !isCurrent && handleChangePlan(id)}
                                 className={`w-full py-3.5 rounded-2xl font-black text-sm transition-all border-none cursor-pointer flex items-center justify-center gap-2 ${
                                     isCurrent
                                         ? 'bg-ice-100 text-graphite-400 cursor-default'
-                                        : isUpgrade
+                                        : isUpgrade || isCurrentPlan
                                         ? id === 'clinica'
                                             ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20 hover:scale-[1.02] active:scale-[0.98]'
                                             : 'bg-graphite-900 text-white hover:scale-[1.02] active:scale-[0.98]'
@@ -273,7 +373,7 @@ export const BillingPage = () => {
                                 {loadingPlan === id && (
                                     <Loader2 size={15} className="animate-spin" />
                                 )}
-                                {isCurrent ? 'Plano atual' : plan.ctaLabel}
+                                {ctaLabel}
                             </button>
                         </div>
                     );

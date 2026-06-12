@@ -7,6 +7,7 @@ serve(async (req: Request) => {
   const code = urlObj.searchParams.get("code");
   const state = urlObj.searchParams.get("state");
   const tenantId = urlObj.searchParams.get("tenant_id");
+  const redirectBackParam = urlObj.searchParams.get("redirect_back");
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const serviceKey  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -27,16 +28,36 @@ serve(async (req: Request) => {
       return new Response("Missing tenant_id parameter", { status: 400 });
     }
 
+    const statePayload = {
+      tenantId: targetTenant,
+      redirectBack: redirectBackParam || "",
+    };
+    const encodedState = btoa(JSON.stringify(statePayload));
+
     const fbAuthUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${metaClientId}&redirect_uri=${encodeURIComponent(
       redirectUri
-    )}&state=${targetTenant}&scope=ads_management,ads_read`;
+    )}&state=${encodedState}&scope=ads_management,ads_read`;
 
     return Response.redirect(fbAuthUrl, 302);
   }
 
   // 2. Callback request: Meta returned authorization code
+  let activeTenantId = "";
+  let redirectBack = "";
+
+  if (state) {
+    try {
+      const decodedState = JSON.parse(atob(state));
+      activeTenantId = decodedState.tenantId;
+      redirectBack = decodedState.redirectBack;
+    } catch {
+      // Fallback for legacy calls
+      activeTenantId = state;
+    }
+  }
+
   try {
-    const supabaseAdmin = supabase; // reutiliza o client já criado
+    const supabaseAdmin = supabase;
 
     // A. Exchange code for short-lived access token
     const tokenExchangeUrl = `https://graph.facebook.com/v19.0/oauth/access_token?client_id=${metaClientId}&redirect_uri=${encodeURIComponent(
@@ -48,6 +69,9 @@ serve(async (req: Request) => {
 
     if (tokenData.error) {
       console.error("Meta OAuth Code Exchange Error:", tokenData.error);
+      if (redirectBack) {
+        return Response.redirect(`${redirectBack}/oauth-callback.html?status=error&platform=meta&message=${encodeURIComponent(tokenData.error.message)}`, 302);
+      }
       return new Response(`OAuth Error: ${tokenData.error.message}`, { status: 400 });
     }
 
@@ -61,6 +85,9 @@ serve(async (req: Request) => {
 
     if (longLivedData.error) {
       console.error("Meta OAuth Long-Lived Token Exchange Error:", longLivedData.error);
+      if (redirectBack) {
+        return Response.redirect(`${redirectBack}/oauth-callback.html?status=error&platform=meta&message=${encodeURIComponent(longLivedData.error.message)}`, 302);
+      }
       return new Response(`OAuth Exchange Error: ${longLivedData.error.message}`, { status: 400 });
     }
 
@@ -71,7 +98,7 @@ serve(async (req: Request) => {
       .from("ad_integrations")
       .upsert(
         {
-          tenant_id: state,
+          tenant_id: activeTenantId,
           platform: "meta",
           access_token: longLivedToken,
           status: "active",
@@ -82,10 +109,18 @@ serve(async (req: Request) => {
 
     if (upsertError) {
       console.error("Database Upsert Error:", upsertError);
+      if (redirectBack) {
+        return Response.redirect(`${redirectBack}/oauth-callback.html?status=error&platform=meta&message=${encodeURIComponent(upsertError.message)}`, 302);
+      }
       return new Response(`Database Error: ${upsertError.message}`, { status: 500 });
     }
 
-    // D. Return success HTML view and trigger window close
+    // D. Redirect back to frontend success page
+    if (redirectBack) {
+      return Response.redirect(`${redirectBack}/oauth-callback.html?status=success&platform=meta`, 302);
+    }
+
+    // Legacy Fallback (HTML View)
     const html = `
       <!DOCTYPE html>
       <html lang="pt-BR">
@@ -136,9 +171,6 @@ serve(async (req: Request) => {
           <h1>Conta Conectada!</h1>
           <p>Sua conta do Meta Ads foi integrada com sucesso ao Traffio. Esta janela pode ser fechada.</p>
         </div>
-        <script>
-          setTimeout(() => { window.close(); }, 3000);
-        </script>
       </body>
       </html>
     `;
@@ -149,6 +181,9 @@ serve(async (req: Request) => {
     });
   } catch (err: any) {
     console.error("Meta Auth Handler Error:", err);
+    if (redirectBack) {
+      return Response.redirect(`${redirectBack}/oauth-callback.html?status=error&platform=meta&message=${encodeURIComponent(err.message)}`, 302);
+    }
     return new Response(`Internal Server Error: ${err.message}`, { status: 500 });
   }
 });

@@ -111,7 +111,7 @@ export const LandingPage = () => {
                             { value: '-62%', label: 'Redução de no-shows', sub: 'com lembretes automáticos' },
                             { value: '+127%', label: 'Aumento de faturamento', sub: 'média entre clientes' },
                             { value: '3×', label: 'Mais conversões', sub: 'via CRM + WhatsApp' },
-                            { value: '14 dias', label: 'Trial gratuito', sub: 'sem cartão de crédito' },
+                            { value: '14 dias', label: 'Trial gratuito', sub: 'cancele quando quiser' },
                         ].map(s => (
                             <div key={s.value}>
                                 <p className="text-4xl font-black text-amber-400 mb-1">{s.value}</p>
@@ -406,12 +406,12 @@ export const LandingPage = () => {
                                             </li>
                                         ))}
                                     </ul>
-                                    <button onClick={() => navigate('/register')}
+                                    <button onClick={() => navigate(`/register?plan=${id}&cycle=${billingCycle}`)}
                                         className={`w-full py-4 rounded-2xl font-black text-sm transition-all border-none cursor-pointer ${isPopular ? 'bg-gradient-to-r from-amber-500 to-yellow-400 text-white shadow-lg shadow-amber-500/30 hover:scale-[1.02] active:scale-[0.98]' : id === 'rede' ? 'bg-[#0D1B2A] text-white hover:scale-[1.02] active:scale-[0.98]' : 'bg-ice-100 text-graphite-700 hover:bg-amber-50 hover:text-amber-700'}`}>
                                         {id === 'rede' ? 'Falar com vendas' : 'Começar trial de 14 dias'}
                                     </button>
                                     <p className="text-center text-xs text-graphite-400 font-medium mt-3">
-                                        {id === 'rede' ? 'Implantação assistida inclusa' : 'Sem cartão de crédito'}
+                                        {id === 'rede' ? 'Implantação assistida inclusa' : '14 dias grátis · cancele quando quiser'}
                                     </p>
                                 </div>
                             );
