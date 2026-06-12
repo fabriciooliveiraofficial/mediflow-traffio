@@ -45,7 +45,7 @@ import { PendingOrdersList } from '../components/numbers/PendingOrdersList';
 
 
 // Sub-componente: lista de números do tenant
-function PhoneNumbersList({ tenantId, showToast }: { tenantId: string; showToast: (msg: string, type: 'success' | 'error') => void }) {
+function PhoneNumbersList({ tenantId, showToast, refreshKey }: { tenantId: string; showToast: (msg: string, type: 'success' | 'error') => void; refreshKey?: number }) {
     const [numbers, setNumbers] = useState<any[]>([]);
     const [releasingId, setReleasingId] = useState<string | null>(null);
 
@@ -61,7 +61,7 @@ function PhoneNumbersList({ tenantId, showToast }: { tenantId: string; showToast
 
     useEffect(() => {
         loadNumbers();
-    }, [loadNumbers]);
+    }, [loadNumbers, refreshKey]);
 
     const handleRelease = async (num: any) => {
         const confirm = window.confirm(`Deseja realmente excluir e liberar o número ${num.phone_number} permanentemente? Esta ação não pode ser desfeita.`);
@@ -188,6 +188,40 @@ export const Settings = () => {
     // Modal: Comprar número Telnyx
     const [showBuyNumber, setShowBuyNumber]       = useState(false);
     const [ordersRefreshKey, setOrdersRefreshKey] = useState(0);
+    const [syncing, setSyncing] = useState(false);
+
+    const handleSync = async (tenantId: string) => {
+        setSyncing(true);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                showToast('error', 'Usuário não autenticado.');
+                return;
+            }
+
+            const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/telnyx-numbers`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ action: 'sync' })
+            });
+
+            const json = res.ok ? await res.json() : null;
+            if (!res.ok || json?.error) {
+                showToast('error', json?.error ?? 'Erro ao sincronizar status.');
+            } else {
+                showToast('success', 'Status sincronizado com a Telnyx!');
+                // Forçar atualização das duas listas
+                setOrdersRefreshKey(k => k + 1);
+            }
+        } catch (err: any) {
+            showToast('error', `Erro na sincronização: ${err.message}`);
+        } finally {
+            setSyncing(false);
+        }
+    };
 
 
     useEffect(() => {
@@ -1341,15 +1375,27 @@ export const Settings = () => {
                                                 <Hash size={16} className="text-brand-primary" />
                                                 Números de Telefone
                                             </h4>
-                                            <button
-                                                onClick={() => setShowBuyNumber(true)}
-                                                className="flex items-center gap-1 text-xs font-bold text-brand-primary hover:underline border-none bg-transparent cursor-pointer"
-                                            >
-                                                <Plus size={12} /> Comprar número
-                                            </button>
+                                            <div className="flex items-center gap-3">
+                                                <button
+                                                    onClick={() => handleSync(tenant.id)}
+                                                    disabled={syncing}
+                                                    className="flex items-center gap-1.5 text-xs font-bold text-graphite-500 hover:text-brand-primary border-none bg-transparent cursor-pointer disabled:opacity-50"
+                                                    title="Sincronizar status com a Telnyx"
+                                                >
+                                                    <RefreshCw size={12} className={syncing ? 'animate-spin' : ''} />
+                                                    <span>{syncing ? 'Sincronizando...' : 'Sincronizar Status'}</span>
+                                                </button>
+                                                <span className="text-graphite-200">|</span>
+                                                <button
+                                                    onClick={() => setShowBuyNumber(true)}
+                                                    className="flex items-center gap-1 text-xs font-bold text-brand-primary hover:underline border-none bg-transparent cursor-pointer"
+                                                >
+                                                    <Plus size={12} /> Comprar número
+                                                </button>
+                                            </div>
                                         </div>
 
-                                        <PhoneNumbersList tenantId={tenant.id} showToast={showToast} />
+                                        <PhoneNumbersList tenantId={tenant.id} showToast={showToast} refreshKey={ordersRefreshKey} />
 
                                         <PendingOrdersList
                                             tenantId={tenant.id}

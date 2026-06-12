@@ -478,6 +478,17 @@ export async function getNumberOrder(
   };
 }
 
+export async function getPhoneNumber(apiKey: string, numberId: string): Promise<any> {
+  const data = await telnyxRequest(apiKey, "GET", `/phone_numbers/${numberId}`);
+  return data.data;
+}
+
+export async function getPhoneNumberByNumber(apiKey: string, phoneNumber: string): Promise<any> {
+  const data = await telnyxRequest(apiKey, "GET", `/phone_numbers?filter[phone_number]=${encodeURIComponent(phoneNumber)}`);
+  return data.data?.[0];
+}
+
+
 // ─── SMS ─────────────────────────────────────────────────────────────────────
 
 export async function sendSms(

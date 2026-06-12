@@ -19,6 +19,8 @@ import {
   searchAvailableNumbers,
   purchaseNumber,
   releaseNumber,
+  getPhoneNumber,
+  getPhoneNumberByNumber,
 } from "../_shared/telnyxClient.ts";
 import { getTelnyxApiKey, getTelnyxConnectionId } from "../_shared/masterConfig.ts";
 import { corsHeaders } from "../_shared/cors.ts";
@@ -165,6 +167,253 @@ serve(async (req: Request) => {
         .eq("tenant_id", tenantId);
 
       return json({ success: true });
+    }
+
+    if (action === "sync") {
+      // 1. Buscar números locais do tenant (que não foram excluídos/released)
+      const { data: localNumbers, error: numErr } = await supabase
+        .from("tenant_phone_numbers")
+        .select("*")
+        .eq("tenant_id", tenantId)
+        .is("released_at", null);
+
+      if (numErr) throw numErr;
+
+      // 2. Buscar pedidos de compra de número locais pendentes do tenant
+      const { data: localOrders, error: ordErr } = await supabase
+        .from("number_order_requests")
+        .select("*")
+        .eq("tenant_id", tenantId)
+        .not("status", "in", '("completed","cancelled")');
+
+      if (ordErr) throw ordErr;
+
+      const syncedNumbers = [];
+      const loopErrors = [];
+      const orderSyncErrors = [];
+
+      // Sincronizar status de cada número de telefone
+      for (const num of (localNumbers ?? [])) {
+        try {
+          let telnyxNum: any = null;
+          if (num.telnyx_number_id) {
+            try {
+              telnyxNum = await getPhoneNumber(apiKey, num.telnyx_number_id);
+            } catch (err: any) {
+              const msg = (err.message ?? "").toLowerCase();
+              if (msg.includes("404") || msg.includes("not found") || msg.includes("could not be found")) {
+                try {
+                  telnyxNum = await getPhoneNumberByNumber(apiKey, num.phone_number);
+                } catch (err2: any) {
+                  console.error(`[telnyx-numbers] Fallback search failed for ${num.phone_number}:`, err2.message);
+                  loopErrors.push({ phone: num.phone_number, step: "fallback", error: err2.message });
+                }
+              } else {
+                throw err;
+              }
+            }
+          } else {
+            telnyxNum = await getPhoneNumberByNumber(apiKey, num.phone_number);
+          }
+
+          if (telnyxNum) {
+            const isTelnyxActive = telnyxNum.status === "active";
+            const updatePayload: any = {
+              updated_at: new Date().toISOString(),
+            };
+
+            if (num.is_active !== isTelnyxActive) {
+              updatePayload.is_active = isTelnyxActive;
+            }
+            if (telnyxNum.id && num.telnyx_number_id !== telnyxNum.id) {
+              updatePayload.telnyx_number_id = telnyxNum.id;
+            }
+
+            if (Object.keys(updatePayload).length > 1) {
+              await supabase
+                .from("tenant_phone_numbers")
+                .update(updatePayload)
+                .eq("id", num.id);
+            }
+
+            syncedNumbers.push({
+              phone_number: num.phone_number,
+              is_active: isTelnyxActive,
+              status: telnyxNum.status,
+            });
+
+            // Se o número agora está ativo na Telnyx, marcar o pedido correspondente como concluído
+            if (isTelnyxActive) {
+              const matchedOrder = (localOrders ?? []).find(o => o.phone_number === num.phone_number);
+              if (matchedOrder) {
+                await supabase
+                  .from("number_order_requests")
+                  .update({
+                    status: "completed",
+                    approved_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq("id", matchedOrder.id);
+
+                // Notificar via realtime
+                await supabase.channel(`orders:${tenantId}`).send({
+                  type: "broadcast",
+                  event: "number_order_completed",
+                  payload: { order_id: matchedOrder.id, phone_number: num.phone_number },
+                });
+              }
+            } else {
+              // Se não está ativo, mas tem pedido pendente, atualizar o status do pedido se houve erro
+              const matchedOrder = (localOrders ?? []).find(o => o.phone_number === num.phone_number);
+              if (matchedOrder) {
+                let newStatus = "under_review";
+                let rejectionReason = null;
+
+                if (telnyxNum.status === "requirement-info-exception") {
+                  newStatus = "rejected";
+                  rejectionReason = "Pendência regulatória identificada nas operadoras locais.";
+                }
+
+                if (matchedOrder.status !== newStatus || matchedOrder.rejection_reason !== rejectionReason) {
+                  await supabase
+                    .from("number_order_requests")
+                    .update({
+                      status: newStatus,
+                      rejection_reason: rejectionReason,
+                      updated_at: new Date().toISOString(),
+                    })
+                    .eq("id", matchedOrder.id);
+
+                  if (newStatus === "rejected") {
+                    await supabase.channel(`orders:${tenantId}`).send({
+                      type: "broadcast",
+                      event: "number_order_rejected",
+                      payload: { order_id: matchedOrder.id, phone_number: num.phone_number, reason: rejectionReason },
+                    });
+                  }
+                }
+              }
+            }
+          } else {
+            // Número não existe na Telnyx (excluído/liberado)
+            await supabase
+              .from("tenant_phone_numbers")
+              .update({
+                is_active: false,
+                released_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", num.id);
+
+            syncedNumbers.push({
+              phone_number: num.phone_number,
+              is_active: false,
+              status: "released",
+            });
+
+            // Se tem pedido associado, cancelá-lo
+            const matchedOrder = (localOrders ?? []).find(o => o.phone_number === num.phone_number);
+            if (matchedOrder) {
+              await supabase
+                .from("number_order_requests")
+                .update({
+                  status: "cancelled",
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", matchedOrder.id);
+            }
+          }
+        } catch (err: any) {
+          console.error(`[telnyx-numbers] Sync failed for number ${num.phone_number}:`, err.message);
+          loopErrors.push({ phone: num.phone_number, error: err.message });
+        }
+      }
+
+      // Sincronizar status de pedidos que não possuem linha em tenant_phone_numbers (raro, mas possível se falhou na criação)
+      for (const order of (localOrders ?? [])) {
+        const hasNumberRecord = (localNumbers ?? []).some(n => n.phone_number === order.phone_number);
+        if (!hasNumberRecord && order.telnyx_order_id) {
+          try {
+            // Buscar detalhes da ordem na Telnyx para recuperar o número e ver se já foi ativado
+            const resOrder = await fetch(`https://api.telnyx.com/v2/number_orders/${order.telnyx_order_id}`, {
+              headers: { "Authorization": `Bearer ${apiKey}` }
+            });
+            if (resOrder.ok) {
+              const orderData = await resOrder.json();
+              const orderStatus = orderData.data?.status; // "pending" | "success" | "failure"
+              
+              if (orderStatus === "success" || orderStatus === "successful") {
+                // Ativar número
+                await supabase.from("tenant_phone_numbers").upsert({
+                  tenant_id: tenantId,
+                  phone_number: order.phone_number,
+                  country_code: order.country_code,
+                  is_active: true,
+                  capabilities: { voice: true, sms: true },
+                }, { onConflict: "tenant_id,phone_number" });
+
+                await supabase
+                  .from("number_order_requests")
+                  .update({
+                    status: "completed",
+                    approved_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq("id", order.id);
+
+                await supabase.channel(`orders:${tenantId}`).send({
+                  type: "broadcast",
+                  event: "number_order_completed",
+                  payload: { order_id: order.id, phone_number: order.phone_number },
+                });
+              } else if (orderStatus === "failure" || orderStatus === "failed") {
+                const reason = orderData.data?.errors?.[0]?.description ?? "Rejeitado pela operadora";
+                await supabase
+                  .from("number_order_requests")
+                  .update({
+                    status: "rejected",
+                    rejection_reason: reason,
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq("id", order.id);
+
+                await supabase.channel(`orders:${tenantId}`).send({
+                  type: "broadcast",
+                  event: "number_order_rejected",
+                  payload: { order_id: order.id, phone_number: order.phone_number, reason },
+                });
+              }
+            } else {
+              const text = await resOrder.text();
+              orderSyncErrors.push({ order_id: order.id, status: resOrder.status, response: text });
+            }
+          } catch (err: any) {
+            console.error(`[telnyx-numbers] Sync failed for order ${order.id}:`, err.message);
+            orderSyncErrors.push({ order_id: order.id, error: err.message });
+          }
+        }
+      }
+
+      // Notificar frontend via broadcast geral de recarregamento
+      await supabase.channel(`orders:${tenantId}`).send({
+        type: "broadcast",
+        event: "sync_completed",
+        payload: { tenant_id: tenantId },
+      });
+
+      return json({
+        success: true,
+        numbers: syncedNumbers,
+        debug: {
+          tenantId,
+          localNumbersCount: localNumbers?.length,
+          localOrdersCount: localOrders?.length,
+          numErr,
+          ordErr,
+          loopErrors,
+          orderSyncErrors
+        }
+      });
     }
 
     return json({ error: `Unknown action: ${action}` }, 400);

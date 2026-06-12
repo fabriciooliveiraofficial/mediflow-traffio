@@ -241,7 +241,7 @@ serve(async (req: Request) => {
           throw purchaseErr;
         }
 
-        const pendingReview = result.requirementsMet === false;
+        const pendingReview = result.requirementsMet === false || !!requirementGroupId;
 
         // Salvar no banco — se falhar, liberar o número para não ficar órfão na Telnyx
         const { error: insertErr } = await supabase.from("tenant_phone_numbers").insert({
