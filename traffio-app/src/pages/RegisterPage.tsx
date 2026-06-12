@@ -112,7 +112,7 @@ export const RegisterPage = () => {
                 role:      'owner',
             }, { onConflict: 'id' });
 
-            // ── 3. Criar tenant ──────────────────────────────────────────────
+            // ── 3. Criar tenant + member owner (RPC, bypassa RLS) ─────────────
             addStep('Criando sua clínica...');
             const slug = form.clinicName
                 .toLowerCase()
@@ -120,31 +120,16 @@ export const RegisterPage = () => {
                 .replace(/[^a-z0-9]+/g, '-')
                 .replace(/^-|-$/g, '');
 
+            addStep('Configurando permissões de proprietário...');
             const { data: tenantData, error: tenantError } = await supabase
-                .from('tenants')
-                .insert({
-                    name:          form.clinicName,
-                    slug:          `${slug}-${Date.now().toString(36)}`,
-                    specialty:     [],
-                    plan:          selectedPlanId,
-                    billing_cycle: billingCycle,
-                })
-                .select()
-                .single();
+                .rpc('register_tenant', {
+                    p_name:          form.clinicName,
+                    p_slug:          `${slug}-${Date.now().toString(36)}`,
+                    p_plan:          selectedPlanId,
+                    p_billing_cycle: billingCycle,
+                });
 
             if (tenantError) throw tenantError;
-
-            // ── 4. Criar member como owner ───────────────────────────────────
-            addStep('Configurando permissões de proprietário...');
-            const { error: memberError } = await supabase
-                .from('members')
-                .insert({
-                    tenant_id: tenantData.id,
-                    user_id:   userId,
-                    role:      'owner',
-                    is_active: true,
-                });
-            if (memberError) throw memberError;
 
             // ── 5. Finalizar → modal de pagamento (NÃO vai direto ao dashboard)
             addStep('Finalizando... quase lá!');

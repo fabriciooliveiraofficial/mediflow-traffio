@@ -218,10 +218,11 @@ Landing Page (CTA "Começar trial de 14 dias")
 
 ### FASE 9 — Testes E2E (Stripe test mode)
 
-> **Pré-requisitos do roteiro:**
-> 1. ⚠️ Os secrets `STRIPE_SECRET_KEY`, `STRIPE_PRICE_*` e `STRIPE_WEBHOOK_SECRET` precisam ser de **test mode** (`sk_test_...`) durante os testes — cartões de teste não funcionam em live mode. Se estiverem em live, trocar temporariamente e voltar depois.
-> 2. Frontend local: `npm run dev` (aponta para o Supabase de produção via `.env`).
-> 3. Cartões de teste: sucesso `4242 4242 4242 4242` · falha pós-trial `4000 0000 0000 0341` (anexa OK, falha na cobrança). Qualquer validade futura/CVC.
+> **DECISÃO (2026-06-12):** testes serão feitos em **LIVE MODE com cartão real** (secrets são `sk_live`). Adaptações:
+> - Usar **Essencial mensal (R$ 197)** nos testes que geram cobrança (9.3, 9.6-upgrade) para minimizar valor; **reembolsar** depois no Dashboard (Payments → Refund — a taxa Stripe não é devolvida)
+> - **9.4 (falha de pagamento) ADIADO** — cartões de falha só existem em test mode; caminho de suspensão fica coberto por revisão de código + Smart Retries
+> - 🧹 **Limpeza obrigatória pós-teste:** cancelar TODAS as assinaturas de teste no Stripe (Cancel immediately) — senão cobram de verdade em 14 dias — e remover tenants/leads de teste do banco
+> - Frontend local: `npm run dev` (aponta para o Supabase de produção via `.env`)
 
 - [ ] **9.1** Registro completo (caminho feliz):
   - Landing → card **Clínica** com toggle **Anual** → `/register?plan=clinica&cycle=annual` (badge confere plano/preço)
