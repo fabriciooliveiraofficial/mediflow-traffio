@@ -26,6 +26,9 @@ export const LoginPage = () => {
             const { data: { session: currentSession } } = await supabase.auth.getSession();
 
             if (currentSession?.user) {
+                // Remove o token antigo para forçar a geração de um novo token de sessão (Last Login Wins)
+                localStorage.removeItem('traffio_session_token');
+
                 // 2. Check Role
                 const { data: profile } = await supabase
                     .from('profiles')

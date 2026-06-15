@@ -286,6 +286,15 @@ export const DashboardLayout = ({ children, activeScreen, onNavigate }: {
     };
 
     const handleSignOut = async () => {
+        const token = localStorage.getItem('traffio_session_token')
+        if (token) {
+            try {
+                await supabase.rpc('deactivate_session', { p_session_id: token })
+            } catch (err) {
+                console.error('[DashboardLayout] Erro ao desativar sessão no logout:', err)
+            }
+            localStorage.removeItem('traffio_session_token')
+        }
         await supabase.auth.signOut()
         navigate('/login', { replace: true })
     }

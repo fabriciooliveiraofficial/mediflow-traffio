@@ -134,6 +134,9 @@ export const AcceptInvitePage = () => {
         }
       }
 
+      // Remove o token de sessão antigo para forçar o registro de uma nova sessão no dashboard (Last Login Wins)
+      localStorage.removeItem('traffio_session_token');
+
       setStep('success');
       setTimeout(() => navigate('/dashboard'), 2500);
 

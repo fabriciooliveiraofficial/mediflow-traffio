@@ -40,6 +40,9 @@ import { TenantProvider, useTenant } from './contexts/TenantContext'
 import { NotificationProvider } from './contexts/NotificationContext'
 import { Loader2 } from 'lucide-react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { supabase } from './lib/supabase'
+import { useSessionGuard } from './hooks/useSessionGuard'
+import { SessionKickedModal } from './components/SessionKickedModal'
 import './App.css'
 
 import { motion, AnimatePresence } from 'framer-motion'
@@ -59,9 +62,16 @@ function TenantApp() {
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null)
   const [searchParams, setSearchParams] = useSearchParams()
   const { tenant, refresh } = useTenant()
+  const { kicked, deactivateCurrentSession } = useSessionGuard()
   
   const welcome = searchParams.get('welcome')
   const [isPolling, setIsPolling] = useState(!!welcome)
+
+  const handleKickedLogout = async () => {
+    await deactivateCurrentSession()
+    await supabase.auth.signOut()
+    window.location.href = '/login'
+  }
 
   // Polling para aguardar webhook do Stripe atualizar o status/cartão do tenant
   useEffect(() => {
@@ -151,7 +161,9 @@ function TenantApp() {
   }
 
   return (
-    <DashboardLayout activeScreen={activeScreen} onNavigate={setActiveScreen}>
+    <>
+      {kicked && <SessionKickedModal onLogout={handleKickedLogout} />}
+      <DashboardLayout activeScreen={activeScreen} onNavigate={setActiveScreen}>
       <SubscriptionGuard activeScreen={activeScreen} onNavigate={setActiveScreen}>
         <AnimatePresence mode="wait">
           <motion.div
@@ -167,6 +179,7 @@ function TenantApp() {
         </AnimatePresence>
       </SubscriptionGuard>
     </DashboardLayout>
+    </>
   )
 }
 
