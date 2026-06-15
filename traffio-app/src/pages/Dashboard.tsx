@@ -277,7 +277,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                 .maybeSingle();
             setManageData(data);
             if (platform === 'google') {
-                setGoogleCustomerId(data?.settings?.customer_id || '');
+                setGoogleCustomerId(formatGoogleCustomerId(data?.settings?.customer_id || ''));
                 setGoogleDeveloperToken(data?.settings?.developer_token || '');
             }
         } catch {
@@ -327,6 +327,11 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
         if (!tenant?.id || !manageModal) return;
         const cleanCustomerId = googleCustomerId.replace(/\D/g, '');
         
+        if (cleanCustomerId.length !== 10) {
+            showToast('error', 'O Customer ID do Google Ads deve conter exatamente 10 números (ex: 123-456-7890).');
+            return;
+        }
+
         const newSettings = { 
             ...(manageData?.settings || {}), 
             customer_id: cleanCustomerId,
@@ -744,9 +749,12 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                                     type="text"
                                                     placeholder="Ex: 123-456-7890"
                                                     value={googleCustomerId}
-                                                    onChange={(e) => setGoogleCustomerId(e.target.value)}
+                                                    onChange={(e) => setGoogleCustomerId(formatGoogleCustomerId(e.target.value))}
                                                     className="w-full px-4 py-3 bg-ice-50 rounded-2xl text-sm font-bold text-graphite-900 border border-transparent focus:border-brand-primary/20 focus:outline-none transition-all"
                                                 />
+                                                <p className="text-[9px] text-graphite-400 font-medium leading-normal">
+                                                    Identificador de 10 dígitos (ex: 123-456-7890) exibido no topo da sua conta do Google Ads. Não insira e-mail.
+                                                </p>
                                             </div>
                                             <div className="space-y-2">
                                                 <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest">Developer Token (Token de Desenvolvedor)</p>
@@ -812,6 +820,13 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
             </AnimatePresence>
         </div>
     );
+};
+
+const formatGoogleCustomerId = (value: string) => {
+    const numbers = value.replace(/\D/g, '').slice(0, 10);
+    if (numbers.length <= 3) return numbers;
+    if (numbers.length <= 6) return `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
+    return `${numbers.slice(0, 3)}-${numbers.slice(3, 6)}-${numbers.slice(6)}`;
 };
 
 function clsx(...classes: any[]) {
