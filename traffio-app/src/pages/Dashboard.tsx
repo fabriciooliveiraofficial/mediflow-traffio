@@ -223,7 +223,11 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
             if (data.platform !== platform) return;
 
             cleanup();
-            popup?.close();
+            try {
+                popup?.close();
+            } catch (e) {
+                console.warn('COOP blocked window.close call:', e);
+            }
 
             const platformLabel = platform === 'meta' ? 'Meta Ads' : 'Google Ads';
             if (data.type === 'OAUTH_CONNECTED') {
@@ -250,7 +254,11 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
 
                 if (data) {
                     cleanup();
-                    popup?.close();
+                    try {
+                        popup?.close();
+                    } catch (e) {
+                        console.warn('COOP blocked window.close call:', e);
+                    }
                     setIntegrations(prev => ({ ...prev, [platform]: true }));
                     triggerSyncAndRefresh();
                 }
@@ -426,7 +434,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                 </p>
                             </div>
                         ) : (
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ResponsiveContainer width="99%" minHeight={300}>
                                 <AreaChart data={currentChartData}>
                                     <defs>
                                         <linearGradient id="colorMeta" x1="0" y1="0" x2="0" y2="1">

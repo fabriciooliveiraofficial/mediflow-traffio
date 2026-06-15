@@ -1,7 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
 serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   
@@ -24,7 +32,10 @@ serve(async (req: Request) => {
 
     if (fetchError) {
       console.error("Error fetching integrations:", fetchError);
-      return new Response(JSON.stringify({ error: fetchError.message }), { status: 500 });
+      return new Response(JSON.stringify({ error: fetchError.message }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+      });
     }
 
     console.log(`Found ${integrations?.length ?? 0} active integrations.`);
@@ -273,12 +284,15 @@ serve(async (req: Request) => {
     }
 
     return new Response(JSON.stringify({ success: true, message: "Sync process completed." }), {
-      headers: { "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
   } catch (err: any) {
     console.error("General Sync Handler Error:", err);
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+    return new Response(JSON.stringify({ error: err.message }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500,
+    });
   }
 });
 
