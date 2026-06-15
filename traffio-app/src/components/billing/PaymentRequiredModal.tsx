@@ -52,6 +52,7 @@ export const PaymentRequiredModal = ({ planId, billingCycle, trialEndsAt }: Paym
                 return;
             }
             if (!url) throw new Error('Não foi possível iniciar o checkout. Tente novamente.');
+            localStorage.removeItem('traffio_tenant');
             window.location.href = url;
         } catch (err: any) {
             console.error('[PaymentRequiredModal] checkout error:', err);

@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Routes, Route, Navigate, useSearchParams } from 'react-router-dom'
 import { DashboardLayout } from './layouts/DashboardLayout'
 import { Dashboard } from './pages/Dashboard'
 import { AgendaMestra } from './pages/AgendaMestra'
@@ -36,8 +36,9 @@ import { AuthRedirector } from './components/AuthRedirector'
 import { SubscriptionGuard } from './components/billing/SubscriptionGuard'
 import { MasterApp } from './pages/master/MasterApp'
 import { ToastProvider } from './contexts/ToastContext'
-import { TenantProvider } from './contexts/TenantContext'
+import { TenantProvider, useTenant } from './contexts/TenantContext'
 import { NotificationProvider } from './contexts/NotificationContext'
+import { Loader2 } from 'lucide-react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import './App.css'
 
@@ -56,6 +57,37 @@ import { PortalProfile } from './pages/portal/PortalProfile'
 function TenantApp() {
   const [activeScreen, setActiveScreen] = useState('dashboard')
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const { tenant, refresh } = useTenant()
+  
+  const welcome = searchParams.get('welcome')
+  const [isPolling, setIsPolling] = useState(!!welcome)
+
+  // Polling para aguardar webhook do Stripe atualizar o status/cartão do tenant
+  useEffect(() => {
+    if (!welcome || !tenant || tenant.card_on_file) {
+      if (isPolling) {
+        setIsPolling(false)
+        // Limpa a query param da URL para evitar loops e re-polling no F5
+        const newParams = new URLSearchParams(window.location.search)
+        if (newParams.has('welcome')) {
+          newParams.delete('welcome')
+          setSearchParams(newParams, { replace: true })
+        }
+      }
+      return
+    }
+
+    let attempts = 0
+    const maxAttempts = 10 // 20 segundos total
+
+    const interval = setInterval(async () => {
+      attempts++
+      await refresh()
+    }, 2000)
+
+    return () => clearInterval(interval)
+  }, [welcome, tenant?.card_on_file, refresh, searchParams, setSearchParams, isPolling])
 
   // REDIRECT GUARD REMOVED - Handled by AuthRedirector
 
@@ -100,6 +132,22 @@ function TenantApp() {
         ) : <CrmLeads key="leads-fallback" onSelectPatient={handlePatientSelect} />
       default: return <Dashboard key="dashboard" />
     }
+  }
+
+  if (isPolling && tenant && !tenant.card_on_file) {
+    return (
+      <div className="min-h-screen bg-ice-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-[32px] shadow-xl p-8 md:p-12 border border-ice-100 text-center">
+          <div className="w-20 h-20 bg-brand-primary/10 text-brand-primary rounded-full flex items-center justify-center mx-auto mb-6">
+            <Loader2 className="animate-spin text-brand-primary" size={40} />
+          </div>
+          <h2 className="text-2xl font-black text-graphite-900 mb-2">Confirmando pagamento...</h2>
+          <p className="text-sm font-medium text-graphite-500 leading-relaxed">
+            Estamos recebendo a confirmação do Stripe e liberando seu acesso. Isso deve levar apenas alguns segundos.
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (
