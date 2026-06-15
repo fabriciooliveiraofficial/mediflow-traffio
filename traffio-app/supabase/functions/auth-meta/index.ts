@@ -93,7 +93,44 @@ serve(async (req: Request) => {
 
     const longLivedToken = longLivedData.access_token;
 
-    // C. Upsert connection inside the database
+    // C. Fetch the Facebook Ad Accounts available to this user
+    //    sync-ads-performance needs settings.ad_account_id to call /insights.
+    let adAccountSettings: Record<string, any> = {
+      ad_account_id: null,
+      available_ad_accounts: [],
+      needs_account_selection: false,
+      last_sync_error: null,
+    };
+
+    try {
+      const adAccountsUrl = `https://graph.facebook.com/v19.0/me/adaccounts?fields=account_id,name&access_token=${longLivedToken}`;
+      const adAccountsRes = await fetch(adAccountsUrl);
+      const adAccountsData = await adAccountsRes.json();
+
+      if (adAccountsData.error) {
+        console.error("Meta Ad Accounts Fetch Error:", adAccountsData.error);
+        adAccountSettings.last_sync_error = `Não foi possível listar as contas de anúncios: ${adAccountsData.error.message}`;
+      } else {
+        const accounts = (adAccountsData.data || []).map((a: any) => ({
+          id: a.id, // already in "act_<id>" format
+          account_id: a.account_id,
+          name: a.name,
+        }));
+
+        if (accounts.length === 0) {
+          adAccountSettings.last_sync_error = "Nenhuma conta de anúncios do Meta foi encontrada para este usuário.";
+        } else {
+          adAccountSettings.ad_account_id = accounts[0].id;
+          adAccountSettings.available_ad_accounts = accounts;
+          adAccountSettings.needs_account_selection = accounts.length > 1;
+        }
+      }
+    } catch (adAccErr: any) {
+      console.error("Meta Ad Accounts Fetch Exception:", adAccErr);
+      adAccountSettings.last_sync_error = `Erro ao buscar contas de anúncios: ${adAccErr.message}`;
+    }
+
+    // D. Upsert connection inside the database
     const { error: upsertError } = await supabaseAdmin
       .from("ad_integrations")
       .upsert(
@@ -102,6 +139,7 @@ serve(async (req: Request) => {
           platform: "meta",
           access_token: longLivedToken,
           status: "active",
+          settings: adAccountSettings,
           updated_at: new Date().toISOString(),
         },
         { onConflict: "tenant_id,platform" }
@@ -115,7 +153,7 @@ serve(async (req: Request) => {
       return new Response(`Database Error: ${upsertError.message}`, { status: 500 });
     }
 
-    // D. Redirect back to frontend success page
+    // E. Redirect back to frontend success page
     if (redirectBack) {
       return Response.redirect(`${redirectBack}/oauth-callback.html?status=success&platform=meta`, 302);
     }

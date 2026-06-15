@@ -41,15 +41,28 @@ serve(async (req: Request) => {
           continue;
         }
 
+        const adAccountId = settings?.ad_account_id;
+        if (!adAccountId) {
+          console.warn(`Tenant ${tenant_id} has no Meta ad_account_id configured. Skipping sync.`);
+          await updateIntegrationSettings(supabaseAdmin, tenant_id, "meta", settings, {
+            last_sync_error: "Conta de anúncios do Meta não configurada.",
+            last_sync_at: new Date().toISOString(),
+          });
+          continue;
+        }
+
         try {
-          const adAccountId = settings?.ad_account_id ?? "act_default";
-          const insightsUrl = `https://graph.facebook.com/v19.0/${adAccountId}/insights?fields=spend,impressions,clicks,conversions&date_preset=last_7d&access_token=${access_token}`;
-          
+          const insightsUrl = `https://graph.facebook.com/v19.0/${adAccountId}/insights?fields=spend,impressions,clicks,conversions&date_preset=last_7d&time_increment=1&access_token=${access_token}`;
+
           const response = await fetch(insightsUrl);
           const resJson = await response.json();
 
           if (resJson.error) {
             console.error(`Meta API Error for tenant ${tenant_id}:`, resJson.error);
+            await updateIntegrationSettings(supabaseAdmin, tenant_id, "meta", settings, {
+              last_sync_error: `Erro na API do Meta: ${resJson.error.message}`,
+              last_sync_at: new Date().toISOString(),
+            });
             continue;
           }
 
@@ -96,8 +109,17 @@ serve(async (req: Request) => {
                 clicks,
               }, { onConflict: "tenant_id,platform,date" });
           }
-        } catch (apiErr) {
+
+          await updateIntegrationSettings(supabaseAdmin, tenant_id, "meta", settings, {
+            last_sync_error: null,
+            last_sync_at: new Date().toISOString(),
+          });
+        } catch (apiErr: any) {
           console.error(`Meta Sync failed for tenant ${tenant_id}:`, apiErr);
+          await updateIntegrationSettings(supabaseAdmin, tenant_id, "meta", settings, {
+            last_sync_error: `Falha no sync: ${apiErr.message}`,
+            last_sync_at: new Date().toISOString(),
+          });
         }
       }
 
@@ -109,11 +131,22 @@ serve(async (req: Request) => {
           continue;
         }
 
+        const customerId = settings?.customer_id;
+        const developerToken = settings?.developer_token;
+        if (!customerId || !developerToken) {
+          console.warn(`Tenant ${tenant_id} has no Google customer_id/developer_token configured. Skipping sync.`);
+          await updateIntegrationSettings(supabaseAdmin, tenant_id, "google", settings, {
+            last_sync_error: "Customer ID ou Developer Token do Google Ads não configurados.",
+            last_sync_at: new Date().toISOString(),
+          });
+          continue;
+        }
+
         try {
           // Exchange refresh_token for access_token
           const googleClientId = Deno.env.get("GOOGLE_CLIENT_ID") ?? "";
           const googleClientSecret = Deno.env.get("GOOGLE_CLIENT_SECRET") ?? "";
-          
+
           const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -128,16 +161,19 @@ serve(async (req: Request) => {
 
           if (tokenData.error) {
             console.error(`Google Token Refresh Error for tenant ${tenant_id}:`, tokenData.error);
+            await updateIntegrationSettings(supabaseAdmin, tenant_id, "google", settings, {
+              last_sync_error: `Erro ao renovar token do Google: ${tokenData.error_description || tokenData.error}`,
+              last_sync_at: new Date().toISOString(),
+            });
             continue;
           }
 
           const freshAccessToken = tokenData.access_token;
-          const customerId = settings?.customer_id ?? "1234567890"; // default customer id
 
           // Query Google Ads API
           const googleQuery = `
             SELECT segments.date, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions
-            FROM campaign 
+            FROM campaign
             WHERE segments.date DURING LAST_7_DAYS
           `;
 
@@ -146,7 +182,7 @@ serve(async (req: Request) => {
             headers: {
               "Authorization": `Bearer ${freshAccessToken}`,
               "Content-Type": "application/json",
-              "developer-token": settings?.developer_token ?? "",
+              "developer-token": developerToken,
             },
             body: JSON.stringify({ query: googleQuery }),
           });
@@ -154,6 +190,10 @@ serve(async (req: Request) => {
           const adsData = await adsRes.json();
           if (adsData.error) {
             console.error(`Google Ads API error for tenant ${tenant_id}:`, adsData.error);
+            await updateIntegrationSettings(supabaseAdmin, tenant_id, "google", settings, {
+              last_sync_error: `Erro na API do Google Ads: ${JSON.stringify(adsData.error)}`,
+              last_sync_at: new Date().toISOString(),
+            });
             continue;
           }
 
@@ -201,8 +241,17 @@ serve(async (req: Request) => {
                 clicks,
               }, { onConflict: "tenant_id,platform,date" });
           }
-        } catch (apiErr) {
+
+          await updateIntegrationSettings(supabaseAdmin, tenant_id, "google", settings, {
+            last_sync_error: null,
+            last_sync_at: new Date().toISOString(),
+          });
+        } catch (apiErr: any) {
           console.error(`Google Sync failed for tenant ${tenant_id}:`, apiErr);
+          await updateIntegrationSettings(supabaseAdmin, tenant_id, "google", settings, {
+            last_sync_error: `Falha no sync: ${apiErr.message}`,
+            last_sync_at: new Date().toISOString(),
+          });
         }
       }
     }
@@ -216,6 +265,22 @@ serve(async (req: Request) => {
     return new Response(JSON.stringify({ error: err.message }), { status: 500 });
   }
 });
+
+// Helper to persist sync status/errors into ad_integrations.settings (merges with existing settings)
+async function updateIntegrationSettings(
+  supabaseAdmin: any,
+  tenantId: string,
+  platform: "meta" | "google",
+  currentSettings: any,
+  patch: Record<string, any>
+) {
+  const newSettings = { ...(currentSettings || {}), ...patch };
+  await supabaseAdmin
+    .from("ad_integrations")
+    .update({ settings: newSettings, updated_at: new Date().toISOString() })
+    .eq("tenant_id", tenantId)
+    .eq("platform", platform);
+}
 
 // Helper to generate demonstration data for dashboard preview
 async function generateDemoData(supabaseAdmin: any, tenantId: string, platform: "meta" | "google") {

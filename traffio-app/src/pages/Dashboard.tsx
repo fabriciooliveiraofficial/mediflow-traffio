@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
     Activity,
     ArrowUpRight,
@@ -15,11 +15,16 @@ import {
     Smartphone,
     MousePointer2,
     BarChart3,
-    ShieldCheck
+    ShieldCheck,
+    X,
+    Loader2,
+    RefreshCw,
+    Unlink,
+    AlertCircle
 } from 'lucide-react';
 import { useTenant } from '../contexts/TenantContext';
 import { useToast } from '../contexts/ToastContext';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import { 
     AreaChart, 
@@ -79,44 +84,11 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
         vagas: '15'
     });
 
-    const handleConnect = (platform: 'meta' | 'google') => {
-        if (!tenant?.id) {
-            showToast('error', 'Erro: Perfil da clínica não identificado. Atualize a página.');
-            return;
-        }
+    const [manageModal, setManageModal] = useState<{ platform: 'meta' | 'google' } | null>(null);
+    const [manageData, setManageData] = useState<any>(null);
+    const [manageLoading, setManageLoading] = useState(false);
 
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://fyyhxmugxcfqhvoevuwf.supabase.co';
-        const functionUrl = `${supabaseUrl.replace(/\/$/, '')}/functions/v1/auth-${platform}`;
-        const redirectBack = window.location.origin;
-        const authUrl = `${functionUrl}?tenant_id=${tenant.id}&redirect_back=${encodeURIComponent(redirectBack)}`;
-        
-        // Open OAuth flow in a new tab
-        window.open(authUrl, '_blank', 'width=600,height=700,scrollbars=yes');
-
-        // Poll to detect when the integration is saved in the database
-        const pollInterval = setInterval(async () => {
-            try {
-                const { data } = await supabase
-                    .from('ad_integrations')
-                    .select('status')
-                    .eq('tenant_id', tenant.id)
-                    .eq('platform', platform)
-                    .eq('status', 'active')
-                    .maybeSingle();
-
-                if (data) {
-                    clearInterval(pollInterval);
-                    setIntegrations(prev => ({ ...prev, [platform]: true }));
-                }
-            } catch { /* silently retry */ }
-        }, 2000);
-
-        // Stop polling after 5 minutes (timeout safety)
-        setTimeout(() => clearInterval(pollInterval), 300000);
-    };
-
-    useEffect(() => {
-        const fetchDashboardData = async () => {
+    const fetchDashboardData = useCallback(async () => {
             if (!tenant?.id) return;
 
             try {
@@ -201,10 +173,153 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
             } catch (error) {
                 console.error('Error fetching dashboard data:', error);
             }
+    }, [tenant?.id]);
+
+    // Fire-and-forget call to sync-ads-performance, then refresh once new data lands
+    const triggerSyncAndRefresh = () => {
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://fyyhxmugxcfqhvoevuwf.supabase.co';
+        const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
+        fetch(`${supabaseUrl.replace(/\/$/, '')}/functions/v1/sync-ads-performance`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${anonKey}`,
+            },
+            body: JSON.stringify({}),
+        }).catch(() => { /* best-effort */ });
+
+        setTimeout(() => {
+            fetchDashboardData();
+        }, 4000);
+    };
+
+    const handleConnect = (platform: 'meta' | 'google') => {
+        if (!tenant?.id) {
+            showToast('error', 'Erro: Perfil da clínica não identificado. Atualize a página.');
+            return;
+        }
+
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://fyyhxmugxcfqhvoevuwf.supabase.co';
+        const functionUrl = `${supabaseUrl.replace(/\/$/, '')}/functions/v1/auth-${platform}`;
+        const redirectBack = window.location.origin;
+        const authUrl = `${functionUrl}?tenant_id=${tenant.id}&redirect_back=${encodeURIComponent(redirectBack)}`;
+
+        // Open the OAuth flow in a popup, keeping a reference so we can close it from here
+        const popup = window.open(authUrl, '_blank', 'width=600,height=700,scrollbars=yes');
+
+        const handles: { interval?: ReturnType<typeof setInterval>; timeout?: ReturnType<typeof setTimeout> } = {};
+
+        const cleanup = () => {
+            if (handles.interval) clearInterval(handles.interval);
+            if (handles.timeout) clearTimeout(handles.timeout);
+            window.removeEventListener('message', handleMessage);
         };
 
+        const handleMessage = (event: MessageEvent) => {
+            if (event.origin !== window.location.origin) return;
+            const data = event.data;
+            if (!data || (data.type !== 'OAUTH_CONNECTED' && data.type !== 'OAUTH_ERROR')) return;
+            if (data.platform !== platform) return;
+
+            cleanup();
+            popup?.close();
+
+            const platformLabel = platform === 'meta' ? 'Meta Ads' : 'Google Ads';
+            if (data.type === 'OAUTH_CONNECTED') {
+                setIntegrations(prev => ({ ...prev, [platform]: true }));
+                showToast('success', `Conta ${platformLabel} conectada com sucesso!`);
+                triggerSyncAndRefresh();
+            } else {
+                showToast('error', data.message || `Erro ao conectar com ${platformLabel}.`);
+            }
+        };
+
+        window.addEventListener('message', handleMessage);
+
+        // Fallback: poll ad_integrations in case postMessage doesn't arrive (e.g. popup blocked)
+        handles.interval = setInterval(async () => {
+            try {
+                const { data } = await supabase
+                    .from('ad_integrations')
+                    .select('status')
+                    .eq('tenant_id', tenant.id)
+                    .eq('platform', platform)
+                    .eq('status', 'active')
+                    .maybeSingle();
+
+                if (data) {
+                    cleanup();
+                    popup?.close();
+                    setIntegrations(prev => ({ ...prev, [platform]: true }));
+                    triggerSyncAndRefresh();
+                }
+            } catch { /* silently retry */ }
+        }, 2000);
+
+        // Stop polling after 5 minutes (timeout safety)
+        handles.timeout = setTimeout(cleanup, 300000);
+    };
+
+    const openManageModal = async (platform: 'meta' | 'google') => {
+        if (!tenant?.id) return;
+        setManageModal({ platform });
+        setManageLoading(true);
+        setManageData(null);
+        try {
+            const { data } = await supabase
+                .from('ad_integrations')
+                .select('settings, updated_at')
+                .eq('tenant_id', tenant.id)
+                .eq('platform', platform)
+                .maybeSingle();
+            setManageData(data);
+        } catch {
+            setManageData(null);
+        } finally {
+            setManageLoading(false);
+        }
+    };
+
+    const closeManageModal = () => {
+        setManageModal(null);
+        setManageData(null);
+    };
+
+    const handleDisconnect = async (platform: 'meta' | 'google') => {
+        if (!tenant?.id) return;
+        await supabase
+            .from('ad_integrations')
+            .update({ status: 'inactive' })
+            .eq('tenant_id', tenant.id)
+            .eq('platform', platform);
+        setIntegrations(prev => ({ ...prev, [platform]: false }));
+        showToast('success', 'Conexão desconectada.');
+        closeManageModal();
         fetchDashboardData();
-    }, [tenant?.id, period]);
+    };
+
+    const handleSyncNow = () => {
+        showToast('success', 'Sincronização iniciada. Os dados podem levar alguns segundos para atualizar.');
+        triggerSyncAndRefresh();
+        closeManageModal();
+    };
+
+    const handleChangeAdAccount = async (accountId: string) => {
+        if (!tenant?.id || !manageModal) return;
+        const newSettings = { ...(manageData?.settings || {}), ad_account_id: accountId };
+        await supabase
+            .from('ad_integrations')
+            .update({ settings: newSettings })
+            .eq('tenant_id', tenant.id)
+            .eq('platform', manageModal.platform);
+        setManageData((prev: any) => ({ ...prev, settings: newSettings }));
+        showToast('success', 'Conta de anúncios atualizada.');
+    };
+
+    useEffect(() => {
+        fetchDashboardData();
+    }, [fetchDashboardData]);
 
     const currentChartData = performanceData;
     const isLiveWithoutData = currentChartData.length === 0;
@@ -386,8 +501,8 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                             <p className="text-[11px] text-graphite-400 leading-relaxed font-medium mb-6">
                                 Centralize resultados do Facebook e Instagram. ROI calculado automaticamente.
                             </p>
-                            <button 
-                                onClick={() => handleConnect('meta')}
+                            <button
+                                onClick={() => integrations.meta ? openManageModal('meta') : handleConnect('meta')}
                                 className={clsx(
                                     "w-full py-4 rounded-2xl font-black text-xs shadow-xl transition-all border-none cursor-pointer flex items-center justify-center gap-2",
                                     integrations.meta 
@@ -429,8 +544,8 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                             <p className="text-[11px] text-graphite-400 leading-relaxed font-medium mb-6">
                                 Meça conversões de pesquisa do Google. Foco total em agendamentos diretos.
                             </p>
-                            <button 
-                                onClick={() => handleConnect('google')}
+                            <button
+                                onClick={() => integrations.google ? openManageModal('google') : handleConnect('google')}
                                 className={clsx(
                                     "w-full py-4 rounded-2xl font-black text-xs shadow-xl transition-all border-none cursor-pointer flex items-center justify-center gap-2",
                                     integrations.google 
@@ -521,6 +636,116 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                     )}
                 </div>
             </div>
+
+            {/* ── GERENCIAR CONEXÃO MODAL ──────────────────────────────────────── */}
+            <AnimatePresence>
+                {manageModal && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 sm:p-12">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={closeManageModal}
+                            className="absolute inset-0 bg-graphite-900/40 backdrop-blur-sm"
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                            className="relative w-full max-w-md bg-white rounded-[32px] border border-ice-100 shadow-2xl p-8 space-y-6"
+                        >
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className={clsx(
+                                        "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0",
+                                        manageModal.platform === 'meta' ? "bg-[#0081FB]" : "bg-white border border-ice-100"
+                                    )}>
+                                        {manageModal.platform === 'meta'
+                                            ? <Facebook className="text-white" fill="white" size={22} />
+                                            : <Globe className="text-[#34A853]" size={22} />}
+                                    </div>
+                                    <div>
+                                        <h3 className="text-base font-black text-graphite-900 tracking-tight">
+                                            {manageModal.platform === 'meta' ? 'Meta Ads Hub' : 'Google Ads Hub'}
+                                        </h3>
+                                        <span className="text-[10px] font-black text-green-600 uppercase tracking-widest">Ativo</span>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={closeManageModal}
+                                    className="p-2 rounded-xl hover:bg-ice-50 border-none cursor-pointer transition-colors"
+                                >
+                                    <X size={18} className="text-graphite-400" />
+                                </button>
+                            </div>
+
+                            {manageLoading ? (
+                                <div className="py-10 flex items-center justify-center">
+                                    <Loader2 className="animate-spin text-brand-primary" size={28} />
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {manageModal.platform === 'meta' && (
+                                        <div className="space-y-2">
+                                            <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest">Conta de Anúncios</p>
+                                            {(manageData?.settings?.available_ad_accounts?.length > 1) ? (
+                                                <select
+                                                    value={manageData?.settings?.ad_account_id || ''}
+                                                    onChange={(e) => handleChangeAdAccount(e.target.value)}
+                                                    className="w-full px-4 py-3 bg-ice-50 rounded-2xl text-sm font-bold text-graphite-900 border-none cursor-pointer"
+                                                >
+                                                    {manageData.settings.available_ad_accounts.map((acc: any) => (
+                                                        <option key={acc.id} value={acc.id}>{acc.name} ({acc.id})</option>
+                                                    ))}
+                                                </select>
+                                            ) : (
+                                                <p className="text-sm font-bold text-graphite-900">
+                                                    {manageData?.settings?.ad_account_id || 'Nenhuma conta vinculada'}
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    <div className="space-y-2">
+                                        <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest">Última Sincronização</p>
+                                        <p className="text-sm font-bold text-graphite-900">
+                                            {manageData?.settings?.last_sync_at
+                                                ? new Date(manageData.settings.last_sync_at).toLocaleString('pt-BR')
+                                                : 'Ainda não sincronizado'}
+                                        </p>
+                                    </div>
+
+                                    {manageData?.settings?.last_sync_error && (
+                                        <div className="p-4 bg-red-50 rounded-2xl flex items-start gap-3">
+                                            <AlertCircle size={18} className="text-red-500 mt-0.5 shrink-0" />
+                                            <p className="text-xs font-bold text-red-600 leading-relaxed">
+                                                {manageData.settings.last_sync_error}
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    <div className="flex flex-col gap-3 pt-2">
+                                        <button
+                                            onClick={handleSyncNow}
+                                            className="w-full py-3 bg-brand-primary text-white rounded-2xl font-black text-xs flex items-center justify-center gap-2 border-none cursor-pointer hover:translate-y-[-1px] transition-all"
+                                        >
+                                            <RefreshCw size={14} />
+                                            Sincronizar Agora
+                                        </button>
+                                        <button
+                                            onClick={() => handleDisconnect(manageModal.platform)}
+                                            className="w-full py-3 bg-red-50 text-red-600 rounded-2xl font-black text-xs flex items-center justify-center gap-2 border-none cursor-pointer hover:bg-red-100 transition-all"
+                                        >
+                                            <Unlink size={14} />
+                                            Desconectar
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };
