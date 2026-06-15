@@ -87,8 +87,6 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
     const [manageModal, setManageModal] = useState<{ platform: 'meta' | 'google' } | null>(null);
     const [manageData, setManageData] = useState<any>(null);
     const [manageLoading, setManageLoading] = useState(false);
-    const [googleCustomerId, setGoogleCustomerId] = useState('');
-    const [googleDeveloperToken, setGoogleDeveloperToken] = useState('');
 
     const fetchDashboardData = useCallback(async () => {
             if (!tenant?.id) return;
@@ -276,10 +274,6 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                 .eq('platform', platform)
                 .maybeSingle();
             setManageData(data);
-            if (platform === 'google') {
-                setGoogleCustomerId(formatGoogleCustomerId(data?.settings?.customer_id || ''));
-                setGoogleDeveloperToken(data?.settings?.developer_token || '');
-            }
         } catch {
             setManageData(null);
         } finally {
@@ -323,33 +317,16 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
         showToast('success', 'Conta de anúncios atualizada.');
     };
 
-    const handleSaveGoogleSettings = async () => {
+    const handleChangeGoogleCustomer = async (customerId: string) => {
         if (!tenant?.id || !manageModal) return;
-        const cleanCustomerId = googleCustomerId.replace(/\D/g, '');
-        
-        if (cleanCustomerId.length !== 10) {
-            showToast('error', 'O Customer ID do Google Ads deve conter exatamente 10 números (ex: 123-456-7890).');
-            return;
-        }
-
-        const newSettings = { 
-            ...(manageData?.settings || {}), 
-            customer_id: cleanCustomerId,
-            developer_token: googleDeveloperToken.trim()
-        };
-
-        const { error } = await supabase
+        const newSettings = { ...(manageData?.settings || {}), customer_id: customerId };
+        await supabase
             .from('ad_integrations')
             .update({ settings: newSettings })
             .eq('tenant_id', tenant.id)
             .eq('platform', 'google');
-
-        if (error) {
-            showToast('error', 'Erro ao salvar as configurações.');
-        } else {
-            setManageData((prev: any) => ({ ...prev, settings: newSettings }));
-            showToast('success', 'Configurações do Google Ads salvas com sucesso.');
-        }
+        setManageData((prev: any) => ({ ...prev, settings: newSettings }));
+        showToast('success', 'Conta do Google Ads vinculada com sucesso.');
     };
 
     useEffect(() => {
@@ -743,38 +720,32 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
 
                                     {manageModal.platform === 'google' && (
                                         <div className="space-y-4 border-b border-ice-100/50 pb-4">
-                                            <div className="space-y-2">
-                                                <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest">Customer ID (ID da Conta Google Ads)</p>
-                                                <input
-                                                    type="text"
-                                                    placeholder="Ex: 123-456-7890"
-                                                    value={googleCustomerId}
-                                                    onChange={(e) => setGoogleCustomerId(formatGoogleCustomerId(e.target.value))}
-                                                    className="w-full px-4 py-3 bg-ice-50 rounded-2xl text-sm font-bold text-graphite-900 border border-transparent focus:border-brand-primary/20 focus:outline-none transition-all"
-                                                />
-                                                <p className="text-[9px] text-graphite-400 font-medium leading-normal">
-                                                    Identificador de 10 dígitos (ex: 123-456-7890) exibido no topo da sua conta do Google Ads. Não insira e-mail.
+                                            {manageData?.settings?.available_customers?.length > 1 ? (
+                                                <div className="space-y-2">
+                                                    <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest">Selecione a Conta Google Ads</p>
+                                                    <select
+                                                        value={manageData?.settings?.customer_id || ''}
+                                                        onChange={(e) => handleChangeGoogleCustomer(e.target.value)}
+                                                        className="w-full px-4 py-3 bg-ice-50 rounded-2xl text-sm font-bold text-graphite-900 border-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                                                    >
+                                                        <option value="">Selecione uma conta...</option>
+                                                        {manageData.settings.available_customers.map((cId: string) => (
+                                                            <option key={cId} value={cId}>Conta: {formatGoogleCustomerId(cId)}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            ) : manageData?.settings?.customer_id ? (
+                                                <div className="space-y-1">
+                                                    <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest">Conta Vinculada</p>
+                                                    <p className="text-sm font-bold text-graphite-900">
+                                                        ID: {formatGoogleCustomerId(manageData.settings.customer_id)}
+                                                    </p>
+                                                </div>
+                                            ) : (
+                                                <p className="text-xs text-graphite-400 font-medium leading-relaxed">
+                                                    Nenhuma conta de anúncios selecionada. Tente desconectar e se autenticar novamente.
                                                 </p>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest">Developer Token (Token de Desenvolvedor)</p>
-                                                <input
-                                                    type="password"
-                                                    placeholder="Digite o Token de Desenvolvedor"
-                                                    value={googleDeveloperToken}
-                                                    onChange={(e) => setGoogleDeveloperToken(e.target.value)}
-                                                    className="w-full px-4 py-3 bg-ice-50 rounded-2xl text-sm font-bold text-graphite-900 border border-transparent focus:border-brand-primary/20 focus:outline-none transition-all"
-                                                />
-                                                <p className="text-[9px] text-graphite-400 font-medium leading-normal">
-                                                    Opcional se configurado globalmente pela plataforma.
-                                                </p>
-                                            </div>
-                                            <button
-                                                onClick={handleSaveGoogleSettings}
-                                                className="w-full py-3.5 bg-graphite-900 text-white rounded-2xl font-black text-xs flex items-center justify-center gap-2 border-none cursor-pointer hover:bg-graphite-800 transition-all shadow-md shadow-graphite-900/10"
-                                            >
-                                                Salvar Configurações
-                                            </button>
+                                            )}
                                         </div>
                                     )}
 

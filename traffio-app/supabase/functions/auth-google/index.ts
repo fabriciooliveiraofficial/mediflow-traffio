@@ -98,12 +98,81 @@ serve(async (req: Request) => {
     const accessToken = tokenData.access_token;
     const refreshToken = tokenData.refresh_token; // Received on initial consent click
 
-    // C. Upsert connection inside the database
+    // C. Check accessible Google Ads customers using the global Developer Token
+    const googleDevToken = await getGoogleCred(supabaseAdmin, "GOOGLE_DEVELOPER_TOKEN");
+    let adAccounts: string[] = [];
+    let customerId = "";
+    let lastSyncError = null;
+
+    if (googleDevToken) {
+      try {
+        const response = await fetch("https://googleads.googleapis.com/v16/customers:listAccessibleCustomers", {
+          headers: {
+            "Authorization": `Bearer ${accessToken}`,
+            "developer-token": googleDevToken,
+          }
+        });
+        const resJson = await response.json();
+        
+        if (resJson.error) {
+          console.error("Google Ads Accessible Customers API Error:", resJson.error);
+          lastSyncError = `Erro na API do Google Ads: ${resJson.error.message}`;
+        } else if (resJson.resourceNames && resJson.resourceNames.length > 0) {
+          adAccounts = resJson.resourceNames.map((name: string) => name.replace("customers/", ""));
+          if (adAccounts.length === 1) {
+            customerId = adAccounts[0];
+          }
+        } else {
+          lastSyncError = "Nenhuma conta do Google Ads encontrada vinculada a este login.";
+        }
+      } catch (err: any) {
+        console.error("Failed to query accessible Google Ads customers:", err);
+        lastSyncError = `Falha ao listar contas: ${err.message}`;
+      }
+    } else {
+      console.warn("GOOGLE_DEVELOPER_TOKEN not configured. Skipping accessible customers fetch.");
+    }
+
+    // Fetch existing settings
+    let currentSettings: any = {};
+    try {
+      const { data } = await supabaseAdmin
+        .from("ad_integrations")
+        .select("settings")
+        .eq("tenant_id", activeTenantId)
+        .eq("platform", "google")
+        .maybeSingle();
+      currentSettings = data?.settings || {};
+    } catch (err) {
+      console.error("Error fetching current settings:", err);
+    }
+
+    const settingsPatch: any = {
+      ...currentSettings,
+      last_sync_error: lastSyncError,
+      last_sync_at: new Date().toISOString(),
+    };
+
+    if (googleDevToken) {
+      settingsPatch.developer_token = googleDevToken;
+    }
+
+    if (customerId) {
+      settingsPatch.customer_id = customerId;
+      settingsPatch.needs_customer_selection = false;
+      delete settingsPatch.available_customers;
+    } else if (adAccounts.length > 1) {
+      settingsPatch.available_customers = adAccounts;
+      settingsPatch.needs_customer_selection = true;
+    }
+
+    // D. Upsert connection inside the database
     const upsertData: any = {
       tenant_id: activeTenantId,
       platform: "google",
       access_token: accessToken,
       status: "active",
+      settings: settingsPatch,
       updated_at: new Date().toISOString(),
     };
     
@@ -125,7 +194,7 @@ serve(async (req: Request) => {
       return new Response(`Database Error: ${upsertError.message}`, { status: 500 });
     }
 
-    // D. Redirect back to frontend success page
+    // E. Redirect back to frontend success page
     if (redirectBack) {
       return Response.redirect(`${redirectBack}/oauth-callback.html?status=success&platform=google`, 302);
     }
