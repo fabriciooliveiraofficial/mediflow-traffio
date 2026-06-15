@@ -506,8 +506,8 @@ export const LandingPage = () => {
                     <div className="border-t border-slate-800 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
                         <p className="text-slate-500 text-sm font-medium">© 2026 Traffio Odonto Marketing. Todos os direitos reservados.</p>
                         <div className="flex gap-6 text-xs text-slate-500 font-medium">
-                            <span className="cursor-pointer hover:text-graphite-300 transition-colors">Privacidade</span>
-                            <span className="cursor-pointer hover:text-graphite-300 transition-colors">Termos de Uso</span>
+                            <span onClick={() => navigate('/privacidade')} className="cursor-pointer hover:text-graphite-300 transition-colors">Privacidade</span>
+                            <span onClick={() => navigate('/termos')} className="cursor-pointer hover:text-graphite-300 transition-colors">Termos de Uso</span>
                             <span className="cursor-pointer hover:text-graphite-300 transition-colors">Cookies</span>
                         </div>
                     </div>

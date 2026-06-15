@@ -31,6 +31,8 @@ import { RegisterPaymentPage } from './pages/RegisterPaymentPage'
 import { AcceptInvitePage } from './pages/AcceptInvitePage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { LinkRedirectPage } from './pages/LinkRedirectPage'
+import { PrivacyPolicy } from './pages/PrivacyPolicy'
+import { TermsOfService } from './pages/TermsOfService'
 import { MasterProtectedRoute } from './components/MasterProtectedRoute'
 import { AuthRedirector } from './components/AuthRedirector'
 import { SubscriptionGuard } from './components/billing/SubscriptionGuard'
@@ -206,6 +208,8 @@ function AppRoutes() {
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/pagarme-callback" element={<PagarmeCallback />} />
             <Route path="/l/:code" element={<LinkRedirectPage />} />
+            <Route path="/privacidade" element={<PrivacyPolicy />} />
+            <Route path="/termos" element={<TermsOfService />} />
 
             {/* Public Patient Routes */}
             <Route path="/waiting-room" element={<WaitingRoom />} />

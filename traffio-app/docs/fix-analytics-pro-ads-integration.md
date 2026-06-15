@@ -317,3 +317,61 @@ select cron.schedule(
   - Popup deve **fechar automaticamente** após o OAuth (sem deixar aba/página da Traffio aberta).
   - Toast de sucesso deve aparecer.
   - Após ~4s, o dashboard deve atualizar (campanhas/spend/leads do Meta), ou exibir `last_sync_error` no modal "Gerenciar Conexão" se ainda houver algum problema (ex: usuário Facebook sem Ad Account, token sem permissão `ads_read`).
+
+---
+
+## Passo 7 — Atualização de Links de Privacidade e Submissão para Verificação no Google Cloud Console
+
+Siga este roteiro detalhado para configurar a tela de consentimento e submeter o aplicativo para aprovação na equipe do Google Trust & Safety, eliminando a tela vermelha de "App Não Verificado":
+
+### 7.1. Requisitos Prévios (Pré-requisitos)
+- As novas páginas (`/privacidade` e `/termos`) devem estar publicadas no seu domínio oficial de produção do Traffio (ex: `https://app.traffio.com.br`) e acessíveis publicamente para que os robôs de auditoria do Google possam lê-las.
+- O e-mail de contato do desenvolvedor deve ser o mesmo associado à conta GCP (neste caso: `fabriciooliveiraofficial@gmail.com`).
+
+### 7.2. Passo a Passo no Console do Google Cloud (GCP)
+1. Acesse o **[Google Cloud Console](https://console.cloud.google.com/)**.
+2. Certifique-se de selecionar o projeto correspondente à plataforma **Traffio** no topo da barra.
+3. No menu lateral, acesse **APIs e Serviços** > **Tela de permissão OAuth** (OAuth Consent Screen).
+4. Clique em **Editar App** (ou Edit App).
+5. Na primeira etapa (**OAuth consent screen / Informações do App**):
+   - **Nome do aplicativo:** `Traffio`
+   - **E-mail de suporte do usuário:** selecione `fabriciooliveiraofficial@gmail.com`
+   - **Logo do app (Opcional):** Você pode carregar um logotipo (caso carregue, a verificação do logo pode exigir uma verificação adicional de marca, então você pode optar por deixar em branco para agilizar).
+   - Em **Domínio do aplicativo** (Application home page), insira:
+     - **Página inicial:** `https://app.traffio.com.br` (substitua pelo seu domínio oficial)
+     - **Link da política de privacidade:** `https://app.traffio.com.br/privacidade`
+     - **Link dos termos de serviço:** `https://app.traffio.com.br/termos`
+   - Em **Domínios autorizados** (Authorized domains), adicione o domínio base da sua aplicação (ex: `traffio.com.br` ou `app.traffio.com.br`).
+   - Em **Informações de contato do desenvolvedor**, preencha com: `fabriciooliveiraofficial@gmail.com`.
+   - Clique em **Salvar e Continuar**.
+
+6. Na segunda etapa (**Escopos / Scopes**):
+   - Confirme se o escopo sensível `https://www.googleapis.com/auth/adwords` (API do Google Ads) está listado. Caso contrário, clique em "Adicionar ou remover escopos", busque por `adwords` e adicione-o.
+   - Clique em **Salvar e Continuar**.
+
+7. Na terceira etapa (**Usuários de teste / Test users**):
+   - Adicione os e-mails das contas que você usará para testar a integração antes da aprovação pública.
+   - Clique em **Salvar e Continuar**.
+
+8. Na quarta etapa (**Resumo / Summary**):
+   - Revise todos os campos e clique em **Voltar para o Painel**.
+
+### 7.3. Enviando para Verificação (Submit for Verification)
+1. No painel principal da "Tela de permissão OAuth", clique no botão **Enviar para verificação** (Submit for verification).
+2. Forneça as justificativas no formulário do Google para o uso do escopo sensível:
+   - **Justificativa de Uso de Dados (Exemplo de texto a ser enviado):**
+     > "O Traffio é uma plataforma de gestão e marketing odontológico (SaaS) voltada para clínicas e profissionais de saúde. Nós utilizamos o escopo 'https://www.googleapis.com/auth/adwords' (API do Google Ads) de forma estritamente leitura (read-only) para recuperar e consolidar métricas de desempenho de anúncios (investimento/custo, cliques, impressões e conversões) das campanhas do próprio usuário. Essas métricas são apresentadas em um gráfico consolidado na conta privada do usuário dentro do Traffio para ajudá-lo a calcular o ROAS (Retorno sobre Investimento em Marketing) de sua clínica. Nós não vendemos, alugamos, transferimos ou compartilhamos quaisquer dados do Google Ads com terceiros. A utilização destes dados segue estritamente as diretrizes de Uso Limitado da Política de Dados do Usuário dos Serviços de API do Google, conforme detalhado publicamente em nossa política de privacidade em: https://app.traffio.com.br/privacidade"
+3. **Link do Vídeo Demonstrativo (Requisito Obrigatório do Google):**
+   - Grave um vídeo curto da tela (screen recording, sem edições, mostrando a barra de URLs do navegador) demonstrando o fluxo:
+     1. Acesse o Traffio (mostrando a URL correspondente, ex: `https://app.traffio.com.br`).
+     2. Faça login e acesse a página de Conexões/Analytics.
+     3. Clique para conectar a conta do Google Ads.
+     4. No popup do Google que se abre, passe o mouse/mostre na barra de endereços o **Client ID** da sua aplicação Traffio (isso é crucial para o Google saber que o vídeo pertence a este app).
+     5. Conclua a autenticação (mesmo que apareça o aviso de app não verificado na gravação, clique em avançado e continue).
+     6. Mostre o painel do Traffio renderizando os dados/gráficos de investimento de anúncios sincronizados.
+   - Suba o vídeo no YouTube como **"Não Listado"** (Unlisted).
+   - Insira o link do vídeo no formulário de submissão do Google.
+4. Clique em **Enviar** (Submit).
+
+A equipe do Google analisará a documentação e o vídeo em até 3 a 5 dias úteis e enviará um e-mail para `fabriciooliveiraofficial@gmail.com`. Certifique-se de acompanhar o e-mail de suporte cadastrado.
+
