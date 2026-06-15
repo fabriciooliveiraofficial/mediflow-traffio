@@ -204,7 +204,7 @@ serve(async (req: Request) => {
             WHERE segments.date DURING LAST_7_DAYS
           `;
 
-          const adsRes = await fetch(`https://googleads.googleapis.com/v16/customers/${customerId}/googleAds:search`, {
+          const adsRes = await fetch(`https://googleads.googleapis.com/v24/customers/${customerId}/googleAds:search`, {
             method: "POST",
             headers: {
               "Authorization": `Bearer ${freshAccessToken}`,
@@ -214,11 +214,25 @@ serve(async (req: Request) => {
             body: JSON.stringify({ query: googleQuery }),
           });
 
-          const adsData = await adsRes.json();
+          let adsData: any = {};
+          const contentType = adsRes.headers.get("content-type") || "";
+          if (adsRes.ok && contentType.includes("application/json")) {
+            adsData = await adsRes.json();
+          } else {
+            const textError = await adsRes.text();
+            console.error(`Non-OK or non-JSON response from Google Ads search API for tenant ${tenant_id}:`, adsRes.status, textError);
+            try {
+              const parsedErr = JSON.parse(textError);
+              adsData = { error: parsedErr.error || parsedErr };
+            } catch {
+              adsData = { error: { message: `HTTP ${adsRes.status}: ${textError.substring(0, 200)}` } };
+            }
+          }
+
           if (adsData.error) {
             console.error(`Google Ads API error for tenant ${tenant_id}:`, adsData.error);
             await updateIntegrationSettings(supabaseAdmin, tenant_id, "google", settings, {
-              last_sync_error: `Erro na API do Google Ads: ${JSON.stringify(adsData.error)}`,
+              last_sync_error: `Erro na API do Google Ads: ${adsData.error.message || JSON.stringify(adsData.error)}`,
               last_sync_at: new Date().toISOString(),
             });
             continue;

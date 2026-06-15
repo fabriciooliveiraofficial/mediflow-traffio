@@ -106,17 +106,31 @@ serve(async (req: Request) => {
 
     if (googleDevToken) {
       try {
-        const response = await fetch("https://googleads.googleapis.com/v16/customers:listAccessibleCustomers", {
+        const response = await fetch("https://googleads.googleapis.com/v24/customers:listAccessibleCustomers", {
           headers: {
             "Authorization": `Bearer ${accessToken}`,
             "developer-token": googleDevToken,
           }
         });
-        const resJson = await response.json();
+
+        let resJson: any = {};
+        const contentType = response.headers.get("content-type") || "";
+        if (response.ok && contentType.includes("application/json")) {
+          resJson = await response.json();
+        } else {
+          const textError = await response.text();
+          console.error("Non-OK or non-JSON response from Google Ads Accessible Customers API:", response.status, textError);
+          try {
+            const parsedErr = JSON.parse(textError);
+            resJson = { error: parsedErr.error || parsedErr };
+          } catch {
+            resJson = { error: { message: `HTTP ${response.status}: ${textError.substring(0, 200)}` } };
+          }
+        }
         
         if (resJson.error) {
           console.error("Google Ads Accessible Customers API Error:", resJson.error);
-          lastSyncError = `Erro na API do Google Ads: ${resJson.error.message}`;
+          lastSyncError = `Erro na API do Google Ads: ${resJson.error.message || JSON.stringify(resJson.error)}`;
         } else if (resJson.resourceNames && resJson.resourceNames.length > 0) {
           adAccounts = resJson.resourceNames.map((name: string) => name.replace("customers/", ""));
           if (adAccounts.length === 1) {
