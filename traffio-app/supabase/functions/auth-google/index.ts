@@ -25,8 +25,8 @@ serve(async (req: Request) => {
   });
 
   // Prioridade: Supabase Secret → master_config (UI /master/intelligence)
-  const googleClientId     = await getGoogleCred(supabase, "GOOGLE_CLIENT_ID",     "GOOGLE_CLIENT_ID");
-  const googleClientSecret = await getGoogleCred(supabase, "GOOGLE_CLIENT_SECRET", "GOOGLE_CLIENT_SECRET");
+  const googleClientId     = await getGoogleCred(supabase, "GOOGLE_CLIENT_ID");
+  const googleClientSecret = await getGoogleCred(supabase, "GOOGLE_CLIENT_SECRET");
 
   const redirectUri = `${supabaseUrl.replace(/\/$/, "")}/functions/v1/auth-google`;
 
@@ -98,6 +98,16 @@ serve(async (req: Request) => {
     const accessToken = tokenData.access_token;
     const refreshToken = tokenData.refresh_token; // Received on initial consent click
 
+    if (!accessToken) {
+      console.error("OAuth token exchange returned no access_token. tokenData keys:", Object.keys(tokenData));
+      if (redirectBack) {
+        return Response.redirect(`${redirectBack}/oauth-callback.html?status=error&platform=google&message=${encodeURIComponent("Token de acesso não recebido do Google. Tente novamente.")}`, 302);
+      }
+      return new Response("OAuth Error: No access_token received from Google", { status: 400 });
+    }
+
+    console.log("[auth-google] OAuth token exchange successful. access_token present:", !!accessToken, "refresh_token present:", !!refreshToken);
+
     // C. Check accessible Google Ads customers using the global Developer Token
     const googleDevToken = await getGoogleCred(supabaseAdmin, "GOOGLE_DEVELOPER_TOKEN");
     let adAccounts: string[] = [];
@@ -105,6 +115,7 @@ serve(async (req: Request) => {
     let lastSyncError = null;
 
     if (googleDevToken) {
+      console.log("[auth-google] Calling listAccessibleCustomers with dev-token length:", googleDevToken.length, "access_token length:", accessToken.length);
       try {
         const response = await fetch("https://googleads.googleapis.com/v24/customers:listAccessibleCustomers", {
           headers: {

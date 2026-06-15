@@ -1,6 +1,16 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 
+// Lê credencial: Supabase Secret → master_config (UI /master/intelligence)
+async function getGoogleCred(supabase: any, key: string): Promise<string> {
+  const fromEnv = Deno.env.get(key);
+  if (fromEnv) return fromEnv;
+  try {
+    const { data } = await supabase.from("master_config").select("value").eq("key", key).maybeSingle();
+    return data?.value ?? "";
+  } catch { return ""; }
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -171,8 +181,17 @@ serve(async (req: Request) => {
 
         try {
           // Exchange refresh_token for access_token
-          const googleClientId = Deno.env.get("GOOGLE_CLIENT_ID") ?? "";
-          const googleClientSecret = Deno.env.get("GOOGLE_CLIENT_SECRET") ?? "";
+          const googleClientId = await getGoogleCred(supabaseAdmin, "GOOGLE_CLIENT_ID");
+          const googleClientSecret = await getGoogleCred(supabaseAdmin, "GOOGLE_CLIENT_SECRET");
+
+          if (!googleClientId || !googleClientSecret) {
+            console.error(`[sync-ads] GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET not found for tenant ${tenant_id}`);
+            await updateIntegrationSettings(supabaseAdmin, tenant_id, "google", settings, {
+              last_sync_error: "Credenciais Google (Client ID/Secret) não configuradas no sistema.",
+              last_sync_at: new Date().toISOString(),
+            });
+            continue;
+          }
 
           const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
             method: "POST",
@@ -196,6 +215,17 @@ serve(async (req: Request) => {
           }
 
           const freshAccessToken = tokenData.access_token;
+
+          if (!freshAccessToken) {
+            console.error(`[sync-ads] Token refresh returned no access_token for tenant ${tenant_id}. Keys:`, Object.keys(tokenData));
+            await updateIntegrationSettings(supabaseAdmin, tenant_id, "google", settings, {
+              last_sync_error: "Token de acesso não recebido ao renovar credenciais do Google.",
+              last_sync_at: new Date().toISOString(),
+            });
+            continue;
+          }
+
+          console.log(`[sync-ads] Token refreshed for tenant ${tenant_id}. access_token length: ${freshAccessToken.length}`);
 
           // Query Google Ads API
           const googleQuery = `
