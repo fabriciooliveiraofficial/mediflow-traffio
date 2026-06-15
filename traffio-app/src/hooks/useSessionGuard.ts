@@ -4,7 +4,7 @@ import { useTenant } from '../contexts/TenantContext';
 import { supabase } from '../lib/supabase';
 
 const SESSION_TOKEN_KEY = 'traffio_session_token';
-const HEARTBEAT_INTERVAL = 60000; // 60 segundos
+const HEARTBEAT_INTERVAL = 30000; // 30 segundos
 
 function getDeviceLabel(): string {
     const ua = navigator.userAgent;
@@ -129,6 +129,7 @@ export function useSessionGuard() {
                         table: 'active_sessions',
                         filter: `session_id=eq.${token}`
                     }, (payload: any) => {
+                        console.log('[SessionGuard] Realtime payload:', payload);
                         if (payload.new && payload.new.is_current === false) {
                             console.warn('[SessionGuard] Sessão invalidada em tempo real por outro dispositivo.');
                             setKicked(true);

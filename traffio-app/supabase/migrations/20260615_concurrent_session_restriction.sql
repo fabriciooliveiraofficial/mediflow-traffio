@@ -29,6 +29,7 @@ CREATE INDEX IF NOT EXISTS idx_login_audit_log_tenant ON public.login_audit_log(
 
 ALTER TABLE public.login_audit_log ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "audit_log_own_select" ON public.login_audit_log;
 CREATE POLICY "audit_log_own_select" ON public.login_audit_log
     FOR SELECT USING (user_id = auth.uid());
 
