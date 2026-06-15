@@ -132,7 +132,23 @@ serve(async (req: Request) => {
         }
 
         const customerId = settings?.customer_id;
-        const developerToken = settings?.developer_token;
+        let developerToken = settings?.developer_token;
+        if (!developerToken) {
+          developerToken = Deno.env.get("GOOGLE_DEVELOPER_TOKEN");
+          if (!developerToken) {
+            try {
+              const { data: configData } = await supabaseAdmin
+                .from("master_config")
+                .select("value")
+                .eq("key", "GOOGLE_DEVELOPER_TOKEN")
+                .maybeSingle();
+              developerToken = configData?.value ?? "";
+            } catch (err) {
+              console.error(`Error fetching GOOGLE_DEVELOPER_TOKEN from master_config for tenant ${tenant_id}:`, err);
+            }
+          }
+        }
+
         if (!customerId || !developerToken) {
           console.warn(`Tenant ${tenant_id} has no Google customer_id/developer_token configured. Skipping sync.`);
           await updateIntegrationSettings(supabaseAdmin, tenant_id, "google", settings, {

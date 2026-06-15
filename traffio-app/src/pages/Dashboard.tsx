@@ -87,6 +87,8 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
     const [manageModal, setManageModal] = useState<{ platform: 'meta' | 'google' } | null>(null);
     const [manageData, setManageData] = useState<any>(null);
     const [manageLoading, setManageLoading] = useState(false);
+    const [googleCustomerId, setGoogleCustomerId] = useState('');
+    const [googleDeveloperToken, setGoogleDeveloperToken] = useState('');
 
     const fetchDashboardData = useCallback(async () => {
             if (!tenant?.id) return;
@@ -274,6 +276,10 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                 .eq('platform', platform)
                 .maybeSingle();
             setManageData(data);
+            if (platform === 'google') {
+                setGoogleCustomerId(data?.settings?.customer_id || '');
+                setGoogleDeveloperToken(data?.settings?.developer_token || '');
+            }
         } catch {
             setManageData(null);
         } finally {
@@ -315,6 +321,30 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
             .eq('platform', manageModal.platform);
         setManageData((prev: any) => ({ ...prev, settings: newSettings }));
         showToast('success', 'Conta de anúncios atualizada.');
+    };
+
+    const handleSaveGoogleSettings = async () => {
+        if (!tenant?.id || !manageModal) return;
+        const cleanCustomerId = googleCustomerId.replace(/\D/g, '');
+        
+        const newSettings = { 
+            ...(manageData?.settings || {}), 
+            customer_id: cleanCustomerId,
+            developer_token: googleDeveloperToken.trim()
+        };
+
+        const { error } = await supabase
+            .from('ad_integrations')
+            .update({ settings: newSettings })
+            .eq('tenant_id', tenant.id)
+            .eq('platform', 'google');
+
+        if (error) {
+            showToast('error', 'Erro ao salvar as configurações.');
+        } else {
+            setManageData((prev: any) => ({ ...prev, settings: newSettings }));
+            showToast('success', 'Configurações do Google Ads salvas com sucesso.');
+        }
     };
 
     useEffect(() => {
@@ -703,6 +733,40 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                                     {manageData?.settings?.ad_account_id || 'Nenhuma conta vinculada'}
                                                 </p>
                                             )}
+                                        </div>
+                                    )}
+
+                                    {manageModal.platform === 'google' && (
+                                        <div className="space-y-4 border-b border-ice-100/50 pb-4">
+                                            <div className="space-y-2">
+                                                <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest">Customer ID (ID da Conta Google Ads)</p>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Ex: 123-456-7890"
+                                                    value={googleCustomerId}
+                                                    onChange={(e) => setGoogleCustomerId(e.target.value)}
+                                                    className="w-full px-4 py-3 bg-ice-50 rounded-2xl text-sm font-bold text-graphite-900 border border-transparent focus:border-brand-primary/20 focus:outline-none transition-all"
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest">Developer Token (Token de Desenvolvedor)</p>
+                                                <input
+                                                    type="password"
+                                                    placeholder="Digite o Token de Desenvolvedor"
+                                                    value={googleDeveloperToken}
+                                                    onChange={(e) => setGoogleDeveloperToken(e.target.value)}
+                                                    className="w-full px-4 py-3 bg-ice-50 rounded-2xl text-sm font-bold text-graphite-900 border border-transparent focus:border-brand-primary/20 focus:outline-none transition-all"
+                                                />
+                                                <p className="text-[9px] text-graphite-400 font-medium leading-normal">
+                                                    Opcional se configurado globalmente pela plataforma.
+                                                </p>
+                                            </div>
+                                            <button
+                                                onClick={handleSaveGoogleSettings}
+                                                className="w-full py-3.5 bg-graphite-900 text-white rounded-2xl font-black text-xs flex items-center justify-center gap-2 border-none cursor-pointer hover:bg-graphite-800 transition-all shadow-md shadow-graphite-900/10"
+                                            >
+                                                Salvar Configurações
+                                            </button>
                                         </div>
                                     )}
 
