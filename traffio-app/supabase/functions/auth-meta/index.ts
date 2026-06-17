@@ -64,10 +64,10 @@ serve(async (req: Request) => {
       scopes.push(
         "pages_show_list",
         "pages_messaging",
-        // "instagram_manage_messages", // Temporariamente desativado por conta do erro de Invalid Scopes
+        "instagram_business_manage_messages",
         "pages_read_engagement",
         "pages_manage_metadata",
-        // "instagram_basic",           // Temporariamente desativado por conta do erro de Invalid Scopes
+        "instagram_business_basic",
         "business_management"
       );
     }
@@ -215,7 +215,7 @@ serve(async (req: Request) => {
                   is_active:            true,
                   scope_granted:        [
                     "pages_messaging",
-                    "instagram_manage_messages",
+                    "instagram_business_manage_messages",
                     "pages_read_engagement",
                   ],
                   updated_at: new Date().toISOString(),
