@@ -126,9 +126,20 @@ serve(async (req: Request) => {
 
           const timeRangeParam = encodeURIComponent(JSON.stringify({ since: metaThirtyDaysAgoStr, until: metaTodayStr }));
           const insightsUrl = `https://graph.facebook.com/v19.0/${adAccountId}/insights?level=campaign&fields=campaign_id,campaign_name,spend,impressions,clicks,actions&time_increment=1&time_range=${timeRangeParam}&access_token=${access_token}`;
+          const accountInsightsUrl = `https://graph.facebook.com/v19.0/${adAccountId}/insights?level=account&fields=spend&time_increment=1&time_range=${timeRangeParam}&access_token=${access_token}`;
 
-          const response = await fetch(insightsUrl);
-          const resJson = await response.json();
+          const [campaignRes, accountRes] = await Promise.all([
+            fetch(insightsUrl),
+            fetch(accountInsightsUrl)
+          ]);
+          
+          const resJson = await campaignRes.json();
+          let accountJson: any = {};
+          try {
+            accountJson = await accountRes.json();
+          } catch (e) {
+            console.error(`Failed to parse account-level insights for tenant ${tenant_id}`, e);
+          }
 
           if (resJson.error) {
             console.error(`Meta API Error for tenant ${tenant_id}:`, resJson.error);
@@ -141,12 +152,16 @@ serve(async (req: Request) => {
 
           // Process and upsert insights data — uma linha por campanha/dia
           const insights = resJson.data || [];
+          const dailyCampaignSpend: Record<string, number> = {};
+
           for (const row of insights) {
             const date = row.date_start;
             const spend = Math.round(parseFloat(row.spend || "0") * 100); // dollars to cents
             const impressions = parseInt(row.impressions || "0");
             const clicks = parseInt(row.clicks || "0");
             const conversions = Math.round(sumMetaActions(row.actions, META_LEAD_ACTION_TYPES));
+
+            dailyCampaignSpend[date] = (dailyCampaignSpend[date] || 0) + spend;
 
             console.log(`[Meta Sync debug] Campanha: "${row.campaign_name}" (${row.campaign_id}) | Data: ${date} | Raw Spend: "${row.spend}" | Parsed Cents: ${spend}`);
 
@@ -169,6 +184,39 @@ serve(async (req: Request) => {
                 impressions,
                 clicks,
               }, { onConflict: "tenant_id,platform,date,campaign_id" });
+          }
+
+          // Reconciliation: Compare Account total with Campaign sum per day
+          const accountInsights = accountJson.data || [];
+          for (const accRow of accountInsights) {
+            const date = accRow.date_start;
+            const accSpend = Math.round(parseFloat(accRow.spend || "0") * 100);
+            const campSpend = dailyCampaignSpend[date] || 0;
+            
+            // We only upsert the reconciliation row if there's a positive difference.
+            // If the difference is zero, we should also upsert 0 to clear any previous delay value.
+            const diffCents = Math.max(0, accSpend - campSpend);
+            
+            if (diffCents > 0 || campSpend > 0 || accSpend > 0) {
+              console.log(`[Meta Sync debug] Conciliação Data ${date} | Account Spend: ${accSpend} | Campaigns Sum: ${campSpend} | Delta: ${diffCents}`);
+              
+              await supabaseAdmin
+                .from("ad_performance_daily")
+                .upsert({
+                  tenant_id,
+                  platform: "meta",
+                  date,
+                  ad_account_id: adAccountId,
+                  campaign_id: "meta_account_adjustment",
+                  campaign_name: "Ajustes / Delay API (Meta)",
+                  spend_cents: diffCents,
+                  revenue_cents: 0,
+                  leads_count: 0,
+                  conversion_count: 0,
+                  impressions: 0,
+                  clicks: 0,
+                }, { onConflict: "tenant_id,platform,date,campaign_id" });
+            }
           }
 
           await updateIntegrationSettings(supabaseAdmin, tenant_id, "meta", settings, {

@@ -450,7 +450,17 @@
           start_time: this.sel.slot, end_time: this.sel.slotEnd || null,
           patient: { full_name: name.value.trim(), phone: phone.value.trim(), email: email.value.trim() }
         });
-        if (!r.success) { this.flash(r.message || this.T.errGeneric); btn.disabled = false; btn.textContent = this.T.confirm; return; }
+        if (!r.success) {
+          if (r.status === 'slot_taken') {
+            // horário foi tomado entre a seleção e a confirmação: volta aos horários already atualizados
+            this._err = r.message || this.T.errSlot;
+            this.cache.slots = null;
+            this.state.step = 3; this.render();
+            try { var rs = await this.call('slots', { doctor_id: this.sel.doctorId, date: this.sel.date, location_id: this.sel.locationId }); this.cache.slots = rs.slots || []; if (this.state.step === 3) this.render(); } catch (e2) { this.cache.slots = []; if (this.state.step === 3) this.render(); }
+            return;
+          }
+          this.flash(r.message || this.T.errGeneric); btn.disabled = false; btn.textContent = this.T.confirm; return;
+        }
         this.lastBooking = r;
         this.state.step = 5; this.render();
       } catch (e) { this.flash((e && e.message) || this.T.errGeneric); btn.disabled = false; btn.textContent = this.T.confirm; }

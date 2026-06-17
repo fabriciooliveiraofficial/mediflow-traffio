@@ -44,7 +44,7 @@ interface KeyConfig {
   google_ads_id: string | null;
   google_conversion_label: string | null;
   success_virtual_path: string | null;
-  tenant: { name: string; slug: string; locale: string; country: string; timezone: string } | null;
+  tenant: { name: string; slug: string; locale: string; country: string; timezone: string; booking_min_lead_minutes: number } | null;
 }
 
 serve(async (req: Request) => {
@@ -67,7 +67,7 @@ serve(async (req: Request) => {
     const { data: cfg, error: cfgErr } = await db
       .from("tenant_public_keys")
       .select(
-        "id, tenant_id, allowed_domains, is_active, primary_color, fab_label, fab_style, fab_position, fab_delay_ms, meta_pixel_id, google_ads_id, google_conversion_label, success_virtual_path, tenant:tenants(name, slug, locale, country, timezone)",
+        "id, tenant_id, allowed_domains, is_active, primary_color, fab_label, fab_style, fab_position, fab_delay_ms, meta_pixel_id, google_ads_id, google_conversion_label, success_virtual_path, tenant:tenants(name, slug, locale, country, timezone, booking_min_lead_minutes)",
       )
       .eq("public_key", key)
       .eq("is_active", true)
@@ -81,6 +81,8 @@ serve(async (req: Request) => {
 
     const config = cfg as unknown as KeyConfig;
     const tenantId = config.tenant_id;
+    const tz = config.tenant?.timezone || "America/Sao_Paulo";
+    const leadMin = config.tenant?.booking_min_lead_minutes ?? 30;
 
     // ── Guardas das escritas: origem + rate limit + anti-bot ─────────────────
     if (WRITE_ACTIONS.has(action)) {
@@ -118,7 +120,8 @@ serve(async (req: Request) => {
           tenant: { name: config.tenant?.name, slug: config.tenant?.slug },
           locale: config.tenant?.locale ?? "pt-BR",
           country: config.tenant?.country ?? "BR",
-          timezone: config.tenant?.timezone ?? "America/Sao_Paulo",
+          timezone: tz,
+          booking_min_lead_minutes: leadMin,
           theme: { primary_color: config.primary_color ?? "#0E7C7B" },
           fab: {
             label: config.fab_label ?? "Agendar",
@@ -144,10 +147,10 @@ serve(async (req: Request) => {
         return await handleDoctors(db, tenantId, body.specialty, body.location_id);
 
       case "dates":
-        return await handleDates(db, body.doctor_id, body.from_date, body.limit, body.location_id, body.duration_minutes);
+        return await handleDates(db, body.doctor_id, body.from_date, body.limit, body.location_id, body.duration_minutes, tz, leadMin);
 
       case "slots":
-        return await handleSlots(db, tenantId, body.doctor_id, body.date, body.location_id, body.duration_minutes);
+        return await handleSlots(db, tenantId, body.doctor_id, body.date, body.location_id, body.duration_minutes, tz, leadMin);
 
       case "lock":
         return await handleLock(db, tenantId, body);
@@ -243,28 +246,36 @@ async function handleDates(
   limit = 14,
   locationId?: string,
   durationMinutes = 30,
+  tz = "America/Sao_Paulo",
+  leadMin = 30,
 ) {
   if (!doctorId) return json({ error: "doctor_id é obrigatório" }, 400);
+  const now = tenantNow(tz);
 
   // Próximas datas COM vaga. "Ver mais datas" no widget pagina passando
-  // from_date = dia seguinte à última data exibida.
+  // from_date = dia seguinte à última data exibida. Default = HOJE no fuso do tenant.
   const { data, error } = await db.rpc("find_next_available_dates", {
     p_doctor_id: doctorId,
-    p_from_date: fromDate ?? new Date().toISOString().slice(0, 10),
+    p_from_date: fromDate ?? now.date,
     p_limit: limit,
     p_duration_minutes: durationMinutes,
     p_location_id: locationId ?? null,
   });
   if (error) throw error;
 
-  const dates = (data ?? []).map((d: Record<string, unknown>) => ({
-    date: d.date,
-    location_id: d.location_id ?? null,
-    location_name: d.location_name ?? null,
-    slot_count: d.slot_count ??
-      ((Array.isArray(d.slots) ? d.slots.length : 0) ||
-        ((d.prime_slots as unknown[])?.length ?? 0) + ((d.regular_slots as unknown[])?.length ?? 0)),
-  }));
+  // Filtra horários passados/dentro da antecedência (no fuso do tenant) e
+  // remove "hoje" se não sobrar nenhum horário válido.
+  const dates = (data ?? [])
+    .map((d: Record<string, unknown>) => {
+      const future = availTimes(d).filter((t) => slotPassesLead(String(d.date), t, now, leadMin));
+      return {
+        date: d.date,
+        location_id: d.location_id ?? null,
+        location_name: d.location_name ?? null,
+        slot_count: future.length,
+      };
+    })
+    .filter((d: { slot_count: number }) => d.slot_count > 0);
   return json({ dates });
 }
 
@@ -275,8 +286,11 @@ async function handleSlots(
   date?: string,
   locationId?: string,
   durationMinutes = 30,
+  tz = "America/Sao_Paulo",
+  leadMin = 30,
 ) {
   if (!doctorId || !date) return json({ error: "doctor_id e date são obrigatórios" }, 400);
+  const now = tenantNow(tz);
 
   // Mesma chamada usada pelo app (smartSchedulingService) — fonte da verdade.
   const { data, error } = await db.rpc("find_next_available_dates", {
@@ -291,14 +305,10 @@ async function handleSlots(
   const dayData = (data ?? []).find((d: { date: string }) => d.date === date);
   if (!dayData) return json({ slots: [] });
 
-  // Resiliente a ambas as formas do RPC: {slots:[{time,available}]} OU prime/regular_slots.
-  let times: string[] = [];
-  if (Array.isArray(dayData.slots)) {
-    times = dayData.slots.filter((s: { available?: boolean }) => s.available !== false).map((s: { time: string }) => s.time);
-  } else {
-    times = [...(dayData.prime_slots ?? []), ...(dayData.regular_slots ?? [])];
-  }
-  times.sort();
+  // Apenas horários disponíveis E que respeitam a antecedência (no fuso do tenant).
+  const times = availTimes(dayData)
+    .filter((t: string) => slotPassesLead(date, t, now, leadMin))
+    .sort();
 
   const slots = times.map((time: string) => {
     const [h, m] = time.split(":").map(Number);
@@ -359,8 +369,19 @@ async function handleBook(db: SupabaseClient, tenantId: string, body: Record<str
   });
   if (error) throw error;
   if (!data?.success) {
-    const reason = data?.reason === "slot_taken" ? "Este horário acabou de ser reservado." : (data?.message ?? data?.reason ?? "Não foi possível agendar.");
-    return json({ success: false, message: reason }, 409);
+    // book_appointment (migration 05) só nomeia 'slot_taken' para unique_violation;
+    // conflitos de horário (exclusion_violation) caem no WHEN OTHERS e retornam o
+    // SQLERRM bruto do Postgres em `reason`. Nunca expor esse texto ao cliente.
+    const raw = String(data?.reason ?? "");
+    const slotTaken = raw === "slot_taken" || /overlap|conflict|exclusion|duplicate/i.test(raw);
+    if (!slotTaken) console.error("book_appointment failed:", raw);
+    return json({
+      success: false,
+      status: slotTaken ? "slot_taken" : "error",
+      message: slotTaken
+        ? "Este horário não está mais disponível. Por favor, escolha outro horário."
+        : "Não foi possível concluir o agendamento. Tente novamente.",
+    }, 409);
   }
 
   return json({ success: true, appointment_id: data.appointment_id, patient_id: patientId });
@@ -376,18 +397,22 @@ async function upsertGuestPatient(
   const phone = (patient.phone ?? "").trim();
   const email = (patient.email ?? "").trim().toLowerCase() || null;
 
-  // Match por tenant + telefone OU email (paciente recorrente sem conta).
-  // Há unique constraints (tenant_id, phone) e (tenant_id, email) em produção —
-  // por isso checamos os dois antes de inserir, e tratamos a corrida abaixo.
-  const orFilter = email ? `phone.eq.${phone},email.eq.${email}` : `phone.eq.${phone}`;
-  const { data: existing } = await db
-    .from("patients")
-    .select("id")
-    .eq("tenant_id", tenantId)
-    .or(orFilter)
-    .limit(1)
-    .maybeSingle();
-  if (existing?.id) return existing.id;
+  // O ÚNICO índice de unicidade real em patients é (tenant_id, email) — ver
+  // idx_patients_tenant_email. Telefone NÃO é único (pode ser compartilhado,
+  // ex.: familiares), então a identidade de deduplicação é sempre o e-mail.
+  if (email) {
+    const { data: existing, error: lookupErr } = await db
+      .from("patients")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("email", email)
+      .maybeSingle();
+    if (lookupErr) {
+      console.error("upsertGuestPatient: lookup by email failed:", lookupErr);
+      throw lookupErr; // nunca seguir para o INSERT às escuras
+    }
+    if (existing?.id) return existing.id;
+  }
 
   // Captura comercial (lead): apenas nome, telefone e email — sem dados fiscais.
   const { data: created, error } = await db
@@ -402,20 +427,49 @@ async function upsertGuestPatient(
     .single();
 
   if (error) {
-    // 23505 = unique_violation (corrida: outro request cadastrou o mesmo phone/email entre o select e o insert)
-    if (error.code === "23505") {
-      const { data: race } = await db
+    // 23505 = unique_violation: corrida entre dois requests com o mesmo email
+    // entre o lookup e o insert. Reconsulta por email e reaproveita o id.
+    if (error.code === "23505" && email) {
+      const { data: race, error: raceErr } = await db
         .from("patients")
         .select("id")
         .eq("tenant_id", tenantId)
-        .or(orFilter)
-        .limit(1)
+        .eq("email", email)
         .maybeSingle();
-      if (race?.id) return race.id;
+      if (!raceErr && race?.id) return race.id;
     }
-    throw error;
+    console.error("upsertGuestPatient: insert failed:", error);
+    throw new Error("Não foi possível registrar seus dados. Tente novamente.");
   }
   return created.id;
+}
+
+// Data e hora atuais NO FUSO DO TENANT (não do servidor/UTC). minutes = minutos desde 00:00.
+function tenantNow(tz: string): { date: string; minutes: number } {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hour12: false,
+  }).formatToParts(new Date());
+  const g = (t: string) => parts.find((p) => p.type === t)?.value ?? "00";
+  let hh = g("hour"); if (hh === "24") hh = "00"; // guarda meia-noite em alguns ambientes
+  return { date: `${g("year")}-${g("month")}-${g("day")}`, minutes: parseInt(hh, 10) * 60 + parseInt(g("minute"), 10) };
+}
+
+// Horários DISPONÍVEIS de um objeto-dia do RPC (resiliente: v6 `slots` OU v4 prime/regular).
+function availTimes(day: Record<string, unknown>): string[] {
+  if (Array.isArray(day.slots)) {
+    return (day.slots as { time: string; available?: boolean }[])
+      .filter((s) => s.available !== false).map((s) => s.time);
+  }
+  return [...((day.prime_slots as string[]) ?? []), ...((day.regular_slots as string[]) ?? [])];
+}
+
+// Mantém o horário só se respeitar a antecedência mínima (comparado no fuso do tenant).
+function slotPassesLead(dateStr: string, slotTime: string, now: { date: string; minutes: number }, leadMin: number): boolean {
+  if (dateStr < now.date) return false; // dia já passou
+  if (dateStr > now.date) return true;  // dia futuro: mantém todos
+  const [h, m] = slotTime.slice(0, 5).split(":").map(Number);
+  return (h * 60 + m) >= now.minutes + leadMin;
 }
 
 function getClientIp(req: Request): string {

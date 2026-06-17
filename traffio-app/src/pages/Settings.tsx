@@ -791,6 +791,28 @@ export const Settings = () => {
                                                     </div>
                                                 </div>
 
+                                                {/* Booking Widget — Antecedência mínima */}
+                                                <div className="border-t border-ice-100 pt-4 mt-4">
+                                                    <h4 className="text-xs font-black text-graphite-400 uppercase flex items-center gap-1.5 mb-3">
+                                                        <Clock size={12} /> Agendamento Online (Widget)
+                                                    </h4>
+                                                    <div>
+                                                        <label className="text-[10px] font-bold text-graphite-400 block mb-1">Antecedência mínima (minutos)</label>
+                                                        <input
+                                                            type="number"
+                                                            min={0}
+                                                            step={5}
+                                                            key={`lead-${tenant.id}`}
+                                                            defaultValue={tenant.booking_min_lead_minutes ?? 30}
+                                                            onBlur={(e) => handleSaveTenant(tenant.id, { booking_min_lead_minutes: parseInt(e.target.value, 10) || 0 })}
+                                                            className="w-full max-w-[200px] bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm font-medium text-graphite-700 focus:outline-none focus:border-brand-primary transition-colors"
+                                                        />
+                                                        <p className="text-[10px] text-graphite-400 mt-1">
+                                                            Tempo mínimo, em minutos, entre o momento atual e o horário do agendamento no widget online. Horários mais próximos que isso ficam ocultos para o paciente.
+                                                        </p>
+                                                    </div>
+                                                </div>
+
                                                 {/* Brand Color */}
                                                 <div className="border-t border-ice-100 pt-4 mt-4">
                                                     <h4 className="text-xs font-black text-graphite-400 uppercase flex items-center gap-1.5 mb-3">
