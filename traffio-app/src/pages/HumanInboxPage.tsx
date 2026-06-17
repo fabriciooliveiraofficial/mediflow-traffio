@@ -1834,7 +1834,7 @@ export function HumanInboxPage() {
   const [forwardMsg, setForwardMsg]   = useState<Message | null>(null)
 
   const isOwned  = selected?.assigned_to_user_id === userId && selected?.omnichannel_status === 'human_active'
-  const canClaim = selected?.omnichannel_status === 'queued'
+  const canClaim = selected?.omnichannel_status === 'queued' || selected?.omnichannel_status === 'bot_active'
   const isClosed = selected?.omnichannel_status === 'closed'
 
   const onCancelContext = useCallback(() => {

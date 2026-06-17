@@ -422,4 +422,6 @@ verify_jwt = false
 enabled = true
 verify_jwt = false
 
-
+[functions.meta-social-webhook]
+enabled = true
+verify_jwt = false

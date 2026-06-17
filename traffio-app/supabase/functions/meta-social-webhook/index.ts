@@ -183,6 +183,17 @@ async function processMessagingEvent(
       .eq("patient_phone", senderId);
   }
 
+  // Tratamento de timestamp (Meta pode enviar microssegundos ou formato estranho)
+  let validTimestamp = Date.now();
+  if (timestamp) {
+    if (timestamp > 9999999999999) {
+      // Se vier em microssegundos (ex: 1781739354903000), converte para milissegundos
+      validTimestamp = Math.floor(timestamp / 1000);
+    } else {
+      validTimestamp = timestamp;
+    }
+  }
+
   // 4. Inserir na message_inbox (inbox pattern — mesmo do whatsapp-bot)
   const { error: inboxErr } = await supabase.from("message_inbox").insert({
     tenant_id:   tenantId,
@@ -190,7 +201,7 @@ async function processMessagingEvent(
     content:     text,
     message_id:  messageId,
     status:      "pending",
-    received_at: new Date(timestamp ? timestamp : Date.now()).toISOString(),
+    received_at: new Date(validTimestamp).toISOString(),
   });
 
   if (inboxErr) {
