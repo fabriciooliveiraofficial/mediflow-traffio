@@ -101,7 +101,30 @@ serve(async (req: Request) => {
         }
 
         try {
-          const timeRangeParam = encodeURIComponent(JSON.stringify({ since: thirtyDaysAgoStr, until: todayStr }));
+          // Fetch the official timezone of the Meta Ad Account
+          let metaTimezone = timezone;
+          try {
+            const accountUrl = `https://graph.facebook.com/v19.0/${adAccountId}?fields=timezone_name&access_token=${access_token}`;
+            const accountRes = await fetch(accountUrl);
+            const accountJson = await accountRes.json();
+            if (accountJson.timezone_name) {
+              metaTimezone = accountJson.timezone_name;
+              console.log(`[Meta Sync] Using Ad Account timezone: ${metaTimezone} (Tenant timezone: ${timezone})`);
+            } else if (accountJson.error) {
+              console.warn(`[Meta Sync] Failed to fetch Ad Account timezone, falling back to tenant timezone. Error:`, accountJson.error);
+            }
+          } catch (tzErr) {
+            console.warn(`[Meta Sync] Mismatch or error fetching Ad Account timezone. Using tenant timezone.`, tzErr);
+          }
+
+          const metaTodayStr = getLocalDateStr(todayDate, metaTimezone);
+          const metaThirtyDaysAgoDate = new Date();
+          metaThirtyDaysAgoDate.setDate(todayDate.getDate() - 30);
+          const metaThirtyDaysAgoStr = getLocalDateStr(metaThirtyDaysAgoDate, metaTimezone);
+
+          console.log(`[Meta Sync] Syncing dates since: ${metaThirtyDaysAgoStr} until: ${metaTodayStr}`);
+
+          const timeRangeParam = encodeURIComponent(JSON.stringify({ since: metaThirtyDaysAgoStr, until: metaTodayStr }));
           const insightsUrl = `https://graph.facebook.com/v19.0/${adAccountId}/insights?level=campaign&fields=campaign_id,campaign_name,spend,impressions,clicks,actions&time_increment=1&time_range=${timeRangeParam}&access_token=${access_token}`;
 
           const response = await fetch(insightsUrl);
@@ -124,6 +147,8 @@ serve(async (req: Request) => {
             const impressions = parseInt(row.impressions || "0");
             const clicks = parseInt(row.clicks || "0");
             const conversions = Math.round(sumMetaActions(row.actions, META_LEAD_ACTION_TYPES));
+
+            console.log(`[Meta Sync debug] Campanha: "${row.campaign_name}" (${row.campaign_id}) | Data: ${date} | Raw Spend: "${row.spend}" | Parsed Cents: ${spend}`);
 
             // Estimate R$ 150,00 (15000 cents) por lead/conversão para atribuição de receita
             const revCents = conversions * 15000;
