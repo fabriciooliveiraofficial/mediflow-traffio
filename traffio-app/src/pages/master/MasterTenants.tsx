@@ -14,10 +14,12 @@ import {
     MessageCircle,
     Loader2,
     Save,
-    X
+    X,
+    Sliders
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../contexts/ToastContext';
+import { MasterTenantWidgetConfig } from '../../components/master/MasterTenantWidgetConfig';
 
 interface Tenant {
     id: string;
@@ -42,6 +44,11 @@ export const MasterTenants = () => {
     const [search, setSearch] = useState('');
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [showCreateModal, setShowCreateModal] = useState(false);
+    
+    // Tab State for each Tenant
+    const [tenantTabs, setTenantTabs] = useState<Record<string, 'general' | 'widget'>>({});
+    const getTenantTab = (id: string) => tenantTabs[id] || 'general';
+    const setTenantTab = (id: string, tab: 'general' | 'widget') => setTenantTabs(prev => ({ ...prev, [id]: tab }));
 
     // Create Form State
     const [newTenant, setNewTenant] = useState({ name: '', slug: '', address: '', adminEmail: '' });
@@ -189,77 +196,109 @@ export const MasterTenants = () => {
 
                                 {/* Expanded Panel */}
                                 {isExpanded && (
-                                    <div className="border-t border-[#1E293B] px-5 py-4 bg-[#0D1322] space-y-6 animate-in slide-in-from-top-2 duration-300">
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                                            <div>
-                                                <p className="text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1">Tenant ID</p>
-                                                <div className="flex items-center gap-2 group cursor-copy" onClick={() => navigator.clipboard.writeText(tenant.id)}>
-                                                    <p className="text-xs font-mono text-slate-400 truncate group-hover:text-white transition-colors">{tenant.id}</p>
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <p className="text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1">WhatsApp Status</p>
-                                                <p className="text-xs text-slate-400 flex items-center gap-1.5">
-                                                    {tenant.zapi_instance_id ? (
-                                                        <><CheckCircle2 size={12} className="text-emerald-400" /> <span className="text-emerald-400 font-bold">Conectado</span></>
-                                                    ) : (
-                                                        <><XCircle size={12} className="text-amber-400" /> <span className="text-amber-400 font-bold">Desconectado</span></>
-                                                    )}
-                                                </p>
-                                            </div>
-                                            <div>
-                                                <p className="text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1">Plano Atual</p>
-                                                <div className="flex items-center gap-1.5">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></div>
-                                                    <p className="text-xs text-sky-400 font-bold">Professional</p>
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <p className="text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1">Usuários</p>
-                                                <p className="text-xs text-slate-400">Total: 3 (1 Admin)</p>
-                                            </div>
-                                        </div>
-
-                                        {/* Telnyx — visível apenas para super-admin da Traffio */}
-                                        <div className="pt-4 border-t border-[#1E293B] space-y-3">
-                                            <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">
-                                                Comunicações (Telnyx) — apenas Traffio Admin
-                                            </p>
-                                            <div className="grid grid-cols-3 gap-3">
-                                                <div>
-                                                    <p className="text-[10px] text-slate-500 mb-1">Softphone</p>
-                                                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${tenant.telnyx_enabled ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-700 text-slate-500'}`}>
-                                                        {tenant.telnyx_enabled ? 'Ativo' : 'Inativo'}
-                                                    </span>
-                                                </div>
-                                                <div>
-                                                    <p className="text-[10px] text-slate-500 mb-1">API Key própria</p>
-                                                    <span className="text-xs text-slate-400">{tenant.telnyx_api_key ? '●●●●●●●' : 'Usa master key'}</span>
-                                                </div>
-                                                <div>
-                                                    <p className="text-[10px] text-slate-500 mb-1">Connection ID próprio</p>
-                                                    <span className="text-xs text-slate-400">{tenant.telnyx_app_id ?? 'Usa master'}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex flex-wrap gap-2 pt-4 border-t border-[#1E293B]">
-                                            <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold text-slate-300 bg-[#1E293B] hover:text-white hover:bg-[#2D3B55] transition-all border-none cursor-pointer">
-                                                <Eye size={14} /> Ver Dashboard
+                                    <div className="border-t border-[#1E293B] px-5 py-4 bg-[#0D1322] space-y-5 animate-in slide-in-from-top-2 duration-300">
+                                        {/* Tabs Header */}
+                                        <div className="flex border-b border-[#1E293B] gap-6 pb-2">
+                                            <button
+                                                type="button"
+                                                onClick={(e) => { e.stopPropagation(); setTenantTab(tenant.id, 'general'); }}
+                                                className={`pb-2 text-xs font-black uppercase tracking-wider border-b-2 transition-colors cursor-pointer bg-transparent border-none ${
+                                                    getTenantTab(tenant.id) === 'general'
+                                                        ? 'border-emerald-500 text-emerald-400'
+                                                        : 'border-transparent text-slate-500 hover:text-slate-300'
+                                                }`}
+                                            >
+                                                Informações Gerais
                                             </button>
-                                            <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold text-sky-400 bg-sky-500/5 hover:bg-sky-500/10 transition-all border border-sky-500/20 cursor-pointer">
-                                                <MessageCircle size={14} /> Configurar Z-API
-                                            </button>
-
-                                            <div className="flex-1" />
-
-                                            <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold text-amber-400 hover:bg-amber-500/10 transition-all border border-transparent hover:border-amber-500/20 bg-transparent cursor-pointer">
-                                                <Power size={14} /> Suspender
-                                            </button>
-                                            <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold text-rose-400 hover:bg-rose-500/10 transition-all border border-transparent hover:border-rose-500/20 bg-transparent cursor-pointer">
-                                                <Trash2 size={14} /> Deletar
+                                            <button
+                                                type="button"
+                                                onClick={(e) => { e.stopPropagation(); setTenantTab(tenant.id, 'widget'); }}
+                                                className={`pb-2 text-xs font-black uppercase tracking-wider border-b-2 transition-colors cursor-pointer bg-transparent border-none ${
+                                                    getTenantTab(tenant.id) === 'widget'
+                                                        ? 'border-emerald-500 text-emerald-400'
+                                                        : 'border-transparent text-slate-500 hover:text-slate-300'
+                                                }`}
+                                            >
+                                                Widget de Agendamento
                                             </button>
                                         </div>
+
+                                        {getTenantTab(tenant.id) === 'general' ? (
+                                            <>
+                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                                                    <div>
+                                                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1">Tenant ID</p>
+                                                        <div className="flex items-center gap-2 group cursor-copy" onClick={() => navigator.clipboard.writeText(tenant.id)}>
+                                                            <p className="text-xs font-mono text-slate-400 truncate group-hover:text-white transition-colors">{tenant.id}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1">WhatsApp Status</p>
+                                                        <p className="text-xs text-slate-400 flex items-center gap-1.5">
+                                                            {tenant.zapi_instance_id ? (
+                                                                <><CheckCircle2 size={12} className="text-emerald-400" /> <span className="text-emerald-400 font-bold">Conectado</span></>
+                                                            ) : (
+                                                                <><XCircle size={12} className="text-amber-400" /> <span className="text-amber-400 font-bold">Desconectado</span></>
+                                                            )}
+                                                        </p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1">Plano Atual</p>
+                                                        <div className="flex items-center gap-1.5">
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></div>
+                                                            <p className="text-xs text-sky-400 font-bold">Professional</p>
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1">Usuários</p>
+                                                        <p className="text-xs text-slate-400">Total: 3 (1 Admin)</p>
+                                                    </div>
+                                                </div>
+
+                                                {/* Telnyx — visível apenas para super-admin da Traffio */}
+                                                <div className="pt-4 border-t border-[#1E293B] space-y-3">
+                                                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                                                        Comunicações (Telnyx) — apenas Traffio Admin
+                                                    </p>
+                                                    <div className="grid grid-cols-3 gap-3">
+                                                        <div>
+                                                            <p className="text-[10px] text-slate-500 mb-1">Softphone</p>
+                                                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${tenant.telnyx_enabled ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-700 text-slate-500'}`}>
+                                                                {tenant.telnyx_enabled ? 'Ativo' : 'Inativo'}
+                                                            </span>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-[10px] text-slate-500 mb-1">API Key própria</p>
+                                                            <span className="text-xs text-slate-400">{tenant.telnyx_api_key ? '●●●●●●●' : 'Usa master key'}</span>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-[10px] text-slate-500 mb-1">Connection ID próprio</p>
+                                                            <span className="text-xs text-slate-400">{tenant.telnyx_app_id ?? 'Usa master'}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex flex-wrap gap-2 pt-4 border-t border-[#1E293B]">
+                                                    <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold text-slate-300 bg-[#1E293B] hover:text-white hover:bg-[#2D3B55] transition-all border-none cursor-pointer">
+                                                        <Eye size={14} /> Ver Dashboard
+                                                    </button>
+                                                    <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold text-sky-400 bg-sky-500/5 hover:bg-sky-500/10 transition-all border border-sky-500/20 cursor-pointer">
+                                                        <MessageCircle size={14} /> Configurar Z-API
+                                                    </button>
+
+                                                    <div className="flex-1" />
+
+                                                    <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold text-amber-400 hover:bg-amber-500/10 transition-all border border-transparent hover:border-amber-500/20 bg-transparent cursor-pointer">
+                                                        <Power size={14} /> Suspender
+                                                    </button>
+                                                    <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold text-rose-400 hover:bg-rose-500/10 transition-all border border-transparent hover:border-rose-500/20 bg-transparent cursor-pointer">
+                                                        <Trash2 size={14} /> Deletar
+                                                    </button>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <MasterTenantWidgetConfig tenantId={tenant.id} tenantName={tenant.name} />
+                                        )}
                                     </div>
                                 )}
                             </div>
