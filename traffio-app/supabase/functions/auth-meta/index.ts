@@ -46,28 +46,35 @@ serve(async (req: Request) => {
       return new Response("Missing tenant_id parameter", { status: 400 });
     }
 
+    const selectedFeatures = urlObj.searchParams.get("features") || "ads,messaging";
+
     const statePayload = {
       tenantId: targetTenant,
       redirectBack: redirectBackParam || "",
+      features: selectedFeatures,
     };
     const encodedState = btoa(JSON.stringify(statePayload));
 
-    // Combine scopes for both Ads and Pages/Messaging
-    const scopes = [
-      "ads_management",
-      "ads_read",
-      "pages_show_list",
-      "pages_messaging",
-      "instagram_manage_messages",
-      "pages_read_engagement",
-      "pages_manage_metadata",
-      "instagram_basic",
-      "business_management",
-    ].join(",");
+    // Combine scopes dynamically based on selected features
+    const scopes: string[] = [];
+    if (selectedFeatures.includes("ads")) {
+      scopes.push("ads_management", "ads_read");
+    }
+    if (selectedFeatures.includes("messaging")) {
+      scopes.push(
+        "pages_show_list",
+        "pages_messaging",
+        "instagram_manage_messages",
+        "pages_read_engagement",
+        "pages_manage_metadata",
+        "instagram_basic",
+        "business_management"
+      );
+    }
 
     const fbAuthUrl = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${metaClientId}&redirect_uri=${encodeURIComponent(
       redirectUri
-    )}&state=${encodedState}&scope=${encodeURIComponent(scopes)}`;
+    )}&state=${encodedState}&scope=${encodeURIComponent(scopes.join(","))}`;
 
     return Response.redirect(fbAuthUrl, 302);
   }
@@ -75,12 +82,14 @@ serve(async (req: Request) => {
   // 2. Callback request: Meta returned authorization code
   let activeTenantId = "";
   let redirectBack = "";
+  let features = "ads,messaging";
 
   if (state) {
     try {
       const decodedState = JSON.parse(atob(state));
       activeTenantId = decodedState.tenantId;
       redirectBack = decodedState.redirectBack;
+      features = decodedState.features || "ads,messaging";
     } catch {
       // Fallback for legacy calls
       activeTenantId = state;
@@ -131,7 +140,7 @@ serve(async (req: Request) => {
 
     const longLivedToken = longLivedData.access_token;
 
-    // C. Fetch the Facebook Ad Accounts available to this user
+    // C. Fetch the Facebook Ad Accounts available to this user (if ads feature requested)
     let adAccountSettings: Record<string, any> = {
       ad_account_id: null,
       available_ad_accounts: [],
@@ -139,88 +148,92 @@ serve(async (req: Request) => {
       last_sync_error: null,
     };
 
-    try {
-      const adAccountsUrl = `https://graph.facebook.com/v21.0/me/adaccounts?fields=account_id,name&access_token=${longLivedToken}`;
-      const adAccountsRes = await fetch(adAccountsUrl);
-      const adAccountsData = await adAccountsRes.json();
+    if (features.includes("ads")) {
+      try {
+        const adAccountsUrl = `https://graph.facebook.com/v21.0/me/adaccounts?fields=account_id,name&access_token=${longLivedToken}`;
+        const adAccountsRes = await fetch(adAccountsUrl);
+        const adAccountsData = await adAccountsRes.json();
 
-      if (adAccountsData.error) {
-        console.error("Meta Ad Accounts Fetch Error:", adAccountsData.error);
-        adAccountSettings.last_sync_error = `Não foi possível listar as contas de anúncios: ${adAccountsData.error.message}`;
-      } else {
-        const accounts = (adAccountsData.data || []).map((a: any) => ({
-          id: a.id, // already in "act_<id>" format
-          account_id: a.account_id,
-          name: a.name,
-        }));
-
-        if (accounts.length === 0) {
-          adAccountSettings.last_sync_error = "Nenhuma conta de anúncios do Meta foi encontrada para este usuário.";
+        if (adAccountsData.error) {
+          console.error("Meta Ad Accounts Fetch Error:", adAccountsData.error);
+          adAccountSettings.last_sync_error = `Não foi possível listar as contas de anúncios: ${adAccountsData.error.message}`;
         } else {
-          adAccountSettings.ad_account_id = accounts[0].id;
-          adAccountSettings.available_ad_accounts = accounts;
-          adAccountSettings.needs_account_selection = accounts.length > 1;
-        }
-      }
-    } catch (adAccErr: any) {
-      console.error("Meta Ad Accounts Fetch Exception:", adAccErr);
-      adAccountSettings.last_sync_error = `Erro ao buscar contas de anúncios: ${adAccErr.message}`;
-    }
+          const accounts = (adAccountsData.data || []).map((a: any) => ({
+            id: a.id, // already in "act_<id>" format
+            account_id: a.account_id,
+            name: a.name,
+          }));
 
-    // D. Fetch Facebook Pages and Instagram accounts
-    let savedPagesCount = 0;
-    try {
-      const pagesRes = await fetch(
-        `https://graph.facebook.com/v21.0/me/accounts` +
-        `?fields=id,name,access_token,category,instagram_business_account{id,username,name}` +
-        `&limit=50` +
-        `&access_token=${longLivedToken}`
-      );
-      const pagesData = await pagesRes.json();
-      if (pagesData.error) {
-        console.error("Meta Pages Fetch Error:", pagesData.error);
-      } else {
-        const pages: any[] = pagesData.data ?? [];
-        console.log(`[auth-meta] Found ${pages.length} pages for tenant ${activeTenantId}`);
-
-        for (const page of pages) {
-          const ig = page.instagram_business_account ?? null;
-
-          const { error: upsertErr } = await supabaseAdmin
-            .from("tenant_meta_pages")
-            .upsert(
-              {
-                tenant_id:            activeTenantId,
-                page_id:              page.id,
-                page_name:            page.name,
-                page_access_token:    page.access_token,
-                page_category:        page.category ?? null,
-                instagram_account_id: ig?.id ?? null,
-                instagram_username:   ig?.username ?? null,
-                token_type:           "page",
-                expires_at:           null,
-                last_refreshed_at:    new Date().toISOString(),
-                is_active:            true,
-                scope_granted:        [
-                  "pages_messaging",
-                  "instagram_manage_messages",
-                  "pages_read_engagement",
-                ],
-                updated_at: new Date().toISOString(),
-              },
-              { onConflict: "tenant_id,page_id" }
-            );
-
-          if (upsertErr) {
-            console.error(`[auth-meta] Failed to save page ${page.id}:`, upsertErr);
+          if (accounts.length === 0) {
+            adAccountSettings.last_sync_error = "Nenhuma conta de anúncios do Meta foi encontrada para este usuário.";
           } else {
-            savedPagesCount++;
-            console.log(`[auth-meta] ✓ Saved page "${page.name}"${ig ? ` + IG @${ig.username}` : ""}`);
+            adAccountSettings.ad_account_id = accounts[0].id;
+            adAccountSettings.available_ad_accounts = accounts;
+            adAccountSettings.needs_account_selection = accounts.length > 1;
           }
         }
+      } catch (adAccErr: any) {
+        console.error("Meta Ad Accounts Fetch Exception:", adAccErr);
+        adAccountSettings.last_sync_error = `Erro ao buscar contas de anúncios: ${adAccErr.message}`;
       }
-    } catch (pagesErr: any) {
-      console.error("Meta Pages Fetch Exception:", pagesErr);
+    }
+
+    // D. Fetch Facebook Pages and Instagram accounts (if messaging feature requested)
+    let savedPagesCount = 0;
+    if (features.includes("messaging")) {
+      try {
+        const pagesRes = await fetch(
+          `https://graph.facebook.com/v21.0/me/accounts` +
+          `?fields=id,name,access_token,category,instagram_business_account{id,username,name}` +
+          `&limit=50` +
+          `&access_token=${longLivedToken}`
+        );
+        const pagesData = await pagesRes.json();
+        if (pagesData.error) {
+          console.error("Meta Pages Fetch Error:", pagesData.error);
+        } else {
+          const pages: any[] = pagesData.data ?? [];
+          console.log(`[auth-meta] Found ${pages.length} pages for tenant ${activeTenantId}`);
+
+          for (const page of pages) {
+            const ig = page.instagram_business_account ?? null;
+
+            const { error: upsertErr } = await supabaseAdmin
+              .from("tenant_meta_pages")
+              .upsert(
+                {
+                  tenant_id:            activeTenantId,
+                  page_id:              page.id,
+                  page_name:            page.name,
+                  page_access_token:    page.access_token,
+                  page_category:        page.category ?? null,
+                  instagram_account_id: ig?.id ?? null,
+                  instagram_username:   ig?.username ?? null,
+                  token_type:           "page",
+                  expires_at:           null,
+                  last_refreshed_at:    new Date().toISOString(),
+                  is_active:            true,
+                  scope_granted:        [
+                    "pages_messaging",
+                    "instagram_manage_messages",
+                    "pages_read_engagement",
+                  ],
+                  updated_at: new Date().toISOString(),
+                },
+                { onConflict: "tenant_id,page_id" }
+              );
+
+            if (upsertErr) {
+              console.error(`[auth-meta] Failed to save page ${page.id}:`, upsertErr);
+            } else {
+              savedPagesCount++;
+              console.log(`[auth-meta] ✓ Saved page "${page.name}"${ig ? ` + IG @${ig.username}` : ""}`);
+            }
+          }
+        }
+      } catch (pagesErr: any) {
+        console.error("Meta Pages Fetch Exception:", pagesErr);
+      }
     }
 
     // E. Upsert connection inside the database
@@ -231,7 +244,7 @@ serve(async (req: Request) => {
           tenant_id: activeTenantId,
           platform: "meta",
           access_token: longLivedToken,
-          status: "active",
+          status: features.includes("ads") ? "active" : "inactive",
           settings: adAccountSettings,
           updated_at: new Date().toISOString(),
         },

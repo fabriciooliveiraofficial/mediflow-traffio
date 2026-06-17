@@ -159,6 +159,10 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
     const [manageData, setManageData] = useState<any>(null);
     const [manageLoading, setManageLoading] = useState(false);
 
+    // Meta connection features choice
+    const [metaConnectModal, setMetaConnectModal] = useState(false);
+    const [metaFeatures, setMetaFeatures] = useState({ ads: true, messaging: true });
+
     const fetchDashboardData = useCallback(async () => {
             if (!tenant?.id) return;
 
@@ -235,7 +239,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
         }, 4000);
     };
 
-    const handleConnect = (platform: 'meta' | 'google') => {
+    const handleConnect = (platform: 'meta' | 'google', features?: string) => {
         if (!tenant?.id) {
             showToast('error', 'Erro: Perfil da clínica não identificado. Atualize a página.');
             return;
@@ -244,7 +248,8 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://fyyhxmugxcfqhvoevuwf.supabase.co';
         const functionUrl = `${supabaseUrl.replace(/\/$/, '')}/functions/v1/auth-${platform}`;
         const redirectBack = window.location.origin;
-        const authUrl = `${functionUrl}?tenant_id=${tenant.id}&redirect_back=${encodeURIComponent(redirectBack)}`;
+        const featuresParam = (platform === 'meta' && features) ? `&features=${features}` : '';
+        const authUrl = `${functionUrl}?tenant_id=${tenant.id}&redirect_back=${encodeURIComponent(redirectBack)}${featuresParam}`;
 
         // Open the OAuth flow in a popup, keeping a reference so we can close it from here
         const popup = window.open(authUrl, '_blank', 'width=600,height=700,scrollbars=yes');
@@ -994,7 +999,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                 Centralize anúncios do Facebook/Instagram e gerencie conversas do Instagram DM e Messenger em tempo real.
                             </p>
                             <button
-                                onClick={() => integrations.meta ? openManageModal('meta') : handleConnect('meta')}
+                                onClick={() => integrations.meta ? openManageModal('meta') : setMetaConnectModal(true)}
                                 className={clsx(
                                     "w-full py-4 rounded-2xl font-black text-xs shadow-xl transition-all border-none cursor-pointer flex items-center justify-center gap-2",
                                     integrations.meta
@@ -1330,6 +1335,102 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                     </div>
                                 </div>
                             )}
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* ── CONEXÃO META SELEÇÃO DE RECURSOS MODAL ───────────────────────── */}
+            <AnimatePresence>
+                {metaConnectModal && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 sm:p-12">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setMetaConnectModal(false)}
+                            className="absolute inset-0 bg-graphite-900/40 backdrop-blur-sm"
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                            className="relative w-full max-w-md bg-white rounded-[32px] border border-ice-100 shadow-2xl p-8 space-y-6"
+                        >
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-12 h-12 rounded-2xl bg-[#0081FB] flex items-center justify-center shrink-0">
+                                        <Facebook className="text-white" fill="white" size={22} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-base font-black text-graphite-900 tracking-tight">
+                                            Conectar ao Meta
+                                        </h3>
+                                        <p className="text-[10px] font-bold text-graphite-400">Escolha o que deseja habilitar</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setMetaConnectModal(false)}
+                                    className="p-2 rounded-xl hover:bg-ice-50 border-none cursor-pointer transition-colors"
+                                >
+                                    <X size={18} className="text-graphite-400" />
+                                </button>
+                            </div>
+
+                            <div className="space-y-4">
+                                <label className="flex items-start gap-3 p-4 rounded-2xl border-2 border-ice-100 hover:border-brand-primary/30 transition-all cursor-pointer bg-white">
+                                    <input
+                                        type="checkbox"
+                                        checked={metaFeatures.ads}
+                                        onChange={(e) => setMetaFeatures(prev => ({ ...prev, ads: e.target.checked }))}
+                                        className="mt-1 h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary cursor-pointer"
+                                    />
+                                    <div>
+                                        <p className="font-black text-sm text-graphite-900 leading-none">Anúncios (Meta Ads)</p>
+                                        <p className="text-[11px] font-bold text-graphite-400 mt-1">
+                                            Sincronizar resultados de campanhas e ROI no painel do Analytics Pro.
+                                        </p>
+                                    </div>
+                                </label>
+
+                                <label className="flex items-start gap-3 p-4 rounded-2xl border-2 border-ice-100 hover:border-brand-primary/30 transition-all cursor-pointer bg-white">
+                                    <input
+                                        type="checkbox"
+                                        checked={metaFeatures.messaging}
+                                        onChange={(e) => setMetaFeatures(prev => ({ ...prev, messaging: e.target.checked }))}
+                                        className="mt-1 h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary cursor-pointer"
+                                    />
+                                    <div>
+                                        <p className="font-black text-sm text-graphite-900 leading-none">Mensagens (Instagram &amp; Messenger)</p>
+                                        <p className="text-[11px] font-bold text-graphite-400 mt-1">
+                                            Receber e responder directs do Instagram e Messenger em tempo real no Atendimento.
+                                        </p>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <div className="flex gap-3 pt-2">
+                                <button
+                                    onClick={() => setMetaConnectModal(false)}
+                                    className="flex-1 py-3.5 bg-ice-50 hover:bg-ice-100 text-graphite-600 rounded-2xl font-black text-xs transition-colors border-none cursor-pointer"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    disabled={!metaFeatures.ads && !metaFeatures.messaging}
+                                    onClick={() => {
+                                        const featuresStr = [
+                                            metaFeatures.ads ? 'ads' : '',
+                                            metaFeatures.messaging ? 'messaging' : ''
+                                        ].filter(Boolean).join(',');
+                                        handleConnect('meta', featuresStr);
+                                        setMetaConnectModal(false);
+                                    }}
+                                    className="flex-1 py-3.5 bg-[#0081FB] hover:bg-blue-600 text-white rounded-2xl font-black text-xs transition-colors border-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                    Continuar para Facebook
+                                </button>
+                            </div>
                         </motion.div>
                     </div>
                 )}
