@@ -229,14 +229,20 @@ export const Settings = () => {
         fetchSettingsData();
         fetchMetaPages();
 
-        // Ouvir mensagem do popup de OAuth Meta Messaging
+        // Ouvir mensagem do popup de OAuth Meta Messaging / Unified
         const handleOAuthMessage = (event: MessageEvent) => {
-            if (event.data?.type === 'META_MESSAGING_CONNECTED') {
+            if (
+                event.data?.type === 'META_MESSAGING_CONNECTED' || 
+                (event.data?.type === 'OAUTH_CONNECTED' && event.data?.platform === 'meta')
+            ) {
                 fetchMetaPages();
-                showToast('Páginas Meta conectadas com sucesso!', 'success');
+                showToast('Páginas e Conta Meta conectadas com sucesso!', 'success');
                 setConnectingMeta(false);
-            } else if (event.data?.type === 'META_MESSAGING_ERROR') {
-                showToast(`Erro ao conectar: ${event.data.message}`, 'error');
+            } else if (
+                event.data?.type === 'META_MESSAGING_ERROR' || 
+                (event.data?.type === 'OAUTH_ERROR' && event.data?.platform === 'meta')
+            ) {
+                showToast(`Erro ao conectar: ${event.data.message || 'Erro na autenticação'}`, 'error');
                 setConnectingMeta(false);
             }
         };
@@ -260,9 +266,9 @@ export const Settings = () => {
         if (!tenantId) { showToast('Selecione uma clínica primeiro', 'error'); return; }
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ?? '';
         const redirectBack = window.location.origin;
-        const oauthUrl = `${supabaseUrl}/functions/v1/auth-meta-messaging?tenant_id=${tenantId}&redirect_back=${encodeURIComponent(redirectBack)}`;
+        const oauthUrl = `${supabaseUrl}/functions/v1/auth-meta?tenant_id=${tenantId}&redirect_back=${encodeURIComponent(redirectBack)}`;
         setConnectingMeta(true);
-        const popup = window.open(oauthUrl, 'meta_messaging_oauth', 'width=580,height=680,left=200,top=100');
+        const popup = window.open(oauthUrl, 'meta_oauth', 'width=580,height=680,left=200,top=100');
         if (!popup) {
             showToast('Permita popups para conectar o Meta', 'error');
             setConnectingMeta(false);

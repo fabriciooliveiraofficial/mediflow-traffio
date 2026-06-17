@@ -972,7 +972,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                         <Facebook className="text-white" fill="white" size={28} />
                                     </div>
                                     <div>
-                                        <p className="text-sm font-black text-graphite-900 tracking-tight">Meta Ads Hub</p>
+                                        <p className="text-sm font-black text-graphite-900 tracking-tight">Meta Hub (Ads &amp; Mensagens)</p>
                                         <div className="flex items-center gap-2">
                                             {integrations.meta ? (
                                                 <div className="flex items-center gap-1">
@@ -991,7 +991,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                 )}></div>
                             </div>
                             <p className="text-[11px] text-graphite-400 leading-relaxed font-medium mb-6">
-                                Centralize resultados do Facebook e Instagram. ROI calculado automaticamente.
+                                Centralize anúncios do Facebook/Instagram e gerencie conversas do Instagram DM e Messenger em tempo real.
                             </p>
                             <button
                                 onClick={() => integrations.meta ? openManageModal('meta') : handleConnect('meta')}
