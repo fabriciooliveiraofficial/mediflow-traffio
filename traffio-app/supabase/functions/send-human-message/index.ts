@@ -174,6 +174,7 @@ serve(async (req: Request) => {
 
   } catch (error: any) {
     console.error('send-human-message error:', error);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders });
+    // Retornamos 200 com { error } para que o supabase-js não esconda a mensagem de erro original
+    return new Response(JSON.stringify({ error: error.message }), { status: 200, headers: corsHeaders });
   }
 });
