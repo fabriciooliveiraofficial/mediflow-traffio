@@ -27,6 +27,12 @@ interface Tenant {
     subscription_renews_at: string | null;
     trial_ends_at: string | null;
     card_on_file: boolean;
+    // SMTP (SMTP próprio)
+    smtp_host?: string;
+    smtp_port?: number;
+    smtp_user?: string;
+    smtp_pass?: string;
+    smtp_from?: string;
 }
 
 export interface UserProfile {

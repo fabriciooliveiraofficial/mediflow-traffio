@@ -927,7 +927,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                         <Tooltip
                                             contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
                                             itemStyle={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase' }}
-                                            formatter={(value: number, name: string) => [value, name === 'meta' ? `Meta · ${selectedChartMetricLabel}` : `Google · ${selectedChartMetricLabel}`]}
+                                            formatter={(value: any, name: any) => [value, name === 'meta' ? `Meta · ${selectedChartMetricLabel}` : `Google · ${selectedChartMetricLabel}`]}
                                         />
                                         {(activeTab === 'all' || activeTab === 'meta') && (
                                             <Area

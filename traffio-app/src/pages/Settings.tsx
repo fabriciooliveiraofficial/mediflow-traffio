@@ -45,7 +45,7 @@ import { PendingOrdersList } from '../components/numbers/PendingOrdersList';
 
 
 // Sub-componente: lista de números do tenant
-function PhoneNumbersList({ tenantId, showToast, refreshKey }: { tenantId: string; showToast: (msg: string, type: 'success' | 'error') => void; refreshKey?: number }) {
+function PhoneNumbersList({ tenantId, showToast, refreshKey }: { tenantId: string; showToast: (type: 'success' | 'error' | 'warning' | 'info', msg: string) => void; refreshKey?: number }) {
     const [numbers, setNumbers] = useState<any[]>([]);
     const [releasingId, setReleasingId] = useState<string | null>(null);
 
@@ -71,7 +71,7 @@ function PhoneNumbersList({ tenantId, showToast, refreshKey }: { tenantId: strin
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) {
-                showToast('Usuário não autenticado.', 'error');
+                showToast('error', 'Usuário não autenticado.');
                 return;
             }
 
@@ -86,13 +86,13 @@ function PhoneNumbersList({ tenantId, showToast, refreshKey }: { tenantId: strin
 
             const json = await res.json();
             if (!res.ok || json.error) {
-                showToast(json.error ?? 'Erro ao liberar o número.', 'error');
+                showToast('error', json.error ?? 'Erro ao liberar o número.');
             } else {
-                showToast('Número excluído e liberado com sucesso!', 'success');
+                showToast('success', 'Número excluído e liberado com sucesso!');
                 setNumbers(prev => prev.filter(n => n.id !== num.id));
             }
         } catch (err: any) {
-            showToast(`Erro ao liberar número: ${err.message}`, 'error');
+            showToast('error', `Erro ao liberar número: ${err.message}`);
         } finally {
             setReleasingId(null);
         }
@@ -140,7 +140,7 @@ function PhoneNumbersList({ tenantId, showToast, refreshKey }: { tenantId: strin
 }
 
 export const Settings = () => {
-    const { tenant: currentTenant, updateTenant: updateTenantContext, userRole, userProfile } = useTenant();
+    const { tenant: currentTenant, updateTenant: updateTenantContext, userRole } = useTenant();
     const { showToast } = useToast();
     const [activeTab, setActiveTab] = useState('clinics');
     const [loading, setLoading] = useState(true);
@@ -191,7 +191,7 @@ export const Settings = () => {
     const [ordersRefreshKey, setOrdersRefreshKey] = useState(0);
     const [syncing, setSyncing] = useState(false);
 
-    const handleSync = async (tenantId: string) => {
+    const handleSync = async () => {
         setSyncing(true);
         try {
             const { data: { session } } = await supabase.auth.getSession();
@@ -236,13 +236,13 @@ export const Settings = () => {
                 (event.data?.type === 'OAUTH_CONNECTED' && event.data?.platform === 'meta')
             ) {
                 fetchMetaPages();
-                showToast('Páginas e Conta Meta conectadas com sucesso!', 'success');
+                showToast('success', 'Páginas e Conta Meta conectadas com sucesso!');
                 setConnectingMeta(false);
             } else if (
                 event.data?.type === 'META_MESSAGING_ERROR' || 
                 (event.data?.type === 'OAUTH_ERROR' && event.data?.platform === 'meta')
             ) {
-                showToast(`Erro ao conectar: ${event.data.message || 'Erro na autenticação'}`, 'error');
+                showToast('error', `Erro ao conectar: ${event.data.message || 'Erro na autenticação'}`);
                 setConnectingMeta(false);
             }
         };
@@ -263,14 +263,14 @@ export const Settings = () => {
 
     const openMetaMessagingOAuth = () => {
         const tenantId = currentTenant?.id;
-        if (!tenantId) { showToast('Selecione uma clínica primeiro', 'error'); return; }
+        if (!tenantId) { showToast('error', 'Selecione uma clínica primeiro'); return; }
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ?? '';
         const redirectBack = window.location.origin;
         const oauthUrl = `${supabaseUrl}/functions/v1/auth-meta?tenant_id=${tenantId}&redirect_back=${encodeURIComponent(redirectBack)}`;
         setConnectingMeta(true);
         const popup = window.open(oauthUrl, 'meta_oauth', 'width=580,height=680,left=200,top=100');
         if (!popup) {
-            showToast('Permita popups para conectar o Meta', 'error');
+            showToast('error', 'Permita popups para conectar o Meta');
             setConnectingMeta(false);
         }
     };
@@ -281,7 +281,7 @@ export const Settings = () => {
             .update({ is_active: false })
             .eq('id', pageId);
         fetchMetaPages();
-        showToast('Página desconectada', 'success');
+        showToast('success', 'Página desconectada');
     };
 
     const fetchSettingsData = async () => {
@@ -332,20 +332,22 @@ export const Settings = () => {
             // or if we are in a dev environment with anonymous access to lists
 
             // Real fetch: Get tenants for the current user
-            const { data: membersData, error: membersError } = await supabase
-                .from('members')
-                .select('tenant_id, tenants(*)')
-                .eq('user_id', user.id)
-                .eq('is_active', true);
+            if (user) {
+                const { data: membersData, error: membersError } = await supabase
+                    .from('members')
+                    .select('tenant_id, tenants(*)')
+                    .eq('user_id', user.id)
+                    .eq('is_active', true);
 
-            if (membersError) throw membersError;
+                if (membersError) throw membersError;
 
-            // Extract the tenants from the members array
-            const tenantsData = membersData
-                ?.map((m: any) => m.tenants)
-                ?.filter(Boolean) || [];
+                // Extract the tenants from the members array
+                const tenantsData = membersData
+                    ?.map((m: any) => m.tenants)
+                    ?.filter(Boolean) || [];
 
-            setTenants(tenantsData);
+                setTenants(tenantsData);
+            }
         } catch (error) {
             console.error('Error fetching settings:', error);
         } finally {
@@ -1169,7 +1171,7 @@ export const Settings = () => {
                                                 <div className="flex items-center gap-1.5 text-sm text-graphite-400 truncate">
                                                     <p className="truncate">{loc.address}</p>
                                                     {loc.google_maps_url && (
-                                                        <Navigation size={12} className="text-brand-primary" title="Link manual configurado" />
+                                                        <span title="Link manual configurado"><Navigation size={12} className="text-brand-primary" /></span>
                                                     )}
                                                 </div>
                                             )}
@@ -1407,7 +1409,7 @@ export const Settings = () => {
                                             </h4>
                                             <div className="flex items-center gap-3">
                                                 <button
-                                                    onClick={() => handleSync(tenant.id)}
+                                                    onClick={() => handleSync()}
                                                     disabled={syncing}
                                                     className="flex items-center gap-1.5 text-xs font-bold text-graphite-500 hover:text-brand-primary border-none bg-transparent cursor-pointer disabled:opacity-50"
                                                     title="Sincronizar status com a Telnyx"

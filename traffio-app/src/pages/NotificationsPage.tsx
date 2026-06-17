@@ -227,4 +227,4 @@ export const NotificationsPage = () => {
             </div>
         </div>
     );
-};
+};// Trigger IDE diagnostic refresh
