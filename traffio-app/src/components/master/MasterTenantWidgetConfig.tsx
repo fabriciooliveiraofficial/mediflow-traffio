@@ -50,8 +50,14 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
         google_ads_id: '',
         google_conversion_label: '',
         success_virtual_path: '/agendamento-confirmado',
-        is_active: true
+        is_active: true,
+        privacy_policy_url: ''
     });
+
+    const [doctors, setDoctors] = useState<any[]>([]);
+    const [specialties, setSpecialties] = useState<string[]>([]);
+    const [selectedSpecialtyFilter, setSelectedSpecialtyFilter] = useState('');
+    const [selectedDoctorFilter, setSelectedDoctorFilter] = useState('');
 
     useEffect(() => {
         fetchData();
@@ -89,6 +95,19 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
             if (keysErr) throw keysErr;
             setConfig(keysData);
 
+            // 3. Fetch active doctors to extract distinct specialties for custom snippet builder
+            const { data: docsData, error: docsErr } = await supabase
+                .from('doctors')
+                .select('id, full_name, specialty')
+                .eq('tenant_id', tenantId)
+                .eq('is_active', true);
+            if (docsErr) throw docsErr;
+            if (docsData) {
+                setDoctors(docsData);
+                const uniqueSpecs = Array.from(new Set(docsData.map(d => d.specialty).filter(Boolean))) as string[];
+                setSpecialties(uniqueSpecs);
+            }
+
             if (keysData) {
                 setFormData({
                     allowed_domains: (keysData.allowed_domains || []).join(', '),
@@ -101,7 +120,8 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
                     google_ads_id: keysData.google_ads_id || '',
                     google_conversion_label: keysData.google_conversion_label || '',
                     success_virtual_path: keysData.success_virtual_path || '/agendamento-confirmado',
-                    is_active: keysData.is_active
+                    is_active: keysData.is_active,
+                    privacy_policy_url: keysData.privacy_policy_url || ''
                 });
             }
         } catch (err: any) {
@@ -176,7 +196,8 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
                     google_ads_id: formData.google_ads_id,
                     google_conversion_label: formData.google_conversion_label,
                     success_virtual_path: formData.success_virtual_path,
-                    is_active: formData.is_active
+                    is_active: formData.is_active,
+                    privacy_policy_url: formData.privacy_policy_url
                 })
                 .eq('tenant_id', tenantId);
             if (keysErr) throw keysErr;
@@ -210,6 +231,12 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
 
             const el = document.createElement('mediflow-booking');
             el.setAttribute('data-key', config.public_key);
+            if (selectedSpecialtyFilter) {
+                el.setAttribute('data-specialty', selectedSpecialtyFilter);
+            }
+            if (selectedDoctorFilter) {
+                el.setAttribute('data-doctor', selectedDoctorFilter);
+            }
             el.setAttribute('id', 'test-booking-widget');
             document.body.appendChild(el);
             setWidgetInjected(true);
@@ -218,10 +245,22 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
     };
 
     const scriptUrl = `${window.location.origin}/widget/v1/widget.js`;
-    const snippet = `<!-- Mediflow Booking Widget -->\n<script src="${scriptUrl}" async></script>\n<mediflow-booking data-key="${config?.public_key || ''}"></mediflow-booking>`;
+    
+    const getSnippet = () => {
+        let attrs = `data-key="${config?.public_key || ''}"`;
+        if (selectedSpecialtyFilter) {
+            attrs += ` data-specialty="${selectedSpecialtyFilter}"`;
+        }
+        if (selectedDoctorFilter) {
+            attrs += ` data-doctor="${selectedDoctorFilter}"`;
+        }
+        return `<!-- Mediflow Booking Widget -->\n<script src="${scriptUrl}" async></script>\n<mediflow-booking ${attrs}></mediflow-booking>`;
+    };
+
+    const snippet = getSnippet();
 
     const copySnippet = () => {
-        navigator.clipboard.writeText(snippet);
+        navigator.clipboard.writeText(getSnippet());
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
         showToast('success', 'Snippet copiado!');
@@ -335,6 +374,22 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
                         />
                         <p className="text-[9px] text-slate-500">
                             Separe múltiplos domínios por vírgula. Evita que a chave seja roubada e usada em outros sites.
+                        </p>
+                    </div>
+
+                    <div className="space-y-1 md:col-span-2">
+                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                            URL da Política de Privacidade (LGPD)
+                        </label>
+                        <input
+                            type="url"
+                            value={formData.privacy_policy_url}
+                            onChange={e => setFormData(prev => ({ ...prev, privacy_policy_url: e.target.value }))}
+                            placeholder="ex: https://clinica.com/politica-de-privacidade"
+                            className="w-full bg-[#1A2035] border border-[#2D3B55] rounded-xl px-3.5 py-2 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
+                        />
+                        <p className="text-[9px] text-slate-500">
+                            Se preenchida, injeta um checkbox obrigatório de consentimento LGPD no formulário de agendamento do widget.
                         </p>
                     </div>
                 </div>
@@ -539,6 +594,55 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
                             {widgetInjected ? <EyeOff size={14} /> : <Eye size={14} />}
                             {widgetInjected ? 'Remover Widget de Teste' : 'Testar nesta Página'}
                         </button>
+                    </div>
+                </div>
+
+                {/* Advanced Snippet Generator (CRO Route) */}
+                <div className="bg-[#0A0F1D] border border-[#1E293B] rounded-xl p-4 space-y-3">
+                    <div>
+                        <h5 className="font-bold text-xs text-white">Gerador Avançado para Landing Pages (CRO)</h5>
+                        <p className="text-[10px] text-slate-500 mt-0.5">
+                            Otimize a conversão de seus anúncios travando o widget em um procedimento ou profissional específico.
+                        </p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                            <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider">
+                                Travar Especialidade / Procedimento
+                            </label>
+                            <select
+                                value={selectedSpecialtyFilter}
+                                onChange={e => {
+                                    setSelectedSpecialtyFilter(e.target.value);
+                                    setSelectedDoctorFilter('');
+                                }}
+                                className="w-full bg-[#1A2035] border border-[#2D3B55] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-sky-500"
+                            >
+                                <option value="">-- Widget Geral (Sem Filtro) --</option>
+                                {specialties.map(spec => (
+                                    <option key={spec} value={spec}>{spec}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider">
+                                Travar Profissional Específico
+                            </label>
+                            <select
+                                value={selectedDoctorFilter}
+                                onChange={e => setSelectedDoctorFilter(e.target.value)}
+                                className="w-full bg-[#1A2035] border border-[#2D3B55] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-sky-500"
+                            >
+                                <option value="">-- Qualquer Profissional da Especialidade --</option>
+                                {doctors
+                                    .filter(d => !selectedSpecialtyFilter || d.specialty === selectedSpecialtyFilter)
+                                    .map(d => (
+                                        <option key={d.id} value={d.id}>
+                                            {d.full_name} {d.specialty ? `(${d.specialty})` : ''}
+                                        </option>
+                                    ))}
+                            </select>
+                        </div>
                     </div>
                 </div>
 

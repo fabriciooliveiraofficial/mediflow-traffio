@@ -25,6 +25,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 const READ_ACTIONS = new Set(["config", "specialties", "locations", "doctors", "dates", "slots"]);
@@ -44,6 +45,7 @@ interface KeyConfig {
   google_ads_id: string | null;
   google_conversion_label: string | null;
   success_virtual_path: string | null;
+  privacy_policy_url: string | null;
   tenant: { name: string; slug: string; locale: string; country: string; timezone: string; booking_min_lead_minutes: number } | null;
 }
 
@@ -67,7 +69,7 @@ serve(async (req: Request) => {
     const { data: cfg, error: cfgErr } = await db
       .from("tenant_public_keys")
       .select(
-        "id, tenant_id, allowed_domains, is_active, primary_color, fab_label, fab_style, fab_position, fab_delay_ms, meta_pixel_id, google_ads_id, google_conversion_label, success_virtual_path, tenant:tenants(name, slug, locale, country, timezone, booking_min_lead_minutes)",
+        "id, tenant_id, allowed_domains, is_active, primary_color, fab_label, fab_style, fab_position, fab_delay_ms, meta_pixel_id, google_ads_id, google_conversion_label, success_virtual_path, privacy_policy_url, tenant:tenants(name, slug, locale, country, timezone, booking_min_lead_minutes)",
       )
       .eq("public_key", key)
       .eq("is_active", true)
@@ -123,6 +125,8 @@ serve(async (req: Request) => {
           timezone: tz,
           booking_min_lead_minutes: leadMin,
           theme: { primary_color: config.primary_color ?? "#0E7C7B" },
+          privacy_policy_url: config.privacy_policy_url || null,
+          turnstile_sitekey: Deno.env.get("TURNSTILE_SITEKEY") || null,
           fab: {
             label: config.fab_label ?? "Agendar",
             style: config.fab_style ?? "soft",
@@ -384,6 +388,31 @@ async function handleBook(db: SupabaseClient, tenantId: string, body: Record<str
     }, 409);
   }
 
+  // Disparar e-mail de confirmação usando SMTP próprio do tenant ou o global do sistema
+  if (patient.email) {
+    let doctorName = "Profissional";
+    let locationName = "Unidade";
+    let locationAddress = "";
+
+    try {
+      const { data: doc } = await db.from("doctors").select("full_name").eq("id", doctor_id).single();
+      if (doc?.full_name) doctorName = doc.full_name;
+
+      const { data: loc } = await db.from("locations").select("name, address").eq("id", location_id).single();
+      if (loc?.name) locationName = loc.name;
+      if (loc?.address) locationAddress = loc.address;
+
+      await sendConfirmationEmail(
+        tenantId,
+        { full_name: patient.full_name, email: patient.email },
+        { doctorName, locationName, locationAddress, date, time: start_time },
+        db
+      );
+    } catch (emailErr) {
+      console.error("[public-booking] Failed to trigger email notification:", emailErr);
+    }
+  }
+
   return json({ success: true, appointment_id: data.appointment_id, patient_id: patientId });
 }
 
@@ -520,4 +549,91 @@ function json(body: unknown, status = 200) {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+async function sendConfirmationEmail(
+  tenantId: string,
+  patient: { full_name: string; email: string },
+  appointmentDetails: { doctorName: string; locationName: string; locationAddress: string; date: string; time: string },
+  db: SupabaseClient
+) {
+  try {
+    const { data: tenant } = await db
+      .from("tenants")
+      .select("name, smtp_host, smtp_port, smtp_user, smtp_pass, smtp_from")
+      .eq("id", tenantId)
+      .single();
+
+    let hostname = tenant?.smtp_host;
+    let port = tenant?.smtp_port ? Number(tenant.smtp_port) : 465;
+    let username = tenant?.smtp_user;
+    let password = tenant?.smtp_pass;
+    let from = tenant?.smtp_from || username;
+    let clinicName = tenant?.name || "Clínica";
+
+    const hasTenantSMTP = hostname && username && password;
+
+    if (!hasTenantSMTP) {
+      hostname = Deno.env.get("SMTP_HOST") ?? "";
+      port = Number(Deno.env.get("SMTP_PORT") ?? "465");
+      username = Deno.env.get("SMTP_USER") ?? "";
+      password = Deno.env.get("SMTP_PASS") ?? "";
+      from = Deno.env.get("SMTP_FROM") ?? username;
+      clinicName = "Traffio";
+    }
+
+    if (!hostname || !username || !password) {
+      console.warn(`[public-booking] SMTP not configured for tenant ${tenantId} and no global SMTP available. Skipping email.`);
+      return;
+    }
+
+    const client = new SMTPClient({
+      connection: {
+        hostname,
+        port,
+        tls: port === 465,
+        auth: { username, password },
+      },
+    });
+
+    const [year, month, day] = appointmentDetails.date.split("-");
+    const formattedDate = `${day}/${month}/${year}`;
+    const formattedTime = appointmentDetails.time.slice(0, 5);
+
+    const html = `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+        <h2 style="color: #0E7C7B;">Agendamento Confirmado!</h2>
+        <p>Olá, <strong>${patient.full_name}</strong>.</p>
+        <p>Seu agendamento na clínica <strong>${tenant?.name || clinicName}</strong> foi realizado com sucesso.</p>
+        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+        <p><strong>Detalhes do Agendamento:</strong></p>
+        <ul style="list-style: none; padding: 0; margin: 0; line-height: 1.6;">
+          <li><strong>Profissional:</strong> Dr(a). ${appointmentDetails.doctorName}</li>
+          <li><strong>Data:</strong> ${formattedDate}</li>
+          <li><strong>Horário:</strong> ${formattedTime}</li>
+          <li><strong>Local:</strong> ${appointmentDetails.locationName} ${appointmentDetails.locationAddress ? `(${appointmentDetails.locationAddress})` : ""}</li>
+        </ul>
+        <p style="font-size: 12px; color: #718096; margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 10px;">
+          Este é um e-mail automático enviado em nome de ${tenant?.name || clinicName}.
+        </p>
+      </div>
+    `;
+
+    const cleanText = `Agendamento Confirmado! Olá, ${patient.full_name}. Seu agendamento na clínica ${tenant?.name || clinicName} foi realizado com sucesso. Detalhes: Profissional: Dr(a). ${appointmentDetails.doctorName}, Data: ${formattedDate}, Horário: ${formattedTime}, Local: ${appointmentDetails.locationName}.`;
+
+    try {
+      await client.send({
+        from: `${clinicName} <${from}>`,
+        to: patient.email,
+        subject: `Agendamento Confirmado - ${clinicName}`,
+        content: cleanText,
+        html,
+      });
+      console.log(`[public-booking] Email sent successfully to ${patient.email} via ${hasTenantSMTP ? 'Tenant SMTP' : 'Global SMTP'}`);
+    } finally {
+      await client.close();
+    }
+  } catch (err) {
+    console.error("[public-booking] Error sending confirmation email:", err);
+  }
 }
