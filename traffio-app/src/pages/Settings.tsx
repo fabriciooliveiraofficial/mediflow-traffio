@@ -326,20 +326,20 @@ export const Settings = () => {
             // or if we are in a dev environment with anonymous access to lists
 
             // Real fetch: Get tenants for the current user
-            // Since we are mocking the context often, let's just fetch ALL tenants for display
-            // In production, this would be: 
-            // supabase.from('members').select('tenant_id, tenants(*)').eq('user_id', user.id)
+            const { data: membersData, error: membersError } = await supabase
+                .from('members')
+                .select('tenant_id, tenants(*)')
+                .eq('user_id', user.id)
+                .eq('is_active', true);
 
-            const { data: tenantsData, error: tenantsError } = await supabase
-                .from('tenants')
-                .select('*');
+            if (membersError) throw membersError;
 
-            if (tenantsError) throw tenantsError;
-            setTenants(tenantsData || []);
+            // Extract the tenants from the members array
+            const tenantsData = membersData
+                ?.map((m: any) => m.tenants)
+                ?.filter(Boolean) || [];
 
-
-
-
+            setTenants(tenantsData);
         } catch (error) {
             console.error('Error fetching settings:', error);
         } finally {
