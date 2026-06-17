@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Demo — Widget de Agendamento (dados reais)</title>
+<style>
+  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  .landing { min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:24px; text-align:center; padding:40px 20px; background:radial-gradient(1200px 600px at 50% -10%, #dff3f2, #eef2f7); }
+  h1 { font-size: clamp(26px,5vw,44px); margin:0; color:#0b1220; letter-spacing:-.02em; }
+  p { font-size:19px; color:#44506a; max-width:560px; margin:0; }
+  .phone { display:inline-flex; align-items:center; gap:12px; background:#0b1220; color:#fff; border:none; font-size:22px; font-weight:800; padding:20px 34px; border-radius:999px; cursor:pointer; box-shadow:0 14px 34px rgba(11,18,32,.28); }
+  .note { font-size:13px; color:#8190a8; max-width:620px; line-height:1.5; }
+  code { background:#fff; padding:2px 6px; border-radius:6px; border:1px solid #d3dae6; }
+</style>
+</head>
+<body>
+  <div class="landing">
+    <span style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:#0E7C7B">Clínica Exemplo · Demo</span>
+    <h1>Cuide da sua saúde com quem entende de você</h1>
+    <p>Conversão primária: ligar. Agendamento online = botão flutuante (canto inferior direito) ↘</p>
+    <button class="phone">📞 Ligar agora · (11) 4000-0000</button>
+    <p class="note">
+      Dados <b>reais</b> vindos da API de produção (tenant de teste). As leituras (especialidade → profissional → dia → horário) funcionam abrindo este arquivo direto.<br/>
+      ⚠️ O <b>agendamento final</b> (book) só é aceito de origem autorizada — abra via <code>http://localhost</code> para testar o envio completo (de <code>file://</code> a origem é bloqueada por segurança).
+    </p>
+  </div>
+
+  <!-- Widget: 1 script + 1 tag (data-api aponta p/ a função em produção) -->
+  <script src="traffio-app/public/widget/v1/widget.js" defer></script>
+  <mediflow-booking
+    data-key="pk_live_846b2122ffd91bec9738188939e13927683ee33580767289"
+    data-api="https://fyyhxmugxcfqhvoevuwf.supabase.co/functions/v1/public-booking">
+  </mediflow-booking>
+</body>
+</html>

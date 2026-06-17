@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mediflow — Preview do Widget de Agendamento (FAB + Paleta)</title>
+<style>
+  /* ====================================================================
+     PREVIEW / MOCKUP — não é o código final do widget.
+     Demonstra: FAB (conversão secundária), drawer onboarding +50,
+     paleta derivada de 1 cor com enforcement WCAG AAA, e disparo de
+     eventos de conversão na tela de sucesso.
+     Tudo em CSS custom properties (--mf-*) para refletir o Shadow DOM.
+     ==================================================================== */
+  :root {
+    --mf-primary: #0E7C7B;
+    --mf-primary-hover: #0a5f5e;
+    --mf-on-primary: #ffffff;
+    --mf-soft: rgba(14,124,123,.12);
+    --mf-surface: #ffffff;
+    --mf-text: #0b1220;
+    --mf-text-soft: #44506a;
+    --mf-border: #d3dae6;
+    --mf-radius: 18px;
+    --mf-font: "Inter", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: var(--mf-font); background: #eef2f7; color: #0b1220; }
+
+  /* ---- Fundo: landing fake p/ mostrar hierarquia de conversão ---- */
+  .landing {
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; text-align: center; padding: 40px 20px; gap: 28px;
+    background: radial-gradient(1200px 600px at 50% -10%, #dff3f2, #eef2f7);
+  }
+  .landing h1 { font-size: clamp(28px, 5vw, 46px); margin: 0; letter-spacing: -.02em; }
+  .landing p { font-size: 19px; color: #44506a; max-width: 560px; margin: 0; line-height: 1.5; }
+  /* Conversão PRIMÁRIA = telefone */
+  .phone-cta {
+    display: inline-flex; align-items: center; gap: 12px; background: #0b1220; color: #fff;
+    border: none; font-size: 22px; font-weight: 800; padding: 20px 34px; border-radius: 999px;
+    cursor: pointer; box-shadow: 0 14px 34px rgba(11,18,32,.28); letter-spacing: -.01em;
+  }
+  .badge-primary { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .12em; color: #0E7C7B; }
+
+  /* ---- FAB (conversão SECUNDÁRIA) ---- */
+  .fab {
+    position: fixed; bottom: 26px; z-index: 60; display: inline-flex; align-items: center; gap: 12px;
+    height: 64px; padding: 0 26px 0 22px; border-radius: 999px; cursor: pointer;
+    font-size: 19px; font-weight: 800; letter-spacing: -.01em; border: 2px solid transparent;
+    box-shadow: 0 12px 30px rgba(11,18,32,.18); transition: transform .15s ease, box-shadow .15s ease;
+    animation: fabIn .5s cubic-bezier(.2,.8,.2,1) both;
+  }
+  .fab:hover { transform: translateY(-2px); box-shadow: 0 16px 38px rgba(11,18,32,.24); }
+  .fab[data-pos="bottom-right"] { right: 26px; }
+  .fab[data-pos="bottom-left"]  { left: 26px; }
+  /* estilos do FAB */
+  .fab.solid   { background: var(--mf-primary); color: var(--mf-on-primary); }
+  .fab.soft    { background: var(--mf-surface); color: var(--mf-primary); border-color: var(--mf-soft); box-shadow: 0 12px 30px rgba(11,18,32,.12); }
+  .fab.outline { background: var(--mf-surface); color: var(--mf-primary); border-color: var(--mf-primary); }
+  .fab svg { width: 24px; height: 24px; }
+  @keyframes fabIn { from { opacity: 0; transform: translateY(20px) scale(.9); } }
+  @media (prefers-reduced-motion: reduce) { .fab { animation: none; } }
+
+  /* ---- Drawer / off-canvas ---- */
+  .overlay { position: fixed; inset: 0; background: rgba(11,18,32,.5); backdrop-filter: blur(2px); z-index: 70; opacity: 0; pointer-events: none; transition: opacity .25s; }
+  .overlay.open { opacity: 1; pointer-events: auto; }
+  .drawer {
+    position: fixed; top: 0; right: 0; height: 100%; width: 460px; max-width: 100vw; background: var(--mf-surface);
+    z-index: 80; transform: translateX(100%); transition: transform .32s cubic-bezier(.2,.8,.2,1);
+    display: flex; flex-direction: column; box-shadow: -20px 0 60px rgba(11,18,32,.25);
+  }
+  .drawer.open { transform: translateX(0); }
+  @media (max-width: 520px) {
+    .drawer { width: 100vw; top: auto; bottom: 0; height: 92vh; border-radius: 22px 22px 0 0; transform: translateY(100%); }
+    .drawer.open { transform: translateY(0); }
+  }
+
+  .d-head { padding: 22px 24px 14px; border-bottom: 1px solid var(--mf-border); display: flex; align-items: center; gap: 14px; }
+  .d-head .logo { width: 40px; height: 40px; border-radius: 12px; background: var(--mf-primary); color: var(--mf-on-primary); display: grid; place-items: center; }
+  .d-head h2 { margin: 0; font-size: 19px; letter-spacing: -.01em; }
+  .d-head .sub { margin: 2px 0 0; font-size: 14px; color: var(--mf-text-soft); }
+  .d-close { margin-left: auto; width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--mf-border); background: #fff; cursor: pointer; font-size: 22px; color: #44506a; }
+
+  /* progresso */
+  .steps { display: flex; gap: 6px; padding: 14px 24px 0; }
+  .steps i { flex: 1; height: 6px; border-radius: 999px; background: var(--mf-border); }
+  .steps i.on { background: var(--mf-primary); }
+  .step-label { padding: 8px 24px 0; font-size: 13px; font-weight: 700; color: var(--mf-text-soft); text-transform: uppercase; letter-spacing: .08em; }
+
+  .d-body { padding: 18px 24px 24px; overflow-y: auto; overflow-x: hidden; flex: 1; }
+  .q { font-size: 24px; font-weight: 800; letter-spacing: -.02em; margin: 6px 0 18px; }
+
+  /* cards grandes (uma decisão por tela, alvo grande, ícone SVG) */
+  .opt {
+    width: 100%; display: flex; align-items: center; gap: 16px; text-align: left; cursor: pointer;
+    background: #fff; border: 2px solid var(--mf-border); border-radius: var(--mf-radius);
+    padding: 18px; margin-bottom: 14px; min-height: 76px; transition: border-color .15s, background .15s, transform .1s;
+  }
+  .opt:hover { border-color: var(--mf-primary); }
+  .opt:active { transform: scale(.99); }
+  .opt.sel { border-color: var(--mf-primary); background: var(--mf-soft); }
+  .opt .ic { width: 52px; height: 52px; border-radius: 14px; background: var(--mf-soft); color: var(--mf-primary); display: grid; place-items: center; flex: none; }
+  .opt .ic svg { width: 28px; height: 28px; }
+  .opt .txt { display: flex; flex-direction: column; gap: 3px; }
+  .opt .t { display: block; font-size: 19px; font-weight: 800; letter-spacing: -.01em; line-height: 1.2; }
+  .opt .s { display: block; font-size: 15px; color: var(--mf-text-soft); line-height: 1.3; }
+  .opt .chk { margin-left: auto; width: 28px; height: 28px; border-radius: 999px; border: 2px solid var(--mf-border); display: grid; place-items: center; color: #fff; }
+  .opt.sel .chk { background: var(--mf-primary); border-color: var(--mf-primary); }
+
+  .more-btn { width: 100%; padding: 16px; border: 2px dashed var(--mf-border); border-radius: var(--mf-radius); background: #fff; color: var(--mf-primary); font-size: 16px; font-weight: 800; cursor: pointer; margin-top: 2px; }
+  .more-btn:hover { border-color: var(--mf-primary); background: var(--mf-soft); }
+
+  /* ---- Calendário de disponibilidade (+50: células grandes, só dias com vaga clicáveis) ---- */
+  .cal-back { background: none; border: none; color: var(--mf-primary); font-weight: 800; font-size: 15px; cursor: pointer; padding: 0 0 12px; }
+  .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .cal-head .mlabel { font-size: 20px; font-weight: 800; letter-spacing: -.01em; }
+  .cal-nav { width: 52px; height: 52px; border-radius: 14px; border: 2px solid var(--mf-border); background: #fff; font-size: 26px; line-height: 1; cursor: pointer; color: var(--mf-text); }
+  .cal-nav:hover:not(:disabled) { border-color: var(--mf-primary); color: var(--mf-primary); }
+  .cal-nav:disabled { opacity: .3; cursor: default; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .cal-wd { text-align: center; font-size: 12px; font-weight: 800; color: var(--mf-text-soft); text-transform: uppercase; letter-spacing: .04em; padding-bottom: 4px; }
+  .cal-cell { height: 50px; border-radius: 12px; border: 2px solid transparent; background: transparent; font-size: 18px; font-weight: 800; color: #c2cad8; cursor: default; padding: 0; }
+  .cal-cell.empty { border: none; }
+  .cal-cell.avail { background: var(--mf-soft); color: var(--mf-primary); cursor: pointer; }
+  .cal-cell.avail:hover { border-color: var(--mf-primary); }
+  .cal-cell.off { color: #cdd4e0; }
+  .cal-cell.sel { background: var(--mf-primary); color: var(--mf-on-primary); }
+  .cal-legend { display: flex; gap: 18px; margin-top: 16px; font-size: 14px; color: var(--mf-text-soft); font-weight: 600; }
+  .cal-legend i { display: inline-block; width: 16px; height: 16px; border-radius: 5px; vertical-align: -3px; margin-right: 7px; }
+  .slot-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .slot { padding: 16px 8px; border: 2px solid var(--mf-border); border-radius: 14px; background: #fff; font-size: 18px; font-weight: 800; cursor: pointer; }
+  .slot:hover, .slot.sel { border-color: var(--mf-primary); color: var(--mf-primary); background: var(--mf-soft); }
+
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 15px; font-weight: 800; margin-bottom: 7px; }
+  .field input { width: 100%; height: 56px; border: 2px solid var(--mf-border); border-radius: 14px; padding: 0 16px; font-size: 18px; font-family: inherit; }
+  .field input:focus { outline: 3px solid var(--mf-soft); border-color: var(--mf-primary); }
+
+  .d-foot { padding: 16px 24px 22px; border-top: 1px solid var(--mf-border); }
+  .btn-primary { width: 100%; height: 60px; border: none; border-radius: 16px; background: var(--mf-primary); color: var(--mf-on-primary); font-size: 19px; font-weight: 800; cursor: pointer; letter-spacing: -.01em; }
+  .btn-primary:hover { background: var(--mf-primary-hover); }
+  .btn-ghost { width: 100%; height: 52px; border: none; background: transparent; color: var(--mf-text-soft); font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 6px; }
+  .foot-hint { text-align: center; color: var(--mf-text-soft); font-size: 15px; font-weight: 600; margin: 14px 0 6px; }
+  /* Voltar: vermelho suave + borda vermelha escura (deixa claro que dá p/ corrigir) */
+  .btn-back { width: 100%; height: 52px; border: 2px solid #d98a8a; border-radius: 14px; background: #fdecec; color: #b42318; font-size: 16px; font-weight: 800; cursor: pointer; margin-top: 8px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+  .btn-back:hover { background: #fbdcdc; border-color: #b42318; }
+  /* Transição suave entre etapas (perceptível, leve, deslizante) */
+  @keyframes slideFwd  { from { opacity: 0; transform: translateX(28px); }  to { opacity: 1; transform: none; } }
+  @keyframes slideBack { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    @keyframes slideFwd  { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideBack { from { opacity: 0; } to { opacity: 1; } }
+  }
+
+  /* sucesso */
+  .success { text-align: center; padding: 30px 10px; }
+  .success .ring { width: 92px; height: 92px; border-radius: 999px; background: #e7f8ec; color: #1ca54c; display: grid; place-items: center; margin: 0 auto 18px; }
+  .success h3 { font-size: 26px; margin: 0 0 6px; }
+  .success p { color: var(--mf-text-soft); font-size: 17px; margin: 0 0 18px; }
+  .events { text-align: left; background: #0b1220; color: #d3f5e6; border-radius: 14px; padding: 14px 16px; font: 13px/1.7 ui-monospace, Menlo, Consolas, monospace; }
+  .events b { color: #79ffce; }
+
+  /* ---- Painel de controle do preview (não faz parte do widget) ---- */
+  .panel {
+    position: fixed; top: 18px; left: 18px; z-index: 90; background: #0b1220; color: #e8edf6;
+    border-radius: 16px; padding: 16px 18px; width: 270px; box-shadow: 0 18px 50px rgba(0,0,0,.35); font-size: 14px;
+  }
+  .panel h4 { margin: 0 0 12px; font-size: 13px; text-transform: uppercase; letter-spacing: .12em; color: #79ffce; }
+  .panel .row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 11px; gap: 10px; }
+  .panel input[type=color] { width: 42px; height: 30px; border: none; background: none; cursor: pointer; }
+  .panel select { background: #1b263e; color: #fff; border: 1px solid #2c3a57; border-radius: 8px; padding: 6px 8px; font-family: inherit; }
+  .aaa { display: flex; align-items: center; gap: 8px; font-weight: 800; margin-top: 4px; }
+  .aaa .dot { width: 10px; height: 10px; border-radius: 999px; }
+  .pill { font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px; }
+  .pill.ok { background: #133a26; color: #79ffce; }
+  .pill.warn { background: #4a2330; color: #ffb3c7; }
+  .panel small { color: #8b97ad; line-height: 1.5; display: block; margin-top: 6px; }
+</style>
+</head>
+<body>
+
+  <!-- ============ Painel de controle do PREVIEW ============ -->
+  <div class="panel">
+    <h4>Preview · Super-Admin</h4>
+    <div class="row">
+      <span>Cor primária (marca)</span>
+      <input type="color" id="pColor" value="#0E7C7B" />
+    </div>
+    <div class="row">
+      <span>Estilo do FAB</span>
+      <select id="pFab">
+        <option value="soft" selected>soft</option>
+        <option value="solid">solid</option>
+        <option value="outline">outline</option>
+      </select>
+    </div>
+    <div class="row">
+      <span>Posição do FAB</span>
+      <select id="pPos">
+        <option value="bottom-right" selected>bottom-right</option>
+        <option value="bottom-left">bottom-left</option>
+      </select>
+    </div>
+    <div class="row">
+      <span>Auto-avançar etapas</span>
+      <input type="checkbox" id="pAuto" checked style="width:20px;height:20px;cursor:pointer" />
+    </div>
+    <div class="row">
+      <span>País do tenant</span>
+      <select id="pCountry">
+        <option value="BR" selected>Brasil</option>
+        <option value="US">EUA</option>
+        <option value="NZ">Nova Zelândia</option>
+      </select>
+    </div>
+    <div class="aaa">
+      Contraste texto/primária:
+      <span id="ratio" class="pill ok">—</span>
+    </div>
+    <small>1 cor define a paleta inteira. O texto sobre a primária é escolhido por luminância e o contraste é forçado a ≥ 4.5:1 (texto grande). Tudo configurado no painel super-admin.</small>
+  </div>
+
+  <!-- ============ Landing fake (hierarquia de conversão) ============ -->
+  <div class="landing">
+    <span class="badge-primary">Clínica Exemplo · Mediflow</span>
+    <h1>Cuide da sua saúde com quem entende de você</h1>
+    <p>Fale agora com a nossa equipe. Atendimento humano, rápido e acolhedor.</p>
+    <button class="phone-cta">
+      <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+      Ligar agora · (11) 4000-0000
+    </button>
+    <small style="color:#8190a8">↑ conversão primária &nbsp;·&nbsp; agendamento online = botão flutuante (secundário) ↘</small>
+  </div>
+
+  <!-- ============ FAB (conversão secundária) ============ -->
+  <button class="fab soft" id="fab" data-pos="bottom-right" aria-label="Agendar consulta online">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+    <span id="fabLabel">Agendar</span>
+  </button>
+
+  <!-- ============ Drawer onboarding ============ -->
+  <div class="overlay" id="overlay"></div>
+  <aside class="drawer" id="drawer" role="dialog" aria-label="Agendamento">
+    <div class="d-head">
+      <div class="logo">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2v20M2 12h20"/></svg>
+      </div>
+      <div>
+        <h2>Agendar consulta</h2>
+        <p class="sub" id="subhead">É rápido e simples — vamos junto</p>
+      </div>
+      <button class="d-close" id="close" aria-label="Fechar">×</button>
+    </div>
+    <div class="steps"><i class="on"></i><i></i><i></i><i></i></div>
+    <div class="step-label" id="stepLabel">Passo 1 de 4</div>
+
+    <div class="d-body" id="body"></div>
+    <div class="d-foot" id="foot"></div>
+  </aside>
+
+<script>
+/* ============ Motor de paleta: 1 cor -> paleta + AAA ============ */
+function hexToRgb(h){ h=h.replace('#',''); if(h.length===3) h=h.split('').map(c=>c+c).join(''); const n=parseInt(h,16); return {r:(n>>16)&255,g:(n>>8)&255,b:n&255}; }
+function lum({r,g,b}){ const a=[r,g,b].map(v=>{ v/=255; return v<=0.03928? v/12.92 : Math.pow((v+0.055)/1.055,2.4); }); return 0.2126*a[0]+0.7152*a[1]+0.0722*a[2]; }
+function contrast(L1,L2){ const a=Math.max(L1,L2), b=Math.min(L1,L2); return (a+0.05)/(b+0.05); }
+function adjust({r,g,b},f){ const k=f<0?0:255, t=Math.abs(f); return {r:Math.round(r+(k-r)*t),g:Math.round(g+(k-g)*t),b:Math.round(b+(k-b)*t)}; }
+function rgbStr({r,g,b}){ return `rgb(${r},${g},${b})`; }
+
+function applyPalette(hex){
+  const rgb = hexToRgb(hex);
+  const L = lum(rgb);
+  // texto sobre a primária por luminância (AAA-safe)
+  const onColor = contrast(L, 1.0) >= 4.5 ? '#ffffff' : '#0b1220';
+  // se a primária for muito clara, escurece p/ uso em texto/realces sobre fundo claro
+  let usable = rgb;
+  if (contrast(L, 1.0) < 3.0) usable = adjust(rgb, -0.35); // escurece
+  const root = document.documentElement.style;
+  root.setProperty('--mf-primary', rgbStr(usable));
+  root.setProperty('--mf-primary-hover', rgbStr(adjust(usable,-0.2)));
+  root.setProperty('--mf-on-primary', onColor);
+  root.setProperty('--mf-soft', `rgba(${usable.r},${usable.g},${usable.b},.12)`);
+
+  // badge de contraste no painel
+  const ratio = contrast(lum(usable), onColor==='#ffffff'?1.0:0.0);
+  const el = document.getElementById('ratio');
+  el.textContent = ratio.toFixed(2) + ':1';
+  el.className = 'pill ' + (ratio>=4.5 ? 'ok' : 'warn');
+}
+
+/* ============ Estado do wizard ============ */
+const ICONS = {
+  tooth: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5.5c2-2 6-2 6 2.5 0 3-1 4-1.5 7-.4 2.3-1 3.5-1.5 3.5s-1-1.2-1.5-3.5c-.3-1.5-1-1.5-1.5 0C11 21 10.5 22 10 22s-1.1-1.2-1.5-3.5C8 15.5 7 14.5 7 11.5 7 6.5 10 5.5 12 5.5z"/></svg>',
+  heart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>',
+  eye: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>',
+  user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>'
+};
+let step = 0;
+let lastStep = 0;
+let autoAdvance = true;   // controlado pelo interruptor do painel de preview
+let advTimer = null;
+
+// Máscara de telefone por país do tenant (no real vem de tenants.country).
+// E-mail é universal — sem máscara por país.
+let country = 'BR';
+const PHONE = {
+  BR: { ph: '(11) 90000-0000', fmt: v => { v = v.replace(/\D/g,'').slice(0,11); let o=''; if(v.length>0)o='('+v.slice(0,2); if(v.length>=2)o+=') '+v.slice(2,7); if(v.length>=7)o+='-'+v.slice(7,11); return o; } },
+  US: { ph: '(555) 555-5555', fmt: v => { v = v.replace(/\D/g,'').slice(0,10); let o=''; if(v.length>0)o='('+v.slice(0,3); if(v.length>=3)o+=') '+v.slice(3,6); if(v.length>=6)o+='-'+v.slice(6,10); return o; } },
+  NZ: { ph: '021 123 4567',   fmt: v => { v = v.replace(/\D/g,'').slice(0,10); return v.replace(/(\d{3})(\d{0,3})(\d{0,4})/, (m,a,b,c)=> [a,b,c].filter(Boolean).join(' ')); } },
+};
+function maskPhone(el){ el.value = PHONE[country].fmt(el.value); }
+
+// Anima a entrada do conteúdo só quando a ETAPA muda (não em re-render da mesma etapa).
+function animateBody(dir){
+  body.style.animation = 'none';
+  void body.offsetWidth; // reflow p/ reiniciar a animação
+  body.style.animation = `${dir === 'back' ? 'slideBack' : 'slideFwd'} .3s cubic-bezier(.2,.8,.2,1)`;
+}
+const state = { specialty: null, date: null, slot: null, dateView: 'list', calY: 2026, calM: 5 }; // calM 5 = junho
+
+// Aplica a seleção, mostra o ✓ e (se auto) avança após ~420ms — dá tempo de o +50 VER a escolha.
+function pick(setter){
+  clearTimeout(advTimer);
+  setter();
+  render();
+  if (autoAdvance && step < 3){
+    advTimer = setTimeout(()=>{ step++; render(); }, 420);
+  }
+}
+
+// Rodapé das etapas de escolha única: dica (modo auto) ou botão Continuar (modo manual).
+function choiceFoot(selected, canBack){
+  const back = canBack ? `<button class="btn-back" id="back">‹ Voltar e corrigir</button>` : '';
+  if (autoAdvance) return `<p class="foot-hint">Toque em uma opção para continuar</p>` + back;
+  return `<button class="btn-primary" id="next" ${selected?'':'disabled style=opacity:.45'}>Continuar</button>` + back;
+}
+const specialties = [
+  { id:'odonto', t:'Odontologia', s:'Limpeza, restauração, avaliação', ic:'tooth' },
+  { id:'cardio', t:'Cardiologia', s:'Check-up do coração', ic:'heart' },
+  { id:'oftalmo', t:'Oftalmologia', s:'Exame de vista e óculos', ic:'eye' },
+];
+/* ===== Disponibilidade (mock) — no real vem do RPC find_next_available_dates ===== */
+const TODAY = new Date(2026, 5, 17); // 17/jun/2026
+const WD = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+const WD_SHORT = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+const MONTHS = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const parseISO = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); };
+
+const availableSet = new Set();
+const availableList = [];
+(function(){
+  const cur = new Date(TODAY);
+  for (let i = 0; i < 120; i++){
+    const dow = cur.getDay();
+    let avail = (dow >= 1 && dow <= 5);                  // dias úteis
+    if (dow === 6 && Math.floor(i/7) % 2 === 0) avail = true; // sábados alternados
+    if ([2,9,16,23].includes(i)) avail = false;          // alguns dias cheios (gaps realistas)
+    if (avail){ availableSet.add(iso(cur)); availableList.push(iso(cur)); }
+    cur.setDate(cur.getDate() + 1);
+  }
+})();
+
+function dateLabel(s){
+  const d = parseISO(s);
+  const tmrw = new Date(TODAY); tmrw.setDate(tmrw.getDate() + 1);
+  let t = WD[d.getDay()];
+  if (s === iso(TODAY)) t = 'Hoje';
+  else if (s === iso(tmrw)) t = 'Amanhã';
+  const full = `${WD[d.getDay()]} · ${d.getDate()} de ${MONTHS[d.getMonth()]}`;
+  return { t, s: (t === 'Hoje' || t === 'Amanhã') ? full : `${d.getDate()} de ${MONTHS[d.getMonth()]}` };
+}
+
+function renderDateCalendar(){
+  const y = state.calY, m = state.calM;
+  const startDow = new Date(y, m, 1).getDay();
+  const days = new Date(y, m + 1, 0).getDate();
+  const canPrev = (y > TODAY.getFullYear()) || (y === TODAY.getFullYear() && m > TODAY.getMonth());
+  let cells = WD_SHORT.map(w => `<div class="cal-wd">${w}</div>`).join('');
+  for (let i = 0; i < startDow; i++) cells += '<div class="cal-cell empty"></div>';
+  for (let day = 1; day <= days; day++){
+    const ds = iso(new Date(y, m, day));
+    const avail = availableSet.has(ds), sel = state.date === ds;
+    cells += `<button class="cal-cell ${avail ? 'avail' : 'off'} ${sel ? 'sel' : ''}" ${avail ? `data-date="${ds}"` : 'disabled'}>${day}</button>`;
+  }
+  const mlabel = `${MONTHS[m].charAt(0).toUpperCase() + MONTHS[m].slice(1)} ${y}`;
+  return `<button class="cal-back" id="toList">‹ Voltar às datas sugeridas</button>
+    <div class="cal-head">
+      <button class="cal-nav" id="calPrev" ${canPrev ? '' : 'disabled'} aria-label="Mês anterior">‹</button>
+      <span class="mlabel">${mlabel}</span>
+      <button class="cal-nav" id="calNext" aria-label="Próximo mês">›</button>
+    </div>
+    <div class="cal-grid">${cells}</div>
+    <div class="cal-legend"><span><i style="background:var(--mf-soft)"></i>Disponível</span><span><i style="background:#eef1f6"></i>Sem vaga</span></div>`;
+}
+const slots = ['08:30','09:00','09:30','10:00','14:00','14:30'];
+
+const body = document.getElementById('body');
+const foot = document.getElementById('foot');
+const steps = document.querySelectorAll('.steps i');
+const stepLabel = document.getElementById('stepLabel');
+const subhead = document.getElementById('subhead');
+
+function render(){
+  const dir = step > lastStep ? 'fwd' : (step < lastStep ? 'back' : null);
+  steps.forEach((s,i)=> s.classList.toggle('on', i<=step));
+  stepLabel.textContent = step<4 ? `Passo ${step+1} de 4` : 'Tudo certo!';
+  if (step===0){
+    subhead.textContent = 'O que você precisa hoje?';
+    body.innerHTML = `<div class="q">O que você precisa?</div>` + specialties.map(sp=>`
+      <button class="opt ${state.specialty===sp.id?'sel':''}" data-sp="${sp.id}">
+        <span class="ic">${ICONS[sp.ic]}</span>
+        <span class="txt"><span class="t">${sp.t}</span><span class="s">${sp.s}</span></span>
+        <span class="chk">${ICONS.check}</span>
+      </button>`).join('');
+    foot.innerHTML = choiceFoot(state.specialty, false);
+  }
+  else if (step===1){
+    subhead.textContent = 'Escolha o melhor dia';
+    if (state.dateView === 'calendar'){
+      body.innerHTML = `<div class="q">Escolha a data exata</div>` + renderDateCalendar();
+    } else {
+      const visible = availableList.slice(0, 14);
+      body.innerHTML = `<div class="q">Qual dia fica melhor?</div>
+        <p style="color:var(--mf-text-soft);font-size:16px;margin:-8px 0 16px">Mostramos os próximos dias com vaga disponível.</p>`
+        + visible.map(ds=>{ const L = dateLabel(ds); return `
+        <button class="opt ${state.date===ds?'sel':''}" data-date="${ds}">
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>
+          <span class="txt"><span class="t">${L.t}</span><span class="s">${L.s}</span></span>
+          <span class="chk">${ICONS.check}</span>
+        </button>`; }).join('')
+        + `<button class="more-btn" id="more">📅 Ver mais datas no calendário</button>`;
+    }
+    foot.innerHTML = choiceFoot(state.date, true);
+  }
+  else if (step===2){
+    subhead.textContent = 'Escolha o melhor horário';
+    const L = state.date ? dateLabel(state.date) : null;
+    body.innerHTML = `<div class="q">Qual horário fica bom?</div>
+      <p style="color:var(--mf-text-soft);font-size:16px;margin-top:-8px">${L ? L.t + ' · ' + L.s : ''}</p>
+      <div class="slot-grid">${slots.map(h=>`<button class="slot ${state.slot===h?'sel':''}" data-slot="${h}">${h}</button>`).join('')}</div>`;
+    foot.innerHTML = choiceFoot(state.slot, true);
+  }
+  else if (step===3){
+    subhead.textContent = 'Só seus dados e pronto';
+    body.innerHTML = `<div class="q">Como podemos te chamar?</div>
+      <div class="field"><label>Nome completo</label><input placeholder="Seu nome" /></div>
+      <div class="field"><label>Telefone</label><input placeholder="${PHONE[country].ph}" inputmode="tel" oninput="maskPhone(this)" /></div>
+      <div class="field"><label>E-mail <span style="color:var(--mf-text-soft);font-weight:600">— enviaremos a confirmação aqui</span></label><input placeholder="voce@email.com" inputmode="email" type="email" /></div>`;
+    foot.innerHTML = `<button class="btn-primary" id="next">Confirmar meu agendamento</button>
+      <button class="btn-back" id="back">‹ Voltar e corrigir</button>`;
+  }
+  else {
+    subhead.textContent = 'Agendamento confirmado';
+    body.innerHTML = `<div class="success">
+      <div class="ring">${ICONS.check}</div>
+      <h3>Tudo certo! 🎉</h3>
+      <p>Sua consulta foi agendada.<br/>Enviamos a confirmação para o seu e-mail.</p>
+      <div class="events">
+        <div>// evento-âncora disparado no documento PAI</div>
+        <div><b>fbq</b>('track', 'Schedule')</div>
+        <div><b>gtag</b>('event', 'conversion', {label})</div>
+        <div><b>dataLayer</b>.push({event:'booking_confirmed'})</div>
+        <div><b>history</b>.pushState → /agendamento-confirmado</div>
+      </div>
+    </div>`;
+    foot.innerHTML = `<button class="btn-primary" id="closeBtn">Fechar</button>`;
+  }
+  if (dir) animateBody(dir);
+  lastStep = step;
+}
+
+/* ============ Eventos ============ */
+const overlay = document.getElementById('overlay');
+const drawer = document.getElementById('drawer');
+function open(){ render(); overlay.classList.add('open'); drawer.classList.add('open'); }
+function close(){ overlay.classList.remove('open'); drawer.classList.remove('open'); setTimeout(()=>{ step=0; lastStep=0; state.specialty=null; state.date=null; state.slot=null; state.dateView='list'; state.calY=TODAY.getFullYear(); state.calM=TODAY.getMonth(); },300); }
+
+document.getElementById('fab').onclick = open;
+document.getElementById('close').onclick = close;
+overlay.onclick = close;
+
+body.addEventListener('click', e=>{
+  if (e.target.closest('#more')){ state.dateView = 'calendar'; render(); return; }
+  if (e.target.closest('#toList')){ state.dateView = 'list'; render(); return; }
+  if (e.target.closest('#calPrev')){ if (state.calM === 0){ state.calM = 11; state.calY--; } else state.calM--; render(); return; }
+  if (e.target.closest('#calNext')){ if (state.calM === 11){ state.calM = 0; state.calY++; } else state.calM++; render(); return; }
+  const sp = e.target.closest('[data-sp]'); if (sp){ pick(()=> state.specialty = sp.dataset.sp); return; }
+  const dt = e.target.closest('[data-date]'); if (dt){ pick(()=> state.date = dt.dataset.date); return; }
+  const sl = e.target.closest('[data-slot]'); if (sl){ pick(()=> state.slot = sl.dataset.slot); return; }
+});
+foot.addEventListener('click', e=>{
+  if (e.target.id==='next'){ step++; render(); }
+  if (e.target.id==='back'){ step--; render(); }
+  if (e.target.id==='closeBtn'){ close(); }
+});
+
+/* ============ Painel de preview ============ */
+const fab = document.getElementById('fab');
+document.getElementById('pColor').oninput = e=> applyPalette(e.target.value);
+document.getElementById('pFab').onchange = e=> fab.className = 'fab ' + e.target.value;
+document.getElementById('pPos').onchange = e=> fab.dataset.pos = e.target.value;
+document.getElementById('pAuto').onchange = e=>{ autoAdvance = e.target.checked; if (drawer.classList.contains('open')) render(); };
+document.getElementById('pCountry').onchange = e=>{ country = e.target.value; if (drawer.classList.contains('open') && step===3) render(); };
+
+applyPalette('#0E7C7B');
+</script>
+</body>
+</html>
