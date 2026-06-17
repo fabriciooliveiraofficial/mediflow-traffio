@@ -18,6 +18,19 @@ const META_LEAD_ACTION_TYPES = [
   "offsite_conversion.fb_pixel_lead",
 ];
 
+function getLocalDateStr(date: Date, timezone: string): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const y = parts.find((p) => p.type === "year")?.value;
+  const m = parts.find((p) => p.type === "month")?.value;
+  const d = parts.find((p) => p.type === "day")?.value;
+  return `${y}-${m}-${d}`;
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -41,10 +54,10 @@ serve(async (req: Request) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // 1. Fetch active integrations
+    // 1. Fetch active integrations with timezone from tenants
     const { data: integrations, error: fetchError } = await supabaseAdmin
       .from("ad_integrations")
-      .select("*")
+      .select("*, tenants!inner(timezone)")
       .eq("status", "active");
 
     if (fetchError) {
@@ -60,12 +73,20 @@ serve(async (req: Request) => {
     // 2. Loop and sync each platform
     for (const integration of integrations || []) {
       const { tenant_id, platform, access_token, refresh_token, settings } = integration;
+      const tenantData = (integration as any).tenants;
+      const timezone = (Array.isArray(tenantData) ? tenantData[0]?.timezone : tenantData?.timezone) || "America/Sao_Paulo";
+
+      const todayDate = new Date();
+      const todayStr = getLocalDateStr(todayDate, timezone);
+      const thirtyDaysAgoDate = new Date();
+      thirtyDaysAgoDate.setDate(todayDate.getDate() - 30);
+      const thirtyDaysAgoStr = getLocalDateStr(thirtyDaysAgoDate, timezone);
 
       // Case A: Meta Ads
       if (platform === "meta") {
         if (isMetaPlaceholder) {
           console.warn(`Meta App ID is placeholder. Generating demo data for tenant: ${tenant_id}`);
-          await generateDemoData(supabaseAdmin, tenant_id, "meta");
+          await generateDemoData(supabaseAdmin, tenant_id, "meta", timezone);
           continue;
         }
 
@@ -80,7 +101,8 @@ serve(async (req: Request) => {
         }
 
         try {
-          const insightsUrl = `https://graph.facebook.com/v19.0/${adAccountId}/insights?level=campaign&fields=campaign_id,campaign_name,spend,impressions,clicks,actions&time_increment=1&date_preset=last_30d&access_token=${access_token}`;
+          const timeRangeParam = encodeURIComponent(JSON.stringify({ since: thirtyDaysAgoStr, until: todayStr }));
+          const insightsUrl = `https://graph.facebook.com/v19.0/${adAccountId}/insights?level=campaign&fields=campaign_id,campaign_name,spend,impressions,clicks,actions&time_increment=1&time_range=${timeRangeParam}&access_token=${access_token}`;
 
           const response = await fetch(insightsUrl);
           const resJson = await response.json();
@@ -141,7 +163,7 @@ serve(async (req: Request) => {
       if (platform === "google") {
         if (isGooglePlaceholder) {
           console.warn(`Google Client ID is placeholder. Generating demo data for tenant: ${tenant_id}`);
-          await generateDemoData(supabaseAdmin, tenant_id, "google");
+          await generateDemoData(supabaseAdmin, tenant_id, "google", timezone);
           continue;
         }
 
@@ -213,7 +235,7 @@ serve(async (req: Request) => {
             SELECT campaign.id, campaign.name, segments.date,
                    metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions
             FROM campaign
-            WHERE segments.date DURING LAST_30_DAYS
+            WHERE segments.date >= '${thirtyDaysAgoStr}' AND segments.date <= '${todayStr}'
           `;
 
           const adsRes = await fetch(`https://googleads.googleapis.com/v24/customers/${customerId}/googleAds:search`, {
@@ -333,10 +355,8 @@ async function updateIntegrationSettings(
     .eq("platform", platform);
 }
 
-// Helper to generate demonstration data for dashboard preview (2 campanhas por plataforma, últimos 7 dias)
-async function generateDemoData(supabaseAdmin: any, tenantId: string, platform: "meta" | "google") {
-  const today = new Date();
-
+// Helper to generate demonstration data for dashboard preview (2 campanhas por plataforma, últimos 7 dias + hoje)
+async function generateDemoData(supabaseAdmin: any, tenantId: string, platform: "meta" | "google", timezone: string) {
   const campaigns = platform === "meta"
     ? [
         { id: "demo_meta_implantes", name: "Campanha — Implantes" },
@@ -347,11 +367,11 @@ async function generateDemoData(supabaseAdmin: any, tenantId: string, platform: 
         { id: "demo_google_avaliacao", name: "Pesquisa — Avaliação Gratuita" },
       ];
 
-  // Seed last 7 days of performance, per campaign
-  for (let i = 7; i >= 1; i--) {
-    const d = new Date(today);
-    d.setDate(today.getDate() - i);
-    const dateStr = d.toISOString().split("T")[0];
+  // Seed last 7 days + today of performance, per campaign
+  for (let i = 7; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dateStr = getLocalDateStr(d, timezone);
 
     for (const campaign of campaigns) {
       let spendCents, conversions, impressions, clicks, revenueCents;

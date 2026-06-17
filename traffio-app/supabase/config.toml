@@ -418,4 +418,8 @@ verify_jwt = false
 enabled = true
 verify_jwt = false
 
+[functions.public-booking]
+enabled = true
+verify_jwt = false
+
 

@@ -175,10 +175,13 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                 }, {});
                 setIntegrations(intMap || {});
 
+                const tz = tenant?.timezone || 'America/Sao_Paulo';
+                const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: tz });
+
                 // 2. Fetch Real Ads Performance (últimos 90 dias — cobre os filtros today/7d/30d)
                 const ninetyDaysAgo = new Date();
                 ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-                const ninetyDaysAgoStr = ninetyDaysAgo.toISOString().split('T')[0];
+                const ninetyDaysAgoStr = formatter.format(ninetyDaysAgo);
 
                 const { data: perfData } = await supabase
                     .from('ad_performance_daily')
@@ -190,7 +193,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                 setRawPerformanceData(perfData || []);
 
                 // Quick Agenda
-                const todayStr = new Date().toISOString().split('T')[0];
+                const todayStr = formatter.format(new Date());
                 await supabase
                     .from('appointments')
                     .select('*, patients(full_name)')
@@ -211,7 +214,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
             } catch (error) {
                 console.error('Error fetching dashboard data:', error);
             }
-    }, [tenant?.id]);
+    }, [tenant?.id, tenant?.timezone]);
 
     // Fire-and-forget call to sync-ads-performance, then refresh once new data lands
     const triggerSyncAndRefresh = () => {
@@ -383,9 +386,12 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
     useEffect(() => {
         if (!tenant?.id || period !== 'custom' || !customRange?.from) return;
 
+        const tz = tenant?.timezone || 'America/Sao_Paulo';
+        const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: tz });
+
         const ninetyDaysAgo = new Date();
         ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-        const ninetyDaysAgoStr = ninetyDaysAgo.toISOString().split('T')[0];
+        const ninetyDaysAgoStr = formatter.format(ninetyDaysAgo);
 
         if (customRange.from >= ninetyDaysAgoStr) return;
 
@@ -409,28 +415,31 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                 });
             }
         })();
-    }, [tenant?.id, period, customRange?.from]);
+    }, [tenant?.id, tenant?.timezone, period, customRange?.from]);
 
     // ── Período selecionado → range de datas (YYYY-MM-DD) ──────────────────
     const dateRange = useMemo(() => {
-        const today = new Date();
-        const todayStr = today.toISOString().split('T')[0];
+        const tz = tenant?.timezone || 'America/Sao_Paulo';
+        const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: tz });
+        const todayStr = formatter.format(new Date());
 
         if (period === 'today') {
             return { from: todayStr, to: todayStr };
         }
         if (period === '7d') {
+            const today = new Date();
             const from = new Date(today);
             from.setDate(from.getDate() - 6);
-            return { from: from.toISOString().split('T')[0], to: todayStr };
+            return { from: formatter.format(from), to: todayStr };
         }
         if (period === 'custom' && customRange?.from && customRange?.to) {
             return customRange;
         }
+        const today = new Date();
         const from = new Date(today);
         from.setDate(from.getDate() - 29);
-        return { from: from.toISOString().split('T')[0], to: todayStr };
-    }, [period, customRange]);
+        return { from: formatter.format(from), to: todayStr };
+    }, [period, customRange, tenant?.timezone]);
 
     // ── Dados filtrados por período + plataforma + campanha ─────────────────
     const filteredData = useMemo(() => {
