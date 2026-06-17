@@ -190,7 +190,7 @@ async function processMessagingEvent(
     content:     text,
     message_id:  messageId,
     status:      "pending",
-    received_at: new Date(timestamp ? timestamp * 1000 : Date.now()).toISOString(),
+    received_at: new Date(timestamp ? timestamp : Date.now()).toISOString(),
   });
 
   if (inboxErr) {
