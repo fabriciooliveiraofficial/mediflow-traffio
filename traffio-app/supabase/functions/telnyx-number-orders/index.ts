@@ -112,7 +112,76 @@ serve(async (req: Request) => {
 
         if (!order) return json({ error: "Order not found" }, 404);
         if (!order.telnyx_order_id) {
-          return json({ error: "Este pedido ainda não possui ID da Telnyx." }, 400);
+          // Se o pedido ainda não foi pra Telnyx (apenas local pending_docs),
+          // devolvemos as exigências base do país.
+          let requirements: any[] = [];
+          let effectiveType = "local";
+          try {
+            const result = await getRequirements(apiKey, order.country_code, "local");
+            requirements = result.requirements;
+            effectiveType = result.phoneNumberType;
+          } catch (e: any) {
+            console.error(`[telnyx-number-orders] getRequirements failed: ${e.message}`);
+          }
+
+          const mergedRequirements = requirements.map((r: any) => ({
+            id: r.id,
+            name: r.name,
+            type: r.type,
+            description: r.description || "",
+            example: r.example || "",
+            acceptanceCriteria: r.acceptanceCriteria || {},
+            status: "pending",
+            field_value: ""
+          }));
+
+          const { data: cached } = await supabase
+            .from("tenant_requirement_groups")
+            .select("telnyx_requirement_group_id, status, regulatory_requirements, updated_at")
+            .eq("tenant_id", tenantId)
+            .eq("country_code", order.country_code)
+            .eq("phone_number_type", effectiveType)
+            .maybeSingle();
+
+          const resolvedAddresses: Record<string, any> = {};
+          if (cached?.regulatory_requirements) {
+            for (const reqVal of cached.regulatory_requirements) {
+              const reqId = reqVal.requirement_id;
+              const reqType = requirements.find((r) => r.id === reqId);
+              
+              if (reqType?.type === "address" && reqVal.field_value && !resolvedAddresses[reqId]) {
+                try {
+                  const addrData = await getAddress(apiKey, reqVal.field_value);
+                  if (addrData) {
+                    resolvedAddresses[reqId] = {
+                      firstName:          addrData.first_name ?? "",
+                      lastName:           addrData.last_name ?? "",
+                      businessName:       addrData.business_name ?? "",
+                      streetAddress:      addrData.street_address ?? "",
+                      locality:           addrData.locality ?? "",
+                      administrativeArea: addrData.administrative_area ?? "",
+                      postalCode:         addrData.postal_code ?? "",
+                    };
+                  }
+                } catch (addrErr: any) {
+                  console.error(`Failed to resolve cached address:`, addrErr.message);
+                }
+              }
+            }
+          }
+
+          return json({
+            data: {
+              order_id: order.id,
+              telnyx_order_id: null,
+              sub_number_order_id: null,
+              country_code: order.country_code,
+              phone_number: order.phone_number,
+              requirements: mergedRequirements,
+              resolved_addresses: resolvedAddresses,
+              cached: cached ?? null
+            }
+          });
         }
 
         // 1. Buscar ordem na Telnyx

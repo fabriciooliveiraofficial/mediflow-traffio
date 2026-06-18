@@ -375,8 +375,20 @@ export async function createSipCredential(
 }
 
 export async function getLoginToken(apiKey: string, credentialId: string): Promise<string> {
-  const data = await telnyxRequest(apiKey, "GET", `/telephony_credentials/${credentialId}/token`);
-  return data.token;
+  const res = await fetch(`${TELNYX_API}/telephony_credentials/${credentialId}/token`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Accept": "text/plain",
+    },
+  });
+
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(`[Telnyx] POST /telephony_credentials/${credentialId}/token → ${text}`);
+  }
+
+  return text;
 }
 
 export async function revokeSipCredential(apiKey: string, credentialId: string): Promise<void> {
