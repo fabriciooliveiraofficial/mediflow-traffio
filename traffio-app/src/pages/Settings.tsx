@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     Building2,
@@ -253,12 +253,18 @@ export const Settings = () => {
     }, [currentTenant]);
 
     const handleRechargeWallet = async () => {
+        if (!currentTenant?.id) {
+            showToast('error', 'Clínica não selecionada');
+            return;
+        }
+
         const amount = parseFloat(rechargeAmount);
         if (isNaN(amount) || amount <= 0) {
             showToast('error', 'Valor de recarga inválido');
             return;
         }
 
+        const tenantId = currentTenant.id;
         setRecharging(true);
         try {
             const currentBalance = wallet?.balance_brl ? Number(wallet.balance_brl) : 0;
@@ -270,7 +276,7 @@ export const Settings = () => {
                     balance_brl: newBalance,
                     updated_at: new Date().toISOString()
                 })
-                .eq('tenant_id', currentTenant.id)
+                .eq('tenant_id', tenantId)
                 .select()
                 .single();
 
@@ -279,7 +285,7 @@ export const Settings = () => {
             const { error: txErr } = await supabase
                 .from('wallet_transactions')
                 .insert({
-                    tenant_id: currentTenant.id,
+                    tenant_id: tenantId,
                     type: 'recharge',
                     amount_brl: amount,
                     balance_after_brl: newBalance,
