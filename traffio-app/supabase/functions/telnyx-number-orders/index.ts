@@ -677,7 +677,7 @@ serve(async (req: Request) => {
       }
 
       // Criar order formal na Telnyx
-      let telnyxOrderId: string | null = null;
+      let telnyxOrderId: string;
       try {
         const telnyxOrder = await createNumberOrder(
           apiKey,
@@ -686,7 +686,8 @@ serve(async (req: Request) => {
         );
         telnyxOrderId = telnyxOrder.id;
       } catch (e: any) {
-        console.warn(`[telnyx-number-orders] Telnyx order creation failed (will retry): ${e.message}`);
+        console.error(`[telnyx-number-orders] Telnyx order creation failed: ${e.message}`);
+        return json({ error: `Erro na Telnyx ao criar pedido: ${e.message}` }, 400);
       }
 
       await supabase
