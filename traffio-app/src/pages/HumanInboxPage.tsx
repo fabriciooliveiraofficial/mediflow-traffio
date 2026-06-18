@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, memo, useMemo } from 'react'
 import { createPortal } from 'react-dom'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { formatPhone, phoneFlag } from '../lib/formatPhone'
 import { formatDisplayDate } from '../lib/dateUtils'
@@ -134,9 +135,9 @@ function slaColor(updatedAt: string) {
   return 'text-gray-400'
 }
 
-function slaLabel(updatedAt: string) {
+function slaLabel(updatedAt: string, nowLabel: string) {
   const min = Math.floor((Date.now() - new Date(updatedAt).getTime()) / 60000)
-  if (min === 0) return 'agora'
+  if (min === 0) return nowLabel
   return `${min}m`
 }
 
@@ -145,11 +146,12 @@ function slaLabel(updatedAt: string) {
 // ─────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: OmnichannelStatus }) {
+  const { t } = useTranslation('communications')
   const map: Record<OmnichannelStatus, { label: string; className: string }> = {
-    bot_active:   { label: 'Bot Ativo',       className: 'bg-blue-100 text-blue-700' },
-    queued:       { label: 'Aguardando',       className: 'bg-amber-100 text-amber-700 animate-pulse' },
-    human_active: { label: 'Em Atendimento',   className: 'bg-green-100 text-green-700' },
-    closed:       { label: 'Encerrado',        className: 'bg-gray-100 text-gray-500' },
+    bot_active:   { label: t('humanInbox.statusBadge.botActive'),     className: 'bg-blue-100 text-blue-700' },
+    queued:       { label: t('humanInbox.statusBadge.queued'),        className: 'bg-amber-100 text-amber-700 animate-pulse' },
+    human_active: { label: t('humanInbox.statusBadge.humanActive'),   className: 'bg-green-100 text-green-700' },
+    closed:       { label: t('humanInbox.statusBadge.closed'),        className: 'bg-gray-100 text-gray-500' },
   }
   const { label, className } = map[status]
   return (
@@ -157,19 +159,6 @@ function StatusBadge({ status }: { status: OmnichannelStatus }) {
       {label}
     </span>
   )
-}
-
-const TEMPERATURE_MAP: Record<string, { label: string; icon: string; className: string }> = {
-  cold: { label: 'Frio',   icon: '❄️', className: 'bg-blue-50 text-blue-700 border-blue-100' },
-  warm: { label: 'Morno',  icon: '🌤️', className: 'bg-amber-50 text-amber-700 border-amber-100' },
-  hot:  { label: 'Quente', icon: '🔥', className: 'bg-red-50 text-red-700 border-red-100' },
-}
-
-const PRIORITY_MAP: Record<string, { label: string; className: string }> = {
-  low:    { label: 'Baixa',   className: 'bg-gray-50 text-gray-600 border-gray-100' },
-  medium: { label: 'Média',   className: 'bg-blue-50 text-blue-600 border-blue-100' },
-  high:   { label: 'Alta',    className: 'bg-orange-50 text-orange-600 border-orange-100' },
-  urgent: { label: 'Urgente', className: 'bg-red-50 text-red-600 border-red-100' },
 }
 
 // ─────────────────────────────────────────────
@@ -184,6 +173,22 @@ function ConversationRow({
   patientName: string | null
   onClick: () => void
 }) {
+  const { t } = useTranslation('communications')
+  const TEMPERATURE_MAP: Record<string, { label: string; icon: string; className: string }> = {
+    cold: { label: t('humanInbox.temperature.cold'),   icon: '❄️', className: 'bg-blue-50 text-blue-700 border-blue-100' },
+    warm: { label: t('humanInbox.temperature.warm'),   icon: '🌤️', className: 'bg-amber-50 text-amber-700 border-amber-100' },
+    hot:  { label: t('humanInbox.temperature.hot'),    icon: '🔥', className: 'bg-red-50 text-red-700 border-red-100' },
+  }
+  const PRIORITY_MAP: Record<string, { label: string; className: string }> = {
+    low:    { label: t('humanInbox.priority.low'),     className: 'bg-gray-50 text-gray-600 border-gray-100' },
+    medium: { label: t('humanInbox.priority.medium'),  className: 'bg-blue-50 text-blue-600 border-blue-100' },
+    high:   { label: t('humanInbox.priority.high'),    className: 'bg-orange-50 text-orange-600 border-orange-100' },
+    urgent: { label: t('humanInbox.priority.urgent'),  className: 'bg-red-50 text-red-600 border-red-100' },
+  }
+  const fallbackName = (channel?: string) =>
+    channel === 'instagram' ? t('humanInbox.fallbackNames.instagramUser')
+      : channel === 'facebook' ? t('humanInbox.fallbackNames.messengerUser')
+      : t('humanInbox.fallbackNames.webVisitor')
   const lastMsg = session.recent_messages?.at(-1)
   const isQueued = session.omnichannel_status === 'queued'
   const unreadCount = session.unread_count ?? 0
@@ -226,22 +231,22 @@ function ConversationRow({
               {patientName
                 ? patientName
                 : (session.channel === 'livechat' || session.channel === 'instagram' || session.channel === 'facebook')
-                ? (session.context?.visitor_name || session.context?.username || session.context?.name || (session.channel === 'instagram' ? 'Usuário do Instagram' : session.channel === 'facebook' ? 'Usuário do Messenger' : 'Visitante Web'))
+                ? (session.context?.visitor_name || session.context?.username || session.context?.name || fallbackName(session.channel))
                 : `${phoneFlag(session.patient_phone)} ${formatPhone(session.patient_phone)}`}
             </span>
             <div className="flex items-center gap-2 shrink-0">
               <span className={clsx('text-[11px]', slaColor(session.updated_at))}>
-                {slaLabel(session.updated_at)}
+                {slaLabel(session.updated_at, t('humanInbox.sla.now'))}
               </span>
             </div>
           </div>
           {session.channel === 'livechat' ? (
             <p className="text-[11px] text-gray-400 truncate mt-0.5">
-              {session.context?.visitor_phone || session.context?.visitor_email || 'Live Chat'}
+              {session.context?.visitor_phone || session.context?.visitor_email || t('humanInbox.channels.liveChat')}
             </p>
           ) : (session.channel === 'instagram' || session.channel === 'facebook') ? (
             <p className="text-[11px] text-gray-400 truncate mt-0.5 flex items-center gap-1">
-              {session.channel === 'instagram' ? '@' : ''}{session.context?.username || session.context?.visitor_name || (session.channel === 'instagram' ? 'Instagram Direct' : 'Facebook Messenger')}
+              {session.channel === 'instagram' ? '@' : ''}{session.context?.username || session.context?.visitor_name || (session.channel === 'instagram' ? t('humanInbox.channels.instagramDirect') : t('humanInbox.channels.facebookMessenger'))}
             </p>
           ) : (
             patientName && (
@@ -258,7 +263,7 @@ function ConversationRow({
                 </span>
               )}
               {session.kanban_stage && (
-                <span className="px-1.5 py-0.5 rounded-md bg-gray-100 border border-gray-200 text-gray-500 text-[9px] font-bold uppercase truncate max-w-[100px]" title={`Estágio: ${session.kanban_stage}`}>
+                <span className="px-1.5 py-0.5 rounded-md bg-gray-100 border border-gray-200 text-gray-500 text-[9px] font-bold uppercase truncate max-w-[100px]" title={`${t('humanInbox.conversationRow.stageTitlePrefix')} ${session.kanban_stage}`}>
                   {session.kanban_stage}
                 </span>
               )}
@@ -274,7 +279,7 @@ function ConversationRow({
                'text-xs truncate flex-1 leading-tight',
                unreadCount > 0 ? 'text-gray-900 font-bold' : 'text-gray-500'
             )}>
-              {lastMsg?.content ?? 'Sem mensagens'}
+              {lastMsg?.content ?? t('humanInbox.conversationRow.noMessages')}
             </p>
             {unreadCount > 0 && !selected && (
               <span className="flex items-center justify-center h-5 min-w-[20px] px-1 rounded-full bg-blue-600 text-white text-[10px] font-bold shadow-sm animate-in fade-in zoom-in duration-300">
@@ -295,16 +300,16 @@ function ConversationRow({
                 : "bg-green-50 text-green-700 border-green-100"
             )}>
               {session.channel === 'livechat'
-                ? 'Live Chat'
+                ? t('humanInbox.channels.liveChat')
                 : session.channel === 'instagram'
-                ? 'Instagram'
+                ? t('humanInbox.channels.instagram')
                 : session.channel === 'facebook'
-                ? 'Messenger'
-                : 'WhatsApp'}
+                ? t('humanInbox.channels.messenger')
+                : t('humanInbox.channels.whatsapp')}
             </span>
             {isQueued && (
               <span className="flex items-center gap-0.5 text-[10px] text-amber-600 font-medium">
-                <AlertTriangle className="w-3 h-3" /> aguardando
+                <AlertTriangle className="w-3 h-3" /> {t('humanInbox.conversationRow.waiting')}
               </span>
             )}
           </div>
@@ -316,6 +321,7 @@ function ConversationRow({
 
 // ── Componente de Áudio Customizado ──────────────────────────────
 const AudioPlayer = memo(function AudioPlayer({ url, duration }: { url: string, duration?: number }) {
+  const { t } = useTranslation('communications')
   const [playing, setPlaying] = useState(false)
   const [progress, setProgress] = useState(0)
   const audioRef = useRef<HTMLAudioElement>(null)
@@ -337,7 +343,7 @@ const AudioPlayer = memo(function AudioPlayer({ url, duration }: { url: string, 
         </div>
         <div className="flex justify-between mt-1 text-[10px] text-gray-500 font-medium">
           <span>{duration ? `${Math.floor(duration / 60)}:${String(duration % 60).padStart(2, '0')}` : '0:00'}</span>
-          <span>WhatsApp Audio</span>
+          <span>{t('humanInbox.audioPlayer.label')}</span>
         </div>
       </div>
       <audio
@@ -377,6 +383,7 @@ const MessageBubble = memo(function MessageBubble({
   onDelete: (m: Message) => void
   canEdit: boolean
 }) {
+  const { t } = useTranslation('communications')
   const [hovered, setHovered] = useState(false)
   const isUser     = msg.role === 'user'
   const isHuman    = msg.role === 'human'
@@ -402,7 +409,7 @@ const MessageBubble = memo(function MessageBubble({
           <div className="space-y-1.5">
             <img
               src={msg.media_url}
-              alt="Mídia"
+              alt={t('humanInbox.messageBubble.mediaAlt')}
               className="rounded-lg max-w-full max-h-72 object-cover cursor-pointer hover:opacity-90 transition-opacity"
               onClick={() => window.open(msg.media_url, '_blank')}
             />
@@ -435,8 +442,8 @@ const MessageBubble = memo(function MessageBubble({
               <FileText size={20} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-gray-700 truncate">{msg.file_name || 'Documento'}</p>
-              <p className="text-[10px] text-gray-400 uppercase">{msg.mime_type?.split('/')[1] || 'PDF'} • {msg.file_size ? `${(msg.file_size / 1024 / 1024).toFixed(1)}MB` : 'Arquivo'}</p>
+              <p className="text-xs font-semibold text-gray-700 truncate">{msg.file_name || t('humanInbox.messageBubble.documentFallback')}</p>
+              <p className="text-[10px] text-gray-400 uppercase">{msg.mime_type?.split('/')[1] || t('humanInbox.messageBubble.mimeFallback')} • {msg.file_size ? `${(msg.file_size / 1024 / 1024).toFixed(1)}MB` : t('humanInbox.messageBubble.sizeFallback')}</p>
             </div>
             <Download size={16} className="text-gray-400" />
           </a>
@@ -445,7 +452,7 @@ const MessageBubble = memo(function MessageBubble({
         return (
           <img
             src={msg.media_url}
-            alt="GIF"
+            alt={t('humanInbox.messageBubble.gifAlt')}
             className="rounded-lg max-w-full max-h-60 object-cover"
           />
         )
@@ -474,7 +481,7 @@ const MessageBubble = memo(function MessageBubble({
         {isInternal && (
           <div className="flex items-center gap-1 mb-1">
             <StickyNote className="w-3 h-3 text-amber-500" />
-            <span className="text-[10px] text-amber-600 font-semibold uppercase tracking-wide">Nota interna</span>
+            <span className="text-[10px] text-amber-600 font-semibold uppercase tracking-wide">{t('humanInbox.messageBubble.internalNote')}</span>
           </div>
         )}
 
@@ -486,14 +493,14 @@ const MessageBubble = memo(function MessageBubble({
         )}>
           <button
             onClick={handleCopy}
-            title="Copiar"
+            title={t('humanInbox.messageBubble.copy')}
             className="w-7 h-7 rounded-lg bg-white border border-gray-200 shadow-sm flex items-center justify-center text-gray-500 hover:text-blue-600 hover:border-blue-300 transition-colors"
           >
             <Copy size={13} />
           </button>
           <button
             onClick={() => onReply(msg)}
-            title="Responder"
+            title={t('humanInbox.messageBubble.reply')}
             className="w-7 h-7 rounded-lg bg-white border border-gray-200 shadow-sm flex items-center justify-center text-gray-500 hover:text-blue-600 hover:border-blue-300 transition-colors"
           >
             <Reply size={13} />
@@ -501,7 +508,7 @@ const MessageBubble = memo(function MessageBubble({
           {canEdit && isHuman && (msg.message_type === 'text' || !msg.message_type) && (
             <button
               onClick={() => onEdit(msg)}
-              title="Editar"
+              title={t('humanInbox.messageBubble.edit')}
               className="w-7 h-7 rounded-lg bg-white border border-gray-200 shadow-sm flex items-center justify-center text-gray-500 hover:text-amber-600 hover:border-amber-300 transition-colors"
             >
               <Pencil size={13} />
@@ -509,14 +516,14 @@ const MessageBubble = memo(function MessageBubble({
           )}
           <button
             onClick={() => onForward(msg)}
-            title="Encaminhar"
+            title={t('humanInbox.messageBubble.forward')}
             className="w-7 h-7 rounded-lg bg-white border border-gray-200 shadow-sm flex items-center justify-center text-gray-500 hover:text-green-600 hover:border-green-300 transition-colors"
           >
             <Forward size={13} />
           </button>
           <button
             onClick={() => onDelete(msg)}
-            title="Apagar para todos"
+            title={t('humanInbox.messageBubble.deleteForEveryone')}
             className="w-7 h-7 rounded-lg bg-white border border-gray-200 shadow-sm flex items-center justify-center text-gray-500 hover:text-red-600 hover:border-red-300 transition-colors"
           >
             <Trash2 size={13} />
@@ -550,7 +557,7 @@ const MessageBubble = memo(function MessageBubble({
                   <img src={repliedMsg.media_url} className="w-8 h-8 rounded object-cover shrink-0" alt="quoted" />
                 )}
                 <span className="truncate leading-relaxed">
-                  {repliedMsg.content || repliedMsg.caption || repliedMsg.file_name || (repliedMsg.media_url ? `[${repliedMsg.message_type}]` : '[mídia]')}
+                  {repliedMsg.content || repliedMsg.caption || repliedMsg.file_name || (repliedMsg.media_url ? t('humanInbox.messageBubble.typePlaceholder', { type: repliedMsg.message_type }) : t('humanInbox.messageBubble.mediaPlaceholder'))}
                 </span>
               </div>
             </div>
@@ -561,7 +568,7 @@ const MessageBubble = memo(function MessageBubble({
           {isBot      && <Bot       className="w-3 h-3 text-gray-400" />}
           {isHuman    && <PhoneCall className="w-3 h-3 text-blue-400" />}
           {isInternal && <StickyNote className="w-3 h-3 text-amber-400" />}
-          {msg.is_edited && <span className="text-[9px] text-gray-400 italic">editada</span>}
+          {msg.is_edited && <span className="text-[9px] text-gray-400 italic">{t('humanInbox.messageBubble.edited')}</span>}
           <span className="text-[10px] text-gray-400">{time}</span>
         </div>
       </div>
@@ -600,6 +607,7 @@ export const ChatInput = memo(({
   salesScripts = [], patient, currentUserName = '', clinicName = '',
   onOpenScriptManager, onDeleteScript
 }: ChatInputProps) => {
+  const { t } = useTranslation('communications')
   const { showToast } = useToast()
   const [input, setInput]           = useState('')
   const [inputMode, setInputMode]   = useState<'message' | 'note'>('message')
@@ -673,7 +681,7 @@ export const ChatInput = memo(({
           const url = await onUploadFile(file)
           await onSendMedia(url, 'audio', { mimeType: 'audio/webm', durationS: recordingSeconds })
         } catch (err: any) {
-          showToast('error', 'Erro ao enviar áudio: ' + err.message)
+          showToast('error', t('humanInbox.chatInput.toasts.audioSendError', { message: err.message }))
         }
         setRecordingSeconds(0)
       }
@@ -688,9 +696,9 @@ export const ChatInput = memo(({
       }, 1000)
     } catch (err: any) {
       if (err.name === 'NotAllowedError') {
-        showToast('warning', 'Permissão de microfone negada. Verifique as configurações do seu navegador.')
+        showToast('warning', t('humanInbox.chatInput.toasts.micPermissionDenied'))
       } else {
-        showToast('error', 'Erro ao acessar microfone: ' + err.message)
+        showToast('error', t('humanInbox.chatInput.toasts.micAccessError', { message: err.message }))
       }
     }
   }
@@ -914,7 +922,7 @@ export const ChatInput = memo(({
         })
         clearMediaFile()
       } catch (err: any) {
-        showToast('error', 'Erro ao enviar arquivo: ' + err.message)
+        showToast('error', t('humanInbox.chatInput.toasts.fileSendError', { message: err.message }))
       } finally {
         setUploadingMedia(false)
       }
@@ -953,7 +961,7 @@ export const ChatInput = memo(({
         fileSize: file.size
       })
     } catch (err: any) {
-      showToast('error', 'Erro ao enviar arquivo: ' + err.message)
+      showToast('error', t('humanInbox.chatInput.toasts.fileSendError', { message: err.message }))
     } finally {
       setUploadingMedia(false)
     }
@@ -980,10 +988,10 @@ export const ChatInput = memo(({
       <div className="px-4 py-3 bg-white border-t border-gray-200 shrink-0">
         <div className="flex items-center justify-center py-2 text-sm text-gray-400 gap-2">
           {canClaim
-            ? <><Clock className="w-4 h-4" /> Assuma a conversa para responder</>
+            ? <><Clock className="w-4 h-4" /> {t('humanInbox.chatInput.gateClaimToReply')}</>
             : isClosed
-            ? <><CheckCircle2 className="w-4 h-4" /> Conversa encerrada</>
-            : <><MoreVertical className="w-4 h-4" /> Em atendimento por outro vendedor. Apenas leitura permitida.</>}
+            ? <><CheckCircle2 className="w-4 h-4" /> {t('humanInbox.chatInput.gateClosed')}</>
+            : <><MoreVertical className="w-4 h-4" /> {t('humanInbox.chatInput.gateReadOnly')}</>}
         </div>
       </div>
     )
@@ -1010,23 +1018,23 @@ export const ChatInput = memo(({
               <div className="bg-gray-50/50 border-b border-gray-100 px-4 py-2.5 flex items-center justify-between">
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
-                  Scripts Inteligentes
+                  {t('humanInbox.chatInput.scripts.title')}
                 </p>
                 <div className="flex items-center gap-2">
-                  <button 
+                  <button
                     onClick={(e) => { e.stopPropagation(); onOpenScriptManager(); setSlashMenuOpen(false); }}
                     className="p-1 hover:bg-gray-200/50 rounded text-gray-500 hover:text-gray-900 border-none bg-transparent cursor-pointer"
-                    title="Gerenciar Scripts"
+                    title={t('humanInbox.chatInput.scripts.manageTitle')}
                   >
                     <Settings className="w-3.5 h-3.5" />
                   </button>
-                  <span className="text-[10px] text-gray-400 font-medium">↑↓ Navegar</span>
+                  <span className="text-[10px] text-gray-400 font-medium">{t('humanInbox.chatInput.scripts.navigateHint')}</span>
                 </div>
               </div>
               <div className="overflow-y-auto flex-1 p-1.5 custom-scrollbar">
                 {filteredScripts.length === 0 ? (
                   <div className="p-4 text-center">
-                    <p className="text-xs text-gray-400 mb-2 font-medium">Nenhum script encontrado</p>
+                    <p className="text-xs text-gray-400 mb-2 font-medium">{t('humanInbox.chatInput.scripts.noneFound')}</p>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -1036,7 +1044,7 @@ export const ChatInput = memo(({
                       className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider border-none cursor-pointer flex items-center gap-1.5 mx-auto"
                     >
                       <Plus size={12} />
-                      Criar Script
+                      {t('humanInbox.chatInput.scripts.create')}
                     </button>
                   </div>
                 ) : (
@@ -1066,7 +1074,7 @@ export const ChatInput = memo(({
                                 setSlashMenuOpen(false);
                               }}
                               className="p-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-blue-50 text-slate-500 hover:text-blue-600 hover:border-blue-200 transition-all cursor-pointer shadow-sm flex items-center justify-center shrink-0"
-                              title={(!script.tenant_id || script.tenant_id === 'null') ? "Personalizar (Editar)" : "Editar script"}
+                              title={(!script.tenant_id || script.tenant_id === 'null') ? t('humanInbox.chatInput.scripts.customizeEdit') : t('humanInbox.chatInput.scripts.editScript')}
                             >
                               <Pencil size={11} />
                             </button>
@@ -1074,7 +1082,7 @@ export const ChatInput = memo(({
                               <button
                                 onClick={async (e) => {
                                   e.stopPropagation();
-                                  if (window.confirm(`Deseja excluir o script "${script.title}"?`)) {
+                                  if (window.confirm(t('humanInbox.chatInput.scripts.deleteConfirm', { title: script.title }))) {
                                     try {
                                       if (onDeleteScript) {
                                         await onDeleteScript(script.id);
@@ -1085,7 +1093,7 @@ export const ChatInput = memo(({
                                   }
                                 }}
                                 className="p-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-red-50 text-slate-500 hover:text-red-600 hover:border-red-200 transition-all cursor-pointer shadow-sm flex items-center justify-center shrink-0"
-                                title="Excluir script"
+                                title={t('humanInbox.chatInput.scripts.deleteScript')}
                               >
                                 <Trash2 size={11} />
                               </button>
@@ -1126,9 +1134,9 @@ export const ChatInput = memo(({
                       <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-200">
                         <Zap size={18} fill="currentColor" />
                       </div>
-                      Personalizar Script
+                      {t('humanInbox.chatInput.promptModal.title')}
                     </h3>
-                    <p className="text-xs text-gray-500 font-medium ml-10">Preencha os campos para um envio perfeito</p>
+                    <p className="text-xs text-gray-500 font-medium ml-10">{t('humanInbox.chatInput.promptModal.subtitle')}</p>
                   </div>
                   <button onClick={() => setPromptOpen(false)} className="p-2 text-gray-400 hover:text-gray-950 hover:bg-gray-100 rounded-full transition-all border-none bg-transparent cursor-pointer"><X size={20} /></button>
                 </div>
@@ -1136,7 +1144,7 @@ export const ChatInput = memo(({
                 <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
                   <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 flex gap-3">
                      <div className="text-amber-500 shrink-0"><Info size={18} /></div>
-                     <p className="text-[11px] text-amber-800 leading-relaxed font-medium">Os campos abaixo ajudam a tornar o atendimento mais humanizado. Cada detalhe importa!</p>
+                     <p className="text-[11px] text-amber-800 leading-relaxed font-medium">{t('humanInbox.chatInput.promptModal.hint')}</p>
                   </div>
                   
                   <form className="space-y-5">
@@ -1151,7 +1159,7 @@ export const ChatInput = memo(({
                             onFocus={(e) => e.target.select()}
                             onChange={e => setPromptValues(prev => ({ ...prev, [v]: e.target.value }))}
                             className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 focus:bg-white transition-all shadow-inner"
-                            placeholder={`Ex: Terça-feira às 14h...`}
+                            placeholder={t('humanInbox.chatInput.promptModal.placeholderExample')}
                             onKeyDown={e => {
                               if (e.key === 'Enter') {
                                 e.preventDefault();
@@ -1180,12 +1188,12 @@ export const ChatInput = memo(({
                 </div>
 
                 <div className="p-6 bg-gray-50/50 border-t border-gray-100 flex items-center justify-end gap-3">
-                  <button onClick={() => setPromptOpen(false)} className="px-5 py-2.5 text-xs font-black text-gray-500 hover:text-gray-900 transition-colors border-none bg-transparent cursor-pointer uppercase tracking-widest">Cancelar</button>
-                  <button 
-                    onClick={handlePromptSubmit} 
+                  <button onClick={() => setPromptOpen(false)} className="px-5 py-2.5 text-xs font-black text-gray-500 hover:text-gray-900 transition-colors border-none bg-transparent cursor-pointer uppercase tracking-widest">{t('humanInbox.chatInput.promptModal.cancel')}</button>
+                  <button
+                    onClick={handlePromptSubmit}
                     className="px-6 py-3 text-xs font-black text-white bg-blue-600 hover:bg-blue-700 rounded-2xl shadow-xl shadow-blue-200 transition-all hover:scale-[1.02] active:scale-[0.98] focus:ring-4 focus:ring-blue-100 border-none cursor-pointer uppercase tracking-widest flex items-center gap-2"
                   >
-                    Usar Script
+                    {t('humanInbox.chatInput.promptModal.useScript')}
                     <ArrowRight size={14} />
                   </button>
                 </div>
@@ -1212,10 +1220,10 @@ export const ChatInput = memo(({
               className="absolute bottom-full left-0 z-50 mb-2 w-80 bg-white border border-gray-200 rounded-2xl shadow-xl p-4"
               onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-gray-700">GIFs do Tenor</span>
+                <span className="text-xs font-bold text-gray-700">{t('humanInbox.chatInput.gifPicker.title')}</span>
                 <button onClick={() => setShowGifPicker(false)}><X size={14} /></button>
               </div>
-              <p className="text-xs text-gray-400 italic">Pesquisa de GIFs em breve...</p>
+              <p className="text-xs text-gray-400 italic">{t('humanInbox.chatInput.gifPicker.comingSoon')}</p>
             </motion.div>
           )}
         </AnimatePresence>
@@ -1230,12 +1238,12 @@ export const ChatInput = memo(({
                 <span className="text-sm font-bold text-gray-700 font-mono">
                   {Math.floor(recordingSeconds / 60)}:{String(recordingSeconds % 60).padStart(2, '0')}
                 </span>
-                <span className="text-xs text-gray-400 italic">Gravando áudio...</span>
+                <span className="text-xs text-gray-400 italic">{t('humanInbox.chatInput.recording.inProgress')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={() => { stopRecording(); }}
                   className="px-3 py-1.5 text-xs text-red-600 font-bold hover:bg-red-50 rounded-lg transition-colors">
-                  Cancelar
+                  {t('humanInbox.chatInput.recording.cancel')}
                 </button>
                 <button onClick={stopRecording}
                   className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg">
@@ -1253,7 +1261,7 @@ export const ChatInput = memo(({
               className="absolute bottom-full left-0 right-0 z-50 mb-4 mx-2">
               <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col max-h-[400px]">
                 <div className="p-3 border-b border-gray-50 flex items-center justify-between bg-white/80 backdrop-blur-md">
-                  <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">{selectedFile?.type.startsWith('image/') ? 'Enviar Imagem' : 'Enviar Vídeo'}</span>
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">{selectedFile?.type.startsWith('image/') ? t('humanInbox.chatInput.mediaPreview.sendImage') : t('humanInbox.chatInput.mediaPreview.sendVideo')}</span>
                   <button onClick={clearMediaFile} className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"><X size={18} className="text-gray-400" /></button>
                 </div>
                 <div className="flex-1 bg-gray-900/5 flex items-center justify-center p-4">
@@ -1264,12 +1272,12 @@ export const ChatInput = memo(({
                   )}
                 </div>
                 <div className="p-4 bg-gray-50/50">
-                  <p className="text-[10px] text-gray-400 font-bold uppercase mb-2">Legenda da mídia</p>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase mb-2">{t('humanInbox.chatInput.mediaPreview.captionLabel')}</p>
                   <div className="flex items-end gap-2">
                      <textarea
                         value={input}
                         onChange={handleInputText}
-                        placeholder="Adicione uma legenda..."
+                        placeholder={t('humanInbox.chatInput.mediaPreview.captionPlaceholder')}
                         rows={2}
                         className="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm resize-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all shadow-sm"
                         onKeyDown={handleKeyDown}
@@ -1303,9 +1311,9 @@ export const ChatInput = memo(({
               )}
               <div className="min-w-0">
                 <p className={clsx('font-bold uppercase tracking-tight', editingMsg ? 'text-amber-600' : 'text-blue-600')} style={{ fontSize: 10 }}>
-                  {editingMsg ? 'Editando mensagem' : 'Respondendo'}
+                  {editingMsg ? t('humanInbox.chatInput.replyBar.editing') : t('humanInbox.chatInput.replyBar.replying')}
                 </p>
-                <p className="text-gray-600 truncate">{(editingMsg || replyingTo)?.content || (replyingTo?.media_url ? `[${replyingTo.message_type}]` : '[mídia]')}</p>
+                <p className="text-gray-600 truncate">{(editingMsg || replyingTo)?.content || (replyingTo?.media_url ? t('humanInbox.messageBubble.typePlaceholder', { type: replyingTo.message_type }) : t('humanInbox.messageBubble.mediaPlaceholder'))}</p>
               </div>
             </div>
             <button onClick={onCancelContext} className="text-gray-400 hover:text-gray-600"><X size={13} /></button>
@@ -1320,18 +1328,18 @@ export const ChatInput = memo(({
                 <button onClick={() => setInputMode('message')}
                   className={clsx('flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-bold transition-colors uppercase tracking-tight',
                     inputMode === 'message' ? 'bg-blue-100 text-blue-700' : 'text-gray-400 hover:bg-gray-100')}>
-                  <Send className="w-3 h-3" /> Transmitir
+                  <Send className="w-3 h-3" /> {t('humanInbox.chatInput.modeTabs.broadcast')}
                 </button>
                 <button onClick={() => setInputMode('note')}
                   className={clsx('flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-bold transition-colors uppercase tracking-tight',
                     inputMode === 'note' ? 'bg-amber-100 text-amber-700' : 'text-gray-400 hover:bg-gray-100')}>
-                  <StickyNote className="w-3 h-3" /> Nota Interna
+                  <StickyNote className="w-3 h-3" /> {t('humanInbox.chatInput.modeTabs.internalNote')}
                 </button>
               </div>
               {uploadingMedia && (
                 <div className="flex items-center gap-2 text-blue-600 animate-pulse">
                   <Loader2 size={12} className="animate-spin" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest">Enviando Mídia...</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest">{t('humanInbox.chatInput.sendingMedia')}</span>
                 </div>
               )}
             </div>
@@ -1340,22 +1348,22 @@ export const ChatInput = memo(({
               <div className="flex items-center justify-between px-2 py-1.5 bg-gray-50/50 border-b border-gray-100">
                 <div className="flex items-center gap-0.5">
                   <button onClick={(e) => { e.stopPropagation(); setShowEmojiPicker(!showEmojiPicker) }}
-                    className={clsx("p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-white transition-all", showEmojiPicker && "text-blue-600 bg-white")} title="Emojis">
+                    className={clsx("p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-white transition-all", showEmojiPicker && "text-blue-600 bg-white")} title={t('humanInbox.chatInput.titles.emojis')}>
                     <Smile size={18} />
                   </button>
                   <button onClick={() => fileInputRef.current?.click()}
-                    className="p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-white transition-all" title="Anexar Arquivo">
+                    className="p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-white transition-all" title={t('humanInbox.chatInput.titles.attachFile')}>
                     <Paperclip size={18} />
                   </button>
                   <button onClick={() => cameraInputRef.current?.click()}
-                    className="p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-white transition-all hidden sm:flex" title="Câmera">
+                    className="p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-white transition-all hidden sm:flex" title={t('humanInbox.chatInput.titles.camera')}>
                     <Camera size={18} />
                   </button>
                 </div>
                 <div className="flex items-center gap-0.5">
                   {inputMode === 'message' && (
                     <button onClick={startRecording}
-                      className="p-2 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all" title="Gravar Áudio">
+                      className="p-2 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all" title={t('humanInbox.chatInput.titles.recordAudio')}>
                       <Mic size={18} />
                     </button>
                   )}
@@ -1371,7 +1379,7 @@ export const ChatInput = memo(({
                   onPaste={onPaste}
                   onDragOver={e => e.preventDefault()}
                   onDrop={onDrop}
-                  placeholder={inputMode === 'note' ? 'Escreva uma nota interna privada...' : 'Clique para digitar... (Enter envia)'}
+                  placeholder={inputMode === 'note' ? t('humanInbox.chatInput.placeholder.note') : t('humanInbox.chatInput.placeholder.message')}
                   rows={2}
                   className={clsx('flex-1 resize-none bg-transparent border-none px-3 py-2 text-sm focus:ring-0 placeholder:text-gray-300',
                     inputMode === 'note' ? 'text-amber-900' : 'text-gray-800')}
@@ -1389,7 +1397,7 @@ export const ChatInput = memo(({
             {inputMode === 'note' && (
               <div className="flex items-center gap-1.5 px-1">
                 <StickyNote size={12} className="text-amber-500" />
-                <span className="text-[10px] font-bold text-amber-600 uppercase tracking-tighter">Nota invisível para o paciente</span>
+                <span className="text-[10px] font-bold text-amber-600 uppercase tracking-tighter">{t('humanInbox.chatInput.noteHiddenHint')}</span>
               </div>
             )}
           </div>
@@ -1429,7 +1437,8 @@ function PatientPanel({
   session, patient, appointments, onClose, onUpdateStage, onTransferClick, isOwned, onNewPatient, onLookupPatient, onQuickBook,
   view, onViewChange, onPatientSelected, onViewAppointments, onSendMessage, onReschedule, onAddToWaitlist, onResetReschedule, rescheduleData
 }: PatientPanelProps) {
-  
+  const { t } = useTranslation('communications');
+
   if (view === 'register') {
     const isWhatsApp = !['instagram', 'facebook', 'livechat'].includes(session.channel || '');
     const isValidPhone = isWhatsApp && !/[a-zA-Z]/.test(session.patient_phone || '');
@@ -1470,7 +1479,7 @@ function PatientPanel({
             onViewChange('profile');
           }}
           patientId={patient.id}
-          patientName={patient.full_name || 'Paciente'}
+          patientName={patient.full_name || t('humanInbox.fallbackNames.patient')}
           onSendMessage={onSendMessage}
           rescheduleFrom={rescheduleData}
           onSuccess={() => {
@@ -1488,7 +1497,7 @@ function PatientPanel({
         <SidebarAppointmentsView 
           onBack={() => onViewChange('profile')}
           patientId={patient.id}
-          patientName={patient.full_name || 'Paciente'}
+          patientName={patient.full_name || t('humanInbox.fallbackNames.patient')}
           patientPhone={session.patient_phone}
           onSendMessage={onSendMessage}
           onReschedule={onReschedule}
@@ -1533,7 +1542,7 @@ function PatientPanel({
         <SidebarPaymentView
           onBack={() => onViewChange('profile')}
           patientId={patient.id}
-          patientName={patient.full_name || 'Paciente'}
+          patientName={patient.full_name || t('humanInbox.fallbackNames.patient')}
           onSendLink={onSendMessage}
         />
       </div>
@@ -1565,7 +1574,7 @@ function PatientPanel({
   return (
     <div className="w-full h-full flex flex-col bg-white border-l border-gray-200 overflow-y-auto">
       <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-        <span className="text-sm font-semibold text-gray-700">Info do Paciente</span>
+        <span className="text-sm font-semibold text-gray-700">{t('humanInbox.patientPanel.title')}</span>
         <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
           <X className="w-4 h-4" />
         </button>
@@ -1580,13 +1589,13 @@ function PatientPanel({
             <p className="text-sm font-bold text-gray-900 truncate">
               {patient?.full_name ?? (
                 ['instagram', 'facebook', 'livechat'].includes(session.channel || '')
-                  ? (session.context?.visitor_name || session.context?.username || session.context?.name || (session.channel === 'instagram' ? 'Usuário do Instagram' : session.channel === 'facebook' ? 'Usuário do Messenger' : 'Visitante Web'))
-                  : 'Paciente não cadastrado'
+                  ? (session.context?.visitor_name || session.context?.username || session.context?.name || (session.channel === 'instagram' ? t('humanInbox.fallbackNames.instagramUser') : session.channel === 'facebook' ? t('humanInbox.fallbackNames.messengerUser') : t('humanInbox.fallbackNames.webVisitor')))
+                  : t('humanInbox.fallbackNames.unregisteredPatient')
               )}
             </p>
             <p className="text-xs text-gray-500">
               {['instagram', 'facebook', 'livechat'].includes(session.channel || '')
-                ? (session.channel === 'instagram' ? `Instagram: @${session.context?.username || 'Direct'}` : session.channel === 'facebook' ? 'Facebook Messenger' : 'Live Chat')
+                ? (session.channel === 'instagram' ? `${t('humanInbox.channels.instagram')}: @${session.context?.username || 'Direct'}` : session.channel === 'facebook' ? t('humanInbox.channels.facebookMessenger') : t('humanInbox.channels.liveChat'))
                 : formatPhone(session.patient_phone)}
             </p>
           </div>
@@ -1595,7 +1604,7 @@ function PatientPanel({
           <button 
             onClick={() => onViewChange('edit')}
             className="p-2 rounded-xl text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-all opacity-0 group-hover:opacity-100 border-none bg-transparent cursor-pointer"
-            title="Editar Perfil"
+            title={t('humanInbox.patientPanel.editProfileTitle')}
           >
             <UserPlus className="w-4 h-4" />
           </button>
@@ -1607,7 +1616,7 @@ function PatientPanel({
         <div className="px-4 py-2 bg-amber-50 border-b border-amber-100 flex items-center gap-2">
           <Users className="w-3.5 h-3.5 text-amber-600 shrink-0" />
           <p className="text-[10px] text-amber-800 font-medium">
-            Falando com: <span className="font-bold">{session.context.interlocutor.name}</span> ({session.context.interlocutor.relationship})
+            {t('humanInbox.patientPanel.talkingTo')} <span className="font-bold">{session.context.interlocutor.name}</span> ({session.context.interlocutor.relationship})
           </p>
         </div>
       )}
@@ -1617,7 +1626,7 @@ function PatientPanel({
         <div className="px-4 py-3 bg-amber-50/50 border-b border-amber-100 relative group">
           <div className="flex items-center gap-1.5 mb-1.5">
             <StickyNote className="w-3.5 h-3.5 text-amber-600" />
-            <span className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Notas do Front-Desk</span>
+            <span className="text-[10px] font-black text-amber-700 uppercase tracking-widest">{t('humanInbox.patientPanel.frontDeskNotes')}</span>
           </div>
           <p className="text-xs text-amber-900 leading-relaxed font-medium">
             {patient.notes}
@@ -1648,7 +1657,7 @@ function PatientPanel({
             <div className="flex items-center gap-2 text-xs text-gray-600">
               <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
               <span>
-                Nasc.: <span className="font-medium">
+                {t('humanInbox.patientPanel.birthDatePrefix')} <span className="font-medium">
                   {patient.birth_date && typeof patient.birth_date === 'string' && patient.birth_date.includes('-') 
                     ? formatDisplayDate(patient.birth_date)
                     : (patient.birth_date || '—')}
@@ -1660,22 +1669,22 @@ function PatientPanel({
 
       {/* Upcoming appointments */}
       <div className="p-4 border-b border-gray-100">
-        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Próximas Consultas</p>
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">{t('humanInbox.patientPanel.upcomingAppointments')}</p>
         {appointments.length === 0 ? (
-          <p className="text-xs text-gray-400 italic">Nenhuma consulta agendada</p>
+          <p className="text-xs text-gray-400 italic">{t('humanInbox.patientPanel.noAppointments')}</p>
         ) : (
           <div className="space-y-2">
             {appointments.map((appt: Appointment, i: number) => (
               <div key={i} className="bg-blue-50 rounded-xl p-2.5 text-xs">
-                <p className="font-semibold text-blue-800">{appt.appointment_types?.name ?? 'Consulta'}</p>
+                <p className="font-semibold text-blue-800">{appt.appointment_types?.name ?? t('humanInbox.fallbackNames.appointment')}</p>
                 <p className="text-blue-600 mt-0.5">
-                  {appt.doctors?.full_name ?? 'Médico'} · {appt.locations?.name ?? ''}
+                  {appt.doctors?.full_name ?? t('humanInbox.fallbackNames.doctor')} · {appt.locations?.name ?? ''}
                 </p>
                 <p className="text-blue-500 mt-0.5">
-                  {appt.date && typeof appt.date === 'string' && appt.date.includes('-') 
-                    ? new Date(appt.date + 'T12:00:00').toLocaleDateString('pt-BR') 
+                  {appt.date && typeof appt.date === 'string' && appt.date.includes('-')
+                    ? new Date(appt.date + 'T12:00:00').toLocaleDateString('pt-BR')
                     : (appt.date || '')}
-                  {appt.start_time ? ` às ${String(appt.start_time).substring(0, 5)}` : ''}
+                  {appt.start_time ? ` ${t('humanInbox.patientPanel.atTimePrefix')} ${String(appt.start_time).substring(0, 5)}` : ''}
                 </p>
               </div>
             ))}
@@ -1685,51 +1694,51 @@ function PatientPanel({
 
       {/* Action Toolbar */}
       <div className="p-4 border-b border-gray-100 bg-blue-50/30">
-        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Ações Rápidas</p>
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">{t('humanInbox.patientPanel.quickActions')}</p>
         <div className="grid grid-cols-3 gap-2">
           {!patient ? (
             <>
               <button onClick={onNewPatient} className="flex flex-col items-center gap-1 p-2 rounded-xl transition-all bg-blue-50 text-blue-600 hover:bg-blue-100">
                 <UserPlus size={18} />
-                <span className="text-[9px] font-bold uppercase tracking-tight">Cadastrar</span>
+                <span className="text-[9px] font-bold uppercase tracking-tight">{t('humanInbox.patientPanel.actions.register')}</span>
               </button>
               <button onClick={onLookupPatient} className="flex flex-col items-center gap-1 p-2 rounded-xl transition-all bg-gray-50 text-gray-600 hover:bg-gray-100">
                 <Search size={18} />
-                <span className="text-[9px] font-bold uppercase tracking-tight">Vincular</span>
+                <span className="text-[9px] font-bold uppercase tracking-tight">{t('humanInbox.patientPanel.actions.link')}</span>
               </button>
             </>
           ) : (
             <>
               <button onClick={onQuickBook} className="flex flex-col items-center gap-1 p-2 rounded-xl transition-all bg-blue-50 text-blue-600 hover:bg-blue-100">
                 <Calendar size={18} />
-                <span className="text-[9px] font-bold uppercase tracking-tight">Agendar</span>
+                <span className="text-[9px] font-bold uppercase tracking-tight">{t('humanInbox.patientPanel.actions.schedule')}</span>
               </button>
               <button onClick={onViewAppointments} className="flex flex-col items-center gap-1 p-2 rounded-xl transition-all bg-gray-50 text-gray-600 hover:bg-gray-100">
                 <Clock size={18} />
-                <span className="text-[9px] font-bold uppercase tracking-tight">Consultas</span>
+                <span className="text-[9px] font-bold uppercase tracking-tight">{t('humanInbox.patientPanel.actions.appointments')}</span>
               </button>
               <button onClick={() => onViewChange('payment')} className="flex flex-col items-center gap-1 p-2 rounded-xl transition-all bg-green-50 text-green-600 hover:bg-green-100">
                 <DollarSign size={18} />
-                <span className="text-[9px] font-bold uppercase tracking-tight">Pagamento</span>
+                <span className="text-[9px] font-bold uppercase tracking-tight">{t('humanInbox.patientPanel.actions.payment')}</span>
               </button>
             </>
           )}
           <button onClick={() => onViewChange('availability')} className="flex flex-col items-center gap-1 p-2 rounded-xl transition-all bg-indigo-50 text-indigo-600 hover:bg-indigo-100">
             <CalendarSearch size={18} />
-            <span className="text-[9px] font-bold uppercase tracking-tight">Disponib.</span>
+            <span className="text-[9px] font-bold uppercase tracking-tight">{t('humanInbox.patientPanel.actions.availability')}</span>
           </button>
           <button onClick={() => onViewChange('directory')} className="flex flex-col items-center gap-1 p-2 rounded-xl transition-all bg-slate-50 text-slate-600 hover:bg-slate-100">
             <Building2 size={18} />
-            <span className="text-[9px] font-bold uppercase tracking-tight">Diretório</span>
+            <span className="text-[9px] font-bold uppercase tracking-tight">{t('humanInbox.patientPanel.actions.directory')}</span>
           </button>
           <button onClick={() => onViewChange('classify')} className="flex flex-col items-center gap-1 p-2 rounded-xl transition-all bg-amber-50 text-amber-600 hover:bg-amber-100">
             <Tag size={18} />
-            <span className="text-[9px] font-bold uppercase tracking-tight">Classificar</span>
+            <span className="text-[9px] font-bold uppercase tracking-tight">{t('humanInbox.patientPanel.actions.classify')}</span>
           </button>
           {patient && (
             <button onClick={onAddToWaitlist} className="flex flex-col items-center gap-1 p-2 rounded-xl transition-all bg-purple-50 text-purple-600 hover:bg-purple-100">
               <Clock size={18} />
-              <span className="text-[9px] font-bold uppercase tracking-tight">Espera</span>
+              <span className="text-[9px] font-bold uppercase tracking-tight">{t('humanInbox.patientPanel.actions.waitlist')}</span>
             </button>
           )}
         </div>
@@ -1737,7 +1746,7 @@ function PatientPanel({
 
       {/* Kanban Classification */}
       <div className="p-4 border-b border-gray-100">
-        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Classificação Kanban</p>
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">{t('humanInbox.patientPanel.kanbanClassification')}</p>
         <select
           value={session.kanban_stage || 'Novos Leads'}
           onChange={(e) => onUpdateStage(e.target.value)}
@@ -1748,7 +1757,7 @@ function PatientPanel({
           ))}
         </select>
         <p className="text-[10px] text-gray-400 mt-1.5 leading-tight">
-          Altere o estágio do funil aqui para refletir no Painel de Follow-up (Kanban).
+          {t('humanInbox.patientPanel.kanbanHint')}
         </p>
       </div>
 
@@ -1760,7 +1769,7 @@ function PatientPanel({
               className="w-full mt-2 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 transition-colors text-xs text-gray-800 font-bold"
           >
               <ArrowRightLeft className="w-4 h-4 text-indigo-600" />
-              Transferir Atendimento
+              {t('humanInbox.patientPanel.transferAction')}
           </button>
         </div>
       )}
@@ -1773,6 +1782,7 @@ function PatientPanel({
 // ─────────────────────────────────────────────
 
 export function HumanInboxPage() {
+  const { t } = useTranslation('communications')
   const { showToast, showConfirm } = useToast()
   const [tenantId, setTenantId]       = useState<string | null>(null)
   const [userId, setUserId]           = useState<string | null>(null)
@@ -1906,7 +1916,7 @@ export function HumanInboxPage() {
       if (data?.error) throw new Error(data.error)
       onCancelContext() // Clear reply/edit context after successful send
     } catch (err: any) {
-      showToast('error', 'Erro ao enviar mídia: ' + err.message)
+      showToast('error', t('humanInbox.main.toasts.sendMediaError', { message: err.message }))
     } finally {
       setUploadingMedia(false)
     }
@@ -1964,8 +1974,8 @@ export function HumanInboxPage() {
 
   // ── SLA tick ──────────────────────────────────
   useEffect(() => {
-    const t = setInterval(() => setTick(n => n + 1), 30_000)
-    return () => clearInterval(t)
+    const interval = setInterval(() => setTick(n => n + 1), 30_000)
+    return () => clearInterval(interval)
   }, [])
 
   // ── Load team users ───────────────────────────
@@ -2261,8 +2271,8 @@ export function HumanInboxPage() {
     })
     if (error || !data?.success) {
       showToast('error', data?.reason === 'already_being_claimed'
-        ? 'Outro atendente está assumindo esta conversa.'
-        : `Erro: ${data?.reason ?? error?.message}`)
+        ? t('humanInbox.main.toasts.alreadyClaimed')
+        : t('humanInbox.main.toasts.genericError', { reason: data?.reason ?? error?.message }))
     } else {
       setSelected(prev => prev
         ? { ...prev, omnichannel_status: 'human_active', assigned_to_user_id: userId }
@@ -2286,7 +2296,7 @@ export function HumanInboxPage() {
       if (!error) {
         setMessages(prev => prev.map(m => m.id === editingMsg.id ? { ...m, content: text, is_edited: true } : m))
       } else {
-        showToast('error', 'Erro ao editar: ' + error.message)
+        showToast('error', t('humanInbox.main.toasts.editError', { message: error.message }))
       }
       setEditingMsg(null)
       setSending(false)
@@ -2312,7 +2322,7 @@ export function HumanInboxPage() {
 
     if (mode === 'note') {
       if (!patient) {
-        showToast('warning', 'Vincule o paciente primeiro para salvar notas no Perfil.')
+        showToast('warning', t('humanInbox.main.toasts.linkPatientFirst'))
         setMessages(prev => prev.filter(m => m.id !== tempId))
         setSending(false)
         return
@@ -2321,7 +2331,7 @@ export function HumanInboxPage() {
       if (!pError) setPatient(prev => prev ? { ...prev, notes: text } : prev)
       const { error } = await supabase.from('conversation_messages').insert({ session_id: selected.id, role: 'internal', content: text })
       if (error) {
-        showToast('error', 'Erro ao salvar nota: ' + error.message)
+        showToast('error', t('humanInbox.main.toasts.saveNoteError', { message: error.message }))
         setMessages(prev => prev.filter(m => m.id !== tempId))
       }
     } else {
@@ -2331,7 +2341,7 @@ export function HumanInboxPage() {
         headers: { Authorization: `Bearer ${authSession?.access_token}` }
       })
       if (res.error || res.data?.error) {
-        showToast('error', 'Erro ao enviar: ' + (res.error?.message || res.data?.error))
+        showToast('error', t('humanInbox.main.toasts.sendError', { message: res.error?.message || res.data?.error }))
         setMessages(prev => prev.filter(m => m.id !== tempId))
       }
     }
@@ -2362,7 +2372,7 @@ export function HumanInboxPage() {
       await supabase.functions.invoke('send-human-message', {
         body: {
           session_id: targetSessionId,
-          text: forwardMsg.content || '[Mídia]',
+          text: forwardMsg.content || t('humanInbox.main.forwardModal.mediaFallback'),
           tenant_id: tenantId,
           user_id: userId,
         },
@@ -2395,7 +2405,7 @@ export function HumanInboxPage() {
       headers: { Authorization: `Bearer ${authSession?.access_token}` }
     })
     if (error) {
-      showToast('error', 'Erro ao enviar link: ' + error.message)
+      showToast('error', t('humanInbox.main.toasts.sendLinkError', { message: error.message }))
     }
   }
 
@@ -2416,9 +2426,9 @@ export function HumanInboxPage() {
         setShowTransferModal(false);
         setSelected(null);
         await loadSessions();
-        showToast('success', 'Atendimento transferido com sucesso!');
+        showToast('success', t('humanInbox.main.toasts.transferSuccess'));
     } else {
-        showToast('error', 'Erro ao transferir: ' + (data?.reason || error?.message));
+        showToast('error', t('humanInbox.main.toasts.transferError', { reason: data?.reason || error?.message }));
     }
   }
 
@@ -2436,7 +2446,7 @@ export function HumanInboxPage() {
   const handleDeleteMessage = useCallback(async (msg: Message) => {
     if (!selected || !tenantId || !userId) return
     
-    const confirmDelete = await showConfirm("Deseja realmente apagar esta mensagem para todos?");
+    const confirmDelete = await showConfirm(t('humanInbox.main.toasts.deleteMessageConfirm'));
     if (!confirmDelete) return;
 
     // Optimistic UI update
@@ -2459,10 +2469,10 @@ export function HumanInboxPage() {
         throw new Error(error?.message || data?.error);
       }
 
-      showToast('success', 'Mensagem apagada com sucesso');
+      showToast('success', t('humanInbox.main.toasts.deleteMessageSuccess'));
     } catch (err: any) {
       console.error('Delete message error:', err);
-      showToast('error', 'Erro ao apagar mensagem: ' + err.message);
+      showToast('error', t('humanInbox.main.toasts.deleteMessageError', { message: err.message }));
       // Revert optimistic update on error
       setMessages(previousMessages);
     }
@@ -2526,7 +2536,7 @@ export function HumanInboxPage() {
         <div className="flex items-center justify-between w-full h-full px-1 lg:px-2 gap-2 lg:gap-4">
           {/* Left: Channels segmented control */}
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar flex-1 min-w-0">
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 select-none hidden lg:block shrink-0">Canais:</span>
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 select-none hidden lg:block shrink-0">{t('humanInbox.main.channelsLabel')}</span>
             <div className="flex bg-slate-100/90 border border-slate-200/60 p-0.5 rounded-xl shrink-0 gap-0.5">
                <button
                   onClick={() => setChannelFilter('all')}
@@ -2537,7 +2547,7 @@ export function HumanInboxPage() {
                       : "text-slate-500 hover:text-slate-900 hover:bg-slate-200/50"
                   )}
                 >
-                  Todos
+                  {t('humanInbox.main.all')}
                   <span className={clsx(
                     "px-1.5 py-0.5 rounded-full text-[9px] font-extrabold transition-all",
                     channelFilter === 'all' ? "bg-slate-100 text-slate-600" : "bg-slate-200/50 text-slate-500"
@@ -2554,7 +2564,7 @@ export function HumanInboxPage() {
                       : "text-slate-500 hover:text-slate-900 hover:bg-slate-200/50"
                   )}
                 >
-                  WhatsApp
+                  {t('humanInbox.channels.whatsapp')}
                   <span className={clsx(
                     "px-1.5 py-0.5 rounded-full text-[9px] font-extrabold transition-all",
                     channelFilter === 'whatsapp' ? "bg-white/20 text-white" : "bg-slate-200/50 text-slate-500"
@@ -2571,7 +2581,7 @@ export function HumanInboxPage() {
                       : "text-slate-500 hover:text-slate-900 hover:bg-slate-200/50"
                   )}
                 >
-                  Live Chat
+                  {t('humanInbox.channels.liveChat')}
                   <span className={clsx(
                     "px-1.5 py-0.5 rounded-full text-[9px] font-extrabold transition-all",
                     channelFilter === 'livechat' ? "bg-white/20 text-white" : "bg-slate-200/50 text-slate-500"
@@ -2588,7 +2598,7 @@ export function HumanInboxPage() {
                       : "text-slate-500 hover:text-slate-900 hover:bg-slate-200/50"
                   )}
                 >
-                  Instagram
+                  {t('humanInbox.channels.instagram')}
                   <span className={clsx(
                     "px-1.5 py-0.5 rounded-full text-[9px] font-extrabold transition-all",
                     channelFilter === 'instagram' ? "bg-white/20 text-white" : "bg-slate-200/50 text-slate-500"
@@ -2605,7 +2615,7 @@ export function HumanInboxPage() {
                       : "text-slate-500 hover:text-slate-900 hover:bg-slate-200/50"
                   )}
                 >
-                  Messenger
+                  {t('humanInbox.channels.messenger')}
                   <span className={clsx(
                     "px-1.5 py-0.5 rounded-full text-[9px] font-extrabold transition-all",
                     channelFilter === 'facebook' ? "bg-white/20 text-white" : "bg-slate-200/50 text-slate-500"
@@ -2622,7 +2632,7 @@ export function HumanInboxPage() {
               onClick={() => setStageDropdownOpen(!stageDropdownOpen)}
               className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition-all font-bold text-xs cursor-pointer shadow-sm"
             >
-              <span className="text-slate-400 font-extrabold text-[9px] uppercase tracking-wider hidden lg:inline-block">Estágio:</span>
+              <span className="text-slate-400 font-extrabold text-[9px] uppercase tracking-wider hidden lg:inline-block">{t('humanInbox.main.stageLabel')}</span>
               <span className={clsx(
                 "px-1 py-0.5 rounded-lg text-xs font-bold",
                 selectedStage === 'Todos' ? "text-indigo-600" :
@@ -2640,7 +2650,7 @@ export function HumanInboxPage() {
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setStageDropdownOpen(false)} />
                 <div className="absolute right-0 mt-2 w-64 bg-white/95 backdrop-blur-xl border border-slate-200/80 rounded-2xl shadow-xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                  <div className="px-3 py-1 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 mb-1">Selecionar Estágio</div>
+                  <div className="px-3 py-1 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 mb-1">{t('humanInbox.main.selectStage')}</div>
                   <button
                     onClick={() => { setSelectedStage('Todos'); setStageDropdownOpen(false); }}
                     className={clsx(
@@ -2648,7 +2658,7 @@ export function HumanInboxPage() {
                       selectedStage === 'Todos' ? "text-indigo-600 bg-indigo-50/50" : "text-slate-700"
                     )}
                   >
-                    <span>Todos</span>
+                    <span>{t('humanInbox.main.all')}</span>
                     <span className="px-1.5 py-0.5 rounded-full text-[9px] font-extrabold bg-slate-100 text-slate-500">{stageCounts.Todos}</span>
                   </button>
                   <div className="h-px bg-slate-100 my-1" />
@@ -2691,7 +2701,7 @@ export function HumanInboxPage() {
         <div className="px-4 py-4 border-b border-gray-100 space-y-3">
           <div className="flex items-center gap-2">
             <Inbox className="w-4 h-4 text-blue-600" />
-            <h1 className="text-sm font-bold text-gray-900">Atendimento Humano</h1>
+            <h1 className="text-sm font-bold text-gray-900">{t('humanInbox.main.headerTitle')}</h1>
           </div>
 
           {/* Search */}
@@ -2701,7 +2711,7 @@ export function HumanInboxPage() {
               <input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                placeholder="Buscar paciente..."
+                placeholder={t('humanInbox.main.searchPlaceholder')}
                 className="flex-1 bg-transparent text-xs outline-none placeholder:text-gray-400"
               />
             </div>
@@ -2717,7 +2727,7 @@ export function HumanInboxPage() {
                 tab === 'all' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50',
               )}
             >
-              Todos
+              {t('humanInbox.main.tabs.all')}
               {allCount > 0 && (
                 <span className={clsx(
                   'inline-flex items-center justify-center h-4 px-1.5 rounded-full text-[9px] font-black',
@@ -2734,7 +2744,7 @@ export function HumanInboxPage() {
                 tab === 'queued' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50',
               )}
             >
-              Fila
+              {t('humanInbox.main.tabs.queue')}
               {queuedCount > 0 && (
                 <span className={clsx(
                   'inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-black',
@@ -2751,7 +2761,7 @@ export function HumanInboxPage() {
                 tab === 'mine' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50',
               )}
             >
-              Meus
+              {t('humanInbox.main.tabs.mine')}
               {myCount > 0 && (
                 <span className={clsx(
                   'inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-black',
@@ -2774,7 +2784,7 @@ export function HumanInboxPage() {
             <div className="flex flex-col items-center justify-center h-32 text-gray-400 gap-2">
               <MessageCircle className="w-7 h-7 opacity-40" />
               <p className="text-xs">
-                {search ? 'Nenhum resultado' : tab === 'queued' ? 'Fila vazia' : 'Sem atendimentos ativos'}
+                {search ? t('humanInbox.main.list.noResults') : tab === 'queued' ? t('humanInbox.main.list.queueEmpty') : t('humanInbox.main.list.noActiveConversations')}
               </p>
             </div>
           ) : (
@@ -2806,7 +2816,7 @@ export function HumanInboxPage() {
               <button
                 onClick={() => setSelected(null)}
                 className="lg:hidden p-1 mr-1 hover:bg-slate-100 rounded-lg text-slate-500 cursor-pointer"
-                title="Voltar para a lista"
+                title={t('humanInbox.main.backToList')}
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
@@ -2827,7 +2837,7 @@ export function HumanInboxPage() {
                   {patient?.full_name
                     ? patient.full_name
                     : (selected.channel === 'livechat' || selected.channel === 'instagram' || selected.channel === 'facebook')
-                    ? (selected.context?.visitor_name || selected.context?.username || selected.context?.name || (selected.channel === 'instagram' ? 'Usuário do Instagram' : selected.channel === 'facebook' ? 'Usuário do Messenger' : 'Visitante Web'))
+                    ? (selected.context?.visitor_name || selected.context?.username || selected.context?.name || (selected.channel === 'instagram' ? t('humanInbox.fallbackNames.instagramUser') : selected.channel === 'facebook' ? t('humanInbox.fallbackNames.messengerUser') : t('humanInbox.fallbackNames.webVisitor')))
                     : `${phoneFlag(selected.patient_phone)} ${formatPhone(selected.patient_phone)}`}
                 </p>
                 <div className="flex items-center gap-2 mt-0.5">
@@ -2835,7 +2845,7 @@ export function HumanInboxPage() {
                   {selected.omnichannel_status === 'queued' && (
                     <span className={clsx('text-[11px]', slaColor(selected.updated_at))}>
                       <Clock className="w-3 h-3 inline mr-0.5" />
-                      aguardando {slaLabel(selected.updated_at)}
+                      aguardando {slaLabel(selected.updated_at, t('humanInbox.sla.now'))}
                     </span>
                   )}
                 </div>
@@ -2850,7 +2860,7 @@ export function HumanInboxPage() {
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 disabled:opacity-60 transition-colors"
                 >
                   {claiming ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <PhoneCall className="w-3.5 h-3.5" />}
-                  Assumir
+                  {t('humanInbox.main.claim')}
                 </button>
               )}
               {isOwned && (
@@ -2858,7 +2868,7 @@ export function HumanInboxPage() {
                   onClick={handleClose}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-red-200 text-red-600 text-xs font-medium hover:bg-red-50 transition-colors"
                 >
-                  <XCircle className="w-3.5 h-3.5" /> Encerrar
+                  <XCircle className="w-3.5 h-3.5" /> {t('humanInbox.main.close')}
                 </button>
               )}
               <button
@@ -2869,7 +2879,7 @@ export function HumanInboxPage() {
                     ? 'bg-blue-50 border-blue-200 text-blue-600'
                     : 'border-gray-200 text-gray-400 hover:bg-gray-50',
                 )}
-                title="Painel do paciente"
+                title={t('humanInbox.main.patientPanelTitle')}
               >
                 <Info className="w-4 h-4" />
               </button>
@@ -2885,7 +2895,7 @@ export function HumanInboxPage() {
             ) : messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-32 text-gray-400 gap-2">
                 <MessageCircle className="w-8 h-8 opacity-30" />
-                <p className="text-xs">Sem mensagens anteriores</p>
+                <p className="text-xs">{t('humanInbox.main.noPreviousMessages')}</p>
               </div>
             ) : (
               <>
@@ -2942,17 +2952,17 @@ export function HumanInboxPage() {
               <MessageCircle className="w-8 h-8 opacity-30" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-gray-500">Selecione uma conversa</p>
+              <p className="text-sm font-semibold text-gray-500">{t('humanInbox.main.selectConversation')}</p>
               <p className="text-xs text-gray-400 mt-1">
                 {queuedCount > 0
-                  ? `${queuedCount} conversa${queuedCount > 1 ? 's' : ''} aguardando atendimento`
-                  : 'Nenhuma conversa na fila'}
+                  ? t('humanInbox.main.queueWaiting', { count: queuedCount })
+                  : t('humanInbox.main.queueEmptyLong')}
               </p>
             </div>
             {queuedCount > 0 && (
               <div className="flex items-center justify-center gap-1.5 text-xs text-amber-600 animate-pulse">
                 <AlertTriangle className="w-3.5 h-3.5" />
-                Atendimento necessário
+                {t('humanInbox.main.attendanceNeeded')}
               </div>
             )}
           </div>
@@ -3018,9 +3028,9 @@ export function HumanInboxPage() {
                   status: 'active'
                 });
                 if (error) {
-                  showToast('error', 'Erro ao adicionar à lista de espera: ' + error.message);
+                  showToast('error', t('humanInbox.main.toasts.waitlistError', { message: error.message }));
                 } else {
-                  showToast('success', 'Paciente adicionado à lista de espera com sucesso! ✅');
+                  showToast('success', t('humanInbox.main.toasts.waitlistSuccess'));
                 }
               }}
             />
@@ -3044,7 +3054,7 @@ export function HumanInboxPage() {
               <div className="p-4 border-b border-gray-100 flex items-center justify-between">
                 <h3 className="font-bold text-gray-900 flex items-center gap-2">
                   <Forward className="w-4 h-4 text-green-600" />
-                  Encaminhar Mensagem
+                  {t('humanInbox.main.forwardModal.title')}
                 </h3>
                 <button onClick={() => setForwardMsg(null)} className="text-gray-400 hover:text-gray-600 border-none bg-transparent cursor-pointer">
                   <X className="w-5 h-5" />
@@ -3054,18 +3064,18 @@ export function HumanInboxPage() {
               {/* Message preview */}
               <div className="px-4 pt-3">
                 <div className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs text-gray-600 truncate italic">
-                  "{forwardMsg.content || forwardMsg.caption || forwardMsg.file_name || '[mídia]'}"
+                  "{forwardMsg.content || forwardMsg.caption || forwardMsg.file_name || t('humanInbox.messageBubble.mediaPlaceholder')}"
                 </div>
               </div>
 
               <div className="p-4">
                 <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-3">
-                  Encaminhar para conversa
+                  {t('humanInbox.main.forwardModal.forwardTo')}
                 </label>
                 <div className="space-y-1.5 max-h-[280px] overflow-y-auto">
                   {sessions.filter(s => s.id !== selected?.id && s.omnichannel_status !== 'closed').length === 0 ? (
                     <p className="text-xs text-gray-400 text-center py-4 bg-gray-50 rounded-lg border border-dashed border-gray-200">
-                      Nenhuma outra conversa ativa.
+                      {t('humanInbox.main.forwardModal.noOtherConversations')}
                     </p>
                   ) : (
                     sessions
@@ -3083,13 +3093,13 @@ export function HumanInboxPage() {
                             <p className="text-xs font-bold text-gray-800 truncate">
                               {patientNames[s.patient_phone] ?? (
                                 ['instagram', 'facebook', 'livechat'].includes(s.channel || '')
-                                  ? (s.context?.visitor_name || s.context?.username || s.context?.name || (s.channel === 'instagram' ? 'Usuário do Instagram' : s.channel === 'facebook' ? 'Usuário do Messenger' : 'Visitante Web'))
+                                  ? (s.context?.visitor_name || s.context?.username || s.context?.name || (s.channel === 'instagram' ? t('humanInbox.fallbackNames.instagramUser') : s.channel === 'facebook' ? t('humanInbox.fallbackNames.messengerUser') : t('humanInbox.fallbackNames.webVisitor')))
                                   : formatPhone(s.patient_phone)
                               )}
                             </p>
                             <p className="text-[10px] text-gray-400 truncate">
                               {['instagram', 'facebook', 'livechat'].includes(s.channel || '')
-                                ? (s.channel === 'instagram' ? `Instagram: @${s.context?.username || 'Direct'}` : s.channel === 'facebook' ? 'Facebook Messenger' : 'Live Chat')
+                                ? (s.channel === 'instagram' ? `${t('humanInbox.channels.instagram')}: @${s.context?.username || 'Direct'}` : s.channel === 'facebook' ? t('humanInbox.channels.facebookMessenger') : t('humanInbox.channels.liveChat'))
                                 : s.patient_phone}
                             </p>
                           </div>
@@ -3120,7 +3130,7 @@ export function HumanInboxPage() {
               <div className="p-4 border-b border-gray-100 flex items-center justify-between">
                 <h3 className="font-bold text-gray-900 flex items-center gap-2">
                   <ArrowRightLeft className="w-4 h-4 text-indigo-600" />
-                  Transferir Atendimento
+                  {t('humanInbox.patientPanel.transferAction')}
                 </h3>
                 <button onClick={() => setShowTransferModal(false)} className="text-gray-400 hover:text-gray-600 border-none bg-transparent cursor-pointer">
                   <X className="w-5 h-5" />
@@ -3129,12 +3139,12 @@ export function HumanInboxPage() {
               
               <div className="p-5">
                 <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-3">
-                  Selecione o membro da equipe
+                  {t('humanInbox.main.transferModal.selectMember')}
                 </label>
                 <div className="space-y-2 max-h-[300px] overflow-y-auto">
                   {teamUsers.length === 0 ? (
                     <p className="text-xs text-gray-400 text-center py-4 bg-gray-50 rounded-lg border border-dashed border-gray-200">
-                      Nenhum outro usuário disponível.
+                      {t('humanInbox.main.transferModal.noOtherUsers')}
                     </p>
                   ) : (
                     teamUsers.map(user => (
@@ -3151,7 +3161,7 @@ export function HumanInboxPage() {
                         </div>
                         <div>
                           <p className={clsx("text-xs font-bold", selectedUserToTransfer === user.id ? "text-indigo-900" : "text-gray-800")}>{user.full_name}</p>
-                          <p className="text-[10px] text-gray-500 capitalize">{user.role || 'Membro'}</p>
+                          <p className="text-[10px] text-gray-500 capitalize">{user.role || t('humanInbox.fallbackNames.member')}</p>
                         </div>
                       </button>
                     ))
@@ -3163,14 +3173,14 @@ export function HumanInboxPage() {
                     onClick={() => setShowTransferModal(false)}
                     className="flex-1 py-2 text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors border-none cursor-pointer"
                   >
-                    Cancelar
+                    {t('humanInbox.main.transferModal.cancel')}
                   </button>
                   <button
                     onClick={handleTransfer}
                     disabled={!selectedUserToTransfer || transferring}
                     className="flex-1 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-colors border-none cursor-pointer flex justify-center items-center gap-2"
                   >
-                    {transferring ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Confirmar'}
+                    {transferring ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : t('humanInbox.main.transferModal.confirm')}
                   </button>
                 </div>
               </div>

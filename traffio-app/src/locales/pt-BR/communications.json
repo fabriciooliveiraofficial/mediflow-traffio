@@ -59,5 +59,195 @@
       "voiceSuffix": "Voz",
       "smsSuffix": "SMS"
     }
+  },
+  "humanInbox": {
+    "sla": { "now": "agora" },
+    "statusBadge": {
+      "botActive": "Bot Ativo",
+      "queued": "Aguardando",
+      "humanActive": "Em Atendimento",
+      "closed": "Encerrado"
+    },
+    "temperature": { "cold": "Frio", "warm": "Morno", "hot": "Quente" },
+    "priority": { "low": "Baixa", "medium": "Média", "high": "Alta", "urgent": "Urgente" },
+    "channels": {
+      "liveChat": "Live Chat",
+      "instagram": "Instagram",
+      "messenger": "Messenger",
+      "whatsapp": "WhatsApp",
+      "instagramDirect": "Instagram Direct",
+      "facebookMessenger": "Facebook Messenger"
+    },
+    "fallbackNames": {
+      "instagramUser": "Usuário do Instagram",
+      "messengerUser": "Usuário do Messenger",
+      "webVisitor": "Visitante Web",
+      "unregisteredPatient": "Paciente não cadastrado",
+      "patient": "Paciente",
+      "doctor": "Médico",
+      "appointment": "Consulta",
+      "clinicName": "Nossa Clínica",
+      "member": "Membro"
+    },
+    "conversationRow": {
+      "stageTitlePrefix": "Estágio:",
+      "noMessages": "Sem mensagens",
+      "waiting": "aguardando"
+    },
+    "audioPlayer": { "label": "WhatsApp Audio" },
+    "messageBubble": {
+      "mediaAlt": "Mídia",
+      "gifAlt": "GIF",
+      "documentFallback": "Documento",
+      "mimeFallback": "PDF",
+      "sizeFallback": "Arquivo",
+      "internalNote": "Nota interna",
+      "copy": "Copiar",
+      "reply": "Responder",
+      "edit": "Editar",
+      "forward": "Encaminhar",
+      "deleteForEveryone": "Apagar para todos",
+      "mediaPlaceholder": "[mídia]",
+      "typePlaceholder": "[{{type}}]",
+      "edited": "editada"
+    },
+    "chatInput": {
+      "gateClaimToReply": "Assuma a conversa para responder",
+      "gateClosed": "Conversa encerrada",
+      "gateReadOnly": "Em atendimento por outro vendedor. Apenas leitura permitida.",
+      "toasts": {
+        "audioSendError": "Erro ao enviar áudio: {{message}}",
+        "micPermissionDenied": "Permissão de microfone negada. Verifique as configurações do seu navegador.",
+        "micAccessError": "Erro ao acessar microfone: {{message}}",
+        "fileSendError": "Erro ao enviar arquivo: {{message}}"
+      },
+      "scripts": {
+        "title": "Scripts Inteligentes",
+        "manageTitle": "Gerenciar Scripts",
+        "navigateHint": "↑↓ Navegar",
+        "noneFound": "Nenhum script encontrado",
+        "create": "Criar Script",
+        "deleteConfirm": "Deseja excluir o script \"{{title}}\"?",
+        "customizeEdit": "Personalizar (Editar)",
+        "editScript": "Editar script",
+        "deleteScript": "Excluir script"
+      },
+      "promptModal": {
+        "title": "Personalizar Script",
+        "subtitle": "Preencha os campos para um envio perfeito",
+        "hint": "Os campos abaixo ajudam a tornar o atendimento mais humanizado. Cada detalhe importa!",
+        "placeholderExample": "Ex: Terça-feira às 14h...",
+        "cancel": "Cancelar",
+        "useScript": "Usar Script"
+      },
+      "gifPicker": {
+        "title": "GIFs do Tenor",
+        "comingSoon": "Pesquisa de GIFs em breve..."
+      },
+      "recording": {
+        "cancel": "Cancelar",
+        "inProgress": "Gravando áudio..."
+      },
+      "mediaPreview": {
+        "sendImage": "Enviar Imagem",
+        "sendVideo": "Enviar Vídeo",
+        "captionLabel": "Legenda da mídia",
+        "captionPlaceholder": "Adicione uma legenda..."
+      },
+      "replyBar": {
+        "editing": "Editando mensagem",
+        "replying": "Respondendo"
+      },
+      "modeTabs": {
+        "broadcast": "Transmitir",
+        "internalNote": "Nota Interna"
+      },
+      "sendingMedia": "Enviando Mídia...",
+      "titles": {
+        "emojis": "Emojis",
+        "attachFile": "Anexar Arquivo",
+        "camera": "Câmera",
+        "recordAudio": "Gravar Áudio"
+      },
+      "placeholder": {
+        "note": "Escreva uma nota interna privada...",
+        "message": "Clique para digitar... (Enter envia)"
+      },
+      "noteHiddenHint": "Nota invisível para o paciente"
+    },
+    "patientPanel": {
+      "title": "Info do Paciente",
+      "editProfileTitle": "Editar Perfil",
+      "talkingTo": "Falando com:",
+      "frontDeskNotes": "Notas do Front-Desk",
+      "birthDatePrefix": "Nasc.:",
+      "upcomingAppointments": "Próximas Consultas",
+      "noAppointments": "Nenhuma consulta agendada",
+      "atTimePrefix": "às",
+      "quickActions": "Ações Rápidas",
+      "actions": {
+        "register": "Cadastrar",
+        "link": "Vincular",
+        "schedule": "Agendar",
+        "appointments": "Consultas",
+        "payment": "Pagamento",
+        "availability": "Disponib.",
+        "directory": "Diretório",
+        "classify": "Classificar",
+        "waitlist": "Espera"
+      },
+      "kanbanClassification": "Classificação Kanban",
+      "kanbanHint": "Altere o estágio do funil aqui para refletir no Painel de Follow-up (Kanban).",
+      "transferAction": "Transferir Atendimento"
+    },
+    "main": {
+      "headerTitle": "Atendimento Humano",
+      "searchPlaceholder": "Buscar paciente...",
+      "tabs": { "all": "Todos", "queue": "Fila", "mine": "Meus" },
+      "list": { "noResults": "Nenhum resultado", "queueEmpty": "Fila vazia", "noActiveConversations": "Sem atendimentos ativos" },
+      "backToList": "Voltar para a lista",
+      "claim": "Assumir",
+      "close": "Encerrar",
+      "patientPanelTitle": "Painel do paciente",
+      "noPreviousMessages": "Sem mensagens anteriores",
+      "selectConversation": "Selecione uma conversa",
+      "queueWaiting_one": "{{count}} conversa aguardando atendimento",
+      "queueWaiting_other": "{{count}} conversas aguardando atendimento",
+      "queueEmptyLong": "Nenhuma conversa na fila",
+      "attendanceNeeded": "Atendimento necessário",
+      "channelsLabel": "Canais:",
+      "stageLabel": "Estágio:",
+      "selectStage": "Selecionar Estágio",
+      "all": "Todos",
+      "toasts": {
+        "alreadyClaimed": "Outro atendente está assumindo esta conversa.",
+        "genericError": "Erro: {{reason}}",
+        "editError": "Erro ao editar: {{message}}",
+        "linkPatientFirst": "Vincule o paciente primeiro para salvar notas no Perfil.",
+        "saveNoteError": "Erro ao salvar nota: {{message}}",
+        "sendError": "Erro ao enviar: {{message}}",
+        "sendMediaError": "Erro ao enviar mídia: {{message}}",
+        "sendLinkError": "Erro ao enviar link: {{message}}",
+        "deleteMessageConfirm": "Deseja realmente apagar esta mensagem para todos?",
+        "deleteMessageSuccess": "Mensagem apagada com sucesso",
+        "deleteMessageError": "Erro ao apagar mensagem: {{message}}",
+        "transferSuccess": "Atendimento transferido com sucesso!",
+        "transferError": "Erro ao transferir: {{reason}}",
+        "waitlistError": "Erro ao adicionar à lista de espera: {{message}}",
+        "waitlistSuccess": "Paciente adicionado à lista de espera com sucesso! ✅"
+      },
+      "forwardModal": {
+        "title": "Encaminhar Mensagem",
+        "forwardTo": "Encaminhar para conversa",
+        "noOtherConversations": "Nenhuma outra conversa ativa.",
+        "mediaFallback": "[Mídia]"
+      },
+      "transferModal": {
+        "selectMember": "Selecione o membro da equipe",
+        "noOtherUsers": "Nenhum outro usuário disponível.",
+        "cancel": "Cancelar",
+        "confirm": "Confirmar"
+      }
+    }
   }
 }

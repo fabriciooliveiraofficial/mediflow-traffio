@@ -244,7 +244,7 @@ serve(async (req: Request) => {
 
             // Se o número agora está ativo na Telnyx, marcar o pedido correspondente como concluído
             if (isTelnyxActive) {
-              const matchedOrder = (localOrders ?? []).find(o => o.phone_number === num.phone_number);
+              const matchedOrder = (localOrders ?? []).find((o: any) => o.phone_number === num.phone_number);
               if (matchedOrder) {
                 await supabase
                   .from("number_order_requests")
@@ -264,7 +264,7 @@ serve(async (req: Request) => {
               }
             } else {
               // Se não está ativo, mas tem pedido pendente, atualizar o status do pedido se houve erro
-              const matchedOrder = (localOrders ?? []).find(o => o.phone_number === num.phone_number);
+              const matchedOrder = (localOrders ?? []).find((o: any) => o.phone_number === num.phone_number);
               if (matchedOrder) {
                 let newStatus = "under_review";
                 let rejectionReason = null;
@@ -299,31 +299,38 @@ serve(async (req: Request) => {
             }
           } else {
             // Número não existe na Telnyx (excluído/liberado)
-            await supabase
-              .from("tenant_phone_numbers")
-              .update({
-                is_active: false,
-                released_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-              })
-              .eq("id", num.id);
-
-            syncedNumbers.push({
-              phone_number: num.phone_number,
-              is_active: false,
-              status: "released",
-            });
-
-            // Se tem pedido associado, cancelá-lo
-            const matchedOrder = (localOrders ?? []).find(o => o.phone_number === num.phone_number);
-            if (matchedOrder) {
+            // Apenas inativamos se já tínhamos o telnyx_number_id cadastrado e a busca falhou.
+            // Se não temos o ID ainda, pode ser delay de indexação da API da Telnyx.
+            if (num.telnyx_number_id) {
               await supabase
-                .from("number_order_requests")
+                .from("tenant_phone_numbers")
                 .update({
-                  status: "cancelled",
+                  is_active: false,
+                  released_at: new Date().toISOString(),
                   updated_at: new Date().toISOString(),
                 })
-                .eq("id", matchedOrder.id);
+                .eq("id", num.id);
+
+              syncedNumbers.push({
+                phone_number: num.phone_number,
+                is_active: false,
+                status: "released",
+              });
+
+              // Se tem pedido associado, cancelá-lo
+              const matchedOrder = (localOrders ?? []).find((o: any) => o.phone_number === num.phone_number);
+              if (matchedOrder) {
+                await supabase
+                  .from("number_order_requests")
+                  .update({
+                    status: "cancelled",
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq("id", matchedOrder.id);
+              }
+            } else {
+              console.warn(`[telnyx-numbers] Número ${num.phone_number} não encontrado na busca por string e sem telnyx_number_id. Ignorando desativação preventiva.`);
+              loopErrors.push({ phone: num.phone_number, error: "Não encontrado na Telnyx, mas ignorando desativação por falta de telnyx_number_id" });
             }
           }
         } catch (err: any) {
@@ -334,7 +341,7 @@ serve(async (req: Request) => {
 
       // Sincronizar status de pedidos que não possuem linha em tenant_phone_numbers (raro, mas possível se falhou na criação)
       for (const order of (localOrders ?? [])) {
-        const hasNumberRecord = (localNumbers ?? []).some(n => n.phone_number === order.phone_number);
+        const hasNumberRecord = (localNumbers ?? []).some((n: any) => n.phone_number === order.phone_number);
         if (!hasNumberRecord && order.telnyx_order_id) {
           try {
             // Buscar detalhes da ordem na Telnyx para recuperar o número e ver se já foi ativado

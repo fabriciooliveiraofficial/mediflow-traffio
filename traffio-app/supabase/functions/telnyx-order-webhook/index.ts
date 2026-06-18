@@ -52,17 +52,25 @@ serve(async (req: Request) => {
     }
 
     if (status === "success" || status === "successful") {
-      const phoneNumbers: string[] = (payload.phone_numbers ?? []).map((n: any) => n.phone_number ?? n);
-      const phoneNumber = phoneNumbers[0] ?? order.phone_number;
+      const phoneNumbersObj = payload.phone_numbers ?? [];
+      const firstNumObj = phoneNumbersObj[0] ?? {};
+      const phoneNumber = firstNumObj.phone_number ?? order.phone_number;
+      const telnyxNumberId = firstNumObj.id ?? null;
 
       // Ativar número no banco
-      await supabase.from("tenant_phone_numbers").upsert({
+      const upsertData: any = {
         tenant_id:    order.tenant_id,
         phone_number: phoneNumber,
         country_code: order.country_code,
         is_active:    true,
         capabilities: { voice: true, sms: true },
-      }, { onConflict: "tenant_id,phone_number" });
+      };
+
+      if (telnyxNumberId) {
+        upsertData.telnyx_number_id = telnyxNumberId;
+      }
+
+      await supabase.from("tenant_phone_numbers").upsert(upsertData, { onConflict: "tenant_id,phone_number" });
 
       // Registrar uso: aquisição de número (KYC aprovado)
       const pricing = getNumberPricing(order.country_code);
