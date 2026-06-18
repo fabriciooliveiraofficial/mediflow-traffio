@@ -420,6 +420,34 @@ serve(async (req: Request) => {
         } });
       }
 
+      // KYC — verificar se já existe um pedido em andamento (qualquer status exceto completed e cancelled)
+      const { data: existingOrder } = await supabase
+        .from("number_order_requests")
+        .select("id, status")
+        .eq("tenant_id", tenantId)
+        .eq("phone_number", phone_number)
+        .not("status", "in", '("completed","cancelled")')
+        .maybeSingle();
+
+      if (existingOrder) {
+        // Atualizar dados do titular se fornecido
+        if (holder_info && holder_type) {
+          const { error: holderErr } = await supabase.from("number_order_holder_info").upsert({
+            order_id:    existingOrder.id,
+            tenant_id:   tenantId,
+            holder_type,
+            ...holder_info,
+          }, { onConflict: "order_id" });
+          if (holderErr) {
+            console.error(`[telnyx-number-orders] Error updating holder info:`, holderErr.message);
+          }
+        }
+
+        await logAudit(supabase, tenantId, user.id, "number_order_reused", phone_number, { order_id: existingOrder.id, country_code });
+        console.log(`[telnyx-number-orders] ✓ Order reused: ${existingOrder.id} | ${phone_number} | tenant: ${tenantId}`);
+        return json({ data: { instant: false, order_id: existingOrder.id, status: existingOrder.status, phone_number } }, 200);
+      }
+
       // KYC — criar pedido
       const { data: order, error: orderErr } = await supabase
         .from("number_order_requests")
@@ -816,7 +844,7 @@ async function satisfyRequirementsSilently(
     .limit(1)
     .maybeSingle();
 
-  let ownerProfile = null;
+  let ownerProfile: { full_name: string | null; phone: string | null; email: string | null } | null = null;
   if (ownerMember?.user_id) {
     const { data } = await supabase
       .from("profiles")
@@ -828,7 +856,7 @@ async function satisfyRequirementsSilently(
 
   // Sobrescrever o nome de contato do endereço com o nome real do dono do tenant
   if (ownerProfile?.full_name) {
-    const nameParts = ownerProfile.full_name.split(' ').map(p => p.trim()).filter(Boolean);
+    const nameParts = ownerProfile.full_name.split(' ').map((p: string) => p.trim()).filter(Boolean);
     if (nameParts.length > 0) {
       parsedAddr.firstName = nameParts[0];
       if (nameParts.length > 1) {

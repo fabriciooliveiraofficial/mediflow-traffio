@@ -765,29 +765,37 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
   const goToDocuments = async () => {
     if (!validateHolder()) return;
     if (!orderId) {
-      const session = await getSession();
-      if (!session) return;
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/telnyx-number-orders`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action:        'create_order',
-          phone_number:  selected!.phoneNumber,
-          country_code:  country,
-          holder_type:   holderType,
-          holder_info:   holderInfo,
-          friendly_name: friendlyName || undefined,
-        }),
-      });
-      const json = await res.json();
-      if (json.error) { showToast('error', json.error); return; }
-      if (json.data?.instant) {
-        showToast('success', `Número ${selected!.phoneNumber} adquirido com sucesso!`);
-        onPurchased(selected!.phoneNumber);
-        onClose();
+      setSubmitting(true);
+      try {
+        const session = await getSession();
+        if (!session) return;
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/telnyx-number-orders`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action:        'create_order',
+            phone_number:  selected!.phoneNumber,
+            country_code:  country,
+            holder_type:   holderType,
+            holder_info:   holderInfo,
+            friendly_name: friendlyName || undefined,
+          }),
+        });
+        const json = await res.json();
+        if (json.error) { showToast('error', json.error); return; }
+        if (json.data?.instant) {
+          showToast('success', `Número ${selected!.phoneNumber} adquirido com sucesso!`);
+          onPurchased(selected!.phoneNumber);
+          onClose();
+          return;
+        }
+        setOrderId(json.data.order_id);
+      } catch (err: any) {
+        showToast('error', `Erro ao criar pedido: ${err.message}`);
         return;
+      } finally {
+        setSubmitting(false);
       }
-      setOrderId(json.data.order_id);
     }
     setStep(3);
   };
@@ -1480,8 +1488,10 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
             {step === 2 && (
               <button
                 onClick={goToDocuments}
-                className="flex items-center gap-2 px-5 py-2 bg-brand-primary text-white text-sm font-bold rounded-xl hover:bg-brand-primary/90 transition-colors border-none cursor-pointer"
+                disabled={submitting}
+                className="flex items-center gap-2 px-5 py-2 bg-brand-primary text-white text-sm font-bold rounded-xl hover:bg-brand-primary/90 disabled:opacity-50 transition-colors border-none cursor-pointer"
               >
+                {submitting ? <RefreshCw size={14} className="animate-spin" /> : null}
                 Próximo: Documentos <ChevronRight size={16} />
               </button>
             )}
