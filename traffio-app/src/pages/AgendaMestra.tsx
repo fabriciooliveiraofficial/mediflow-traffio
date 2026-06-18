@@ -29,6 +29,8 @@ import { useToast } from '../contexts/ToastContext';
 import { smartSchedulingService } from '../services/smartSchedulingService';
 import { CheckoutModal } from '../components/CheckoutModal';
 import type { SmartSlot, BookAppointmentPayload } from '../services/smartSchedulingService';
+import { formatSlot as formatSlotI18n } from '../lib/i18n/formatDateTime';
+import { getCountry, DEFAULT_COUNTRY } from '../lib/i18n/countryFormats';
 
 function cn(...inputs: any[]) {
     return twMerge(clsx(inputs));
@@ -175,6 +177,14 @@ export const AgendaMestra: React.FC = () => {
     const dateStr = selectedDate.toISOString().split('T')[0];
 
     const visibleDoctors = useMemo(() => doctors.filter(d => selectedDoctors.includes(d.id)), [doctors, selectedDoctors]);
+
+    // Locale must follow the tenant being VIEWED (selectedTenant), not the
+    // super-admin's own tenant — this view has no TenantProvider/useTenant().
+    const slotLocale = useMemo(() => {
+        const t = tenants.find(t => t.id === selectedTenant);
+        return t?.locale || getCountry(t?.country || DEFAULT_COUNTRY).locale;
+    }, [tenants, selectedTenant]);
+    const formatSlot = useCallback((timeStr: string | null | undefined) => formatSlotI18n(timeStr, { locale: slotLocale }), [slotLocale]);
 
     // ── Data fetching ──────────────────────
     useEffect(() => {
@@ -682,7 +692,7 @@ export const AgendaMestra: React.FC = () => {
                                 {HOURS.map(h => (
                                     <div key={h} className="absolute w-full flex items-start justify-end pr-3" style={{ top: (h - DAY_START) * HOUR_PX }}>
                                         <span className={cn("text-[11px] font-black -mt-[7px]", h === DAY_START ? "text-transparent" : "text-graphite-700")}>
-                                            {String(h).padStart(2, '0')}:00
+                                            {formatSlot(`${String(h).padStart(2, '0')}:00`)}
                                         </span>
                                     </div>
                                 ))}
@@ -786,7 +796,7 @@ export const AgendaMestra: React.FC = () => {
                                                             )}
                                                             {h > 52 && (
                                                                 <span className="text-[9px] text-graphite-300 font-medium mt-0.5">
-                                                                    {appt.start_time?.substring(0, 5)} – {appt.end_time?.substring(0, 5) || ''}
+                                                                    {formatSlot(appt.start_time)} – {appt.end_time ? formatSlot(appt.end_time) : ''}
                                                                 </span>
                                                             )}
                                                         </div>
@@ -852,9 +862,9 @@ export const AgendaMestra: React.FC = () => {
                                             <span className="text-xs text-graphite-500 font-medium flex items-center gap-1">
                                                 <Clock size={12} />
                                                 {bookingModal.slot
-                                                    ? `${bookingModal.slot.slot_time.substring(0, 5)} – ${bookingModal.slot.slot_end.substring(0, 5)}`
+                                                    ? `${formatSlot(bookingModal.slot.slot_time)} – ${formatSlot(bookingModal.slot.slot_end)}`
                                                     : bookingModal.prefillStart
-                                                        ? `${bookingModal.prefillStart} – ${bookingModal.prefillEnd}`
+                                                        ? `${formatSlot(bookingModal.prefillStart)} – ${formatSlot(bookingModal.prefillEnd)}`
                                                         : ''}
                                             </span>
                                             {bookingModal.slot && <SlotBadge slot={bookingModal.slot} />}
@@ -979,7 +989,7 @@ export const AgendaMestra: React.FC = () => {
                                 <div>
                                     <h3 className="text-lg font-black text-graphite-900">{editingAppt.patients?.full_name || 'Paciente'}</h3>
                                     <p className="text-xs text-graphite-400 font-medium">
-                                        {editingAppt.start_time?.substring(0, 5)} – {editingAppt.end_time?.substring(0, 5)} · {formatDateLabel(selectedDate)}
+                                        {formatSlot(editingAppt.start_time)} – {formatSlot(editingAppt.end_time)} · {formatDateLabel(selectedDate)}
                                     </p>
                                 </div>
                                 <button onClick={() => setEditingAppt(null)} className="w-10 h-10 rounded-xl bg-white border border-ice-200 flex items-center justify-center text-graphite-400 hover:text-brand-primary transition-all cursor-pointer"><X size={20} /></button>
@@ -1118,8 +1128,8 @@ export const AgendaMestra: React.FC = () => {
                                 </div>
                                 <span className="text-[11px] font-black text-white px-2 py-1 bg-white/10 rounded-lg">
                                     {bookingModal.slot 
-                                        ? `${bookingModal.slot.slot_time.substring(0, 5)} – ${bookingModal.slot.slot_end.substring(0, 5)}`
-                                        : `${bookingModal.prefillStart} – ${bookingModal.prefillEnd}`}
+                                        ? `${formatSlot(bookingModal.slot.slot_time)} – ${formatSlot(bookingModal.slot.slot_end)}`
+                                        : `${formatSlot(bookingModal.prefillStart)} – ${formatSlot(bookingModal.prefillEnd)}`}
                                 </span>
                                 <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-10 h-1.5 rounded-full bg-white/30" />
                             </div>

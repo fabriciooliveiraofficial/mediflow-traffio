@@ -4,10 +4,13 @@ import { Calendar, Plus, Clock, MapPin, CheckCircle, Bell, BellRing, XCircle, Ro
 import { supabase } from '../../lib/supabase';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
 import { appointmentService } from '../../services/appointmentService';
+import { formatDate, formatSlot } from '../../lib/i18n/formatDateTime';
+import { getCountry, DEFAULT_COUNTRY } from '../../lib/i18n/countryFormats';
 
 export function PortalDashboard() {
     // @ts-ignore
     const { tenant, patient } = useOutletContext<{ tenant: any; patient: any }>();
+    const slotLocale = tenant?.locale || getCountry(tenant?.country || DEFAULT_COUNTRY).locale;
 
     const [appointments, setAppointments] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -171,7 +174,7 @@ export function PortalDashboard() {
                                     <div className="space-y-2 mt-4 text-sm text-gray-600">
                                         <div className="flex items-center gap-2">
                                             <Calendar size={16} className="text-gray-400" />
-                                            <span>{new Date(apt.date).toLocaleDateString('pt-BR')} às {apt.start_time?.substring(0, 5)}</span>
+                                            <span>{formatDate(apt.date, { locale: slotLocale })} às {formatSlot(apt.start_time, { locale: slotLocale })}</span>
                                         </div>
                                         {apt.location && (
                                             <div className="flex items-center gap-2">
@@ -319,7 +322,7 @@ export function PortalDashboard() {
 
                         <div className="mb-6 space-y-4">
                             <p className="text-gray-600">
-                                Deseja realmente cancelar sua consulta com <strong>{cancellingApt.doctor?.name || 'o médico'}</strong> no dia <strong>{new Date(cancellingApt.date).toLocaleDateString('pt-BR')}</strong> às <strong>{cancellingApt.start_time?.substring(0, 5)}</strong>?
+                                Deseja realmente cancelar sua consulta com <strong>{cancellingApt.doctor?.name || 'o médico'}</strong> no dia <strong>{formatDate(cancellingApt.date, { locale: slotLocale })}</strong> às <strong>{formatSlot(cancellingApt.start_time, { locale: slotLocale })}</strong>?
                             </p>
 
                             {/* Penalty Warning Box */}

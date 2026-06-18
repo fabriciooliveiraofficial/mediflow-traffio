@@ -1,16 +1,21 @@
 import { useState, useRef } from 'react';
 import { SmartAddressInput } from '../components/SmartAddressInput';
-import { addressService, type AddressSuggestion } from '../services/addressService';
-import { MapPin, Phone } from 'lucide-react';
-import type { Location } from '../services/locationService';
+import { IntlPostalInput } from './intl/IntlPostalInput';
+import { IntlPhoneInput } from './intl/IntlPhoneInput';
+import type { AddressSuggestion } from '../services/addressService';
+import { MapPin } from 'lucide-react';
+import { DEFAULT_COUNTRY, type CountryCode } from '../lib/i18n/countryFormats';
+import type { ClinicLocation } from '../services/locationService';
 
 interface TenantAddressFormProps {
-    initialData: Partial<Location> & { address_zip_code?: string };
+    initialData: Partial<ClinicLocation>;
     onSave: (updates: any) => void;
+    /** Default country for postal/phone/address fields — each field keeps its own override. */
+    country?: CountryCode;
     className?: string;
 }
 
-export function TenantAddressForm({ initialData, onSave, className = '' }: TenantAddressFormProps) {
+export function TenantAddressForm({ initialData, onSave, country = DEFAULT_COUNTRY, className = '' }: TenantAddressFormProps) {
     const [cep, setCep] = useState(initialData.address_zip_code || '');
     const [address, setAddress] = useState(initialData.address || '');
     const [number, setNumber] = useState(initialData.address_number || '');
@@ -19,7 +24,7 @@ export function TenantAddressForm({ initialData, onSave, className = '' }: Tenan
     const [neighborhood, setNeighborhood] = useState(initialData.address_neighborhood || '');
 
     // Track if we have pending changes to save
-    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Debounced save to prevent flickering/excessive writes
     const triggerSave = (updates: any) => {
@@ -30,28 +35,21 @@ export function TenantAddressForm({ initialData, onSave, className = '' }: Tenan
         }, 800);
     };
 
-    const handleCepBlur = async () => {
-        // Only lookup if it looks like a CEP and we don't have an address yet (or user wants to refresh)
-        const cleanCep = cep.replace(/\D/g, '');
-        if (cleanCep.length === 8) {
-            triggerSave({ address_zip_code: cep });
+    const handlePostalChange = (value: string) => {
+        setCep(value);
+        triggerSave({ address_zip_code: value });
+    };
 
-            // Auto-fill address from CEP
-            const result = await addressService.lookupCep(cleanCep);
-            if (result) {
-                setAddress(result.label);
-                setNeighborhood(result.neighborhood || '');
-                triggerSave({
-                    address_zip_code: cep,
-                    address: result.label,
-                    address_neighborhood: result.neighborhood,
-                    latitude: result.latitude,
-                    longitude: result.longitude
-                });
-            }
-        } else {
-            triggerSave({ address_zip_code: cep });
-        }
+    const handlePostalLookup = (result: AddressSuggestion) => {
+        setAddress(result.label);
+        setNeighborhood(result.neighborhood || '');
+        triggerSave({
+            address_zip_code: cep,
+            address: result.label,
+            address_neighborhood: result.neighborhood,
+            latitude: result.latitude,
+            longitude: result.longitude
+        });
     };
 
     const handleAddressSelect = (s: AddressSuggestion) => {
@@ -70,21 +68,26 @@ export function TenantAddressForm({ initialData, onSave, className = '' }: Tenan
         });
     };
 
+    const handlePhoneChange = (value: string) => {
+        setPhone(value);
+        triggerSave({ phone: value });
+    };
+
     return (
         <div className={`space-y-3 ${className}`}>
             <label className="text-xs font-black text-graphite-400 uppercase flex items-center gap-1">
                 <MapPin size={12} /> Endereço e Contato
             </label>
 
-            {/* Line 1: CEP + Address */}
+            {/* Line 1: Postal + Address */}
             <div className="flex flex-col md:flex-row gap-3">
-                <div className="w-full md:w-32">
-                    <input
-                        placeholder="CEP"
+                <div className="w-full md:w-44">
+                    <IntlPostalInput
                         value={cep}
-                        onChange={(e) => setCep(e.target.value)}
-                        onBlur={handleCepBlur}
-                        className="w-full bg-white border border-ice-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/10 transition-all"
+                        onChange={handlePostalChange}
+                        country={country}
+                        onLookup={handlePostalLookup}
+                        label=""
                     />
                 </div>
                 <div className="flex-1">
@@ -93,6 +96,7 @@ export function TenantAddressForm({ initialData, onSave, className = '' }: Tenan
                         onChange={setAddress}
                         onSelect={handleAddressSelect}
                         onBlur={() => triggerSave({ address })}
+                        country={country}
                         placeholder="Endereço (Rua, Av...)"
                         showCepLookup={false} // We have a dedicated field now
                     />
@@ -129,16 +133,12 @@ export function TenantAddressForm({ initialData, onSave, className = '' }: Tenan
                     />
                 </div>
                 <div className="col-span-2 md:col-span-4">
-                    <div className="relative">
-                        <Phone size={14} className="absolute left-3 top-3 text-graphite-400 pointer-events-none" />
-                        <input
-                            placeholder="Telefone"
-                            value={phone}
-                            onChange={(e) => setPhone(e.target.value)}
-                            onBlur={() => triggerSave({ phone })}
-                            className="w-full bg-white border border-ice-200 rounded-xl pl-9 pr-4 py-2.5 text-sm font-medium focus:outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/10 transition-all"
-                        />
-                    </div>
+                    <IntlPhoneInput
+                        value={phone}
+                        onChange={handlePhoneChange}
+                        country={country}
+                        label=""
+                    />
                 </div>
             </div>
         </div>

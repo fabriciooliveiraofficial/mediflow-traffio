@@ -5,6 +5,7 @@ import { useTenant } from '../contexts/TenantContext';
 import { smartSchedulingService } from '../services/smartSchedulingService';
 import type { SmartSlot } from '../services/smartSchedulingService';
 import { clsx } from 'clsx';
+import { useLocaleFormat } from '../hooks/useLocaleFormat';
 
 interface SidebarAvailabilityViewProps {
   onBack: () => void;
@@ -13,6 +14,7 @@ interface SidebarAvailabilityViewProps {
 
 export function SidebarAvailabilityView({ onBack, onBookSlot }: SidebarAvailabilityViewProps) {
   const { tenant } = useTenant();
+  const { formatSlot } = useLocaleFormat();
   const [doctors, setDoctors] = useState<any[]>([]);
   const [selectedDoctor, setSelectedDoctor] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
@@ -163,7 +165,7 @@ export function SidebarAvailabilityView({ onBack, onBookSlot }: SidebarAvailabil
                       className={clsx('py-2 text-xs font-bold rounded-xl border transition-all', slotColor(slot))}
                       title={`${slot.block_type}${slot.location_name ? ` · ${slot.location_name}` : ''}${slot.allowed_patient_type !== 'any' ? ` · ${slot.allowed_patient_type}` : ''}`}
                     >
-                      {slot.slot_time.substring(0, 5)}
+                      {formatSlot(slot.slot_time.substring(0, 5))}
                     </button>
                   ))}
                 </div>

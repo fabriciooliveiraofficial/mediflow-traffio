@@ -38,6 +38,9 @@ import { dentalService } from '../services/dentalService';
 import { useToast } from '../contexts/ToastContext';
 import { useTenant } from '../contexts/TenantContext';
 import { formatDisplayDate } from '../lib/dateUtils';
+import { formatDoc, docLabel } from '../lib/i18n/doc';
+import { formatNational } from '../lib/i18n/phone';
+import { DEFAULT_COUNTRY, type CountryCode } from '../lib/i18n/countryFormats';
 
 interface PatientDetailsProps {
     patientId: string;
@@ -252,7 +255,11 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
                             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-graphite-500 font-medium">
                                 <span className="flex items-center gap-2">
                                     <FileText size={16} className="text-brand-primary" />
-                                    CPF: {patient.cpf || 'Não informado'}
+                                    {docLabel((patient.country as CountryCode) || (patient.cpf ? 'BR' : DEFAULT_COUNTRY))}: {
+                                        patient.national_id || patient.cpf
+                                            ? formatDoc(patient.national_id || patient.cpf, (patient.country as CountryCode) || (patient.cpf ? 'BR' : DEFAULT_COUNTRY))
+                                            : 'Não informado'
+                                    }
                                 </span>
                                 <span className="flex items-center gap-2">
                                     <Calendar size={16} className="text-brand-primary" />
@@ -274,7 +281,7 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <p className="text-xs font-black text-graphite-400 uppercase tracking-wider">Celular</p>
-                                    <p className="font-bold text-graphite-900">{patient.mobile || 'Não cadastrado'}</p>
+                                    <p className="font-bold text-graphite-900">{formatNational(patient.mobile) || patient.mobile || 'Não cadastrado'}</p>
                                 </div>
                                 {/* I.1 — Click-to-call: dispara o softphone via evento global */}
                                 {patient.mobile && (tenant as any)?.telnyx_enabled && (

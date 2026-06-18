@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, ClipboardList, Printer, Calendar, Hash } from 'lucide-react';
+import { useLocaleFormat } from '../hooks/useLocaleFormat';
 
 interface Medication {
     name: string;
@@ -18,6 +19,8 @@ export const ViewPrescriptionModal: React.FC<ViewPrescriptionModalProps> = ({
     onClose,
     prescription
 }) => {
+    const { formatDate } = useLocaleFormat();
+
     if (!isOpen || !prescription) return null;
 
     const medications: Medication[] = prescription.content_json?.medications || [];
@@ -46,7 +49,7 @@ export const ViewPrescriptionModal: React.FC<ViewPrescriptionModalProps> = ({
                                 <div className="flex items-center gap-3 mt-0.5">
                                     <span className="flex items-center gap-1 text-[10px] font-bold text-graphite-400 uppercase tracking-wider">
                                         <Calendar size={12} />
-                                        {new Date(prescription.created_at).toLocaleDateString('pt-BR')}
+                                        {formatDate(prescription.created_at)}
                                     </span>
                                     <span className="flex items-center gap-1 text-[10px] font-bold text-graphite-400 uppercase tracking-wider">
                                         <Hash size={12} />

@@ -77,7 +77,11 @@ export function PortalLogin() {
                 user_id: userId,
                 full_name: metadata.full_name || 'Paciente',
                 email: user.user?.email,
-                phone: metadata.phone || null
+                phone: metadata.phone || null,
+                cpf: metadata.cpf || null,
+                national_id: metadata.national_id || null,
+                national_id_type: metadata.national_id_type || null,
+                country: metadata.country || null
             });
 
             if (error) throw error;

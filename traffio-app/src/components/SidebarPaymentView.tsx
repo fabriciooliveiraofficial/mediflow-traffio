@@ -3,6 +3,7 @@ import { ChevronLeft, Loader2, Copy, Check, Send, CreditCard, DollarSign } from 
 import { supabase } from '../lib/supabase';
 import { useTenant } from '../contexts/TenantContext';
 import { useToast } from '../contexts/ToastContext';
+import { useLocaleFormat } from '../hooks/useLocaleFormat';
 import { BillingService } from '../services/billingService';
 import type { BillingRecord } from '../services/billingService';
 import { clsx } from 'clsx';
@@ -23,6 +24,7 @@ const METHODS = [
 export function SidebarPaymentView({ onBack, patientId, patientName, onSendLink }: SidebarPaymentViewProps) {
   const { tenant } = useTenant();
   const { showToast } = useToast();
+  const { formatDate } = useLocaleFormat();
   const [loading, setLoading] = useState(false);
   const [loadingRecent, setLoadingRecent] = useState(true);
   const [recentBillings, setRecentBillings] = useState<(BillingRecord & { patients?: any })[]>([]);
@@ -250,7 +252,7 @@ export function SidebarPaymentView({ onBack, patientId, patientName, onSendLink 
                           <p className="text-xs font-medium text-gray-700">
                             {(b.amount_cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                           </p>
-                          <p className="text-[10px] text-gray-400">{new Date(b.created_at).toLocaleDateString('pt-BR')}</p>
+                          <p className="text-[10px] text-gray-400">{formatDate(b.created_at)}</p>
                         </div>
                         <span className={clsx('text-[9px] font-bold px-2 py-0.5 rounded-full', st.color)}>{st.label}</span>
                       </div>

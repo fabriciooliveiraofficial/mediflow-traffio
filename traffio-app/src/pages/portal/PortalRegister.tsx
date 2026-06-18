@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
 import { useOutletContext, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { User, Mail, Phone, FileText, Lock, Eye, EyeOff } from 'lucide-react';
+import { User, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
+import { IntlPhoneInput } from '../../components/intl/IntlPhoneInput';
+import { IntlDocInput } from '../../components/intl/IntlDocInput';
+import { DEFAULT_COUNTRY, type CountryCode } from '../../lib/i18n/countryFormats';
+import { docType } from '../../lib/i18n/doc';
 
 export function PortalRegister() {
     // @ts-ignore
@@ -13,7 +17,8 @@ export function PortalRegister() {
         fullName: '',
         email: '',
         phone: '',
-        cpf: '',
+        nationalId: '',
+        country: (tenant?.country as CountryCode) || DEFAULT_COUNTRY,
         password: '',
         confirmPassword: ''
     });
@@ -41,7 +46,11 @@ export function PortalRegister() {
                         full_name: formData.fullName,
                         phone: formData.phone,
                         tenant_id: tenant.id.toString(),
-                        cpf: (formData.cpf || '').toString(),
+                        // `cpf` kept for retrocompat with the existing DB trigger; new generic fields below.
+                        cpf: formData.country === 'BR' ? (formData.nationalId || '').toString() : '',
+                        national_id: formData.nationalId || '',
+                        national_id_type: formData.nationalId ? docType(formData.country) : '',
+                        country: formData.country,
                         role: 'patient',
                         source: 'patient_portal'
                     }
@@ -104,42 +113,20 @@ export function PortalRegister() {
                     </div>
                 </div>
 
-                {/* Whatsapp & CPF Grid */}
+                {/* Whatsapp & Documento Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">WhatsApp</label>
-                        <div className="relative group">
-                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                                <Phone className="h-5 w-5 text-gray-400 group-focus-within:text-primary transition-colors" />
-                            </div>
-                            <input
-                                type="tel"
-                                required
-                                className="block w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                                style={{ '--tw-ring-color': tenant.color_primary } as any}
-                                value={formData.phone}
-                                onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                                placeholder="(11) 99999-9999"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">CPF (Opcional)</label>
-                        <div className="relative group">
-                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                                <FileText className="h-5 w-5 text-gray-400 group-focus-within:text-primary transition-colors" />
-                            </div>
-                            <input
-                                type="text"
-                                className="block w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                                style={{ '--tw-ring-color': tenant.color_primary } as any}
-                                value={formData.cpf}
-                                onChange={e => setFormData({ ...formData, cpf: e.target.value })}
-                                placeholder="000.000.000-00"
-                            />
-                        </div>
-                    </div>
+                    <IntlPhoneInput
+                        value={formData.phone}
+                        onChange={v => setFormData({ ...formData, phone: v })}
+                        country={formData.country}
+                        label="WhatsApp"
+                    />
+                    <IntlDocInput
+                        value={formData.nationalId}
+                        onChange={v => setFormData({ ...formData, nationalId: v })}
+                        country={formData.country}
+                        onCountryChange={c => setFormData({ ...formData, country: c })}
+                    />
                 </div>
 
                 {/* Email */}

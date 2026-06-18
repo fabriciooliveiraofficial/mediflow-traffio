@@ -7,6 +7,7 @@ import { SidebarCalendar } from './shared/SidebarCalendar';
 import { format, startOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { clsx } from 'clsx';
+import { useLocaleFormat } from '../hooks/useLocaleFormat';
 
 interface SidebarBookingViewProps {
   onBack: () => void;
@@ -20,9 +21,10 @@ interface SidebarBookingViewProps {
 export function SidebarBookingView({ onBack, patientId, patientName, onSendMessage, rescheduleFrom, onSuccess }: SidebarBookingViewProps) {
     const { tenant } = useTenant();
     const { showToast } = useToast();
+    const { formatSlot } = useLocaleFormat();
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
-    
+
     // Data
     const [doctors, setDoctors] = useState<any[]>([]);
     const [services, setServices] = useState<any[]>([]);
@@ -698,7 +700,7 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                                   </p>
                                   {selectedSlot && (
                                     <p className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
-                                      {selectedSlot.time} ({selectedService?.duration_minutes || 15} min)
+                                      {formatSlot(selectedSlot.time)} ({selectedService?.duration_minutes || 15} min)
                                     </p>
                                   )}
                                 </div>
@@ -744,7 +746,7 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                                                 className="h-20 border-t border-gray-100 relative group pointer-events-none"
                                               >
                                                 <span className="absolute -top-2.5 -left-1 text-[10px] font-black text-gray-500 group-hover:text-blue-400 transition-colors">
-                                                  {hour.toString().padStart(2, '0')}:00
+                                                  {formatSlot(`${hour.toString().padStart(2, '0')}:00`)}
                                                 </span>
                                               </div>
                                             );
@@ -819,7 +821,7 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                                                       )}
                                                     >
                                                       <div className="flex items-center justify-between text-white pointer-events-none mb-1">
-                                                        <span className="text-[11px] font-black">{selectedSlot.time} - {calculateEndTime(selectedSlot.time, duration)}</span>
+                                                        <span className="text-[11px] font-black">{formatSlot(selectedSlot.time)} - {formatSlot(calculateEndTime(selectedSlot.time, duration))}</span>
                                                         <div className="w-2 h-2 rounded-full bg-white/50 group-hover/box:bg-white animate-pulse" />
                                                       </div>
 

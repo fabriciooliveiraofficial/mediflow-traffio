@@ -1,0 +1,20 @@
+{
+  "actions": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "search": "Buscar",
+    "confirm": "Confirmar",
+    "close": "Cerrar",
+    "back": "Volver",
+    "next": "Siguiente",
+    "loading": "Cargando..."
+  },
+  "language": {
+    "label": "Idioma",
+    "pt-BR": "Portugués (Brasil)",
+    "en": "Inglés",
+    "es": "Español"
+  }
+}

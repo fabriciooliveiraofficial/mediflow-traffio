@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { formatPhone, phoneFlag } from '../lib/formatPhone';
+import { formatDoc, docLabel } from '../lib/i18n/doc';
+import { DEFAULT_COUNTRY, type CountryCode } from '../lib/i18n/countryFormats';
 import {
     Search,
     Filter,
@@ -176,7 +178,13 @@ export const CrmLeads: React.FC<CrmLeadsProps> = ({ onSelectPatient }) => {
                                                 </div>
                                                 <div>
                                                     <p className="font-bold text-graphite-900">{patient.full_name}</p>
-                                                    <p className="text-xs text-graphite-400 font-medium">CPF: {patient.cpf || '---'}</p>
+                                                    <p className="text-xs text-graphite-400 font-medium">
+                                                        {docLabel((patient.country as CountryCode) || (patient.cpf ? 'BR' : DEFAULT_COUNTRY))}: {
+                                                            patient.national_id || patient.cpf
+                                                                ? formatDoc(patient.national_id || patient.cpf, (patient.country as CountryCode) || (patient.cpf ? 'BR' : DEFAULT_COUNTRY))
+                                                                : '---'
+                                                        }
+                                                    </p>
                                                 </div>
                                             </div>
                                         </td>

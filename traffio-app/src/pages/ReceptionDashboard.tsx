@@ -13,9 +13,11 @@ import {
 import { NewPatientModal } from '../components/NewPatientModal';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
+import { useLocaleFormat } from '../hooks/useLocaleFormat';
 
 export const ReceptionDashboard = () => {
     const { showToast } = useToast();
+    const { formatTime } = useLocaleFormat();
     const [appointments, setAppointments] = useState<any[]>([]);
     const [filter, setFilter] = useState('all');
     const [isNewPatientModalOpen, setIsNewPatientModalOpen] = useState(false);
@@ -37,7 +39,7 @@ export const ReceptionDashboard = () => {
         if (data && data.length > 0) {
             setAppointments(data.map((a: any) => ({
                 id: a.id,
-                time: new Date(a.start_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+                time: formatTime(a.start_time),
                 patient: a.patients?.full_name || 'Paciente',
                 doctor: 'Dr. ' + (a.doctors?.profiles?.full_name || 'N/A'),
                 status: a.status,
@@ -45,7 +47,7 @@ export const ReceptionDashboard = () => {
                 checkin_at: a.checkin_at,
             })));
         }
-    }, []);
+    }, [formatTime]);
 
     useEffect(() => { fetchAppointments(); }, [fetchAppointments]);
 
@@ -113,7 +115,7 @@ export const ReceptionDashboard = () => {
                         {currentTime.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
                         <span className="w-1 h-1 bg-graphite-300 rounded-full" />
                         <Clock size={14} />
-                        {currentTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                        {formatTime(currentTime)}
                     </p>
                 </div>
 

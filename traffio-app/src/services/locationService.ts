@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import type { CountryCode } from '../lib/i18n/countryFormats';
 // Force rebuild
 
 export interface ClinicLocation {
@@ -10,6 +11,7 @@ export interface ClinicLocation {
     address_complement?: string;
     address_neighborhood?: string;
     address_zip_code?: string;
+    country?: CountryCode;
     phone?: string;
     latitude?: number | null;
     longitude?: number | null;

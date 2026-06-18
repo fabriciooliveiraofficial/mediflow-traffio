@@ -18,6 +18,7 @@ import {
 } from 'recharts';
 import { supabase } from '../lib/supabase';
 import { useTenant } from '../contexts/TenantContext';
+import { formatPhone } from '../lib/formatPhone';
 import { format, subDays, startOfDay, endOfDay, startOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -44,14 +45,6 @@ function fmtTime(iso: string) {
     return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 }
-function fmtPhone(p: string) {
-  if (!p) return '—';
-  const d = p.replace(/\D/g, '');
-  if (d.length === 13) return `+${d.slice(0,2)} (${d.slice(2,4)}) ${d.slice(4,9)}-${d.slice(9)}`;
-  if (d.length === 11) return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`;
-  return p;
-}
-
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
 
 function KpiCard({ label, value, sub, icon: Icon, color, trend }: any) {
@@ -287,7 +280,7 @@ export function CommunicationsHub() {
               {selected.status === 'missed' ? <PhoneMissed size={20} className="text-red-400" /> : selected.direction === 'inbound' ? <PhoneIncoming size={20} className="text-green-500" /> : <PhoneOutgoing size={20} className="text-blue-500" />}
             </div>
             <div className="flex-1">
-              <p className="font-black text-graphite-900 text-lg">{fmtPhone(num)}</p>
+              <p className="font-black text-graphite-900 text-lg">{formatPhone(num)}</p>
               <p className="text-xs text-graphite-400">{selected.direction === 'inbound' ? 'Recebida' : 'Realizada'} · {fmtTime(selected.started_at)}</p>
             </div>
             <button
@@ -343,7 +336,7 @@ export function CommunicationsHub() {
               <User size={18} className="text-emerald-600" />
             </div>
             <div>
-              <p className="font-black text-graphite-900">{fmtPhone(selected.patient_phone)}</p>
+              <p className="font-black text-graphite-900">{formatPhone(selected.patient_phone)}</p>
               <p className="text-xs text-graphite-400">SMS · {fmtTime(selected.updated_at)}</p>
             </div>
             <button
@@ -416,7 +409,7 @@ export function CommunicationsHub() {
               <Voicemail size={22} className="text-indigo-500" />
             </div>
             <div className="flex-1">
-              <p className="font-black text-graphite-900 text-lg">{fmtPhone(selected.from_number)}</p>
+              <p className="font-black text-graphite-900 text-lg">{formatPhone(selected.from_number)}</p>
               <p className="text-xs text-graphite-400">{fmtTime(selected.created_at)}{selected.duration_seconds && ` · ${fmtDur(selected.duration_seconds)}`}</p>
             </div>
             <button
@@ -474,7 +467,7 @@ export function CommunicationsHub() {
                   {call.status === 'missed' ? <PhoneMissed size={15} className="text-red-400" /> : call.direction === 'inbound' ? <PhoneIncoming size={15} className="text-green-500" /> : <PhoneOutgoing size={15} className="text-blue-500" />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-graphite-800 truncate">{fmtPhone(num)}</p>
+                  <p className="text-sm font-bold text-graphite-800 truncate">{formatPhone(num)}</p>
                   <p className="text-xs text-graphite-400 flex items-center gap-1 mt-0.5">
                     <Clock size={10} />{fmtTime(call.started_at)}
                     {call.duration_seconds && <span className="ml-1">{fmtDur(call.duration_seconds)}</span>}
@@ -494,7 +487,7 @@ export function CommunicationsHub() {
                 <MessageSquare size={15} className="text-emerald-600" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-graphite-800 truncate">{fmtPhone(s.patient_phone)}</p>
+                <p className="text-sm font-bold text-graphite-800 truncate">{formatPhone(s.patient_phone)}</p>
                 <p className="text-xs text-graphite-400 mt-0.5">{fmtTime(s.updated_at)}</p>
               </div>
             </button>
@@ -508,7 +501,7 @@ export function CommunicationsHub() {
                 <Voicemail size={15} className={vm.is_read ? 'text-graphite-400' : 'text-indigo-500'} />
               </div>
               <div className="flex-1 min-w-0">
-                <p className={`text-sm font-bold truncate ${vm.is_read ? 'text-graphite-500' : 'text-graphite-800'}`}>{fmtPhone(vm.from_number)}</p>
+                <p className={`text-sm font-bold truncate ${vm.is_read ? 'text-graphite-500' : 'text-graphite-800'}`}>{formatPhone(vm.from_number)}</p>
                 <p className="text-xs text-graphite-400 mt-0.5">{fmtTime(vm.created_at)}{vm.duration_seconds && ` · ${fmtDur(vm.duration_seconds)}`}</p>
               </div>
               {!vm.is_read && <div className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" />}

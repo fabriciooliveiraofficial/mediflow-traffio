@@ -5,6 +5,7 @@ import { useTenant } from '../contexts/TenantContext';
 import { useToast } from '../contexts/ToastContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { clsx } from 'clsx';
+import { useLocaleFormat } from '../hooks/useLocaleFormat';
 
 interface QuickBookingModalProps {
     isOpen: boolean;
@@ -16,7 +17,8 @@ interface QuickBookingModalProps {
 export const QuickBookingModal: React.FC<QuickBookingModalProps> = ({ isOpen, onClose, patientId, patientName }) => {
     const { tenant } = useTenant();
     const { showToast } = useToast();
-    
+    const { formatSlot } = useLocaleFormat();
+
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const [doctors, setDoctors] = useState<any[]>([]);
@@ -303,7 +305,7 @@ export const QuickBookingModal: React.FC<QuickBookingModalProps> = ({ isOpen, on
                                                                         <button key={slot.time} onClick={() => setSelectedSlot({ date: day.date, time: slot.time })}
                                                                             className={clsx("px-4 py-2 rounded-xl text-xs font-black border transition-all", selectedSlot?.date === day.date && selectedSlot?.time === slot.time ? "bg-brand-primary text-white border-brand-primary shadow-lg shadow-brand-primary/20" : "bg-ice-50 text-graphite-700 border-ice-200 hover:border-brand-primary hover:text-brand-primary")}
                                                                         >
-                                                                            {slot.time}
+                                                                            {formatSlot(slot.time)}
                                                                         </button>
                                                                     ))}
                                                             </div>

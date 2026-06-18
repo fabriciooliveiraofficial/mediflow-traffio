@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { MapPin, Navigation, Loader2, Search, X } from 'lucide-react';
 import { addressService, type AddressSuggestion } from '../services/addressService';
+import { DEFAULT_COUNTRY, type CountryCode } from '../lib/i18n/countryFormats';
+import { postalLabel } from '../lib/i18n/postal';
 
 interface SmartAddressInputProps {
     value: string;
@@ -11,6 +13,8 @@ interface SmartAddressInputProps {
     showCepLookup?: boolean;
     showMyLocation?: boolean;
     onBlur?: () => void;
+    /** Drives postal lookup provider (BrasilAPI/Zippopotam.us) and Photon's country bias. */
+    country?: CountryCode;
 }
 
 export function SmartAddressInput({
@@ -18,7 +22,8 @@ export function SmartAddressInput({
     onChange,
     onSelect,
     onBlur,
-    placeholder = 'Digite o endereço ou CEP...',
+    country = DEFAULT_COUNTRY,
+    placeholder = `Digite o endereço ou ${postalLabel(country)}...`,
     className = '',
     showCepLookup = true,
     showMyLocation = true,
@@ -69,24 +74,25 @@ export function SmartAddressInput({
             return;
         }
 
-        // Check if it's a CEP (8 digits)
-        const isCep = /^\d{5}-?\d{3}$/.test(cleanText.replace(/\s/g, ''));
+        // Check if it looks like a postal code (digits/dashes, typical length 4-10)
+        const isPostalLike = /^[\d\s-]{4,10}$/.test(cleanText) && /\d/.test(cleanText);
 
         setIsLoading(true);
         debounceRef.current = setTimeout(async () => {
             try {
                 let results: AddressSuggestion[] = [];
 
-                if (isCep && showCepLookup) {
-                    const cepResult = await addressService.lookupCep(cleanText);
-                    if (cepResult) results = [cepResult];
+                if (isPostalLike && showCepLookup) {
+                    const postalResult = await addressService.lookupPostal(cleanText, country);
+                    if (postalResult) results = [postalResult];
                 }
 
                 // Always also search Photon for richer results
                 const photonResults = await addressService.autocomplete(cleanText, {
                     lat: userCoords?.lat,
                     lon: userCoords?.lon,
-                    limit: isCep ? 3 : 5,
+                    limit: isPostalLike ? 3 : 5,
+                    country,
                 });
 
                 // Merge: CEP result first (if found), then Photon
@@ -109,7 +115,7 @@ export function SmartAddressInput({
                 setIsLoading(false);
             }
         }, 350);
-    }, [onChange, userCoords, showCepLookup]);
+    }, [onChange, userCoords, showCepLookup, country]);
 
     // Select suggestion
     const handleSelect = (suggestion: AddressSuggestion) => {
@@ -163,12 +169,13 @@ export function SmartAddressInput({
 
     const sourceLabel = (s: AddressSuggestion) => {
         if (s.source === 'brasilapi') return 'CEP';
+        if (s.source === 'zippopotam') return 'ZIP';
         if (s.source === 'geolocation') return 'GPS';
         return 'OSM';
     };
 
     const sourceColor = (s: AddressSuggestion) => {
-        if (s.source === 'brasilapi') return 'bg-emerald-100 text-emerald-700';
+        if (s.source === 'brasilapi' || s.source === 'zippopotam') return 'bg-emerald-100 text-emerald-700';
         if (s.source === 'geolocation') return 'bg-sky-100 text-sky-700';
         return 'bg-graphite-100 text-graphite-600';
     };

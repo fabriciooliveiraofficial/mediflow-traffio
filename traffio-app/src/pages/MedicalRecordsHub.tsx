@@ -34,11 +34,17 @@ import { useTenant } from '../contexts/TenantContext';
 import { useToast } from '../contexts/ToastContext';
 import { clsx } from 'clsx';
 import { formatDisplayDate } from '../lib/dateUtils';
+import { formatDoc, docLabel } from '../lib/i18n/doc';
+import { formatNational } from '../lib/i18n/phone';
+import { DEFAULT_COUNTRY, type CountryCode } from '../lib/i18n/countryFormats';
 
 interface Patient {
     id: string;
     full_name: string;
     cpf: string;
+    national_id?: string | null;
+    national_id_type?: string | null;
+    country?: string | null;
     phone: string;
     email?: string;
     birth_date?: string;
@@ -468,7 +474,13 @@ export const MedicalRecordsHub = () => {
                                 <p className={clsx(
                                     "text-[10px] font-medium uppercase tracking-wider",
                                     selectedPatient?.id === patient.id ? "text-white/70" : "text-graphite-400"
-                                )}>CPF: {patient.cpf || '---'}</p>
+                                )}>
+                                    {docLabel((patient.country as CountryCode) || (patient.cpf ? 'BR' : DEFAULT_COUNTRY))}: {
+                                        patient.national_id || patient.cpf
+                                            ? formatDoc(patient.national_id || patient.cpf, (patient.country as CountryCode) || (patient.cpf ? 'BR' : DEFAULT_COUNTRY))
+                                            : '---'
+                                    }
+                                </p>
                             </div>
                         </button>
                     ))}
@@ -617,7 +629,14 @@ export const MedicalRecordsHub = () => {
                                                 <div className="space-y-4">
                                                     <InfoField label="Nome Completo" value={selectedPatient.full_name} />
                                                     <div className="grid grid-cols-2 gap-4">
-                                                        <InfoField label="CPF" value={selectedPatient.cpf || 'Não informado'} />
+                                                        <InfoField
+                                                            label={docLabel((selectedPatient.country as CountryCode) || (selectedPatient.cpf ? 'BR' : DEFAULT_COUNTRY))}
+                                                            value={
+                                                                selectedPatient.national_id || selectedPatient.cpf
+                                                                    ? formatDoc(selectedPatient.national_id || selectedPatient.cpf, (selectedPatient.country as CountryCode) || (selectedPatient.cpf ? 'BR' : DEFAULT_COUNTRY))
+                                                                    : 'Não informado'
+                                                            }
+                                                        />
                                                         <InfoField label="Data de Nasc." value={formatDisplayDate(selectedPatient.birth_date) || 'Não informado'} />
                                                     </div>
                                                     <InfoField label="Gênero" value={selectedPatient.gender || 'Não informado'} />
@@ -638,10 +657,10 @@ export const MedicalRecordsHub = () => {
                                                         value={selectedPatient.email} 
                                                         icon={<Mail size={14} className="text-graphite-300" />} 
                                                     />
-                                                    <InfoField 
-                                                        label="Telefone / WhatsApp" 
-                                                        value={selectedPatient.phone} 
-                                                        icon={<Phone size={14} className="text-graphite-300" />} 
+                                                    <InfoField
+                                                        label="Telefone / WhatsApp"
+                                                        value={formatNational(selectedPatient.phone) || selectedPatient.phone}
+                                                        icon={<Phone size={14} className="text-graphite-300" />}
                                                     />
                                                 </div>
                                             </div>

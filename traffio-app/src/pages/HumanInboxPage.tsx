@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase'
 import { formatPhone, phoneFlag } from '../lib/formatPhone'
 import { formatDisplayDate } from '../lib/dateUtils'
+import { formatDoc, docLabel } from '../lib/i18n/doc'
+import { DEFAULT_COUNTRY, type CountryCode } from '../lib/i18n/countryFormats'
 import {
   MessageCircle, Clock, User, Send, Inbox,
   Loader2, PhoneCall, CheckCircle2, XCircle, Bot, Search,
@@ -78,6 +80,9 @@ interface PatientInfo {
   id: string
   full_name: string | null
   cpf: string | null
+  national_id?: string | null
+  national_id_type?: string | null
+  country?: string | null
   email: string | null
   birth_date: string | null
   notes: string | null
@@ -116,11 +121,10 @@ const QUICK_REPLIES = [
 // Helpers
 // ─────────────────────────────────────────────
 
-function maskCpf(cpf: string | null | undefined) {
-  if (!cpf) return '—'
-  const d = cpf.replace(/\D/g, '')
-  if (d.length < 11) return cpf
-  return `${d.slice(0, 3)}.***.***-${d.slice(9, 11)}`
+/** Masks the middle of a formatted document number for privacy in the inbox list. */
+function maskDoc(formatted: string): string {
+  if (!formatted || formatted.length <= 6) return formatted || '—'
+  return `${formatted.slice(0, 4)}***${formatted.slice(-3)}`
 }
 
 function slaColor(updatedAt: string) {
@@ -1428,6 +1432,7 @@ function PatientPanel({
   
   if (view === 'register') {
     const isWhatsApp = !['instagram', 'facebook', 'livechat'].includes(session.channel || '');
+    const isValidPhone = isWhatsApp && !/[a-zA-Z]/.test(session.patient_phone || '');
     return (
       <div className="w-full flex flex-col h-full border-l border-gray-200">
         <SidebarRegisterView 
@@ -1436,7 +1441,7 @@ function PatientPanel({
             onPatientSelected(p);
             onViewChange('profile');
           }}
-          initialPhone={isWhatsApp ? session.patient_phone : ''}
+          initialPhone={isValidPhone ? session.patient_phone : ''}
         />
       </div>
     );
@@ -1633,7 +1638,11 @@ function PatientPanel({
       <div className="p-4 border-b border-gray-100 space-y-2">
           <div className="flex items-center gap-2 text-xs text-gray-600">
             <CreditCard className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-            <span>CPF: <span className="font-medium">{maskCpf(patient?.cpf)}</span></span>
+            <span>{docLabel((patient?.country as CountryCode) || (patient?.cpf ? 'BR' : DEFAULT_COUNTRY))}: <span className="font-medium">
+              {patient?.national_id || patient?.cpf
+                ? maskDoc(formatDoc(patient.national_id || patient.cpf || '', (patient?.country as CountryCode) || (patient?.cpf ? 'BR' : DEFAULT_COUNTRY)))
+                : '—'}
+            </span></span>
           </div>
           {patient?.birth_date && (
             <div className="flex items-center gap-2 text-xs text-gray-600">
@@ -2098,7 +2107,7 @@ export function HumanInboxPage() {
 
     const phone = selected.patient_phone
     supabase.from('patients')
-      .select('id, full_name, cpf, email, birth_date, notes')
+      .select('id, full_name, cpf, national_id, national_id_type, country, email, birth_date, notes')
       .eq('tenant_id', tenantId)
       .eq('phone', phone)
       .maybeSingle()

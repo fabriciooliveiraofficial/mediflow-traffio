@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
-import { User, CreditCard, Mail, Phone, ChevronLeft, Loader2, UserPlus } from 'lucide-react';
+import { User, Mail, ChevronLeft, Loader2, UserPlus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useTenant } from '../contexts/TenantContext';
 import { useToast } from '../contexts/ToastContext';
+import { IntlPhoneInput } from './intl/IntlPhoneInput';
+import { IntlDocInput } from './intl/IntlDocInput';
+import { DEFAULT_COUNTRY, type CountryCode } from '../lib/i18n/countryFormats';
+import { docType } from '../lib/i18n/doc';
 
 interface SidebarRegisterViewProps {
   onBack: () => void;
@@ -16,7 +20,8 @@ export function SidebarRegisterView({ onBack, onSuccess, initialPhone }: Sidebar
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     full_name: '',
-    cpf: '',
+    national_id: '',
+    country: (tenant?.country || DEFAULT_COUNTRY) as CountryCode,
     phone: initialPhone || '',
     email: '',
     type: 'particular' as 'particular' | 'convenio'
@@ -32,7 +37,15 @@ export function SidebarRegisterView({ onBack, onSuccess, initialPhone }: Sidebar
         .from('patients')
         .insert({
           tenant_id: tenant.id,
-          ...formData
+          full_name: formData.full_name,
+          // `cpf` kept for BR retrocompat; `national_id`/`national_id_type`/`country` are the generic fields.
+          cpf: formData.country === 'BR' ? formData.national_id : null,
+          national_id: formData.national_id || null,
+          national_id_type: formData.national_id ? docType(formData.country) : null,
+          country: formData.country,
+          phone: formData.phone,
+          email: formData.email,
+          type: formData.type
         })
         .select()
         .single();
@@ -72,33 +85,21 @@ export function SidebarRegisterView({ onBack, onSuccess, initialPhone }: Sidebar
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider ml-1">CPF</label>
-          <div className="relative">
-            <CreditCard className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
-            <input
-              className="w-full pl-9 pr-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-              placeholder="000.000.000-00"
-              value={formData.cpf}
-              onChange={e => setFormData({ ...formData, cpf: e.target.value })}
-            />
-          </div>
+          <IntlDocInput
+            value={formData.national_id}
+            onChange={v => setFormData({ ...formData, national_id: v })}
+            country={formData.country}
+            onCountryChange={c => setFormData({ ...formData, country: c })}
+          />
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider ml-1">Whatsapp</label>
-          <div className="relative">
-            <Phone className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
-            <input
-              disabled={!!initialPhone}
-              className={`w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl transition-all ${
-                initialPhone 
-                  ? 'bg-gray-100 cursor-not-allowed opacity-70' 
-                  : 'bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500'
-              }`}
-              value={formData.phone}
-              onChange={e => setFormData({ ...formData, phone: e.target.value })}
-            />
-          </div>
+          <IntlPhoneInput
+            value={formData.phone}
+            onChange={v => setFormData({ ...formData, phone: v })}
+            country={formData.country}
+            label="Telefone"
+          />
         </div>
 
         <div className="space-y-1.5">

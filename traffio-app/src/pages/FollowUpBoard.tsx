@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { formatPhone, phoneFlag } from '../lib/formatPhone';
 import { useTenant } from '../contexts/TenantContext';
+import { useLocaleFormat } from '../hooks/useLocaleFormat';
 import { useFollowUpMetrics } from '../hooks/useFollowUpMetrics';
 import { PerformanceStats } from '../components/followup/PerformanceStats';
 import { KANBAN_STAGES, STAGE_ICONS } from '../lib/kanbanStages';
@@ -31,6 +32,7 @@ interface ConversationSession {
 
 export function FollowUpBoard() {
   const { tenant } = useTenant();
+  const { formatDate } = useLocaleFormat();
   const [sessions, setSessions] = useState<ConversationSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [patientNames, setPatientNames] = useState<Record<string, string>>({});
@@ -301,7 +303,7 @@ export function FollowUpBoard() {
                           </span>
                         </div>
                         <span className="text-[10px] font-bold text-gray-500 bg-gray-50 px-2 py-0.5 rounded-lg border border-gray-100">
-                          {new Date(session.updated_at).toLocaleDateString('pt-BR')}
+                          {formatDate(session.updated_at)}
                         </span>
                       </div>
                     </div>

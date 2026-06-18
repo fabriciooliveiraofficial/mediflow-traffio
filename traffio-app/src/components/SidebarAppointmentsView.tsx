@@ -3,6 +3,7 @@ import { ChevronLeft, Loader2, Calendar, Clock, MapPin, User, MoreVertical, XCir
 import { supabase } from '../lib/supabase';
 import { useTenant } from '../contexts/TenantContext';
 import { useToast } from '../contexts/ToastContext';
+import { useLocaleFormat } from '../hooks/useLocaleFormat';
 import { clsx } from 'clsx';
 
 interface Appointment {
@@ -37,6 +38,7 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
 export function SidebarAppointmentsView({ onBack, patientId, patientName, patientPhone, onSendMessage, onReschedule }: SidebarAppointmentsViewProps) {
   const { tenant } = useTenant();
   const { showToast } = useToast();
+  const { formatDate, formatSlot } = useLocaleFormat();
   const [loading, setLoading] = useState(true);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [tab, setTab] = useState<'upcoming' | 'history'>('upcoming');
@@ -94,7 +96,7 @@ export function SidebarAppointmentsView({ onBack, patientId, patientName, patien
   const list = tab === 'upcoming' ? upcoming : history.slice(-10).reverse();
 
   const handleCancel = async (appt: Appointment) => {
-    if (!confirm(`Cancelar consulta de ${new Date(appt.date + 'T12:00:00').toLocaleDateString('pt-BR')}?`)) return;
+    if (!confirm(`Cancelar consulta de ${formatDate(appt.date)}?`)) return;
     setCanceling(appt.id);
     try {
       const { error } = await supabase.rpc('rpc_cancel_appointment_by_patient', {
@@ -117,7 +119,7 @@ export function SidebarAppointmentsView({ onBack, patientId, patientName, patien
     const baseUrl = window.location.origin;
     const link = `${baseUrl}/checkin?apt=${appt.id}`;
     const firstName = patientName.split(' ')[0];
-    const dateStr = new Date(appt.date + 'T12:00:00').toLocaleDateString('pt-BR');
+    const dateStr = formatDate(appt.date);
     await onSendMessage(`Olá ${firstName}! 😊 Aqui está o link para a sua sala de espera virtual da consulta do dia ${dateStr}: ${link}`);
     showToast('success', 'Link de check-in enviado!');
     setActionMenu(null);
@@ -125,8 +127,8 @@ export function SidebarAppointmentsView({ onBack, patientId, patientName, patien
 
   const handleSendReminder = async (appt: Appointment) => {
     const firstName = patientName.split(' ')[0];
-    const dateStr = new Date(appt.date + 'T12:00:00').toLocaleDateString('pt-BR');
-    const time = String(appt.start_time).substring(0, 5);
+    const dateStr = formatDate(appt.date);
+    const time = formatSlot(appt.start_time);
     const doctor = appt.doctors?.full_name || 'seu profissional';
     await onSendMessage(`Olá ${firstName}! 😊 Lembrando da sua consulta com ${doctor} no dia ${dateStr} às ${time}. Nos vemos lá! 💙`);
     showToast('success', 'Lembrete enviado!');
@@ -203,7 +205,7 @@ export function SidebarAppointmentsView({ onBack, patientId, patientName, patien
                     )}
                     <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-gray-500">
                       <Clock size={11} className="shrink-0" />
-                      <span>{new Date(appt.date + 'T12:00:00').toLocaleDateString('pt-BR')} às {String(appt.start_time).substring(0, 5)}</span>
+                      <span>{formatDate(appt.date)} às {formatSlot(appt.start_time)}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">

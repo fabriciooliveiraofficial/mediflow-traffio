@@ -1,0 +1,169 @@
+/**
+ * countryFormats.ts — Single source of truth for field-level internationalization.
+ *
+ * "Internationalizing" a field here means: mask/format, validation, label and
+ * lookup provider adapt to a chosen country. This is NOT UI language/translation
+ * (see src/lib/i18n para esse pilar) — it's data formatting.
+ *
+ * Extend by adding a new entry to COUNTRIES. Everything else (inputs, services,
+ * display helpers) reads from this registry — never hardcode a country here twice.
+ */
+
+export type CountryCode = 'BR' | 'US' | 'NZ' | 'MX';
+
+export interface AddressFieldDef {
+    key: 'street' | 'number' | 'complement' | 'neighborhood' | 'city' | 'state' | 'postcode';
+    label: string;
+    required: boolean;
+}
+
+export interface CountryFormat {
+    code: CountryCode;
+    name: string;
+    flag: string;
+    dialCode: string; // e.g. '+55'
+
+    phone: {
+        // libphonenumber-js country alpha-2 code
+        region: string; // 'BR' | 'US' | 'NZ' | 'MX'
+        placeholder: string; // example national format for input placeholder
+    };
+
+    postal: {
+        label: string; // 'CEP' | 'ZIP code' | 'Postcode' | 'Código Postal'
+        placeholder: string;
+        mask: string; // '#' = digit placeholder, used for display masking
+        lookupProvider: 'brasilapi' | 'zippopotam';
+    };
+
+    doc: {
+        type: string; // 'cpf' | 'ssn' | 'ird' | 'rfc'
+        label: string; // 'CPF' | 'SSN' | 'IRD Number' | 'RFC'
+        placeholder: string;
+        mask?: string; // optional display mask
+        required: boolean;
+    };
+
+    addressFields: AddressFieldDef[];
+
+    // Display/UI locale defaults (numeric date/time formats; long month names
+    // follow the chosen UI language — see Pilar 2, TASKLIST-I18N-LANGUAGE.md)
+    locale: string; // BCP-47, used with Intl.DateTimeFormat
+    dateFormat: string; // human-readable hint, e.g. 'dd/MM/yyyy'
+    timeFormat: string; // human-readable hint, e.g. 'HH:mm' | 'h:mm a'
+    hour12: boolean;
+}
+
+export const COUNTRIES: Record<CountryCode, CountryFormat> = {
+    BR: {
+        code: 'BR',
+        name: 'Brasil',
+        flag: '🇧🇷',
+        dialCode: '+55',
+        phone: { region: 'BR', placeholder: '(41) 99775-9569' },
+        postal: { label: 'CEP', placeholder: '80010-000', mask: '#####-###', lookupProvider: 'brasilapi' },
+        doc: { type: 'cpf', label: 'CPF', placeholder: '000.000.000-00', mask: '###.###.###-##', required: true },
+        addressFields: [
+            { key: 'postcode', label: 'CEP', required: true },
+            { key: 'street', label: 'Endereço (Rua, Av...)', required: true },
+            { key: 'number', label: 'Nº', required: false },
+            { key: 'complement', label: 'Complemento', required: false },
+            { key: 'neighborhood', label: 'Bairro', required: false },
+            { key: 'city', label: 'Cidade', required: false },
+            { key: 'state', label: 'Estado', required: false },
+        ],
+        locale: 'pt-BR',
+        dateFormat: 'dd/MM/yyyy',
+        timeFormat: 'HH:mm',
+        hour12: false,
+    },
+    US: {
+        code: 'US',
+        name: 'United States',
+        flag: '🇺🇸',
+        dialCode: '+1',
+        phone: { region: 'US', placeholder: '(404) 925-7024' },
+        postal: { label: 'ZIP code', placeholder: '10001', mask: '#####-####', lookupProvider: 'zippopotam' },
+        doc: { type: 'ssn', label: 'SSN', placeholder: '000-00-0000', mask: '###-##-####', required: false },
+        addressFields: [
+            { key: 'street', label: 'Street address', required: true },
+            { key: 'number', label: 'Apt / Suite #', required: false },
+            { key: 'city', label: 'City', required: true },
+            { key: 'state', label: 'State', required: true },
+            { key: 'postcode', label: 'ZIP code', required: true },
+        ],
+        locale: 'en-US',
+        dateFormat: 'MM/dd/yyyy',
+        timeFormat: 'h:mm a',
+        hour12: true,
+    },
+    NZ: {
+        code: 'NZ',
+        name: 'New Zealand',
+        flag: '🇳🇿',
+        dialCode: '+64',
+        phone: { region: 'NZ', placeholder: '21 123 4567' },
+        postal: { label: 'Postcode', placeholder: '6011', mask: '####', lookupProvider: 'zippopotam' },
+        doc: { type: 'ird', label: 'IRD Number', placeholder: '123-456-789', mask: '###-###-###', required: false },
+        addressFields: [
+            { key: 'street', label: 'Street address', required: true },
+            { key: 'number', label: 'Unit / Apartment', required: false },
+            { key: 'city', label: 'Suburb / City', required: true },
+            { key: 'state', label: 'Region', required: false },
+            { key: 'postcode', label: 'Postcode', required: true },
+        ],
+        locale: 'en-NZ',
+        dateFormat: 'dd/MM/yyyy',
+        timeFormat: 'h:mm a',
+        hour12: true,
+    },
+    MX: {
+        code: 'MX',
+        name: 'México',
+        flag: '🇲🇽',
+        dialCode: '+52',
+        phone: { region: 'MX', placeholder: '55 1234 5678' },
+        postal: { label: 'Código Postal', placeholder: '01000', mask: '#####', lookupProvider: 'zippopotam' },
+        doc: { type: 'rfc', label: 'RFC', placeholder: 'XAXX010101000', mask: undefined, required: false },
+        addressFields: [
+            { key: 'postcode', label: 'Código Postal', required: true },
+            { key: 'street', label: 'Calle y número', required: true },
+            { key: 'number', label: 'Núm. interior', required: false },
+            { key: 'neighborhood', label: 'Colonia', required: false },
+            { key: 'city', label: 'Municipio / Ciudad', required: false },
+            { key: 'state', label: 'Estado', required: false },
+        ],
+        locale: 'es-MX',
+        dateFormat: 'dd/MM/yyyy',
+        timeFormat: 'HH:mm',
+        hour12: false,
+    },
+};
+
+export const DEFAULT_COUNTRY: CountryCode = 'BR';
+
+export function getCountry(code: string | null | undefined): CountryFormat {
+    const normalized = (code || '').toUpperCase() as CountryCode;
+    return COUNTRIES[normalized] || COUNTRIES[DEFAULT_COUNTRY];
+}
+
+export function listCountries(): CountryFormat[] {
+    return Object.values(COUNTRIES);
+}
+
+export function getLocaleForCountry(code: string | null | undefined): string {
+    return getCountry(code).locale;
+}
+
+/** UI language each country maps to by default (Pilar 2 — see TASKLIST-I18N-LANGUAGE.md). */
+export const COUNTRY_TO_LANGUAGE: Record<CountryCode, 'pt-BR' | 'en' | 'es'> = {
+    BR: 'pt-BR',
+    US: 'en',
+    NZ: 'en',
+    MX: 'es',
+};
+
+export function getLanguageForCountry(code: string | null | undefined): 'pt-BR' | 'en' | 'es' {
+    const normalized = (code || '').toUpperCase() as CountryCode;
+    return COUNTRY_TO_LANGUAGE[normalized] || 'pt-BR';
+}

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
+import { formatPhone, phoneFlag } from '../../lib/formatPhone';
 import {
     UserPlus,
     Stethoscope,
@@ -1313,7 +1314,7 @@ export const Professionals = () => {
                                         )}
                                         {p.phone && (
                                             <span className="text-xs text-graphite-300 font-medium flex items-center gap-1">
-                                                <Phone size={10} /> {p.phone}
+                                                <Phone size={10} /> {phoneFlag(p.phone)} {formatPhone(p.phone)}
                                             </span>
                                         )}
                                     </div>

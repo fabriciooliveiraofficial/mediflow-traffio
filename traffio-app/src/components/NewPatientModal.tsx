@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Phone, Mail, FileText, Save, Calendar } from 'lucide-react';
+import { X, User, Mail, Save, Calendar } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { clsx } from 'clsx';
 import { useTenant } from '../contexts/TenantContext';
+import { IntlPhoneInput } from './intl/IntlPhoneInput';
+import { IntlDocInput } from './intl/IntlDocInput';
+import { DEFAULT_COUNTRY, type CountryCode } from '../lib/i18n/countryFormats';
+import { docType } from '../lib/i18n/doc';
 
 interface NewPatientModalProps {
     isOpen: boolean;
@@ -20,7 +24,8 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
         full_name: '',
-        cpf: '',
+        national_id: '',
+        country: (tenant?.country || DEFAULT_COUNTRY) as CountryCode,
         birth_date: '',
         phone: '',
         email: '',
@@ -56,7 +61,9 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
         if (isOpen && initialData) {
             setFormData({
                 full_name: initialData.full_name || '',
-                cpf: initialData.cpf || '',
+                national_id: initialData.national_id || initialData.cpf || '',
+                // Legacy patients have no `country` but already have a `cpf` -> BR.
+                country: (initialData.country as CountryCode) || (initialData.cpf ? 'BR' : (tenant?.country || DEFAULT_COUNTRY)),
                 birth_date: initialData.birth_date ? toDisplayDate(initialData.birth_date) : '',
                 phone: initialData.phone || initialData.mobile || '',
                 email: initialData.email || '',
@@ -67,7 +74,8 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
         } else if (isOpen && !patientId) {
             setFormData({
                 full_name: '',
-                cpf: '',
+                national_id: '',
+                country: tenant?.country || DEFAULT_COUNTRY,
                 birth_date: '',
                 phone: '',
                 email: '',
@@ -76,7 +84,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
                 insurance_card: ''
             });
         }
-    }, [isOpen, initialData, patientId]);
+    }, [isOpen, initialData, patientId, tenant?.country]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -86,7 +94,11 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
             // Build payload dynamically to avoid errors with missing columns
             const payload: any = {
                 full_name: formData.full_name,
-                cpf: formData.cpf,
+                // `cpf` kept for BR retrocompat; `national_id`/`national_id_type`/`country` are the generic fields.
+                cpf: formData.country === 'BR' ? formData.national_id : null,
+                national_id: formData.national_id || null,
+                national_id_type: formData.national_id ? docType(formData.country) : null,
+                country: formData.country,
                 birth_date: toDBDate(formData.birth_date),
                 phone: formData.phone,
                 email: formData.email
@@ -191,32 +203,18 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-4">
-                                        <div className="group">
-                                            <label className="block text-xs font-black text-graphite-700 uppercase tracking-widest mb-2 ml-1">CPF</label>
-                                            <div className="relative">
-                                                <FileText size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-graphite-400 group-focus-within:text-brand-primary transition-colors" />
-                                                <input
-                                                    type="text"
-                                                    value={formData.cpf}
-                                                    onChange={e => setFormData({ ...formData, cpf: e.target.value })}
-                                                    className="w-full bg-ice-50 border border-ice-200 rounded-2xl py-3.5 pl-12 pr-4 text-sm font-bold text-graphite-900 focus:outline-none focus:border-brand-primary/50 focus:ring-4 focus:ring-brand-primary/10 transition-all placeholder:text-graphite-300"
-                                                    placeholder="000.000.000-00"
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="group">
-                                            <label className="block text-xs font-black text-graphite-700 uppercase tracking-widest mb-2 ml-1">Celular</label>
-                                            <div className="relative">
-                                                <Phone size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-graphite-400 group-focus-within:text-brand-primary transition-colors" />
-                                                <input
-                                                    type="tel"
-                                                    value={formData.phone}
-                                                    onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                                                    className="w-full bg-ice-50 border border-ice-200 rounded-2xl py-3.5 pl-12 pr-4 text-sm font-bold text-graphite-900 focus:outline-none focus:border-brand-primary/50 focus:ring-4 focus:ring-brand-primary/10 transition-all placeholder:text-graphite-300"
-                                                    placeholder="(11) 99999-9999"
-                                                />
-                                            </div>
-                                        </div>
+                                        <IntlDocInput
+                                            value={formData.national_id}
+                                            onChange={v => setFormData({ ...formData, national_id: v })}
+                                            country={formData.country}
+                                            onCountryChange={c => setFormData({ ...formData, country: c })}
+                                        />
+                                        <IntlPhoneInput
+                                            value={formData.phone}
+                                            onChange={v => setFormData({ ...formData, phone: v })}
+                                            country={formData.country}
+                                            label="Celular"
+                                        />
                                     </div>
 
                                     <div className="group">

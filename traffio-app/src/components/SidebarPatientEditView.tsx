@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { User, CreditCard, Mail, Phone, ChevronLeft, Loader2, Save, UserCheck, Users, Calendar } from 'lucide-react';
+import { User, Mail, ChevronLeft, Loader2, Save, UserCheck, Users, Calendar } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useTenant } from '../contexts/TenantContext';
 import { useToast } from '../contexts/ToastContext';
 import { clsx } from 'clsx';
+import { IntlPhoneInput } from './intl/IntlPhoneInput';
+import { IntlDocInput } from './intl/IntlDocInput';
+import { DEFAULT_COUNTRY, type CountryCode } from '../lib/i18n/countryFormats';
+import { docType } from '../lib/i18n/doc';
 
 interface SidebarPatientEditViewProps {
   onBack: () => void;
@@ -17,12 +21,13 @@ export function SidebarPatientEditView({ onBack, onSuccess, patient, session, on
   const { tenant } = useTenant();
   const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
-  const isWhatsApp = !['instagram', 'facebook', 'livechat'].includes(session?.channel || '');
-  
+
   // Patient Form State
   const [formData, setFormData] = useState({
     full_name: patient?.full_name || '',
-    cpf: patient?.cpf || '',
+    national_id: patient?.national_id || patient?.cpf || '',
+    // Legacy patients have no `country` but already have a `cpf` -> BR.
+    country: (patient?.country as CountryCode) || (patient?.cpf ? 'BR' : (tenant?.country || DEFAULT_COUNTRY)),
     birth_date: patient?.birth_date ? toDisplayDate(patient.birth_date) : '',
     phone: patient?.phone || '',
     email: patient?.email || '',
@@ -70,7 +75,11 @@ export function SidebarPatientEditView({ onBack, onSuccess, patient, session, on
         .from('patients')
         .update({
           full_name: formData.full_name,
-          cpf: formData.cpf,
+          // `cpf` kept for BR retrocompat; `national_id`/`national_id_type`/`country` are the generic fields.
+          cpf: formData.country === 'BR' ? formData.national_id : null,
+          national_id: formData.national_id || null,
+          national_id_type: formData.national_id ? docType(formData.country) : null,
+          country: formData.country,
           birth_date: toDBDate(formData.birth_date),
           phone: formData.phone,
           email: formData.email,
@@ -208,16 +217,12 @@ export function SidebarPatientEditView({ onBack, onSuccess, patient, session, on
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-500 uppercase ml-1">CPF</label>
-                <div className="relative">
-                  <CreditCard className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
-                  <input
-                    className="w-full pl-9 pr-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                    placeholder="000.000.000-00"
-                    value={formData.cpf}
-                    onChange={e => setFormData({ ...formData, cpf: e.target.value })}
-                  />
-                </div>
+                <IntlDocInput
+                  value={formData.national_id}
+                  onChange={v => setFormData({ ...formData, national_id: v })}
+                  country={formData.country}
+                  onCountryChange={c => setFormData({ ...formData, country: c })}
+                />
               </div>
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-gray-500 uppercase ml-1">Nascimento</label>
@@ -236,20 +241,12 @@ export function SidebarPatientEditView({ onBack, onSuccess, patient, session, on
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-500 uppercase ml-1">WhatsApp</label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
-                  <input
-                    readOnly={isWhatsApp}
-                    className={`w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl transition-all ${
-                      isWhatsApp 
-                        ? 'bg-gray-100 opacity-60 cursor-not-allowed' 
-                        : 'bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500'
-                    }`}
-                    value={formData.phone}
-                    onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                  />
-                </div>
+                <IntlPhoneInput
+                  value={formData.phone}
+                  onChange={v => setFormData({ ...formData, phone: v })}
+                  country={formData.country}
+                  label="Telefone"
+                />
               </div>
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-gray-500 uppercase ml-1">E-mail</label>

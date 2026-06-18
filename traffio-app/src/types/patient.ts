@@ -6,6 +6,9 @@ export interface Patient {
     tenant_id: string;
     full_name: string;
     cpf: string | null;
+    national_id?: string | null;
+    national_id_type?: string | null;
+    country?: string | null;
     email: string | null;
     phone: string | null;
     mobile?: string | null;

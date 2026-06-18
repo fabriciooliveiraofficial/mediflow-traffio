@@ -6,6 +6,7 @@ import type { ClinicLocation } from '../services/locationService';
 import { professionalService } from '../services/professionalService';
 import type { Professional } from '../services/professionalService';
 import { clsx } from 'clsx';
+import { formatPhone, phoneFlag } from '../lib/formatPhone';
 
 interface SidebarDirectoryViewProps {
   onBack: () => void;
@@ -172,7 +173,7 @@ export function SidebarDirectoryView({ onBack }: SidebarDirectoryViewProps) {
                 {loc.phone && (
                   <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
                     <Phone size={11} className="shrink-0" />
-                    <a href={`tel:${loc.phone}`} className="text-blue-600 hover:underline">{loc.phone}</a>
+                    <a href={`tel:${loc.phone}`} className="text-blue-600 hover:underline">{phoneFlag(loc.phone)} {formatPhone(loc.phone)}</a>
                   </div>
                 )}
                 {formatHours(loc) && (

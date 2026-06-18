@@ -16,6 +16,9 @@ import { supabase } from '../../lib/supabase';
 import { QRPassGenerator } from '../../components/QRPassGenerator';
 import { useGeofence } from '../../hooks/useGeofence';
 import type { Patient, Appointment } from '../../types/patient';
+import { docLabel } from '../../lib/i18n/doc';
+import { formatNational } from '../../lib/i18n/phone';
+import { DEFAULT_COUNTRY, type CountryCode } from '../../lib/i18n/countryFormats';
 
 type Step = 'loading' | 'geofence_check' | 'verify_data' | 'verify_insurance' | 'complete';
 
@@ -308,12 +311,16 @@ export const PreCheckin: React.FC = () => {
                                     <span className="text-sm font-bold text-graphite-900">{patient.full_name}</span>
                                 </div>
                                 <div className="flex justify-between py-2 border-b border-ice-50">
-                                    <span className="text-xs font-bold text-graphite-400">CPF</span>
-                                    <span className="text-sm font-bold text-graphite-900">{patient.cpf || '---'}</span>
+                                    <span className="text-xs font-bold text-graphite-400">
+                                        {docLabel((patient.country as CountryCode) || DEFAULT_COUNTRY)}
+                                    </span>
+                                    <span className="text-sm font-bold text-graphite-900">{patient.national_id || patient.cpf || '---'}</span>
                                 </div>
                                 <div className="flex justify-between py-2 border-b border-ice-50">
                                     <span className="text-xs font-bold text-graphite-400">Celular</span>
-                                    <span className="text-sm font-bold text-graphite-900">{patient.mobile || patient.phone || '---'}</span>
+                                    <span className="text-sm font-bold text-graphite-900">
+                                        {formatNational(patient.mobile || patient.phone) || patient.mobile || patient.phone || '---'}
+                                    </span>
                                 </div>
                                 <div className="flex justify-between py-2">
                                     <span className="text-xs font-bold text-graphite-400">Email</span>

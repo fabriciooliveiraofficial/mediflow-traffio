@@ -1,16 +1,11 @@
+import { formatDate } from './i18n/formatDateTime';
+
 /**
- * Utility to format dates from the database (YYYY-MM-DD) to display format (DD/MM/YYYY)
- * without timezone shifts.
+ * Formats a date from the database (YYYY-MM-DD) to display format, without
+ * timezone shifts. Defaults to `dd/MM/yyyy` (pt-BR) when `locale` is omitted,
+ * matching the original BR-only behavior — pass `locale` for country-aware
+ * display (e.g. `formatDisplayDate(dbDate, 'en-US')` → `MM/dd/yyyy`).
  */
-export const formatDisplayDate = (dbDate: string | null | undefined): string => {
-    if (!dbDate) return '';
-    
-    // In case of full ISO string, take only the date part
-    const datePart = dbDate.split('T')[0];
-    const parts = datePart.split('-');
-    
-    if (parts.length !== 3) return dbDate;
-    
-    const [year, month, day] = parts;
-    return `${day}/${month}/${year}`;
+export const formatDisplayDate = (dbDate: string | null | undefined, locale?: string): string => {
+    return formatDate(dbDate, { locale });
 };

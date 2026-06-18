@@ -112,16 +112,19 @@ export function getLocalHour(date: Date, timezone: string): number {
 /**
  * Formats a Date as a human-readable string in the given timezone.
  * Uses Intl.DateTimeFormat under the hood — no external library needed.
+ * `locale` defaults to `'pt-BR'` for backward compatibility; pass the tenant's
+ * locale (see `useLocaleFormat`) for country-aware display.
  */
 export function formatInTimezone(
     date: Date,
     timezone: string,
-    options: Intl.DateTimeFormatOptions = { dateStyle: 'short', timeStyle: 'short' }
+    options: Intl.DateTimeFormatOptions = { dateStyle: 'short', timeStyle: 'short' },
+    locale: string = 'pt-BR'
 ): string {
     try {
-        return new Intl.DateTimeFormat('pt-BR', { ...options, timeZone: timezone }).format(date);
+        return new Intl.DateTimeFormat(locale, { ...options, timeZone: timezone }).format(date);
     } catch {
-        return new Intl.DateTimeFormat('pt-BR', options).format(date);
+        return new Intl.DateTimeFormat(locale, options).format(date);
     }
 }
 

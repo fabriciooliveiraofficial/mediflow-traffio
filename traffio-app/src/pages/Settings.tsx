@@ -38,6 +38,8 @@ import { insurancePlanService, type InsurancePlan } from '../services/insuranceP
 import { TenantAddressForm } from '../components/TenantAddressForm';
 import { TeamManagement } from '../components/settings/TeamManagement';
 import { useTenant } from '../contexts/TenantContext';
+import { listCountries, getCountry, DEFAULT_COUNTRY, type CountryCode } from '../lib/i18n/countryFormats';
+import { formatPhone, phoneFlag } from '../lib/formatPhone';
 import { Activity, Stethoscope, Apple } from 'lucide-react';
 import { clsx } from 'clsx';
 import { BuyNumberModal } from '../components/numbers/BuyNumberModal';
@@ -162,6 +164,7 @@ export const Settings = () => {
         longitude: null,
         google_maps_url: '',
         type: 'clinica',
+        country: undefined,
         objectives: [],
         operating_hours: {
             1: { start: '08:00', end: '18:00', closed: false },
@@ -503,6 +506,7 @@ export const Settings = () => {
                 latitude: null,
                 longitude: null,
                 google_maps_url: '',
+                country: undefined,
                 operating_hours: {
                     1: { start: '08:00', end: '18:00', closed: false },
                     2: { start: '08:00', end: '18:00', closed: false },
@@ -726,11 +730,41 @@ export const Settings = () => {
 
                                                     <TenantAddressForm
                                                         initialData={tenant}
+                                                        country={tenant.country || DEFAULT_COUNTRY}
                                                         onSave={(updates: any) => {
                                                             setTenants(prev => prev.map(t => t.id === tenant.id ? { ...t, ...updates } : t));
                                                             handleSaveTenant(tenant.id, updates, true);
                                                         }}
                                                     />
+                                                </div>
+
+                                                {/* Country Config */}
+                                                <div className="border-t border-ice-100 pt-4 mt-4">
+                                                    <h4 className="text-xs font-black text-graphite-400 uppercase flex items-center gap-1.5 mb-3">
+                                                        <Globe size={12} /> País da Clínica
+                                                    </h4>
+                                                    <div>
+                                                        <label className="text-[10px] font-bold text-graphite-400 block mb-1">País Padrão</label>
+                                                        <select
+                                                            key={`country-${tenant.id}`}
+                                                            defaultValue={tenant.country || DEFAULT_COUNTRY}
+                                                            onChange={(e) => {
+                                                                const country = e.target.value as CountryCode;
+                                                                const locale = getCountry(country).locale;
+                                                                setTenants(prev => prev.map(t => t.id === tenant.id ? { ...t, country, locale } : t));
+                                                                handleSaveTenant(tenant.id, { country, locale });
+                                                                if (currentTenant?.id === tenant.id) updateTenantContext({ country, locale });
+                                                            }}
+                                                            className="w-full bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm font-medium text-graphite-700 focus:outline-none focus:border-brand-primary transition-colors"
+                                                        >
+                                                            {listCountries().map(c => (
+                                                                <option key={c.code} value={c.code}>{c.flag} {c.name}</option>
+                                                            ))}
+                                                        </select>
+                                                        <p className="text-[10px] text-graphite-400 mt-1">
+                                                            Define o formato padrão de telefone, CEP/ZIP e documento. Cada campo pode ser sobrescrito individualmente.
+                                                        </p>
+                                                    </div>
                                                 </div>
 
                                                 {/* Geofence Config */}
@@ -835,7 +869,13 @@ export const Settings = () => {
                                                     <div className="flex items-center gap-3">
                                                         <input
                                                             type="color"
-                                                            defaultValue={tenant.color_primary || '#1152d4'}
+                                                            value={tenant.color_primary || '#1152d4'}
+                                                            onChange={(e) => {
+                                                                setTenants(prev => prev.map(t => t.id === tenant.id ? { ...t, color_primary: e.target.value } : t));
+                                                                if (currentTenant?.id === tenant.id) {
+                                                                    updateTenantContext({ color_primary: e.target.value });
+                                                                }
+                                                            }}
                                                             onBlur={(e) => handleSaveTenant(tenant.id, { color_primary: e.target.value })}
                                                             className="w-10 h-10 rounded-xl border border-ice-200 cursor-pointer"
                                                         />
@@ -1023,9 +1063,22 @@ export const Settings = () => {
                                                 className="w-full bg-white border border-ice-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:border-brand-primary transition-colors"
                                             />
                                         </div>
+                                        <div>
+                                            <label className="text-xs font-bold text-graphite-500">País</label>
+                                            <select
+                                                value={locForm.country || tenants[0]?.country || DEFAULT_COUNTRY}
+                                                onChange={e => setLocForm({ ...locForm, country: e.target.value as CountryCode })}
+                                                className="w-full bg-white border border-ice-200 rounded-xl px-3 py-2.5 text-sm font-bold text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors h-[42px]"
+                                            >
+                                                {listCountries().map(c => (
+                                                    <option key={c.code} value={c.code}>{c.flag} {c.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
                                         <div className="col-span-1 md:col-span-3">
                                             <TenantAddressForm
                                                 initialData={locForm}
+                                                country={(locForm.country || tenants[0]?.country || DEFAULT_COUNTRY) as CountryCode}
                                                 onSave={(updates: Partial<ClinicLocation>) => setLocForm((prev: Partial<ClinicLocation>) => ({ ...prev, ...updates }))}
                                             />
                                         </div>
@@ -1183,7 +1236,7 @@ export const Settings = () => {
                                             )}
                                         </div>
                                     </div>
-                                    {loc.phone && <span className="text-sm text-graphite-500 hidden md:block">{loc.phone}</span>}
+                                    {loc.phone && <span className="text-sm text-graphite-500 hidden md:block">{phoneFlag(loc.phone)} {formatPhone(loc.phone)}</span>}
                                     <div className="flex gap-1">
                                         <button onClick={() => {
                                             setEditingLocId(loc.id);
@@ -1199,6 +1252,7 @@ export const Settings = () => {
                                                 longitude: loc.longitude || null,
                                                 google_maps_url: loc.google_maps_url || '',
                                                 type: loc.type || 'clinica',
+                                                country: loc.country,
                                                 objectives: loc.objectives || [],
                                                 operating_hours: loc.operating_hours || {
                                                     1: { start: '08:00', end: '18:00', closed: false },

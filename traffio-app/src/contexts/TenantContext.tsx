@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import type { PlanId, SubscriptionStatus, BillingCycle } from '../config/planConfig';
+import type { CountryCode } from '../lib/i18n/countryFormats';
 
 interface Tenant {
     id: string;
@@ -10,6 +11,8 @@ interface Tenant {
     specialty: string[];
     settings: any;
     timezone: string;
+    country?: CountryCode;
+    locale?: string;
     whatsapp_provider?: 'zapi' | 'cloud_api';
     zapi_instance_id?: string;
     zapi_token?: string;
@@ -33,6 +36,7 @@ interface Tenant {
     smtp_user?: string;
     smtp_pass?: string;
     smtp_from?: string;
+    color_primary?: string;
 }
 
 export interface UserProfile {
@@ -200,6 +204,15 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user?.id, authLoading]);
+
+    // Apply custom brand primary color dynamically to Tailwind v4 variable mapping
+    useEffect(() => {
+        if (tenant?.color_primary) {
+            document.documentElement.style.setProperty('--color-brand-primary', tenant.color_primary);
+        } else {
+            document.documentElement.style.removeProperty('--color-brand-primary');
+        }
+    }, [tenant?.color_primary]);
 
     return (
         <TenantContext.Provider value={{ tenant, userRole, userProfile, loading, refresh: fetchTenant, updateTenant }}>

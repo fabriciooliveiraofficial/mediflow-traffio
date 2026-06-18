@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, Stethoscope, FileText, Activity, Brain, ClipboardList, Upload, History, ExternalLink } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
+import { useLocaleFormat } from '../hooks/useLocaleFormat';
 import { supabase } from '../lib/supabase';
 
 interface NewMedicalRecordModalProps {
@@ -19,6 +20,7 @@ export const NewMedicalRecordModal: React.FC<NewMedicalRecordModalProps> = ({
     patientCpf
 }) => {
     const { showToast } = useToast();
+    const { formatDate } = useLocaleFormat();
     const [loading, setLoading] = useState(false);
     const [history, setHistory] = useState<any[]>([]);
     const [file, setFile] = useState<File | null>(null);
@@ -82,7 +84,7 @@ export const NewMedicalRecordModal: React.FC<NewMedicalRecordModalProps> = ({
                     doctor_id: resolvedDoctorId,
                     tenant_id: memberData.tenant_id,
                     soap_notes: soap,
-                    content: `Evolução SOAP - ${new Date().toLocaleDateString()}`
+                    content: `Evolução SOAP - ${formatDate(new Date())}`
                 }]);
 
             if (error) throw error;

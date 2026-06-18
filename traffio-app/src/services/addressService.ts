@@ -3,10 +3,12 @@
  * 100% Free — No API keys, no billing, no limits (fair use).
  *
  * Stack:
- *  - Photon (photon.komoot.io)  → Search-as-you-type autocomplete + reverse geocoding
+ *  - Photon (photon.komoot.io)    → Search-as-you-type autocomplete + reverse geocoding (global)
  *  - BrasilAPI (brasilapi.com.br) → CEP lookup (Brazilian postal code → full address)
- *  - Browser Geolocation API     → Native GPS for location bias + "Use my location"
+ *  - Zippopotam.us                → ZIP/Postcode lookup for US/NZ/MX (free, no key)
+ *  - Browser Geolocation API      → Native GPS for location bias + "Use my location"
  */
+import { type CountryCode, getCountry } from '../lib/i18n/countryFormats';
 
 export interface AddressSuggestion {
     label: string;
@@ -16,10 +18,11 @@ export interface AddressSuggestion {
     city?: string;
     state?: string;
     country?: string;
+    countryCode?: string;
     postcode?: string;
     latitude: number;
     longitude: number;
-    source: 'photon' | 'brasilapi' | 'geolocation';
+    source: 'photon' | 'brasilapi' | 'zippopotam' | 'geolocation';
 }
 
 interface PhotonFeature {
@@ -32,6 +35,7 @@ interface PhotonFeature {
         city?: string;
         state?: string;
         country?: string;
+        countrycode?: string;
         postcode?: string;
         osm_value?: string;
         type?: string;
@@ -50,9 +54,32 @@ interface BrasilApiCep {
     };
 }
 
+interface ZippopotamResponse {
+    'post code': string;
+    country: string;
+    'country abbreviation': string;
+    places: Array<{
+        'place name': string;
+        longitude: string;
+        state: string;
+        'state abbreviation': string;
+        latitude: string;
+    }>;
+}
+
 const PHOTON_BASE = 'https://photon.komoot.io';
 const BRASILAPI_BASE = 'https://brasilapi.com.br/api';
+const ZIPPOPOTAM_BASE = 'https://api.zippopotam.us';
 const DEBOUNCE_MIN_CHARS = 3;
+
+// Rough bounding boxes [minLon, minLat, maxLon, maxLat] used to bias Photon's
+// global autocomplete towards the selected country (Photon has no ISO country filter).
+const COUNTRY_BBOX: Record<CountryCode, [number, number, number, number]> = {
+    BR: [-73.99, -33.75, -28.84, 5.27],
+    US: [-124.85, 24.40, -66.88, 49.38],
+    NZ: [165.87, -47.35, 178.6, -34.36],
+    MX: [-118.45, 14.39, -86.49, 32.72],
+};
 
 function buildPhotonLabel(props: PhotonFeature['properties']): string {
     const parts: string[] = [];
@@ -75,7 +102,7 @@ export const addressService = {
      */
     async autocomplete(
         query: string,
-        options?: { lat?: number; lon?: number; limit?: number }
+        options?: { lat?: number; lon?: number; limit?: number; country?: CountryCode }
     ): Promise<AddressSuggestion[]> {
         if (!query || query.length < DEBOUNCE_MIN_CHARS) return [];
 
@@ -85,8 +112,12 @@ export const addressService = {
             lang: 'default',
         });
 
-        // Bias towards Brazil
         params.set('osm_tag', 'place');
+        // Bias towards the selected country's bounding box (Photon has no ISO country filter)
+        if (options?.country) {
+            const bbox = COUNTRY_BBOX[options.country];
+            if (bbox) params.set('bbox', bbox.join(','));
+        }
         // If we have coords, bias results near them
         if (options?.lat && options?.lon) {
             params.set('lat', String(options.lat));
@@ -106,6 +137,7 @@ export const addressService = {
                 city: f.properties.city,
                 state: f.properties.state,
                 country: f.properties.country,
+                countryCode: f.properties.countrycode?.toUpperCase() || options?.country,
                 postcode: f.properties.postcode,
                 latitude: f.geometry.coordinates[1],
                 longitude: f.geometry.coordinates[0],
@@ -139,6 +171,7 @@ export const addressService = {
                 city: f.properties.city,
                 state: f.properties.state,
                 country: f.properties.country,
+                countryCode: f.properties.countrycode?.toUpperCase(),
                 postcode: f.properties.postcode,
                 latitude: f.geometry.coordinates[1],
                 longitude: f.geometry.coordinates[0],
@@ -185,6 +218,7 @@ export const addressService = {
                 city: data.city,
                 state: data.state,
                 country: 'Brasil',
+                countryCode: 'BR',
                 postcode: data.cep,
                 latitude: lat,
                 longitude: lon,
@@ -194,6 +228,52 @@ export const addressService = {
             console.warn('[addressService] CEP lookup failed:', err);
             return null;
         }
+    },
+
+    /**
+     * ZIP/Postcode lookup via Zippopotam.us (free, no key).
+     * Covers US/NZ/MX (and ~60 other countries) — used as the registry's
+     * lookupProvider for any country whose postal.lookupProvider is 'zippopotam'.
+     */
+    async lookupZip(zip: string, country: CountryCode): Promise<AddressSuggestion | null> {
+        const cleanZip = zip.trim().replace(/\s+/g, '');
+        if (!cleanZip) return null;
+
+        try {
+            const res = await fetch(`${ZIPPOPOTAM_BASE}/${country.toLowerCase()}/${encodeURIComponent(cleanZip)}`);
+            if (!res.ok) return null;
+            const data: ZippopotamResponse = await res.json();
+            const place = data.places?.[0];
+            if (!place) return null;
+
+            const state = place['state abbreviation'] || place.state;
+            const label = [place['place name'], state, data['post code']].filter(Boolean).join(' — ');
+
+            return {
+                label,
+                city: place['place name'],
+                state,
+                country: data.country,
+                countryCode: data['country abbreviation'],
+                postcode: data['post code'],
+                latitude: parseFloat(place.latitude) || 0,
+                longitude: parseFloat(place.longitude) || 0,
+                source: 'zippopotam',
+            };
+        } catch (err) {
+            console.warn('[addressService] Zippopotam lookup failed:', err);
+            return null;
+        }
+    },
+
+    /**
+     * Country-aware postal lookup — routes to the provider declared in the
+     * country registry (countryFormats.ts): BrasilAPI for BR, Zippopotam.us
+     * for everyone else. This is the entry point IntlPostalInput should call.
+     */
+    async lookupPostal(value: string, country: CountryCode): Promise<AddressSuggestion | null> {
+        const provider = getCountry(country).postal.lookupProvider;
+        return provider === 'brasilapi' ? this.lookupCep(value) : this.lookupZip(value, country);
     },
 
     /**
