@@ -1573,9 +1573,17 @@ function PatientPanel({
           </div>
           <div className="min-w-0">
             <p className="text-sm font-bold text-gray-900 truncate">
-              {patient?.full_name ?? 'Paciente não cadastrado'}
+              {patient?.full_name ?? (
+                ['instagram', 'facebook', 'livechat'].includes(session.channel || '')
+                  ? (session.context?.visitor_name || session.context?.username || session.context?.name || (session.channel === 'instagram' ? 'Usuário do Instagram' : session.channel === 'facebook' ? 'Usuário do Messenger' : 'Visitante Web'))
+                  : 'Paciente não cadastrado'
+              )}
             </p>
-            <p className="text-xs text-gray-500">{formatPhone(session.patient_phone)}</p>
+            <p className="text-xs text-gray-500">
+              {['instagram', 'facebook', 'livechat'].includes(session.channel || '')
+                ? (session.channel === 'instagram' ? `Instagram: @${session.context?.username || 'Direct'}` : session.channel === 'facebook' ? 'Facebook Messenger' : 'Live Chat')
+                : formatPhone(session.patient_phone)}
+            </p>
           </div>
         </div>
         {patient && (
@@ -3064,9 +3072,17 @@ export function HumanInboxPage() {
                           </div>
                           <div className="min-w-0">
                             <p className="text-xs font-bold text-gray-800 truncate">
-                              {patientNames[s.patient_phone] ?? formatPhone(s.patient_phone)}
+                              {patientNames[s.patient_phone] ?? (
+                                ['instagram', 'facebook', 'livechat'].includes(s.channel || '')
+                                  ? (s.context?.visitor_name || s.context?.username || s.context?.name || (s.channel === 'instagram' ? 'Usuário do Instagram' : s.channel === 'facebook' ? 'Usuário do Messenger' : 'Visitante Web'))
+                                  : formatPhone(s.patient_phone)
+                              )}
                             </p>
-                            <p className="text-[10px] text-gray-400 truncate">{s.patient_phone}</p>
+                            <p className="text-[10px] text-gray-400 truncate">
+                              {['instagram', 'facebook', 'livechat'].includes(s.channel || '')
+                                ? (s.channel === 'instagram' ? `Instagram: @${s.context?.username || 'Direct'}` : s.channel === 'facebook' ? 'Facebook Messenger' : 'Live Chat')
+                                : s.patient_phone}
+                            </p>
                           </div>
                         </button>
                       ))

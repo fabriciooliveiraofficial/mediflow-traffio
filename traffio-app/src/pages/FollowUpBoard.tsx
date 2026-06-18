@@ -24,6 +24,8 @@ interface ConversationSession {
   revenue_estimated: number;
   updated_at: string;
   variables?: any;
+  channel?: string;
+  context?: any;
 }
 
 
@@ -259,10 +261,16 @@ export function FollowUpBoard() {
                           </div>
                           <div className="overflow-hidden">
                             <p className="text-xs font-black text-gray-900 truncate tracking-tight">
-                              {patientNames[session.patient_phone] || `${phoneFlag(session.patient_phone)} ${formatPhone(session.patient_phone)}`}
+                              {patientNames[session.patient_phone] || (
+                                ['instagram', 'facebook', 'livechat'].includes(session.channel || '')
+                                  ? (session.context?.visitor_name || session.context?.username || session.context?.name || (session.channel === 'instagram' ? 'Usuário do Instagram' : session.channel === 'facebook' ? 'Usuário do Messenger' : 'Visitante Web'))
+                                  : `${phoneFlag(session.patient_phone)} ${formatPhone(session.patient_phone)}`
+                              )}
                             </p>
                             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
-                              {formatPhone(session.patient_phone)}
+                              {['instagram', 'facebook', 'livechat'].includes(session.channel || '')
+                                ? (session.channel === 'instagram' ? `Instagram: @${session.context?.username || 'Direct'}` : session.channel === 'facebook' ? 'Facebook Messenger' : 'Live Chat')
+                                : formatPhone(session.patient_phone)}
                             </p>
                           </div>
                         </div>
