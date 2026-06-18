@@ -65,10 +65,12 @@ serve(async (req: Request) => {
 
     const channel: "instagram" | "facebook" = objectType === "instagram" ? "instagram" : "facebook";
 
-    // Processar cada entry de forma assíncrona (não bloqueante)
-    processEntries(supabase, channel, body.entry ?? []).catch((err) =>
-      console.error("[meta-social-webhook] Background error:", err.message)
-    );
+    // Processar cada entry de forma síncrona para evitar congelamento da Deno Deploy
+    try {
+      await processEntries(supabase, channel, body.entry ?? []);
+    } catch (err: any) {
+      console.error("[meta-social-webhook] Error processing entries:", err.message);
+    }
 
     return response200;
 
@@ -158,7 +160,7 @@ async function processMessagingEvent(
   // 3. Garantir/atualizar conversation_session
   const { data: existingSession } = await supabase
     .from("conversation_sessions")
-    .select("id, omnichannel_status, platform_user_id")
+    .select("id, omnichannel_status, platform_user_id, recent_messages")
     .eq("tenant_id", tenantId)
     .eq("patient_phone", senderId)
     .maybeSingle();
@@ -175,12 +177,34 @@ async function processMessagingEvent(
       context:              {},
     });
     console.log(`[meta-social-webhook] Created new ${channel} session for sender ${senderId}`);
-  } else if (!existingSession.platform_user_id) {
-    // Atualizar platform_user_id se ainda não estava preenchido
-    await supabase.from("conversation_sessions")
-      .update({ platform_user_id: senderId, channel })
-      .eq("tenant_id", tenantId)
-      .eq("patient_phone", senderId);
+  } else {
+    if (!existingSession.platform_user_id) {
+      // Atualizar platform_user_id se ainda não estava preenchido
+      await supabase.from("conversation_sessions")
+        .update({ platform_user_id: senderId, channel })
+        .eq("tenant_id", tenantId)
+        .eq("patient_phone", senderId);
+    }
+
+    // --- HUMAN HANDOFF FAST PATH ---
+    // Se a conversa já está sob controle humano, registrar a mensagem no histórico diretamente,
+    // evitando os 30s de latência do process-inbox cron.
+    if (existingSession.omnichannel_status === "human_active") {
+      console.log(`[meta-social-webhook] ${channel} | ${senderId} | human_active — logging directly to conversation`);
+      await supabase.from("conversation_messages").insert({
+        session_id:          existingSession.id,
+        role:                "user",
+        content:             text,
+        whatsapp_message_id: messageId,
+      });
+
+      // Atualizar memória rotativa (recent_messages)
+      const recent = existingSession.recent_messages || [];
+      recent.push({ role: "user", content: text, timestamp: new Date().toISOString() });
+      const trimmed = recent.length > 20 ? recent.slice(-20) : recent;
+      await supabase.from("conversation_sessions").update({ recent_messages: trimmed }).eq("id", existingSession.id);
+      return;
+    }
   }
 
   // Tratamento de timestamp (Meta pode enviar microssegundos ou formato estranho)

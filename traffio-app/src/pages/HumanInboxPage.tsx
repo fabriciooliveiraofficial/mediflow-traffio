@@ -463,8 +463,9 @@ const MessageBubble = memo(function MessageBubble({
       )}
 
       <div 
-        className={clsx('max-w-[75%] min-w-0 flex flex-col', isOutgoing ? 'items-end' : 'items-start')}
+        className={clsx('max-w-[75%] min-w-0 flex flex-col cursor-pointer', isOutgoing ? 'items-end' : 'items-start')}
         style={{ width: 'fit-content' }}
+        onClick={() => setHovered(prev => !prev)}
       >
         {isInternal && (
           <div className="flex items-center gap-1 mb-1">
