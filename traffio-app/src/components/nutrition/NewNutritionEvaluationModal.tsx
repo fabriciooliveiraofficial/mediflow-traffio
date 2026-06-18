@@ -1,5 +1,6 @@
 import React from 'react';
 import { X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { AnthropometryForm } from './AnthropometryForm';
 
 interface NewNutritionEvaluationModalProps {
@@ -9,12 +10,13 @@ interface NewNutritionEvaluationModalProps {
     patientName?: string;
 }
 
-export const NewNutritionEvaluationModal: React.FC<NewNutritionEvaluationModalProps> = ({ 
-    isOpen, 
-    onClose, 
+export const NewNutritionEvaluationModal: React.FC<NewNutritionEvaluationModalProps> = ({
+    isOpen,
+    onClose,
     patientId,
     patientName
 }) => {
+    const { t } = useTranslation('medical');
     if (!isOpen) return null;
 
     return (
@@ -22,8 +24,8 @@ export const NewNutritionEvaluationModal: React.FC<NewNutritionEvaluationModalPr
             <div className="bg-white w-full max-w-4xl rounded-[40px] shadow-2xl overflow-hidden border border-ice-100 animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
                 <div className="p-8 border-b border-ice-100 flex items-center justify-between bg-ice-50/30">
                     <div>
-                        <h3 className="text-2xl font-black text-graphite-900 tracking-tight">Nova Avaliação Antropométrica</h3>
-                        <p className="text-xs text-brand-primary font-black tracking-widest uppercase mt-1">Paciente: {patientName || 'Selecionar'}</p>
+                        <h3 className="text-2xl font-black text-graphite-900 tracking-tight">{t('nutritionModals.newEvaluation.title')}</h3>
+                        <p className="text-xs text-brand-primary font-black tracking-widest uppercase mt-1">{t('nutritionModals.newEvaluation.patientPrefix', { name: patientName || t('nutritionModals.newEvaluation.selectFallback') })}</p>
                     </div>
                     <button 
                         onClick={onClose} 

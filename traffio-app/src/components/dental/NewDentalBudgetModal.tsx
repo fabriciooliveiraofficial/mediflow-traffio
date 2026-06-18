@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Plus, Trash2, Save, Calculator, DollarSign } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { dentalService } from '../../services/dentalService';
 import type { DentalBudgetItem } from '../../services/dentalService';
 import { useToast } from '../../contexts/ToastContext';
@@ -20,10 +21,11 @@ export const NewDentalBudgetModal: React.FC<NewDentalBudgetModalProps> = ({
     patientId,
     preSelectedTeeth = []
 }) => {
+    const { t } = useTranslation('medical');
     const { tenant } = useTenant();
     const { showToast } = useToast();
     const [loading, setLoading] = useState(false);
-    
+
     const [notes, setNotes] = useState('');
     const [validUntil, setValidUntil] = useState(
         new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
@@ -33,7 +35,7 @@ export const NewDentalBudgetModal: React.FC<NewDentalBudgetModalProps> = ({
     const initialItems: Omit<DentalBudgetItem, 'id'>[] = preSelectedTeeth.map(tooth => ({
         tooth_number: tooth.tooth,
         plane: tooth.plane,
-        procedure_name: `Procedimento no Dente ${tooth.tooth} (${tooth.plane})`,
+        procedure_name: t('dentalModals.newBudget.autoProcedureName', { tooth: tooth.tooth, plane: tooth.plane }),
         unit_price: 150,
         quantity: 1,
         total_price: 150
@@ -83,11 +85,11 @@ export const NewDentalBudgetModal: React.FC<NewDentalBudgetModalProps> = ({
                 valid_until: validUntil
             }, items);
 
-            showToast('success', 'Orçamento criado com sucesso!');
+            showToast('success', t('dentalModals.newBudget.toasts.created'));
             onSuccess();
             onClose();
         } catch (error: any) {
-            showToast('error', 'Erro ao criar orçamento: ' + error.message);
+            showToast('error', t('dentalModals.newBudget.toasts.createErrorPrefix') + error.message);
         } finally {
             setLoading(false);
         }
@@ -104,8 +106,8 @@ export const NewDentalBudgetModal: React.FC<NewDentalBudgetModalProps> = ({
                             <Calculator size={24} />
                         </div>
                         <div>
-                            <h2 className="text-2xl font-black text-graphite-900 tracking-tight">Novo Orçamento Odontológico</h2>
-                            <p className="text-sm text-graphite-500 font-medium italic">Transforme o diagnóstico em plano de tratamento.</p>
+                            <h2 className="text-2xl font-black text-graphite-900 tracking-tight">{t('dentalModals.newBudget.title')}</h2>
+                            <p className="text-sm text-graphite-500 font-medium italic">{t('dentalModals.newBudget.subtitle')}</p>
                         </div>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-ice-100 rounded-xl transition-colors border-none cursor-pointer text-graphite-400">
@@ -120,7 +122,7 @@ export const NewDentalBudgetModal: React.FC<NewDentalBudgetModalProps> = ({
                         <div className="flex items-center justify-between">
                             <h3 className="text-sm font-black text-graphite-400 uppercase tracking-widest flex items-center gap-2">
                                 <Plus size={14} className="text-brand-primary" />
-                                Itens do Orçamento
+                                {t('dentalModals.newBudget.itemsTitle')}
                             </h3>
                         </div>
 
@@ -128,11 +130,11 @@ export const NewDentalBudgetModal: React.FC<NewDentalBudgetModalProps> = ({
                             <table className="w-full">
                                 <thead className="bg-ice-50/50 border-b border-ice-100">
                                     <tr>
-                                        <th className="px-4 py-3 text-left text-[10px] font-black text-graphite-400 uppercase">Dente/Face</th>
-                                        <th className="px-4 py-3 text-left text-[10px] font-black text-graphite-400 uppercase">Procedimento</th>
-                                        <th className="px-4 py-3 text-left text-[10px] font-black text-graphite-400 uppercase w-32">Vlr Unit</th>
-                                        <th className="px-4 py-3 text-left text-[10px] font-black text-graphite-400 uppercase w-20">Qtd</th>
-                                        <th className="px-4 py-3 text-left text-[10px] font-black text-graphite-400 uppercase w-32">Total</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-black text-graphite-400 uppercase">{t('dentalModals.newBudget.table.toothFace')}</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-black text-graphite-400 uppercase">{t('dentalModals.newBudget.table.procedure')}</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-black text-graphite-400 uppercase w-32">{t('dentalModals.newBudget.table.unitValue')}</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-black text-graphite-400 uppercase w-20">{t('dentalModals.newBudget.table.qty')}</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-black text-graphite-400 uppercase w-32">{t('dentalModals.newBudget.table.total')}</th>
                                         <th className="px-4 py-3 text-center text-[10px] font-black text-graphite-400 uppercase w-12"></th>
                                     </tr>
                                 </thead>
@@ -142,15 +144,15 @@ export const NewDentalBudgetModal: React.FC<NewDentalBudgetModalProps> = ({
                                             <td className="px-4 py-3">
                                                 <div className="flex gap-1">
                                                     <input 
-                                                        type="number" 
-                                                        placeholder="Dente"
+                                                        type="number"
+                                                        placeholder={t('dentalModals.newBudget.toothPlaceholder')}
                                                         value={item.tooth_number || ''}
                                                         onChange={(e) => updateItem(idx, { tooth_number: parseInt(e.target.value) })}
                                                         className="w-16 bg-ice-50/50 border border-ice-200 rounded-lg px-2 py-1.5 text-xs font-bold focus:border-brand-primary outline-none"
                                                     />
                                                     <input 
-                                                        type="text" 
-                                                        placeholder="Face"
+                                                        type="text"
+                                                        placeholder={t('dentalModals.newBudget.facePlaceholder')}
                                                         value={item.plane || ''}
                                                         onChange={(e) => updateItem(idx, { plane: e.target.value })}
                                                         className="w-16 bg-ice-50/50 border border-ice-200 rounded-lg px-2 py-1.5 text-xs font-bold focus:border-brand-primary outline-none"
@@ -161,7 +163,7 @@ export const NewDentalBudgetModal: React.FC<NewDentalBudgetModalProps> = ({
                                                 <input 
                                                     type="text" 
                                                     required
-                                                    placeholder="Nome do procedimento..."
+                                                    placeholder={t('dentalModals.newBudget.procedureNamePlaceholder')}
                                                     value={item.procedure_name}
                                                     onChange={(e) => updateItem(idx, { procedure_name: e.target.value })}
                                                     className="w-full bg-ice-50/50 border border-ice-200 rounded-lg px-3 py-1.5 text-xs font-bold focus:border-brand-primary outline-none"
@@ -210,7 +212,7 @@ export const NewDentalBudgetModal: React.FC<NewDentalBudgetModalProps> = ({
                             onClick={addItem}
                             className="w-full py-3 border-2 border-dashed border-ice-200 rounded-2xl text-graphite-400 font-bold text-xs hover:border-brand-primary hover:text-brand-primary hover:bg-brand-primary/5 transition-all outline-none"
                         >
-                            + Adicionar outro procedimento
+                            {t('dentalModals.newBudget.addItem')}
                         </button>
                     </div>
 
@@ -218,11 +220,11 @@ export const NewDentalBudgetModal: React.FC<NewDentalBudgetModalProps> = ({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         {/* Notes */}
                         <div className="space-y-2">
-                             <label className="text-[10px] font-black text-graphite-400 uppercase tracking-widest px-1">Observações do Plano</label>
-                             <textarea 
+                             <label className="text-[10px] font-black text-graphite-400 uppercase tracking-widest px-1">{t('dentalModals.newBudget.notesLabel')}</label>
+                             <textarea
                                 value={notes}
                                 onChange={(e) => setNotes(e.target.value)}
-                                placeholder="Descreva condições de pagamento, prazos ou observações técnicas..."
+                                placeholder={t('dentalModals.newBudget.notesPlaceholder')}
                                 className="w-full h-32 bg-ice-50/50 border border-ice-200 rounded-3xl p-4 text-sm font-medium focus:border-brand-primary outline-none resize-none"
                              />
                         </div>
@@ -231,7 +233,7 @@ export const NewDentalBudgetModal: React.FC<NewDentalBudgetModalProps> = ({
                         <div className="bg-ice-50/30 rounded-[32px] p-8 border border-ice-100 flex flex-col justify-between">
                             <div className="space-y-4">
                                 <div>
-                                    <label className="text-[10px] font-black text-graphite-400 uppercase tracking-widest">Validade do Orçamento</label>
+                                    <label className="text-[10px] font-black text-graphite-400 uppercase tracking-widest">{t('dentalModals.newBudget.validUntilLabel')}</label>
                                     <input 
                                         type="date"
                                         value={validUntil}
@@ -243,11 +245,11 @@ export const NewDentalBudgetModal: React.FC<NewDentalBudgetModalProps> = ({
 
                             <div className="pt-8 border-t border-ice-200 mt-8">
                                 <div className="flex items-center justify-between mb-2">
-                                    <span className="text-xs font-bold text-graphite-400">Subtotal de Procedimentos</span>
+                                    <span className="text-xs font-bold text-graphite-400">{t('dentalModals.newBudget.subtotal')}</span>
                                     <span className="text-sm font-black text-graphite-900">R$ {totalBudget.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                                 </div>
                                 <div className="flex items-center justify-between">
-                                    <span className="text-base font-black text-graphite-900">Valor Total</span>
+                                    <span className="text-base font-black text-graphite-900">{t('dentalModals.newBudget.totalValue')}</span>
                                     <span className="text-2xl font-black text-brand-primary">R$ {totalBudget.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                                 </div>
                             </div>
@@ -262,17 +264,17 @@ export const NewDentalBudgetModal: React.FC<NewDentalBudgetModalProps> = ({
                         onClick={onClose}
                         className="px-6 py-3 rounded-2xl font-bold text-graphite-500 hover:bg-ice-100 transition-colors border-none cursor-pointer"
                     >
-                        Cancelar
+                        {t('dentalModals.newBudget.cancel')}
                     </button>
-                    <button 
+                    <button
                         onClick={handleSubmit}
                         disabled={loading}
                         className="flex items-center gap-2 bg-brand-primary text-white px-8 py-3 rounded-2xl font-black shadow-xl shadow-brand-primary/20 hover:scale-105 transition-all border-none cursor-pointer disabled:opacity-50 disabled:scale-100"
                     >
-                        {loading ? 'Salvando...' : (
+                        {loading ? t('dentalModals.newBudget.saving') : (
                             <>
                                 <Save size={18} />
-                                <span>Gerar Orçamento</span>
+                                <span>{t('dentalModals.newBudget.submit')}</span>
                             </>
                         )}
                     </button>

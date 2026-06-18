@@ -1,5 +1,6 @@
 import React from 'react';
 import { X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { DicomViewer } from './DicomViewer';
 
 interface DicomViewerModalProps {
@@ -9,6 +10,7 @@ interface DicomViewerModalProps {
 }
 
 export const DicomViewerModal: React.FC<DicomViewerModalProps> = ({ isOpen, onClose, fileUrl }) => {
+    const { t } = useTranslation('medical');
     if (!isOpen) return null;
 
     return (
@@ -16,8 +18,8 @@ export const DicomViewerModal: React.FC<DicomViewerModalProps> = ({ isOpen, onCl
             <div className="bg-graphite-900 w-full max-w-6xl rounded-[40px] shadow-2xl overflow-hidden border border-white/5 animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
                 <div className="p-6 border-b border-white/5 flex items-center justify-between">
                     <div>
-                        <h3 className="text-xl font-black text-white tracking-tight">Análise de Imagem DICOM</h3>
-                        <p className="text-xs text-graphite-400 font-bold tracking-widest uppercase mt-1">Visualizador de Alta Definição</p>
+                        <h3 className="text-xl font-black text-white tracking-tight">{t('dentalModals.dicomViewer.title')}</h3>
+                        <p className="text-xs text-graphite-400 font-bold tracking-widest uppercase mt-1">{t('dentalModals.dicomViewer.subtitle')}</p>
                     </div>
                     <button 
                         onClick={onClose} 

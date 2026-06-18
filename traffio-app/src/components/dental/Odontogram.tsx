@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Save, Eraser, Info, MousePointer2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { dentalService } from '../../services/dentalService';
 import type { DentalRecord } from '../../services/dentalService';
 import { useToast } from '../../contexts/ToastContext';
@@ -13,6 +14,7 @@ interface OdontogramProps {
 }
 
 export const Odontogram: React.FC<OdontogramProps> = ({ patientId, onSuccess }) => {
+    const { t } = useTranslation('medical');
     const { showToast } = useToast();
     const { tenant } = useTenant();
     const [loading, setLoading] = useState(false);
@@ -47,12 +49,12 @@ export const Odontogram: React.FC<OdontogramProps> = ({ patientId, onSuccess }) 
 
     const handleSave = async () => {
         if (!patientId || !tenant?.id) {
-            showToast('warning', 'Paciente ou clínica não identificados.');
+            showToast('warning', t('dentalModals.odontogram.toasts.missingContext'));
             return;
         }
 
         if (selectedItems.length === 0) {
-            showToast('info', 'Selecione ao menos uma face para salvar.');
+            showToast('info', t('dentalModals.odontogram.toasts.selectAtLeastOne'));
             return;
         }
 
@@ -67,13 +69,13 @@ export const Odontogram: React.FC<OdontogramProps> = ({ patientId, onSuccess }) 
             }));
 
             await dentalService.saveRecords(recordsToSave);
-            showToast('success', 'Mapa odontológico salvo com sucesso!');
+            showToast('success', t('dentalModals.odontogram.toasts.saved'));
             setSelectedItems([]);
             await fetchRecords();
             if (onSuccess) onSuccess();
         } catch (error: any) {
             console.error('Error saving dental records:', error);
-            showToast('error', 'Erro ao salvar mapa: ' + error.message);
+            showToast('error', t('dentalModals.odontogram.toasts.saveErrorPrefix') + error.message);
         } finally {
             setLoading(false);
         }
@@ -115,7 +117,7 @@ export const Odontogram: React.FC<OdontogramProps> = ({ patientId, onSuccess }) 
                 <div className="flex items-center gap-6">
                     <div className="flex items-center gap-2">
                         <MousePointer2 size={18} className="text-brand-primary" />
-                        <h3 className="font-black text-graphite-900 uppercase tracking-widest text-xs">Exame Clínico</h3>
+                        <h3 className="font-black text-graphite-900 uppercase tracking-widest text-xs">{t('dentalModals.odontogram.title')}</h3>
                     </div>
                     
                     {/* Condition Selector */}
@@ -128,7 +130,7 @@ export const Odontogram: React.FC<OdontogramProps> = ({ patientId, onSuccess }) 
                                     ? 'bg-brand-primary text-white shadow-md' 
                                     : 'text-graphite-400 hover:text-brand-primary'}`}
                             >
-                                {condition === 'caries' ? 'Cárie' : condition === 'restored' ? 'Restaurado' : 'Ausente'}
+                                {condition === 'caries' ? t('dentalModals.odontogram.conditions.caries') : condition === 'restored' ? t('dentalModals.odontogram.conditions.restored') : t('dentalModals.odontogram.conditions.missing')}
                             </button>
                         ))}
                     </div>
@@ -138,17 +140,17 @@ export const Odontogram: React.FC<OdontogramProps> = ({ patientId, onSuccess }) 
                     <button 
                         onClick={clearSelection}
                         className="p-2 text-graphite-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all border-none cursor-pointer"
-                        title="Limpar seleção"
+                        title={t('dentalModals.odontogram.clearTitle')}
                     >
                         <Eraser size={20} />
                     </button>
-                    <button 
+                    <button
                         onClick={handleSave}
                         disabled={loading || selectedItems.length === 0}
                         className="flex items-center gap-2 bg-brand-primary text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-brand-primary/20 hover:scale-105 transition-transform border-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save size={18} />}
-                        <span>{loading ? 'Salvando...' : 'Salvar Mapa'}</span>
+                        <span>{loading ? t('dentalModals.odontogram.saving') : t('dentalModals.odontogram.save')}</span>
                     </button>
                 </div>
             </div>
@@ -214,19 +216,19 @@ export const Odontogram: React.FC<OdontogramProps> = ({ patientId, onSuccess }) 
             <div className="p-4 bg-ice-50/50 border-t border-ice-100 flex items-center justify-center gap-8">
                 <div className="flex items-center gap-2 text-[10px] font-bold text-graphite-400">
                     <div className="w-3 h-3 rounded bg-rose-500" />
-                    CÁRIE IDENTIFICADA
+                    {t('dentalModals.odontogram.legend.cariesIdentified')}
                 </div>
                 <div className="flex items-center gap-2 text-[10px] font-bold text-graphite-400">
                     <div className="w-3 h-3 rounded bg-emerald-500" />
-                    RESTAURAÇÃO EXISTENTE
+                    {t('dentalModals.odontogram.legend.existingRestoration')}
                 </div>
                 <div className="flex items-center gap-2 text-[10px] font-bold text-graphite-400">
                     <div className="w-3 h-3 rounded border border-ice-300" />
-                    SAUDÁVEL / NORMAL
+                    {t('dentalModals.odontogram.legend.healthyNormal')}
                 </div>
                 <div className="flex items-center gap-2 text-[10px] font-bold text-graphite-400 italic">
                     <Info size={12} className="text-brand-primary" />
-                    CLIQUE NAS FACES PARA MARCAR O PROCEDIMENTO
+                    {t('dentalModals.odontogram.legend.clickHint')}
                 </div>
             </div>
         </div>

@@ -278,7 +278,7 @@ export const Settings = () => {
             if (data?.error) throw new Error(data.error);
 
             if (data?.url) {
-                window.location.href = data.url;
+                window.open(data.url, '_blank', 'noopener,noreferrer');
             } else {
                 throw new Error('Retorno inválido da API do Stripe');
             }

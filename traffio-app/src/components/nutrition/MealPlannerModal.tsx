@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Sparkles, Clock, Weight, Settings, ArrowLeft, Save, Loader2, Plus, Trash2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { nutritionService } from '../../services/nutritionService';
 import type { MealPlan } from '../../services/nutritionService';
 import { useToast } from '../../contexts/ToastContext';
@@ -15,6 +16,7 @@ interface MealPlannerModalProps {
 type ModalMode = 'menu' | 'ai' | 'manual';
 
 export const MealPlannerModal: React.FC<MealPlannerModalProps> = ({ isOpen, onClose, patientId, patientName }) => {
+    const { t } = useTranslation('medical');
     const { showToast } = useToast();
     const { tenant } = useTenant();
     const [mode, setMode] = useState<ModalMode>('menu');
@@ -24,9 +26,9 @@ export const MealPlannerModal: React.FC<MealPlannerModalProps> = ({ isOpen, onCl
 
     // Manual Flow State
     const [manualPlan, setManualPlan] = useState<any[]>([
-        { period: 'Café da Manhã', foods: '' },
-        { period: 'Almoço', foods: '' },
-        { period: 'Jantar', foods: '' }
+        { period: t('nutritionModals.mealPlanner.defaultPeriods.breakfast'), foods: '' },
+        { period: t('nutritionModals.mealPlanner.defaultPeriods.lunch'), foods: '' },
+        { period: t('nutritionModals.mealPlanner.defaultPeriods.dinner'), foods: '' }
     ]);
 
     useEffect(() => {
@@ -38,19 +40,19 @@ export const MealPlannerModal: React.FC<MealPlannerModalProps> = ({ isOpen, onCl
 
     const handleSaveApiKey = () => {
         localStorage.setItem('traffio_llm_key', apiKey);
-        showToast('success', 'Chave API salva localmente para sua segurança.');
+        showToast('success', t('nutritionModals.mealPlanner.toasts.apiKeySaved'));
         setShowSettings(false);
     };
 
     const handleGenerateAI = async () => {
         if (!patientId) {
-            showToast('error', 'Erro interno: ID do paciente não encontrado. Tente selecionar o paciente novamente.');
+            showToast('error', t('nutritionModals.mealPlanner.toasts.patientIdMissing'));
             return;
         }
 
         if (!apiKey) {
             setShowSettings(true);
-            showToast('warning', 'Por favor, insira sua chave da OpenAI ou Anthropic primeiro.');
+            showToast('warning', t('nutritionModals.mealPlanner.toasts.apiKeyRequired'));
             return;
         }
 
@@ -74,10 +76,10 @@ export const MealPlannerModal: React.FC<MealPlannerModalProps> = ({ isOpen, onCl
             };
 
             await nutritionService.saveMealPlan(newPlan);
-            showToast('success', 'Plano Alimentar gerado e salvo com sucesso!');
+            showToast('success', t('nutritionModals.mealPlanner.toasts.aiPlanSaved'));
             onClose();
         } catch (error: any) {
-            showToast('error', 'Erro ao gerar plano: ' + error.message);
+            showToast('error', t('nutritionModals.mealPlanner.toasts.aiPlanError') + error.message);
         } finally {
             setLoading(false);
         }
@@ -85,7 +87,7 @@ export const MealPlannerModal: React.FC<MealPlannerModalProps> = ({ isOpen, onCl
 
     const handleSaveManual = async () => {
         if (!patientId) {
-            showToast('error', 'Erro interno: ID do paciente não encontrado. Tente selecionar o paciente novamente.');
+            showToast('error', t('nutritionModals.mealPlanner.toasts.patientIdMissing'));
             return;
         }
         setLoading(true);
@@ -98,10 +100,10 @@ export const MealPlannerModal: React.FC<MealPlannerModalProps> = ({ isOpen, onCl
             };
 
             await nutritionService.saveMealPlan(newPlan);
-            showToast('success', 'Plano Alimentar manual salvo no prontuário!');
+            showToast('success', t('nutritionModals.mealPlanner.toasts.manualPlanSaved'));
             onClose();
         } catch (error: any) {
-            showToast('error', 'Erro ao salvar plano: ' + error.message);
+            showToast('error', t('nutritionModals.mealPlanner.toasts.manualPlanError') + error.message);
         } finally {
             setLoading(false);
         }
@@ -127,7 +129,7 @@ export const MealPlannerModal: React.FC<MealPlannerModalProps> = ({ isOpen, onCl
                             onClick={() => setMode('menu')}
                             className="absolute top-6 left-6 p-2 bg-white/20 hover:bg-white/30 rounded-xl transition-all border-none cursor-pointer text-white flex items-center gap-2 text-[10px] font-black uppercase tracking-widest"
                         >
-                            <ArrowLeft size={16} /> Voltar
+                            <ArrowLeft size={16} /> {t('nutritionModals.mealPlanner.back')}
                         </button>
                     )}
 
@@ -136,46 +138,46 @@ export const MealPlannerModal: React.FC<MealPlannerModalProps> = ({ isOpen, onCl
                             onClick={() => setShowSettings(!showSettings)}
                             className="absolute top-6 left-6 p-2 bg-white/20 hover:bg-white/30 rounded-xl transition-all border-none cursor-pointer text-white flex items-center gap-2 text-[10px] font-black uppercase tracking-widest"
                         >
-                            <Settings size={16} /> Configurar IA
+                            <Settings size={16} /> {t('nutritionModals.mealPlanner.configureAi')}
                         </button>
                     )}
 
                     <div className="flex items-center gap-3 mb-2">
                         <Sparkles size={24} className="text-amber-300 fill-amber-300" />
-                        <span className="text-[10px] font-black uppercase tracking-widest bg-white/20 px-2 py-1 rounded-full">{mode === 'manual' ? 'Modo Manual' : 'IA Generativa'}</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest bg-white/20 px-2 py-1 rounded-full">{mode === 'manual' ? t('nutritionModals.mealPlanner.modeManual') : t('nutritionModals.mealPlanner.modeAi')}</span>
                     </div>
-                    <h3 className="text-3xl font-black tracking-tighter">Planejador de Dieta</h3>
+                    <h3 className="text-3xl font-black tracking-tighter">{t('nutritionModals.mealPlanner.headerTitle')}</h3>
                 </div>
 
                 <div className="p-12 overflow-y-auto custom-scrollbar">
                     {showSettings ? (
                         <div className="space-y-6 animate-in slide-in-from-left-4">
-                            <h4 className="text-xl font-black text-graphite-900 tracking-tight">Configurações de Inteligência</h4>
+                            <h4 className="text-xl font-black text-graphite-900 tracking-tight">{t('nutritionModals.mealPlanner.settings.title')}</h4>
                             <div className="p-6 bg-amber-50 border border-amber-100 rounded-3xl text-xs text-amber-900 font-bold leading-relaxed">
-                                Sua chave API é armazenada apenas neste navegador (LocalStorage) por segurança e nunca é enviada ao nosso banco de dados.
+                                {t('nutritionModals.mealPlanner.settings.disclaimer')}
                             </div>
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black text-graphite-400 uppercase tracking-widest">OpenAI / Anthropic API Key</label>
-                                <input 
-                                    type="password" 
+                                <label className="text-[10px] font-black text-graphite-400 uppercase tracking-widest">{t('nutritionModals.mealPlanner.settings.apiKeyLabel')}</label>
+                                <input
+                                    type="password"
                                     value={apiKey}
                                     onChange={(e) => setApiKey(e.target.value)}
                                     placeholder="sk-proj-..."
                                     className="w-full bg-ice-50 border border-ice-200 rounded-2xl px-6 py-4 text-sm font-medium focus:outline-none focus:border-indigo-600 transition-all"
                                 />
                             </div>
-                            <button 
+                            <button
                                 onClick={handleSaveApiKey}
                                 className="w-full py-5 bg-brand-primary text-white rounded-2xl font-black text-sm shadow-xl shadow-brand-primary/20 hover:scale-[1.02] transition-all border-none cursor-pointer"
                             >
-                                Salvar Configurações
+                                {t('nutritionModals.mealPlanner.settings.save')}
                             </button>
                         </div>
                     ) : mode === 'menu' ? (
                         <div className="space-y-8 animate-in fade-in">
                             <div className="space-y-2">
-                                <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest">Paciente Selecionado</p>
-                                <p className="text-xl font-black text-graphite-900">{patientName || 'Nenhum paciente selecionado'}</p>
+                                <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest">{t('nutritionModals.mealPlanner.menu.selectedPatient')}</p>
+                                <p className="text-xl font-black text-graphite-900">{patientName || t('nutritionModals.mealPlanner.menu.noPatientSelected')}</p>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
@@ -187,8 +189,8 @@ export const MealPlannerModal: React.FC<MealPlannerModalProps> = ({ isOpen, onCl
                                         <Sparkles size={24} className="text-indigo-600" />
                                     </div>
                                     <div>
-                                        <span className="text-sm font-black text-indigo-900 uppercase">Gerar com IA</span>
-                                        <p className="text-[10px] font-bold text-indigo-400 mt-1">Precrição assistida</p>
+                                        <span className="text-sm font-black text-indigo-900 uppercase">{t('nutritionModals.mealPlanner.menu.generateAi')}</span>
+                                        <p className="text-[10px] font-bold text-indigo-400 mt-1">{t('nutritionModals.mealPlanner.menu.generateAiSubtitle')}</p>
                                     </div>
                                 </button>
                                 <button 
@@ -199,8 +201,8 @@ export const MealPlannerModal: React.FC<MealPlannerModalProps> = ({ isOpen, onCl
                                         <Clock size={24} className="text-emerald-600" />
                                     </div>
                                     <div>
-                                        <span className="text-sm font-black text-emerald-900 uppercase tracking-tight">Fluxo Manual</span>
-                                        <p className="text-[10px] font-bold text-emerald-400 mt-1">Prescrição livre</p>
+                                        <span className="text-sm font-black text-emerald-900 uppercase tracking-tight">{t('nutritionModals.mealPlanner.menu.manualFlow')}</span>
+                                        <p className="text-[10px] font-bold text-emerald-400 mt-1">{t('nutritionModals.mealPlanner.menu.manualFlowSubtitle')}</p>
                                     </div>
                                 </button>
                             </div>
@@ -208,7 +210,7 @@ export const MealPlannerModal: React.FC<MealPlannerModalProps> = ({ isOpen, onCl
                             <div className="p-6 bg-ice-50 border border-ice-100 rounded-3xl flex items-center gap-4">
                                 <Weight size={24} className="text-graphite-400" />
                                 <p className="text-xs text-graphite-600 font-bold leading-relaxed">
-                                    O motor processará IMC, Taxa Metabólica Basal e Biotipo do paciente para sugerir as melhores refeições.
+                                    {t('nutritionModals.mealPlanner.menu.engineHint')}
                                 </p>
                             </div>
                         </div>
@@ -217,10 +219,10 @@ export const MealPlannerModal: React.FC<MealPlannerModalProps> = ({ isOpen, onCl
                              <div className="space-y-4">
                                 <h4 className="text-xl font-black text-graphite-900 tracking-tight flex items-center gap-2">
                                     <Sparkles size={24} className="text-amber-500" />
-                                    Criação Assistida por IA
+                                    {t('nutritionModals.mealPlanner.ai.title')}
                                 </h4>
                                 <p className="text-sm text-graphite-500 font-medium">
-                                    A IA irá cruzar os dados antropométricos do paciente (Peso: 82kg, Altura: 1.78m) para gerar um plano nutricional balanceado de 7 dias.
+                                    {t('nutritionModals.mealPlanner.ai.description')}
                                 </p>
                              </div>
 
@@ -230,17 +232,17 @@ export const MealPlannerModal: React.FC<MealPlannerModalProps> = ({ isOpen, onCl
                                 className="w-full py-6 bg-indigo-600 text-white rounded-2xl font-black text-base shadow-2xl shadow-indigo-600/30 hover:scale-[1.02] active:scale-[0.98] transition-all border-none cursor-pointer flex items-center justify-center gap-3 disabled:opacity-50"
                              >
                                 {loading ? <Loader2 className="animate-spin" size={24} /> : <Sparkles size={24} />}
-                                {loading ? 'O algoritmo está processando...' : 'Confirmar e Gerar Planejamento'}
+                                {loading ? t('nutritionModals.mealPlanner.ai.processing') : t('nutritionModals.mealPlanner.ai.submit')}
                              </button>
                         </div>
                     ) : (
                         <div className="space-y-8 animate-in slide-in-from-right-4">
                             <div className="flex items-center justify-between">
-                                <h4 className="text-xl font-black text-graphite-900 tracking-tight">Prescrição Nutricional</h4>
-                                <button 
-                                    onClick={() => setManualPlan([...manualPlan, { period: 'Nova Refeição', foods: '' }])}
+                                <h4 className="text-xl font-black text-graphite-900 tracking-tight">{t('nutritionModals.mealPlanner.manual.title')}</h4>
+                                <button
+                                    onClick={() => setManualPlan([...manualPlan, { period: t('nutritionModals.mealPlanner.defaultPeriods.newMeal'), foods: '' }])}
                                     className="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 transition-colors border-none cursor-pointer"
-                                    title="Adicionar Refeição"
+                                    title={t('nutritionModals.mealPlanner.manual.addMealTitle')}
                                 >
                                     <Plus size={20} />
                                 </button>
@@ -273,7 +275,7 @@ export const MealPlannerModal: React.FC<MealPlannerModalProps> = ({ isOpen, onCl
                                                 newPlan[idx].foods = e.target.value;
                                                 setManualPlan(newPlan);
                                             }}
-                                            placeholder="Descreva os alimentos, porções e recomendações..."
+                                            placeholder={t('nutritionModals.mealPlanner.manual.foodsPlaceholder')}
                                             rows={2}
                                             className="w-full bg-transparent border-none text-sm font-medium text-graphite-900 focus:outline-none resize-none placeholder:text-graphite-300"
                                         />
@@ -287,7 +289,7 @@ export const MealPlannerModal: React.FC<MealPlannerModalProps> = ({ isOpen, onCl
                                 className="w-full py-5 bg-emerald-600 text-white rounded-2xl font-black text-sm shadow-xl shadow-emerald-600/20 hover:scale-[1.02] active:scale-[0.98] transition-all border-none cursor-pointer flex items-center justify-center gap-2"
                             >
                                 {loading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
-                                {loading ? 'Salvando...' : 'Salvar Planejamento Manual'}
+                                {loading ? t('nutritionModals.mealPlanner.manual.saving') : t('nutritionModals.mealPlanner.manual.save')}
                             </button>
                         </div>
                     )}

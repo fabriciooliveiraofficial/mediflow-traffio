@@ -29,6 +29,7 @@ import {
     Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabase';
 import { useTenant } from '../contexts/TenantContext';
 import { useToast } from '../contexts/ToastContext';
@@ -85,6 +86,7 @@ export interface Prescription {
 }
 
 export const MedicalRecordsHub = () => {
+    const { t } = useTranslation('medical');
     const { tenant } = useTenant();
     const { showToast } = useToast();
     
@@ -152,14 +154,14 @@ export const MedicalRecordsHub = () => {
 
     const handleOpenIDocs = () => {
         if (!selectedPatient?.cpf) {
-            showToast('warning', 'CPF do paciente é necessário para busca no iDoc.');
+            showToast('warning', t('recordsHub.toasts.idocsCpfRequired'));
             return;
         }
-        
+
         // Padrão de busca iDoc/RadioMemory (Geralmente via Portal S3 ou Deep Link customizado)
         const idocUrl = `https://s3.radiomemory.com.br/`;
         window.open(idocUrl, '_blank');
-        showToast('info', 'Abrindo Portal de Exames iDoc...');
+        showToast('info', t('recordsHub.toasts.idocsOpening'));
     };
 
     const fetchPatientDocuments = async (patientId: string) => {
@@ -189,7 +191,7 @@ export const MedicalRecordsHub = () => {
             setPrescriptions(data || []);
         } catch (error) {
             console.error('Error fetching prescriptions:', error);
-            showToast('error', 'Não foi possível carregar o histórico de receitas.');
+            showToast('error', t('recordsHub.toasts.prescriptionsLoadError'));
         } finally {
             setLoadingPrescriptions(false);
         }
@@ -219,7 +221,7 @@ export const MedicalRecordsHub = () => {
             return data;
         } catch (error) {
             console.error('Error saving prescription:', error);
-            showToast('error', 'Erro ao salvar a receita no histórico.');
+            showToast('error', t('recordsHub.toasts.prescriptionSaveError'));
             return null;
         }
     };
@@ -252,18 +254,18 @@ export const MedicalRecordsHub = () => {
 
             if (dbError) throw dbError;
 
-            showToast('success', 'Documento anexado com sucesso!');
+            showToast('success', t('recordsHub.toasts.documentUploaded'));
             fetchPatientDocuments(selectedPatient.id);
         } catch (err) {
             console.error('Upload error:', err);
-            showToast('error', 'Erro ao realizar upload do arquivo.');
+            showToast('error', t('recordsHub.toasts.documentUploadError'));
         } finally {
             setIsUploading(false);
         }
     };
 
     const handleDeleteDocument = async (doc: PatientDocument) => {
-        if (!confirm('Deseja realmente excluir este documento?')) return;
+        if (!confirm(t('recordsHub.toasts.documentDeleteConfirm'))) return;
         
         try {
             // Delete from Storage
@@ -277,10 +279,10 @@ export const MedicalRecordsHub = () => {
             
             if (error) throw error;
 
-            showToast('success', 'Documento removido.');
+            showToast('success', t('recordsHub.toasts.documentDeleted'));
             setDocuments(prev => prev.filter(d => d.id !== doc.id));
         } catch (err) {
-            showToast('error', 'Erro ao excluir documento.');
+            showToast('error', t('recordsHub.toasts.documentDeleteError'));
         }
     };
 
@@ -289,16 +291,16 @@ export const MedicalRecordsHub = () => {
             const { data, error } = await supabase.storage
                 .from('patient-documents')
                 .download(doc.file_path);
-            
+
             if (error) throw error;
-            
+
             const url = window.URL.createObjectURL(data);
             const a = document.createElement('a');
             a.href = url;
             a.download = doc.name;
             a.click();
         } catch (err) {
-            showToast('error', 'Erro ao baixar arquivo.');
+            showToast('error', t('recordsHub.toasts.documentDownloadError'));
         }
     };
 
@@ -314,7 +316,7 @@ export const MedicalRecordsHub = () => {
             setPreviewUrl(data.signedUrl);
         } catch (err) {
             console.error('Error viewing document:', err);
-            showToast('error', 'Não foi possível gerar a pré-visualização.');
+            showToast('error', t('recordsHub.toasts.previewError'));
             setPreviewDoc(null);
         } finally {
             setIsPreviewLoading(false);
@@ -323,11 +325,11 @@ export const MedicalRecordsHub = () => {
 
     const handleSaveNote = async () => {
         if (!selectedPatient || !newNote.title) return;
-        
+
         try {
             // Get current user
             const { data: { user } } = await supabase.auth.getUser();
-            if (!user) throw new Error('Usuário não autenticado');
+            if (!user) throw new Error(t('recordsHub.toasts.notAuthenticated'));
 
             // Resolve doctor_id (must be a record in the 'doctors' table)
             // If the user is an admin or staff (not a doctor), doctor_id stays null (which is allowed)
@@ -358,28 +360,28 @@ export const MedicalRecordsHub = () => {
             
             if (error) throw error;
             
-            showToast('success', 'Evolução clínica salva com sucesso!');
+            showToast('success', t('recordsHub.toasts.noteSaved'));
             setNewNote({ title: '', description: '', type: 'consulta' });
             fetchPatientHistory(selectedPatient.id);
             setView('timeline');
         } catch (err: any) {
             console.error('Error saving note:', err);
-            showToast('error', 'Erro ao salvar evolução: ' + (err.message || 'Erro desconhecido'));
+            showToast('error', t('recordsHub.toasts.noteSaveErrorPrefix') + (err.message || t('recordsHub.toasts.unknownError')));
         }
     };
 
 
                             const handlePrint = async () => {
         if (!prescriptionContent) {
-            showToast('warning', 'Digite o conteúdo da receita antes de imprimir.');
+            showToast('warning', t('recordsHub.toasts.printContentRequired'));
             return;
         }
 
         // Auto-save to database
         const saved = await savePrescriptionToDatabase();
-        
+
         if (saved) {
-            showToast('success', 'Receita salva e preparada para impressão!');
+            showToast('success', t('recordsHub.toasts.prescriptionSaved'));
             setTimeout(() => {
                 window.print();
             }, 500);
@@ -400,7 +402,7 @@ export const MedicalRecordsHub = () => {
                     <div className="border-b-[1px] border-slate-300 pb-6 mb-8 flex justify-between items-start">
                         <div>
                             <h1 className="text-2xl font-black text-brand-primary tracking-tighter">TRAFFIO MED</h1>
-                            <p className="text-xs font-bold text-graphite-400 mt-1 uppercase tracking-widest">Soluções para sua saúde</p>
+                            <p className="text-xs font-bold text-graphite-400 mt-1 uppercase tracking-widest">{t('recordsHub.print.tagline')}</p>
                         </div>
                         <div className="text-right">
                             <p className="text-sm font-black text-graphite-900">CRM/CRO 123.456</p>
@@ -409,28 +411,28 @@ export const MedicalRecordsHub = () => {
                     </div>
 
                     <div className="text-center py-6 mb-10">
-                        <h2 className="text-xl font-black tracking-[0.3em] text-graphite-900 border-y border-ice-100 py-3 uppercase">Receituário Médico</h2>
+                        <h2 className="text-xl font-black tracking-[0.3em] text-graphite-900 border-y border-ice-100 py-3 uppercase">{t('recordsHub.print.title')}</h2>
                     </div>
 
                     <div className="mb-12 space-y-4">
                         <div className="flex items-end gap-2">
-                             <span className="text-xs font-black text-graphite-300 uppercase shrink-0">Paciente:</span>
+                             <span className="text-xs font-black text-graphite-300 uppercase shrink-0">{t('recordsHub.print.patientLabel')}</span>
                              <div className="flex-1 border-b border-ice-200 pb-1 font-black text-lg text-graphite-900">{selectedPatient?.full_name}</div>
                         </div>
                         <div className="flex items-end gap-2">
-                             <span className="text-xs font-black text-graphite-300 uppercase shrink-0">Data:</span>
+                             <span className="text-xs font-black text-graphite-300 uppercase shrink-0">{t('recordsHub.print.dateLabel')}</span>
                              <div className="flex-1 border-b border-ice-200 pb-1 font-bold text-graphite-900">{new Date().toLocaleDateString('pt-BR')}</div>
                         </div>
                     </div>
 
                     <div className="flex-1 text-lg text-graphite-800 font-medium leading-relaxed whitespace-pre-wrap px-4 italic">
-                        {prescriptionContent || 'Nenhuma prescrição informada.'}
+                        {prescriptionContent || t('recordsHub.print.empty')}
                     </div>
 
                     <div className="mt-20 pt-10 border-t border-ice-100 text-center space-y-2">
                         <div className="w-48 h-[1px] bg-graphite-900 mx-auto" />
-                        <p className="text-xs font-black text-graphite-900 uppercase">Assinatura do Profissional</p>
-                        <p className="text-[9px] font-bold text-graphite-400 tracking-wider">Documento emitido digitalmente via Traffio App</p>
+                        <p className="text-xs font-black text-graphite-900 uppercase">{t('recordsHub.print.signature')}</p>
+                        <p className="text-[9px] font-bold text-graphite-400 tracking-wider">{t('recordsHub.print.footer')}</p>
                     </div>
                 </div>
             </div>
@@ -438,12 +440,12 @@ export const MedicalRecordsHub = () => {
             {/* Column 1: Patient List */}
             <div className="w-80 flex flex-col bg-white rounded-[32px] border border-ice-100 shadow-sm overflow-hidden shrink-0 no-print">
                 <div className="p-6 border-b border-ice-50">
-                    <h2 className="text-xl font-black tracking-tight mb-4 text-graphite-900">Prontuário</h2>
+                    <h2 className="text-xl font-black tracking-tight mb-4 text-graphite-900">{t('recordsHub.patientList.title')}</h2>
                     <div className="relative group">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-graphite-300 group-focus-within:text-brand-primary transition-colors" size={18} />
-                        <input 
-                            type="text" 
-                            placeholder="Buscar paciente..."
+                        <input
+                            type="text"
+                            placeholder={t('recordsHub.patientList.searchPlaceholder')}
                             className="w-full pl-12 pr-4 py-3 bg-ice-50 border-none rounded-2xl text-sm font-bold placeholder:text-graphite-300 focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -494,8 +496,8 @@ export const MedicalRecordsHub = () => {
                         <div className="w-24 h-24 bg-ice-50 rounded-[40px] flex items-center justify-center mb-6">
                             <Clipboard className="text-ice-300" size={48} />
                         </div>
-                        <h3 className="text-2xl font-black tracking-tight text-graphite-900 mb-2">Selecione um Paciente</h3>
-                        <p className="text-graphite-400 max-w-sm font-medium">Use a lista ao lado para acessar o histórico clínico completo e ferramentas de prescrição.</p>
+                        <h3 className="text-2xl font-black tracking-tight text-graphite-900 mb-2">{t('recordsHub.emptyState.title')}</h3>
+                        <p className="text-graphite-400 max-w-sm font-medium">{t('recordsHub.emptyState.subtitle')}</p>
                     </div>
                 ) : (
                     <>
@@ -510,27 +512,27 @@ export const MedicalRecordsHub = () => {
                                     <div className="flex items-center gap-3 text-xs font-bold text-graphite-400 uppercase tracking-widest mt-1">
                                         <span className="flex items-center gap-1"><Calendar size={12} /> {formatDisplayDate(selectedPatient.birth_date) || 'N/A'}</span>
                                         <span className="w-1 h-1 bg-ice-200 rounded-full"></span>
-                                        <span>Paciente Ativo</span>
+                                        <span>{t('recordsHub.header.activePatient')}</span>
                                     </div>
                                 </div>
                             </div>
                             <div className="flex items-center gap-3 flex-wrap justify-end">
-                                <button 
+                                <button
                                     onClick={() => setView('form')}
                                     className="px-5 py-3 bg-brand-primary text-white rounded-2xl font-black text-sm flex items-center gap-2 hover:scale-105 active:scale-95 transition-all border-none cursor-pointer shadow-lg shadow-brand-primary/20 shrink-0"
                                 >
-                                    <Plus size={18} /> Nova Evolução
+                                    <Plus size={18} /> {t('recordsHub.header.newEvolution')}
                                 </button>
-                                <button 
+                                <button
                                     onClick={() => setView('prescription')}
                                     className="px-5 py-3 bg-white border border-ice-200 text-graphite-700 rounded-2xl font-black text-sm flex items-center gap-2 hover:bg-ice-50 transition-all cursor-pointer shrink-0"
                                 >
-                                    <Pill size={18} className="text-rose-500" /> Prescrever
+                                    <Pill size={18} className="text-rose-500" /> {t('recordsHub.header.prescribe')}
                                 </button>
-                                <button 
+                                <button
                                     onClick={handleOpenIDocs}
                                     className="px-5 py-3 bg-indigo-50 border border-indigo-100 text-indigo-600 rounded-2xl font-black text-sm flex items-center gap-2 hover:bg-indigo-100 hover:scale-105 transition-all cursor-pointer shadow-sm shrink-0"
-                                    title="Acessar exames no iDoc (Radio Memory)"
+                                    title={t('recordsHub.header.idocsTitle')}
                                 >
                                     <ExternalLink size={18} /> iDocs
                                 </button>
@@ -540,10 +542,10 @@ export const MedicalRecordsHub = () => {
                         {/* Sub-Nav Tab Bar */}
                         <div className="px-8 flex border-b border-ice-50 h-14">
                             {[
-                                { id: 'timeline', label: 'Linha do Tempo', icon: History },
-                                { id: 'details', label: 'Ficha Clínica', icon: Stethoscope },
-                                { id: 'prescriptions', label: 'Receituário', icon: FileText },
-                                { id: 'files', label: 'Exames & Docs', icon: Clipboard },
+                                { id: 'timeline', label: t('recordsHub.tabs.timeline'), icon: History },
+                                { id: 'details', label: t('recordsHub.tabs.details'), icon: Stethoscope },
+                                { id: 'prescriptions', label: t('recordsHub.tabs.prescriptions'), icon: FileText },
+                                { id: 'files', label: t('recordsHub.tabs.files'), icon: Clipboard },
                             ].map(tab => (
                                 <button
                                     key={tab.id}
@@ -576,7 +578,7 @@ export const MedicalRecordsHub = () => {
                                         {records.length === 0 ? (
                                             <div className="text-center py-20 bg-white rounded-[32px] border border-dashed border-ice-200">
                                                 <History className="mx-auto text-ice-200 mb-4" size={48} />
-                                                <p className="font-bold text-graphite-400">Nenhum registro clínico encontrado.</p>
+                                                <p className="font-bold text-graphite-400">{t('recordsHub.timeline.empty')}</p>
                                             </div>
                                         ) : (
                                             <div className="relative pl-8 border-l-2 border-ice-100 space-y-12">
@@ -624,22 +626,22 @@ export const MedicalRecordsHub = () => {
                                                     <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
                                                         <User size={20} />
                                                     </div>
-                                                    <h4 className="text-sm font-black uppercase tracking-widest text-graphite-900">Identificação</h4>
+                                                    <h4 className="text-sm font-black uppercase tracking-widest text-graphite-900">{t('recordsHub.details.identification')}</h4>
                                                 </div>
                                                 <div className="space-y-4">
-                                                    <InfoField label="Nome Completo" value={selectedPatient.full_name} />
+                                                    <InfoField label={t('recordsHub.details.fullName')} value={selectedPatient.full_name} />
                                                     <div className="grid grid-cols-2 gap-4">
                                                         <InfoField
                                                             label={docLabel((selectedPatient.country as CountryCode) || (selectedPatient.cpf ? 'BR' : DEFAULT_COUNTRY))}
                                                             value={
                                                                 selectedPatient.national_id || selectedPatient.cpf
                                                                     ? formatDoc(selectedPatient.national_id || selectedPatient.cpf, (selectedPatient.country as CountryCode) || (selectedPatient.cpf ? 'BR' : DEFAULT_COUNTRY))
-                                                                    : 'Não informado'
+                                                                    : t('recordsHub.details.notInformed')
                                                             }
                                                         />
-                                                        <InfoField label="Data de Nasc." value={formatDisplayDate(selectedPatient.birth_date) || 'Não informado'} />
+                                                        <InfoField label={t('recordsHub.details.birthDate')} value={formatDisplayDate(selectedPatient.birth_date) || t('recordsHub.details.notInformed')} />
                                                     </div>
-                                                    <InfoField label="Gênero" value={selectedPatient.gender || 'Não informado'} />
+                                                    <InfoField label={t('recordsHub.details.gender')} value={selectedPatient.gender || t('recordsHub.details.notInformed')} />
                                                 </div>
                                             </div>
 
@@ -649,16 +651,16 @@ export const MedicalRecordsHub = () => {
                                                     <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
                                                         <Phone size={20} />
                                                     </div>
-                                                    <h4 className="text-sm font-black uppercase tracking-widest text-graphite-900">Contatos</h4>
+                                                    <h4 className="text-sm font-black uppercase tracking-widest text-graphite-900">{t('recordsHub.details.contacts')}</h4>
                                                 </div>
                                                 <div className="space-y-4">
-                                                    <InfoField 
-                                                        label="E-mail" 
+                                                    <InfoField
+                                                        label={t('recordsHub.details.email')}
                                                         value={selectedPatient.email} 
                                                         icon={<Mail size={14} className="text-graphite-300" />} 
                                                     />
                                                     <InfoField
-                                                        label="Telefone / WhatsApp"
+                                                        label={t('recordsHub.details.phone')}
                                                         value={formatNational(selectedPatient.phone) || selectedPatient.phone}
                                                         icon={<Phone size={14} className="text-graphite-300" />}
                                                     />
@@ -671,24 +673,24 @@ export const MedicalRecordsHub = () => {
                                                     <div className="w-10 h-10 bg-orange-50 text-orange-600 rounded-xl flex items-center justify-center">
                                                         <MapPin size={20} />
                                                     </div>
-                                                    <h4 className="text-sm font-black uppercase tracking-widest text-graphite-900">Localização</h4>
+                                                    <h4 className="text-sm font-black uppercase tracking-widest text-graphite-900">{t('recordsHub.details.location')}</h4>
                                                 </div>
                                                 <div className="space-y-4">
                                                     {selectedPatient.address_json ? (
                                                         <>
-                                                            <InfoField 
-                                                                label="Endereço" 
-                                                                value={`${selectedPatient.address_json.street || ''}, ${selectedPatient.address_json.number || 'S/N'}`} 
+                                                            <InfoField
+                                                                label={t('recordsHub.details.address')}
+                                                                value={`${selectedPatient.address_json.street || ''}, ${selectedPatient.address_json.number || 'S/N'}`}
                                                             />
                                                             <div className="grid grid-cols-2 gap-4">
-                                                                <InfoField label="Bairro" value={selectedPatient.address_json.neighborhood || '---'} />
-                                                                <InfoField label="CEP" value={selectedPatient.address_json.zip_code || '---'} />
+                                                                <InfoField label={t('recordsHub.details.neighborhood')} value={selectedPatient.address_json.neighborhood || '---'} />
+                                                                <InfoField label={t('recordsHub.details.zipCode')} value={selectedPatient.address_json.zip_code || '---'} />
                                                             </div>
-                                                            <InfoField label="Cidade / UF" value={`${selectedPatient.address_json.city || ''} - ${selectedPatient.address_json.state || ''}`} />
+                                                            <InfoField label={t('recordsHub.details.cityState')} value={`${selectedPatient.address_json.city || ''} - ${selectedPatient.address_json.state || ''}`} />
                                                         </>
                                                     ) : (
                                                         <div className="text-center py-6 bg-ice-50 rounded-2xl border border-dashed border-ice-200">
-                                                            <p className="text-xs font-bold text-graphite-400 italic">Endereço não cadastrado.</p>
+                                                            <p className="text-xs font-bold text-graphite-400 italic">{t('recordsHub.details.addressNotRegistered')}</p>
                                                         </div>
                                                     )}
                                                 </div>
@@ -700,7 +702,7 @@ export const MedicalRecordsHub = () => {
                                                     <div className="w-10 h-10 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center">
                                                         <Shield size={20} />
                                                     </div>
-                                                    <h4 className="text-sm font-black uppercase tracking-widest text-graphite-900">Assistencial</h4>
+                                                    <h4 className="text-sm font-black uppercase tracking-widest text-graphite-900">{t('recordsHub.details.insurance')}</h4>
                                                 </div>
                                                 <div className="space-y-4">
                                                     <div className="flex items-center gap-2 mb-2">
@@ -708,18 +710,18 @@ export const MedicalRecordsHub = () => {
                                                             "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider",
                                                             selectedPatient.type === 'insurance' ? "bg-purple-100 text-purple-700" : "bg-emerald-100 text-emerald-700"
                                                         )}>
-                                                            {selectedPatient.type === 'insurance' ? 'Plano de Saúde' : 'Particular'}
+                                                            {selectedPatient.type === 'insurance' ? t('recordsHub.details.insurancePlan') : t('recordsHub.details.private')}
                                                         </div>
                                                     </div>
                                                     {selectedPatient.type === 'insurance' ? (
                                                         <>
-                                                            <InfoField label="Convênio" value={selectedPatient.insurance_provider || 'Não informado'} />
-                                                            <InfoField label="Nº Carteirinha" value={selectedPatient.insurance_card_number || selectedPatient.insurance_card || 'Não informado'} />
+                                                            <InfoField label={t('recordsHub.details.insuranceProvider')} value={selectedPatient.insurance_provider || t('recordsHub.details.notInformed')} />
+                                                            <InfoField label={t('recordsHub.details.insuranceCardNumber')} value={selectedPatient.insurance_card_number || selectedPatient.insurance_card || t('recordsHub.details.notInformed')} />
                                                         </>
                                                     ) : (
                                                         <div className="flex items-baseline gap-2 pt-2">
                                                             <CreditCard size={14} className="text-graphite-300" />
-                                                            <p className="text-sm font-bold text-graphite-500">Atendimento sem convênio vinculado.</p>
+                                                            <p className="text-sm font-bold text-graphite-500">{t('recordsHub.details.noInsurance')}</p>
                                                         </div>
                                                     )}
                                                 </div>
@@ -731,28 +733,28 @@ export const MedicalRecordsHub = () => {
                                                     <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center">
                                                         <BookOpen size={20} />
                                                     </div>
-                                                    <h4 className="text-sm font-black uppercase tracking-widest text-graphite-900">Notas e Observações</h4>
+                                                    <h4 className="text-sm font-black uppercase tracking-widest text-graphite-900">{t('recordsHub.details.notes')}</h4>
                                                 </div>
                                                 <div className="p-6 bg-amber-50/30 rounded-2xl border border-amber-100/50 min-h-[100px]">
                                                     <p className="text-sm text-graphite-600 leading-relaxed font-medium italic">
-                                                        {selectedPatient.notes || "Nenhuma observação clínica adicional para este paciente."}
+                                                        {selectedPatient.notes || t('recordsHub.details.notesEmpty')}
                                                     </p>
                                                 </div>
                                             </div>
                                         </div>
 
                                         <div className="flex justify-end gap-3 pt-4">
-                                            <button 
+                                            <button
                                                 className="px-6 py-3 bg-white border border-ice-200 text-graphite-400 rounded-2xl font-bold text-sm cursor-not-allowed opacity-50 flex items-center gap-2"
                                                 disabled
                                             >
-                                                <Trash2 size={16} /> Excluir Paciente
+                                                <Trash2 size={16} /> {t('recordsHub.details.deletePatient')}
                                             </button>
-                                            <button 
-                                                onClick={() => showToast('A funcionalidade de edição será implementada em breve.', 'info')}
+                                            <button
+                                                onClick={() => showToast(t('recordsHub.toasts.editComingSoon'), 'info')}
                                                 className="px-8 py-3 bg-brand-primary text-white rounded-2xl font-black text-sm flex items-center gap-2 hover:opacity-90 transition-all cursor-pointer shadow-lg shadow-brand-primary/10"
                                             >
-                                                <Plus size={18} /> Editar Cadastro
+                                                <Plus size={18} /> {t('recordsHub.details.editRegistration')}
                                             </button>
                                         </div>
                                     </motion.div>
@@ -770,35 +772,35 @@ export const MedicalRecordsHub = () => {
                                                 <button onClick={() => setView('timeline')} className="p-2 hover:bg-ice-50 rounded-xl transition-all border-none bg-transparent cursor-pointer">
                                                     <ArrowLeft size={20} className="text-graphite-900" />
                                                 </button>
-                                                <h3 className="text-2xl font-black tracking-tight text-graphite-900">Nova Evolução Clínica</h3>
+                                                <h3 className="text-2xl font-black tracking-tight text-graphite-900">{t('recordsHub.form.title')}</h3>
                                             </div>
 
                                             <div className="space-y-6">
                                                 <div className="grid grid-cols-2 gap-4">
                                                     <div>
-                                                        <label className="block text-[10px] font-black uppercase tracking-widest text-graphite-400 mb-2 ml-1">Tipo de Evento</label>
-                                                        <select 
+                                                        <label className="block text-[10px] font-black uppercase tracking-widest text-graphite-400 mb-2 ml-1">{t('recordsHub.form.eventType')}</label>
+                                                        <select
                                                             className="w-full p-4 bg-ice-50 border-none rounded-2xl font-bold text-sm outline-none ring-brand-primary/10 focus:ring-4 transition-all appearance-none"
                                                             value={newNote.type}
                                                             onChange={(e) => setNewNote({...newNote, type: e.target.value})}
                                                         >
-                                                            <option value="consulta">Consulta</option>
-                                                            <option value="exame">Avaliação de Exame</option>
-                                                            <option value="procedimento">Procedimento</option>
-                                                            <option value="nota">Nota Administrativa</option>
+                                                            <option value="consulta">{t('recordsHub.form.eventOptions.consulta')}</option>
+                                                            <option value="exame">{t('recordsHub.form.eventOptions.exame')}</option>
+                                                            <option value="procedimento">{t('recordsHub.form.eventOptions.procedimento')}</option>
+                                                            <option value="nota">{t('recordsHub.form.eventOptions.nota')}</option>
                                                         </select>
                                                     </div>
                                                     <div>
-                                                        <label className="block text-[10px] font-black uppercase tracking-widest text-graphite-400 mb-2 ml-1">Data</label>
-                                                        <div className="p-4 bg-ice-50 border-none rounded-2xl font-bold text-sm text-graphite-400">Hoje, {new Date().toLocaleDateString('pt-BR')}</div>
+                                                        <label className="block text-[10px] font-black uppercase tracking-widest text-graphite-400 mb-2 ml-1">{t('recordsHub.form.dateLabel')}</label>
+                                                        <div className="p-4 bg-ice-50 border-none rounded-2xl font-bold text-sm text-graphite-400">{t('recordsHub.form.todayPrefix', { date: new Date().toLocaleDateString('pt-BR') })}</div>
                                                     </div>
                                                 </div>
 
                                                 <div>
-                                                    <label className="block text-[10px] font-black uppercase tracking-widest text-graphite-400 mb-2 ml-1">Título/Queixa Principal</label>
-                                                    <input 
-                                                        type="text" 
-                                                        placeholder="Ex: Retorno de avaliação, Dol aguda..."
+                                                    <label className="block text-[10px] font-black uppercase tracking-widest text-graphite-400 mb-2 ml-1">{t('recordsHub.form.titleLabel')}</label>
+                                                    <input
+                                                        type="text"
+                                                        placeholder={t('recordsHub.form.titlePlaceholder')}
                                                         className="w-full p-4 bg-ice-50 border-none rounded-2xl font-bold text-sm outline-none ring-brand-primary/10 focus:ring-4 transition-all"
                                                         value={newNote.title}
                                                         onChange={(e) => setNewNote({...newNote, title: e.target.value})}
@@ -806,21 +808,21 @@ export const MedicalRecordsHub = () => {
                                                 </div>
 
                                                 <div>
-                                                    <label className="block text-[10px] font-black uppercase tracking-widest text-graphite-400 mb-2 ml-1">Descrição/Evolução</label>
-                                                    <textarea 
+                                                    <label className="block text-[10px] font-black uppercase tracking-widest text-graphite-400 mb-2 ml-1">{t('recordsHub.form.descriptionLabel')}</label>
+                                                    <textarea
                                                         rows={6}
-                                                        placeholder="Descreva detalhadamente a evolução do paciente..."
+                                                        placeholder={t('recordsHub.form.descriptionPlaceholder')}
                                                         className="w-full p-4 bg-ice-50 border-none rounded-2xl font-bold text-sm outline-none ring-brand-primary/10 focus:ring-4 transition-all resize-none"
                                                         value={newNote.description}
                                                         onChange={(e) => setNewNote({...newNote, description: e.target.value})}
                                                     />
                                                 </div>
 
-                                                <button 
+                                                <button
                                                     onClick={handleSaveNote}
                                                     className="w-full p-5 bg-brand-primary text-white rounded-[32px] font-black text-base shadow-xl shadow-brand-primary/20 hover:scale-[1.02] active:scale-95 transition-all border-none cursor-pointer"
                                                 >
-                                                    Salvar no Prontuário
+                                                    {t('recordsHub.form.save')}
                                                 </button>
                                             </div>
                                         </div>
@@ -828,7 +830,7 @@ export const MedicalRecordsHub = () => {
                                 )}
 
                                 {view === 'prescription' && (
-                                    <motion.div 
+                                    <motion.div
                                         key="view-prescription"
                                         initial={{ opacity: 0, y: 20 }}
                                         animate={{ opacity: 1, y: 0 }}
@@ -839,15 +841,15 @@ export const MedicalRecordsHub = () => {
                                             <div className="flex-1 p-10 border-r border-ice-50">
                                                 <div className="flex items-center gap-3 mb-8">
                                                     <Pill className="text-rose-500" size={24} />
-                                                    <h3 className="text-2xl font-black tracking-tight text-graphite-900">Receituário Digital</h3>
+                                                    <h3 className="text-2xl font-black tracking-tight text-graphite-900">{t('recordsHub.prescriptionEditor.title')}</h3>
                                                 </div>
-                                                
+
                                                 <div className="space-y-6">
                                                     <div>
-                                                        <label className="block text-[10px] font-black uppercase tracking-widest text-graphite-400 mb-2 ml-1">Medicamentos e Posologia</label>
-                                                        <textarea 
+                                                        <label className="block text-[10px] font-black uppercase tracking-widest text-graphite-400 mb-2 ml-1">{t('recordsHub.prescriptionEditor.medicationsLabel')}</label>
+                                                        <textarea
                                                             rows={12}
-                                                            placeholder="1. Amoxicilina 500mg - Tomar 1 comprimido de 8 em 8 horas por 7 dias..."
+                                                            placeholder={t('recordsHub.prescriptionEditor.medicationsPlaceholder')}
                                                             className="w-full p-6 bg-ice-50 border-none rounded-[32px] font-medium text-base outline-none ring-brand-primary/10 focus:ring-4 transition-all resize-none"
                                                             value={prescriptionContent}
                                                             onChange={(e) => setPrescriptionContent(e.target.value)}
@@ -855,20 +857,20 @@ export const MedicalRecordsHub = () => {
                                                     </div>
                                                     
                                                     <div className="flex gap-4">
-                                                        <button 
+                                                        <button
                                                             onClick={handlePrint}
                                                             className="flex-1 p-4 bg-brand-primary text-white rounded-2xl font-black text-sm flex items-center justify-center gap-2 border-none cursor-pointer"
                                                         >
-                                                            <Download size={18} /> Salvar PDF
+                                                            <Download size={18} /> {t('recordsHub.prescriptionEditor.savePdf')}
                                                         </button>
-                                                        <button 
+                                                        <button
                                                             onClick={() => {
-                                                                if (confirm('Deseja limpar todo o conteúdo da receita?')) {
+                                                                if (confirm(t('recordsHub.toasts.clearContentConfirm'))) {
                                                                     setPrescriptionContent('');
                                                                 }
                                                             }}
                                                             className="p-4 bg-ice-50 text-rose-500 rounded-2xl hover:bg-rose-50 transition-all border-none cursor-pointer"
-                                                            title="Limpar Conteúdo"
+                                                            title={t('recordsHub.prescriptionEditor.clearTitle')}
                                                         >
                                                             <Trash2 size={18} />
                                                         </button>
@@ -884,21 +886,21 @@ export const MedicalRecordsHub = () => {
 
                                             {/* Right: Preview (Professional Look) */}
                                             <div className="w-[300px] bg-slate-50 p-8 hidden md:block">
-                                                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6">Preview Visual</h4>
+                                                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6">{t('recordsHub.prescriptionEditor.previewVisualLabel')}</h4>
                                                 <div className="aspect-[1/1.4] bg-white shadow-sm rounded-lg p-4 text-[6px] flex flex-col">
                                                     <div className="border-b-[0.5px] border-slate-200 pb-2 mb-2 flex justify-between">
-                                                        <div className="font-bold">Traffio Med</div>
-                                                        <div className="text-slate-300">CRM/CRO 12345</div>
+                                                        <div className="font-bold">{t('recordsHub.prescriptionEditor.previewBrand')}</div>
+                                                        <div className="text-slate-300">{t('recordsHub.prescriptionEditor.previewCrm')}</div>
                                                     </div>
-                                                    <div className="text-center font-bold text-[8px] mb-4">RECEITUÁRIO MÉDICO</div>
-                                                    <div className="mb-1 uppercase font-bold text-slate-300">Paciente:</div>
+                                                    <div className="text-center font-bold text-[8px] mb-4">{t('recordsHub.prescriptionEditor.previewTitle')}</div>
+                                                    <div className="mb-1 uppercase font-bold text-slate-300">{t('recordsHub.prescriptionEditor.previewPatientLabel')}</div>
                                                     <div className="mb-4 font-bold border-b-[0.2px] border-slate-100">{selectedPatient.full_name}</div>
                                                     <div className="flex-1 text-slate-600 italic whitespace-pre-wrap">
-                                                        {prescriptionContent || 'Digite o conteúdo ao lado...'}
+                                                        {prescriptionContent || t('recordsHub.prescriptionEditor.previewPlaceholder')}
                                                     </div>
                                                     <div className="mt-auto pt-4 border-t-[0.5px] border-slate-100 text-center">
                                                         <div className="w-12 h-0.5 bg-slate-200 mx-auto mb-1" />
-                                                        <div className="font-bold">Assinatura do Profissional</div>
+                                                        <div className="font-bold">{t('recordsHub.prescriptionEditor.previewSignature')}</div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -921,19 +923,19 @@ export const MedicalRecordsHub = () => {
                                         )}>
                                             <div className="space-y-4">
                                                 {loadingPrescriptions ? (
-                                                    <div className="text-center py-20 opacity-50 font-bold italic">Carregando histórico...</div>
+                                                    <div className="text-center py-20 opacity-50 font-bold italic">{t('recordsHub.prescriptionsList.loading')}</div>
                                                 ) : prescriptions.length === 0 ? (
                                                     <div className="bg-white p-12 rounded-[32px] border border-dashed border-ice-200 text-center">
                                                         <div className="w-16 h-16 bg-ice-50 rounded-full flex items-center justify-center mx-auto mb-4">
                                                             <History className="text-graphite-300" size={24} />
                                                         </div>
-                                                        <h4 className="text-lg font-black text-graphite-900 mb-1">Nenhuma receita encontrada</h4>
-                                                        <p className="text-sm text-graphite-400 font-medium max-w-xs mx-auto mb-6">Inicie uma nova prescrição para este paciente na aba "Prescrever".</p>
-                                                        <button 
+                                                        <h4 className="text-lg font-black text-graphite-900 mb-1">{t('recordsHub.prescriptionsList.emptyTitle')}</h4>
+                                                        <p className="text-sm text-graphite-400 font-medium max-w-xs mx-auto mb-6">{t('recordsHub.prescriptionsList.emptySubtitle')}</p>
+                                                        <button
                                                             onClick={() => setView('prescription')}
                                                             className="px-6 py-3 bg-brand-primary text-white rounded-2xl font-black text-sm hover:scale-105 transition-all border-none cursor-pointer"
                                                         >
-                                                            Nova Prescrição
+                                                            {t('recordsHub.prescriptionsList.newPrescription')}
                                                         </button>
                                                     </div>
                                                 ) : (
@@ -959,13 +961,13 @@ export const MedicalRecordsHub = () => {
                                                                             {new Date(presc.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
                                                                         </p>
                                                                         <h4 className="text-sm font-black text-graphite-900">
-                                                                            Receita Digital - {new Date(presc.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                                                            {t('recordsHub.prescriptionsList.digitalPrescription', { time: new Date(presc.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) })}
                                                                         </h4>
                                                                     </div>
                                                                 </div>
                                                                 <div className="flex items-center gap-2">
                                                                     <div className="text-right hidden sm:block">
-                                                                        <p className="text-[10px] font-black uppercase tracking-widest text-emerald-500">Persistido</p>
+                                                                        <p className="text-[10px] font-black uppercase tracking-widest text-emerald-500">{t('recordsHub.prescriptionsList.persisted')}</p>
                                                                     </div>
                                                                     <ChevronRight size={18} className={clsx(
                                                                         "transition-all",
@@ -1005,10 +1007,10 @@ export const MedicalRecordsHub = () => {
                                                     >
                                                         <div className="p-8 border-b border-ice-50 flex items-center justify-between bg-ice-50/30">
                                                             <div>
-                                                                <h3 className="text-xl font-black text-graphite-900 leading-none mb-1">Conferência de Receituário</h3>
-                                                                <p className="text-xs font-black uppercase tracking-widest text-graphite-400">Visualização em tela cheia • #{selectedPrescriptionForView.id.substring(0, 8)}</p>
+                                                                <h3 className="text-xl font-black text-graphite-900 leading-none mb-1">{t('recordsHub.prescriptionViewer.title')}</h3>
+                                                                <p className="text-xs font-black uppercase tracking-widest text-graphite-400">{t('recordsHub.prescriptionViewer.fullScreenView', { id: selectedPrescriptionForView.id.substring(0, 8) })}</p>
                                                             </div>
-                                                            <button 
+                                                            <button
                                                                 onClick={() => setSelectedPrescriptionForView(null)}
                                                                 className="p-3 hover:bg-white rounded-2xl transition-all border-none bg-transparent cursor-pointer text-graphite-400 group"
                                                             >
@@ -1021,25 +1023,25 @@ export const MedicalRecordsHub = () => {
                                                                 {/* Scaled Template */}
                                                                 <div className="border-b-4 border-slate-900 pb-8 mb-8 flex justify-between items-end">
                                                                     <div>
-                                                                        <div className="font-black text-2xl uppercase tracking-tighter text-slate-900">Traffio Medical</div>
-                                                                        <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Tecnologia em Gestão Médica</div>
+                                                                        <div className="font-black text-2xl uppercase tracking-tighter text-slate-900">{t('recordsHub.prescriptionViewer.brand')}</div>
+                                                                        <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t('recordsHub.prescriptionViewer.brandTagline')}</div>
                                                                     </div>
                                                                     <div className="text-right">
-                                                                        <div className="text-sm font-black text-slate-900">Dr. {tenant?.name || 'Médico Responsável'}</div>
-                                                                        <div className="text-[10px] font-bold text-slate-400 uppercase">CRM/CRO: 123.456-SP</div>
+                                                                        <div className="text-sm font-black text-slate-900">{t('recordsHub.prescriptionViewer.doctorPrefix', { name: tenant?.name || t('recordsHub.prescriptionViewer.doctorFallback') })}</div>
+                                                                        <div className="text-[10px] font-bold text-slate-400 uppercase">{t('recordsHub.prescriptionViewer.doctorCrm')}</div>
                                                                     </div>
                                                                 </div>
-                                                                
-                                                                <div className="text-center font-black text-xl mb-12 tracking-[0.2em] uppercase text-slate-900 underline underline-offset-8 decoration-slate-200">Receituário</div>
-                                                                
+
+                                                                <div className="text-center font-black text-xl mb-12 tracking-[0.2em] uppercase text-slate-900 underline underline-offset-8 decoration-slate-200">{t('recordsHub.prescriptionViewer.heading')}</div>
+
                                                                 <div className="mb-6 bg-slate-50 p-6 rounded-2xl border border-slate-100">
                                                                     <div className="flex justify-between items-center">
                                                                         <div>
-                                                                            <span className="font-black uppercase text-[10px] text-slate-400 block mb-1">Paciente</span>
+                                                                            <span className="font-black uppercase text-[10px] text-slate-400 block mb-1">{t('recordsHub.prescriptionViewer.patientLabel')}</span>
                                                                             <span className="font-black text-lg text-slate-900">{selectedPrescriptionForView.content_json?.patient_name}</span>
                                                                         </div>
                                                                         <div className="text-right">
-                                                                            <span className="font-black uppercase text-[10px] text-slate-400 block mb-1">Data de Emissão</span>
+                                                                            <span className="font-black uppercase text-[10px] text-slate-400 block mb-1">{t('recordsHub.prescriptionViewer.issueDate')}</span>
                                                                             <span className="font-bold text-slate-700">{new Date(selectedPrescriptionForView.created_at).toLocaleDateString('pt-BR')}</span>
                                                                         </div>
                                                                     </div>
@@ -1054,14 +1056,14 @@ export const MedicalRecordsHub = () => {
                                                                         <Stethoscope size={80} className="text-slate-900" />
                                                                     </div>
                                                                     <div className="w-24 h-1 bg-slate-900 mx-auto mb-3 rounded-full" />
-                                                                    <div className="font-black uppercase tracking-[0.3em] text-[10px] text-slate-900">Assinatura Digital</div>
-                                                                    <div className="text-[8px] font-bold text-slate-400 mt-1">Autenticado via Traffio Security Hub</div>
+                                                                    <div className="font-black uppercase tracking-[0.3em] text-[10px] text-slate-900">{t('recordsHub.prescriptionViewer.signatureLabel')}</div>
+                                                                    <div className="text-[8px] font-bold text-slate-400 mt-1">{t('recordsHub.prescriptionViewer.authenticatedVia')}</div>
                                                                 </div>
                                                             </div>
                                                         </div>
 
                                                         <div className="p-8 border-t border-ice-100 flex gap-4 bg-white">
-                                                            <button 
+                                                            <button
                                                                 onClick={() => {
                                                                     setPrescriptionContent(selectedPrescriptionForView.content_json?.content);
                                                                     setView('prescription');
@@ -1069,13 +1071,13 @@ export const MedicalRecordsHub = () => {
                                                                 }}
                                                                 className="flex-1 px-8 py-5 bg-brand-primary text-white rounded-[24px] font-black text-sm flex items-center justify-center gap-3 hover:opacity-90 hover:scale-[1.02] transform transition-all cursor-pointer shadow-xl shadow-brand-primary/20"
                                                             >
-                                                                <Printer size={20} /> Re-imprimir Prescrição
+                                                                <Printer size={20} /> {t('recordsHub.prescriptionViewer.reprint')}
                                                             </button>
-                                                            <button 
-                                                                onClick={() => showToast('info', 'Gerando PDF de alta resolução...')}
+                                                            <button
+                                                                onClick={() => showToast('info', t('recordsHub.toasts.generatingHighResPdf'))}
                                                                 className="px-10 py-5 bg-ice-50 text-graphite-900 rounded-[24px] font-black text-sm flex items-center justify-center gap-3 hover:bg-ice-100 transition-all cursor-pointer border-none"
                                                             >
-                                                                <Download size={20} /> Baixar PDF
+                                                                <Download size={20} /> {t('recordsHub.prescriptionViewer.downloadPdf')}
                                                             </button>
                                                         </div>
                                                     </motion.div>
@@ -1096,17 +1098,17 @@ export const MedicalRecordsHub = () => {
                                             <div className="w-16 h-16 bg-ice-50 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                                                 <Upload className="text-brand-primary" size={24} />
                                             </div>
-                                            <h4 className="text-lg font-black text-graphite-900 mb-1">Adicionar Novo Documento</h4>
-                                            <p className="text-sm text-graphite-400 font-medium mb-6">Arraste arquivos PDF, imagens ou laudos para cá.</p>
-                                            
+                                            <h4 className="text-lg font-black text-graphite-900 mb-1">{t('recordsHub.files.addDocument')}</h4>
+                                            <p className="text-sm text-graphite-400 font-medium mb-6">{t('recordsHub.files.dragHint')}</p>
+
                                             <label className={clsx(
                                                 "px-8 py-3 rounded-2xl font-black text-sm transition-all cursor-pointer",
                                                 isUploading ? "bg-ice-100 text-graphite-300 pointer-events-none" : "bg-brand-primary text-white hover:shadow-xl hover:shadow-brand-primary/20"
                                             )}>
-                                                {isUploading ? 'Realizando Upload...' : 'Selecionar Arquivo'}
-                                                <input 
-                                                    type="file" 
-                                                    className="hidden" 
+                                                {isUploading ? t('recordsHub.files.uploading') : t('recordsHub.files.selectFile')}
+                                                <input
+                                                    type="file"
+                                                    className="hidden"
                                                     onChange={handleFileUpload}
                                                     disabled={isUploading}
                                                 />
@@ -1117,7 +1119,7 @@ export const MedicalRecordsHub = () => {
                                         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                                             {documents.length === 0 ? (
                                                 <div className="col-span-full text-center py-10 opacity-50 font-bold text-graphite-400">
-                                                    Nenhum documento anexado.
+                                                    {t('recordsHub.files.empty')}
                                                 </div>
                                             ) : (
                                                 documents.map(doc => (
@@ -1130,7 +1132,7 @@ export const MedicalRecordsHub = () => {
                                                                 <button 
                                                                     onClick={() => handleViewDocument(doc)}
                                                                     className="w-8 h-8 rounded-lg hover:bg-ice-50 flex items-center justify-center text-brand-primary border-none bg-transparent cursor-pointer"
-                                                                    title="Visualização Rápida"
+                                                                    title={t('recordsHub.files.quickView')}
                                                                 >
                                                                     <Eye size={16} />
                                                                 </button>
@@ -1201,13 +1203,13 @@ export const MedicalRecordsHub = () => {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <button 
+                                    <button
                                         onClick={() => handleDownloadDocument(previewDoc)}
                                         className="p-4 bg-ice-50 text-graphite-900 rounded-2xl font-black text-sm flex items-center gap-2 hover:bg-ice-100 transition-all cursor-pointer border-none"
                                     >
-                                        <Download size={18} /> Baixar Original
+                                        <Download size={18} /> {t('recordsHub.documentPreview.downloadOriginal')}
                                     </button>
-                                    <button 
+                                    <button
                                         onClick={() => {
                                             setPreviewDoc(null);
                                             setPreviewUrl(null);
@@ -1224,7 +1226,7 @@ export const MedicalRecordsHub = () => {
                                 {isPreviewLoading ? (
                                     <div className="flex flex-col items-center gap-4">
                                         <Loader2 size={48} className="text-brand-primary animate-spin" />
-                                        <p className="font-bold text-graphite-400">Gerando pré-visualização segura...</p>
+                                        <p className="font-bold text-graphite-400">{t('recordsHub.documentPreview.loading')}</p>
                                     </div>
                                 ) : previewUrl ? (
                                     <div className="w-full h-full flex items-center justify-center">
@@ -1243,19 +1245,19 @@ export const MedicalRecordsHub = () => {
                                         ) : (
                                             <div className="text-center p-12 bg-white rounded-[32px] border border-ice-100 shadow-sm">
                                                 <File size={64} className="mx-auto text-ice-200 mb-6" />
-                                                <h4 className="text-xl font-black text-graphite-900 mb-2">Pré-visualização não suportada</h4>
-                                                <p className="text-graphite-400 font-medium mb-8">Este formato de arquivo ({previewDoc.file_type}) deve ser baixado para visualização externa.</p>
-                                                <button 
+                                                <h4 className="text-xl font-black text-graphite-900 mb-2">{t('recordsHub.documentPreview.unsupportedTitle')}</h4>
+                                                <p className="text-graphite-400 font-medium mb-8">{t('recordsHub.documentPreview.unsupportedSubtitle', { type: previewDoc.file_type })}</p>
+                                                <button
                                                     onClick={() => handleDownloadDocument(previewDoc)}
                                                     className="px-8 py-4 bg-brand-primary text-white rounded-2xl font-black text-base hover:scale-105 active:scale-95 transition-all border-none cursor-pointer shadow-lg shadow-brand-primary/20"
                                                 >
-                                                    Baixar Arquivo Agora
+                                                    {t('recordsHub.documentPreview.downloadNow')}
                                                 </button>
                                             </div>
                                         )}
                                     </div>
                                 ) : (
-                                    <div className="text-rose-500 font-bold">Erro ao carregar o arquivo.</div>
+                                    <div className="text-rose-500 font-bold">{t('recordsHub.documentPreview.loadError')}</div>
                                 )}
                             </div>
                         </motion.div>
