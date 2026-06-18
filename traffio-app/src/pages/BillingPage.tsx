@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Shield, Check, AlertTriangle, Clock, Loader2, CalendarClock } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useTenant } from '../contexts/TenantContext';
 import { usePlan } from '../hooks/usePlan';
 import { useToast } from '../contexts/ToastContext';
@@ -15,6 +16,7 @@ import {
 } from '../config/planConfig';
 
 export const BillingPage = () => {
+    const { t } = useTranslation('billing');
     const { tenant, refresh } = useTenant();
     const { planId, isTrialActive, isTrialExpired, trialDaysLeft } = usePlan();
     const { showToast, showConfirm } = useToast();
@@ -33,11 +35,11 @@ export const BillingPage = () => {
                 body: { return_url: window.location.href },
             });
             if (res.error) throw new Error(res.error.message);
-            if (!res.data?.url) throw new Error(res.data?.error ?? 'Não foi possível abrir o portal');
+            if (!res.data?.url) throw new Error(res.data?.error ?? t('billingPage.toasts.portalOpenError'));
             window.location.href = res.data.url;
         } catch (err: any) {
             console.error('Portal error:', err);
-            showToast('error', `Erro ao abrir o portal de faturamento: ${err.message}`);
+            showToast('error', t('billingPage.toasts.manageBillingError', { message: err.message }));
             setLoadingPortal(false);
         }
     }
@@ -78,10 +80,11 @@ export const BillingPage = () => {
         if (!isTrialing) {
             const renewsAt = tenant?.subscription_renews_at
                 ? new Date(tenant.subscription_renews_at).toLocaleDateString('pt-BR')
-                : 'a próxima renovação';
+                : t('billingPage.confirm.nextRenewalFallback');
+            const cycleLabel = billingCycle === 'annual' ? t('billingPage.confirm.cycleAnnual') : t('billingPage.confirm.cycleMonthly');
             const msg = isUpgrade
-                ? `Fazer upgrade para o plano ${PLANS[targetPlanId].name} (${billingCycle === 'annual' ? 'anual' : 'mensal'})? A diferença proporcional do período é cobrada agora e o tempo não usado do plano atual vira crédito.`
-                : `Mudar para o plano ${PLANS[targetPlanId].name} (${billingCycle === 'annual' ? 'anual' : 'mensal'})? Você mantém o plano atual até ${renewsAt} (já pago) e a mudança entra na renovação.`;
+                ? t('billingPage.confirm.upgradeMessage', { plan: PLANS[targetPlanId].name, cycle: cycleLabel })
+                : t('billingPage.confirm.downgradeMessage', { plan: PLANS[targetPlanId].name, cycle: cycleLabel, renewsAt });
             const ok = await showConfirm(msg);
             if (!ok) return;
         }
@@ -109,20 +112,20 @@ export const BillingPage = () => {
 
             if (data.changed === 'immediate') {
                 showToast('success', data.trial
-                    ? `Plano alterado para ${PLANS[targetPlanId].name}! Nada é cobrado durante o trial.`
-                    : `Plano alterado para ${PLANS[targetPlanId].name}! A diferença proporcional foi ajustada na fatura.`);
+                    ? t('billingPage.toasts.planChangedImmediateTrial', { plan: PLANS[targetPlanId].name })
+                    : t('billingPage.toasts.planChangedImmediate', { plan: PLANS[targetPlanId].name }));
                 await refresh(undefined, false);
             } else if (data.changed === 'scheduled') {
                 const date = data.effective_at
                     ? new Date(data.effective_at).toLocaleDateString('pt-BR')
-                    : 'a próxima renovação';
+                    : t('billingPage.confirm.nextRenewalFallback');
                 setScheduledChange({ planName: PLANS[targetPlanId].name, date });
-                showToast('success', `Mudança agendada: plano ${PLANS[targetPlanId].name} a partir de ${date}.`);
+                showToast('success', t('billingPage.toasts.planChangeScheduled', { plan: PLANS[targetPlanId].name, date }));
             }
 
         } catch (err: any) {
             console.error('Change plan error:', err);
-            showToast('error', `Erro ao alterar o plano: ${err.message}`);
+            showToast('error', t('billingPage.toasts.changePlanError', { message: err.message }));
         } finally {
             setLoadingPlan(null);
         }
@@ -139,11 +142,11 @@ export const BillingPage = () => {
         : null;
 
     function statusLabel() {
-        if (status === 'trial' && !isTrialExpired) return 'Trial';
-        if (isTrialExpired) return 'Trial expirado';
-        if (status === 'active') return 'Ativo';
-        if (status === 'suspended') return 'Suspenso';
-        if (status === 'canceled') return 'Cancelado';
+        if (status === 'trial' && !isTrialExpired) return t('billingPage.status.trial');
+        if (isTrialExpired) return t('billingPage.status.trialExpired');
+        if (status === 'active') return t('billingPage.status.active');
+        if (status === 'suspended') return t('billingPage.status.suspended');
+        if (status === 'canceled') return t('billingPage.status.canceled');
         return status;
     }
 
@@ -164,8 +167,8 @@ export const BillingPage = () => {
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto">
             <div>
-                <h1 className="text-3xl font-black text-graphite-900 tracking-tight">Assinatura</h1>
-                <p className="text-graphite-500 font-medium">Gerencie seu plano e faturamento da plataforma Traffio.</p>
+                <h1 className="text-3xl font-black text-graphite-900 tracking-tight">{t('billingPage.pageTitle')}</h1>
+                <p className="text-graphite-500 font-medium">{t('billingPage.pageSubtitle')}</p>
             </div>
 
             {/* Alerta de trial expirado */}
@@ -173,9 +176,9 @@ export const BillingPage = () => {
                 <div className="flex items-start gap-3 p-5 bg-red-50 rounded-2xl border border-red-100">
                     <AlertTriangle size={20} className="text-red-500 shrink-0 mt-0.5" />
                     <div>
-                        <p className="text-sm font-black text-red-700">Seu trial expirou</p>
+                        <p className="text-sm font-black text-red-700">{t('billingPage.trialExpiredAlert.title')}</p>
                         <p className="text-sm text-red-600 font-medium mt-0.5">
-                            Escolha um plano abaixo para continuar usando o Traffio sem interrupções.
+                            {t('billingPage.trialExpiredAlert.message')}
                         </p>
                     </div>
                 </div>
@@ -186,11 +189,11 @@ export const BillingPage = () => {
                 <div className="flex items-start gap-3 p-5 bg-amber-50 rounded-2xl border border-amber-100">
                     <Clock size={20} className="text-amber-500 shrink-0 mt-0.5" />
                     <p className="text-sm text-amber-700 font-medium">
-                        Você está no período de trial.{' '}
+                        {t('billingPage.trialActiveAlert.prefix')}{' '}
                         <span className="font-black">
-                            {trialDaysLeft > 0 ? `${trialDaysLeft} dia${trialDaysLeft !== 1 ? 's' : ''} restante${trialDaysLeft !== 1 ? 's' : ''}` : 'Expira hoje'}.
+                            {trialDaysLeft > 0 ? t('billingPage.trialActiveAlert.daysLeft', { count: trialDaysLeft }) : t('billingPage.trialActiveAlert.expiresToday')}.
                         </span>{' '}
-                        {trialEndsAt && `Termina em ${trialEndsAt}.`}
+                        {trialEndsAt && t('billingPage.trialActiveAlert.endsAtSuffix', { date: trialEndsAt })}
                     </p>
                 </div>
             )}
@@ -202,17 +205,20 @@ export const BillingPage = () => {
                         <currentPlan.icon size={28} className="text-white" />
                     </div>
                     <div>
-                        <p className="text-xs font-black text-brand-primary uppercase tracking-widest mb-1">Plano Ativo</p>
+                        <p className="text-xs font-black text-brand-primary uppercase tracking-widest mb-1">{t('billingPage.activePlanBanner.label')}</p>
                         <h2 className="text-2xl font-black text-graphite-900">{currentPlan.name}</h2>
                         <p className="text-sm text-graphite-500 font-medium">
                             {status === 'active' && renewsAt
-                                ? `Renova em ${renewsAt} · ${formatPrice(
-                                      billingCycle === 'annual'
-                                          ? currentPlan.annualMonthlyPrice
-                                          : currentPlan.monthlyPrice
-                                  )}/mês`
+                                ? t('billingPage.activePlanBanner.renewsAt', {
+                                      date: renewsAt,
+                                      price: formatPrice(
+                                          billingCycle === 'annual'
+                                              ? currentPlan.annualMonthlyPrice
+                                              : currentPlan.monthlyPrice
+                                      ),
+                                  })
                                 : status === 'trial' && trialEndsAt
-                                ? `Trial até ${trialEndsAt}`
+                                ? t('billingPage.activePlanBanner.trialUntil', { date: trialEndsAt })
                                 : currentPlan.description}
                         </p>
                     </div>
@@ -226,10 +232,10 @@ export const BillingPage = () => {
                         onClick={handleManageBilling}
                         disabled={loadingPortal}
                         className="px-5 py-2.5 rounded-xl border border-ice-200 text-graphite-600 text-sm font-bold hover:bg-ice-50 transition-colors flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
-                        title="Atualizar cartão, ver faturas e cancelar assinatura"
+                        title={t('billingPage.activePlanBanner.manageBillingTitle')}
                     >
                         {loadingPortal && <Loader2 size={14} className="animate-spin" />}
-                        Gerenciar Faturamento
+                        {t('billingPage.activePlanBanner.manageBilling')}
                     </button>
                 </div>
             </div>
@@ -239,10 +245,9 @@ export const BillingPage = () => {
                 <div className="flex items-start gap-3 p-5 bg-indigo-50 rounded-2xl border border-indigo-100">
                     <CalendarClock size={20} className="text-indigo-500 shrink-0 mt-0.5" />
                     <p className="text-sm text-indigo-700 font-medium">
-                        Mudança agendada: seu plano passa a ser{' '}
-                        <span className="font-black">{scheduledChange.planName}</span> em{' '}
-                        <span className="font-black">{scheduledChange.date}</span>. Até lá, você mantém
-                        todos os recursos do plano atual, já pagos. Para desfazer, basta escolher outro plano.
+                        {t('billingPage.scheduledChangeBanner.prefix')}{' '}
+                        <span className="font-black">{scheduledChange.planName}</span> {t('billingPage.scheduledChangeBanner.middle')}{' '}
+                        <span className="font-black">{scheduledChange.date}</span>. {t('billingPage.scheduledChangeBanner.suffix')}
                     </p>
                 </div>
             )}
@@ -258,7 +263,7 @@ export const BillingPage = () => {
                                 : 'text-graphite-500 hover:text-graphite-700'
                         }`}
                     >
-                        Mensal
+                        {t('billingPage.cycleToggle.monthly')}
                     </button>
                     <button
                         onClick={() => setBillingCycle('annual')}
@@ -268,9 +273,9 @@ export const BillingPage = () => {
                                 : 'text-graphite-500 hover:text-graphite-700'
                         }`}
                     >
-                        Anual
+                        {t('billingPage.cycleToggle.annual')}
                         <span className="text-[10px] font-black bg-emerald-500 text-white px-2 py-0.5 rounded-full">
-                            -20%
+                            {t('billingPage.cycleToggle.discountBadge')}
                         </span>
                     </button>
                 </div>
@@ -290,14 +295,14 @@ export const BillingPage = () => {
                         ? plan.annualMonthlyPrice
                         : plan.monthlyPrice;
                     const ctaLabel = isCurrent
-                        ? 'Plano atual'
+                        ? t('billingPage.cta.currentPlan')
                         : id === 'rede'
-                        ? 'Falar com vendas'
+                        ? t('billingPage.cta.talkToSales')
                         : isCurrentPlan
-                        ? billingCycle === 'annual' ? 'Mudar para anual' : 'Mudar para mensal'
+                        ? billingCycle === 'annual' ? t('billingPage.cta.switchToAnnual') : t('billingPage.cta.switchToMonthly')
                         : isUpgrade
-                        ? 'Fazer upgrade'
-                        : 'Mudar de plano';
+                        ? t('billingPage.cta.upgrade')
+                        : t('billingPage.cta.changePlan');
 
                     return (
                         <div
@@ -310,7 +315,7 @@ export const BillingPage = () => {
                         >
                             {isCurrent && (
                                 <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-brand-primary text-white text-[10px] font-black px-4 py-1 rounded-full uppercase tracking-widest whitespace-nowrap">
-                                    Seu Plano
+                                    {t('billingPage.planCard.currentBadge')}
                                 </div>
                             )}
 
@@ -327,11 +332,11 @@ export const BillingPage = () => {
                                         ? formatPrice(price)
                                         : formatPrice(price)}
                                 </span>
-                                <span className="text-graphite-400 font-medium text-sm">/mês</span>
+                                <span className="text-graphite-400 font-medium text-sm">{t('billingPage.planCard.perMonth')}</span>
                             </div>
                             {billingCycle === 'annual' && (
                                 <p className="text-xs text-emerald-600 font-black mb-4">
-                                    cobrado {formatPrice(price * 12)}/ano
+                                    {t('billingPage.planCard.billedAnnually', { price: formatPrice(price * 12) })}
                                 </p>
                             )}
                             {billingCycle === 'monthly' && <div className="mb-4" />}
@@ -351,7 +356,7 @@ export const BillingPage = () => {
                                             <Check size={12} />
                                         </div>
                                         <span className="text-sm text-graphite-400 font-medium">
-                                            +{formatPrice(WHATSAPP_EXTRA_NUMBER_PRICE)}/mês por número WhatsApp adicional
+                                            {t('billingPage.planCard.extraWhatsappNumber', { price: formatPrice(WHATSAPP_EXTRA_NUMBER_PRICE) })}
                                         </span>
                                     </li>
                                 )}
@@ -384,7 +389,7 @@ export const BillingPage = () => {
             <div className="flex items-center gap-3 p-5 bg-ice-50 rounded-2xl border border-ice-100">
                 <Shield size={20} className="text-brand-primary shrink-0" />
                 <p className="text-sm text-graphite-500 font-medium">
-                    Todos os pagamentos são processados com segurança. Você pode cancelar ou alterar seu plano a qualquer momento sem multas.
+                    {t('billingPage.securityNote')}
                 </p>
             </div>
         </div>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { CreditCard, Loader2, ShieldCheck, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 import { PLANS, formatPrice, type PlanId, type BillingCycle } from '../../config/planConfig';
 
@@ -16,6 +17,7 @@ interface PaymentRequiredModalProps {
  * de pagamento via Stripe Checkout — nada é cobrado durante o trial.
  */
 export const PaymentRequiredModal = ({ planId, billingCycle, trialEndsAt }: PaymentRequiredModalProps) => {
+    const { t } = useTranslation('billing');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -33,7 +35,7 @@ export const PaymentRequiredModal = ({ planId, billingCycle, trialEndsAt }: Paym
         setError(null);
         try {
             const { data: { session } } = await supabase.auth.getSession();
-            if (!session?.access_token) throw new Error('Sessão expirada. Faça login novamente.');
+            if (!session?.access_token) throw new Error(t('paymentRequiredModal.errors.sessionExpired'));
 
             const res = await supabase.functions.invoke('stripe-create-checkout', {
                 body: {
@@ -51,12 +53,12 @@ export const PaymentRequiredModal = ({ planId, billingCycle, trialEndsAt }: Paym
                 window.location.href = 'mailto:contato@traffio.com.br?subject=Plano Rede';
                 return;
             }
-            if (!url) throw new Error('Não foi possível iniciar o checkout. Tente novamente.');
+            if (!url) throw new Error(t('paymentRequiredModal.errors.checkoutStartError'));
             localStorage.removeItem('traffio_tenant');
             window.location.href = url;
         } catch (err: any) {
             console.error('[PaymentRequiredModal] checkout error:', err);
-            setError(err.message || 'Erro ao iniciar o checkout. Tente novamente.');
+            setError(err.message || t('paymentRequiredModal.errors.genericCheckoutError'));
             setLoading(false);
         }
     };
@@ -68,9 +70,9 @@ export const PaymentRequiredModal = ({ planId, billingCycle, trialEndsAt }: Paym
                     <div className="inline-flex items-center justify-center w-14 h-14 bg-brand-primary/10 text-brand-primary rounded-2xl mb-4">
                         <CreditCard size={28} />
                     </div>
-                    <h2 className="text-2xl font-black text-graphite-900 mb-2">Falta só um passo!</h2>
+                    <h2 className="text-2xl font-black text-graphite-900 mb-2">{t('paymentRequiredModal.title')}</h2>
                     <p className="text-sm text-graphite-500 font-medium">
-                        Adicione uma forma de pagamento para liberar seus 14 dias grátis.
+                        {t('paymentRequiredModal.subtitle')}
                     </p>
                 </div>
 
@@ -81,19 +83,19 @@ export const PaymentRequiredModal = ({ planId, billingCycle, trialEndsAt }: Paym
                             <PlanIcon size={20} />
                         </div>
                         <div>
-                            <p className="text-sm font-black text-graphite-900">{plan.name} · {billingCycle === 'annual' ? 'Anual' : 'Mensal'}</p>
-                            <p className="text-[11px] font-bold text-graphite-400">cobrado a partir de {trialEndLabel}</p>
+                            <p className="text-sm font-black text-graphite-900">{plan.name} · {billingCycle === 'annual' ? t('paymentRequiredModal.cycleAnnual') : t('paymentRequiredModal.cycleMonthly')}</p>
+                            <p className="text-[11px] font-bold text-graphite-400">{t('paymentRequiredModal.billedFromPrefix')}{trialEndLabel}</p>
                         </div>
                     </div>
-                    <p className="text-lg font-black text-graphite-900 shrink-0">{formatPrice(price)}<span className="text-xs font-medium text-graphite-400">/mês</span></p>
+                    <p className="text-lg font-black text-graphite-900 shrink-0">{formatPrice(price)}<span className="text-xs font-medium text-graphite-400">{t('paymentRequiredModal.perMonth')}</span></p>
                 </div>
 
                 {/* Garantias do trial */}
                 <ul className="space-y-3 mb-6">
                     {[
-                        '14 dias grátis para testar — nada será cobrado hoje',
-                        'Cancele a qualquer momento na página Assinatura → Gerenciar Faturamento, sem custo',
-                        'Sua assinatura só é cobrada após o fim dos 14 dias de trial',
+                        t('paymentRequiredModal.guarantees.freeTrial'),
+                        t('paymentRequiredModal.guarantees.cancelAnytime'),
+                        t('paymentRequiredModal.guarantees.billedAfterTrial'),
                     ].map(item => (
                         <li key={item} className="flex items-start gap-2.5">
                             <CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" />
@@ -117,14 +119,14 @@ export const PaymentRequiredModal = ({ planId, billingCycle, trialEndsAt }: Paym
                     {loading ? <Loader2 className="animate-spin" size={20} /> : (
                         <>
                             <CreditCard size={18} />
-                            Adicionar forma de pagamento
+                            {t('paymentRequiredModal.addPaymentMethod')}
                         </>
                     )}
                 </button>
 
                 <p className="mt-4 text-center text-[11px] text-graphite-400 font-medium flex items-center justify-center gap-1">
                     <ShieldCheck size={12} className="text-emerald-500" />
-                    Pagamento processado com segurança pela Stripe
+                    {t('paymentRequiredModal.securityFooter')}
                 </p>
             </div>
         </div>

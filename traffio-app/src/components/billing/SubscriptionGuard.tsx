@@ -1,4 +1,5 @@
 import { AlertTriangle, CreditCard, Settings as SettingsIcon, XCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useTenant } from '../../contexts/TenantContext';
 import { usePlan } from '../../hooks/usePlan';
 import { PaymentRequiredModal } from './PaymentRequiredModal';
@@ -22,6 +23,7 @@ const ALLOWED_WHEN_BLOCKED = ['billing', 'settings'];
  * Rotas master (/master/*) e portal do paciente (/portal/*) ficam fora.
  */
 export const SubscriptionGuard = ({ activeScreen, onNavigate, children }: SubscriptionGuardProps) => {
+    const { t } = useTranslation('billing');
     const { tenant, loading } = useTenant();
     const { isTrialExpired } = usePlan();
 
@@ -48,22 +50,22 @@ export const SubscriptionGuard = ({ activeScreen, onNavigate, children }: Subscr
         const copy = status === 'canceled'
             ? {
                 icon: <XCircle size={32} />,
-                title: 'Assinatura cancelada',
-                message: 'Sua assinatura foi cancelada. Reative para voltar a usar a plataforma — seus dados continuam guardados em segurança.',
-                cta: 'Reativar assinatura',
+                title: t('subscriptionGuard.canceled.title'),
+                message: t('subscriptionGuard.canceled.message'),
+                cta: t('subscriptionGuard.canceled.cta'),
             }
             : status === 'suspended'
             ? {
                 icon: <AlertTriangle size={32} />,
-                title: 'Pagamento pendente',
-                message: 'Não conseguimos processar a cobrança da sua assinatura. Atualize sua forma de pagamento para reativar o acesso.',
-                cta: 'Atualizar pagamento',
+                title: t('subscriptionGuard.suspended.title'),
+                message: t('subscriptionGuard.suspended.message'),
+                cta: t('subscriptionGuard.suspended.cta'),
             }
             : {
                 icon: <AlertTriangle size={32} />,
-                title: 'Seu trial terminou',
-                message: 'Os 14 dias de teste grátis chegaram ao fim. Assine um plano para continuar usando a plataforma — seus dados estão guardados.',
-                cta: 'Assinar agora',
+                title: t('subscriptionGuard.trialExpired.title'),
+                message: t('subscriptionGuard.trialExpired.message'),
+                cta: t('subscriptionGuard.trialExpired.cta'),
             };
 
         return (
@@ -87,7 +89,7 @@ export const SubscriptionGuard = ({ activeScreen, onNavigate, children }: Subscr
                         className="w-full bg-ice-100 text-graphite-700 py-3.5 rounded-xl font-bold hover:bg-ice-200 transition-all flex items-center justify-center gap-2 border-none cursor-pointer"
                     >
                         <SettingsIcon size={16} />
-                        Ir para Configurações
+                        {t('subscriptionGuard.goToSettings')}
                     </button>
                 </div>
             </div>

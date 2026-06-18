@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, Loader2, Copy, Check, Send, CreditCard, DollarSign } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabase';
 import { useTenant } from '../contexts/TenantContext';
 import { useToast } from '../contexts/ToastContext';
@@ -15,16 +16,17 @@ interface SidebarPaymentViewProps {
   onSendLink: (text: string) => Promise<void>;
 }
 
-const METHODS = [
-  { value: 'pix', label: 'PIX' },
-  { value: 'credit_card', label: 'Cartão' },
-  { value: 'boleto', label: 'Boleto' },
-];
-
 export function SidebarPaymentView({ onBack, patientId, patientName, onSendLink }: SidebarPaymentViewProps) {
+  const { t } = useTranslation('billing');
   const { tenant } = useTenant();
   const { showToast } = useToast();
   const { formatDate } = useLocaleFormat();
+
+  const METHODS = [
+    { value: 'pix', label: t('sidebarPaymentView.methods.pix') },
+    { value: 'credit_card', label: t('sidebarPaymentView.methods.creditCard') },
+    { value: 'boleto', label: t('sidebarPaymentView.methods.boleto') },
+  ];
   const [loading, setLoading] = useState(false);
   const [loadingRecent, setLoadingRecent] = useState(true);
   const [recentBillings, setRecentBillings] = useState<(BillingRecord & { patients?: any })[]>([]);
@@ -64,7 +66,7 @@ export function SidebarPaymentView({ onBack, patientId, patientName, onSendLink 
     if (!tenant?.id || !amount) return;
     const cents = Math.round(parseFloat(amount.replace(',', '.')) * 100);
     if (cents <= 0 || isNaN(cents)) {
-      showToast('error', 'Valor inválido');
+      showToast('error', t('sidebarPaymentView.toasts.invalidAmount'));
       return;
     }
 
@@ -79,7 +81,7 @@ export function SidebarPaymentView({ onBack, patientId, patientName, onSendLink 
         amount_cents: cents,
         due_date: dueDate.toISOString().split('T')[0],
         method: method,
-        notes: description || `Cobrança - ${patientName}`,
+        notes: description || t('sidebarPaymentView.defaultNote', { patientName }),
       });
 
       setBillingId(billing.id);
@@ -103,10 +105,10 @@ export function SidebarPaymentView({ onBack, patientId, patientName, onSendLink 
         setPaymentLink(`${window.location.origin}/pay/${billing.id}`);
       }
 
-      showToast('success', 'Cobrança criada!');
+      showToast('success', t('sidebarPaymentView.toasts.chargeCreated'));
       loadRecentBillings();
     } catch (err: any) {
-      showToast('error', err.message || 'Erro ao gerar cobrança');
+      showToast('error', err.message || t('sidebarPaymentView.toasts.chargeError'));
     } finally {
       setLoading(false);
     }
@@ -117,15 +119,15 @@ export function SidebarPaymentView({ onBack, patientId, patientName, onSendLink 
     navigator.clipboard.writeText(paymentLink);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-    showToast('success', 'Link copiado!');
+    showToast('success', t('sidebarPaymentView.toasts.linkCopied'));
   };
 
   const handleSendInChat = async () => {
     if (!paymentLink) return;
     const firstName = patientName.split(' ')[0];
     const formattedAmount = parseFloat(amount.replace(',', '.')).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    await onSendLink(`Olá ${firstName}! 😊 Segue o link de pagamento no valor de ${formattedAmount}: ${paymentLink}\n\nVocê pode pagar por PIX, cartão ou boleto. Qualquer dúvida estou aqui! 💙`);
-    showToast('success', 'Link enviado no chat!');
+    await onSendLink(t('sidebarPaymentView.chatMessage', { firstName, amount: formattedAmount, link: paymentLink }));
+    showToast('success', t('sidebarPaymentView.toasts.linkSentInChat'));
   };
 
   const handleNewCharge = () => {
@@ -138,10 +140,10 @@ export function SidebarPaymentView({ onBack, patientId, patientName, onSendLink 
 
   const statusLabel = (s: string) => {
     const map: Record<string, { label: string; color: string }> = {
-      pending: { label: 'Pendente', color: 'text-amber-600 bg-amber-50' },
-      paid: { label: 'Pago', color: 'text-green-600 bg-green-50' },
-      overdue: { label: 'Vencido', color: 'text-red-600 bg-red-50' },
-      canceled: { label: 'Cancelado', color: 'text-gray-500 bg-gray-100' },
+      pending: { label: t('sidebarPaymentView.status.pending'), color: 'text-amber-600 bg-amber-50' },
+      paid: { label: t('sidebarPaymentView.status.paid'), color: 'text-green-600 bg-green-50' },
+      overdue: { label: t('sidebarPaymentView.status.overdue'), color: 'text-red-600 bg-red-50' },
+      canceled: { label: t('sidebarPaymentView.status.canceled'), color: 'text-gray-500 bg-gray-100' },
     };
     return map[s] || { label: s, color: 'text-gray-500 bg-gray-100' };
   };
@@ -154,7 +156,7 @@ export function SidebarPaymentView({ onBack, patientId, patientName, onSendLink 
           <ChevronLeft className="w-5 h-5" />
         </button>
         <div className="text-white">
-          <p className="text-xs font-bold opacity-80 uppercase tracking-tighter">Pagamento</p>
+          <p className="text-xs font-bold opacity-80 uppercase tracking-tighter">{t('sidebarPaymentView.headerLabel')}</p>
           <p className="text-sm font-bold truncate max-w-[180px]">{patientName}</p>
         </div>
       </div>
@@ -167,7 +169,7 @@ export function SidebarPaymentView({ onBack, patientId, patientName, onSendLink 
               <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto text-green-600">
                 <Check size={28} />
               </div>
-              <p className="text-sm font-bold text-green-800">Cobrança Gerada!</p>
+              <p className="text-sm font-bold text-green-800">{t('sidebarPaymentView.resultView.chargeGenerated')}</p>
               <div className="bg-white border border-green-200 rounded-xl p-2.5 flex items-center gap-2">
                 <span className="text-[10px] text-gray-500 truncate flex-1">{paymentLink}</span>
                 <button onClick={handleCopy} className="p-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-colors shrink-0">
@@ -180,27 +182,27 @@ export function SidebarPaymentView({ onBack, patientId, patientName, onSendLink 
               onClick={handleSendInChat}
               className="w-full bg-green-600 text-white rounded-xl py-3 text-sm font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition-all shadow-md shadow-green-500/20"
             >
-              <Send size={16} /> Enviar no Chat
+              <Send size={16} /> {t('sidebarPaymentView.resultView.sendInChat')}
             </button>
 
             <button
               onClick={handleNewCharge}
               className="w-full bg-gray-100 text-gray-700 rounded-xl py-2.5 text-sm font-bold hover:bg-gray-200 transition-all"
             >
-              Nova Cobrança
+              {t('sidebarPaymentView.resultView.newCharge')}
             </button>
           </div>
         ) : (
           /* Form view */
           <div className="p-4 space-y-4">
             <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider ml-1">Valor (R$)</label>
+              <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider ml-1">{t('sidebarPaymentView.form.amountLabel')}</label>
               <div className="relative">
                 <DollarSign className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
                   inputMode="decimal"
-                  placeholder="150,00"
+                  placeholder={t('sidebarPaymentView.form.amountPlaceholder')}
                   value={amount}
                   onChange={e => setAmount(e.target.value)}
                   className="w-full pl-9 pr-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 transition-all"
@@ -209,10 +211,10 @@ export function SidebarPaymentView({ onBack, patientId, patientName, onSendLink 
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider ml-1">Descrição (opcional)</label>
+              <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider ml-1">{t('sidebarPaymentView.form.descriptionLabel')}</label>
               <input
                 type="text"
-                placeholder="Ex: Consulta de avaliação"
+                placeholder={t('sidebarPaymentView.form.descriptionPlaceholder')}
                 value={description}
                 onChange={e => setDescription(e.target.value)}
                 className="w-full px-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 transition-all"
@@ -220,7 +222,7 @@ export function SidebarPaymentView({ onBack, patientId, patientName, onSendLink 
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider ml-1">Método</label>
+              <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider ml-1">{t('sidebarPaymentView.form.methodLabel')}</label>
               <div className="flex p-1 bg-gray-100 rounded-xl">
                 {METHODS.map(m => (
                   <button
@@ -240,7 +242,7 @@ export function SidebarPaymentView({ onBack, patientId, patientName, onSendLink 
             {/* Recent billings */}
             {recentBillings.length > 0 && (
               <div className="space-y-2 pt-2">
-                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Cobranças Recentes</p>
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">{t('sidebarPaymentView.recentBillings.title')}</p>
                 {loadingRecent ? (
                   <Loader2 className="animate-spin text-gray-400 w-4 h-4 mx-auto" />
                 ) : (
@@ -273,7 +275,7 @@ export function SidebarPaymentView({ onBack, patientId, patientName, onSendLink 
             disabled={loading || !amount}
             className="w-full bg-green-600 text-white rounded-xl py-3 text-sm font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition-all shadow-md shadow-green-500/20 disabled:opacity-50"
           >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><CreditCard size={16} /> Gerar Link de Pagamento</>}
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><CreditCard size={16} /> {t('sidebarPaymentView.generateButton')}</>}
           </button>
         </div>
       )}

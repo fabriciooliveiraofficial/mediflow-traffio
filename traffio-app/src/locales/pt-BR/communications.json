@@ -1,1 +1,63 @@
-{}
+{
+  "communicationsHub": {
+    "nav": {
+      "dashboard": "Dashboard",
+      "sms": "SMS",
+      "calls": "Chamadas",
+      "voicemail": "Voicemail",
+      "numbers": "Números"
+    },
+    "notEnabled": {
+      "title": "Comunicações não habilitadas",
+      "messagePrefix": "Ative o Softphone em",
+      "settingsPath": "Configurações → Comunicações"
+    },
+    "kpis": {
+      "received": "Recebidas",
+      "made": "Realizadas",
+      "missed": "Perdidas",
+      "minutes": "Minutos",
+      "currentMonth": "mês atual",
+      "smsSent": "SMS Enviados",
+      "smsReceived": "SMS Recebidos",
+      "answerRate": "Taxa Atendimento",
+      "today": "Hoje",
+      "calls": "chamadas"
+    },
+    "chart": {
+      "last7DaysTitle": "Chamadas — últimos 7 dias",
+      "monthDistributionTitle": "Distribuição do mês"
+    },
+    "detail": {
+      "selectCall": "Selecione uma chamada",
+      "selectConversation": "Selecione uma conversa",
+      "selectVoicemail": "Selecione um voicemail",
+      "selectNumber": "Selecione um número",
+      "inbound": "Recebida",
+      "outbound": "Realizada",
+      "callBack": "Retornar",
+      "duration": "Duração",
+      "status": "Status",
+      "answered": "Atendida",
+      "recording": "Gravação",
+      "download": "Baixar",
+      "notes": "Notas",
+      "notesPlaceholder": "Observações desta chamada...",
+      "callTitle": "Ligar",
+      "noMessagesYet": "Nenhuma mensagem ainda",
+      "smsPlaceholder": "Digite o SMS... (máx 160 chars)",
+      "audio": "Áudio",
+      "transcript": "Transcrição"
+    },
+    "list": {
+      "searchPlaceholder": "Buscar...",
+      "refresh": "Atualizar",
+      "noCalls": "Nenhuma chamada",
+      "noSmsConversations": "Nenhuma conversa SMS",
+      "noVoicemails": "Nenhum voicemail",
+      "noNumbers": "Nenhum número",
+      "voiceSuffix": "Voz",
+      "smsSuffix": "SMS"
+    }
+  }
+}

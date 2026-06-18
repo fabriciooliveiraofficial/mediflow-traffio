@@ -5,6 +5,7 @@
  */
 
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard, MessageSquare, Phone, Voicemail, Hash,
   PhoneIncoming, PhoneOutgoing, PhoneMissed, PhoneCall,
@@ -23,14 +24,6 @@ import { format, subDays, startOfDay, endOfDay, startOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 type Section = 'dashboard' | 'sms' | 'calls' | 'voicemail' | 'numbers';
-
-const NAV: { id: Section; icon: any; label: string }[] = [
-  { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard'  },
-  { id: 'sms',       icon: MessageSquare,  label: 'SMS'         },
-  { id: 'calls',     icon: Phone,          label: 'Chamadas'    },
-  { id: 'voicemail', icon: Voicemail,      label: 'Voicemail'   },
-  { id: 'numbers',   icon: Hash,           label: 'Números'     },
-];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -72,6 +65,7 @@ function KpiCard({ label, value, sub, icon: Icon, color, trend }: any) {
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 function DashboardView({ calls, smsIn, smsOut }: { calls: any[]; smsIn: number; smsOut: number }) {
+  const { t } = useTranslation('communications');
   const thisMonth = calls.filter(c => new Date(c.started_at) >= startOfMonth(new Date()));
   const inbound   = thisMonth.filter(c => c.direction === 'inbound' && c.status === 'completed');
   const outbound  = thisMonth.filter(c => c.direction === 'outbound' && c.status === 'completed');
@@ -93,29 +87,29 @@ function DashboardView({ calls, smsIn, smsOut }: { calls: any[]; smsIn: number; 
   });
 
   const pie = [
-    { name: 'Recebidas',  value: inbound.length,  color: '#22c55e' },
-    { name: 'Realizadas', value: outbound.length, color: '#3b82f6' },
-    { name: 'Perdidas',   value: missed.length,   color: '#ef4444' },
+    { name: t('communicationsHub.kpis.received'), value: inbound.length,  color: '#22c55e' },
+    { name: t('communicationsHub.kpis.made'),      value: outbound.length, color: '#3b82f6' },
+    { name: t('communicationsHub.kpis.missed'),    value: missed.length,   color: '#ef4444' },
   ].filter(d => d.value > 0);
 
   return (
     <div className="flex-1 overflow-y-auto p-6 space-y-6">
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        <KpiCard label="Recebidas"  value={inbound.length}  sub="mês atual" icon={PhoneIncoming} color="bg-green-500" />
-        <KpiCard label="Realizadas" value={outbound.length} sub="mês atual" icon={PhoneOutgoing} color="bg-blue-500" />
-        <KpiCard label="Perdidas"   value={missed.length}   sub="mês atual" icon={PhoneMissed}   color="bg-red-400" />
-        <KpiCard label="Minutos"    value={`${totalMin}m`}  sub="mês atual" icon={Mic}           color="bg-purple-500" />
+        <KpiCard label={t('communicationsHub.kpis.received')}  value={inbound.length}  sub={t('communicationsHub.kpis.currentMonth')} icon={PhoneIncoming} color="bg-green-500" />
+        <KpiCard label={t('communicationsHub.kpis.made')} value={outbound.length} sub={t('communicationsHub.kpis.currentMonth')} icon={PhoneOutgoing} color="bg-blue-500" />
+        <KpiCard label={t('communicationsHub.kpis.missed')}   value={missed.length}   sub={t('communicationsHub.kpis.currentMonth')} icon={PhoneMissed}   color="bg-red-400" />
+        <KpiCard label={t('communicationsHub.kpis.minutes')}    value={`${totalMin}m`}  sub={t('communicationsHub.kpis.currentMonth')} icon={Mic}           color="bg-purple-500" />
       </div>
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        <KpiCard label="SMS Enviados"  value={smsOut} sub="mês atual" icon={MessageSquare} color="bg-emerald-500" />
-        <KpiCard label="SMS Recebidos" value={smsIn}  sub="mês atual" icon={MessageSquare} color="bg-teal-500" />
-        <KpiCard label="Taxa Atendimento" value={thisMonth.length > 0 ? `${Math.round(((thisMonth.length - missed.length) / thisMonth.length) * 100)}%` : '—'} icon={Activity} color="bg-indigo-500" />
-        <KpiCard label="Hoje" value={calls.filter(c => new Date(c.started_at) >= startOfDay(new Date())).length} sub="chamadas" icon={TrendingUp} color="bg-amber-500" />
+        <KpiCard label={t('communicationsHub.kpis.smsSent')}  value={smsOut} sub={t('communicationsHub.kpis.currentMonth')} icon={MessageSquare} color="bg-emerald-500" />
+        <KpiCard label={t('communicationsHub.kpis.smsReceived')} value={smsIn}  sub={t('communicationsHub.kpis.currentMonth')} icon={MessageSquare} color="bg-teal-500" />
+        <KpiCard label={t('communicationsHub.kpis.answerRate')} value={thisMonth.length > 0 ? `${Math.round(((thisMonth.length - missed.length) / thisMonth.length) * 100)}%` : '—'} icon={Activity} color="bg-indigo-500" />
+        <KpiCard label={t('communicationsHub.kpis.today')} value={calls.filter(c => new Date(c.started_at) >= startOfDay(new Date())).length} sub={t('communicationsHub.kpis.calls')} icon={TrendingUp} color="bg-amber-500" />
       </div>
 
       <div className="bg-white border border-ice-100 rounded-2xl p-5">
         <p className="text-sm font-black text-graphite-700 mb-5 flex items-center gap-2">
-          <BarChart2 size={16} className="text-brand-primary" /> Chamadas — últimos 7 dias
+          <BarChart2 size={16} className="text-brand-primary" /> {t('communicationsHub.chart.last7DaysTitle')}
         </p>
         <ResponsiveContainer width="100%" height={200}>
           <AreaChart data={last7} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
@@ -132,16 +126,16 @@ function DashboardView({ calls, smsIn, smsOut }: { calls: any[]; smsIn: number; 
             <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} allowDecimals={false} />
             <Tooltip contentStyle={{ background: 'white', border: '1px solid #F1F5F9', borderRadius: 16, fontSize: 12, fontWeight: 700 }} />
             <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, fontWeight: 700 }} />
-            <Area type="monotone" dataKey="recebidas"  stroke="#22c55e" strokeWidth={2} fill="url(#g_rec)" dot={{ fill: '#22c55e', r: 3 }} name="Recebidas" />
-            <Area type="monotone" dataKey="realizadas" stroke="#3b82f6" strokeWidth={2} fill="url(#g_rea)" dot={{ fill: '#3b82f6', r: 3 }} name="Realizadas" />
-            <Area type="monotone" dataKey="perdidas"   stroke="#ef4444" strokeWidth={2} fill="url(#g_per)" dot={{ fill: '#ef4444', r: 3 }} name="Perdidas" />
+            <Area type="monotone" dataKey="recebidas"  stroke="#22c55e" strokeWidth={2} fill="url(#g_rec)" dot={{ fill: '#22c55e', r: 3 }} name={t('communicationsHub.kpis.received')} />
+            <Area type="monotone" dataKey="realizadas" stroke="#3b82f6" strokeWidth={2} fill="url(#g_rea)" dot={{ fill: '#3b82f6', r: 3 }} name={t('communicationsHub.kpis.made')} />
+            <Area type="monotone" dataKey="perdidas"   stroke="#ef4444" strokeWidth={2} fill="url(#g_per)" dot={{ fill: '#ef4444', r: 3 }} name={t('communicationsHub.kpis.missed')} />
           </AreaChart>
         </ResponsiveContainer>
       </div>
 
       {pie.length > 0 && (
         <div className="bg-white border border-ice-100 rounded-2xl p-5">
-          <p className="text-sm font-black text-graphite-700 mb-4">Distribuição do mês</p>
+          <p className="text-sm font-black text-graphite-700 mb-4">{t('communicationsHub.chart.monthDistributionTitle')}</p>
           <div className="flex items-center gap-8">
             <ResponsiveContainer width={160} height={160}>
               <PieChart>
@@ -170,8 +164,17 @@ function DashboardView({ calls, smsIn, smsOut }: { calls: any[]; smsIn: number; 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export function CommunicationsHub() {
+  const { t } = useTranslation('communications');
   const { tenant } = useTenant();
   const tenantId   = (tenant as any)?.id;
+
+  const NAV: { id: Section; icon: any; label: string }[] = [
+    { id: 'dashboard', icon: LayoutDashboard, label: t('communicationsHub.nav.dashboard') },
+    { id: 'sms',       icon: MessageSquare,  label: t('communicationsHub.nav.sms')       },
+    { id: 'calls',     icon: Phone,          label: t('communicationsHub.nav.calls')     },
+    { id: 'voicemail', icon: Voicemail,      label: t('communicationsHub.nav.voicemail') },
+    { id: 'numbers',   icon: Hash,           label: t('communicationsHub.nav.numbers')   },
+  ];
 
   const [section,     setSection]     = useState<Section>('calls');
   const [calls,       setCalls]       = useState<any[]>([]);
@@ -247,8 +250,8 @@ export function CommunicationsHub() {
         <div className="w-20 h-20 rounded-3xl bg-ice-50 border border-ice-100 flex items-center justify-center">
           <Phone size={36} className="text-graphite-300" />
         </div>
-        <h2 className="text-2xl font-black text-graphite-700">Comunicações não habilitadas</h2>
-        <p className="text-sm text-graphite-400 max-w-sm">Ative o Softphone em <strong>Configurações → Comunicações</strong>.</p>
+        <h2 className="text-2xl font-black text-graphite-700">{t('communicationsHub.notEnabled.title')}</h2>
+        <p className="text-sm text-graphite-400 max-w-sm">{t('communicationsHub.notEnabled.messagePrefix')} <strong>{t('communicationsHub.notEnabled.settingsPath')}</strong>.</p>
       </div>
     );
   }
@@ -261,10 +264,10 @@ export function CommunicationsHub() {
     if (!selected) {
       return (
         <div className="flex-1 flex flex-col items-center justify-center gap-3 opacity-40">
-          {section === 'calls'     && <><Phone size={48} className="text-graphite-300" /><p className="font-bold text-graphite-400 text-sm">Selecione uma chamada</p></>}
-          {section === 'sms'       && <><MessageSquare size={48} className="text-graphite-300" /><p className="font-bold text-graphite-400 text-sm">Selecione uma conversa</p></>}
-          {section === 'voicemail' && <><Voicemail size={48} className="text-graphite-300" /><p className="font-bold text-graphite-400 text-sm">Selecione um voicemail</p></>}
-          {section === 'numbers'   && <><Hash size={48} className="text-graphite-300" /><p className="font-bold text-graphite-400 text-sm">Selecione um número</p></>}
+          {section === 'calls'     && <><Phone size={48} className="text-graphite-300" /><p className="font-bold text-graphite-400 text-sm">{t('communicationsHub.detail.selectCall')}</p></>}
+          {section === 'sms'       && <><MessageSquare size={48} className="text-graphite-300" /><p className="font-bold text-graphite-400 text-sm">{t('communicationsHub.detail.selectConversation')}</p></>}
+          {section === 'voicemail' && <><Voicemail size={48} className="text-graphite-300" /><p className="font-bold text-graphite-400 text-sm">{t('communicationsHub.detail.selectVoicemail')}</p></>}
+          {section === 'numbers'   && <><Hash size={48} className="text-graphite-300" /><p className="font-bold text-graphite-400 text-sm">{t('communicationsHub.detail.selectNumber')}</p></>}
         </div>
       );
     }
@@ -281,19 +284,19 @@ export function CommunicationsHub() {
             </div>
             <div className="flex-1">
               <p className="font-black text-graphite-900 text-lg">{formatPhone(num)}</p>
-              <p className="text-xs text-graphite-400">{selected.direction === 'inbound' ? 'Recebida' : 'Realizada'} · {fmtTime(selected.started_at)}</p>
+              <p className="text-xs text-graphite-400">{selected.direction === 'inbound' ? t('communicationsHub.detail.inbound') : t('communicationsHub.detail.outbound')} · {fmtTime(selected.started_at)}</p>
             </div>
             <button
               onClick={() => window.dispatchEvent(new CustomEvent('softphone:dial', { detail: { number: num } }))}
               className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-bold rounded-xl border-none cursor-pointer"
             >
-              <PhoneCall size={15} /> Retornar
+              <PhoneCall size={15} /> {t('communicationsHub.detail.callBack')}
             </button>
           </div>
 
           {/* Info cards */}
           <div className="px-6 py-4 grid grid-cols-3 gap-3">
-            {[{ label: 'Duração', value: fmtDur(selected.duration_seconds) }, { label: 'Status', value: selected.status }, { label: 'Atendida', value: selected.answered_at ? fmtTime(selected.answered_at) : '—' }].map(i => (
+            {[{ label: t('communicationsHub.detail.duration'), value: fmtDur(selected.duration_seconds) }, { label: t('communicationsHub.detail.status'), value: selected.status }, { label: t('communicationsHub.detail.answered'), value: selected.answered_at ? fmtTime(selected.answered_at) : '—' }].map(i => (
               <div key={i.label} className="bg-ice-50 border border-ice-100 rounded-xl p-3">
                 <p className="text-[10px] font-bold text-graphite-400 uppercase mb-1">{i.label}</p>
                 <p className="text-sm font-black text-graphite-800 capitalize">{i.value}</p>
@@ -304,21 +307,21 @@ export function CommunicationsHub() {
           {/* Gravação */}
           {selected.recording_url && (
             <div className="mx-6 bg-white border border-ice-100 rounded-2xl p-4 mb-4">
-              <p className="text-xs font-black text-graphite-400 uppercase mb-3 flex items-center gap-1.5"><Mic size={12} /> Gravação</p>
+              <p className="text-xs font-black text-graphite-400 uppercase mb-3 flex items-center gap-1.5"><Mic size={12} /> {t('communicationsHub.detail.recording')}</p>
               <audio controls src={selected.recording_url} className="w-full" style={{ borderRadius: 10 }} />
-              <a href={selected.recording_url} download className="flex items-center gap-1.5 mt-2 text-xs font-bold text-brand-primary hover:underline"><Download size={11} /> Baixar</a>
+              <a href={selected.recording_url} download className="flex items-center gap-1.5 mt-2 text-xs font-bold text-brand-primary hover:underline"><Download size={11} /> {t('communicationsHub.detail.download')}</a>
             </div>
           )}
 
           {/* Notas */}
           <div className="mx-6 bg-white border border-ice-100 rounded-2xl p-4">
-            <p className="text-xs font-black text-graphite-400 uppercase mb-2">Notas</p>
+            <p className="text-xs font-black text-graphite-400 uppercase mb-2">{t('communicationsHub.detail.notes')}</p>
             <textarea
               defaultValue={selected.call_notes ?? ''}
               onBlur={async e => {
                 await supabase.from('call_records').update({ call_notes: e.target.value }).eq('id', selected.id).eq('tenant_id', tenantId);
               }}
-              placeholder="Observações desta chamada..." rows={4}
+              placeholder={t('communicationsHub.detail.notesPlaceholder')} rows={4}
               className="w-full text-sm bg-ice-50 border border-ice-100 rounded-xl p-3 resize-none focus:outline-none focus:border-brand-primary"
             />
           </div>
@@ -337,12 +340,12 @@ export function CommunicationsHub() {
             </div>
             <div>
               <p className="font-black text-graphite-900">{formatPhone(selected.patient_phone)}</p>
-              <p className="text-xs text-graphite-400">SMS · {fmtTime(selected.updated_at)}</p>
+              <p className="text-xs text-graphite-400">{t('communicationsHub.nav.sms')} · {fmtTime(selected.updated_at)}</p>
             </div>
             <button
               onClick={() => window.dispatchEvent(new CustomEvent('softphone:dial', { detail: { number: selected.patient_phone } }))}
               className="ml-auto w-9 h-9 bg-green-50 hover:bg-green-100 rounded-xl flex items-center justify-center text-green-600 border-none cursor-pointer"
-              title="Ligar"
+              title={t('communicationsHub.detail.callTitle')}
             >
               <Phone size={16} />
             </button>
@@ -368,7 +371,7 @@ export function CommunicationsHub() {
             {smsMessages.length === 0 && (
               <div className="text-center py-8 text-graphite-300">
                 <MessageSquare size={32} className="mx-auto mb-2 opacity-40" />
-                <p className="text-sm font-bold">Nenhuma mensagem ainda</p>
+                <p className="text-sm font-bold">{t('communicationsHub.detail.noMessagesYet')}</p>
               </div>
             )}
             <div ref={smsEndRef} />
@@ -380,7 +383,7 @@ export function CommunicationsHub() {
               value={smsText}
               onChange={e => setSmsText(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendSms(); } }}
-              placeholder="Digite o SMS... (máx 160 chars)"
+              placeholder={t('communicationsHub.detail.smsPlaceholder')}
               rows={1}
               maxLength={160}
               className="flex-1 text-sm bg-ice-50 border border-ice-200 rounded-2xl px-4 py-2.5 resize-none focus:outline-none focus:border-brand-primary"
@@ -416,17 +419,17 @@ export function CommunicationsHub() {
               onClick={() => window.dispatchEvent(new CustomEvent('softphone:dial', { detail: { number: selected.from_number } }))}
               className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-bold rounded-xl border-none cursor-pointer"
             >
-              <PhoneCall size={15} /> Retornar
+              <PhoneCall size={15} /> {t('communicationsHub.detail.callBack')}
             </button>
           </div>
           <div className="p-6 space-y-4">
             <div className="bg-white border border-ice-100 rounded-2xl p-5">
-              <p className="text-xs font-black text-graphite-400 uppercase mb-3 flex items-center gap-1.5"><Mic size={12} /> Áudio</p>
+              <p className="text-xs font-black text-graphite-400 uppercase mb-3 flex items-center gap-1.5"><Mic size={12} /> {t('communicationsHub.detail.audio')}</p>
               <audio controls src={selected.recording_url} className="w-full" style={{ borderRadius: 10 }} />
             </div>
             {selected.transcript && (
               <div className="bg-white border border-ice-100 rounded-2xl p-5">
-                <p className="text-xs font-black text-graphite-400 uppercase mb-2">Transcrição</p>
+                <p className="text-xs font-black text-graphite-400 uppercase mb-2">{t('communicationsHub.detail.transcript')}</p>
                 <p className="text-sm text-graphite-700 italic">"{selected.transcript}"</p>
               </div>
             )}
@@ -449,7 +452,7 @@ export function CommunicationsHub() {
         <div className="px-4 py-3 border-b border-ice-50">
           <div className="relative">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-graphite-300" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..."
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('communicationsHub.list.searchPlaceholder')}
               className="w-full pl-8 pr-3 py-2 text-sm bg-ice-50 border border-ice-200 rounded-xl focus:outline-none focus:border-brand-primary" />
           </div>
         </div>
@@ -516,17 +519,17 @@ export function CommunicationsHub() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-black text-graphite-800 font-mono truncate">{num.phone_number}</p>
-                <p className="text-xs text-graphite-400">{num.friendly_name ?? num.country_code}{num.capabilities?.voice && ' · Voz'}{num.capabilities?.sms && ' · SMS'}</p>
+                <p className="text-xs text-graphite-400">{num.friendly_name ?? num.country_code}{num.capabilities?.voice && ` · ${t('communicationsHub.list.voiceSuffix')}`}{num.capabilities?.sms && ` · ${t('communicationsHub.list.smsSuffix')}`}</p>
               </div>
               <div className={`w-2 h-2 rounded-full ${num.is_active ? 'bg-green-500' : 'bg-graphite-300'}`} />
             </div>
           ))}
 
           {/* Empty states */}
-          {!loading && section === 'calls'     && filteredCalls.length === 0    && <p className="text-center py-10 text-sm text-graphite-300 font-bold">Nenhuma chamada</p>}
-          {!loading && section === 'sms'       && filteredSms.length === 0      && <p className="text-center py-10 text-sm text-graphite-300 font-bold">Nenhuma conversa SMS</p>}
-          {!loading && section === 'voicemail' && voicemails.length === 0       && <p className="text-center py-10 text-sm text-graphite-300 font-bold">Nenhum voicemail</p>}
-          {!loading && section === 'numbers'   && numbers.length === 0          && <p className="text-center py-10 text-sm text-graphite-300 font-bold">Nenhum número</p>}
+          {!loading && section === 'calls'     && filteredCalls.length === 0    && <p className="text-center py-10 text-sm text-graphite-300 font-bold">{t('communicationsHub.list.noCalls')}</p>}
+          {!loading && section === 'sms'       && filteredSms.length === 0      && <p className="text-center py-10 text-sm text-graphite-300 font-bold">{t('communicationsHub.list.noSmsConversations')}</p>}
+          {!loading && section === 'voicemail' && voicemails.length === 0       && <p className="text-center py-10 text-sm text-graphite-300 font-bold">{t('communicationsHub.list.noVoicemails')}</p>}
+          {!loading && section === 'numbers'   && numbers.length === 0          && <p className="text-center py-10 text-sm text-graphite-300 font-bold">{t('communicationsHub.list.noNumbers')}</p>}
         </div>
       </div>
     );
@@ -554,7 +557,7 @@ export function CommunicationsHub() {
 
         <div className="flex-1" />
 
-        <button onClick={fetchAll} title="Atualizar"
+        <button onClick={fetchAll} title={t('communicationsHub.list.refresh')}
           className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-800 hover:text-white transition-all border-none cursor-pointer"
         >
           <RefreshCw size={17} className={loading ? 'animate-spin' : ''} />
