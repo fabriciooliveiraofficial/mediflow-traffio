@@ -109,10 +109,9 @@ serve(async (req: Request) => {
     };
 
     // ── 5. Criar Checkout Session (One-time payment) ──────────────────────────
-    const successUrl = body.success_url ?? `${appUrl}/settings?tab=communications&recharge=success`;
-    const cancelUrl  = body.cancel_url  ?? `${appUrl}/settings?tab=communications`;
-
-    const session = await stripe.checkout.sessions.create({
+    const isEmbedded = body.embedded === true;
+    
+    const sessionData: any = {
       customer:             stripeCustomerId,
       mode:                 "payment",
       line_items: [{
@@ -127,12 +126,24 @@ serve(async (req: Request) => {
         quantity: 1,
       }],
       metadata: sessionMetadata,
-      success_url: successUrl,
-      cancel_url:  cancelUrl,
       locale: "pt-BR",
-    });
+    };
 
-    return json({ url: session.url });
+    if (isEmbedded) {
+      sessionData.ui_mode = "embedded";
+      sessionData.return_url = `${appUrl}/settings?tab=communications&recharge=success&session_id={CHECKOUT_SESSION_ID}`;
+    } else {
+      sessionData.success_url = body.success_url ?? `${appUrl}/settings?tab=communications&recharge=success`;
+      sessionData.cancel_url  = body.cancel_url  ?? `${appUrl}/settings?tab=communications`;
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionData);
+
+    if (isEmbedded) {
+      return json({ clientSecret: session.client_secret });
+    } else {
+      return json({ url: session.url });
+    }
 
   } catch (err: any) {
     console.error("[stripe-create-wallet-checkout] error:", err.message);

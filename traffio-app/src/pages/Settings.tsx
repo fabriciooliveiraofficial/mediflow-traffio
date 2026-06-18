@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     Building2,
@@ -144,6 +144,24 @@ function PhoneNumbersList({ tenantId, showToast, refreshKey }: { tenantId: strin
     );
 }
 
+const loadStripeScript = () => {
+    return new Promise<any>((resolve, reject) => {
+        if (typeof window === 'undefined') {
+            reject(new Error('Window is undefined'));
+            return;
+        }
+        if ((window as any).Stripe) {
+            resolve((window as any).Stripe);
+            return;
+        }
+        const script = document.createElement('script');
+        script.src = 'https://js.stripe.com/v3/';
+        script.onload = () => resolve((window as any).Stripe);
+        script.onerror = () => reject(new Error('Failed to load Stripe script'));
+        document.body.appendChild(script);
+    });
+};
+
 export const Settings = () => {
     const { t } = useTranslation('settings');
     const { tenant: currentTenant, updateTenant: updateTenantContext, userRole } = useTenant();
@@ -209,6 +227,60 @@ export const Settings = () => {
     const [showRechargeModal, setShowRechargeModal] = useState(false);
     const [rechargeAmount, setRechargeAmount] = useState('50');
     const [recharging, setRecharging] = useState(false);
+    const [stripeClientSecret, setStripeClientSecret] = useState<string | null>(null);
+    const checkoutRef = useRef<any>(null);
+
+    useEffect(() => {
+        let active = true;
+        
+        async function initEmbedded() {
+            if (!stripeClientSecret) return;
+            
+            try {
+                if (!(window as any).Stripe) {
+                    await loadStripeScript();
+                }
+                
+                const stripe = (window as any).Stripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+                
+                if (active) {
+                    const container = document.getElementById('stripe-checkout-container');
+                    if (container) {
+                        container.innerHTML = '';
+                    }
+
+                    const checkout = await stripe.initEmbeddedCheckout({
+                        clientSecret: stripeClientSecret,
+                    });
+                    
+                    if (active) {
+                        checkoutRef.current = checkout;
+                        checkout.mount('#stripe-checkout-container');
+                    } else {
+                        checkout.destroy();
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to init embedded checkout:', err);
+                showToast('error', 'Erro ao carregar o faturamento do Stripe');
+                setStripeClientSecret(null);
+            }
+        }
+
+        initEmbedded();
+
+        return () => {
+            active = false;
+            if (checkoutRef.current) {
+                try {
+                    checkoutRef.current.destroy();
+                } catch (e) {
+                    console.error('Error destroying checkout:', e);
+                }
+                checkoutRef.current = null;
+            }
+        };
+    }, [stripeClientSecret, showToast]);
 
     const fetchWalletAndUsageData = useCallback(async () => {
         if (!currentTenant?.id) return;
@@ -269,16 +341,16 @@ export const Settings = () => {
             const { data, error } = await supabase.functions.invoke('stripe-create-wallet-checkout', {
                 body: {
                     amount,
-                    success_url: `${window.location.origin}/settings?tab=communications&recharge=success`,
-                    cancel_url: `${window.location.origin}/settings?tab=communications`,
+                    embedded: true,
                 }
             });
 
             if (error) throw new Error(error.message);
             if (data?.error) throw new Error(data.error);
 
-            if (data?.url) {
-                window.open(data.url, '_blank', 'noopener,noreferrer');
+            if (data?.clientSecret) {
+                setShowRechargeModal(false);
+                setStripeClientSecret(data.clientSecret);
             } else {
                 throw new Error('Retorno inválido da API do Stripe');
             }
@@ -2057,6 +2129,30 @@ export const Settings = () => {
                             {recharging && <RefreshCw size={14} className="animate-spin" />}
                             Confirmar Recarga
                         </button>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* Modal de Checkout Incorporado (Stripe Embedded) */}
+        {stripeClientSecret && (
+            <div className="fixed inset-0 bg-graphite-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="bg-white rounded-3xl p-6 w-full max-w-2xl shadow-2xl relative flex flex-col max-h-[90vh]">
+                    <div className="flex justify-between items-center pb-4 border-b border-ice-50">
+                        <h3 className="text-lg font-black text-graphite-900">Pagamento Seguro (Stripe)</h3>
+                        <button
+                            onClick={() => setStripeClientSecret(null)}
+                            className="w-8 h-8 rounded-full border-none cursor-pointer bg-ice-50 hover:bg-ice-100 flex items-center justify-center text-graphite-500 font-bold transition-colors"
+                        >
+                            ✕
+                        </button>
+                    </div>
+                    
+                    <div className="flex-1 overflow-y-auto pt-4 min-h-[450px]" id="stripe-checkout-container">
+                        {/* O iframe do Stripe será renderizado aqui */}
+                        <div className="flex items-center justify-center h-full min-h-[400px]">
+                            <RefreshCw size={24} className="animate-spin text-brand-primary" />
+                        </div>
                     </div>
                 </div>
             </div>
