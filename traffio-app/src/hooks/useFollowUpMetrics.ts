@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { startOfDay, endOfDay, subDays } from 'date-fns';
+import { useLocaleFormat } from './useLocaleFormat';
 
 export interface PerformanceMetrics {
   totalLeads: number;
@@ -26,6 +27,7 @@ interface MetricsOptions {
 }
 
 export function useFollowUpMetrics({ tenantId, days = 30 }: MetricsOptions) {
+  const { locale } = useLocaleFormat();
   const [metrics, setMetrics] = useState<PerformanceMetrics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -138,7 +140,7 @@ export function useFollowUpMetrics({ tenantId, days = 30 }: MetricsOptions) {
       // Time Series (New leads per day)
       const daysMap: Record<string, number> = {};
       leads.forEach(s => {
-        const d = new Date(s.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+        const d = new Intl.DateTimeFormat(locale, { day: '2-digit', month: '2-digit' }).format(new Date(s.created_at));
         daysMap[d] = (daysMap[d] || 0) + 1;
       });
       const timeSeriesData = Object.entries(daysMap).map(([date, leads]) => ({ date, leads }));
@@ -178,7 +180,7 @@ export function useFollowUpMetrics({ tenantId, days = 30 }: MetricsOptions) {
     } finally {
       setIsLoading(false);
     }
-  }, [tenantId, days]);
+  }, [tenantId, days, locale]);
 
   useEffect(() => {
     fetchMetrics();

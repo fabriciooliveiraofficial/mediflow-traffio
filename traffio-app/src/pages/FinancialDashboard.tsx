@@ -28,8 +28,10 @@ import {
 import { BillingService } from '../services/billingService';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
+import { useLocaleFormat } from '../hooks/useLocaleFormat';
 
 export const FinancialDashboard = () => {
+    const { formatDate } = useLocaleFormat();
     const [records, setRecords] = useState<any[]>([]);
     const [summary, setSummary] = useState({ total: 0, paid: 0, pending: 0, overdue: 0 });
     const [analytics, setAnalytics] = useState<any>(null);
@@ -309,7 +311,7 @@ export const FinancialDashboard = () => {
                                         <div>
                                             <p className="text-sm font-bold text-graphite-900">{rec.patients?.full_name || 'Paciente'}</p>
                                             <p className="text-[10px] text-graphite-400 font-bold uppercase">
-                                                {rec.method || 'Não definido'} · {new Date(rec.due_date || rec.created_at).toLocaleDateString('pt-BR')}
+                                                {rec.method || 'Não definido'} · {formatDate(rec.due_date || rec.created_at)}
                                             </p>
                                         </div>
                                     </div>

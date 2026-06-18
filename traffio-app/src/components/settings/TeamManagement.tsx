@@ -7,6 +7,7 @@ import {
 import { clsx } from 'clsx';
 import { useTenant } from '../../contexts/TenantContext';
 import { useToast } from '../../contexts/ToastContext';
+import { useLocaleFormat } from '../../hooks/useLocaleFormat';
 import { memberService, type Member } from '../../services/memberService';
 import { invitationService, type Invitation } from '../../services/invitationService';
 
@@ -40,6 +41,7 @@ interface TeamManagementProps {
 export function TeamManagement({ currentUserRole, currentUserId }: TeamManagementProps) {
   const { tenant } = useTenant();
   const { showToast } = useToast();
+  const { formatDate } = useLocaleFormat();
 
   const [tab, setTab]                   = useState<'members' | 'invites'>('members');
   const [members, setMembers]           = useState<Member[]>([]);
@@ -318,11 +320,11 @@ export function TeamManagement({ currentUserRole, currentUserId }: TeamManagemen
                       <Icon size={11} className={st.color.split(' ')[0]} />
                       <span className={clsx('font-medium', st.color.split(' ')[0])}>{st.label}</span>
                       <span>·</span>
-                      <span>{new Date(inv.created_at).toLocaleDateString('pt-BR')}</span>
+                      <span>{formatDate(inv.created_at)}</span>
                       {isPending && (
                         <>
                           <span>·</span>
-                          <span>expira {new Date(inv.expires_at).toLocaleDateString('pt-BR')}</span>
+                          <span>expira {formatDate(inv.expires_at)}</span>
                         </>
                       )}
                     </div>

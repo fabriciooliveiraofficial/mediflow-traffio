@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react';
 import { CreditCard, Building2, Shield, Key, Check, ExternalLink, Info } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
+import { useLocaleFormat } from '../hooks/useLocaleFormat';
 
 export const PaymentsPage = () => {
     const { showToast } = useToast();
+    const { formatDate } = useLocaleFormat();
     const [tenants, setTenants] = useState<any[]>([]);
     const [paymentConfig, setPaymentConfig] = useState({
         asaas_api_key: '',
@@ -313,7 +315,7 @@ export const PaymentsPage = () => {
                                             </span>
                                         </td>
                                         <td className="py-4 text-xs font-bold text-graphite-400 whitespace-nowrap">
-                                            {new Date(prop.created_at).toLocaleDateString('pt-BR')}
+                                            {formatDate(prop.created_at)}
                                         </td>
                                     </tr>
                                 ))}

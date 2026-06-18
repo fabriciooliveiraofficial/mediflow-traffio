@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { RefreshCw, Phone, FileText, AlertCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { OrderStatusBadge } from './OrderStatusBadge';
+import { useLocaleFormat } from '../../hooks/useLocaleFormat';
 
 interface Order {
   id:               string;
@@ -21,6 +22,7 @@ interface Props {
 }
 
 export function PendingOrdersList({ tenantId, onResubmit, refreshKey }: Props) {
+  const { formatDate } = useLocaleFormat();
   const [orders,  setOrders]  = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -73,7 +75,7 @@ export function PendingOrdersList({ tenantId, onResubmit, refreshKey }: Props) {
             <div>
               <p className="text-sm font-black text-graphite-800 font-mono">{order.phone_number}</p>
               <p className="text-[11px] text-graphite-400 mt-0.5">
-                {order.country_code} · Criado em {new Date(order.created_at).toLocaleDateString('pt-BR')}
+                {order.country_code} · Criado em {formatDate(order.created_at)}
               </p>
             </div>
             <OrderStatusBadge status={order.status} />

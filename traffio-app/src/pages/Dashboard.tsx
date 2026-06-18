@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { useTenant } from '../contexts/TenantContext';
 import { useToast } from '../contexts/ToastContext';
+import { useLocaleFormat } from '../hooks/useLocaleFormat';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import { jsPDF } from 'jspdf';
@@ -107,8 +108,6 @@ const CAMPAIGN_COLUMNS: { key: CampaignSortKey; label: string }[] = [
 const formatCurrency = (value: number) =>
     `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-const formatDateBR = (dateStr: string) => new Date(`${dateStr}T00:00:00`).toLocaleDateString('pt-BR');
-
 const StatCard = ({ label, value, subtext, trend, trendType, color, icon, iconColorClass }: {
     label: string, value: string, subtext?: string, trend?: string, trendType?: 'up' | 'down', color: string, icon?: React.ReactNode, iconColorClass?: string
 }) => (
@@ -141,6 +140,7 @@ const StatCard = ({ label, value, subtext, trend, trendType, color, icon, iconCo
 export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onNavigate }) => {
     const { tenant } = useTenant();
     const { showToast } = useToast();
+    const { locale, formatDate, formatDateTime } = useLocaleFormat();
 
     const [period, setPeriod] = useState<Period>('30d');
     const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(null);
@@ -539,7 +539,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
         };
 
         return Object.keys(byDate).sort().map((date) => ({
-            name: new Date(`${date}T00:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+            name: new Intl.DateTimeFormat(locale, { day: '2-digit', month: '2-digit' }).format(new Date(`${date}T00:00:00`)),
             meta: Number(metricValue(byDate[date].meta).toFixed(2)),
             google: Number(metricValue(byDate[date].google).toFixed(2)),
         }));
@@ -604,7 +604,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
         const doc = new jsPDF();
         const clinicName = tenant?.name || 'Clínica';
         const periodLabel = period === 'custom' && customRange
-            ? `${formatDateBR(customRange.from)} a ${formatDateBR(customRange.to)}`
+            ? `${formatDate(customRange.from)} a ${formatDate(customRange.to)}`
             : PERIOD_LABELS[period];
 
         doc.setFontSize(18);
@@ -615,7 +615,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
         doc.setFont('helvetica', 'normal');
         doc.text(`Clínica: ${clinicName}`, 14, 26);
         doc.text(`Período: ${periodLabel}`, 14, 32);
-        doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 38);
+        doc.text(`Gerado em: ${formatDateTime(new Date())}`, 14, 38);
 
         autoTable(doc, {
             startY: 45,
@@ -730,7 +730,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                             className="px-6 py-4 bg-white border border-ice-100 text-graphite-900 rounded-[24px] text-sm font-black shadow-xl shadow-ice-100/30 hover:bg-ice-50 transition-all flex items-center gap-3 border-none cursor-pointer"
                         >
                             <CalendarIcon size={18} className="text-brand-primary" />
-                            {period === 'custom' && customRange ? `${formatDateBR(customRange.from)} - ${formatDateBR(customRange.to)}` : PERIOD_LABELS[period]}
+                            {period === 'custom' && customRange ? `${formatDate(customRange.from)} - ${formatDate(customRange.to)}` : PERIOD_LABELS[period]}
                             <ChevronDown size={14} className={clsx("text-graphite-400 transition-transform", showPeriodDropdown && "rotate-180")} />
                         </button>
 
@@ -1303,7 +1303,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                         <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest">Última Sincronização</p>
                                         <p className="text-sm font-bold text-graphite-900">
                                             {manageData?.settings?.last_sync_at
-                                                ? new Date(manageData.settings.last_sync_at).toLocaleString('pt-BR')
+                                                ? formatDateTime(manageData.settings.last_sync_at)
                                                 : 'Ainda não sincronizado'}
                                         </p>
                                     </div>
