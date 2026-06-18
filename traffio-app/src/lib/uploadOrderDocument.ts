@@ -32,10 +32,34 @@ export async function uploadOrderDocument(
 
   if (uploadErr) throw new Error(`Erro no upload: ${uploadErr.message}`);
 
-  const { error: dbErr } = await supabase
+  // 1. Verificar se já existe um documento deste tipo para o pedido
+  const { data: existingDoc, error: checkErr } = await supabase
     .from('number_order_documents')
-    .upsert(
-      {
+    .select('id')
+    .eq('order_id', orderId)
+    .eq('document_type', docType)
+    .maybeSingle();
+
+  if (checkErr) throw new Error(`Erro ao verificar documento existente: ${checkErr.message}`);
+
+  let dbErr;
+  if (existingDoc) {
+    // 2. Atualizar se existir
+    const { error } = await supabase
+      .from('number_order_documents')
+      .update({
+        file_path:     filePath,
+        file_name:     file.name,
+        file_size:     file.size,
+        status:        'pending',
+      })
+      .eq('id', existingDoc.id);
+    dbErr = error;
+  } else {
+    // 3. Inserir novo se não existir
+    const { error } = await supabase
+      .from('number_order_documents')
+      .insert({
         order_id:      orderId,
         tenant_id:     tenantId,
         document_type: docType,
@@ -43,9 +67,9 @@ export async function uploadOrderDocument(
         file_name:     file.name,
         file_size:     file.size,
         status:        'pending',
-      },
-      { onConflict: 'order_id,document_type' }
-    );
+      });
+    dbErr = error;
+  }
 
   if (dbErr) throw new Error(`Erro ao registrar documento: ${dbErr.message}`);
 
