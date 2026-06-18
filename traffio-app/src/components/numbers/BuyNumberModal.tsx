@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import {
-  getCountryRequirement, DOCUMENT_LABELS,
+  getCountryRequirement,
   type DocumentType, type HolderType,
 } from '../../constants/numberOrderRequirements';
 import { DocumentUploadField } from './DocumentUploadField';
@@ -172,7 +172,7 @@ interface Props {
   tenantId:    string;
   onClose:     () => void;
   onPurchased: (phoneNumber: string) => void;
-  showToast:   (type: 'success' | 'error', msg: string) => void;
+  showToast:   (type: 'success' | 'error' | 'info' | 'warning', msg: string) => void;
   resubmitOrderId?: string;
 }
 
@@ -202,6 +202,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
   const [results, setResults]         = useState<AvailableNumber[]>([]);
   const [searching, setSearching]     = useState(false);
   const [selected, setSelected]       = useState<AvailableNumber | null>(null);
+  const [searched, setSearched]       = useState(false);
 
   const [holderType, setHolderType]   = useState<HolderType>('individual');
   const [holderInfo, setHolderInfo]   = useState<Record<string, string>>({});
@@ -337,6 +338,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
     setResults([]);
     setDiagLogs([]);
     setDiagRaw(null);
+    setSearched(false);
 
     const t0 = Date.now();
     log('info', `Iniciando busca — ${describeFilters()}`);
@@ -401,7 +403,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
       if (rawNumbers.length === 0) {
         log('warn', `Nenhum número disponível para ${describeFilters()}`);
         if (json.message) log('info', `Mensagem da API: ${json.message}`);
-        setDiagOpen(true);
+        setSearched(true);
         return;
       }
 
@@ -425,6 +427,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
 
       log('ok', `Exibindo ${deduped.length} números válidos`);
       setResults(deduped);
+      setSearched(true);
 
       if (deduped.length === 0 && masked.length > 0) {
         log('error', 'Todos os números retornados são placeholders mascarados. A Telnyx não tem números compráveis para esta combinação de filtros.');
@@ -1003,7 +1006,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
                       setCountry(next);
                       if (searchBy === 'state' && next !== 'US' && next !== 'CA') setSearchBy('area_code');
                       setSearchValue('');
-                      setResults([]); setSelected(null); setDiagLogs([]);
+                      setResults([]); setSelected(null); setDiagLogs([]); setSearched(false);
                       setHasRegulatoryStep(false); setRegulatoryRequirements([]); setRegulatoryData({}); setRegulatoryErrors({}); setEffectivePhoneNumberType('');
                     }}
                     className="w-full mt-1 bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm text-graphite-700 focus:outline-none focus:border-brand-primary"
@@ -1081,10 +1084,23 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
                 </div>
               )}
 
-              {!searching && results.length === 0 && diagLogs.length === 0 && (
+              {!searching && !searched && (
                 <div className="text-center py-8 text-graphite-300">
                   <Search size={30} className="mx-auto mb-2 opacity-40" />
                   <p className="text-sm font-bold">Selecione um país e clique em Buscar</p>
+                </div>
+              )}
+
+              {!searching && searched && results.length === 0 && !hasErrors && (
+                <div className="text-center py-10 px-4 bg-ice-50 border border-ice-100 rounded-3xl space-y-2">
+                  <Info size={32} className="mx-auto text-graphite-400" />
+                  <div>
+                    <p className="text-sm font-black text-graphite-800">Nenhum número disponível</p>
+                    <p className="text-xs text-graphite-500 mt-1 max-w-sm mx-auto leading-relaxed">
+                      Não encontramos números para os filtros selecionados.
+                      Tente buscar usando apenas o Código de Área (DDD) ou utilize outra Cidade/Região.
+                    </p>
+                  </div>
                 </div>
               )}
 
@@ -1236,7 +1252,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
             </div>
           )}
 
-          {/* ETAPA 5 — Dados regulatórios (Telnyx) */}
+          {/* ETAPA 5 — Dados regulatórios */}
           {step === 5 && (
             <div className="space-y-4">
               <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-xl">
@@ -1249,6 +1265,11 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
 
               {regulatoryRequirements.map((r) => {
                 const isContactInfo = r.type === 'textual' && (r.name || '').toLowerCase().includes('contact') && (r.name || '').toLowerCase().includes('business');
+                const fieldVal = regulatoryData[r.id];
+                const textVal = fieldVal?.type === 'textual' ? fieldVal.value : '';
+                const isDoc = fieldVal?.type === 'document';
+                const docFileName = isDoc ? fieldVal.fileName : undefined;
+
                 return (
                   <div key={r.id} className="space-y-1.5">
                     <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">{r.name}</label>
@@ -1262,10 +1283,9 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
                               <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">Nome do Contato</label>
                               <input
                                 type="text"
-                                value={parseContactInfo(regulatoryData[r.id]?.type === 'textual' ? regulatoryData[r.id].value : '').contact}
+                                value={parseContactInfo(textVal).contact}
                                 onChange={(e) => {
-                                  const currentVal = regulatoryData[r.id]?.type === 'textual' ? regulatoryData[r.id].value : '';
-                                  const { business, phone } = parseContactInfo(currentVal);
+                                  const { business, phone } = parseContactInfo(textVal);
                                   updateRegulatoryTextual(r.id, formatContactInfo(e.target.value, business, phone));
                                 }}
                                 placeholder="Nome e Sobrenome"
@@ -1276,10 +1296,9 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
                               <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">Telefone de Contato</label>
                               <input
                                 type="text"
-                                value={parseContactInfo(regulatoryData[r.id]?.type === 'textual' ? regulatoryData[r.id].value : '').phone}
+                                value={parseContactInfo(textVal).phone}
                                 onChange={(e) => {
-                                  const currentVal = regulatoryData[r.id]?.type === 'textual' ? regulatoryData[r.id].value : '';
-                                  const { contact, business } = parseContactInfo(currentVal);
+                                  const { contact, business } = parseContactInfo(textVal);
                                   updateRegulatoryTextual(r.id, formatContactInfo(contact, business, e.target.value));
                                 }}
                                 placeholder="Ex: +6498890000"
@@ -1291,10 +1310,9 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
                             <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">Nome da Empresa (opcional)</label>
                             <input
                               type="text"
-                              value={parseContactInfo(regulatoryData[r.id]?.type === 'textual' ? regulatoryData[r.id].value : '').business}
+                              value={parseContactInfo(textVal).business}
                               onChange={(e) => {
-                                const currentVal = regulatoryData[r.id]?.type === 'textual' ? regulatoryData[r.id].value : '';
-                                const { contact, phone } = parseContactInfo(currentVal);
+                                const { contact, phone } = parseContactInfo(textVal);
                                 updateRegulatoryTextual(r.id, formatContactInfo(contact, e.target.value, phone));
                               }}
                               placeholder="Razão Social ou N/A se Pessoa Física"
@@ -1304,7 +1322,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
                         </div>
                       ) : r.acceptanceCriteria.acceptableValues?.length ? (
                         <select
-                          value={regulatoryData[r.id]?.type === 'textual' ? regulatoryData[r.id].value : ''}
+                          value={textVal}
                           onChange={(e) => updateRegulatoryTextual(r.id, e.target.value)}
                           className={`w-full bg-ice-50 border rounded-xl px-3 py-2 text-sm text-graphite-700 focus:outline-none focus:border-brand-primary ${regulatoryErrors[r.id] ? 'border-red-300' : 'border-ice-200'}`}
                         >
@@ -1314,7 +1332,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
                       ) : (
                         <input
                           type="text"
-                          value={regulatoryData[r.id]?.type === 'textual' ? regulatoryData[r.id].value : ''}
+                          value={textVal}
                           onChange={(e) => updateRegulatoryTextual(r.id, e.target.value)}
                           placeholder={r.example || undefined}
                           maxLength={r.acceptanceCriteria.maxLength}
@@ -1338,8 +1356,8 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
                       <div>
                         <label className="flex items-center gap-2 px-3 py-2 bg-ice-50 border border-ice-200 rounded-xl cursor-pointer hover:border-brand-primary/50 transition-colors text-sm text-graphite-500">
                           <FileText size={14} />
-                          {regulatoryData[r.id]?.type === 'document' && regulatoryData[r.id].fileName
-                            ? regulatoryData[r.id].fileName
+                          {docFileName
+                            ? docFileName
                             : 'Selecionar arquivo (PDF, JPG ou PNG)'}
                           <input
                             type="file"
@@ -1348,7 +1366,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
                             className="hidden"
                           />
                         </label>
-                        {regulatoryData[r.id]?.type === 'document' && regulatoryData[r.id].fileName && (
+                        {docFileName && (
                           <p className="text-[10px] text-green-600 mt-1">✓ Documento enviado</p>
                         )}
                       </div>
