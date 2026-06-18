@@ -1,8 +1,10 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { usePortalTenant } from '../hooks/usePortalTenant';
 
 export function PatientAuthLayout() {
+    const { t } = useTranslation('portal');
     const { tenant, loading, error } = usePortalTenant();
 
     if (loading) {
@@ -16,8 +18,8 @@ export function PatientAuthLayout() {
     if (error || !tenant) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
-                <h1 className="text-2xl font-bold text-gray-800 mb-2">Clínica não encontrada</h1>
-                <p className="text-gray-600">Verifique o endereço digitado.</p>
+                <h1 className="text-2xl font-bold text-gray-800 mb-2">{t('authLayout.tenantNotFoundTitle')}</h1>
+                <p className="text-gray-600">{t('authLayout.tenantNotFoundText')}</p>
             </div>
         );
     }
@@ -55,7 +57,7 @@ export function PatientAuthLayout() {
             </div>
 
             <p className="mt-8 text-center text-xs text-gray-400">
-                Plataforma segura por <strong>Traffio</strong>
+                {t('authLayout.securePoweredByPrefix')} <strong>{t('authLayout.brandName')}</strong>
             </p>
         </div>
     );

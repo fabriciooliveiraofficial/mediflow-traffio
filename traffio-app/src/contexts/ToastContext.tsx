@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 
 type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -105,6 +106,7 @@ const ToastComponent: React.FC<{ toast: Toast }> = ({ toast }) => {
 };
 
 const ConfirmDialog: React.FC<{ message: string; onConfirm: () => void; onCancel: () => void }> = ({ message, onConfirm, onCancel }) => {
+    const { t } = useTranslation('common');
     return (
         <motion.div
             initial={{ opacity: 0 }}
@@ -131,13 +133,13 @@ const ConfirmDialog: React.FC<{ message: string; onConfirm: () => void; onCancel
                         onClick={onCancel}
                         className="px-4 py-2 text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
                     >
-                        Cancelar
+                        {t('actions.cancel')}
                     </button>
                     <button
                         onClick={onConfirm}
                         className="px-4 py-2 text-sm font-semibold text-white bg-rose-500 hover:bg-rose-600 rounded-xl transition-colors"
                     >
-                        Confirmar
+                        {t('actions.confirm')}
                     </button>
                 </div>
             </motion.div>

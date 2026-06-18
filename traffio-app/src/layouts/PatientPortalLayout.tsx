@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabase';
 import { usePortalTenant } from '../hooks/usePortalTenant';
 import {
@@ -12,6 +13,7 @@ import {
 } from 'lucide-react';
 
 export function PatientPortalLayout() {
+    const { t } = useTranslation('portal');
     const { tenant, loading: tenantLoading, slug } = usePortalTenant();
     const navigate = useNavigate();
     const location = useLocation();
@@ -76,9 +78,9 @@ export function PatientPortalLayout() {
     if (!tenant || !patient) return null;
 
     const navItems = [
-        { icon: LayoutDashboard, label: 'Início', path: `/portal/${slug}/dashboard` },
-        { icon: Calendar, label: 'Agendar', path: `/portal/${slug}/book` },
-        { icon: User, label: 'Meu Perfil', path: `/portal/${slug}/profile` },
+        { icon: LayoutDashboard, label: t('nav.home'), path: `/portal/${slug}/dashboard` },
+        { icon: Calendar, label: t('nav.book'), path: `/portal/${slug}/book` },
+        { icon: User, label: t('nav.myProfile'), path: `/portal/${slug}/profile` },
     ];
 
     return (
@@ -141,7 +143,7 @@ export function PatientPortalLayout() {
                             className="flex items-center gap-3 px-3 py-2 w-full text-left text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                         >
                             <LogOut size={18} />
-                            Sair
+                            {t('nav.signOut')}
                         </button>
                     </div>
                 </div>

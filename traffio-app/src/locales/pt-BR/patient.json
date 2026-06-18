@@ -23,5 +23,68 @@
         "description": "Atraso superior a 15 min"
       }
     }
+  },
+  "preCheckin": {
+    "invalidLink": "Link de check-in inválido.",
+    "header": {
+      "title": "Check-in Express",
+      "subtitle": "Confirme seus dados e evite filas"
+    },
+    "geofence": {
+      "title": "Verificação de Proximidade",
+      "subtitle": "Confirme que você está na clínica",
+      "locating": "Localizando...",
+      "locatingDescription": "Verificando sua proximidade com a clínica",
+      "unavailableTitle": "Localização indisponível",
+      "retry": "Tentar Novamente",
+      "retryHint": "Ative a localização no navegador ou conecte-se ao WiFi da clínica",
+      "outOfRangeTitle": "Fora da área da clínica",
+      "youAreAt": "Você está a",
+      "distanceFromSuffix": "de:",
+      "allowedRadius": "Raio permitido: {{radius}}",
+      "you": "Você",
+      "defaultClinicLabel": "Clínica",
+      "defaultLocationName": "Unidade Principal",
+      "retryCheck": "Verificar Novamente",
+      "getCloserHint": "Aproxime-se da unidade para liberar o check-in",
+      "gpsPrecise": "GPS Preciso",
+      "ipSource": "IP ({{source}})",
+      "gpsShort": "GPS",
+      "ipShort": "IP",
+      "arrivedAt": "Chegou em: {{name}}"
+    },
+    "verifyData": {
+      "confirmedProximity": "Proximidade confirmada: {{name}}",
+      "title": "Seus Dados",
+      "subtitle": "Confirme se estão corretos",
+      "name": "Nome",
+      "mobile": "Celular",
+      "email": "Email",
+      "confirmCta": "Dados Corretos, Continuar"
+    },
+    "verifyInsurance": {
+      "title": "Convênio",
+      "subtitle": "Confirme os dados do plano",
+      "provider": "Operadora",
+      "cardNumber": "Nº Carteirinha",
+      "confirmCta": "Convênio Correto, Finalizar"
+    },
+    "complete": {
+      "title": "Check-in Concluído!",
+      "subtitle": "Apresente o QR Code abaixo na recepção.",
+      "scheduledTime": "Horário Agendado"
+    },
+    "errors": {
+      "tenantIdMissing": "Tenant ID não encontrado.",
+      "checkFailed": "Erro ao verificar localização.",
+      "geoNotSupported": "Seu navegador não suporta geolocalização.",
+      "permissionDenied": "Permissão de localização negada. Ative nas configurações do navegador.",
+      "positionUnavailable": "Não foi possível obter sua localização. Tente em área aberta.",
+      "timeout": "Tempo esgotado ao buscar localização. Tente novamente.",
+      "generic": "Erro ao obter localização."
+    }
+  },
+  "qrPass": {
+    "presentHint": "Apresente este QR na recepção"
   }
 }

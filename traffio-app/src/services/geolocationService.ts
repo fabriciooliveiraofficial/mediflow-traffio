@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import i18n from '../lib/i18n';
 
 export interface GeoCoordinates {
     latitude: number;
@@ -37,7 +38,7 @@ export const GeolocationService = {
     getBrowserLocation(): Promise<GeoCoordinates> {
         return new Promise((resolve, reject) => {
             if (!navigator.geolocation) {
-                reject(new Error('Seu navegador não suporta geolocalização.'));
+                reject(new Error(i18n.t('patient:preCheckin.errors.geoNotSupported')));
                 return;
             }
 
@@ -52,11 +53,11 @@ export const GeolocationService = {
                 },
                 (error) => {
                     const messages: Record<number, string> = {
-                        1: 'Permissão de localização negada. Ative nas configurações do navegador.',
-                        2: 'Não foi possível obter sua localização. Tente em área aberta.',
-                        3: 'Tempo esgotado ao buscar localização. Tente novamente.',
+                        1: i18n.t('patient:preCheckin.errors.permissionDenied'),
+                        2: i18n.t('patient:preCheckin.errors.positionUnavailable'),
+                        3: i18n.t('patient:preCheckin.errors.timeout'),
                     };
-                    reject(new Error(messages[error.code] || 'Erro ao obter localização.'));
+                    reject(new Error(messages[error.code] || i18n.t('patient:preCheckin.errors.generic')));
                 },
                 {
                     enableHighAccuracy: true,
@@ -133,7 +134,7 @@ export const GeolocationService = {
         if (tenant.latitude && tenant.longitude && !candidates.some(c => c.latitude === tenant.latitude && c.longitude === tenant.longitude)) {
             candidates.push({
                 id: 'main',
-                name: 'Unidade Principal', // Or tenant.name
+                name: i18n.t('patient:preCheckin.geofence.defaultLocationName'), // Or tenant.name
                 latitude: tenant.latitude,
                 longitude: tenant.longitude
             });

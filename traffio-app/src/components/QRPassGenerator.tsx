@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface QRPassGeneratorProps {
     patientId: string;
@@ -15,6 +16,7 @@ export const QRPassGenerator: React.FC<QRPassGeneratorProps> = ({
     appointmentId,
     patientName,
 }) => {
+    const { t } = useTranslation('patient');
     const payload = useMemo(() => {
         return JSON.stringify({
             pid: patientId,
@@ -86,7 +88,7 @@ export const QRPassGenerator: React.FC<QRPassGeneratorProps> = ({
             <div className="text-center">
                 <p className="text-sm font-black text-graphite-900">{patientName}</p>
                 <p className="text-[10px] text-graphite-400 font-medium mt-1">
-                    Apresente este QR na recepção
+                    {t('qrPass.presentHint')}
                 </p>
             </div>
         </div>

@@ -28,6 +28,7 @@ import {
   associateRequirementGroupWithSubOrder
 } from "../_shared/telnyxClient.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { getNumberPricing } from "../_shared/pricing.ts";
 
 // Países que exigem KYC antes da compra
 const KYC_COUNTRIES = new Set(["BR", "AR", "MX", "CO", "PT", "ES"]);
@@ -412,6 +413,29 @@ serve(async (req: Request) => {
       const { phone_number, country_code, phone_number_type, holder_type, holder_info, friendly_name } = body;
       if (!phone_number || !country_code) return json({ error: "phone_number e country_code são obrigatórios" }, 400);
 
+      // ── Verificar Saldo da Carteira ─────────────────────────────────────────
+      const { data: wallet, error: walletErr } = await supabase
+        .from("tenant_wallets")
+        .select("balance_brl")
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+
+      if (walletErr) {
+        throw new Error(`Erro ao verificar saldo da carteira: ${walletErr.message}`);
+      }
+
+      const pricing = getNumberPricing(country_code);
+      const walletBalance = wallet?.balance_brl ? Number(wallet.balance_brl) : 0;
+
+      if (walletBalance < pricing.totalPriceBrl) {
+        return json({
+          error: "INSUFFICIENT_FUNDS",
+          message: `Saldo insuficiente na carteira para adquirir este número. Saldo atual: R$ ${walletBalance.toFixed(2)}, Preço do número: R$ ${pricing.totalPriceBrl.toFixed(2)}. Por favor, recarregue seus créditos.`,
+          required_balance: pricing.totalPriceBrl,
+          current_balance: walletBalance
+        }, 402); // 402 Payment Required
+      }
+
       const needsKyc = KYC_COUNTRIES.has(country_code.toUpperCase());
 
       if (!needsKyc) {
@@ -478,6 +502,22 @@ serve(async (req: Request) => {
           }
           throw new Error(`Erro ao salvar número no banco de dados: ${insertErr.message}`);
         }
+
+        // Registrar uso: aquisição de número (instantâneo)
+        // Isso ativa o trigger no banco que deduz o saldo e registra a transação
+        const billingPeriod = new Date();
+        const periodStr = `${billingPeriod.getFullYear()}-${String(billingPeriod.getMonth() + 1).padStart(2, "0")}-01`;
+        await supabase.from("tenant_usage_log").insert({
+          tenant_id:           tenantId,
+          resource_type:       "number_purchase",
+          quantity:            1,
+          unit_cost_usd:       pricing.unitCostUsd,
+          total_cost_usd:      pricing.unitCostUsd,
+          billing_period:      periodStr,
+          tenant_phone_number: result.phoneNumber ?? phone_number,
+        }).catch((e: any) => {
+          console.error(`[telnyx-number-orders] Failed to insert number_purchase usage log: ${e.message}`);
+        });
 
         if (pendingReview) {
           // Criar uma solicitação de ordem no banco de dados para rastreamento pelo webhook

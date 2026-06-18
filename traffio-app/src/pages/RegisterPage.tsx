@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Activity, Mail, Lock, Loader2, User, Building2, Phone, CheckCircle2, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { PLANS, PLAN_ORDER, formatPrice, type PlanId, type BillingCycle } from '../config/planConfig';
 import { PaymentRequiredModal } from '../components/billing/PaymentRequiredModal';
 
 export const RegisterPage = () => {
+    const { t } = useTranslation('auth');
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
 
@@ -45,10 +47,10 @@ export const RegisterPage = () => {
         const newErrors = { email: '', password: '' };
 
         if (form.password !== form.confirmPassword) {
-            newErrors.password = 'As senhas não conferem.';
+            newErrors.password = t('register.errors.passwordMismatch');
             valid = false;
         } else if (form.password.length < 6) {
-            newErrors.password = 'A senha deve ter no mínimo 6 caracteres.';
+            newErrors.password = t('register.errors.passwordTooShort');
             valid = false;
         }
 
@@ -81,7 +83,7 @@ export const RegisterPage = () => {
 
         try {
             // ── 1. Criar auth user ───────────────────────────────────────────
-            addStep('Criando sua conta...');
+            addStep(t('register.provisioning.creatingAccount'));
             const { data: authData, error: authError } = await supabase.auth.signUp({
                 email: form.email,
                 password: form.password,
@@ -97,10 +99,10 @@ export const RegisterPage = () => {
             if (authError) throw authError;
 
             const userId = authData.user?.id;
-            if (!userId) throw new Error('Usuário não criado corretamente.');
+            if (!userId) throw new Error(t('register.errors.userNotCreated'));
 
             // ── 2. Aguardar trigger criar o profile ──────────────────────────
-            addStep('Configurando perfil...');
+            addStep(t('register.provisioning.settingUpProfile'));
             await new Promise(r => setTimeout(r, 1000));
 
             // Garantir profile com dados corretos
@@ -113,14 +115,14 @@ export const RegisterPage = () => {
             }, { onConflict: 'id' });
 
             // ── 3. Criar tenant + member owner (RPC, bypassa RLS) ─────────────
-            addStep('Criando sua clínica...');
+            addStep(t('register.provisioning.creatingClinic'));
             const slug = form.clinicName
                 .toLowerCase()
                 .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
                 .replace(/[^a-z0-9]+/g, '-')
                 .replace(/^-|-$/g, '');
 
-            addStep('Configurando permissões de proprietário...');
+            addStep(t('register.provisioning.settingUpPermissions'));
             const { data: tenantData, error: tenantError } = await supabase
                 .rpc('register_tenant', {
                     p_name:          form.clinicName,
@@ -132,15 +134,15 @@ export const RegisterPage = () => {
             if (tenantError) throw tenantError;
 
             // ── 5. Finalizar → modal de pagamento (NÃO vai direto ao dashboard)
-            addStep('Finalizando... quase lá!');
+            addStep(t('register.provisioning.finalizing'));
             await new Promise(r => setTimeout(r, 600));
 
-            addStep('✅ Conta criada! Último passo: forma de pagamento.');
+            addStep(t('register.provisioning.done'));
             setTrialEndsAt(tenantData.trial_ends_at ?? null);
             setTimeout(() => setStep(3), 1200);
 
         } catch (error: any) {
-            setRegisterError(error.message || 'Erro ao criar conta. Tente novamente.');
+            setRegisterError(error.message || t('register.errors.generic'));
             setStep(1);
             setProvisioningStatus([]);
             setLoading(false);
@@ -166,7 +168,7 @@ export const RegisterPage = () => {
                     <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
                         <Activity size={40} />
                     </div>
-                    <h2 className="text-2xl font-black text-graphite-900 mb-6">Preparando seu ambiente...</h2>
+                    <h2 className="text-2xl font-black text-graphite-900 mb-6">{t('register.provisioning.title')}</h2>
                     <div className="space-y-4 text-left">
                         {provisioningStatus.map((status, i) => (
                             <div key={i} className="flex items-center gap-3 animate-in fade-in slide-in-from-left-4 duration-300">
@@ -187,8 +189,8 @@ export const RegisterPage = () => {
                     <div className="inline-flex items-center justify-center w-12 h-12 bg-brand-primary rounded-xl text-white shadow-lg shadow-brand-primary/20 mb-4">
                         <Activity size={24} />
                     </div>
-                    <h1 className="text-2xl font-black text-graphite-900 mb-2">Crie sua conta</h1>
-                    <p className="text-graphite-500 font-medium">Comece a transformar sua clínica hoje</p>
+                    <h1 className="text-2xl font-black text-graphite-900 mb-2">{t('register.title')}</h1>
+                    <p className="text-graphite-500 font-medium">{t('register.subtitle')}</p>
                 </div>
 
                 <div className="mb-6 flex items-center justify-between gap-3 p-4 rounded-2xl border border-ice-200 bg-ice-50">
@@ -197,12 +199,12 @@ export const RegisterPage = () => {
                             <PlanIcon size={20} />
                         </div>
                         <div>
-                            <p className="text-[10px] font-black text-graphite-400 uppercase tracking-wider">Plano selecionado</p>
-                            <p className="text-sm font-black text-graphite-900">{selectedPlan.name} · {billingCycle === 'annual' ? 'Anual' : 'Mensal'}</p>
+                            <p className="text-[10px] font-black text-graphite-400 uppercase tracking-wider">{t('register.selectedPlanLabel')}</p>
+                            <p className="text-sm font-black text-graphite-900">{selectedPlan.name} · {billingCycle === 'annual' ? t('register.billingAnnual') : t('register.billingMonthly')}</p>
                         </div>
                     </div>
                     <div className="text-right shrink-0">
-                        <p className="text-lg font-black text-graphite-900">{formatPrice(selectedPrice)}<span className="text-xs font-medium text-graphite-400">/mês</span></p>
+                        <p className="text-lg font-black text-graphite-900">{formatPrice(selectedPrice)}<span className="text-xs font-medium text-graphite-400">{t('register.perMonth')}</span></p>
                     </div>
                 </div>
 
@@ -223,7 +225,7 @@ export const RegisterPage = () => {
                     )}
                     <div className="grid grid-cols-1 gap-4">
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-graphite-400 uppercase ml-1">Nome da Clínica</label>
+                            <label className="text-[10px] font-black text-graphite-400 uppercase ml-1">{t('register.clinicName')}</label>
                             <div className="relative">
                                 <Building2 className="absolute left-4 top-3.5 text-graphite-400" size={18} />
                                 <input
@@ -231,14 +233,14 @@ export const RegisterPage = () => {
                                     value={form.clinicName}
                                     onChange={(e) => setForm({ ...form, clinicName: e.target.value })}
                                     className="w-full bg-ice-50 border border-ice-200 rounded-xl pl-11 pr-4 py-3 text-sm font-bold text-graphite-900 focus:outline-none focus:border-brand-primary"
-                                    placeholder="Ex: Clínica Saúde"
+                                    placeholder={t('register.clinicNamePlaceholder')}
                                     required
                                 />
                             </div>
                         </div>
 
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-graphite-400 uppercase ml-1">Seu Nome</label>
+                            <label className="text-[10px] font-black text-graphite-400 uppercase ml-1">{t('register.adminName')}</label>
                             <div className="relative">
                                 <User className="absolute left-4 top-3.5 text-graphite-400" size={18} />
                                 <input
@@ -246,14 +248,14 @@ export const RegisterPage = () => {
                                     value={form.adminName}
                                     onChange={(e) => setForm({ ...form, adminName: e.target.value })}
                                     className="w-full bg-ice-50 border border-ice-200 rounded-xl pl-11 pr-4 py-3 text-sm font-bold text-graphite-900 focus:outline-none focus:border-brand-primary"
-                                    placeholder="Ex: Dr. Silva"
+                                    placeholder={t('register.adminNamePlaceholder')}
                                     required
                                 />
                             </div>
                         </div>
 
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-graphite-400 uppercase ml-1">WhatsApp</label>
+                            <label className="text-[10px] font-black text-graphite-400 uppercase ml-1">{t('register.phone')}</label>
                             <div className="relative">
                                 <Phone className="absolute left-4 top-3.5 text-graphite-400" size={18} />
                                 <input
@@ -261,14 +263,14 @@ export const RegisterPage = () => {
                                     value={form.phone}
                                     onChange={(e) => setForm({ ...form, phone: e.target.value })}
                                     className="w-full bg-ice-50 border border-ice-200 rounded-xl pl-11 pr-4 py-3 text-sm font-bold text-graphite-900 focus:outline-none focus:border-brand-primary"
-                                    placeholder="(11) 99999-9999"
+                                    placeholder={t('register.phonePlaceholder')}
                                     required
                                 />
                             </div>
                         </div>
 
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-graphite-400 uppercase ml-1">Email</label>
+                            <label className="text-[10px] font-black text-graphite-400 uppercase ml-1">{t('register.email')}</label>
                             <div className="relative">
                                 <Mail className="absolute left-4 top-3.5 text-graphite-400" size={18} />
                                 <input
@@ -279,14 +281,14 @@ export const RegisterPage = () => {
                                         if (errors.email) setErrors({ ...errors, email: '' });
                                     }}
                                     className={`w-full bg-ice-50 border rounded-xl pl-11 pr-4 py-3 text-sm font-bold text-graphite-900 focus:outline-none focus:border-brand-primary ${errors.email ? 'border-red-300 bg-red-50' : 'border-ice-200'}`}
-                                    placeholder="seu@email.com"
+                                    placeholder={t('register.emailPlaceholder')}
                                     required
                                 />
                             </div>
                         </div>
 
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-graphite-400 uppercase ml-1">Senha</label>
+                            <label className="text-[10px] font-black text-graphite-400 uppercase ml-1">{t('register.password')}</label>
                             <div className="relative">
                                 <Lock className="absolute left-4 top-3.5 text-graphite-400" size={18} />
                                 <input
@@ -297,7 +299,7 @@ export const RegisterPage = () => {
                                         if (errors.password) setErrors({ ...errors, password: '' });
                                     }}
                                     className={`w-full bg-ice-50 border rounded-xl pl-11 pr-12 py-3 text-sm font-bold text-graphite-900 focus:outline-none focus:border-brand-primary ${errors.password ? 'border-red-300 bg-red-50' : 'border-ice-200'}`}
-                                    placeholder="No mínimo 6 caracteres"
+                                    placeholder={t('register.passwordPlaceholder')}
                                     required
                                     minLength={6}
                                 />
@@ -313,7 +315,7 @@ export const RegisterPage = () => {
                         </div>
 
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-graphite-400 uppercase ml-1">Confirmar Senha</label>
+                            <label className="text-[10px] font-black text-graphite-400 uppercase ml-1">{t('register.confirmPassword')}</label>
                             <div className="relative">
                                 <Lock className="absolute left-4 top-3.5 text-graphite-400" size={18} />
                                 <input
@@ -324,7 +326,7 @@ export const RegisterPage = () => {
                                         if (errors.password) setErrors({ ...errors, password: '' });
                                     }}
                                     className={`w-full bg-ice-50 border rounded-xl pl-11 pr-12 py-3 text-sm font-bold text-graphite-900 focus:outline-none focus:border-brand-primary ${errors.password ? 'border-red-300 bg-red-50' : 'border-ice-200'}`}
-                                    placeholder="Repita sua senha"
+                                    placeholder={t('register.confirmPasswordPlaceholder')}
                                     required
                                     minLength={6}
                                 />
@@ -350,18 +352,18 @@ export const RegisterPage = () => {
                         disabled={loading}
                         className="w-full mt-4 bg-brand-primary text-white py-4 rounded-xl font-bold shadow-lg shadow-brand-primary/25 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed border-none cursor-pointer"
                     >
-                        {loading ? <Loader2 className="animate-spin" size={20} /> : 'Criar Conta'}
+                        {loading ? <Loader2 className="animate-spin" size={20} /> : t('register.submit')}
                     </button>
                 </form>
 
                 <div className="mt-8 text-center">
                     <p className="text-sm font-medium text-graphite-500">
-                        Já tem uma conta?{' '}
+                        {t('register.alreadyHaveAccount')}{' '}
                         <button
                             onClick={() => navigate('/login')}
                             className="text-brand-primary font-bold hover:underline border-none bg-transparent cursor-pointer"
                         >
-                            Entrar
+                            {t('register.signIn')}
                         </button>
                     </p>
                 </div>

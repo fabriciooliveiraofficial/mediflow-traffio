@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     Building2,
     X,
@@ -49,6 +50,7 @@ import { PendingOrdersList } from '../components/numbers/PendingOrdersList';
 
 // Sub-componente: lista de números do tenant
 function PhoneNumbersList({ tenantId, showToast, refreshKey }: { tenantId: string; showToast: (type: 'success' | 'error' | 'warning' | 'info', msg: string) => void; refreshKey?: number }) {
+    const { t } = useTranslation('settings');
     const [numbers, setNumbers] = useState<any[]>([]);
     const [releasingId, setReleasingId] = useState<string | null>(null);
 
@@ -67,14 +69,14 @@ function PhoneNumbersList({ tenantId, showToast, refreshKey }: { tenantId: strin
     }, [loadNumbers, refreshKey]);
 
     const handleRelease = async (num: any) => {
-        const confirm = window.confirm(`Deseja realmente excluir e liberar o número ${num.phone_number} permanentemente? Esta ação não pode ser desfeita.`);
+        const confirm = window.confirm(t('confirms.releaseNumber', { number: num.phone_number }));
         if (!confirm) return;
 
         setReleasingId(num.id);
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) {
-                showToast('error', 'Usuário não autenticado.');
+                showToast('error', t('toasts.notAuthenticated'));
                 return;
             }
 
@@ -89,13 +91,13 @@ function PhoneNumbersList({ tenantId, showToast, refreshKey }: { tenantId: strin
 
             const json = await res.json();
             if (!res.ok || json.error) {
-                showToast('error', json.error ?? 'Erro ao liberar o número.');
+                showToast('error', json.error ?? t('toasts.numberReleaseError'));
             } else {
-                showToast('success', 'Número excluído e liberado com sucesso!');
+                showToast('success', t('toasts.numberReleased'));
                 setNumbers(prev => prev.filter(n => n.id !== num.id));
             }
         } catch (err: any) {
-            showToast('error', `Erro ao liberar número: ${err.message}`);
+            showToast('error', `${t('toasts.numberReleaseErrorPrefix')} ${err.message}`);
         } finally {
             setReleasingId(null);
         }
@@ -104,8 +106,8 @@ function PhoneNumbersList({ tenantId, showToast, refreshKey }: { tenantId: strin
     if (numbers.length === 0) {
         return (
             <div className="text-center py-6">
-                <p className="text-sm text-graphite-300 font-medium">Nenhum número ativo.</p>
-                <p className="text-xs text-graphite-300 mt-1">Clique em "Comprar número" para adicionar.</p>
+                <p className="text-sm text-graphite-300 font-medium">{t('phoneNumbers.empty')}</p>
+                <p className="text-xs text-graphite-300 mt-1">{t('phoneNumbers.emptyHint')}</p>
             </div>
         );
     }
@@ -118,8 +120,8 @@ function PhoneNumbersList({ tenantId, showToast, refreshKey }: { tenantId: strin
                         <p className="text-sm font-black text-graphite-800 font-mono">{num.phone_number}</p>
                         <p className="text-xs text-graphite-400">
                             {num.friendly_name ?? num.country_code}
-                            {num.capabilities?.voice && ' · Voz'}
-                            {num.capabilities?.sms && ' · SMS'}
+                            {num.capabilities?.voice && ` · ${t('phoneNumbers.voiceSuffix')}`}
+                            {num.capabilities?.sms && ` · ${t('phoneNumbers.smsSuffix')}`}
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -128,7 +130,7 @@ function PhoneNumbersList({ tenantId, showToast, refreshKey }: { tenantId: strin
                         ) : (
                             <button
                                 onClick={() => handleRelease(num)}
-                                title="Excluir e liberar número"
+                                title={t('phoneNumbers.releaseTitle')}
                                 className="p-2 text-graphite-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-colors border-none cursor-pointer bg-transparent"
                             >
                                 <Trash2 size={16} />
@@ -143,6 +145,7 @@ function PhoneNumbersList({ tenantId, showToast, refreshKey }: { tenantId: strin
 }
 
 export const Settings = () => {
+    const { t } = useTranslation('settings');
     const { tenant: currentTenant, updateTenant: updateTenantContext, userRole } = useTenant();
     const { showToast } = useToast();
     const [activeTab, setActiveTab] = useState('clinics');
@@ -199,12 +202,110 @@ export const Settings = () => {
     const [ordersRefreshKey, setOrdersRefreshKey] = useState(0);
     const [syncing, setSyncing] = useState(false);
 
+    // Wallet & Consumption states
+    const [wallet, setWallet] = useState<any>(null);
+    const [transactions, setTransactions] = useState<any[]>([]);
+    const [usageLogs, setUsageLogs] = useState<any[]>([]);
+    const [showRechargeModal, setShowRechargeModal] = useState(false);
+    const [rechargeAmount, setRechargeAmount] = useState('50');
+    const [recharging, setRecharging] = useState(false);
+
+    const fetchWalletAndUsageData = useCallback(async () => {
+        if (!currentTenant?.id) return;
+        try {
+            // 1. Fetch wallet
+            const { data: walletData } = await supabase
+                .from('tenant_wallets')
+                .select('*')
+                .eq('tenant_id', currentTenant.id)
+                .maybeSingle();
+            
+            if (walletData) {
+                setWallet(walletData);
+            } else {
+                const { data: newWallet } = await supabase
+                    .from('tenant_wallets')
+                    .insert({ tenant_id: currentTenant.id, balance_brl: 0.00 })
+                    .select()
+                    .maybeSingle();
+                if (newWallet) setWallet(newWallet);
+            }
+
+            // 2. Fetch transactions
+            const { data: txs } = await supabase
+                .from('wallet_transactions')
+                .select('*')
+                .eq('tenant_id', currentTenant.id)
+                .order('created_at', { ascending: false })
+                .limit(20);
+            setTransactions(txs ?? []);
+
+            // 3. Fetch usage logs
+            const { data: logs } = await supabase
+                .from('tenant_usage_log')
+                .select('*')
+                .eq('tenant_id', currentTenant.id)
+                .order('created_at', { ascending: false });
+            setUsageLogs(logs ?? []);
+        } catch (e) {
+            console.error('Error fetching wallet/usage data:', e);
+        }
+    }, [currentTenant]);
+
+    const handleRechargeWallet = async () => {
+        const amount = parseFloat(rechargeAmount);
+        if (isNaN(amount) || amount <= 0) {
+            showToast('error', 'Valor de recarga inválido');
+            return;
+        }
+
+        setRecharging(true);
+        try {
+            const currentBalance = wallet?.balance_brl ? Number(wallet.balance_brl) : 0;
+            const newBalance = currentBalance + amount;
+
+            const { data: updatedWallet, error: updateErr } = await supabase
+                .from('tenant_wallets')
+                .update({ 
+                    balance_brl: newBalance,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('tenant_id', currentTenant.id)
+                .select()
+                .single();
+
+            if (updateErr) throw updateErr;
+
+            const { error: txErr } = await supabase
+                .from('wallet_transactions')
+                .insert({
+                    tenant_id: currentTenant.id,
+                    type: 'recharge',
+                    amount_brl: amount,
+                    balance_after_brl: newBalance,
+                    description: `Recarga de créditos de comunicação`,
+                    reference_type: 'manual'
+                });
+
+            if (txErr) throw txErr;
+
+            showToast('success', `Recarga de R$ ${amount.toFixed(2)} realizada com sucesso!`);
+            setShowRechargeModal(false);
+            setWallet(updatedWallet);
+            fetchWalletAndUsageData();
+        } catch (err: any) {
+            showToast('error', `Erro ao recarregar: ${err.message}`);
+        } finally {
+            setRecharging(false);
+        }
+    };
+
     const handleSync = async () => {
         setSyncing(true);
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) {
-                showToast('error', 'Usuário não autenticado.');
+                showToast('error', t('toasts.notAuthenticated'));
                 return;
             }
 
@@ -219,14 +320,14 @@ export const Settings = () => {
 
             const json = res.ok ? await res.json() : null;
             if (!res.ok || json?.error) {
-                showToast('error', json?.error ?? 'Erro ao sincronizar status.');
+                showToast('error', json?.error ?? t('toasts.syncError'));
             } else {
-                showToast('success', 'Status sincronizado com a Telnyx!');
+                showToast('success', t('toasts.syncSuccess'));
                 // Forçar atualização das duas listas
                 setOrdersRefreshKey(k => k + 1);
             }
         } catch (err: any) {
-            showToast('error', `Erro na sincronização: ${err.message}`);
+            showToast('error', `${t('toasts.syncErrorPrefix')} ${err.message}`);
         } finally {
             setSyncing(false);
         }
@@ -244,13 +345,13 @@ export const Settings = () => {
                 (event.data?.type === 'OAUTH_CONNECTED' && event.data?.platform === 'meta')
             ) {
                 fetchMetaPages();
-                showToast('success', 'Páginas e Conta Meta conectadas com sucesso!');
+                showToast('success', t('toasts.metaConnectedSuccess'));
                 setConnectingMeta(false);
             } else if (
-                event.data?.type === 'META_MESSAGING_ERROR' || 
+                event.data?.type === 'META_MESSAGING_ERROR' ||
                 (event.data?.type === 'OAUTH_ERROR' && event.data?.platform === 'meta')
             ) {
-                showToast('error', `Erro ao conectar: ${event.data.message || 'Erro na autenticação'}`);
+                showToast('error', `${t('toasts.metaConnectErrorPrefix')} ${event.data.message || t('toasts.metaAuthErrorFallback')}`);
                 setConnectingMeta(false);
             }
         };
@@ -271,7 +372,7 @@ export const Settings = () => {
 
     const openMetaMessagingOAuth = (features?: string) => {
         const tenantId = currentTenant?.id;
-        if (!tenantId) { showToast('error', 'Selecione uma clínica primeiro'); return; }
+        if (!tenantId) { showToast('error', t('toasts.metaSelectClinicFirst')); return; }
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ?? '';
         const redirectBack = window.location.origin;
         const featuresParam = features ? `&features=${features}` : '';
@@ -279,7 +380,7 @@ export const Settings = () => {
         setConnectingMeta(true);
         const popup = window.open(oauthUrl, 'meta_oauth', 'width=580,height=680,left=200,top=100');
         if (!popup) {
-            showToast('error', 'Permita popups para conectar o Meta');
+            showToast('error', t('toasts.metaAllowPopups'));
             setConnectingMeta(false);
         }
     };
@@ -290,7 +391,7 @@ export const Settings = () => {
             .update({ is_active: false })
             .eq('id', pageId);
         fetchMetaPages();
-        showToast('success', 'Página desconectada');
+        showToast('success', t('toasts.metaPageDisconnected'));
     };
 
     const fetchSettingsData = async () => {
@@ -328,10 +429,10 @@ export const Settings = () => {
                 // Fallback for dev/testing if no user is logged in
                 setProfile({
                     id: 'guest',
-                    full_name: 'Usuário Convidado',
+                    full_name: t('guestProfile.fullName'),
                     email: 'guest@traffio.com.br',
                     role: 'staff',
-                    specialty: 'Visitante',
+                    specialty: t('guestProfile.specialty'),
                     crm: '0000-00'
                 });
             }
@@ -366,12 +467,12 @@ export const Settings = () => {
 
     const handleSaveProfile = async () => {
         if (!profile?.id) {
-            showToast('error', 'Nenhum perfil identificado para salvar.');
+            showToast('error', t('toasts.profileNotFound'));
             return;
         }
 
         if (profile.id === 'guest') {
-            showToast('info', 'Modo demonstração: alterações não persistidas.');
+            showToast('info', t('toasts.demoModeInfo'));
             return;
         }
 
@@ -447,10 +548,10 @@ export const Settings = () => {
                 if (doctorError) throw doctorError;
             }
 
-            showToast('success', 'Perfil atualizado com sucesso!');
+            showToast('success', t('toasts.profileUpdated'));
         } catch (error) {
             console.error('Error saving profile:', error);
-            showToast('error', 'Erro ao atualizar perfil.');
+            showToast('error', t('toasts.profileUpdateError'));
         }
     };
 
@@ -463,11 +564,11 @@ export const Settings = () => {
 
             if (error) throw error;
             if (!silent) {
-                showToast('success', 'Clínica atualizada com sucesso!');
+                showToast('success', t('toasts.tenantUpdated'));
                 fetchSettingsData();
             }
         } catch (error) {
-            if (!silent) showToast('error', 'Erro ao atualizar clínica.');
+            if (!silent) showToast('error', t('toasts.tenantUpdateError'));
         }
     };
     
@@ -520,17 +621,17 @@ export const Settings = () => {
             setShowLocForm(false);
             setEditingLocId(null);
             fetchLocations();
-            showToast('success', editingLocId ? 'Local atualizado!' : 'Local criado!');
-        } catch (e) { showToast('error', 'Erro ao salvar local.'); }
+            showToast('success', editingLocId ? t('toasts.locationUpdated') : t('toasts.locationCreated'));
+        } catch (e) { showToast('error', t('toasts.locationSaveError')); }
     };
 
     const handleDeleteLocation = async (id: string) => {
-        if (!confirm('Remover este local de atendimento?')) return;
+        if (!confirm(t('confirms.deleteLocation'))) return;
         try {
             await locationService.delete(id);
             fetchLocations();
-            showToast('success', 'Local removido!');
-        } catch (e) { showToast('error', 'Erro ao remover local.'); }
+            showToast('success', t('toasts.locationRemoved'));
+        } catch (e) { showToast('error', t('toasts.locationRemoveError')); }
     };
 
     // --- Insurance Plans CRUD ---
@@ -554,17 +655,17 @@ export const Settings = () => {
             setShowInsForm(false);
             setEditingInsId(null);
             fetchInsurancePlans();
-            showToast('success', editingInsId ? 'Convênio atualizado!' : 'Convênio criado!');
-        } catch (e) { showToast('error', 'Erro ao salvar convênio.'); }
+            showToast('success', editingInsId ? t('toasts.insuranceUpdated') : t('toasts.insuranceCreated'));
+        } catch (e) { showToast('error', t('toasts.insuranceSaveError')); }
     };
 
     const handleDeleteInsurance = async (id: string) => {
-        if (!confirm('Remover este convênio?')) return;
+        if (!confirm(t('confirms.deleteInsurance'))) return;
         try {
             await insurancePlanService.delete(id);
             fetchInsurancePlans();
-            showToast('success', 'Convênio removido!');
-        } catch (e) { showToast('error', 'Erro ao remover convênio.'); }
+            showToast('success', t('toasts.insuranceRemoved'));
+        } catch (e) { showToast('error', t('toasts.insuranceRemoveError')); }
     };
 
     useEffect(() => {
@@ -574,25 +675,68 @@ export const Settings = () => {
         }
     }, [tenants]);
 
+    useEffect(() => {
+        if (activeTab === 'communications') {
+            fetchWalletAndUsageData();
+        }
+    }, [activeTab, fetchWalletAndUsageData, ordersRefreshKey]);
+
+    const consumptionSummary = useMemo(() => {
+        let voiceBrl = 0;
+        let voiceMin = 0;
+        let smsBrl = 0;
+        let smsCount = 0;
+        let numbersBrl = 0;
+        let numbersCount = 0;
+
+        usageLogs.forEach(log => {
+            const price = Number(log.total_price_brl) || 0;
+            const qty = Number(log.quantity) || 0;
+            
+            if (log.resource_type?.startsWith('call')) {
+                voiceBrl += price;
+                voiceMin += qty;
+            } else if (log.resource_type?.startsWith('sms')) {
+                smsBrl += price;
+                smsCount += qty;
+            } else if (log.resource_type?.startsWith('number')) {
+                numbersBrl += price;
+                numbersCount += qty;
+            }
+        });
+
+        const totalBrl = voiceBrl + smsBrl + numbersBrl;
+
+        return {
+            voiceBrl,
+            voiceMin,
+            smsBrl,
+            smsCount,
+            numbersBrl,
+            numbersCount,
+            totalBrl
+        };
+    }, [usageLogs]);
+
     return (
         <>
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto">
 
             {/* Header */}
             <div>
-                <h1 className="text-3xl font-black text-graphite-900 tracking-tight">Configurações</h1>
-                <p className="text-graphite-500 font-medium">Gerencie suas unidades, horários e perfil.</p>
+                <h1 className="text-3xl font-black text-graphite-900 tracking-tight">{t('header.title')}</h1>
+                <p className="text-graphite-500 font-medium">{t('header.subtitle')}</p>
             </div>
 
             {/* Tabs */}
             <div className="flex bg-white p-1.5 rounded-2xl border border-ice-100 shadow-sm w-full">
                 {[
-                    { id: 'clinics', label: 'Clínicas', icon: Building2 },
-                    { id: 'locations', label: 'Unidades', icon: MapPin },
-                    { id: 'insurance', label: 'Convênios', icon: Shield },
-                    { id: 'team', label: 'Equipe', icon: Users },
-                    { id: 'communications', label: 'Comunicações', icon: Phone },
-                    { id: 'profile', label: 'Meu Perfil', icon: User },
+                    { id: 'clinics', label: t('tabs.clinics'), icon: Building2 },
+                    { id: 'locations', label: t('tabs.locations'), icon: MapPin },
+                    { id: 'insurance', label: t('tabs.insurance'), icon: Shield },
+                    { id: 'team', label: t('tabs.team'), icon: Users },
+                    { id: 'communications', label: t('tabs.communications'), icon: Phone },
+                    { id: 'profile', label: t('tabs.profile'), icon: User },
                 ].map((tab) => (
                     <button
                         key={tab.id}
@@ -616,20 +760,20 @@ export const Settings = () => {
                     <div className="p-8 space-y-8">
                         <div className="flex justify-between items-center">
                             <div>
-                                <h3 className="text-xl font-black text-graphite-900">Unidades de Atendimento</h3>
-                                <p className="text-sm text-graphite-400">Gerencie os dados dos locais onde você atende.</p>
+                                <h3 className="text-xl font-black text-graphite-900">{t('clinics.title')}</h3>
+                                <p className="text-sm text-graphite-400">{t('clinics.subtitle')}</p>
                             </div>
                             <button className="flex items-center gap-2 bg-ice-50 text-brand-primary px-4 py-2 rounded-xl font-bold hover:bg-ice-100 transition-colors border-none cursor-pointer">
                                 <Plus size={18} />
-                                <span>Adicionar Clínica</span>
+                                <span>{t('clinics.addClinic')}</span>
                             </button>
                         </div>
 
                         <div className="grid grid-cols-1 gap-6">
                             {loading ? (
-                                <p className="text-center text-graphite-400 py-8">Carregando unidades...</p>
+                                <p className="text-center text-graphite-400 py-8">{t('clinics.loading')}</p>
                             ) : tenants.length === 0 ? (
-                                <p className="text-center text-graphite-400 py-8">Nenhuma clínica cadastrada.</p>
+                                <p className="text-center text-graphite-400 py-8">{t('clinics.empty')}</p>
                             ) : (
                                 tenants.map((tenant) => (
                                     <div key={tenant.id} className="group border border-ice-100 rounded-2xl p-6 hover:border-brand-primary/30 hover:shadow-md transition-all">
@@ -641,7 +785,7 @@ export const Settings = () => {
                                             <div className="flex-1 space-y-4">
                                                 <div className="flex flex-col gap-4">
                                                     <div>
-                                                        <label className="text-xs font-black text-graphite-400 uppercase">Nome da Unidade</label>
+                                                        <label className="text-xs font-black text-graphite-400 uppercase">{t('clinics.unitNameLabel')}</label>
                                                         <input
                                                             type="text"
                                                             defaultValue={tenant.name}
@@ -652,7 +796,7 @@ export const Settings = () => {
 
                                                     {/* Specialty Selector */}
                                                     <div>
-                                                        <label className="text-xs font-black text-graphite-400 uppercase mb-2 block">Especialidade da Clínica</label>
+                                                        <label className="text-xs font-black text-graphite-400 uppercase mb-2 block">{t('clinics.specialtyLabel')}</label>
                                                         <div className="flex gap-3">
                                                             <button
                                                                 onClick={() => {
@@ -672,8 +816,8 @@ export const Settings = () => {
                                                             >
                                                                 <Stethoscope size={20} />
                                                                 <div className="text-left">
-                                                                    <p className="font-black text-sm leading-none">Clínica Geral</p>
-                                                                    <p className="text-[10px] font-bold opacity-60">Medicina e Especialidades</p>
+                                                                    <p className="font-black text-sm leading-none">{t('clinics.specialtyGeneral')}</p>
+                                                                    <p className="text-[10px] font-bold opacity-60">{t('clinics.specialtyGeneralSub')}</p>
                                                                 </div>
                                                                 {tenant.specialty?.includes?.('general') && <Check size={16} className="ml-auto" />}
                                                             </button>
@@ -696,8 +840,8 @@ export const Settings = () => {
                                                             >
                                                                 <Activity size={20} />
                                                                 <div className="text-left">
-                                                                    <p className="font-black text-sm leading-none">Odontologia</p>
-                                                                    <p className="text-[10px] font-bold opacity-60">Painel Odonto Ativado</p>
+                                                                    <p className="font-black text-sm leading-none">{t('clinics.specialtyDental')}</p>
+                                                                    <p className="text-[10px] font-bold opacity-60">{t('clinics.specialtyDentalSub')}</p>
                                                                 </div>
                                                                 {tenant.specialty?.includes?.('dental') && <Check size={16} className="ml-auto" />}
                                                             </button>
@@ -720,8 +864,8 @@ export const Settings = () => {
                                                             >
                                                                 <Apple size={20} />
                                                                 <div className="text-left">
-                                                                    <p className="font-black text-sm leading-none">Nutrição</p>
-                                                                    <p className="text-[10px] font-bold opacity-60">Painel Nutri Ativado</p>
+                                                                    <p className="font-black text-sm leading-none">{t('clinics.specialtyNutrition')}</p>
+                                                                    <p className="text-[10px] font-bold opacity-60">{t('clinics.specialtyNutritionSub')}</p>
                                                                 </div>
                                                                 {tenant.specialty?.includes?.('nutrition') && <Check size={16} className="ml-auto" />}
                                                             </button>
@@ -741,10 +885,10 @@ export const Settings = () => {
                                                 {/* Country Config */}
                                                 <div className="border-t border-ice-100 pt-4 mt-4">
                                                     <h4 className="text-xs font-black text-graphite-400 uppercase flex items-center gap-1.5 mb-3">
-                                                        <Globe size={12} /> País da Clínica
+                                                        <Globe size={12} /> {t('clinics.countrySectionTitle')}
                                                     </h4>
                                                     <div>
-                                                        <label className="text-[10px] font-bold text-graphite-400 block mb-1">País Padrão</label>
+                                                        <label className="text-[10px] font-bold text-graphite-400 block mb-1">{t('clinics.countryLabel')}</label>
                                                         <select
                                                             key={`country-${tenant.id}`}
                                                             defaultValue={tenant.country || DEFAULT_COUNTRY}
@@ -762,7 +906,7 @@ export const Settings = () => {
                                                             ))}
                                                         </select>
                                                         <p className="text-[10px] text-graphite-400 mt-1">
-                                                            Define o formato padrão de telefone, CEP/ZIP e documento. Cada campo pode ser sobrescrito individualmente.
+                                                            {t('clinics.countryHint')}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -770,11 +914,11 @@ export const Settings = () => {
                                                 {/* Geofence Config */}
                                                 <div className="border-t border-ice-100 pt-4 mt-4">
                                                     <h4 className="text-xs font-black text-graphite-400 uppercase flex items-center gap-1.5 mb-3">
-                                                        <Navigation size={12} /> Geofence (Check-in Express)
+                                                        <Navigation size={12} /> {t('clinics.geofenceSectionTitle')}
                                                     </h4>
                                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                                         <div>
-                                                            <label className="text-[10px] font-bold text-graphite-400">Latitude</label>
+                                                            <label className="text-[10px] font-bold text-graphite-400">{t('clinics.latitudeLabel')}</label>
                                                             <input
                                                                 type="number"
                                                                 step="0.000001"
@@ -786,7 +930,7 @@ export const Settings = () => {
                                                             />
                                                         </div>
                                                         <div>
-                                                            <label className="text-[10px] font-bold text-graphite-400">Longitude</label>
+                                                            <label className="text-[10px] font-bold text-graphite-400">{t('clinics.longitudeLabel')}</label>
                                                             <input
                                                                 type="number"
                                                                 step="0.000001"
@@ -798,7 +942,7 @@ export const Settings = () => {
                                                             />
                                                         </div>
                                                         <div>
-                                                            <label className="text-[10px] font-bold text-graphite-400">Raio (metros)</label>
+                                                            <label className="text-[10px] font-bold text-graphite-400">{t('clinics.radiusLabel')}</label>
                                                             <input
                                                                 type="number"
                                                                 defaultValue={tenant.geofence_radius || 100}
@@ -812,10 +956,10 @@ export const Settings = () => {
                                                 {/* Timezone Config */}
                                                 <div className="border-t border-ice-100 pt-4 mt-4">
                                                     <h4 className="text-xs font-black text-graphite-400 uppercase flex items-center gap-1.5 mb-3">
-                                                        <Globe size={12} /> Fuso Horário
+                                                        <Globe size={12} /> {t('clinics.timezoneSectionTitle')}
                                                     </h4>
                                                     <div>
-                                                        <label className="text-[10px] font-bold text-graphite-400 block mb-1">Timezone da Clínica</label>
+                                                        <label className="text-[10px] font-bold text-graphite-400 block mb-1">{t('clinics.timezoneLabel')}</label>
                                                         <select
                                                             key={`tz-${tenant.id}`}
                                                             defaultValue={tenant.timezone || 'America/Sao_Paulo'}
@@ -834,7 +978,7 @@ export const Settings = () => {
                                                             ))}
                                                         </select>
                                                         <p className="text-[10px] text-graphite-400 mt-1">
-                                                            Aplica-se a agendamentos, lembretes, WhatsApp, Messenger, Instagram e todos os cron jobs.
+                                                            {t('clinics.timezoneHint')}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -842,10 +986,10 @@ export const Settings = () => {
                                                 {/* Booking Widget — Antecedência mínima */}
                                                 <div className="border-t border-ice-100 pt-4 mt-4">
                                                     <h4 className="text-xs font-black text-graphite-400 uppercase flex items-center gap-1.5 mb-3">
-                                                        <Clock size={12} /> Agendamento Online (Widget)
+                                                        <Clock size={12} /> {t('clinics.widgetSectionTitle')}
                                                     </h4>
                                                     <div>
-                                                        <label className="text-[10px] font-bold text-graphite-400 block mb-1">Antecedência mínima (minutos)</label>
+                                                        <label className="text-[10px] font-bold text-graphite-400 block mb-1">{t('clinics.minLeadLabel')}</label>
                                                         <input
                                                             type="number"
                                                             min={0}
@@ -856,7 +1000,7 @@ export const Settings = () => {
                                                             className="w-full max-w-[200px] bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm font-medium text-graphite-700 focus:outline-none focus:border-brand-primary transition-colors"
                                                         />
                                                         <p className="text-[10px] text-graphite-400 mt-1">
-                                                            Tempo mínimo, em minutos, entre o momento atual e o horário do agendamento no widget online. Horários mais próximos que isso ficam ocultos para o paciente.
+                                                            {t('clinics.minLeadHint')}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -864,7 +1008,7 @@ export const Settings = () => {
                                                 {/* Brand Color */}
                                                 <div className="border-t border-ice-100 pt-4 mt-4">
                                                     <h4 className="text-xs font-black text-graphite-400 uppercase flex items-center gap-1.5 mb-3">
-                                                        <Palette size={12} /> Cor da Marca
+                                                        <Palette size={12} /> {t('clinics.brandColorSectionTitle')}
                                                     </h4>
                                                     <div className="flex items-center gap-3">
                                                         <input
@@ -886,11 +1030,11 @@ export const Settings = () => {
                                                 {/* Integration Keys */}
                                                 <div className="border-t border-ice-100 pt-4 mt-4">
                                                     <h4 className="text-xs font-black text-graphite-400 uppercase flex items-center gap-1.5 mb-3">
-                                                        <Key size={12} /> Integrações
+                                                        <Key size={12} /> {t('clinics.integrationsSectionTitle')}
                                                     </h4>
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                         <div>
-                                                            <label className="text-[10px] font-bold text-graphite-400">Z-API Instance ID</label>
+                                                            <label className="text-[10px] font-bold text-graphite-400">{t('clinics.zapiInstanceLabel')}</label>
                                                             <input
                                                                 type="password"
                                                                 defaultValue={tenant.zapi_instance_id || ''}
@@ -900,7 +1044,7 @@ export const Settings = () => {
                                                             />
                                                         </div>
                                                         <div>
-                                                            <label className="text-[10px] font-bold text-graphite-400">Asaas API Key</label>
+                                                            <label className="text-[10px] font-bold text-graphite-400">{t('clinics.asaasApiKeyLabel')}</label>
                                                             <input
                                                                 type="password"
                                                                 defaultValue={tenant.asaas_api_key || ''}
@@ -916,7 +1060,7 @@ export const Settings = () => {
                                                 <div className="border-t border-ice-100 pt-4 mt-4">
                                                     <div className="flex items-center justify-between mb-3">
                                                         <h4 className="text-xs font-black text-graphite-400 uppercase flex items-center gap-1.5">
-                                                            <MessageCircle size={12} /> Mensagens — Instagram DM &amp; Facebook Messenger
+                                                            <MessageCircle size={12} /> {t('clinics.metaMessagingSectionTitle')}
                                                         </h4>
                                                         <button
                                                             onClick={() => setMetaConnectModal(true)}
@@ -924,9 +1068,9 @@ export const Settings = () => {
                                                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border-none cursor-pointer"
                                                         >
                                                             {connectingMeta ? (
-                                                                <><RefreshCw size={12} className="animate-spin" /> Conectando...</>
+                                                                <><RefreshCw size={12} className="animate-spin" /> {t('clinics.metaConnecting')}</>
                                                             ) : (
-                                                                <><ExternalLink size={12} /> Conectar Páginas</>
+                                                                <><ExternalLink size={12} /> {t('clinics.metaConnectPages')}</>
                                                             )}
                                                         </button>
                                                     </div>
@@ -935,7 +1079,7 @@ export const Settings = () => {
                                                         <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 border border-amber-100">
                                                             <AlertCircle size={14} className="text-amber-500 shrink-0" />
                                                             <p className="text-xs text-amber-700 font-medium">
-                                                                Nenhuma página conectada. Clique em "Conectar Páginas" para autorizar o Instagram DM e Facebook Messenger.
+                                                                {t('clinics.metaNoPagesConnected')}
                                                             </p>
                                                         </div>
                                                     ) : (
@@ -957,17 +1101,17 @@ export const Settings = () => {
                                                                     <div className="flex items-center gap-2">
                                                                         {page.is_active ? (
                                                                             <span className="flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
-                                                                                <CheckCircle2 size={10} /> Ativo
+                                                                                <CheckCircle2 size={10} /> {t('clinics.metaPageActive')}
                                                                             </span>
                                                                         ) : (
                                                                             <span className="flex items-center gap-1 text-[10px] font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-full">
-                                                                                <AlertCircle size={10} /> Inativo
+                                                                                <AlertCircle size={10} /> {t('clinics.metaPageInactive')}
                                                                             </span>
                                                                         )}
                                                                         <button
                                                                             onClick={() => disconnectMetaPage(page.id)}
                                                                             className="p-1 text-graphite-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors border-none cursor-pointer"
-                                                                            title="Desconectar"
+                                                                            title={t('clinics.metaDisconnectTitle')}
                                                                         >
                                                                             <X size={12} />
                                                                         </button>
@@ -975,7 +1119,7 @@ export const Settings = () => {
                                                                 </div>
                                                             ))}
                                                             <p className="text-[10px] text-graphite-400 mt-1">
-                                                                Clique em "Conectar Páginas" novamente para adicionar mais páginas ou renovar o acesso.
+                                                                {t('clinics.metaReconnectHint')}
                                                             </p>
                                                         </div>
                                                     )}
@@ -1000,8 +1144,8 @@ export const Settings = () => {
                     <div className="p-8 space-y-6">
                         <div className="flex justify-between items-center">
                             <div>
-                                <h3 className="text-xl font-black text-graphite-900">Locais de Atendimento</h3>
-                                <p className="text-sm text-graphite-400">Cadastre os locais onde seus profissionais atendem.</p>
+                                <h3 className="text-xl font-black text-graphite-900">{t('locations.title')}</h3>
+                                <p className="text-sm text-graphite-400">{t('locations.subtitle')}</p>
                             </div>
                             <button onClick={() => {
                                 setShowLocForm(true);
@@ -1029,42 +1173,42 @@ export const Settings = () => {
                                     }
                                 });
                             }} className="flex items-center gap-2 bg-brand-primary text-white px-4 py-2 rounded-xl font-bold hover:bg-brand-primary/90 transition-colors border-none cursor-pointer shadow-lg shadow-brand-primary/20">
-                                <Plus size={18} /> Novo Local
+                                <Plus size={18} /> {t('locations.newLocation')}
                             </button>
                         </div>
 
                         {showLocForm && (
                             <div className="border border-brand-primary/20 bg-brand-primary/5 rounded-2xl p-6 space-y-4">
-                                <h4 className="font-bold text-graphite-900">{editingLocId ? 'Editar Local' : 'Novo Local'}</h4>
+                                <h4 className="font-bold text-graphite-900">{editingLocId ? t('locations.editLocation') : t('locations.newLocation')}</h4>
                                 <div className="space-y-6">
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <div>
-                                            <label className="text-xs font-bold text-graphite-500">Nome *</label>
-                                            <input value={locForm.name} onChange={e => setLocForm({ ...locForm, name: e.target.value })} placeholder="Ex: Clínica Centro" className="w-full bg-white border border-ice-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:border-brand-primary transition-colors" />
+                                            <label className="text-xs font-bold text-graphite-500">{t('locations.nameLabel')}</label>
+                                            <input value={locForm.name} onChange={e => setLocForm({ ...locForm, name: e.target.value })} placeholder={t('locations.namePlaceholder')} className="w-full bg-white border border-ice-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:border-brand-primary transition-colors" />
                                         </div>
                                         <div>
-                                            <label className="text-xs font-bold text-graphite-500">Tipo de Local *</label>
+                                            <label className="text-xs font-bold text-graphite-500">{t('locations.typeLabel')}</label>
                                             <select
                                                 value={locForm.type || 'clinica'}
                                                 onChange={e => setLocForm({ ...locForm, type: e.target.value as any })}
                                                 className="w-full bg-white border border-ice-200 rounded-xl px-3 py-2.5 text-sm font-bold text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors h-[42px]"
                                             >
-                                                <option value="consultorio">Consultório</option>
-                                                <option value="clinica">Clínica</option>
-                                                <option value="hospital">Hospital</option>
+                                                <option value="consultorio">{t('locations.typeOffice')}</option>
+                                                <option value="clinica">{t('locations.typeClinic')}</option>
+                                                <option value="hospital">{t('locations.typeHospital')}</option>
                                             </select>
                                         </div>
                                         <div>
-                                            <label className="text-xs font-bold text-graphite-500">Objetivos (separados por vírgula)</label>
+                                            <label className="text-xs font-bold text-graphite-500">{t('locations.objectivesLabel')}</label>
                                             <input
                                                 value={locForm.objectives?.join(', ')}
                                                 onChange={e => setLocForm({ ...locForm, objectives: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
-                                                placeholder="Ex: Consultas, Exames"
+                                                placeholder={t('locations.objectivesPlaceholder')}
                                                 className="w-full bg-white border border-ice-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:border-brand-primary transition-colors"
                                             />
                                         </div>
                                         <div>
-                                            <label className="text-xs font-bold text-graphite-500">País</label>
+                                            <label className="text-xs font-bold text-graphite-500">{t('locations.countryLabel')}</label>
                                             <select
                                                 value={locForm.country || tenants[0]?.country || DEFAULT_COUNTRY}
                                                 onChange={e => setLocForm({ ...locForm, country: e.target.value as CountryCode })}
@@ -1088,11 +1232,11 @@ export const Settings = () => {
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-ice-100 pt-6">
                                         <div className="space-y-4">
                                             <h4 className="text-xs font-black text-graphite-400 uppercase flex items-center gap-1.5">
-                                                <Navigation size={12} /> Geofence (Check-in Express)
+                                                <Navigation size={12} /> {t('locations.geofenceSectionTitle')}
                                             </h4>
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div>
-                                                    <label className="text-[10px] font-bold text-graphite-400 uppercase">Latitude</label>
+                                                    <label className="text-[10px] font-bold text-graphite-400 uppercase">{t('locations.latitudeLabel')}</label>
                                                     <input
                                                         type="number"
                                                         step="0.000001"
@@ -1104,7 +1248,7 @@ export const Settings = () => {
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="text-[10px] font-bold text-graphite-400 uppercase">Longitude</label>
+                                                    <label className="text-[10px] font-bold text-graphite-400 uppercase">{t('locations.longitudeLabel')}</label>
                                                     <input
                                                         type="number"
                                                         step="0.000001"
@@ -1120,11 +1264,12 @@ export const Settings = () => {
 
                                         <div className="space-y-4">
                                             <h4 className="text-xs font-black text-graphite-400 uppercase flex items-center gap-1.5">
-                                                <Clock size={12} /> Horário de Funcionamento
+                                                <Clock size={12} /> {t('locations.operatingHoursSectionTitle')}
                                             </h4>
                                             <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
                                                 {[1, 2, 3, 4, 5, 6, 0].map((day) => {
-                                                    const dayName = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][day];
+                                                    const weekdaysShort = t('locations.weekdaysShort', { returnObjects: true }) as string[];
+                                                    const dayName = weekdaysShort[day];
                                                     const hours = locForm.operating_hours?.[day] || { start: '08:00', end: '18:00', closed: true };
 
                                                     return (
@@ -1144,7 +1289,7 @@ export const Settings = () => {
                                                                     })}
                                                                     className="bg-ice-50 border border-ice-100 rounded px-1.5 py-0.5 text-[11px] font-bold focus:outline-none focus:border-brand-primary disabled:opacity-30"
                                                                 />
-                                                                <span className="text-[10px] text-graphite-300">até</span>
+                                                                <span className="text-[10px] text-graphite-300">{t('locations.until')}</span>
                                                                 <input
                                                                     type="time"
                                                                     disabled={hours.closed}
@@ -1170,7 +1315,7 @@ export const Settings = () => {
                                                                 className={`px-2 py-1 rounded text-[10px] font-black uppercase transition-colors border-none cursor-pointer ${!hours.closed ? 'bg-emerald-100 text-emerald-600' : 'bg-ice-100 text-graphite-400'
                                                                     }`}
                                                             >
-                                                                {!hours.closed ? 'Aberto' : 'Fechado'}
+                                                                {!hours.closed ? t('locations.open') : t('locations.closed')}
                                                             </button>
                                                         </div>
                                                     );
@@ -1181,21 +1326,21 @@ export const Settings = () => {
                                         <div className="col-span-1 md:col-span-3">
                                             <label className="text-xs font-bold text-graphite-500 flex items-center gap-1.5 mb-1.5">
                                                 <MapPinHouse size={14} className="text-brand-primary" />
-                                                Link do Google Maps (Manual)
+                                                {t('locations.googleMapsLabel')}
                                             </label>
-                                            <input 
-                                                value={locForm.google_maps_url || ''} 
-                                                onChange={e => setLocForm({ ...locForm, google_maps_url: e.target.value })} 
-                                                placeholder="https://maps.google.com/..." 
-                                                className="w-full bg-white border border-ice-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:border-brand-primary transition-colors" 
+                                            <input
+                                                value={locForm.google_maps_url || ''}
+                                                onChange={e => setLocForm({ ...locForm, google_maps_url: e.target.value })}
+                                                placeholder={t('locations.googleMapsPlaceholder')}
+                                                className="w-full bg-white border border-ice-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:border-brand-primary transition-colors"
                                             />
-                                            <p className="text-[10px] font-bold text-graphite-400 mt-1">Se deixado em branco, o sistema gerará um link automático baseado no endereço.</p>
+                                            <p className="text-[10px] font-bold text-graphite-400 mt-1">{t('locations.googleMapsHint')}</p>
                                         </div>
                                     </div>
                                 </div>
                                 <div className="flex gap-2 justify-end">
-                                    <button onClick={() => { setShowLocForm(false); setEditingLocId(null); }} className="px-4 py-2 rounded-xl font-bold text-graphite-500 hover:bg-ice-100 transition-colors border-none cursor-pointer"><X size={16} className="inline mr-1" />Cancelar</button>
-                                    <button onClick={handleSaveLocation} className="px-5 py-2 rounded-xl font-bold bg-brand-primary text-white hover:bg-brand-primary/90 transition-colors border-none cursor-pointer shadow-md"><Check size={16} className="inline mr-1" />Salvar</button>
+                                    <button onClick={() => { setShowLocForm(false); setEditingLocId(null); }} className="px-4 py-2 rounded-xl font-bold text-graphite-500 hover:bg-ice-100 transition-colors border-none cursor-pointer"><X size={16} className="inline mr-1" />{t('actions.cancel')}</button>
+                                    <button onClick={handleSaveLocation} className="px-5 py-2 rounded-xl font-bold bg-brand-primary text-white hover:bg-brand-primary/90 transition-colors border-none cursor-pointer shadow-md"><Check size={16} className="inline mr-1" />{t('actions.save')}</button>
                                 </div>
                             </div>
                         )}
@@ -1204,8 +1349,8 @@ export const Settings = () => {
                             {locations.length === 0 ? (
                                 <div className="text-center py-12 text-graphite-400">
                                     <MapPinHouse size={48} className="mx-auto mb-3 text-ice-300" />
-                                    <p className="font-bold">Nenhum local cadastrado</p>
-                                    <p className="text-sm">Adicione locais para vincular à agenda dos profissionais.</p>
+                                    <p className="font-bold">{t('locations.empty')}</p>
+                                    <p className="text-sm">{t('locations.emptyHint')}</p>
                                 </div>
                             ) : locations.map(loc => (
                                 <div key={loc.id} className="flex items-center gap-4 p-4 border border-ice-100 rounded-2xl hover:border-brand-primary/20 hover:shadow-sm transition-all group">
@@ -1230,7 +1375,7 @@ export const Settings = () => {
                                                 <div className="flex items-center gap-1.5 text-sm text-graphite-400 truncate">
                                                     <p className="truncate">{loc.address}</p>
                                                     {loc.google_maps_url && (
-                                                        <span title="Link manual configurado"><Navigation size={12} className="text-brand-primary" /></span>
+                                                        <span title={t('locations.manualLinkConfigured')}><Navigation size={12} className="text-brand-primary" /></span>
                                                     )}
                                                 </div>
                                             )}
@@ -1279,30 +1424,30 @@ export const Settings = () => {
                     <div className="p-8 space-y-6">
                         <div className="flex justify-between items-center">
                             <div>
-                                <h3 className="text-xl font-black text-graphite-900">Convênios Aceitos</h3>
-                                <p className="text-sm text-graphite-400">Cadastre os planos de saúde aceitos pela clínica.</p>
+                                <h3 className="text-xl font-black text-graphite-900">{t('insurance.title')}</h3>
+                                <p className="text-sm text-graphite-400">{t('insurance.subtitle')}</p>
                             </div>
                             <button onClick={() => { setShowInsForm(true); setEditingInsId(null); setInsForm({ name: '', code: '' }); }} className="flex items-center gap-2 bg-brand-primary text-white px-4 py-2 rounded-xl font-bold hover:bg-brand-primary/90 transition-colors border-none cursor-pointer shadow-lg shadow-brand-primary/20">
-                                <Plus size={18} /> Novo Convênio
+                                <Plus size={18} /> {t('insurance.newInsurance')}
                             </button>
                         </div>
 
                         {showInsForm && (
                             <div className="border border-brand-primary/20 bg-brand-primary/5 rounded-2xl p-6 space-y-4">
-                                <h4 className="font-bold text-graphite-900">{editingInsId ? 'Editar Convênio' : 'Novo Convênio'}</h4>
+                                <h4 className="font-bold text-graphite-900">{editingInsId ? t('insurance.editInsurance') : t('insurance.newInsurance')}</h4>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
-                                        <label className="text-xs font-bold text-graphite-500">Nome do Convênio *</label>
-                                        <input value={insForm.name} onChange={e => setInsForm({ ...insForm, name: e.target.value })} placeholder="Ex: Unimed" className="w-full bg-white border border-ice-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:border-brand-primary transition-colors" />
+                                        <label className="text-xs font-bold text-graphite-500">{t('insurance.nameLabel')}</label>
+                                        <input value={insForm.name} onChange={e => setInsForm({ ...insForm, name: e.target.value })} placeholder={t('insurance.namePlaceholder')} className="w-full bg-white border border-ice-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:border-brand-primary transition-colors" />
                                     </div>
                                     <div>
-                                        <label className="text-xs font-bold text-graphite-500">Código ANS (opcional)</label>
-                                        <input value={insForm.code} onChange={e => setInsForm({ ...insForm, code: e.target.value })} placeholder="Ex: 302147" className="w-full bg-white border border-ice-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:border-brand-primary transition-colors" />
+                                        <label className="text-xs font-bold text-graphite-500">{t('insurance.codeLabel')}</label>
+                                        <input value={insForm.code} onChange={e => setInsForm({ ...insForm, code: e.target.value })} placeholder={t('insurance.codePlaceholder')} className="w-full bg-white border border-ice-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:border-brand-primary transition-colors" />
                                     </div>
                                 </div>
                                 <div className="flex gap-2 justify-end">
-                                    <button onClick={() => { setShowInsForm(false); setEditingInsId(null); }} className="px-4 py-2 rounded-xl font-bold text-graphite-500 hover:bg-ice-100 transition-colors border-none cursor-pointer"><X size={16} className="inline mr-1" />Cancelar</button>
-                                    <button onClick={handleSaveInsurance} className="px-5 py-2 rounded-xl font-bold bg-brand-primary text-white hover:bg-brand-primary/90 transition-colors border-none cursor-pointer shadow-md"><Check size={16} className="inline mr-1" />Salvar</button>
+                                    <button onClick={() => { setShowInsForm(false); setEditingInsId(null); }} className="px-4 py-2 rounded-xl font-bold text-graphite-500 hover:bg-ice-100 transition-colors border-none cursor-pointer"><X size={16} className="inline mr-1" />{t('actions.cancel')}</button>
+                                    <button onClick={handleSaveInsurance} className="px-5 py-2 rounded-xl font-bold bg-brand-primary text-white hover:bg-brand-primary/90 transition-colors border-none cursor-pointer shadow-md"><Check size={16} className="inline mr-1" />{t('actions.save')}</button>
                                 </div>
                             </div>
                         )}
@@ -1311,15 +1456,15 @@ export const Settings = () => {
                             {insurancePlans.length === 0 ? (
                                 <div className="text-center py-12 text-graphite-400">
                                     <Shield size={48} className="mx-auto mb-3 text-ice-300" />
-                                    <p className="font-bold">Nenhum convênio cadastrado</p>
-                                    <p className="text-sm">Adicione convênios para vincular aos seus profissionais.</p>
+                                    <p className="font-bold">{t('insurance.empty')}</p>
+                                    <p className="text-sm">{t('insurance.emptyHint')}</p>
                                 </div>
                             ) : insurancePlans.map(plan => (
                                 <div key={plan.id} className="flex items-center gap-4 p-4 border border-ice-100 rounded-2xl hover:border-brand-primary/20 hover:shadow-sm transition-all group">
                                     <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 shrink-0"><Shield size={24} /></div>
                                     <div className="flex-1 min-w-0">
                                         <p className="font-bold text-graphite-900">{plan.name}</p>
-                                        {plan.code && <p className="text-xs text-graphite-400">ANS: {plan.code}</p>}
+                                        {plan.code && <p className="text-xs text-graphite-400">{t('locations.ansLabel')}: {plan.code}</p>}
                                     </div>
                                     <div className="flex gap-1">
                                         <button onClick={() => { setEditingInsId(plan.id); setInsForm({ name: plan.name, code: plan.code || '' }); setShowInsForm(true); }} className="p-2 text-graphite-400 hover:text-brand-primary hover:bg-ice-50 rounded-xl transition-colors border-none cursor-pointer"><Edit3 size={16} /></button>
@@ -1346,14 +1491,144 @@ export const Settings = () => {
                 {activeTab === 'communications' && (
                     <div className="p-8 space-y-8 max-w-3xl">
                         <div>
-                            <h3 className="text-xl font-black text-graphite-900">Comunicações (Softphone)</h3>
+                            <h3 className="text-xl font-black text-graphite-900">{t('communications.title')}</h3>
                             <p className="text-sm text-graphite-400 mt-1">
-                                Gerencie voz, SMS e números de telefone da plataforma. Powered by Telnyx.
+                                {t('communications.subtitle')}
                             </p>
                         </div>
 
                         {tenants.map((tenant) => (
                             <div key={tenant.id} className="space-y-6">
+
+                                {/* PAINEL DE CARTEIRA E CONSUMO DE COMUNICAÇÕES */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    {/* Card de Saldo */}
+                                    <div className="md:col-span-1 bg-gradient-to-br from-brand-primary to-indigo-600 rounded-2xl p-6 text-white shadow-lg flex flex-col justify-between">
+                                        <div>
+                                            <p className="text-xs font-black uppercase tracking-wider text-white/70">Saldo Disponível</p>
+                                            <h3 className="text-3xl font-black mt-2 font-mono">
+                                                R$ {wallet?.balance_brl ? Number(wallet.balance_brl).toFixed(2) : '0.00'}
+                                            </h3>
+                                        </div>
+                                        <div className="mt-6">
+                                            <button
+                                                onClick={() => setShowRechargeModal(true)}
+                                                className="w-full bg-white text-indigo-600 hover:bg-ice-50 font-black text-sm px-4 py-2.5 rounded-xl border-none cursor-pointer transition-transform hover:scale-[1.02] active:scale-[0.98] shadow-md flex items-center justify-center gap-1.5"
+                                            >
+                                                <Plus size={16} /> Adicionar Créditos
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Barras de Consumo */}
+                                    <div className="md:col-span-2 bg-white border border-ice-100 rounded-2xl p-6 flex flex-col justify-between">
+                                        <div>
+                                            <h4 className="text-sm font-black text-graphite-900 mb-4 flex items-center gap-2">
+                                                <Activity size={16} className="text-brand-primary" /> Consumo Acumulado
+                                            </h4>
+                                            
+                                            <div className="space-y-4">
+                                                {/* Barra Voz */}
+                                                <div>
+                                                    <div className="flex justify-between text-xs font-bold text-graphite-600 mb-1">
+                                                        <span>Voz ({consumptionSummary.voiceMin.toFixed(1)} min)</span>
+                                                        <span className="font-mono">R$ {consumptionSummary.voiceBrl.toFixed(2)}</span>
+                                                    </div>
+                                                    <div className="w-full bg-ice-100 h-2.5 rounded-full overflow-hidden">
+                                                        <div 
+                                                            className="bg-indigo-500 h-full rounded-full transition-all duration-500" 
+                                                            style={{ width: `${consumptionSummary.totalBrl > 0 ? (consumptionSummary.voiceBrl / consumptionSummary.totalBrl) * 100 : 0}%` }}
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                {/* Barra SMS */}
+                                                <div>
+                                                    <div className="flex justify-between text-xs font-bold text-graphite-600 mb-1">
+                                                        <span>SMS ({consumptionSummary.smsCount} envios)</span>
+                                                        <span className="font-mono">R$ {consumptionSummary.smsBrl.toFixed(2)}</span>
+                                                    </div>
+                                                    <div className="w-full bg-ice-100 h-2.5 rounded-full overflow-hidden">
+                                                        <div 
+                                                            className="bg-emerald-500 h-full rounded-full transition-all duration-500" 
+                                                            style={{ width: `${consumptionSummary.totalBrl > 0 ? (consumptionSummary.smsBrl / consumptionSummary.totalBrl) * 100 : 0}%` }}
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                {/* Barra Números */}
+                                                <div>
+                                                    <div className="flex justify-between text-xs font-bold text-graphite-600 mb-1">
+                                                        <span>Números de Telefone</span>
+                                                        <span className="font-mono">R$ {consumptionSummary.numbersBrl.toFixed(2)}</span>
+                                                    </div>
+                                                    <div className="w-full bg-ice-100 h-2.5 rounded-full overflow-hidden">
+                                                        <div 
+                                                            className="bg-amber-500 h-full rounded-full transition-all duration-500" 
+                                                            style={{ width: `${consumptionSummary.totalBrl > 0 ? (consumptionSummary.numbersBrl / consumptionSummary.totalBrl) * 100 : 0}%` }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* LISTA DE TRANSAÇÕES RECENTES */}
+                                <div className="bg-white border border-ice-100 rounded-2xl p-6">
+                                    <h4 className="text-sm font-black text-graphite-900 mb-4 flex items-center gap-2">
+                                        <Clock size={16} className="text-brand-primary" /> Histórico Recente de Transações
+                                    </h4>
+                                    
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left border-collapse">
+                                            <thead>
+                                                <tr className="border-b border-ice-50 text-[10px] font-black text-graphite-400 uppercase tracking-wider">
+                                                    <th className="py-2.5">Data</th>
+                                                    <th className="py-2.5">Descrição</th>
+                                                    <th className="py-2.5 text-center">Tipo</th>
+                                                    <th className="py-2.5 text-right">Valor</th>
+                                                    <th className="py-2.5 text-right">Saldo</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-ice-50 text-xs font-medium text-graphite-600">
+                                                {transactions.slice(0, 5).map(tx => {
+                                                    const isCredit = tx.type === 'recharge' || tx.type === 'refund' || tx.type === 'bonus';
+                                                    return (
+                                                        <tr key={tx.id} className="hover:bg-ice-50/50 transition-colors">
+                                                            <td className="py-3">
+                                                                {new Date(tx.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                                            </td>
+                                                            <td className="py-3 font-semibold text-graphite-800">{tx.description}</td>
+                                                            <td className="py-3 text-center">
+                                                                <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${
+                                                                    tx.type === 'recharge' ? 'bg-emerald-100 text-emerald-600' :
+                                                                    tx.type === 'deduction' ? 'bg-slate-100 text-slate-600' :
+                                                                    'bg-blue-100 text-blue-600'
+                                                                }`}>
+                                                                    {tx.type === 'recharge' ? 'Recarga' : tx.type === 'deduction' ? 'Débito' : tx.type}
+                                                                </span>
+                                                            </td>
+                                                            <td className={`py-3 text-right font-bold font-mono ${isCredit ? 'text-emerald-500' : 'text-slate-700'}`}>
+                                                                {isCredit ? '+' : '-'} R$ {Number(tx.amount_brl).toFixed(2)}
+                                                            </td>
+                                                            <td className="py-3 text-right font-bold font-mono text-graphite-400">
+                                                                R$ {Number(tx.balance_after_brl).toFixed(2)}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                                {transactions.length === 0 && (
+                                                    <tr>
+                                                        <td colSpan={5} className="py-6 text-center text-graphite-400 font-semibold">
+                                                            Nenhuma transação registrada ainda.
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
 
                                 {/* Banner informativo — modelo de revendedor */}
                                 <div className="flex items-start gap-3 p-4 rounded-2xl bg-blue-50 border border-blue-100">
@@ -1361,10 +1636,9 @@ export const Settings = () => {
                                         <Phone size={16} className="text-blue-600" />
                                     </div>
                                     <div>
-                                        <p className="text-sm font-black text-blue-800">Comunicações gerenciadas pela Traffio</p>
+                                        <p className="text-sm font-black text-blue-800">{t('communications.bannerTitle')}</p>
                                         <p className="text-xs text-blue-600 mt-0.5 leading-relaxed">
-                                            A infraestrutura de voz e SMS é provida diretamente pela plataforma.
-                                            Nenhuma credencial externa é necessária — basta ativar e contratar números abaixo.
+                                            {t('communications.bannerText')}
                                         </p>
                                     </div>
                                 </div>
@@ -1378,12 +1652,12 @@ export const Settings = () => {
                                             </div>
                                             <div>
                                                 <h4 className="text-sm font-black text-graphite-800">
-                                                    Softphone — Voz + SMS
+                                                    {t('communications.softphoneTitle')}
                                                 </h4>
                                                 <p className="text-xs text-graphite-400 mt-0.5">
                                                     {tenant.telnyx_enabled
-                                                        ? '✅ Ativo — widget de discagem disponível para toda a equipe'
-                                                        : 'Ativa chamadas e SMS pelo navegador para toda a equipe'}
+                                                        ? t('communications.softphoneActiveHint')
+                                                        : t('communications.softphoneInactiveHint')}
                                                 </p>
                                             </div>
                                         </div>
@@ -1403,10 +1677,10 @@ export const Settings = () => {
                                     {!tenant.telnyx_enabled && (
                                         <div className="mt-4 pt-4 border-t border-ice-50 grid grid-cols-2 gap-3">
                                             {[
-                                                { icon: Phone,        label: 'Chamadas pelo navegador',    sub: 'Sem app, sem telefone físico' },
-                                                { icon: MessageSquare, label: 'SMS bidirecional',           sub: 'Enviar e receber SMS' },
-                                                { icon: Voicemail,    label: 'Voicemail com gravação',     sub: 'Caixa postal digital' },
-                                                { icon: Hash,         label: 'Múltiplos números',          sub: 'Contratar por país/cidade' },
+                                                { icon: Phone,        label: t('communications.featureBrowserCalls'),    sub: t('communications.featureBrowserCallsSub') },
+                                                { icon: MessageSquare, label: t('communications.featureSms'),           sub: t('communications.featureSmsSub') },
+                                                { icon: Voicemail,    label: t('communications.featureVoicemail'),     sub: t('communications.featureVoicemailSub') },
+                                                { icon: Hash,         label: t('communications.featureMultipleNumbers'),          sub: t('communications.featureMultipleNumbersSub') },
                                             ].map((item) => (
                                                 <div key={item.label} className="flex items-start gap-2 p-3 bg-ice-50 rounded-xl">
                                                     <item.icon size={14} className="text-brand-primary mt-0.5 shrink-0" />
@@ -1425,9 +1699,9 @@ export const Settings = () => {
                                     <div className="bg-white border border-ice-100 rounded-2xl p-6">
                                         <div className="flex items-center justify-between">
                                             <div>
-                                                <h4 className="text-sm font-black text-graphite-800">Gravar todas as chamadas</h4>
+                                                <h4 className="text-sm font-black text-graphite-800">{t('communications.recordCallsTitle')}</h4>
                                                 <p className="text-xs text-graphite-400 mt-1">
-                                                    As gravações ficam disponíveis em Comunicações → Chamadas.
+                                                    {t('communications.recordCallsHint')}
                                                 </p>
                                             </div>
                                             <button
@@ -1443,17 +1717,17 @@ export const Settings = () => {
                                         </div>
 
                                         <div className="mt-4 pt-4 border-t border-ice-50">
-                                            <label className="text-[10px] font-bold text-graphite-400">Retenção de gravações</label>
+                                            <label className="text-[10px] font-bold text-graphite-400">{t('communications.retentionLabel')}</label>
                                             <select
                                                 defaultValue={tenant.telnyx_recording_retention_days ?? 90}
                                                 onBlur={(e) => handleSaveTenant(tenant.id, { telnyx_recording_retention_days: parseInt(e.target.value) })}
                                                 className="w-full mt-1 bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm text-graphite-700 focus:outline-none focus:border-brand-primary"
                                             >
-                                                <option value={30}>30 dias</option>
-                                                <option value={60}>60 dias</option>
-                                                <option value={90}>90 dias</option>
-                                                <option value={180}>180 dias</option>
-                                                <option value={365}>1 ano</option>
+                                                <option value={30}>{t('communications.retention30')}</option>
+                                                <option value={60}>{t('communications.retention60')}</option>
+                                                <option value={90}>{t('communications.retention90')}</option>
+                                                <option value={180}>{t('communications.retention180')}</option>
+                                                <option value={365}>{t('communications.retention365')}</option>
                                             </select>
                                         </div>
                                     </div>
@@ -1465,24 +1739,24 @@ export const Settings = () => {
                                         <div className="flex items-center justify-between">
                                             <h4 className="text-sm font-black text-graphite-800 flex items-center gap-2">
                                                 <Hash size={16} className="text-brand-primary" />
-                                                Números de Telefone
+                                                {t('communications.phoneNumbersTitle')}
                                             </h4>
                                             <div className="flex items-center gap-3">
                                                 <button
                                                     onClick={() => handleSync()}
                                                     disabled={syncing}
                                                     className="flex items-center gap-1.5 text-xs font-bold text-graphite-500 hover:text-brand-primary border-none bg-transparent cursor-pointer disabled:opacity-50"
-                                                    title="Sincronizar status com a Telnyx"
+                                                    title={t('communications.syncStatusTitle')}
                                                 >
                                                     <RefreshCw size={12} className={syncing ? 'animate-spin' : ''} />
-                                                    <span>{syncing ? 'Sincronizando...' : 'Sincronizar Status'}</span>
+                                                    <span>{syncing ? t('communications.syncing') : t('communications.syncStatus')}</span>
                                                 </button>
                                                 <span className="text-graphite-200">|</span>
                                                 <button
                                                     onClick={() => setShowBuyNumber(true)}
                                                     className="flex items-center gap-1 text-xs font-bold text-brand-primary hover:underline border-none bg-transparent cursor-pointer"
                                                 >
-                                                    <Plus size={12} /> Comprar número
+                                                    <Plus size={12} /> {t('communications.buyNumber')}
                                                 </button>
                                             </div>
                                         </div>
@@ -1506,10 +1780,10 @@ export const Settings = () => {
                                         <div>
                                             <h4 className="text-sm font-black text-graphite-800 flex items-center gap-2">
                                                 <MessageCircle size={16} className="text-brand-primary" />
-                                                SMS nas Automações
+                                                {t('communications.smsAutomationsTitle')}
                                             </h4>
                                             <p className="text-xs text-graphite-400 mt-1">
-                                                Permite enviar alertas de No-Show e NPS por SMS quando o paciente preferir.
+                                                {t('communications.smsAutomationsHint')}
                                             </p>
                                         </div>
                                         <button
@@ -1537,7 +1811,7 @@ export const Settings = () => {
                             <div className="flex-1 space-y-6">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="space-y-2">
-                                        <label className="text-sm font-bold text-graphite-900">Nome Completo</label>
+                                        <label className="text-sm font-bold text-graphite-900">{t('profile.fullNameLabel')}</label>
                                         <input
                                             type="text"
                                             value={profile.full_name}
@@ -1546,7 +1820,7 @@ export const Settings = () => {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-sm font-bold text-graphite-900">E-mail</label>
+                                        <label className="text-sm font-bold text-graphite-900">{t('profile.emailLabel')}</label>
                                         <input
                                             type="email"
                                             value={profile.email}
@@ -1555,22 +1829,22 @@ export const Settings = () => {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-sm font-bold text-graphite-900">Cargo na Plataforma</label>
+                                        <label className="text-sm font-bold text-graphite-900">{t('profile.roleLabel')}</label>
                                         <select
                                             value={profile.role}
                                             onChange={(e) => setProfile({ ...profile, role: e.target.value })}
                                             className="w-full bg-white border border-ice-200 rounded-xl px-4 py-3 font-medium text-graphite-900 focus:outline-none focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10 transition-all cursor-pointer"
                                         >
-                                            <option value="owner">Administrador do Tenant</option>
-                                            <option value="staff">Funcionário / Staff</option>
-                                            <option value="doctor">Profissional de Saúde</option>
+                                            <option value="owner">{t('profile.roleOwner')}</option>
+                                            <option value="staff">{t('profile.roleStaff')}</option>
+                                            <option value="doctor">{t('profile.roleDoctor')}</option>
                                             {profile.role === 'super_admin' && (
-                                                <option value="super_admin">Gestor da Plataforma (Super Admin)</option>
+                                                <option value="super_admin">{t('profile.roleSuperAdmin')}</option>
                                             )}
                                         </select>
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-sm font-bold text-graphite-900">Especialidade</label>
+                                        <label className="text-sm font-bold text-graphite-900">{t('profile.specialtyLabel')}</label>
                                         <input
                                             type="text"
                                             value={profile.specialty}
@@ -1579,7 +1853,7 @@ export const Settings = () => {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-sm font-bold text-graphite-900">CRM/Registro</label>
+                                        <label className="text-sm font-bold text-graphite-900">{t('profile.crmLabel')}</label>
                                         <input
                                             type="text"
                                             value={profile.crm}
@@ -1589,12 +1863,12 @@ export const Settings = () => {
                                     </div>
                                 </div>
                                 <div className="flex justify-end pt-4">
-                                    <button 
+                                    <button
                                         onClick={handleSaveProfile}
                                         className="flex items-center gap-2 bg-brand-primary text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-brand-primary/20 hover:scale-105 transition-transform border-none cursor-pointer"
                                     >
                                         <Check size={18} />
-                                        <span>Salvar Alterações</span>
+                                        <span>{t('profile.saveChanges')}</span>
                                     </button>
                                 </div>
                             </div>
@@ -1637,9 +1911,9 @@ export const Settings = () => {
                             </div>
                             <div>
                                 <h3 className="text-base font-black text-graphite-900 tracking-tight">
-                                    Conectar ao Meta
+                                    {t('metaConnectModal.title')}
                                 </h3>
-                                <p className="text-[10px] font-bold text-graphite-400">Escolha o que deseja habilitar</p>
+                                <p className="text-[10px] font-bold text-graphite-400">{t('metaConnectModal.subtitle')}</p>
                             </div>
                         </div>
                         <button
@@ -1659,9 +1933,9 @@ export const Settings = () => {
                                 className="mt-1 h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary cursor-pointer"
                             />
                             <div>
-                                <p className="font-black text-sm text-graphite-900 leading-none">Anúncios (Meta Ads)</p>
+                                <p className="font-black text-sm text-graphite-900 leading-none">{t('metaConnectModal.adsLabel')}</p>
                                 <p className="text-[11px] font-bold text-graphite-400 mt-1">
-                                    Sincronizar resultados de campanhas e ROI no painel do Analytics Pro.
+                                    {t('metaConnectModal.adsHint')}
                                 </p>
                             </div>
                         </label>
@@ -1674,9 +1948,9 @@ export const Settings = () => {
                                 className="mt-1 h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary cursor-pointer"
                             />
                             <div>
-                                <p className="font-black text-sm text-graphite-900 leading-none">Mensagens (Instagram &amp; Messenger)</p>
+                                <p className="font-black text-sm text-graphite-900 leading-none">{t('metaConnectModal.messagingLabel')}</p>
                                 <p className="text-[11px] font-bold text-graphite-400 mt-1">
-                                    Receber e responder directs do Instagram e Messenger em tempo real no Atendimento.
+                                    {t('metaConnectModal.messagingHint')}
                                 </p>
                             </div>
                         </label>
@@ -1687,7 +1961,7 @@ export const Settings = () => {
                             onClick={() => setMetaConnectModal(false)}
                             className="flex-1 py-3.5 bg-ice-50 hover:bg-ice-100 text-graphite-600 rounded-2xl font-black text-xs transition-colors border-none cursor-pointer"
                         >
-                            Cancelar
+                            {t('metaConnectModal.cancel')}
                         </button>
                         <button
                             disabled={!metaFeatures.ads && !metaFeatures.messaging}
@@ -1701,7 +1975,87 @@ export const Settings = () => {
                             }}
                             className="flex-1 py-3.5 bg-[#0081FB] hover:bg-blue-600 text-white rounded-2xl font-black text-xs transition-colors border-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                         >
-                            Continuar para Facebook
+                            {t('metaConnectModal.continueToFacebook')}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* ── Modal: Recarregar Carteira ───────────────────────────────────── */}
+        {showRechargeModal && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 sm:p-12 animate-in fade-in duration-200">
+                <div
+                    onClick={() => setShowRechargeModal(false)}
+                    className="absolute inset-0 bg-graphite-900/40 backdrop-blur-sm transition-opacity"
+                />
+                <div className="relative w-full max-w-md bg-white rounded-[32px] border border-ice-100 shadow-2xl p-8 space-y-6 animate-in fade-in zoom-in-95 duration-200">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center shrink-0">
+                                <Plus size={22} className="text-indigo-600" />
+                            </div>
+                            <div>
+                                <h3 className="text-base font-black text-graphite-900 tracking-tight">
+                                    Adicionar Créditos
+                                </h3>
+                                <p className="text-[10px] font-bold text-graphite-400">Recarga instantânea para comunicações</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setShowRechargeModal(false)}
+                            className="p-2 rounded-xl hover:bg-ice-50 border-none cursor-pointer transition-colors bg-transparent text-graphite-400"
+                        >
+                            <X size={16} />
+                        </button>
+                    </div>
+
+                    <div className="space-y-4">
+                        <label className="text-xs font-bold text-graphite-500">Selecione o valor da recarga</label>
+                        <div className="grid grid-cols-3 gap-3">
+                            {['50', '100', '200'].map(val => (
+                                <button
+                                    key={val}
+                                    type="button"
+                                    onClick={() => setRechargeAmount(val)}
+                                    className={`py-3 rounded-xl font-black text-sm cursor-pointer transition-all border ${
+                                        rechargeAmount === val
+                                            ? 'bg-brand-primary border-brand-primary text-white shadow-md'
+                                            : 'bg-ice-50 border-ice-200 text-graphite-600 hover:bg-ice-100'
+                                    }`}
+                                >
+                                    R$ {val}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="pt-2">
+                            <label className="text-xs font-bold text-graphite-500">Ou digite outro valor (R$)</label>
+                            <input
+                                type="number"
+                                min="10"
+                                value={rechargeAmount}
+                                onChange={e => setRechargeAmount(e.target.value)}
+                                className="w-full mt-1 bg-white border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium focus:outline-none focus:border-brand-primary transition-colors font-mono"
+                                placeholder="Min. R$ 10"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="flex gap-2 justify-end pt-4 border-t border-ice-50">
+                        <button
+                            onClick={() => setShowRechargeModal(false)}
+                            className="px-4 py-2.5 rounded-xl font-bold text-graphite-500 hover:bg-ice-100 transition-colors border-none cursor-pointer bg-transparent"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            onClick={handleRechargeWallet}
+                            disabled={recharging}
+                            className="px-6 py-2.5 rounded-xl font-bold bg-brand-primary text-white hover:bg-brand-primary/90 transition-colors border-none cursor-pointer shadow-md flex items-center gap-1.5 disabled:opacity-60"
+                        >
+                            {recharging && <RefreshCw size={14} className="animate-spin" />}
+                            Confirmar Recarga
                         </button>
                     </div>
                 </div>

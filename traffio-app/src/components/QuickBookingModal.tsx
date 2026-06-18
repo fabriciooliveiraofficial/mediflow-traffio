@@ -6,6 +6,7 @@ import { useToast } from '../contexts/ToastContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { clsx } from 'clsx';
 import { useLocaleFormat } from '../hooks/useLocaleFormat';
+import { useTranslation } from 'react-i18next';
 
 interface QuickBookingModalProps {
     isOpen: boolean;
@@ -18,6 +19,7 @@ export const QuickBookingModal: React.FC<QuickBookingModalProps> = ({ isOpen, on
     const { tenant } = useTenant();
     const { showToast } = useToast();
     const { formatSlot } = useLocaleFormat();
+    const { t } = useTranslation('agenda');
 
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
@@ -140,19 +142,19 @@ export const QuickBookingModal: React.FC<QuickBookingModalProps> = ({ isOpen, on
                 const res = data as { success: boolean; appointment_id?: string; reason?: string };
                 if (!res.success) {
                     if (res.reason === 'slot_taken') {
-                        throw new Error('Este horário já foi preenchido por outro atendente. Por favor, escolha outro horário.');
+                        throw new Error(t('quickBooking.errors.slotTaken'));
                     }
-                    throw new Error(res.reason || 'Erro desconhecido ao realizar agendamento.');
+                    throw new Error(res.reason || t('quickBooking.errors.unknown'));
                 }
 
-                showToast('success', 'Agendamento realizado com sucesso!');
+                showToast('success', t('quickBooking.toasts.success'));
                 setPaymentLink(`https://checkout.traffio.com/pay/${res.appointment_id}`);
                 setStep(4);
             } else {
-                throw new Error('Resposta do agendamento inválida.');
+                throw new Error(t('quickBooking.errors.invalidResponse'));
             }
         } catch (e: any) {
-            showToast('error', 'Erro ao agendar: ' + e.message);
+            showToast('error', t('quickBooking.errors.bookError', { message: e.message }));
             // Refresh slots on failure (especially slot_taken)
             loadSlots();
         } finally {
@@ -162,7 +164,7 @@ export const QuickBookingModal: React.FC<QuickBookingModalProps> = ({ isOpen, on
 
     const copyToClipboard = () => {
         if (!paymentLink) return;
-        navigator.clipboard.writeText(`Olá ${patientName}, aqui está o seu link para confirmação do agendamento: ${paymentLink}`);
+        navigator.clipboard.writeText(t('quickBooking.clipboardMessage', { name: patientName, link: paymentLink }));
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
@@ -183,8 +185,8 @@ export const QuickBookingModal: React.FC<QuickBookingModalProps> = ({ isOpen, on
                                         <Calendar size={24} />
                                     </div>
                                     <div>
-                                        <h3 className="text-xl font-black text-graphite-900 tracking-tight">Agendamento Expresso</h3>
-                                        <p className="text-sm text-graphite-400 font-medium">Paciente: <span className="text-graphite-900 font-bold">{patientName}</span></p>
+                                        <h3 className="text-xl font-black text-graphite-900 tracking-tight">{t('quickBooking.title')}</h3>
+                                        <p className="text-sm text-graphite-400 font-medium">{t('quickBooking.patientPrefix')} <span className="text-graphite-900 font-bold">{patientName}</span></p>
                                     </div>
                                 </div>
                                 <button onClick={onClose} className="w-10 h-10 rounded-xl bg-white border border-ice-200 flex items-center justify-center text-graphite-400 transition-all hover:text-red-500">
@@ -206,7 +208,7 @@ export const QuickBookingModal: React.FC<QuickBookingModalProps> = ({ isOpen, on
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div className="space-y-3">
                                                 <label className="text-xs font-black text-graphite-700 uppercase tracking-widest flex items-center gap-2">
-                                                    <User size={14} className="text-brand-primary" /> Profissional
+                                                    <User size={14} className="text-brand-primary" /> {t('quickBooking.professionalLabel')}
                                                 </label>
                                                 <div className="grid gap-2">
                                                     {doctors.map(doc => (
@@ -218,7 +220,7 @@ export const QuickBookingModal: React.FC<QuickBookingModalProps> = ({ isOpen, on
                                                             </div>
                                                             <div>
                                                                 <p className="text-sm font-bold text-graphite-900">{doc.full_name}</p>
-                                                                <p className="text-[10px] text-graphite-400 font-bold uppercase">{doc.specialty || 'Geral'}</p>
+                                                                <p className="text-[10px] text-graphite-400 font-bold uppercase">{doc.specialty || t('quickBooking.generalFallback')}</p>
                                                             </div>
                                                         </button>
                                                     ))}
@@ -226,7 +228,7 @@ export const QuickBookingModal: React.FC<QuickBookingModalProps> = ({ isOpen, on
                                             </div>
                                             <div className="space-y-3">
                                                 <label className="text-xs font-black text-graphite-700 uppercase tracking-widest flex items-center gap-2">
-                                                    <MapPin size={14} className="text-brand-primary" /> Unidade
+                                                    <MapPin size={14} className="text-brand-primary" /> {t('quickBooking.unitLabel')}
                                                 </label>
                                                 <div className="grid gap-2">
                                                     {locations.map(loc => (
@@ -243,7 +245,7 @@ export const QuickBookingModal: React.FC<QuickBookingModalProps> = ({ isOpen, on
                                             </div>
                                         </div>
                                         <button disabled={!selectedDoctor || !selectedLocation} onClick={() => setStep(2)} className="w-full bg-brand-primary text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 disabled:opacity-30">
-                                            Próximo Passo <ChevronRight size={18} />
+                                            {t('quickBooking.nextStep')} <ChevronRight size={18} />
                                         </button>
                                     </div>
                                 )}
@@ -252,10 +254,10 @@ export const QuickBookingModal: React.FC<QuickBookingModalProps> = ({ isOpen, on
                                 {step === 2 && (
                                     <div className="space-y-6">
                                         <div className="space-y-3">
-                                            <label className="text-xs font-black text-graphite-700 uppercase tracking-widest">Procedimento / Categoria</label>
+                                            <label className="text-xs font-black text-graphite-700 uppercase tracking-widest">{t('quickBooking.procedureLabel')}</label>
                                             <div className="grid grid-cols-1 gap-2">
                                                 {services.length === 0 ? (
-                                                    <p className="text-sm text-graphite-400 text-center py-8">Carregando serviços...</p>
+                                                    <p className="text-sm text-graphite-400 text-center py-8">{t('quickBooking.loadingServices')}</p>
                                                 ) : services.map(s => (
                                                     <button key={s.id} onClick={() => setSelectedService(s)}
                                                         className={clsx("w-full p-4 rounded-2xl border text-left flex items-center justify-between transition-all", selectedService?.id === s.id ? "border-brand-primary bg-brand-primary/5 ring-2 ring-brand-primary/10" : "border-ice-200 bg-ice-50/30 hover:border-brand-primary/30")}
@@ -275,9 +277,9 @@ export const QuickBookingModal: React.FC<QuickBookingModalProps> = ({ isOpen, on
                                             </div>
                                         </div>
                                         <div className="flex gap-3">
-                                            <button onClick={() => setStep(1)} className="flex-1 border border-ice-200 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 text-graphite-500">Voltar</button>
+                                            <button onClick={() => setStep(1)} className="flex-1 border border-ice-200 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 text-graphite-500">{t('quickBooking.back')}</button>
                                             <button disabled={!selectedService} onClick={() => setStep(3)} className="flex-[2] bg-brand-primary text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 disabled:opacity-30">
-                                                Ver Disponibilidade <ChevronRight size={18} />
+                                                {t('quickBooking.seeAvailability')} <ChevronRight size={18} />
                                             </button>
                                         </div>
                                     </div>
@@ -287,11 +289,11 @@ export const QuickBookingModal: React.FC<QuickBookingModalProps> = ({ isOpen, on
                                 {step === 3 && (
                                     <div className="space-y-6">
                                         <div className="space-y-3">
-                                            <label className="text-xs font-black text-graphite-700 uppercase tracking-widest text-center block">Horários Disponíveis</label>
+                                            <label className="text-xs font-black text-graphite-700 uppercase tracking-widest text-center block">{t('quickBooking.availableSlotsLabel')}</label>
                                             {loading ? (
                                                 <div className="flex flex-col items-center justify-center py-12 gap-3 text-brand-primary">
                                                     <Loader2 className="animate-spin" size={32} />
-                                                    <p className="text-sm font-bold animate-pulse">Sincronizando agendas...</p>
+                                                    <p className="text-sm font-bold animate-pulse">{t('quickBooking.syncingAgendas')}</p>
                                                 </div>
                                             ) : (
                                                 <div className="space-y-6">
@@ -315,9 +317,9 @@ export const QuickBookingModal: React.FC<QuickBookingModalProps> = ({ isOpen, on
                                             )}
                                         </div>
                                         <div className="flex gap-3">
-                                            <button onClick={() => setStep(2)} className="flex-1 border border-ice-200 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 text-graphite-500">Voltar</button>
+                                            <button onClick={() => setStep(2)} className="flex-1 border border-ice-200 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 text-graphite-500">{t('quickBooking.back')}</button>
                                             <button disabled={!selectedSlot || loading} onClick={handleConfirmBooking} className="flex-[2] bg-brand-primary text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 disabled:opacity-30">
-                                                Confirmar Agendamento <CheckCircle2 size={18} />
+                                                {t('quickBooking.confirmAppointment')} <CheckCircle2 size={18} />
                                             </button>
                                         </div>
                                     </div>
@@ -330,12 +332,12 @@ export const QuickBookingModal: React.FC<QuickBookingModalProps> = ({ isOpen, on
                                             <CheckCircle2 size={40} />
                                         </div>
                                         <div className="text-center space-y-2">
-                                            <h4 className="text-2xl font-black text-graphite-900">Agendado com Sucesso!</h4>
-                                            <p className="text-sm text-graphite-400 max-w-sm">O horário foi reservado. Agora você pode enviar o link de pagamento para o paciente confirmar.</p>
+                                            <h4 className="text-2xl font-black text-graphite-900">{t('quickBooking.successTitle')}</h4>
+                                            <p className="text-sm text-graphite-400 max-w-sm">{t('quickBooking.successText')}</p>
                                         </div>
 
                                         <div className="w-full bg-ice-50 p-6 rounded-3xl border border-ice-100 space-y-4">
-                                            <label className="text-[10px] font-black text-graphite-400 uppercase tracking-widest text-center block">Link de Pagamento Gerado</label>
+                                            <label className="text-[10px] font-black text-graphite-400 uppercase tracking-widest text-center block">{t('quickBooking.paymentLinkLabel')}</label>
                                             <div className="flex items-center gap-3 bg-white p-3 rounded-2xl border border-ice-200">
                                                 <CreditCard className="text-brand-primary shrink-0" size={20} />
                                                 <p className="text-xs font-bold text-graphite-900 truncate flex-1">{paymentLink}</p>
@@ -345,10 +347,10 @@ export const QuickBookingModal: React.FC<QuickBookingModalProps> = ({ isOpen, on
                                             </div>
                                             <div className="flex gap-2">
                                                 <button onClick={copyToClipboard} className="flex-1 py-3 bg-white text-graphite-700 border border-ice-200 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-ice-50 transition-colors">
-                                                    Copiar Mensagem
+                                                    {t('quickBooking.copyMessage')}
                                                 </button>
                                                 <button onClick={onClose} className="flex-1 py-3 bg-brand-primary text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-brand-primary/90 transition-colors shadow-lg shadow-brand-primary/20">
-                                                    Fechar
+                                                    {t('quickBooking.close')}
                                                 </button>
                                             </div>
                                         </div>

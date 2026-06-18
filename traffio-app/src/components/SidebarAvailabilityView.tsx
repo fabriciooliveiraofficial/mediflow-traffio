@@ -6,6 +6,7 @@ import { smartSchedulingService } from '../services/smartSchedulingService';
 import type { SmartSlot } from '../services/smartSchedulingService';
 import { clsx } from 'clsx';
 import { useLocaleFormat } from '../hooks/useLocaleFormat';
+import { useTranslation } from 'react-i18next';
 
 interface SidebarAvailabilityViewProps {
   onBack: () => void;
@@ -15,6 +16,7 @@ interface SidebarAvailabilityViewProps {
 export function SidebarAvailabilityView({ onBack, onBookSlot }: SidebarAvailabilityViewProps) {
   const { tenant } = useTenant();
   const { formatSlot } = useLocaleFormat();
+  const { t } = useTranslation('agenda');
   const [doctors, setDoctors] = useState<any[]>([]);
   const [selectedDoctor, setSelectedDoctor] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
@@ -88,15 +90,15 @@ export function SidebarAvailabilityView({ onBack, onBookSlot }: SidebarAvailabil
           <ChevronLeft className="w-5 h-5" />
         </button>
         <div className="text-white">
-          <p className="text-xs font-bold opacity-80 uppercase tracking-tighter">Disponibilidade</p>
-          <p className="text-sm font-bold">Consultar Horários</p>
+          <p className="text-xs font-bold opacity-80 uppercase tracking-tighter">{t('sidebarAvailability.headerLabel')}</p>
+          <p className="text-sm font-bold">{t('sidebarAvailability.headerTitle')}</p>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {/* Doctor selector */}
         <div className="space-y-1.5">
-          <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider ml-1">Profissional</label>
+          <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider ml-1">{t('sidebarAvailability.professionalLabel')}</label>
           {loadingDoctors ? (
             <div className="py-4 flex justify-center"><Loader2 className="animate-spin text-indigo-600 w-5 h-5" /></div>
           ) : (
@@ -105,7 +107,7 @@ export function SidebarAvailabilityView({ onBack, onBookSlot }: SidebarAvailabil
               onChange={e => handleDoctorChange(e.target.value)}
               className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <option value="">Selecione...</option>
+              <option value="">{t('sidebarAvailability.selectPlaceholder')}</option>
               {doctors.map(doc => (
                 <option key={doc.id} value={doc.id}>{doc.full_name}{doc.specialty ? ` · ${doc.specialty}` : ''}</option>
               ))}
@@ -116,7 +118,7 @@ export function SidebarAvailabilityView({ onBack, onBookSlot }: SidebarAvailabil
         {/* Date selector */}
         {selectedDoctor && (
           <div className="space-y-1.5">
-            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider ml-1">Data</label>
+            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider ml-1">{t('sidebarAvailability.dateLabel')}</label>
             <div className="grid grid-cols-2 gap-1.5 max-h-[180px] overflow-y-auto">
               {dateOptions.map(opt => (
                 <button
@@ -140,22 +142,22 @@ export function SidebarAvailabilityView({ onBack, onBookSlot }: SidebarAvailabil
         {selectedDoctor && selectedDate && (
           <div className="space-y-2">
             <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider ml-1">
-              Horários {loading ? '' : `(${slots.length})`}
+              {t('sidebarAvailability.slotsLabel')} {loading ? '' : `(${slots.length})`}
             </label>
             {loading ? (
               <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-indigo-600" /></div>
             ) : slots.length === 0 ? (
               <div className="py-8 text-center">
                 <Calendar className="w-8 h-8 mx-auto text-gray-300 mb-2" />
-                <p className="text-xs text-gray-400">Nenhum horário disponível nesta data</p>
+                <p className="text-xs text-gray-400">{t('sidebarAvailability.noSlotsAvailable')}</p>
               </div>
             ) : (
               <>
                 {/* Legend */}
                 <div className="flex items-center gap-3 text-[9px] text-gray-400 mb-1">
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gray-300" /> Regular</span>
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-400" /> Prime</span>
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400" /> Liberado</span>
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gray-300" /> {t('sidebarAvailability.legendRegular')}</span>
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-400" /> {t('sidebarAvailability.legendPrime')}</span>
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400" /> {t('sidebarAvailability.legendReleased')}</span>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   {slots.map((slot, i) => (

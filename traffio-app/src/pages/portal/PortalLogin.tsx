@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useOutletContext, useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 import { Mail, Lock, Eye, EyeOff, LogIn } from 'lucide-react';
 
 export function PortalLogin() {
+    const { t } = useTranslation('portal');
     // @ts-ignore
     const { tenant } = useOutletContext<{ tenant: any }>();
     const navigate = useNavigate();
@@ -59,7 +61,7 @@ export function PortalLogin() {
             }
         } catch (err: any) {
             console.error(err);
-            setError('E-mail ou senha incorretos.');
+            setError(t('login.errors.invalidCredentials'));
         } finally {
             setLoading(false);
         }
@@ -88,7 +90,7 @@ export function PortalLogin() {
             navigate(`/portal/${tenant.slug}/dashboard`);
         } catch (err: any) {
             console.error('Join error:', err);
-            setError('Erro ao vincular à clínica: ' + err.message);
+            setError(t('login.errors.joinError', { message: err.message }));
             setStatus('idle');
         }
     };
@@ -97,8 +99,8 @@ export function PortalLogin() {
         return (
             <div className="text-center space-y-6">
                 <div className="p-4 bg-yellow-50 rounded-xl border border-yellow-200 text-yellow-800 bg-opacity-50">
-                    <p className="font-semibold text-lg">Você já tem uma conta!</p>
-                    <p className="text-sm mt-1 opacity-90">Mas ainda não está vinculado a <strong>{tenant.name}</strong>.</p>
+                    <p className="font-semibold text-lg">{t('login.alreadyHaveAccount')}</p>
+                    <p className="text-sm mt-1 opacity-90">{t('login.notLinkedYetPrefix')} <strong>{tenant.name}</strong>{t('login.notLinkedYetSuffix')}</p>
                 </div>
 
                 <button
@@ -107,7 +109,7 @@ export function PortalLogin() {
                     className="w-full py-3.5 px-4 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5 disabled:opacity-50 disabled:transform-none"
                     style={{ backgroundColor: tenant.color_primary }}
                 >
-                    {status === 'joining' ? 'Vinculando...' : 'Entrar nesta Clínica'}
+                    {status === 'joining' ? t('login.joining') : t('login.joinClinic')}
                 </button>
 
                 <button
@@ -118,7 +120,7 @@ export function PortalLogin() {
                     }}
                     className="text-sm text-gray-500 hover:text-gray-700 font-medium"
                 >
-                    Sair e usar outra conta
+                    {t('login.signOutSwitch')}
                 </button>
             </div>
         );
@@ -127,8 +129,8 @@ export function PortalLogin() {
     return (
         <div className="space-y-8 font-sans">
             <div className="text-center space-y-2">
-                <h2 className="text-2xl font-bold text-gray-900">Acesse sua conta</h2>
-                <p className="text-gray-500">Gerencie seus agendamentos de forma simples</p>
+                <h2 className="text-2xl font-bold text-gray-900">{t('login.title')}</h2>
+                <p className="text-gray-500">{t('login.subtitle')}</p>
             </div>
 
             <form onSubmit={handleLogin} className="space-y-5">
@@ -140,7 +142,7 @@ export function PortalLogin() {
                 )}
 
                 <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Email</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">{t('login.email')}</label>
                     <div className="relative group">
                         <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                             <Mail className="h-5 w-5 text-gray-400 group-focus-within:text-primary transition-colors" style={{ color: undefined }} />
@@ -153,15 +155,15 @@ export function PortalLogin() {
                             style={{ '--tw-ring-color': tenant.color_primary, borderColor: undefined } as any}
                             value={formData.email}
                             onChange={e => setFormData({ ...formData, email: e.target.value })}
-                            placeholder="seu@email.com"
+                            placeholder={t('login.emailPlaceholder')}
                         />
                     </div>
                 </div>
 
                 <div className="space-y-1.5">
                     <div className="flex justify-between items-center ml-1">
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Senha</label>
-                        <Link to="#" className="text-xs font-semibold text-gray-500 hover:text-gray-800 transition-colors">Esqueceu?</Link>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">{t('login.password')}</label>
+                        <Link to="#" className="text-xs font-semibold text-gray-500 hover:text-gray-800 transition-colors">{t('login.forgotPassword')}</Link>
                     </div>
                     <div className="relative group">
                         <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
@@ -174,7 +176,7 @@ export function PortalLogin() {
                             style={{ '--tw-ring-color': tenant.color_primary } as any}
                             value={formData.password}
                             onChange={e => setFormData({ ...formData, password: e.target.value })}
-                            placeholder="••••••"
+                            placeholder={t('login.passwordPlaceholder')}
                         />
                         <button
                             type="button"
@@ -196,7 +198,7 @@ export function PortalLogin() {
                         <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     ) : (
                         <>
-                            <span>Entrar</span>
+                            <span>{t('login.submit')}</span>
                         </>
                     )}
                 </button>
@@ -204,13 +206,13 @@ export function PortalLogin() {
 
             <div className="text-center pt-2">
                 <p className="text-sm text-gray-600">
-                    Não tem uma conta?{' '}
+                    {t('login.noAccount')}{' '}
                     <Link
                         to={`/portal/${tenant.slug}/register`}
                         className="font-bold hover:underline"
                         style={{ color: tenant.color_primary }}
                     >
-                        Criar conta
+                        {t('login.createAccount')}
                     </Link>
                 </p>
             </div>

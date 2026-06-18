@@ -1,1 +1,107 @@
-{}
+{
+  "mestra": {
+    "today": "Hoje",
+    "selectProfessional": "Selecione ao menos um profissional",
+    "appointmentsCount_one": "{{count}} agendado",
+    "appointmentsCount_other": "{{count}} agendados",
+    "freeSlotsCount_one": "{{count}} livre",
+    "freeSlotsCount_other": "{{count}} livres",
+    "patientFallback": "Paciente",
+    "consultaFallback": "Consulta",
+    "slotBadge": {
+      "released": "Liberado",
+      "prime": "Nobre",
+      "regular": "Regular"
+    },
+    "bookingModal": {
+      "title": "Novo Agendamento",
+      "patientLabel": "Paciente *",
+      "patientSearchPlaceholder": "Buscar por nome...",
+      "patientTypeLabel": "Tipo de Paciente",
+      "private": "Particular",
+      "insurance": "Convênio",
+      "noInsurancePlans": "Este profissional não tem convênios vinculados",
+      "selectInsurancePlaceholder": "Selecione o convênio",
+      "appointmentTypeLabel": "Tipo de Consulta",
+      "selectTypePlaceholder": "Selecione o tipo",
+      "notesLabel": "Observações",
+      "notesPlaceholder": "Observações opcionais...",
+      "cancel": "Cancelar",
+      "confirm": "Confirmar"
+    },
+    "editModal": {
+      "statusLabel": "Status",
+      "statusConfirmed": "Confirmado",
+      "statusCheckin": "Check-in",
+      "statusCancel": "Cancelar",
+      "statusNoshow": "No-Show",
+      "slotColonLabel": "Slot:",
+      "notesLabel": "Observações",
+      "notesPlaceholder": "Observações...",
+      "close": "Fechar",
+      "save": "Salvar",
+      "receivePayment": "Receber Pagamento",
+      "deleteAppointment": "Excluir Agendamento"
+    },
+    "confirmDelete": {
+      "title": "Excluir Agendamento?",
+      "text": "Esta ação não pode ser desfeita.",
+      "cancel": "Cancelar",
+      "confirm": "Excluir"
+    },
+    "toasts": {
+      "bookedFor": "Agendamento criado para {{name}}!",
+      "bookError": "Erro ao agendar: {{message}}",
+      "statusUpdated": "Status atualizado!",
+      "genericError": "Erro: {{message}}",
+      "notesSaved": "Notas salvas!",
+      "appointmentRemoved": "Agendamento removido!",
+      "appointmentMoved": "Agendamento movido!",
+      "moveError": "Erro ao mover: {{message}}",
+      "durationUpdated": "Duração atualizada!",
+      "resizeError": "Erro ao redimensionar: {{message}}"
+    }
+  },
+  "quickBooking": {
+    "title": "Agendamento Expresso",
+    "patientPrefix": "Paciente:",
+    "professionalLabel": "Profissional",
+    "unitLabel": "Unidade",
+    "generalFallback": "Geral",
+    "nextStep": "Próximo Passo",
+    "procedureLabel": "Procedimento / Categoria",
+    "loadingServices": "Carregando serviços...",
+    "back": "Voltar",
+    "seeAvailability": "Ver Disponibilidade",
+    "availableSlotsLabel": "Horários Disponíveis",
+    "syncingAgendas": "Sincronizando agendas...",
+    "confirmAppointment": "Confirmar Agendamento",
+    "successTitle": "Agendado com Sucesso!",
+    "successText": "O horário foi reservado. Agora você pode enviar o link de pagamento para o paciente confirmar.",
+    "paymentLinkLabel": "Link de Pagamento Gerado",
+    "copyMessage": "Copiar Mensagem",
+    "close": "Fechar",
+    "clipboardMessage": "Olá {{name}}, aqui está o seu link para confirmação do agendamento: {{link}}",
+    "errors": {
+      "slotTaken": "Este horário já foi preenchido por outro atendente. Por favor, escolha outro horário.",
+      "unknown": "Erro desconhecido ao realizar agendamento.",
+      "invalidResponse": "Resposta do agendamento inválida.",
+      "bookError": "Erro ao agendar: {{message}}"
+    },
+    "toasts": {
+      "success": "Agendamento realizado com sucesso!"
+    }
+  },
+  "sidebarAvailability": {
+    "headerLabel": "Disponibilidade",
+    "headerTitle": "Consultar Horários",
+    "professionalLabel": "Profissional",
+    "selectPlaceholder": "Selecione...",
+    "dateLabel": "Data",
+    "slotsLabel": "Horários",
+    "noSlotsAvailable": "Nenhum horário disponível nesta data",
+    "legendRegular": "Regular",
+    "legendPrime": "Prime",
+    "legendReleased": "Liberado"
+  }
+}

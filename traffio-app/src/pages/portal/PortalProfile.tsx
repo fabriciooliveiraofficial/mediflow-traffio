@@ -1,10 +1,12 @@
 import { useOutletContext, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { User, Mail, Phone, Calendar, CreditCard, LogOut, ArrowLeft } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { formatPhone, phoneFlag } from '../../lib/formatPhone';
 import { formatDisplayDate } from '../../lib/dateUtils';
 
 export function PortalProfile() {
+    const { t } = useTranslation('portal');
     // @ts-ignore
     const { tenant, patient } = useOutletContext<{ tenant: any; patient: any }>();
     const navigate = useNavigate();
@@ -25,7 +27,7 @@ export function PortalProfile() {
                 >
                     <ArrowLeft size={20} />
                 </button>
-                <h1 className="text-2xl font-black text-gray-900 tracking-tight">Meu Perfil</h1>
+                <h1 className="text-2xl font-black text-gray-900 tracking-tight">{t('profile.title')}</h1>
             </div>
 
             <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
@@ -42,37 +44,37 @@ export function PortalProfile() {
                 <div className="pt-14 p-6 space-y-8">
                     {/* Basic Info */}
                     <div>
-                        <h2 className="text-lg font-bold text-gray-900 mb-4">Informações Pessoais</h2>
+                        <h2 className="text-lg font-bold text-gray-900 mb-4">{t('profile.personalInfo')}</h2>
                         <div className="space-y-4">
                             <div className="flex items-center gap-4 text-gray-600">
                                 <User className="text-gray-400" size={20} />
                                 <div>
                                     <p className="text-sm font-medium text-gray-900">{patient.full_name}</p>
-                                    <p className="text-xs text-gray-500">Nome Completo</p>
+                                    <p className="text-xs text-gray-500">{t('profile.fullName')}</p>
                                 </div>
                             </div>
 
                             <div className="flex items-center gap-4 text-gray-600">
                                 <Mail className="text-gray-400" size={20} />
                                 <div>
-                                    <p className="text-sm font-medium text-gray-900">{patient.email || 'Não informado'}</p>
-                                    <p className="text-xs text-gray-500">E-mail</p>
+                                    <p className="text-sm font-medium text-gray-900">{patient.email || t('profile.notInformed')}</p>
+                                    <p className="text-xs text-gray-500">{t('profile.email')}</p>
                                 </div>
                             </div>
 
                             <div className="flex items-center gap-4 text-gray-600">
                                 <Phone className="text-gray-400" size={20} />
                                 <div>
-                                    <p className="text-sm font-medium text-gray-900">{patient.phone ? `${phoneFlag(patient.phone)} ${formatPhone(patient.phone)}` : 'Não informado'}</p>
-                                    <p className="text-xs text-gray-500">Telefone</p>
+                                    <p className="text-sm font-medium text-gray-900">{patient.phone ? `${phoneFlag(patient.phone)} ${formatPhone(patient.phone)}` : t('profile.notInformed')}</p>
+                                    <p className="text-xs text-gray-500">{t('profile.phone')}</p>
                                 </div>
                             </div>
 
                             <div className="flex items-center gap-4 text-gray-600">
                                 <CreditCard className="text-gray-400" size={20} />
                                 <div>
-                                    <p className="text-sm font-medium text-gray-900">{patient.cpf || 'Não informado'}</p>
-                                    <p className="text-xs text-gray-500">CPF</p>
+                                    <p className="text-sm font-medium text-gray-900">{patient.cpf || t('profile.notInformed')}</p>
+                                    <p className="text-xs text-gray-500">{t('profile.documentNumber')}</p>
                                 </div>
                             </div>
 
@@ -81,7 +83,7 @@ export function PortalProfile() {
                                     <Calendar className="text-gray-400" size={20} />
                                     <div>
                                         <p className="text-sm font-medium text-gray-900">{formatDisplayDate(patient.birth_date)}</p>
-                                        <p className="text-xs text-gray-500">Data de Nascimento</p>
+                                        <p className="text-xs text-gray-500">{t('profile.birthDate')}</p>
                                     </div>
                                 </div>
                             )}
@@ -91,11 +93,11 @@ export function PortalProfile() {
                     {/* Insurance Info */}
                     {patient.insurance_provider && (
                         <div>
-                            <h2 className="text-lg font-bold text-gray-900 mb-4">Convênio Médico</h2>
+                            <h2 className="text-lg font-bold text-gray-900 mb-4">{t('profile.insurance')}</h2>
                             <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
                                 <p className="font-bold text-gray-900">{patient.insurance_provider}</p>
                                 <p className="text-sm text-gray-500 mt-1">
-                                    Carteirinha: <span className="font-mono">{patient.insurance_card_number || 'Pendente'}</span>
+                                    {t('profile.cardNumber')} <span className="font-mono">{patient.insurance_card_number || t('profile.cardPending')}</span>
                                 </p>
                             </div>
                         </div>
@@ -108,7 +110,7 @@ export function PortalProfile() {
                             className="w-full flex justify-center items-center gap-2 py-3 px-4 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl font-bold transition-colors"
                         >
                             <LogOut size={18} />
-                            Desconectar minha conta
+                            {t('profile.signOut')}
                         </button>
                     </div>
                 </div>

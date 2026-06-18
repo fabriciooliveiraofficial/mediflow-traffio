@@ -12,6 +12,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { corsHeaders } from "../_shared/cors.ts";
+import { getNumberPricing } from "../_shared/pricing.ts";
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -63,6 +64,22 @@ serve(async (req: Request) => {
         capabilities: { voice: true, sms: true },
       }, { onConflict: "tenant_id,phone_number" });
 
+      // Registrar uso: aquisição de número (KYC aprovado)
+      const pricing = getNumberPricing(order.country_code);
+      const billingPeriod = new Date();
+      const periodStr = `${billingPeriod.getFullYear()}-${String(billingPeriod.getMonth() + 1).padStart(2, "0")}-01`;
+      await supabase.from("tenant_usage_log").insert({
+        tenant_id:           order.tenant_id,
+        resource_type:       "number_purchase",
+        quantity:            1,
+        unit_cost_usd:       pricing.unitCostUsd,
+        total_cost_usd:      pricing.unitCostUsd,
+        billing_period:      periodStr,
+        tenant_phone_number: phoneNumber,
+      }).catch((e: any) => {
+        console.error(`[telnyx-order-webhook] Failed to insert number_purchase usage log: ${e.message}`);
+      });
+
       // Marcar pedido como completed
       await supabase
         .from("number_order_requests")
@@ -82,10 +99,18 @@ serve(async (req: Request) => {
 
       console.log(`[telnyx-order-webhook] ✓ Order completed: ${order.id} → ${phoneNumber}`);
 
-    } else if (status === "failure" || status === "failed") {
+    } else if (
+      status === "failure" ||
+      status === "failed" ||
+      status === "rejected" ||
+      status === "requirement-info-exception" ||
+      status === "requirement_info_exception"
+    ) {
       const reason = payload.errors?.[0]?.description
         ?? payload.errors?.[0]?.title
-        ?? "Pedido rejeitado pela operadora";
+        ?? (status.includes("requirement")
+            ? "Exigências regulatórias rejeitadas (KYC)"
+            : "Pedido rejeitado pela operadora");
 
       await supabase
         .from("number_order_requests")
@@ -103,7 +128,7 @@ serve(async (req: Request) => {
         payload: { order_id: order.id, phone_number: order.phone_number, reason },
       });
 
-      console.log(`[telnyx-order-webhook] ✗ Order rejected: ${order.id} — ${reason}`);
+      console.log(`[telnyx-order-webhook] ✗ Order rejected/exception: ${order.id} — ${reason}`);
     }
 
     return new Response("ok", { status: 200, headers: corsHeaders });

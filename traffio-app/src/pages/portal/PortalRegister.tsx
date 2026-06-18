@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useOutletContext, useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 import { User, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
@@ -9,6 +10,7 @@ import { DEFAULT_COUNTRY, type CountryCode } from '../../lib/i18n/countryFormats
 import { docType } from '../../lib/i18n/doc';
 
 export function PortalRegister() {
+    const { t } = useTranslation('portal');
     // @ts-ignore
     const { tenant } = useOutletContext<{ tenant: any }>();
     const navigate = useNavigate();
@@ -32,7 +34,7 @@ export function PortalRegister() {
         setError(null);
 
         if (formData.password !== formData.confirmPassword) {
-            setError('As senhas não coincidem.');
+            setError(t('register.errors.passwordMismatch'));
             setLoading(false);
             return;
         }
@@ -58,7 +60,7 @@ export function PortalRegister() {
             });
 
             if (authError) throw authError;
-            if (!authData.user) throw new Error('Falha ao criar usuário.');
+            if (!authData.user) throw new Error(t('register.errors.createUserFailed'));
 
             // Note: Patient record is now created automatically by DB trigger 'handle_new_user'
             // to avoid 401 Unauthorized errors when email confirmation is enabled.
@@ -67,13 +69,13 @@ export function PortalRegister() {
             if (sessionData.session) {
                 navigate(`/portal/${tenant.slug}/dashboard`);
             } else {
-                showToast('success', 'Cadastro realizado! Por favor faça login.');
+                showToast('success', t('register.signUpSuccess'));
                 navigate(`/portal/${tenant.slug}/login`);
             }
 
         } catch (err: any) {
             console.error(err);
-            setError(err.message || 'Ocorreu um erro no cadastro.');
+            setError(err.message || t('register.errors.generic'));
         } finally {
             setLoading(false);
         }
@@ -82,8 +84,8 @@ export function PortalRegister() {
     return (
         <div className="space-y-8 font-sans">
             <div className="text-center space-y-2">
-                <h2 className="text-2xl font-bold text-gray-900">Crie sua conta</h2>
-                <p className="text-gray-500">Comece a agendar suas consultas hoje</p>
+                <h2 className="text-2xl font-bold text-gray-900">{t('register.title')}</h2>
+                <p className="text-gray-500">{t('register.subtitle')}</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
@@ -96,7 +98,7 @@ export function PortalRegister() {
 
                 {/* Nome */}
                 <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Seu Nome</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">{t('register.fullName')}</label>
                     <div className="relative group">
                         <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                             <User className="h-5 w-5 text-gray-400 group-focus-within:text-primary transition-colors" />
@@ -108,7 +110,7 @@ export function PortalRegister() {
                             style={{ '--tw-ring-color': tenant.color_primary } as any}
                             value={formData.fullName}
                             onChange={e => setFormData({ ...formData, fullName: e.target.value })}
-                            placeholder="Ex: Maria Silva"
+                            placeholder={t('register.fullNamePlaceholder')}
                         />
                     </div>
                 </div>
@@ -131,7 +133,7 @@ export function PortalRegister() {
 
                 {/* Email */}
                 <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Email</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">{t('register.email')}</label>
                     <div className="relative group">
                         <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                             <Mail className="h-5 w-5 text-gray-400 group-focus-within:text-primary transition-colors" />
@@ -143,14 +145,14 @@ export function PortalRegister() {
                             style={{ '--tw-ring-color': tenant.color_primary } as any}
                             value={formData.email}
                             onChange={e => setFormData({ ...formData, email: e.target.value })}
-                            placeholder="seu@email.com"
+                            placeholder={t('register.emailPlaceholder')}
                         />
                     </div>
                 </div>
 
                 {/* Senha */}
                 <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Senha</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">{t('register.password')}</label>
                     <div className="relative group">
                         <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                             <Lock className="h-5 w-5 text-gray-400 group-focus-within:text-primary transition-colors" />
@@ -163,7 +165,7 @@ export function PortalRegister() {
                             style={{ '--tw-ring-color': tenant.color_primary } as any}
                             value={formData.password}
                             onChange={e => setFormData({ ...formData, password: e.target.value })}
-                            placeholder="No mínimo 6 caracteres"
+                            placeholder={t('register.passwordPlaceholder')}
                         />
                         <button
                             type="button"
@@ -177,7 +179,7 @@ export function PortalRegister() {
 
                 {/* Confirmar Senha */}
                 <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Confirmar Senha</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">{t('register.confirmPassword')}</label>
                     <div className="relative group">
                         <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                             <Lock className="h-5 w-5 text-gray-400 group-focus-within:text-primary transition-colors" />
@@ -189,7 +191,7 @@ export function PortalRegister() {
                             style={{ '--tw-ring-color': tenant.color_primary } as any}
                             value={formData.confirmPassword}
                             onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })}
-                            placeholder="Repita sua senha"
+                            placeholder={t('register.confirmPasswordPlaceholder')}
                         />
                     </div>
                 </div>
@@ -203,20 +205,20 @@ export function PortalRegister() {
                     {loading ? (
                         <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     ) : (
-                        <span>Criar Conta</span>
+                        <span>{t('register.submit')}</span>
                     )}
                 </button>
             </form>
 
             <div className="text-center pt-2">
                 <p className="text-sm text-gray-600">
-                    Já tem uma conta?{' '}
+                    {t('register.alreadyHaveAccount')}{' '}
                     <Link
                         to={`/portal/${tenant.slug}/login`}
                         className="font-bold hover:underline"
                         style={{ color: tenant.color_primary }}
                     >
-                        Entrar
+                        {t('register.signIn')}
                     </Link>
                 </p>
             </div>

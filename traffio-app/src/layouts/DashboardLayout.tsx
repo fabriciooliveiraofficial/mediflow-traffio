@@ -31,6 +31,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { clsx } from 'clsx'
 import { supabase } from '../lib/supabase'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useTenant } from '../contexts/TenantContext'
 import { useAuth } from '../contexts/AuthContext'
 import { usePermissions, PERMISSION_MAP } from '../hooks/usePermissions'
@@ -69,24 +70,26 @@ interface NavItem {
     parentId?: string
 }
 
-const navItems: NavItem[] = [
-    { id: 'agenda', label: 'Agenda', icon: Calendar, badge: 'IA' },
-    { id: 'reception', label: 'Recepção', icon: Users, badge: 'Staff' },
-    { id: 'inbox', label: 'Atendimento', icon: Headphones, badge: 'Inbox' },
-    { id: 'followup', label: 'Follow-up (CRM)', icon: LayoutDashboard },
-    { id: 'leads', label: 'Pacientes', icon: Users },
-    { id: 'analytics', label: 'Financeiro', icon: BarChart3 },
-    { id: 'professionals', label: 'Corpo Clínico', icon: Stethoscope },
-    { id: 'services', label: 'Procedimentos', icon: Tag },
-    { id: 'whatsapp', label: 'WhatsApp', icon: MessageCircle, badge: 'Z-API' },
-    { id: 'communications', label: 'Comunicações', icon: Phone, badge: 'Softphone' },
-    { id: 'intelligence', label: 'Inteligência', icon: Brain, badge: 'AI Hub' },
-    { id: 'dashboard', label: 'Analytics Pro', icon: LayoutDashboard },
-    { id: 'notifications', label: 'Notificações', icon: Bell },
-    { id: 'payments', label: 'Pagamentos', icon: CreditCard },
-    { id: 'billing', label: 'Assinatura', icon: Crown },
-    { id: 'settings', label: 'Configurações', icon: Settings },
-];
+function buildNavItems(t: (key: string) => string): NavItem[] {
+    return [
+        { id: 'agenda', label: t('nav.agenda'), icon: Calendar, badge: 'IA' },
+        { id: 'reception', label: t('nav.reception'), icon: Users, badge: 'Staff' },
+        { id: 'inbox', label: t('nav.inbox'), icon: Headphones, badge: 'Inbox' },
+        { id: 'followup', label: t('nav.followup'), icon: LayoutDashboard },
+        { id: 'leads', label: t('nav.leads'), icon: Users },
+        { id: 'analytics', label: t('nav.analytics'), icon: BarChart3 },
+        { id: 'professionals', label: t('nav.professionals'), icon: Stethoscope },
+        { id: 'services', label: t('nav.services'), icon: Tag },
+        { id: 'whatsapp', label: t('nav.whatsapp'), icon: MessageCircle, badge: 'Z-API' },
+        { id: 'communications', label: t('nav.communications'), icon: Phone, badge: 'Softphone' },
+        { id: 'intelligence', label: t('nav.intelligence'), icon: Brain, badge: 'AI Hub' },
+        { id: 'dashboard', label: t('nav.dashboard'), icon: LayoutDashboard },
+        { id: 'notifications', label: t('nav.notifications'), icon: Bell },
+        { id: 'payments', label: t('nav.payments'), icon: CreditCard },
+        { id: 'billing', label: t('nav.billing'), icon: Crown },
+        { id: 'settings', label: t('nav.settings'), icon: Settings },
+    ];
+}
 
 interface HandoffAlert {
     id: string
@@ -99,6 +102,7 @@ export const DashboardLayout = ({ children, activeScreen, onNavigate }: {
     activeScreen: string,
     onNavigate: (id: string) => void
 }) => {
+    const { t } = useTranslation('common')
     const { tenant, loading: isTenantLoading, userRole } = useTenant()
     const { user: authUser } = useAuth()
     const { can } = usePermissions()
@@ -203,18 +207,18 @@ export const DashboardLayout = ({ children, activeScreen, onNavigate }: {
                 .maybeSingle()
 
             setProfile({
-                full_name: profileData?.full_name || authUser.user_metadata?.full_name || 'Usuário',
+                full_name: profileData?.full_name || authUser.user_metadata?.full_name || t('layout.userFallback'),
                 role: profileData?.role || 'staff'
             })
         }
         fetchProfile()
-    }, [authUser?.id])
+    }, [authUser?.id, t])
 
     const navigate = useNavigate()
 
     // Adapt navigation items based on specialty using useMemo for stability and performance
     const adaptiveNavItems = React.useMemo(() => {
-        let items = [...navItems];
+        const items = buildNavItems(t);
         const specialties = tenant?.specialty || [];
 
         // 1. Encontrar o ponto de inserção após 'Procedimentos'
@@ -226,8 +230,8 @@ export const DashboardLayout = ({ children, activeScreen, onNavigate }: {
         // 2. Injetar Odontologia se aplicável
         if (specialties.includes('dental')) {
             const dentalItems: NavItem[] = [
-                { id: 'odontology', label: 'Odontologia', icon: Activity, badge: 'New' },
-                { id: 'odontogram', label: 'Odontograma', icon: Activity, isSubItem: true, parentId: 'odontology' }
+                { id: 'odontology', label: t('nav.odontology'), icon: Activity, badge: 'New' },
+                { id: 'odontogram', label: t('nav.odontogram'), icon: Activity, isSubItem: true, parentId: 'odontology' }
             ];
             items.splice(insertionPoint, 0, ...dentalItems);
             insertionPoint += dentalItems.length;
@@ -235,7 +239,7 @@ export const DashboardLayout = ({ children, activeScreen, onNavigate }: {
 
         // 3. Injetar Prontuário se aplicável
         if (specialties.includes('general')) {
-            const medicalRecordItem: NavItem = { id: 'medical-records', label: 'Prontuário', icon: Stethoscope, badge: 'New' };
+            const medicalRecordItem: NavItem = { id: 'medical-records', label: t('nav.medicalRecords'), icon: Stethoscope, badge: 'New' };
             items.splice(insertionPoint, 0, medicalRecordItem);
             insertionPoint += 1;
         }
@@ -243,15 +247,15 @@ export const DashboardLayout = ({ children, activeScreen, onNavigate }: {
         // 4. Injetar Nutrição se aplicável
         if (specialties.includes('nutrition')) {
             const nutritionItems: NavItem[] = [
-                { id: 'nutrition', label: 'Nutrição', icon: Apple, badge: 'New' },
-                { id: 'nutrition-plan', label: 'Plano Nutricional', icon: Apple, isSubItem: true, parentId: 'nutrition' }
+                { id: 'nutrition', label: t('nav.nutrition'), icon: Apple, badge: 'New' },
+                { id: 'nutrition-plan', label: t('nav.nutritionPlan'), icon: Apple, isSubItem: true, parentId: 'nutrition' }
             ];
             items.splice(insertionPoint, 0, ...nutritionItems);
             insertionPoint += nutritionItems.length;
         }
 
         return items;
-    }, [tenant?.specialty]);
+    }, [tenant?.specialty, t]);
 
     // Filter nav items by permission (only when userRole is resolved)
     const filteredNavItems = React.useMemo(() => {
@@ -436,7 +440,7 @@ export const DashboardLayout = ({ children, activeScreen, onNavigate }: {
                 {/* Footer User Profile + Sign Out */}
                 <div className="p-6 border-t border-ice-50 space-y-3">
                     <div className={clsx("flex flex-col p-3 rounded-2xl bg-ice-50/50 transition-all duration-300", !isSidebarOpen && "opacity-0")}>
-                        <p className="text-xs font-black text-graphite-900 truncate">{profile?.full_name || 'Carregando...'}</p>
+                        <p className="text-xs font-black text-graphite-900 truncate">{profile?.full_name || t('actions.loading')}</p>
                     </div>
                     <button
                         onClick={handleSignOut}
@@ -446,7 +450,7 @@ export const DashboardLayout = ({ children, activeScreen, onNavigate }: {
                         )}
                     >
                         <LogOut size={18} className="shrink-0" />
-                        <span className={clsx("font-bold text-sm", !isSidebarOpen && "hidden")}>Sair</span>
+                        <span className={clsx("font-bold text-sm", !isSidebarOpen && "hidden")}>{t('nav.signOut')}</span>
                     </button>
                 </div>
             </aside>
@@ -486,7 +490,7 @@ export const DashboardLayout = ({ children, activeScreen, onNavigate }: {
                                 <Search size={18} className="text-graphite-400 group-focus-within:text-brand-primary transition-colors" />
                                 <input
                                     type="text"
-                                    placeholder="Busca global integrada..."
+                                    placeholder={t('layout.globalSearchPlaceholder')}
                                     className="bg-transparent border-none outline-none text-sm font-medium w-full placeholder:text-graphite-300"
                                 />
                             </div>
@@ -599,22 +603,22 @@ export const DashboardLayout = ({ children, activeScreen, onNavigate }: {
                                     </div>
 
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-bold text-gray-900">Atendimento Humano</p>
+                                        <p className="text-sm font-bold text-gray-900">{t('layout.handoff.title')}</p>
                                         <p className="text-xs text-gray-500 truncate mt-0.5">
-                                            Paciente <span className="font-semibold text-gray-700">{alert.phone}</span> aguardando
+                                            {t('layout.handoff.patientWaitingPrefix')} <span className="font-semibold text-gray-700">{alert.phone}</span> {t('layout.handoff.patientWaitingSuffix')}
                                         </p>
                                         <p className={clsx(
                                             "text-xs font-semibold mt-1",
                                             waitMin >= 5 ? "text-red-600" : "text-amber-600"
                                         )}>
-                                            {waitMin === 0 ? 'Acabou de entrar na fila' : `Aguardando há ${waitMin} min`}
+                                            {waitMin === 0 ? t('layout.handoff.justArrived') : t('layout.handoff.waitingMinutes', { minutes: waitMin })}
                                         </p>
                                     </div>
 
                                     <button
                                         onClick={() => setAlerts(prev => prev.filter(a => a.id !== alert.id))}
                                         className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-                                        aria-label="Dispensar"
+                                        aria-label={t('layout.handoff.dismiss')}
                                     >
                                         <X size={12} />
                                     </button>
@@ -628,13 +632,13 @@ export const DashboardLayout = ({ children, activeScreen, onNavigate }: {
                                         }}
                                         className="flex-1 py-2 rounded-xl bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition-colors"
                                     >
-                                        Atender agora
+                                        {t('layout.handoff.attendNow')}
                                     </button>
                                     <button
                                         onClick={() => setAlerts(prev => prev.filter(a => a.id !== alert.id))}
                                         className="py-2 px-3 rounded-xl border border-gray-200 text-gray-500 text-xs font-medium hover:bg-gray-50 transition-colors"
                                     >
-                                        Depois
+                                        {t('layout.handoff.later')}
                                     </button>
                                 </div>
                             </motion.div>
@@ -704,14 +708,14 @@ export const DashboardLayout = ({ children, activeScreen, onNavigate }: {
 
                             <div className="mt-auto space-y-3">
                                 <div className="p-6 bg-ice-50/50 rounded-[32px]">
-                                    <p className="font-black text-sm text-graphite-900">{profile?.full_name || 'Carregando...'}</p>
+                                    <p className="font-black text-sm text-graphite-900">{profile?.full_name || t('actions.loading')}</p>
                                 </div>
                                 <button
                                     onClick={handleSignOut}
                                     className="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-2xl text-rose-500 hover:bg-rose-50 transition-all border-none cursor-pointer bg-transparent"
                                 >
                                     <LogOut size={20} />
-                                    <span className="font-bold">Sair da Conta</span>
+                                    <span className="font-bold">{t('nav.signOutAccount')}</span>
                                 </button>
                             </div>
                         </motion.div>

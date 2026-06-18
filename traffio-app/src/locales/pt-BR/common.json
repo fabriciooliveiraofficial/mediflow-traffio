@@ -16,5 +16,55 @@
     "pt-BR": "Português (Brasil)",
     "en": "English",
     "es": "Español"
+  },
+  "nav": {
+    "agenda": "Agenda",
+    "reception": "Recepção",
+    "inbox": "Atendimento",
+    "followup": "Follow-up (CRM)",
+    "leads": "Pacientes",
+    "analytics": "Financeiro",
+    "professionals": "Corpo Clínico",
+    "services": "Procedimentos",
+    "whatsapp": "WhatsApp",
+    "communications": "Comunicações",
+    "intelligence": "Inteligência",
+    "dashboard": "Analytics Pro",
+    "notifications": "Notificações",
+    "payments": "Pagamentos",
+    "billing": "Assinatura",
+    "settings": "Configurações",
+    "odontology": "Odontologia",
+    "odontogram": "Odontograma",
+    "medicalRecords": "Prontuário",
+    "nutrition": "Nutrição",
+    "nutritionPlan": "Plano Nutricional",
+    "signOut": "Sair",
+    "signOutAccount": "Sair da Conta"
+  },
+  "layout": {
+    "userFallback": "Usuário",
+    "globalSearchPlaceholder": "Busca global integrada...",
+    "handoff": {
+      "title": "Atendimento Humano",
+      "patientWaitingPrefix": "Paciente",
+      "patientWaitingSuffix": "aguardando",
+      "justArrived": "Acabou de entrar na fila",
+      "waitingMinutes": "Aguardando há {{minutes}} min",
+      "dismiss": "Dispensar",
+      "attendNow": "Atender agora",
+      "later": "Depois"
+    }
+  },
+  "patientSearch": {
+    "procedureLabel": "Procedimento: {{specialty}}",
+    "searchPlaceholder": "Buscar paciente pelo nome...",
+    "searching": "Buscando...",
+    "noResults": "Nenhum paciente encontrado.",
+    "typeToSearch": "Digite para buscar pacientes.",
+    "idLabel": "ID: #{{id}}"
+  },
+  "calendar": {
+    "weekdaysShort": ["D", "S", "T", "Q", "Q", "S", "S"]
   }
 }

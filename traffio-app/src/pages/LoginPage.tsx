@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Mail, Lock, Loader2, ArrowRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
 
 export const LoginPage = () => {
+    const { t } = useTranslation('auth');
     const navigate = useNavigate();
     const { showToast } = useToast();
     const [loading, setLoading] = useState(false);
@@ -45,7 +47,7 @@ export const LoginPage = () => {
                 navigate('/dashboard');
             }
         } catch (error: any) {
-            showToast('error', 'Erro ao entrar: ' + error.message);
+            showToast('error', t('login.errors.generic', { message: error.message }));
         } finally {
             setLoading(false);
         }
@@ -59,13 +61,13 @@ export const LoginPage = () => {
                 </div>
 
                 <div className="text-center mb-8">
-                    <h1 className="text-2xl font-black text-graphite-900 mb-2">Bem-vindo de volta</h1>
-                    <p className="text-graphite-500 font-medium">Acesse sua conta Traffio</p>
+                    <h1 className="text-2xl font-black text-graphite-900 mb-2">{t('login.title')}</h1>
+                    <p className="text-graphite-500 font-medium">{t('login.subtitle')}</p>
                 </div>
 
                 <form onSubmit={handleLogin} className="space-y-6">
                     <div className="space-y-2">
-                        <label className="text-xs font-black text-graphite-400 uppercase ml-1">Email</label>
+                        <label className="text-xs font-black text-graphite-400 uppercase ml-1">{t('login.email')}</label>
                         <div className="relative">
                             <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-graphite-400" size={20} />
                             <input
@@ -73,7 +75,7 @@ export const LoginPage = () => {
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 className="w-full bg-ice-50 border border-ice-200 rounded-xl pl-12 pr-4 py-3.5 text-sm font-bold text-graphite-900 focus:outline-none focus:border-brand-primary transition-all"
-                                placeholder="seu@email.com"
+                                placeholder={t('login.emailPlaceholder')}
                                 required
                             />
                         </div>
@@ -81,13 +83,13 @@ export const LoginPage = () => {
 
                     <div className="space-y-2">
                         <div className="flex justify-between items-center ml-1">
-                            <label className="text-xs font-black text-graphite-400 uppercase">Senha</label>
+                            <label className="text-xs font-black text-graphite-400 uppercase">{t('login.password')}</label>
                             <button
                                 type="button"
                                 onClick={() => navigate('/forgot-password')}
                                 className="text-xs font-bold text-brand-primary hover:text-brand-secondary transition-colors border-none bg-transparent cursor-pointer"
                             >
-                                Esqueceu a senha?
+                                {t('login.forgotPassword')}
                             </button>
                         </div>
                         <div className="relative">
@@ -97,7 +99,7 @@ export const LoginPage = () => {
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 className="w-full bg-ice-50 border border-ice-200 rounded-xl pl-12 pr-4 py-3.5 text-sm font-bold text-graphite-900 focus:outline-none focus:border-brand-primary transition-all"
-                                placeholder="••••••••"
+                                placeholder={t('login.passwordPlaceholder')}
                                 required
                             />
                         </div>
@@ -110,7 +112,7 @@ export const LoginPage = () => {
                     >
                         {loading ? <Loader2 className="animate-spin" size={20} /> : (
                             <>
-                                Entrar
+                                {t('login.submit')}
                                 <ArrowRight size={20} />
                             </>
                         )}
@@ -119,12 +121,12 @@ export const LoginPage = () => {
 
                 <div className="mt-8 text-center">
                     <p className="text-sm font-medium text-graphite-500">
-                        Não tem uma conta?{' '}
+                        {t('login.noAccount')}{' '}
                         <button
                             onClick={() => navigate('/register')}
                             className="text-brand-primary font-bold hover:underline border-none bg-transparent cursor-pointer"
                         >
-                            Criar agora
+                            {t('login.createAccount')}
                         </button>
                     </p>
                 </div>

@@ -13,6 +13,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { upsertChannelPreference } from "../_shared/upsertChannelPreference.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { getSmsPricing } from "../_shared/pricing.ts";
 
 console.log("telnyx-sms-webhook v1 — Initialized");
 
@@ -70,7 +71,7 @@ async function processInboundSms(
   // Identificar tenant pelo número destino
   const { data: numRow } = await supabase
     .from("tenant_phone_numbers")
-    .select("tenant_id")
+    .select("tenant_id, country_code")
     .eq("phone_number", to)
     .eq("is_active", true)
     .maybeSingle();
@@ -127,14 +128,15 @@ async function processInboundSms(
   });
 
   // Rastrear uso: SMS inbound
+  const pricing = getSmsPricing(numRow?.country_code ?? "US", "sms");
   const billingPeriod = new Date();
   const periodStr = `${billingPeriod.getFullYear()}-${String(billingPeriod.getMonth() + 1).padStart(2, "0")}-01`;
   await supabase.from("tenant_usage_log").insert({
     tenant_id:           tenantId,
     resource_type:       "sms_inbound",
     quantity:            1,
-    unit_cost_usd:       0.004,   // custo Telnyx por SMS recebido
-    total_cost_usd:      0.004,
+    unit_cost_usd:       pricing.unitCostUsd,
+    total_cost_usd:      pricing.unitCostUsd,
     billing_period:      periodStr,
     tenant_phone_number: to,
   }).catch(() => {}); // não bloquear por falha de tracking

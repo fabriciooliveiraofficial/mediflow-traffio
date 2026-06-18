@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { 
   format, 
@@ -32,6 +33,7 @@ export const SidebarCalendar: React.FC<SidebarCalendarProps> = ({
   currentMonth,
   onMonthChange,
 }) => {
+  const { t } = useTranslation('common');
   const handlePrevMonth = () => onMonthChange(subMonths(currentMonth, 1));
   const handleNextMonth = () => onMonthChange(addMonths(currentMonth, 1));
 
@@ -82,7 +84,7 @@ export const SidebarCalendar: React.FC<SidebarCalendarProps> = ({
     days = [];
   }
 
-  const weekDays = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
+  const weekDays = t('calendar.weekdaysShort', { returnObjects: true }) as string[];
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">

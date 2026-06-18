@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
     Calendar as CalendarIcon,
     User,
@@ -34,6 +35,7 @@ interface Doctor {
 }
 
 export function PortalBook() {
+    const { t } = useTranslation('portal');
     const { slug } = useParams<{ slug: string }>();
     const navigate = useNavigate();
     // Use context from PatientPortalLayout
@@ -61,25 +63,7 @@ export function PortalBook() {
     const rescheduleId = searchParams.get('reschedule');
     const [rescheduleApt, setRescheduleApt] = useState<any>(null);
 
-    useEffect(() => {
-        if (contextTenant) {
-            setTenant(contextTenant);
-            fetchSpecialties(contextTenant.id);
-        }
-        if (rescheduleId) {
-            fetchRescheduleApt(rescheduleId);
-        }
-    }, [contextTenant, rescheduleId]);
-
-    const fetchRescheduleApt = async (id: string) => {
-        const { data } = await supabase.from('appointments')
-            .select('*, doctor:doctors(*)')
-            .eq('id', id)
-            .single();
-        if (data) setRescheduleApt(data);
-    };
-
-    const fetchSpecialties = async (tenantId: string) => {
+    const fetchSpecialties = useCallback(async (tenantId: string) => {
         try {
             setLoading(true);
             // Get Unique Specialties from active doctors
@@ -102,10 +86,28 @@ export function PortalBook() {
             setSpecialties(specList);
         } catch (err: any) {
             console.error('Error fetching specialties:', err);
-            setError('Erro ao carregar especialidades.');
+            setError(t('book.errors.loadSpecialties'));
         } finally {
             setLoading(false);
         }
+    }, [t]);
+
+    useEffect(() => {
+        if (contextTenant) {
+            setTenant(contextTenant);
+            fetchSpecialties(contextTenant.id);
+        }
+        if (rescheduleId) {
+            fetchRescheduleApt(rescheduleId);
+        }
+    }, [contextTenant, rescheduleId, fetchSpecialties]);
+
+    const fetchRescheduleApt = async (id: string) => {
+        const { data } = await supabase.from('appointments')
+            .select('*, doctor:doctors(*)')
+            .eq('id', id)
+            .single();
+        if (data) setRescheduleApt(data);
     };
 
     const handleSpecialtySelect = async (specialty: string) => {
@@ -162,7 +164,7 @@ export function PortalBook() {
             }
         } catch (err) {
             console.error('Error in handleSpecialtySelect:', err);
-            setError('Erro ao carregar localidades.');
+            setError(t('book.errors.loadLocations'));
         } finally {
             setLoading(false);
         }
@@ -199,7 +201,7 @@ export function PortalBook() {
             setCurrentStep('doctor');
         } catch (err) {
             console.error('Error in handleLocationSelect:', err);
-            setError('Erro ao carregar profissionais.');
+            setError(t('book.errors.loadDoctors'));
         } finally {
             setLoading(false);
         }
@@ -219,7 +221,7 @@ export function PortalBook() {
             const filteredSlots = slots.filter(s => s.location_id === selectedLocation?.id);
             setAvailableSlots(filteredSlots);
         } catch (err) {
-            setError('Erro ao carregar horários disponíveis.');
+            setError(t('book.errors.loadSlots'));
         } finally {
             setLoading(false);
         }
@@ -244,7 +246,7 @@ export function PortalBook() {
 
             if (error) throw error;
             if (!data.success) {
-                setError(data.message || 'Este horário acabou de ser reservado. Por favor, escolha outro.');
+                setError(data.message || t('book.errors.slotTaken'));
                 // Refresh slots
                 if (selectedDoctor) fetchSlots(selectedDoctor.id, selectedDate);
                 return;
@@ -253,7 +255,7 @@ export function PortalBook() {
             setSelectedSlot(slot);
             setCurrentStep('confirm');
         } catch (err) {
-            setError('Erro ao reservar horário.');
+            setError(t('book.errors.lockSlot'));
         } finally {
             setLoading(false);
         }
@@ -266,7 +268,7 @@ export function PortalBook() {
         try {
             // 1. Get current patient profile
             const { data: { user } } = await supabase.auth.getUser();
-            if (!user) throw new Error('Usuário não autenticado');
+            if (!user) throw new Error(t('book.errors.notAuthenticated'));
 
             const { data: patient, error: pError } = await supabase
                 .from('patients')
@@ -304,7 +306,7 @@ export function PortalBook() {
             navigate(`/portal/${slug}/dashboard`, { state: { bookingSuccess: true, rescheduled: !!rescheduleId } });
         } catch (err) {
             console.error('Booking error:', err);
-            setError('Erro ao confirmar agendamento.');
+            setError(t('book.errors.confirmBooking'));
         } finally {
             setBookingLoading(false);
         }
@@ -335,11 +337,11 @@ export function PortalBook() {
                     />
 
                     {[
-                        { id: 'specialty', icon: Stethoscope, label: 'Especialidade' },
-                        { id: 'location', icon: MapPin, label: 'Unidade' },
-                        { id: 'doctor', icon: User, label: 'Profissional' },
-                        { id: 'datetime', icon: CalendarIcon, label: 'Data e Hora' },
-                        { id: 'confirm', icon: CheckCircle2, label: 'Confirmação' }
+                        { id: 'specialty', icon: Stethoscope, label: t('book.steps.specialty') },
+                        { id: 'location', icon: MapPin, label: t('book.steps.location') },
+                        { id: 'doctor', icon: User, label: t('book.steps.doctor') },
+                        { id: 'datetime', icon: CalendarIcon, label: t('book.steps.datetime') },
+                        { id: 'confirm', icon: CheckCircle2, label: t('book.steps.confirm') }
                     ].map((s, idx) => {
                         const Icon = s.icon;
                         const isCompleted = idx < ['specialty', 'location', 'doctor', 'datetime', 'confirm'].indexOf(currentStep);
@@ -404,9 +406,9 @@ export function PortalBook() {
                                         <Stethoscope size={24} />
                                     </div>
                                     <h3 className="text-lg font-bold text-gray-900 mb-1">{s.name}</h3>
-                                    <p className="text-sm text-gray-500 font-medium">{s.count} {s.count === 1 ? 'profissional' : 'profissionais'}</p>
+                                    <p className="text-sm text-gray-500 font-medium">{t('book.professionalCount', { count: s.count })}</p>
                                     <div className="mt-4 flex items-center text-brand-primary text-sm font-bold opacity-0 group-hover:opacity-100 transition-opacity">
-                                        Selecionar <ChevronRight size={16} className="ml-1" />
+                                        {t('book.select')} <ChevronRight size={16} className="ml-1" />
                                     </div>
                                 </button>
                             ))}
@@ -419,7 +421,7 @@ export function PortalBook() {
                                 onClick={() => setCurrentStep('specialty')}
                                 className="flex items-center text-sm font-medium text-gray-500 hover:text-brand-primary transition-colors"
                             >
-                                <ChevronLeft size={16} className="mr-1" /> Voltar para especialidades
+                                <ChevronLeft size={16} className="mr-1" /> {t('book.backToSpecialties')}
                             </button>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                 {locations.map((loc) => (
@@ -467,7 +469,7 @@ export function PortalBook() {
                                 onClick={() => setCurrentStep('location')}
                                 className="flex items-center text-sm font-medium text-gray-500 hover:text-brand-primary transition-colors"
                             >
-                                <ChevronLeft size={16} className="mr-1" /> Voltar para unidades
+                                <ChevronLeft size={16} className="mr-1" /> {t('book.backToLocations')}
                             </button>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                 {doctors.map((d) => (
@@ -499,14 +501,14 @@ export function PortalBook() {
                                 onClick={() => setCurrentStep('doctor')}
                                 className="flex items-center text-sm font-medium text-gray-500 hover:text-brand-primary transition-colors"
                             >
-                                <ChevronLeft size={16} className="mr-1" /> Voltar para profissionais
+                                <ChevronLeft size={16} className="mr-1" /> {t('book.backToDoctors')}
                             </button>
 
                             <div className="bg-white border border-gray-100 rounded-3xl p-6 shadow-sm">
                                 <div className="flex flex-col md:flex-row gap-8">
                                     {/* Miniature Date Picker */}
                                     <div className="md:w-1/3">
-                                        <label className="block text-sm font-bold text-gray-900 mb-4">Selecione a Data</label>
+                                        <label className="block text-sm font-bold text-gray-900 mb-4">{t('book.selectDate')}</label>
                                         <input
                                             type="date"
                                             value={selectedDate}
@@ -517,17 +519,17 @@ export function PortalBook() {
                                         <div className="mt-6 p-4 bg-blue-50 border border-blue-100 rounded-2xl">
                                             <div className="flex items-center gap-2 text-blue-700 font-bold mb-1">
                                                 <Clock size={16} />
-                                                <span className="text-xs uppercase tracking-wider">Lembrete</span>
+                                                <span className="text-xs uppercase tracking-wider">{t('book.reminderLabel')}</span>
                                             </div>
                                             <p className="text-xs text-blue-600 leading-relaxed font-medium">
-                                                Agendamentos levam cerca de 10 minutos para serem confirmados.
+                                                {t('book.reminderText')}
                                             </p>
                                         </div>
                                     </div>
 
                                     {/* Slots Grid */}
                                     <div className="flex-1">
-                                        <label className="block text-sm font-bold text-gray-900 mb-4">Horários Disponíveis</label>
+                                        <label className="block text-sm font-bold text-gray-900 mb-4">{t('book.availableSlots')}</label>
                                         {loading ? (
                                             <div className="flex items-center justify-center py-12">
                                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary"></div>
@@ -547,8 +549,8 @@ export function PortalBook() {
                                         ) : (
                                             <div className="text-center py-12 px-4 bg-gray-50 border border-dashed border-gray-200 rounded-2xl">
                                                 <CalendarIcon className="mx-auto text-gray-300 mb-3" size={32} />
-                                                <p className="text-sm font-bold text-gray-900 mb-1">Nenhum horário disponível</p>
-                                                <p className="text-xs text-gray-500 font-medium">Tente selecionar outra data ou profissional.</p>
+                                                <p className="text-sm font-bold text-gray-900 mb-1">{t('book.noSlotsAvailable')}</p>
+                                                <p className="text-xs text-gray-500 font-medium">{t('book.noSlotsHint')}</p>
                                             </div>
                                         )}
                                     </div>
@@ -563,8 +565,8 @@ export function PortalBook() {
                                 <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
                                     <CheckCircle2 size={32} />
                                 </div>
-                                <h2 className="text-2xl font-black text-gray-900 mb-2">Quase lá!</h2>
-                                <p className="text-gray-500 font-medium mb-8">Confirme os detalhes do seu agendamento abaixo.</p>
+                                <h2 className="text-2xl font-black text-gray-900 mb-2">{t('book.almostThere')}</h2>
+                                <p className="text-gray-500 font-medium mb-8">{t('book.confirmDetailsHint')}</p>
 
                                 <div className="text-left space-y-4 mb-8">
                                     <div className="p-4 bg-gray-50 rounded-2xl flex items-center gap-4">
@@ -572,7 +574,7 @@ export function PortalBook() {
                                             <Stethoscope size={24} />
                                         </div>
                                         <div>
-                                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Especialidade</p>
+                                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{t('book.steps.specialty')}</p>
                                             <p className="text-sm font-bold text-gray-900">{selectedSpecialty}</p>
                                         </div>
                                     </div>
@@ -582,7 +584,7 @@ export function PortalBook() {
                                             <User size={24} />
                                         </div>
                                         <div>
-                                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Profissional</p>
+                                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{t('book.steps.doctor')}</p>
                                             <p className="text-sm font-bold text-gray-900">{selectedDoctor?.full_name}</p>
                                         </div>
                                     </div>
@@ -592,11 +594,11 @@ export function PortalBook() {
                                             <CalendarIcon size={24} />
                                         </div>
                                         <div>
-                                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Data e Hora</p>
+                                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{t('book.steps.datetime')}</p>
                                             <p className="text-sm font-bold text-gray-900">
                                                 {new Date(selectedDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
                                             </p>
-                                            <p className="text-xs text-gray-500 font-medium">às {formatSlot(selectedSlot?.slot_time, { locale: slotLocale })}</p>
+                                            <p className="text-xs text-gray-500 font-medium">{t('book.atTime', { time: formatSlot(selectedSlot?.slot_time, { locale: slotLocale }) })}</p>
                                         </div>
                                     </div>
 
@@ -606,7 +608,7 @@ export function PortalBook() {
                                                 <MapPin size={24} />
                                             </div>
                                             <div>
-                                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Local</p>
+                                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{t('book.locationLabel')}</p>
                                                 <p className="text-sm font-bold text-gray-900">{selectedSlot.location_name}</p>
                                             </div>
                                         </div>
@@ -618,15 +620,15 @@ export function PortalBook() {
                                         <div className="flex items-start gap-3">
                                             <AlertCircle size={20} className="text-orange-500 shrink-0 mt-0.5" />
                                             <div>
-                                                <p className="font-bold text-orange-700 text-sm mb-1">Aviso de Reagendamento</p>
+                                                <p className="font-bold text-orange-700 text-sm mb-1">{t('book.rescheduleWarningTitle')}</p>
                                                 <p className="text-orange-600 text-sm leading-relaxed">
-                                                    Ao confirmar este novo horário, sua consulta original do dia <strong>{formatDate(rescheduleApt.date, { locale: slotLocale })}</strong> às <strong>{formatSlot(rescheduleApt.start_time, { locale: slotLocale })}</strong> será cancelada automaticamente.
+                                                    {t('book.rescheduleWarningTextPart1')} <strong>{formatDate(rescheduleApt.date, { locale: slotLocale })}</strong> {t('book.rescheduleWarningTextPart2')} <strong>{formatSlot(rescheduleApt.start_time, { locale: slotLocale })}</strong> {t('book.rescheduleWarningTextPart3')}
                                                 </p>
                                                 {appointmentService.checkPenalty(rescheduleApt.doctor?.cancellation_policy, rescheduleApt.date, rescheduleApt.start_time).applies && (
                                                     <div className="mt-3 p-3 bg-rose-50 border border-rose-100 rounded-xl">
-                                                        <p className="text-rose-700 font-bold text-sm mb-1">Taxa de Cancelamento Tardio</p>
+                                                        <p className="text-rose-700 font-bold text-sm mb-1">{t('book.latePenaltyTitle')}</p>
                                                         <p className="text-rose-600 font-medium text-xs leading-relaxed">
-                                                            Como o reagendamento está sendo feito fora do prazo gratuito, será aplicada uma multa de <strong>{rescheduleApt.doctor.cancellation_policy.late_penalty_percent}%</strong> sobre o agendamento anterior.
+                                                            {t('book.latePenaltyTextPart1')} <strong>{rescheduleApt.doctor.cancellation_policy.late_penalty_percent}%</strong> {t('book.latePenaltyTextPart2')}
                                                         </p>
                                                     </div>
                                                 )}
@@ -644,7 +646,7 @@ export function PortalBook() {
                                         {bookingLoading ? (
                                             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                                         ) : (
-                                            <>Confirmar Agendamento <ChevronRight size={20} /></>
+                                            <>{t('book.confirmBookingButton')} <ChevronRight size={20} /></>
                                         )}
                                     </button>
                                     <button
@@ -652,13 +654,13 @@ export function PortalBook() {
                                         disabled={bookingLoading}
                                         className="w-full py-4 bg-white border border-gray-200 text-gray-600 rounded-2xl font-bold hover:bg-gray-50 transition-all text-sm"
                                     >
-                                        Alterar horário
+                                        {t('book.changeTime')}
                                     </button>
                                 </div>
 
                                 <div className="mt-8 flex items-center justify-center gap-2 text-[10px] text-gray-400 font-bold uppercase tracking-widest">
                                     <Shield size={12} />
-                                    Conexão Segura
+                                    {t('book.secureConnection')}
                                 </div>
                             </div>
                         </div>

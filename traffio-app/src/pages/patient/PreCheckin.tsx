@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     CheckCircle2,
     ChevronRight,
@@ -41,6 +42,7 @@ function stepIndex(step: Step): number {
  * URL: /checkin?apt=<appointment_id>
  */
 export const PreCheckin: React.FC = () => {
+    const { t } = useTranslation('patient');
     const params = new URLSearchParams(window.location.search);
     const appointmentId = params.get('apt') || '';
     const locIdParam = params.get('loc') || '';
@@ -111,7 +113,7 @@ export const PreCheckin: React.FC = () => {
     if (!appointmentId) {
         return (
             <div className="min-h-screen bg-ice-50 flex items-center justify-center p-6">
-                <p className="text-graphite-400 font-medium">Link de check-in inválido.</p>
+                <p className="text-graphite-400 font-medium">{t('preCheckin.invalidLink')}</p>
             </div>
         );
     }
@@ -124,10 +126,10 @@ export const PreCheckin: React.FC = () => {
                     <Smartphone size={24} className="text-white" />
                 </div>
                 <h1 className="text-xl font-black text-graphite-900 tracking-tight">
-                    Check-in Express
+                    {t('preCheckin.header.title')}
                 </h1>
                 <p className="text-xs text-graphite-400 font-medium mt-1">
-                    Confirme seus dados e evite filas
+                    {t('preCheckin.header.subtitle')}
                 </p>
             </div>
 
@@ -160,9 +162,9 @@ export const PreCheckin: React.FC = () => {
                                     <Navigation size={20} className="text-sky-600" />
                                 </div>
                                 <div>
-                                    <h2 className="font-black text-graphite-900 text-base">Verificação de Proximidade</h2>
+                                    <h2 className="font-black text-graphite-900 text-base">{t('preCheckin.geofence.title')}</h2>
                                     <p className="text-[10px] text-graphite-400 font-medium">
-                                        Confirme que você está na clínica
+                                        {t('preCheckin.geofence.subtitle')}
                                     </p>
                                 </div>
                             </div>
@@ -177,9 +179,9 @@ export const PreCheckin: React.FC = () => {
                                         <div className="absolute inset-0 w-20 h-20 rounded-full border-2 border-sky-300 animate-ping opacity-30" />
                                     </div>
                                     <div className="text-center">
-                                        <p className="text-sm font-bold text-graphite-700">Localizando...</p>
+                                        <p className="text-sm font-bold text-graphite-700">{t('preCheckin.geofence.locating')}</p>
                                         <p className="text-[10px] text-graphite-400 font-medium mt-1">
-                                            Verificando sua proximidade com a clínica
+                                            {t('preCheckin.geofence.locatingDescription')}
                                         </p>
                                     </div>
                                 </div>
@@ -192,7 +194,7 @@ export const PreCheckin: React.FC = () => {
                                         <AlertTriangle size={28} className="text-amber-500" />
                                     </div>
                                     <div className="text-center">
-                                        <p className="text-sm font-bold text-graphite-700">Localização indisponível</p>
+                                        <p className="text-sm font-bold text-graphite-700">{t('preCheckin.geofence.unavailableTitle')}</p>
                                         <p className="text-xs text-graphite-400 font-medium mt-1 max-w-[260px]">
                                             {geoError}
                                         </p>
@@ -202,10 +204,10 @@ export const PreCheckin: React.FC = () => {
                                         className="flex items-center gap-2 px-4 py-2.5 bg-brand-primary text-white rounded-xl text-xs font-black border-none cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-transform"
                                     >
                                         <RefreshCw size={14} />
-                                        Tentar Novamente
+                                        {t('preCheckin.geofence.retry')}
                                     </button>
                                     <p className="text-[9px] text-graphite-300 text-center font-medium max-w-[240px]">
-                                        Ative a localização no navegador ou conecte-se ao WiFi da clínica
+                                        {t('preCheckin.geofence.retryHint')}
                                     </p>
                                 </div>
                             )}
@@ -217,15 +219,15 @@ export const PreCheckin: React.FC = () => {
                                         <MapPin size={28} className="text-red-500" />
                                     </div>
                                     <div className="text-center">
-                                        <p className="text-sm font-bold text-graphite-700">Fora da área da clínica</p>
+                                        <p className="text-sm font-bold text-graphite-700">{t('preCheckin.geofence.outOfRangeTitle')}</p>
                                         <p className="text-xs text-graphite-400 font-medium mt-1">
-                                            Você está a <span className="font-black text-graphite-700">{formatDistance(geoResult.distance)}</span> de:
+                                            {t('preCheckin.geofence.youAreAt')} <span className="font-black text-graphite-700">{formatDistance(geoResult.distance)}</span> {t('preCheckin.geofence.distanceFromSuffix')}
                                             <br />
-                                            <span className="text-brand-primary font-bold">{geoResult.matchedLocation?.name || geoResult.clinicName || 'Unidade Principal'}</span>
+                                            <span className="text-brand-primary font-bold">{geoResult.matchedLocation?.name || geoResult.clinicName || t('preCheckin.geofence.defaultLocationName')}</span>
                                         </p>
                                         {geoResult.matchedLocation && (
                                             <p className="text-[10px] text-graphite-300 mt-1">
-                                                Raio permitido: {formatDistance(geoResult.radiusUsed)}
+                                                {t('preCheckin.geofence.allowedRadius', { radius: formatDistance(geoResult.radiusUsed) })}
                                             </p>
                                         )}
                                     </div>
@@ -233,8 +235,8 @@ export const PreCheckin: React.FC = () => {
                                     {/* Distance Bar */}
                                     <div className="w-full max-w-[260px]">
                                         <div className="flex items-center justify-between text-[9px] text-graphite-400 font-bold mb-1">
-                                            <span>Você</span>
-                                            <span>{geoResult.matchedLocation?.name || 'Clínica'}</span>
+                                            <span>{t('preCheckin.geofence.you')}</span>
+                                            <span>{geoResult.matchedLocation?.name || t('preCheckin.geofence.defaultClinicLabel')}</span>
                                         </div>
                                         <div className="h-2 bg-ice-100 rounded-full overflow-hidden">
                                             <div
@@ -247,7 +249,7 @@ export const PreCheckin: React.FC = () => {
                                     {/* Source Badge */}
                                     {geoResult.coordinates && (
                                         <span className="px-2 py-1 bg-ice-50 rounded-lg text-[9px] font-bold text-graphite-400 border border-ice-200">
-                                            📡 {geoResult.coordinates.source === 'gps' ? 'GPS Preciso' : `IP (${geoResult.coordinates.source})`}
+                                            📡 {geoResult.coordinates.source === 'gps' ? t('preCheckin.geofence.gpsPrecise') : t('preCheckin.geofence.ipSource', { source: geoResult.coordinates.source })}
                                         </span>
                                     )}
 
@@ -256,10 +258,10 @@ export const PreCheckin: React.FC = () => {
                                         className="flex items-center gap-2 px-4 py-2.5 bg-brand-primary text-white rounded-xl text-xs font-black border-none cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-transform mt-2"
                                     >
                                         <RefreshCw size={14} />
-                                        Verificar Novamente
+                                        {t('preCheckin.geofence.retryCheck')}
                                     </button>
                                     <p className="text-[9px] text-graphite-300 text-center font-medium">
-                                        Aproxime-se da unidade para liberar o check-in
+                                        {t('preCheckin.geofence.getCloserHint')}
                                     </p>
                                 </div>
                             )}
@@ -272,7 +274,7 @@ export const PreCheckin: React.FC = () => {
                                     </div>
                                     <p className="text-sm font-bold text-emerald-700 flex items-center gap-1.5">
                                         <Loader2 size={14} className="animate-spin" />
-                                        Chegou em: {geoResult.matchedLocation?.name || geoResult.clinicName}
+                                        {t('preCheckin.geofence.arrivedAt', { name: geoResult.matchedLocation?.name || geoResult.clinicName })}
                                     </p>
                                 </div>
                             )}
@@ -288,8 +290,8 @@ export const PreCheckin: React.FC = () => {
                             <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 rounded-xl border border-emerald-200">
                                 <Navigation size={14} className="text-emerald-600" />
                                 <span className="text-[10px] font-black text-emerald-700 uppercase">
-                                    Proximidade confirmada: {geoResult.matchedLocation?.name || geoResult.clinicName}
-                                    {geoResult.coordinates && ` • ${geoResult.coordinates.source === 'gps' ? 'GPS' : 'IP'}`}
+                                    {t('preCheckin.verifyData.confirmedProximity', { name: geoResult.matchedLocation?.name || geoResult.clinicName })}
+                                    {geoResult.coordinates && ` • ${geoResult.coordinates.source === 'gps' ? t('preCheckin.geofence.gpsShort') : t('preCheckin.geofence.ipShort')}`}
                                 </span>
                             </div>
                         )}
@@ -300,14 +302,14 @@ export const PreCheckin: React.FC = () => {
                                     <User size={20} className="text-brand-primary" />
                                 </div>
                                 <div>
-                                    <h2 className="font-black text-graphite-900 text-base">Seus Dados</h2>
-                                    <p className="text-[10px] text-graphite-400 font-medium">Confirme se estão corretos</p>
+                                    <h2 className="font-black text-graphite-900 text-base">{t('preCheckin.verifyData.title')}</h2>
+                                    <p className="text-[10px] text-graphite-400 font-medium">{t('preCheckin.verifyData.subtitle')}</p>
                                 </div>
                             </div>
 
                             <div className="space-y-3">
                                 <div className="flex justify-between py-2 border-b border-ice-50">
-                                    <span className="text-xs font-bold text-graphite-400">Nome</span>
+                                    <span className="text-xs font-bold text-graphite-400">{t('preCheckin.verifyData.name')}</span>
                                     <span className="text-sm font-bold text-graphite-900">{patient.full_name}</span>
                                 </div>
                                 <div className="flex justify-between py-2 border-b border-ice-50">
@@ -317,13 +319,13 @@ export const PreCheckin: React.FC = () => {
                                     <span className="text-sm font-bold text-graphite-900">{patient.national_id || patient.cpf || '---'}</span>
                                 </div>
                                 <div className="flex justify-between py-2 border-b border-ice-50">
-                                    <span className="text-xs font-bold text-graphite-400">Celular</span>
+                                    <span className="text-xs font-bold text-graphite-400">{t('preCheckin.verifyData.mobile')}</span>
                                     <span className="text-sm font-bold text-graphite-900">
                                         {formatNational(patient.mobile || patient.phone) || patient.mobile || patient.phone || '---'}
                                     </span>
                                 </div>
                                 <div className="flex justify-between py-2">
-                                    <span className="text-xs font-bold text-graphite-400">Email</span>
+                                    <span className="text-xs font-bold text-graphite-400">{t('preCheckin.verifyData.email')}</span>
                                     <span className="text-sm font-bold text-graphite-900">{patient.email || '---'}</span>
                                 </div>
                             </div>
@@ -334,7 +336,7 @@ export const PreCheckin: React.FC = () => {
                             className="w-full py-4 bg-brand-primary text-white rounded-2xl font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-brand-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-transform border-none cursor-pointer"
                         >
                             <CheckCircle2 size={18} />
-                            Dados Corretos, Continuar
+                            {t('preCheckin.verifyData.confirmCta')}
                             <ChevronRight size={16} />
                         </button>
                     </div>
@@ -349,18 +351,18 @@ export const PreCheckin: React.FC = () => {
                                     <ShieldCheck size={20} className="text-sky-600" />
                                 </div>
                                 <div>
-                                    <h2 className="font-black text-graphite-900 text-base">Convênio</h2>
-                                    <p className="text-[10px] text-graphite-400 font-medium">Confirme os dados do plano</p>
+                                    <h2 className="font-black text-graphite-900 text-base">{t('preCheckin.verifyInsurance.title')}</h2>
+                                    <p className="text-[10px] text-graphite-400 font-medium">{t('preCheckin.verifyInsurance.subtitle')}</p>
                                 </div>
                             </div>
 
                             <div className="space-y-3">
                                 <div className="flex justify-between py-2 border-b border-ice-50">
-                                    <span className="text-xs font-bold text-graphite-400">Operadora</span>
+                                    <span className="text-xs font-bold text-graphite-400">{t('preCheckin.verifyInsurance.provider')}</span>
                                     <span className="text-sm font-bold text-graphite-900">{patient.insurance_provider || '---'}</span>
                                 </div>
                                 <div className="flex justify-between py-2">
-                                    <span className="text-xs font-bold text-graphite-400">Nº Carteirinha</span>
+                                    <span className="text-xs font-bold text-graphite-400">{t('preCheckin.verifyInsurance.cardNumber')}</span>
                                     <span className="text-sm font-bold text-graphite-900">{patient.insurance_card || '---'}</span>
                                 </div>
                             </div>
@@ -371,7 +373,7 @@ export const PreCheckin: React.FC = () => {
                             className="w-full py-4 bg-brand-primary text-white rounded-2xl font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-brand-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-transform border-none cursor-pointer"
                         >
                             <CheckCircle2 size={18} />
-                            Convênio Correto, Finalizar
+                            {t('preCheckin.verifyInsurance.confirmCta')}
                             <ChevronRight size={16} />
                         </button>
                     </div>
@@ -385,10 +387,10 @@ export const PreCheckin: React.FC = () => {
                                 <CheckCircle2 size={28} className="text-emerald-600" />
                             </div>
                             <h2 className="text-lg font-black text-emerald-900 mb-1">
-                                Check-in Concluído!
+                                {t('preCheckin.complete.title')}
                             </h2>
                             <p className="text-sm text-emerald-700 font-medium">
-                                Apresente o QR Code abaixo na recepção.
+                                {t('preCheckin.complete.subtitle')}
                             </p>
                         </div>
 
@@ -404,7 +406,7 @@ export const PreCheckin: React.FC = () => {
                             </div>
                             <div>
                                 <p className="text-xs font-black text-graphite-400 uppercase tracking-wider">
-                                    Horário Agendado
+                                    {t('preCheckin.complete.scheduledTime')}
                                 </p>
                                 <p className="text-base font-black text-graphite-900">
                                     {appointment.start_time}

@@ -16,12 +16,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { answerCall, startRecording } from "../_shared/telnyxClient.ts";
 import { getTelnyxApiKey, getTelnyxPublicKey } from "../_shared/masterConfig.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { getCallPricing } from "../_shared/pricing.ts";
 
 console.log("telnyx-call-webhook v3 (masterConfig fallback) — Initialized");
-
-// Custo estimado Telnyx por minuto (USD) — atualizar conforme contrato
-const TELNYX_INBOUND_COST_PER_MIN  = 0.004;
-const TELNYX_OUTBOUND_COST_PER_MIN = 0.013;
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -162,7 +159,8 @@ async function handleEvent(supabase: any, eventType: string, payload: any): Prom
       });
 
       // Registrar uso: inbound call iniciado
-      await logUsage(supabase, tenantId, "call_inbound", null, 0, TELNYX_INBOUND_COST_PER_MIN, to);
+      const initPricing = getCallPricing(to, "inbound");
+      await logUsage(supabase, tenantId, "call_inbound", null, 0, initPricing.unitCostUsd, to);
 
       console.log(`[telnyx-call-webhook] ✓ Incoming answered | tenant: ${tenantId}`);
       break;
@@ -206,7 +204,9 @@ async function handleEvent(supabase: any, eventType: string, payload: any): Prom
       if (existing && durationSec) {
         const minutes = durationSec / 60;
         const isInbound = existing.direction === "inbound";
-        const unitCost  = isInbound ? TELNYX_INBOUND_COST_PER_MIN : TELNYX_OUTBOUND_COST_PER_MIN;
+        const tenantPhone = isInbound ? payload.to : payload.from;
+        const pricing = getCallPricing(tenantPhone, isInbound ? "inbound" : "outbound");
+        const unitCost = pricing.unitCostUsd;
         const billingPeriod = getBillingPeriod();
 
         await supabase.from("tenant_usage_log").insert({
@@ -217,9 +217,7 @@ async function handleEvent(supabase: any, eventType: string, payload: any): Prom
           unit_cost_usd: unitCost,
           total_cost_usd: minutes * unitCost,
           billing_period: billingPeriod,
-          tenant_phone_number: existing.direction === "inbound"
-            ? payload.to
-            : payload.from,
+          tenant_phone_number: tenantPhone,
         });
         console.log(`[telnyx-call-webhook] ✓ Usage logged: ${minutes.toFixed(2)} min | tenant: ${existing.tenant_id}`);
       }

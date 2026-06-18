@@ -23,6 +23,7 @@ import { MetaSocialClient, MetaSocialError } from "../_shared/metaSocialClient.t
 import { TelnyxSmsClient } from "../_shared/telnyxSmsClient.ts";
 import { getTelnyxApiKey } from "../_shared/masterConfig.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { getSmsPricing } from "../_shared/pricing.ts";
 
 console.log("process-outbound v3 — Multi-Canal Initialized");
 
@@ -213,7 +214,7 @@ serve(async (req: Request) => {
             // Número remetente: primeiro número ativo do tenant
             const { data: senderRow } = await supabase
               .from('tenant_phone_numbers')
-              .select('phone_number')
+              .select('phone_number, country_code')
               .eq('tenant_id', msg.tenant_id)
               .eq('is_active', true)
               .contains('capabilities', { sms: true })
@@ -228,6 +229,7 @@ serve(async (req: Request) => {
             await smsClient.sendSms(senderRow.phone_number, recipient, text);
 
             // Rastrear uso: SMS outbound
+            const pricing = getSmsPricing(senderRow?.country_code ?? "US", "sms");
             const billingPeriod = new Date();
             const periodStr = `${billingPeriod.getFullYear()}-${String(billingPeriod.getMonth() + 1).padStart(2, "0")}-01`;
             await supabase.from("tenant_usage_log").insert({
@@ -235,8 +237,8 @@ serve(async (req: Request) => {
               resource_type:       "sms_outbound",
               resource_id:         msg.id,
               quantity:            1,
-              unit_cost_usd:       0.007,   // custo Telnyx por SMS enviado
-              total_cost_usd:      0.007,
+              unit_cost_usd:       pricing.unitCostUsd,
+              total_cost_usd:      pricing.unitCostUsd,
               billing_period:      periodStr,
               tenant_phone_number: senderRow.phone_number,
             }).catch(() => {}); // não bloquear por falha de tracking

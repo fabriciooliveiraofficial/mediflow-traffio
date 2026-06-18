@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { GeolocationService, type GeofenceResult } from '../services/geolocationService';
 
 interface UseGeofenceReturn {
@@ -14,13 +15,14 @@ interface UseGeofenceReturn {
  * Call `check()` to trigger the multi-layer location check.
  */
 export function useGeofence(tenantId: string, locationId?: string): UseGeofenceReturn {
+    const { t } = useTranslation('patient');
     const [result, setResult] = useState<GeofenceResult | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const check = useCallback(async () => {
         if (!tenantId) {
-            setError('Tenant ID não encontrado.');
+            setError(t('preCheckin.errors.tenantIdMissing'));
             return;
         }
 
@@ -33,12 +35,12 @@ export function useGeofence(tenantId: string, locationId?: string): UseGeofenceR
         } catch (e) {
             const message = e instanceof Error
                 ? e.message
-                : 'Erro ao verificar localização.';
+                : t('preCheckin.errors.checkFailed');
             setError(message);
         } finally {
             setLoading(false);
         }
-    }, [tenantId]);
+    }, [tenantId, t]);
 
     return { result, loading, error, check };
 }

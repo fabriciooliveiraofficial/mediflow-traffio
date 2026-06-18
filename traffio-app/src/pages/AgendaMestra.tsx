@@ -22,6 +22,7 @@ import {
     Wallet
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabase';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -109,6 +110,7 @@ const HOURS = Array.from({ length: TOTAL_HOURS + 1 }, (_, i) => DAY_START + i);
 
 // ─────────────────────────────────────────────
 export const AgendaMestra: React.FC = () => {
+    const { t } = useTranslation('agenda');
     const { showToast } = useToast();
     const [selectedTenant, setSelectedTenant] = useState<string | null>(null);
     const [tenants, setTenants] = useState<any[]>([]);
@@ -344,11 +346,11 @@ export const AgendaMestra: React.FC = () => {
             };
 
             await smartSchedulingService.bookAppointment(payload);
-            showToast('success', `Agendamento criado para ${bookingForm.selectedPatient.full_name}!`);
+            showToast('success', t('mestra.toasts.bookedFor', { name: bookingForm.selectedPatient.full_name }));
             setBookingModal({ open: false, doctorId: '', slot: null });
             fetchData();
         } catch (err: any) {
-            showToast('error', 'Erro ao agendar: ' + err.message);
+            showToast('error', t('mestra.toasts.bookError', { message: err.message }));
         }
         setBookingSaving(false);
     };
@@ -361,8 +363,8 @@ export const AgendaMestra: React.FC = () => {
             await supabase.from('appointments').update(updates).eq('id', id);
             setEditingAppt(null);
             fetchData();
-            showToast('success', 'Status atualizado!');
-        } catch (err: any) { showToast('error', 'Erro: ' + err.message); }
+            showToast('success', t('mestra.toasts.statusUpdated'));
+        } catch (err: any) { showToast('error', t('mestra.toasts.genericError', { message: err.message })); }
     };
 
     const handleSaveNotes = async () => {
@@ -371,8 +373,8 @@ export const AgendaMestra: React.FC = () => {
             await supabase.from('appointments').update({ notes: editNotes }).eq('id', editingAppt.id);
             setEditingAppt(null);
             fetchData();
-            showToast('success', 'Notas salvas!');
-        } catch (err: any) { showToast('error', 'Erro: ' + err.message); }
+            showToast('success', t('mestra.toasts.notesSaved'));
+        } catch (err: any) { showToast('error', t('mestra.toasts.genericError', { message: err.message })); }
     };
 
     const handleDelete = async (id: string) => {
@@ -381,8 +383,8 @@ export const AgendaMestra: React.FC = () => {
             setConfirmDelete(null);
             setEditingAppt(null);
             fetchData();
-            showToast('success', 'Agendamento removido!');
-        } catch (err: any) { showToast('error', 'Erro: ' + err.message); }
+            showToast('success', t('mestra.toasts.appointmentRemoved'));
+        } catch (err: any) { showToast('error', t('mestra.toasts.genericError', { message: err.message })); }
     };
 
     // ── Drag & Drop Engine ──────────────────
@@ -537,18 +539,18 @@ export const AgendaMestra: React.FC = () => {
                         start_time: minToTime(drag.currentStart) + ':00',
                         end_time: minToTime(drag.currentEnd) + ':00',
                     }).eq('id', drag.apptId);
-                    showToast('success', 'Agendamento movido!');
+                    showToast('success', t('mestra.toasts.appointmentMoved'));
                     fetchData();
-                } catch (err: any) { showToast('error', 'Erro ao mover: ' + err.message); }
+                } catch (err: any) { showToast('error', t('mestra.toasts.moveError', { message: err.message })); }
             } else if ((drag.type === 'resize-top' || drag.type === 'resize-bottom') && drag.apptId && moved) {
                 try {
                     await supabase.from('appointments').update({
                         start_time: minToTime(drag.currentStart) + ':00',
                         end_time: minToTime(drag.currentEnd) + ':00',
                     }).eq('id', drag.apptId);
-                    showToast('success', 'Duração atualizada!');
+                    showToast('success', t('mestra.toasts.durationUpdated'));
                     fetchData();
-                } catch (err: any) { showToast('error', 'Erro ao redimensionar: ' + err.message); }
+                } catch (err: any) { showToast('error', t('mestra.toasts.resizeError', { message: err.message })); }
             } else if (drag.type === 'create' && drag.currentEnd - drag.currentStart >= SNAP_MIN) {
                 openBookingFromDrag(drag.docId, drag.currentStart, drag.currentEnd);
             } else if (drag.type === 'move' && drag.apptId && !moved) {
@@ -591,9 +593,9 @@ export const AgendaMestra: React.FC = () => {
 
     // Slot badge inline
     const SlotBadge = ({ slot }: { slot: SmartSlot }) => {
-        if (slot.is_auto_released) return <span className="flex items-center gap-0.5 text-[8px] font-black uppercase text-amber-600"><Unlock size={8} />Liberado</span>;
-        if (slot.block_type === 'prime') return <span className="flex items-center gap-0.5 text-[8px] font-black uppercase text-yellow-700"><Star size={8} />Nobre</span>;
-        return <span className="flex items-center gap-0.5 text-[8px] font-black uppercase text-graphite-400"><FileText size={8} />Regular</span>;
+        if (slot.is_auto_released) return <span className="flex items-center gap-0.5 text-[8px] font-black uppercase text-amber-600"><Unlock size={8} />{t('mestra.slotBadge.released')}</span>;
+        if (slot.block_type === 'prime') return <span className="flex items-center gap-0.5 text-[8px] font-black uppercase text-yellow-700"><Star size={8} />{t('mestra.slotBadge.prime')}</span>;
+        return <span className="flex items-center gap-0.5 text-[8px] font-black uppercase text-graphite-400"><FileText size={8} />{t('mestra.slotBadge.regular')}</span>;
     };
 
     // ─────────────────────────────────────────
@@ -609,7 +611,7 @@ export const AgendaMestra: React.FC = () => {
                     <button onClick={goToToday} className="px-3 py-1.5 flex items-center gap-1.5 border-none bg-transparent cursor-pointer hover:bg-white rounded-lg transition-colors">
                         <CalendarIcon size={14} className="text-brand-primary" />
                         <span className={cn("text-sm font-black whitespace-nowrap", isToday && "text-brand-primary")}>
-                            {isToday ? 'Hoje' : formatDateLabel(selectedDate)}
+                            {isToday ? t('mestra.today') : formatDateLabel(selectedDate)}
                         </span>
                     </button>
                     <button onClick={() => changeDate(1)} className="p-1.5 hover:bg-white rounded-lg transition-colors border-none bg-transparent cursor-pointer text-graphite-700"><ChevronRight size={16} /></button>
@@ -650,8 +652,8 @@ export const AgendaMestra: React.FC = () => {
                 )}
 
                 <div className="flex items-center gap-2 shrink-0 text-[10px] font-bold text-graphite-400">
-                    <span className="bg-brand-primary/10 text-brand-primary px-2 py-1 rounded-lg">{totalAppts} agendado{totalAppts !== 1 ? 's' : ''}</span>
-                    <span className="bg-emerald-50 text-emerald-600 px-2 py-1 rounded-lg">{totalSlots} livre{totalSlots !== 1 ? 's' : ''}</span>
+                    <span className="bg-brand-primary/10 text-brand-primary px-2 py-1 rounded-lg">{t('mestra.appointmentsCount', { count: totalAppts })}</span>
+                    <span className="bg-emerald-50 text-emerald-600 px-2 py-1 rounded-lg">{t('mestra.freeSlotsCount', { count: totalSlots })}</span>
                 </div>
             </div>
 
@@ -664,7 +666,7 @@ export const AgendaMestra: React.FC = () => {
                 <div className="flex-1 flex items-center justify-center">
                     <div className="text-center">
                         <StethoscopeIcon size={48} className="mx-auto text-graphite-200 mb-4" />
-                        <p className="text-graphite-400 font-bold">Selecione ao menos um profissional</p>
+                        <p className="text-graphite-400 font-bold">{t('mestra.selectProfessional')}</p>
                     </div>
                 </div>
             ) : (
@@ -783,14 +785,14 @@ export const AgendaMestra: React.FC = () => {
                                                                 {appt.status === 'confirmed' && <CheckCircle2 size={10} className="text-brand-primary shrink-0" />}
                                                                 {appt.status === 'checkin_done' && <UserCheck size={10} className="text-emerald-500 shrink-0" />}
                                                                 <span className="text-[11px] font-black text-graphite-900 truncate leading-tight">
-                                                                    {appt.patients?.full_name || 'Paciente'}
+                                                                    {appt.patients?.full_name || t('mestra.patientFallback')}
                                                                 </span>
                                                                 {appt.patient_type === 'insurance' && <Shield size={9} className="text-emerald-400 shrink-0" />}
                                                             </div>
                                                             {h > 36 && (
                                                                 <div className="flex items-center gap-1 mt-0.5">
                                                                     <span className="text-[9px] text-graphite-400 font-medium truncate">
-                                                                        {appt.appointment_types?.name || appt.notes || 'Consulta'}
+                                                                        {appt.appointment_types?.name || appt.notes || t('mestra.consultaFallback')}
                                                                     </span>
                                                                 </div>
                                                             )}
@@ -857,7 +859,7 @@ export const AgendaMestra: React.FC = () => {
                             <div className="bg-white pointer-events-auto w-full max-w-lg rounded-[32px] shadow-2xl overflow-hidden border border-white/20">
                                 <div className="px-8 py-5 border-b border-ice-100 bg-ice-50/50 flex justify-between items-center">
                                     <div>
-                                        <h3 className="text-lg font-black text-graphite-900">Novo Agendamento</h3>
+                                        <h3 className="text-lg font-black text-graphite-900">{t('mestra.bookingModal.title')}</h3>
                                         <div className="flex items-center gap-3 mt-1">
                                             <span className="text-xs text-graphite-500 font-medium flex items-center gap-1">
                                                 <Clock size={12} />
@@ -879,7 +881,7 @@ export const AgendaMestra: React.FC = () => {
                                 <div className="p-6 space-y-5 max-h-[60vh] overflow-y-auto">
                                     {/* Patient Search */}
                                     <div>
-                                        <label className="text-xs font-black text-graphite-400 uppercase mb-2 block">Paciente *</label>
+                                        <label className="text-xs font-black text-graphite-400 uppercase mb-2 block">{t('mestra.bookingModal.patientLabel')}</label>
                                         {bookingForm.selectedPatient ? (
                                             <div className="flex items-center gap-3 p-3 bg-brand-primary/5 border border-brand-primary/20 rounded-xl">
                                                 <div className="w-10 h-10 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary"><User size={18} /></div>
@@ -894,7 +896,7 @@ export const AgendaMestra: React.FC = () => {
                                             <div className="relative">
                                                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-graphite-300" />
                                                 <input type="text" value={bookingForm.patientSearch} onChange={(e) => handlePatientSearch(e.target.value)}
-                                                    placeholder="Buscar por nome..." autoFocus
+                                                    placeholder={t('mestra.bookingModal.patientSearchPlaceholder')} autoFocus
                                                     className="w-full bg-ice-50 border border-ice-200 rounded-xl pl-10 pr-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors" />
                                                 {patientResults.length > 0 && (
                                                     <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-ice-200 rounded-xl shadow-lg z-10 max-h-48 overflow-y-auto">
@@ -917,59 +919,59 @@ export const AgendaMestra: React.FC = () => {
 
                                     {/* Patient Type */}
                                     <div>
-                                        <label className="text-xs font-black text-graphite-400 uppercase mb-2 block">Tipo de Paciente</label>
+                                        <label className="text-xs font-black text-graphite-400 uppercase mb-2 block">{t('mestra.bookingModal.patientTypeLabel')}</label>
                                         <div className="grid grid-cols-2 gap-2">
                                             <button onClick={() => setBookingForm(prev => ({ ...prev, patientType: 'private' }))}
                                                 className={cn("py-2.5 rounded-xl text-xs font-bold border cursor-pointer transition-all flex items-center justify-center gap-2",
                                                     bookingForm.patientType === 'private' ? "bg-brand-primary text-white border-brand-primary" : "bg-white text-graphite-600 border-ice-200")}>
-                                                <User size={14} /> Particular
+                                                <User size={14} /> {t('mestra.bookingModal.private')}
                                             </button>
                                             <button onClick={() => setBookingForm(prev => ({ ...prev, patientType: 'insurance' }))}
                                                 className={cn("py-2.5 rounded-xl text-xs font-bold border cursor-pointer transition-all flex items-center justify-center gap-2",
                                                     bookingForm.patientType === 'insurance' ? "bg-emerald-500 text-white border-emerald-500" : "bg-white text-graphite-600 border-ice-200")}>
-                                                <Shield size={14} /> Convênio
+                                                <Shield size={14} /> {t('mestra.bookingModal.insurance')}
                                             </button>
                                         </div>
                                     </div>
 
                                     {bookingForm.patientType === 'insurance' && (
                                         <div>
-                                            <label className="text-xs font-black text-graphite-400 uppercase mb-2 block">Convênio</label>
+                                            <label className="text-xs font-black text-graphite-400 uppercase mb-2 block">{t('mestra.bookingModal.insurance')}</label>
                                             {doctorPlans.length === 0 ? (
-                                                <p className="text-xs text-amber-500 font-medium bg-amber-50 p-3 rounded-xl border border-amber-200">Este profissional não tem convênios vinculados</p>
+                                                <p className="text-xs text-amber-500 font-medium bg-amber-50 p-3 rounded-xl border border-amber-200">{t('mestra.bookingModal.noInsurancePlans')}</p>
                                             ) : (
                                                 <select value={bookingForm.insurancePlanId} onChange={(e) => setBookingForm(prev => ({ ...prev, insurancePlanId: e.target.value }))}
                                                     className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium cursor-pointer focus:outline-none focus:border-brand-primary transition-colors">
-                                                    <option value="">Selecione o convênio</option>
-                                                    {doctorPlans.map((dp: any) => <option key={dp.insurance_plan_id} value={dp.insurance_plan_id}>{dp.insurance_plans?.name || 'Convênio'}</option>)}
+                                                    <option value="">{t('mestra.bookingModal.selectInsurancePlaceholder')}</option>
+                                                    {doctorPlans.map((dp: any) => <option key={dp.insurance_plan_id} value={dp.insurance_plan_id}>{dp.insurance_plans?.name || t('mestra.bookingModal.insurance')}</option>)}
                                                 </select>
                                             )}
                                         </div>
                                     )}
 
                                     <div>
-                                        <label className="text-xs font-black text-graphite-400 uppercase mb-2 block">Tipo de Consulta</label>
+                                        <label className="text-xs font-black text-graphite-400 uppercase mb-2 block">{t('mestra.bookingModal.appointmentTypeLabel')}</label>
                                         <select value={bookingForm.typeId} onChange={(e) => setBookingForm(prev => ({ ...prev, typeId: e.target.value }))}
                                             className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium cursor-pointer focus:outline-none focus:border-brand-primary transition-colors">
-                                            <option value="">Selecione o tipo</option>
+                                            <option value="">{t('mestra.bookingModal.selectTypePlaceholder')}</option>
                                             {appointmentTypes.map(t => <option key={t.id} value={t.id}>{t.name} ({t.duration_minutes}min)</option>)}
                                         </select>
                                     </div>
 
                                     <div>
-                                        <label className="text-xs font-black text-graphite-400 uppercase mb-2 block">Observações</label>
+                                        <label className="text-xs font-black text-graphite-400 uppercase mb-2 block">{t('mestra.bookingModal.notesLabel')}</label>
                                         <textarea value={bookingForm.notes || ''} onChange={(e) => setBookingForm(prev => ({ ...prev, notes: e.target.value }))}
-                                            placeholder="Observações opcionais..."
+                                            placeholder={t('mestra.bookingModal.notesPlaceholder')}
                                             className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors resize-none min-h-[60px]" />
                                     </div>
 
                                     <div className="flex gap-3 pt-2">
                                         <button onClick={() => setBookingModal({ open: false, doctorId: '', slot: null })}
-                                            className="flex-1 py-3 rounded-2xl font-bold text-graphite-700 hover:bg-ice-50 border border-ice-200 cursor-pointer transition-all bg-transparent">Cancelar</button>
+                                            className="flex-1 py-3 rounded-2xl font-bold text-graphite-700 hover:bg-ice-50 border border-ice-200 cursor-pointer transition-all bg-transparent">{t('mestra.bookingModal.cancel')}</button>
                                         <button onClick={handleBook} disabled={!bookingForm.selectedPatient || bookingSaving}
                                             className={cn("flex-[2] py-3 rounded-2xl font-bold shadow-lg transition-all flex items-center justify-center gap-2 border-none cursor-pointer",
                                                 bookingForm.selectedPatient ? "bg-brand-primary text-white shadow-brand-primary/20 hover:scale-[1.02] active:scale-[0.98]" : "bg-ice-200 text-graphite-400 cursor-not-allowed shadow-none")}>
-                                            {bookingSaving ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><CheckCircle2 size={16} /> Confirmar</>}
+                                            {bookingSaving ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><CheckCircle2 size={16} /> {t('mestra.bookingModal.confirm')}</>}
                                         </button>
                                     </div>
                                 </div>
@@ -987,7 +989,7 @@ export const AgendaMestra: React.FC = () => {
                         <div className="bg-white pointer-events-auto w-full max-w-md rounded-[32px] shadow-2xl overflow-hidden border border-white/20">
                             <div className="px-8 py-5 border-b border-ice-100 flex justify-between items-center bg-ice-50/50">
                                 <div>
-                                    <h3 className="text-lg font-black text-graphite-900">{editingAppt.patients?.full_name || 'Paciente'}</h3>
+                                    <h3 className="text-lg font-black text-graphite-900">{editingAppt.patients?.full_name || t('mestra.patientFallback')}</h3>
                                     <p className="text-xs text-graphite-400 font-medium">
                                         {formatSlot(editingAppt.start_time)} – {formatSlot(editingAppt.end_time)} · {formatDateLabel(selectedDate)}
                                     </p>
@@ -996,13 +998,13 @@ export const AgendaMestra: React.FC = () => {
                             </div>
                             <div className="p-6 space-y-5">
                                 <div>
-                                    <label className="text-xs font-black text-graphite-400 uppercase mb-2 block">Status</label>
+                                    <label className="text-xs font-black text-graphite-400 uppercase mb-2 block">{t('mestra.editModal.statusLabel')}</label>
                                     <div className="grid grid-cols-2 gap-2">
                                         {[
-                                            { status: 'confirmed', label: 'Confirmado', icon: CheckCircle2, ac: 'bg-brand-primary text-white border-brand-primary' },
-                                            { status: 'checkin_done', label: 'Check-in', icon: UserCheck, ac: 'bg-emerald-500 text-white border-emerald-500' },
-                                            { status: 'canceled', label: 'Cancelar', icon: XCircle, ac: 'bg-rose-500 text-white border-rose-500' },
-                                            { status: 'noshow', label: 'No-Show', icon: AlertTriangle, ac: 'bg-amber-500 text-white border-amber-500' },
+                                            { status: 'confirmed', label: t('mestra.editModal.statusConfirmed'), icon: CheckCircle2, ac: 'bg-brand-primary text-white border-brand-primary' },
+                                            { status: 'checkin_done', label: t('mestra.editModal.statusCheckin'), icon: UserCheck, ac: 'bg-emerald-500 text-white border-emerald-500' },
+                                            { status: 'canceled', label: t('mestra.editModal.statusCancel'), icon: XCircle, ac: 'bg-rose-500 text-white border-rose-500' },
+                                            { status: 'noshow', label: t('mestra.editModal.statusNoshow'), icon: AlertTriangle, ac: 'bg-amber-500 text-white border-amber-500' },
                                         ].map(({ status, label, icon: Icon, ac }) => (
                                             <button key={status} onClick={() => handleUpdateStatus(editingAppt.id, status)}
                                                 className={cn("flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold border cursor-pointer transition-all",
@@ -1015,37 +1017,37 @@ export const AgendaMestra: React.FC = () => {
 
                                 {editingAppt.slot_type && (
                                     <div className="flex items-center gap-2 p-3 rounded-xl bg-ice-50 border border-ice-100">
-                                        <span className="text-xs font-bold text-graphite-400">Slot:</span>
+                                        <span className="text-xs font-bold text-graphite-400">{t('mestra.editModal.slotColonLabel')}</span>
                                         <span className={cn("px-2 py-0.5 rounded-lg text-[10px] font-black uppercase",
                                             editingAppt.slot_type === 'prime' ? "bg-yellow-100 text-yellow-700" :
                                                 editingAppt.slot_type === 'auto_released' ? "bg-amber-100 text-amber-700" : "bg-ice-100 text-graphite-500")}>
-                                            {editingAppt.slot_type === 'prime' ? 'Nobre' : editingAppt.slot_type === 'auto_released' ? 'Liberado' : 'Regular'}
+                                            {editingAppt.slot_type === 'prime' ? t('mestra.slotBadge.prime') : editingAppt.slot_type === 'auto_released' ? t('mestra.slotBadge.released') : t('mestra.slotBadge.regular')}
                                         </span>
-                                        {editingAppt.patient_type === 'insurance' && <span className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase bg-emerald-100 text-emerald-700">Convênio</span>}
+                                        {editingAppt.patient_type === 'insurance' && <span className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase bg-emerald-100 text-emerald-700">{t('mestra.bookingModal.insurance')}</span>}
                                     </div>
                                 )}
 
                                 <div>
-                                    <label className="text-xs font-black text-graphite-400 uppercase mb-2 block">Observações</label>
-                                    <textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="Observações..."
+                                    <label className="text-xs font-black text-graphite-400 uppercase mb-2 block">{t('mestra.editModal.notesLabel')}</label>
+                                    <textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder={t('mestra.editModal.notesPlaceholder')}
                                         className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors resize-none min-h-[80px]" />
                                 </div>
 
                                 <div className="flex gap-3">
-                                    <button onClick={() => setEditingAppt(null)} className="flex-1 py-3 rounded-2xl font-bold text-graphite-700 hover:bg-ice-50 border border-ice-200 cursor-pointer transition-all bg-transparent">Fechar</button>
+                                    <button onClick={() => setEditingAppt(null)} className="flex-1 py-3 rounded-2xl font-bold text-graphite-700 hover:bg-ice-50 border border-ice-200 cursor-pointer transition-all bg-transparent">{t('mestra.editModal.close')}</button>
                                     <button onClick={handleSaveNotes} className="flex-[2] bg-brand-primary text-white py-3 rounded-2xl font-bold shadow-lg shadow-brand-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 border-none cursor-pointer">
-                                        <Save size={16} /> Salvar
+                                        <Save size={16} /> {t('mestra.editModal.save')}
                                     </button>
                                 </div>
 
                                 <button onClick={() => setIsCheckoutModalOpen(true)}
                                     className="w-full py-4 bg-emerald-500 text-white rounded-2xl font-black shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 border-none cursor-pointer">
-                                    <Wallet size={18} /> Receber Pagamento
+                                    <Wallet size={18} /> {t('mestra.editModal.receivePayment')}
                                 </button>
 
                                 <button onClick={() => setConfirmDelete(editingAppt.id)}
                                     className="w-full py-2.5 rounded-xl text-xs font-bold text-rose-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 cursor-pointer transition-all bg-transparent">
-                                    Excluir Agendamento
+                                    {t('mestra.editModal.deleteAppointment')}
                                 </button>
                             </div>
                         </div>
@@ -1062,11 +1064,11 @@ export const AgendaMestra: React.FC = () => {
                             className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
                             <div className="text-center">
                                 <div className="w-12 h-12 bg-rose-100 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-4"><AlertTriangle size={24} /></div>
-                                <h3 className="text-lg font-bold text-graphite-900 mb-2">Excluir Agendamento?</h3>
-                                <p className="text-sm text-graphite-500 mb-6">Esta ação não pode ser desfeita.</p>
+                                <h3 className="text-lg font-bold text-graphite-900 mb-2">{t('mestra.confirmDelete.title')}</h3>
+                                <p className="text-sm text-graphite-500 mb-6">{t('mestra.confirmDelete.text')}</p>
                                 <div className="flex gap-3">
-                                    <button onClick={() => setConfirmDelete(null)} className="flex-1 py-3 rounded-xl font-bold text-graphite-700 hover:bg-ice-50 border border-ice-200 cursor-pointer transition-all bg-transparent">Cancelar</button>
-                                    <button onClick={() => handleDelete(confirmDelete)} className="flex-1 py-3 rounded-xl font-bold text-white bg-rose-500 hover:bg-rose-600 border-none cursor-pointer transition-all">Excluir</button>
+                                    <button onClick={() => setConfirmDelete(null)} className="flex-1 py-3 rounded-xl font-bold text-graphite-700 hover:bg-ice-50 border border-ice-200 cursor-pointer transition-all bg-transparent">{t('mestra.confirmDelete.cancel')}</button>
+                                    <button onClick={() => handleDelete(confirmDelete)} className="flex-1 py-3 rounded-xl font-bold text-white bg-rose-500 hover:bg-rose-600 border-none cursor-pointer transition-all">{t('mestra.confirmDelete.confirm')}</button>
                                 </div>
                             </div>
                         </motion.div>
@@ -1079,7 +1081,7 @@ export const AgendaMestra: React.FC = () => {
                     isOpen={isCheckoutModalOpen}
                     onClose={() => setIsCheckoutModalOpen(false)}
                     patientId={editingAppt.patient_id}
-                    patientName={editingAppt.patients?.full_name || 'Paciente'}
+                    patientName={editingAppt.patients?.full_name || t('mestra.patientFallback')}
                     initialAmount={editingAppt.appointment_types?.price_cents ? (editingAppt.appointment_types.price_cents / 100) : 0}
                     tenantId={selectedTenant || ''}
                 />
