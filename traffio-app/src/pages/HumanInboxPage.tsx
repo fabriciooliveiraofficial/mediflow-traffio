@@ -1427,6 +1427,7 @@ function PatientPanel({
 }: PatientPanelProps) {
   
   if (view === 'register') {
+    const isWhatsApp = !['instagram', 'facebook', 'livechat'].includes(session.channel || '');
     return (
       <div className="w-full flex flex-col h-full border-l border-gray-200">
         <SidebarRegisterView 
@@ -1435,7 +1436,7 @@ function PatientPanel({
             onPatientSelected(p);
             onViewChange('profile');
           }}
-          initialPhone={session.patient_phone}
+          initialPhone={isWhatsApp ? session.patient_phone : ''}
         />
       </div>
     );

@@ -17,6 +17,7 @@ export function SidebarPatientEditView({ onBack, onSuccess, patient, session, on
   const { tenant } = useTenant();
   const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
+  const isWhatsApp = !['instagram', 'facebook', 'livechat'].includes(session?.channel || '');
   
   // Patient Form State
   const [formData, setFormData] = useState({
@@ -71,6 +72,7 @@ export function SidebarPatientEditView({ onBack, onSuccess, patient, session, on
           full_name: formData.full_name,
           cpf: formData.cpf,
           birth_date: toDBDate(formData.birth_date),
+          phone: formData.phone,
           email: formData.email,
           type: formData.type,
           notes: formData.notes,
@@ -238,9 +240,14 @@ export function SidebarPatientEditView({ onBack, onSuccess, patient, session, on
                 <div className="relative">
                   <Phone className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
                   <input
-                    readOnly
-                    className="w-full pl-9 pr-3 py-2 text-sm bg-gray-100 border border-gray-200 rounded-xl opacity-60 cursor-not-allowed"
+                    readOnly={isWhatsApp}
+                    className={`w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl transition-all ${
+                      isWhatsApp 
+                        ? 'bg-gray-100 opacity-60 cursor-not-allowed' 
+                        : 'bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500'
+                    }`}
                     value={formData.phone}
+                    onChange={e => setFormData({ ...formData, phone: e.target.value })}
                   />
                 </div>
               </div>

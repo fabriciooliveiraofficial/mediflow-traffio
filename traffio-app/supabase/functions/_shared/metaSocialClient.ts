@@ -64,7 +64,8 @@ export class MetaSocialClient {
     igsid: string,
     text: string
   ): Promise<MetaSendResult> {
-    const res = await fetch(`${GRAPH_API}/${igAccountId}/messages?access_token=${pageToken}`, {
+    // Para Instagram Direct, enviamos para /me/messages (vinculado à página FB) com o IGSID no recipient.id
+    const res = await fetch(`${GRAPH_API}/me/messages?access_token=${pageToken}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

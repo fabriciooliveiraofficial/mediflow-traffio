@@ -89,9 +89,14 @@ export function SidebarRegisterView({ onBack, onSuccess, initialPhone }: Sidebar
           <div className="relative">
             <Phone className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
             <input
-              disabled
-              className="w-full pl-9 pr-3 py-2 text-sm bg-gray-100 border border-gray-200 rounded-xl cursor-not-allowed opacity-70"
+              disabled={!!initialPhone}
+              className={`w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl transition-all ${
+                initialPhone 
+                  ? 'bg-gray-100 cursor-not-allowed opacity-70' 
+                  : 'bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500'
+              }`}
               value={formData.phone}
+              onChange={e => setFormData({ ...formData, phone: e.target.value })}
             />
           </div>
         </div>
