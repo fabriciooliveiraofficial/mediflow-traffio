@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { RefreshCw, Phone, FileText, AlertCircle } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { RefreshCw, FileText, AlertCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { OrderStatusBadge } from './OrderStatusBadge';
 import { useLocaleFormat } from '../../hooks/useLocaleFormat';
@@ -99,13 +99,17 @@ export function PendingOrdersList({ tenantId, onResubmit, refreshKey }: Props) {
             </div>
           )}
 
-          {['pending_docs', 'rejected'].includes(order.status) && (
+          {['pending_docs', 'rejected', 'docs_submitted', 'under_review'].includes(order.status) && (
             <button
               onClick={() => onResubmit(order.id, order.phone_number)}
               className="flex items-center gap-1.5 text-xs text-brand-primary font-bold hover:underline border-none cursor-pointer bg-transparent p-0"
             >
               <FileText size={12} />
-              {order.status === 'rejected' ? 'Reenviar documentos' : 'Completar documentos'}
+              {order.status === 'rejected'
+                ? 'Reenviar documentos'
+                : ['docs_submitted', 'under_review'].includes(order.status)
+                  ? 'Editar e reenviar documentos'
+                  : 'Completar documentos'}
             </button>
           )}
         </div>

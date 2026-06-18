@@ -213,7 +213,7 @@ serve(async (req: Request) => {
         }
 
         // 4. Cruzar exigências do pedido com metadados detalhados
-        const mergedRequirements = orderRequirements.map((or: any) => {
+        let mergedRequirements = orderRequirements.map((or: any) => {
           const definition = requirements.find(r => r.id === or.requirement_id);
           return {
             id: or.requirement_id,
@@ -226,6 +226,21 @@ serve(async (req: Request) => {
             field_value: or.field_value
           };
         });
+
+        // Se a ordem Telnyx não retornou requisitos específicos listados,
+        // mas o país exige KYC, usamos os requisitos padrão daquele país/tipo como fallback.
+        if (mergedRequirements.length === 0 && requirements.length > 0) {
+          mergedRequirements = requirements.map((r: any) => ({
+            id: r.id,
+            name: r.name,
+            type: r.type,
+            description: r.description || "",
+            example: r.example || "",
+            acceptanceCriteria: r.acceptanceCriteria || {},
+            status: "pending",
+            field_value: ""
+          }));
+        }
 
         // 5. Se houver algum endereço preenchido, resolver os detalhes dele para pre-população
         const resolvedAddresses: Record<string, any> = {};
@@ -676,13 +691,34 @@ serve(async (req: Request) => {
         return json({ error: `Pedido não pode ser submetido no status '${order.status}'` }, 400);
       }
 
+      // Buscar o requirement_group_id mais recente associado ao país do pedido
+      let requirementGroupId: string | undefined = undefined;
+      try {
+        const { data: reqGroup } = await supabase
+          .from("tenant_requirement_groups")
+          .select("telnyx_requirement_group_id")
+          .eq("tenant_id", tenantId)
+          .eq("country_code", order.country_code)
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (reqGroup?.telnyx_requirement_group_id) {
+          requirementGroupId = reqGroup.telnyx_requirement_group_id;
+          console.log(`[submit_docs] Found requirement group ${requirementGroupId} for country ${order.country_code}`);
+        }
+      } catch (reqErr: any) {
+        console.error(`[telnyx-number-orders] Failed to fetch requirement group from DB:`, reqErr.message);
+      }
+
       // Criar order formal na Telnyx
       let telnyxOrderId: string;
       try {
         const telnyxOrder = await createNumberOrder(
           apiKey,
           [order.phone_number],
-          connectionId || undefined
+          connectionId || undefined,
+          requirementGroupId
         );
         telnyxOrderId = telnyxOrder.id;
       } catch (e: any) {

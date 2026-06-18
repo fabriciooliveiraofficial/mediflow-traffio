@@ -543,7 +543,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
             meta: Number(metricValue(byDate[date].meta).toFixed(2)),
             google: Number(metricValue(byDate[date].google).toFixed(2)),
         }));
-    }, [filteredData, chartMetric]);
+    }, [filteredData, chartMetric, locale]);
 
     // ── Tabela de performance por campanha ──────────────────────────────────
     const campaignTable = useMemo<CampaignRow[]>(() => {

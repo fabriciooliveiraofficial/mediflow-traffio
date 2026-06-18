@@ -476,10 +476,17 @@ export interface TelnyxNumberOrder {
 export async function createNumberOrder(
   apiKey: string,
   phoneNumbers: string[],
-  connectionId?: string
+  connectionId?: string,
+  requirementGroupId?: string
 ): Promise<TelnyxNumberOrder> {
   const body: any = {
-    phone_numbers: phoneNumbers.map((n) => ({ phone_number: n })),
+    phone_numbers: phoneNumbers.map((n) => {
+      const item: any = { phone_number: n };
+      if (requirementGroupId) {
+        item.requirement_group_id = requirementGroupId;
+      }
+      return item;
+    }),
   };
   if (connectionId) body.connection_id = connectionId;
 

@@ -1,1 +1,27 @@
-{}
+{
+  "waitingRoom": {
+    "invalidLink": "Link inválido.",
+    "title": "Sala de Espera Virtual",
+    "realtimeUpdate": "Atualização em tempo real",
+    "yourPosition": "Sua posição",
+    "ofTotalInQueue": "de {{total}} na fila",
+    "estimatedTime": "Tempo Estimado",
+    "minutesEstimate": "~{{minutes}} min",
+    "patientsAhead": "Pacientes à frente",
+    "footer": "Powered by Traffio Medical • Atualizado automaticamente",
+    "status": {
+      "onTime": {
+        "label": "No Horário",
+        "description": "Atendimento fluindo normalmente"
+      },
+      "slightDelay": {
+        "label": "Leve Atraso",
+        "description": "Atraso de 5-15 min estimado"
+      },
+      "moderateDelay": {
+        "label": "Atraso Moderado",
+        "description": "Atraso superior a 15 min"
+      }
+    }
+  }
+}
