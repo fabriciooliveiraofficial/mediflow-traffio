@@ -259,52 +259,46 @@ export const Settings = () => {
         }
 
         const amount = parseFloat(rechargeAmount);
-        if (isNaN(amount) || amount <= 0) {
-            showToast('error', 'Valor de recarga inválido');
+        if (isNaN(amount) || amount < 10) {
+            showToast('error', 'O valor mínimo de recarga é de R$ 10,00');
             return;
         }
 
-        const tenantId = currentTenant.id;
         setRecharging(true);
         try {
-            const currentBalance = wallet?.balance_brl ? Number(wallet.balance_brl) : 0;
-            const newBalance = currentBalance + amount;
+            const { data, error } = await supabase.functions.invoke('stripe-create-wallet-checkout', {
+                body: {
+                    amount,
+                    success_url: `${window.location.origin}/settings?tab=communications&recharge=success`,
+                    cancel_url: `${window.location.origin}/settings?tab=communications`,
+                }
+            });
 
-            const { data: updatedWallet, error: updateErr } = await supabase
-                .from('tenant_wallets')
-                .update({ 
-                    balance_brl: newBalance,
-                    updated_at: new Date().toISOString()
-                })
-                .eq('tenant_id', tenantId)
-                .select()
-                .single();
+            if (error) throw new Error(error.message);
+            if (data?.error) throw new Error(data.error);
 
-            if (updateErr) throw updateErr;
-
-            const { error: txErr } = await supabase
-                .from('wallet_transactions')
-                .insert({
-                    tenant_id: tenantId,
-                    type: 'recharge',
-                    amount_brl: amount,
-                    balance_after_brl: newBalance,
-                    description: `Recarga de créditos de comunicação`,
-                    reference_type: 'manual'
-                });
-
-            if (txErr) throw txErr;
-
-            showToast('success', `Recarga de R$ ${amount.toFixed(2)} realizada com sucesso!`);
-            setShowRechargeModal(false);
-            setWallet(updatedWallet);
-            fetchWalletAndUsageData();
+            if (data?.url) {
+                window.location.href = data.url;
+            } else {
+                throw new Error('Retorno inválido da API do Stripe');
+            }
         } catch (err: any) {
-            showToast('error', `Erro ao recarregar: ${err.message}`);
+            showToast('error', `Erro ao abrir faturamento Stripe: ${err.message}`);
         } finally {
             setRecharging(false);
         }
     };
+
+    useEffect(() => {
+        const queryParams = new URLSearchParams(window.location.search);
+        if (queryParams.get('recharge') === 'success') {
+            showToast('success', 'Solicitação de recarga iniciada! Seus créditos serão atualizados em instantes.');
+            queryParams.delete('recharge');
+            const newSearch = queryParams.toString();
+            const newUrl = window.location.pathname + (newSearch ? `?${newSearch}` : '') + window.location.hash;
+            window.history.replaceState({}, '', newUrl);
+        }
+    }, [showToast]);
 
     const handleSync = async () => {
         setSyncing(true);

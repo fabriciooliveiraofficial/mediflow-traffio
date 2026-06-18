@@ -79,6 +79,63 @@ serve(async (req: Request) => {
       // o trial (cobrança só no fim). Sem trial (upgrade): ativa de imediato.
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
+
+        // Tratar recarga de saldo na carteira
+        if (session.mode === "payment" && session.metadata?.type === "wallet_recharge") {
+          const tenantId = session.metadata?.tenant_id;
+          const amountBrl = parseFloat(session.metadata?.amount_brl ?? "0");
+
+          if (!tenantId || isNaN(amountBrl) || amountBrl <= 0) {
+            console.warn("[stripe-webhook] checkout.session.completed para recarga sem tenant_id ou amount_brl");
+            break;
+          }
+
+          const { data: wallet, error: walletErr } = await supabase
+            .from("tenant_wallets")
+            .select("balance_brl")
+            .eq("tenant_id", tenantId)
+            .maybeSingle();
+
+          if (walletErr) {
+            console.error(`[stripe-webhook] Erro ao buscar carteira para recarga: ${walletErr.message}`);
+            break;
+          }
+
+          const currentBalance = wallet?.balance_brl ? Number(wallet.balance_brl) : 0;
+          const newBalance = currentBalance + amountBrl;
+
+          const { error: updateErr } = await supabase
+            .from("tenant_wallets")
+            .update({
+              balance_brl: newBalance,
+              updated_at: new Date().toISOString()
+            })
+            .eq("tenant_id", tenantId);
+
+          if (updateErr) {
+            console.error(`[stripe-webhook] Erro ao atualizar saldo da carteira: ${updateErr.message}`);
+            break;
+          }
+
+          const { error: txErr } = await supabase
+            .from("wallet_transactions")
+            .insert({
+              tenant_id: tenantId,
+              type: "recharge",
+              amount_brl: amountBrl,
+              balance_after_brl: newBalance,
+              description: `Recarga de créditos via Stripe (ref: ${session.id})`,
+              reference_type: "stripe"
+            });
+
+          if (txErr) {
+            console.error(`[stripe-webhook] Erro ao registrar transação de recarga: ${txErr.message}`);
+          } else {
+            console.log(`[stripe-webhook] Recarga de R$ ${amountBrl.toFixed(2)} concluída com sucesso para o tenant ${tenantId}`);
+          }
+          break;
+        }
+
         if (session.mode !== "subscription") break;
 
         const tenantId     = session.metadata?.tenant_id;

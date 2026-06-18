@@ -1,1 +1,74 @@
-{}
+{
+  "leads": {
+    "title": "CRM Leads",
+    "subtitle": "Gerencie sua base de pacientes e o funil de vendas.",
+    "newPatient": "Novo Paciente",
+    "searchPlaceholder": "Buscar por nome, CPF ou telefone...",
+    "filters": "Filtros",
+    "table": {
+      "patient": "Paciente",
+      "contact": "Contato",
+      "lastVisit": "Última Visita",
+      "status": "Status",
+      "actions": "Ações"
+    },
+    "loading": "Carregando pacientes...",
+    "empty": "Nenhum paciente encontrado.",
+    "noVisits": "Sem visitas",
+    "activeBadge": "Ativo",
+    "editTitle": "Editar",
+    "deleteTitle": "Excluir",
+    "detailsTitle": "Detalhes",
+    "confirmDelete": "Tem certeza que deseja excluir este paciente? Esta ação não pode ser desfeita.",
+    "toasts": {
+      "deleted": "Paciente excluído com sucesso!",
+      "deleteError": "Erro ao excluir paciente."
+    }
+  },
+  "followUp": {
+    "title": "Centro de Performance",
+    "subtitle": "Gestão comercial e funil de conversão em tempo real.",
+    "daysFilter": "{{count}} dias",
+    "dashboardToggle": "Dashboard",
+    "emptyColumn": "Vazio",
+    "activityLabel": "Atividade",
+    "directFallback": "Direct",
+    "channelFallback": {
+      "instagram": "Usuário do Instagram",
+      "facebook": "Usuário do Messenger",
+      "web": "Visitante Web"
+    },
+    "channelLabel": {
+      "instagram": "Instagram: @{{username}}",
+      "facebook": "Facebook Messenger",
+      "livechat": "Live Chat"
+    },
+    "saleModal": {
+      "title": "Confirmar Venda",
+      "subtitle": "Informe os detalhes do fechamento.",
+      "procedureLabel": "Procedimento",
+      "procedurePlaceholder": "Ex: Invisalign, Implante...",
+      "valueLabel": "Valor do Fechamento (R$)",
+      "valuePlaceholder": "0,00",
+      "cancel": "Cancelar",
+      "save": "Salvar Venda"
+    }
+  },
+  "performanceStats": {
+    "kpis": {
+      "totalLeads": "Total de Leads",
+      "conversionRate": "Taxa de Conversão",
+      "sales": "Vendas (Vendido)",
+      "appointments": "Agendamentos",
+      "noShow": "No-show (Faltas)"
+    },
+    "evaluationsSuffix": "{{count}} Avaliações",
+    "noShowRateSuffix": "{{rate}}% de taxa",
+    "funnelTitle": "Funil de Vendas",
+    "funnelSubtitle": "Distribuição por estágio do CRM",
+    "funnelEmpty": "Sem dados no período",
+    "trendTitle": "Aquisição de Leads",
+    "trendSubtitle": "Volume diário de novos leads",
+    "trendEmpty": "Aguardando novos leads"
+  }
+}

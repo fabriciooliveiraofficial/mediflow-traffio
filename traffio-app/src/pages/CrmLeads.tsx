@@ -16,12 +16,14 @@ import {
 import { supabase } from '../lib/supabase';
 import { NewPatientModal } from '../components/NewPatientModal';
 import { useToast } from '../contexts/ToastContext';
+import { useTranslation } from 'react-i18next';
 
 interface CrmLeadsProps {
     onSelectPatient?: (id: string) => void;
 }
 
 export const CrmLeads: React.FC<CrmLeadsProps> = ({ onSelectPatient }) => {
+    const { t } = useTranslation('crm');
     const { showToast } = useToast();
     const [patients, setPatients] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -34,7 +36,7 @@ export const CrmLeads: React.FC<CrmLeadsProps> = ({ onSelectPatient }) => {
     }, []);
 
     const formatDate = (dateString: string | null) => {
-        if (!dateString) return 'Sem visitas';
+        if (!dateString) return t('leads.noVisits');
         try {
             const date = new Date(dateString);
             return new Intl.DateTimeFormat('pt-BR', {
@@ -83,7 +85,7 @@ export const CrmLeads: React.FC<CrmLeadsProps> = ({ onSelectPatient }) => {
     };
     
     const handleDelete = async (id: string) => {
-        if (!confirm('Tem certeza que deseja excluir este paciente? Esta ação não pode ser desfeita.')) return;
+        if (!confirm(t('leads.confirmDelete'))) return;
         
         try {
             const { error } = await supabase
@@ -93,10 +95,10 @@ export const CrmLeads: React.FC<CrmLeadsProps> = ({ onSelectPatient }) => {
             
             if (error) throw error;
             fetchPatients();
-            showToast('success', 'Paciente excluído com sucesso!');
+            showToast('success', t('leads.toasts.deleted'));
         } catch (error) {
             console.error('Error deleting patient:', error);
-            showToast('error', 'Erro ao excluir paciente.');
+            showToast('error', t('leads.toasts.deleteError'));
         }
     };
 
@@ -112,15 +114,15 @@ export const CrmLeads: React.FC<CrmLeadsProps> = ({ onSelectPatient }) => {
             {/* Header / Stats */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h2 className="text-3xl font-black text-graphite-900 tracking-tighter">CRM Leads</h2>
-                    <p className="text-graphite-400 font-medium">Gerencie sua base de pacientes e o funil de vendas.</p>
+                    <h2 className="text-3xl font-black text-graphite-900 tracking-tighter">{t('leads.title')}</h2>
+                    <p className="text-graphite-400 font-medium">{t('leads.subtitle')}</p>
                 </div>
                 <button
                     onClick={() => setIsModalOpen(true)}
                     className="flex items-center gap-2 bg-brand-primary text-white px-5 py-3 rounded-2xl font-bold shadow-lg shadow-brand-primary/20 hover:scale-105 transition-transform cursor-pointer border-none"
                 >
                     <Plus size={20} />
-                    <span>Novo Paciente</span>
+                    <span>{t('leads.newPatient')}</span>
                 </button>
             </div>
 
@@ -130,7 +132,7 @@ export const CrmLeads: React.FC<CrmLeadsProps> = ({ onSelectPatient }) => {
                     <Search size={20} className="text-graphite-400 mr-3" />
                     <input
                         type="text"
-                        placeholder="Buscar por nome, CPF ou telefone..."
+                        placeholder={t('leads.searchPlaceholder')}
                         className="bg-transparent border-none outline-none w-full text-graphite-900 placeholder:text-graphite-300 font-medium"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
@@ -138,7 +140,7 @@ export const CrmLeads: React.FC<CrmLeadsProps> = ({ onSelectPatient }) => {
                 </div>
                 <button className="flex items-center gap-2 bg-white border border-ice-200 text-graphite-700 px-5 py-3 rounded-2xl font-bold hover:bg-ice-50 transition-colors cursor-pointer">
                     <Filter size={20} className="text-graphite-400" />
-                    <span>Filtros</span>
+                    <span>{t('leads.filters')}</span>
                 </button>
             </div>
 
@@ -148,24 +150,24 @@ export const CrmLeads: React.FC<CrmLeadsProps> = ({ onSelectPatient }) => {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="border-b border-ice-100 bg-ice-50/50">
-                                <th className="px-6 py-4 text-xs font-black text-graphite-400 uppercase tracking-widest bg-transparent">Paciente</th>
-                                <th className="px-6 py-4 text-xs font-black text-graphite-400 uppercase tracking-widest bg-transparent hidden md:table-cell">Contato</th>
-                                <th className="px-6 py-4 text-xs font-black text-graphite-400 uppercase tracking-widest bg-transparent hidden lg:table-cell">Última Visita</th>
-                                <th className="px-6 py-4 text-xs font-black text-graphite-400 uppercase tracking-widest bg-transparent">Status</th>
-                                <th className="px-6 py-4 text-xs font-black text-graphite-400 uppercase tracking-widest bg-transparent text-right">Ações</th>
+                                <th className="px-6 py-4 text-xs font-black text-graphite-400 uppercase tracking-widest bg-transparent">{t('leads.table.patient')}</th>
+                                <th className="px-6 py-4 text-xs font-black text-graphite-400 uppercase tracking-widest bg-transparent hidden md:table-cell">{t('leads.table.contact')}</th>
+                                <th className="px-6 py-4 text-xs font-black text-graphite-400 uppercase tracking-widest bg-transparent hidden lg:table-cell">{t('leads.table.lastVisit')}</th>
+                                <th className="px-6 py-4 text-xs font-black text-graphite-400 uppercase tracking-widest bg-transparent">{t('leads.table.status')}</th>
+                                <th className="px-6 py-4 text-xs font-black text-graphite-400 uppercase tracking-widest bg-transparent text-right">{t('leads.table.actions')}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-ice-100">
                             {loading ? (
                                 <tr>
                                     <td colSpan={5} className="px-6 py-12 text-center text-graphite-400 font-medium">
-                                        Carregando pacientes...
+                                        {t('leads.loading')}
                                     </td>
                                 </tr>
                             ) : filteredPatients.length === 0 ? (
                                 <tr>
                                     <td colSpan={5} className="px-6 py-12 text-center text-graphite-400 font-medium bg-transparent">
-                                        Nenhum paciente encontrado.
+                                        {t('leads.empty')}
                                     </td>
                                 </tr>
                             ) : (
@@ -208,7 +210,7 @@ export const CrmLeads: React.FC<CrmLeadsProps> = ({ onSelectPatient }) => {
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wide bg-emerald-100 text-emerald-700">
-                                                Ativo
+                                                {t('leads.activeBadge')}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-right">
@@ -219,21 +221,21 @@ export const CrmLeads: React.FC<CrmLeadsProps> = ({ onSelectPatient }) => {
                                                         setIsModalOpen(true);
                                                     }}
                                                     className="p-2 hover:bg-ice-100 rounded-lg text-graphite-400 hover:text-brand-primary transition-all border-none bg-transparent cursor-pointer"
-                                                    title="Editar"
+                                                    title={t('leads.editTitle')}
                                                 >
                                                     <Edit2 size={16} />
                                                 </button>
                                                 <button
                                                     onClick={() => handleDelete(patient.id)}
                                                     className="p-2 hover:bg-rose-50 rounded-lg text-graphite-400 hover:text-rose-500 transition-all border-none bg-transparent cursor-pointer"
-                                                    title="Excluir"
+                                                    title={t('leads.deleteTitle')}
                                                 >
                                                     <Trash2 size={16} />
                                                 </button>
                                                 <button
                                                     onClick={() => onSelectPatient?.(patient.id)}
                                                     className="p-2 hover:bg-ice-100 rounded-lg text-graphite-400 hover:text-brand-primary transition-all border-none bg-transparent cursor-pointer shadow-none hover:shadow-sm ml-2"
-                                                    title="Detalhes"
+                                                    title={t('leads.detailsTitle')}
                                                 >
                                                     <ChevronRight size={18} />
                                                 </button>

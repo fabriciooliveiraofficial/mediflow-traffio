@@ -4,6 +4,7 @@ import {
   LineChart, Line, AreaChart, Area 
 } from 'recharts';
 import type { PerformanceMetrics } from '../../hooks/useFollowUpMetrics';
+import { useTranslation } from 'react-i18next';
 
 interface PerformanceStatsProps {
   metrics: PerformanceMetrics | null;
@@ -28,6 +29,8 @@ const CustomTooltip = ({ active, payload, label, prefix = '' }: any) => {
 };
 
 export function PerformanceStats({ metrics, isLoading }: PerformanceStatsProps) {
+  const { t } = useTranslation('crm');
+
   if (isLoading || !metrics) {
     return (
       <div className="space-y-6 mb-10 animate-pulse">
@@ -49,7 +52,7 @@ export function PerformanceStats({ metrics, isLoading }: PerformanceStatsProps) 
 
   const kpis = [
     {
-      label: 'Total de Leads',
+      label: t('performanceStats.kpis.totalLeads'),
       value: metrics.totalLeads,
       trend: metrics.trends.leads,
       icon: Users,
@@ -58,7 +61,7 @@ export function PerformanceStats({ metrics, isLoading }: PerformanceStatsProps) 
       text: 'text-blue-600'
     },
     {
-      label: 'Taxa de Conversão',
+      label: t('performanceStats.kpis.conversionRate'),
       value: `${metrics.conversionRate.toFixed(1)}%`,
       trend: metrics.trends.conversion,
       icon: Target,
@@ -67,7 +70,7 @@ export function PerformanceStats({ metrics, isLoading }: PerformanceStatsProps) 
       text: 'text-emerald-600'
     },
     {
-      label: 'Vendas (Vendido)',
+      label: t('performanceStats.kpis.sales'),
       value: `R$ ${metrics.totalRevenue.toLocaleString('pt-BR')}`,
       trend: metrics.trends.revenue,
       icon: DollarSign,
@@ -76,18 +79,18 @@ export function PerformanceStats({ metrics, isLoading }: PerformanceStatsProps) 
       text: 'text-amber-600'
     },
     {
-      label: 'Agendamentos',
+      label: t('performanceStats.kpis.appointments'),
       value: metrics.appointmentsCount,
-      subValue: `${metrics.evaluationsCount} Avaliações`,
+      subValue: t('performanceStats.evaluationsSuffix', { count: metrics.evaluationsCount }),
       icon: Calendar,
       color: 'indigo',
       bg: 'bg-indigo-50',
       text: 'text-indigo-600'
     },
     {
-      label: 'No-show (Faltas)',
+      label: t('performanceStats.kpis.noShow'),
       value: metrics.noShowCount,
-      subValue: `${metrics.noShowRate.toFixed(1)}% de taxa`,
+      subValue: t('performanceStats.noShowRateSuffix', { rate: metrics.noShowRate.toFixed(1) }),
       trend: metrics.trends.noShows,
       icon: CalendarX,
       color: 'rose',
@@ -134,8 +137,8 @@ export function PerformanceStats({ metrics, isLoading }: PerformanceStatsProps) 
                 <Activity className="w-5 h-5 text-blue-600" />
               </div>
               <div>
-                <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">Funil de Vendas</h3>
-                <p className="text-[10px] text-gray-400 font-bold">Distribuição por estágio do CRM</p>
+                <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">{t('performanceStats.funnelTitle')}</h3>
+                <p className="text-[10px] text-gray-400 font-bold">{t('performanceStats.funnelSubtitle')}</p>
               </div>
             </div>
           </div>
@@ -171,7 +174,7 @@ export function PerformanceStats({ metrics, isLoading }: PerformanceStatsProps) 
           ) : (
             <div className="h-64 flex flex-col items-center justify-center border-2 border-dashed border-gray-100 rounded-3xl bg-gray-50/50">
                <Target className="w-8 h-8 text-gray-200 mb-2" />
-               <p className="text-xs font-bold text-gray-400 uppercase">Sem dados no período</p>
+               <p className="text-xs font-bold text-gray-400 uppercase">{t('performanceStats.funnelEmpty')}</p>
             </div>
           )}
         </div>
@@ -184,8 +187,8 @@ export function PerformanceStats({ metrics, isLoading }: PerformanceStatsProps) 
                 <TrendingUp className="w-5 h-5 text-emerald-600" />
               </div>
               <div>
-                <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">Aquisição de Leads</h3>
-                <p className="text-[10px] text-gray-400 font-bold">Volume diário de novos leads</p>
+                <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">{t('performanceStats.trendTitle')}</h3>
+                <p className="text-[10px] text-gray-400 font-bold">{t('performanceStats.trendSubtitle')}</p>
               </div>
             </div>
           </div>
@@ -229,7 +232,7 @@ export function PerformanceStats({ metrics, isLoading }: PerformanceStatsProps) 
           ) : (
             <div className="h-64 flex flex-col items-center justify-center border-2 border-dashed border-gray-100 rounded-3xl bg-gray-50/50">
                <Activity className="w-8 h-8 text-gray-200 mb-2" />
-               <p className="text-xs font-bold text-gray-400 uppercase">Aguardando novos leads</p>
+               <p className="text-xs font-bold text-gray-400 uppercase">{t('performanceStats.trendEmpty')}</p>
             </div>
           )}
         </div>
