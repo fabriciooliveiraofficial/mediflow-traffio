@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
     Activity, ShieldCheck, Zap, MessageCircle, ChevronRight, Globe,
@@ -10,8 +11,112 @@ import {
 import { PLANS, PLAN_ORDER, formatPrice, type BillingCycle, type PlanId } from '../config/planConfig';
 
 export const LandingPage = () => {
+    const { t } = useTranslation('landing');
     const navigate = useNavigate();
     const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
+
+    const SOLUTIONS = [
+        {
+            icon: Stethoscope,
+            bg: 'bg-brand-primary/10', color: 'text-brand-primary',
+            title: t('solutions.medicoAutonomo.title'),
+            desc: t('solutions.medicoAutonomo.desc'),
+            features: [t('solutions.medicoAutonomo.feature1'), t('solutions.medicoAutonomo.feature2'), t('solutions.medicoAutonomo.feature3'), t('solutions.medicoAutonomo.feature4')],
+            plan: t('solutions.medicoAutonomo.plan'),
+        },
+        {
+            icon: Users,
+            bg: 'bg-indigo-50', color: 'text-indigo-500',
+            title: t('solutions.clinicaMedica.title'),
+            desc: t('solutions.clinicaMedica.desc'),
+            features: [t('solutions.clinicaMedica.feature1'), t('solutions.clinicaMedica.feature2'), t('solutions.clinicaMedica.feature3'), t('solutions.clinicaMedica.feature4')],
+            plan: t('solutions.clinicaMedica.plan'),
+        },
+        {
+            icon: Smile,
+            bg: 'bg-sky-50', color: 'text-sky-500',
+            title: t('solutions.odontologia.title'),
+            desc: t('solutions.odontologia.desc'),
+            features: [t('solutions.odontologia.feature1'), t('solutions.odontologia.feature2'), t('solutions.odontologia.feature3'), t('solutions.odontologia.feature4')],
+            plan: t('solutions.odontologia.plan'),
+        },
+        {
+            icon: Leaf,
+            bg: 'bg-emerald-50', color: 'text-emerald-600',
+            title: t('solutions.nutricao.title'),
+            desc: t('solutions.nutricao.desc'),
+            features: [t('solutions.nutricao.feature1'), t('solutions.nutricao.feature2'), t('solutions.nutricao.feature3'), t('solutions.nutricao.feature4')],
+            plan: t('solutions.nutricao.plan'),
+        },
+        {
+            icon: Brain,
+            bg: 'bg-violet-50', color: 'text-violet-500',
+            title: t('solutions.psicologia.title'),
+            desc: t('solutions.psicologia.desc'),
+            features: [t('solutions.psicologia.feature1'), t('solutions.psicologia.feature2'), t('solutions.psicologia.feature3'), t('solutions.psicologia.feature4')],
+            plan: t('solutions.psicologia.plan'),
+        },
+        {
+            icon: Building2,
+            bg: 'bg-amber-50', color: 'text-amber-500',
+            title: t('solutions.redes.title'),
+            desc: t('solutions.redes.desc'),
+            features: [t('solutions.redes.feature1'), t('solutions.redes.feature2'), t('solutions.redes.feature3'), t('solutions.redes.feature4')],
+            plan: t('solutions.redes.plan'),
+        },
+    ];
+
+    const COMPARISON_ROWS: CompRow[] = [
+        { type: 'header', label: t('pricing.comparison.sectionAgenda'), values: { essencial: null, clinica: null, rede: null } },
+        { type: 'row', label: t('pricing.comparison.rowAgendaDragDrop'), values: { essencial: true, clinica: true, rede: true } },
+        { type: 'row', label: t('pricing.comparison.rowOnlineBooking'), values: { essencial: true, clinica: true, rede: true } },
+        { type: 'row', label: t('pricing.comparison.rowCheckin'), values: { essencial: true, clinica: true, rede: true } },
+        { type: 'row', label: t('pricing.comparison.rowProfessionals'), values: { essencial: t('pricing.comparison.valUpTo2'), clinica: t('pricing.comparison.valUpTo10'), rede: t('pricing.comparison.valUnlimited') } },
+        { type: 'row', label: t('pricing.comparison.rowLocations'), values: { essencial: t('pricing.comparison.val1'), clinica: t('pricing.comparison.valUpTo3'), rede: t('pricing.comparison.valUnlimited') } },
+        { type: 'row', label: t('pricing.comparison.rowWaitlist'), values: { essencial: false, clinica: true, rede: true } },
+
+        { type: 'header', label: t('pricing.comparison.sectionProntuario'), values: { essencial: null, clinica: null, rede: null } },
+        { type: 'row', label: t('pricing.comparison.rowProntuarioCompleto'), values: { essencial: true, clinica: true, rede: true } },
+        { type: 'row', label: t('pricing.comparison.rowUploadExams'), values: { essencial: true, clinica: true, rede: true } },
+        { type: 'row', label: t('pricing.comparison.rowPrescriptions'), values: { essencial: true, clinica: true, rede: true } },
+        { type: 'row', label: t('pricing.comparison.rowAiTerms'), values: { essencial: false, clinica: true, rede: true } },
+        { type: 'row', label: t('pricing.comparison.rowStorage'), values: { essencial: t('pricing.comparison.val5gb'), clinica: t('pricing.comparison.val30gb'), rede: t('pricing.comparison.val200gb') } },
+
+        { type: 'header', label: t('pricing.comparison.sectionWhatsapp'), values: { essencial: null, clinica: null, rede: null } },
+        { type: 'row', label: t('pricing.comparison.rowWhatsappOwn'), values: { essencial: true, clinica: true, rede: true } },
+        { type: 'row', label: t('pricing.comparison.rowReminders'), values: { essencial: true, clinica: true, rede: true } },
+        { type: 'row', label: t('pricing.comparison.rowConfirmationNps'), values: { essencial: true, clinica: true, rede: true } },
+        { type: 'row', label: t('pricing.comparison.rowInbox'), values: { essencial: false, clinica: true, rede: true } },
+        { type: 'row', label: t('pricing.comparison.rowMedia'), values: { essencial: false, clinica: true, rede: true } },
+        { type: 'row', label: t('pricing.comparison.rowWhatsappNumbers'), values: { essencial: t('pricing.comparison.val1'), clinica: t('pricing.comparison.val1'), rede: t('pricing.comparison.val3') } },
+
+        { type: 'header', label: t('pricing.comparison.sectionCrm'), values: { essencial: null, clinica: null, rede: null } },
+        { type: 'row', label: t('pricing.comparison.rowPatientLeadMgmt'), values: { essencial: true, clinica: true, rede: true } },
+        { type: 'row', label: t('pricing.comparison.rowKanbanPipeline'), values: { essencial: false, clinica: true, rede: true } },
+        { type: 'row', label: t('pricing.comparison.rowAdsIntegration'), values: { essencial: false, clinica: true, rede: true } },
+        { type: 'row', label: t('pricing.comparison.rowRoasDashboard'), values: { essencial: false, clinica: true, rede: true } },
+
+        { type: 'header', label: t('pricing.comparison.sectionFinanceiro'), values: { essencial: null, clinica: null, rede: null } },
+        { type: 'row', label: t('pricing.comparison.rowManualBilling'), values: { essencial: true, clinica: true, rede: true } },
+        { type: 'row', label: t('pricing.comparison.rowAsaas'), values: { essencial: false, clinica: true, rede: true } },
+        { type: 'row', label: t('pricing.comparison.rowPagarme'), values: { essencial: false, clinica: true, rede: true } },
+        { type: 'row', label: t('pricing.comparison.rowDrCash'), values: { essencial: false, clinica: true, rede: true } },
+        { type: 'row', label: t('pricing.comparison.rowConsolidatedRevenue'), values: { essencial: false, clinica: false, rede: true } },
+
+        { type: 'header', label: t('pricing.comparison.sectionModules'), values: { essencial: null, clinica: null, rede: null } },
+        { type: 'row', label: t('pricing.comparison.rowModulesAvailable'), values: { essencial: t('pricing.comparison.val1modulo'), clinica: t('pricing.comparison.valAll'), rede: t('pricing.comparison.valAll') } },
+        { type: 'row', label: t('pricing.comparison.rowOdontogramaDicom'), values: { essencial: false, clinica: true, rede: true } },
+        { type: 'row', label: t('pricing.comparison.rowAnthropometric'), values: { essencial: false, clinica: true, rede: true } },
+
+        { type: 'header', label: t('pricing.comparison.sectionManagement'), values: { essencial: null, clinica: null, rede: null } },
+        { type: 'row', label: t('pricing.comparison.rowMasterDashboard'), values: { essencial: false, clinica: false, rede: true } },
+        { type: 'row', label: t('pricing.comparison.rowApiWebhooks'), values: { essencial: false, clinica: false, rede: true } },
+        { type: 'row', label: t('pricing.comparison.rowEmailSupport'), values: { essencial: true, clinica: true, rede: true } },
+        { type: 'row', label: t('pricing.comparison.rowChatSupport'), values: { essencial: false, clinica: true, rede: true } },
+        { type: 'row', label: t('pricing.comparison.rowOnboarding'), values: { essencial: false, clinica: false, rede: true } },
+        { type: 'row', label: t('pricing.comparison.rowSuccessManager'), values: { essencial: false, clinica: false, rede: true } },
+        { type: 'row', label: t('pricing.comparison.rowSlaUptime'), values: { essencial: false, clinica: false, rede: true } },
+    ];
 
     return (
         <div className="min-h-screen bg-white">
@@ -23,18 +128,18 @@ export const LandingPage = () => {
                         <img src="/logo_dark.png" alt="Traffio Odonto Marketing" className="h-16 w-auto object-contain" />
                     </a>
                     <nav className="hidden md:flex items-center gap-8 text-sm font-bold text-slate-300">
-                        <a href="#features"  className="hover:text-amber-400 transition-colors cursor-pointer no-underline" style={{ color: 'inherit' }}>Recursos</a>
-                        <a href="#solutions" className="hover:text-amber-400 transition-colors cursor-pointer no-underline" style={{ color: 'inherit' }}>Soluções</a>
-                        <a href="#pricing"   className="hover:text-amber-400 transition-colors cursor-pointer no-underline" style={{ color: 'inherit' }}>Planos</a>
+                        <a href="#features"  className="hover:text-amber-400 transition-colors cursor-pointer no-underline" style={{ color: 'inherit' }}>{t('nav.features')}</a>
+                        <a href="#solutions" className="hover:text-amber-400 transition-colors cursor-pointer no-underline" style={{ color: 'inherit' }}>{t('nav.solutions')}</a>
+                        <a href="#pricing"   className="hover:text-amber-400 transition-colors cursor-pointer no-underline" style={{ color: 'inherit' }}>{t('nav.pricing')}</a>
                     </nav>
                     <div className="flex items-center gap-4">
                         <button onClick={() => navigate('/login')}
                             className="hidden md:block text-sm font-bold text-slate-300 hover:text-amber-400 transition-colors cursor-pointer border-none bg-transparent">
-                            Entrar
+                            {t('nav.login')}
                         </button>
                         <button onClick={() => navigate('/register')}
                             className="px-6 py-2.5 bg-gradient-to-r from-amber-500 to-yellow-400 text-white rounded-xl text-sm font-bold shadow-lg shadow-amber-500/40 hover:scale-105 transition-transform border-none cursor-pointer">
-                            Começar Agora
+                            {t('nav.register')}
                         </button>
                     </div>
                 </div>
@@ -46,46 +151,46 @@ export const LandingPage = () => {
                     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
                         <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 rounded-full text-xs font-black uppercase tracking-wider border border-amber-200">
                             <Zap size={14} className="fill-amber-500" />
-                            A Nova Era do Odonto Marketing
+                            {t('hero.badge')}
                         </div>
                         <h1 className="text-5xl md:text-7xl font-black text-graphite-900 leading-[1.1] tracking-tight">
-                            Odonto Marketing<br className="hidden md:block" />
+                            {t('hero.titleLine1')}<br className="hidden md:block" />
                             <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-yellow-400">
-                                que converte
+                                {t('hero.titleHighlight')}
                             </span>
                         </h1>
                         <p className="text-lg text-graphite-500 font-medium max-w-xl leading-relaxed">
-                            A plataforma completa para clínicas odontológicas. Agenda inteligente, prontuário digital, WhatsApp, CRM com Meta Ads e hub financeiro — tudo integrado.
+                            {t('hero.subtitle')}
                         </p>
                         <div className="flex flex-col sm:flex-row gap-4">
                             <button onClick={() => navigate('/register')}
                                 className="px-8 py-4 bg-gradient-to-r from-amber-500 to-yellow-400 text-white rounded-2xl text-lg font-bold shadow-xl shadow-amber-500/30 hover:scale-105 active:scale-[0.98] transition-all flex items-center justify-center gap-2 border-none cursor-pointer">
-                                Criar Conta Grátis
+                                {t('hero.ctaPrimary')}
                                 <ChevronRight size={20} />
                             </button>
                             <a href="#features"
                                 className="px-8 py-4 bg-white text-graphite-900 border border-ice-200 rounded-2xl text-lg font-bold hover:bg-amber-50 hover:border-amber-200 transition-all cursor-pointer flex items-center justify-center no-underline" style={{ color: 'inherit' }}>
-                                Ver Recursos
+                                {t('hero.ctaSecondary')}
                             </a>
                         </div>
                         <div className="flex items-center gap-4 text-sm font-medium text-graphite-400 pt-4">
-                            <span className="flex items-center gap-1"><ShieldCheck size={16} className="text-emerald-500" /> LGPD Compliant</span>
-                            <span className="flex items-center gap-1"><Globe size={16} className="text-amber-500" /> 100% Nuvem</span>
-                            <span className="flex items-center gap-1"><BadgeCheck size={16} className="text-amber-500" /> 14 dias grátis</span>
+                            <span className="flex items-center gap-1"><ShieldCheck size={16} className="text-emerald-500" /> {t('hero.trustLgpd')}</span>
+                            <span className="flex items-center gap-1"><Globe size={16} className="text-amber-500" /> {t('hero.trustCloud')}</span>
+                            <span className="flex items-center gap-1"><BadgeCheck size={16} className="text-amber-500" /> {t('hero.trustTrial')}</span>
                         </div>
                     </div>
                     <div className="relative animate-in fade-in slide-in-from-right-8 duration-1000 delay-200">
                         <div className="absolute -inset-4 bg-gradient-to-tr from-brand-primary/20 to-brand-secondary/20 rounded-[40px] blur-3xl opacity-50" />
                         <img
                             src="https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80"
-                            alt="Plataforma Traffio"
+                            alt={t('hero.imageAlt')}
                             className="relative rounded-[32px] shadow-2xl border-4 border-white transform rotate-2 hover:rotate-0 transition-transform duration-500"
                         />
                         <div className="absolute -bottom-10 -left-10 bg-white p-5 rounded-2xl shadow-xl border border-ice-100 animate-bounce delay-700 duration-[3000ms]">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-600"><BarChart3 size={20} /></div>
                                 <div>
-                                    <p className="text-xs font-bold text-graphite-400 uppercase">Faturamento</p>
+                                    <p className="text-xs font-bold text-graphite-400 uppercase">{t('hero.floatingBillingLabel')}</p>
                                     <p className="text-xl font-black text-graphite-900">+127%</p>
                                 </div>
                             </div>
@@ -94,7 +199,7 @@ export const LandingPage = () => {
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-violet-100 rounded-xl flex items-center justify-center text-violet-600"><Bell size={20} /></div>
                                 <div>
-                                    <p className="text-xs font-bold text-graphite-400">No-show evitado</p>
+                                    <p className="text-xs font-bold text-graphite-400">{t('hero.floatingNoShowLabel')}</p>
                                     <p className="text-sm font-black text-graphite-900">-62%</p>
                                 </div>
                             </div>
@@ -108,10 +213,10 @@ export const LandingPage = () => {
                 <div className="max-w-7xl mx-auto px-6">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
                         {[
-                            { value: '-62%', label: 'Redução de no-shows', sub: 'com lembretes automáticos' },
-                            { value: '+127%', label: 'Aumento de faturamento', sub: 'média entre clientes' },
-                            { value: '3×', label: 'Mais conversões', sub: 'via CRM + WhatsApp' },
-                            { value: '14 dias', label: 'Trial gratuito', sub: 'cancele quando quiser' },
+                            { value: '-62%', label: t('stats.noShowLabel'), sub: t('stats.noShowSub') },
+                            { value: '+127%', label: t('stats.revenueLabel'), sub: t('stats.revenueSub') },
+                            { value: '3×', label: t('stats.conversionLabel'), sub: t('stats.conversionSub') },
+                            { value: '14 dias', label: t('stats.trialLabel'), sub: t('stats.trialSub') },
                         ].map(s => (
                             <div key={s.value}>
                                 <p className="text-4xl font-black text-amber-400 mb-1">{s.value}</p>
@@ -133,130 +238,130 @@ export const LandingPage = () => {
                     <div className="text-center max-w-2xl mx-auto">
                         <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 rounded-full text-xs font-black uppercase tracking-wider mb-4 border border-amber-200">
                             <Zap size={14} className="fill-amber-500" />
-                            Recursos
+                            {t('features.badge')}
                         </div>
                         <h2 className="text-4xl md:text-5xl font-black text-graphite-900 tracking-tight mb-4">
-                            Tudo que sua clínica precisa
+                            {t('features.title')}
                         </h2>
                         <p className="text-graphite-500 text-lg font-medium">
-                            Uma plataforma completa, sem necessidade de contratar sistemas separados para cada função.
+                            {t('features.subtitle')}
                         </p>
                     </div>
 
                     {/* Feature 1 — Agenda */}
                     <FeatureBlock
-                        badge="Agenda"
+                        badge={t('features.agenda.badge')}
                         icon={Calendar}
                         iconBg="bg-brand-primary/10"
                         iconColor="text-brand-primary"
-                        title="Agenda inteligente que trabalha por você"
-                        description="Visualize todos os profissionais em uma única tela, mova agendamentos com drag-and-drop e deixe pacientes marcarem consultas online 24h por dia — sem precisar ligar."
+                        title={t('features.agenda.title')}
+                        description={t('features.agenda.description')}
                         items={[
-                            'Agenda visual com drag-and-drop',
-                            'Agendamento online pelo portal do paciente',
-                            'Múltiplos profissionais e unidades na mesma tela',
-                            'Check-in digital e sala de espera virtual',
-                            'Lista de espera automática',
-                            'Anti-duplo-agendamento inteligente',
+                            t('features.agenda.item1'),
+                            t('features.agenda.item2'),
+                            t('features.agenda.item3'),
+                            t('features.agenda.item4'),
+                            t('features.agenda.item5'),
+                            t('features.agenda.item6'),
                         ]}
                         image="https://images.unsplash.com/photo-1506784983877-45594efa4cbe?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80"
-                        imageAlt="Agenda da clínica"
+                        imageAlt={t('features.agenda.imageAlt')}
                         reverse={false}
                     />
 
                     {/* Feature 2 — WhatsApp */}
                     <FeatureBlock
-                        badge="WhatsApp"
+                        badge={t('features.whatsapp.badge')}
                         icon={MessageCircle}
                         iconBg="bg-emerald-100"
                         iconColor="text-emerald-600"
-                        title="Comunicação centralizada no WhatsApp"
-                        description="Conecte o número do consultório à plataforma e gerencie todas as conversas com pacientes em um inbox centralizado. Lembretes automáticos reduzem faltas sem esforço da equipe."
+                        title={t('features.whatsapp.title')}
+                        description={t('features.whatsapp.description')}
                         items={[
-                            'Lembretes automáticos 48h, 24h e 2h antes da consulta',
-                            'Confirmação e pesquisa de satisfação (NPS) automáticos',
-                            'Inbox humano com kanban de atendimentos',
-                            'Envio de imagens, vídeos e documentos',
-                            'Quick replies e tags para organizar conversas',
-                            'SLA de tempo de resposta visível para a equipe',
+                            t('features.whatsapp.item1'),
+                            t('features.whatsapp.item2'),
+                            t('features.whatsapp.item3'),
+                            t('features.whatsapp.item4'),
+                            t('features.whatsapp.item5'),
+                            t('features.whatsapp.item6'),
                         ]}
                         image="https://images.unsplash.com/photo-1611746872915-64382b5c76da?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80"
-                        imageAlt="WhatsApp da clínica"
+                        imageAlt={t('features.whatsapp.imageAlt')}
                         reverse={true}
                     />
 
                     {/* Feature 3 — Prontuário */}
                     <FeatureBlock
-                        badge="Prontuário"
+                        badge={t('features.prontuario.badge')}
                         icon={FileText}
                         iconBg="bg-indigo-50"
                         iconColor="text-indigo-500"
-                        title="Prontuário eletrônico completo e multi-especialidade"
-                        description="Registre evoluções, receitas e exames em uma timeline clínica visual. Suporte a múltiplas especialidades — odontologia, nutrição, medicina geral — tudo em um só lugar."
+                        title={t('features.prontuario.title')}
+                        description={t('features.prontuario.description')}
                         items={[
-                            'Timeline clínica com histórico completo',
-                            'Evoluções, receitas e prescrições digitais',
-                            'Upload e visualização de exames e documentos',
-                            'Odontograma digital com procedimentos por face',
-                            'Visualizador DICOM para radiografias',
-                            'Avaliação antropométrica para nutrição',
+                            t('features.prontuario.item1'),
+                            t('features.prontuario.item2'),
+                            t('features.prontuario.item3'),
+                            t('features.prontuario.item4'),
+                            t('features.prontuario.item5'),
+                            t('features.prontuario.item6'),
                         ]}
                         image="https://images.unsplash.com/photo-1584820927498-cfe5211fd8bf?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80"
-                        imageAlt="Prontuário eletrônico"
+                        imageAlt={t('features.prontuario.imageAlt')}
                         reverse={false}
                     />
 
                     {/* Feature 4 — Financeiro */}
                     <FeatureBlock
-                        badge="Financeiro"
+                        badge={t('features.financeiro.badge')}
                         icon={CreditCard}
                         iconBg="bg-amber-50"
                         iconColor="text-amber-500"
-                        title="Hub de pagamentos com 3 gateways integrados"
-                        description="Receba via PIX, boleto, cartão de crédito ou financiamento — tudo dentro da plataforma. Webhooks automáticos atualizam o status do agendamento ao confirmar o pagamento."
+                        title={t('features.financeiro.title')}
+                        description={t('features.financeiro.description')}
                         items={[
-                            'Asaas: PIX instantâneo, boleto e cartão',
-                            'Pagar.me: cartão de crédito parcelado',
-                            'Dr. Cash: financiamento sem cartão em até 24x',
-                            'Checkout modal integrado no atendimento',
-                            'Confirmação automática do agendamento ao pagar',
-                            'Dashboard financeiro com KPIs em tempo real',
+                            t('features.financeiro.item1'),
+                            t('features.financeiro.item2'),
+                            t('features.financeiro.item3'),
+                            t('features.financeiro.item4'),
+                            t('features.financeiro.item5'),
+                            t('features.financeiro.item6'),
                         ]}
                         image="https://images.unsplash.com/photo-1563013544-824ae1b704d3?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80"
-                        imageAlt="Hub financeiro"
+                        imageAlt={t('features.financeiro.imageAlt')}
                         reverse={true}
                     />
 
                     {/* Feature 5 — CRM + Marketing */}
                     <FeatureBlock
-                        badge="CRM & Marketing"
+                        badge={t('features.crm.badge')}
                         icon={TrendingUp}
                         iconBg="bg-rose-50"
                         iconColor="text-rose-500"
-                        title="CRM + integração com Meta e Google Ads"
-                        description="Gerencie o pipeline de leads com kanban de follow-up e veja em tempo real de onde vieram seus pacientes — Facebook, Instagram ou Google. Tome decisões de marketing com dados reais."
+                        title={t('features.crm.title')}
+                        description={t('features.crm.description')}
                         items={[
-                            'Kanban de follow-up com estágios configuráveis',
-                            'Estimativa de receita por conversa',
-                            'Integração Meta Ads (Facebook + Instagram)',
-                            'Integração Google Ads',
-                            'Dashboard ROAS, CPL e taxa de conversão',
-                            'Captura automática de leads por formulário de anúncio',
+                            t('features.crm.item1'),
+                            t('features.crm.item2'),
+                            t('features.crm.item3'),
+                            t('features.crm.item4'),
+                            t('features.crm.item5'),
+                            t('features.crm.item6'),
                         ]}
                         image="https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80"
-                        imageAlt="CRM e marketing"
+                        imageAlt={t('features.crm.imageAlt')}
                         reverse={false}
                     />
 
                     {/* Cards de recursos adicionais */}
                     <div>
-                        <h3 className="text-2xl font-black text-graphite-900 text-center mb-10">E muito mais</h3>
+                        <h3 className="text-2xl font-black text-graphite-900 text-center mb-10">{t('features.more.title')}</h3>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                             {[
-                                { icon: Smartphone, bg: 'bg-violet-50', color: 'text-violet-500', title: 'Portal do Paciente', desc: 'Agendamento online, histórico e perfil — tudo acessível pelo celular.' },
-                                { icon: ScanLine,   bg: 'bg-sky-50',    color: 'text-sky-500',    title: 'DICOM & Imagens', desc: 'Visualizador de radiografias e exames de imagem diretamente no prontuário.' },
-                                { icon: PieChart,   bg: 'bg-emerald-50',color: 'text-emerald-600', title: 'Relatórios', desc: 'Análises de ocupação, receita e desempenho com exportação.' },
-                                { icon: Lock,       bg: 'bg-graphite-100', color: 'text-graphite-700', title: 'LGPD & Segurança', desc: 'Dados criptografados, RLS por tenant e conformidade total com a LGPD.' },
+                                { icon: Smartphone, bg: 'bg-violet-50', color: 'text-violet-500', title: t('features.more.portal.title'), desc: t('features.more.portal.desc') },
+                                { icon: ScanLine,   bg: 'bg-sky-50',    color: 'text-sky-500',    title: t('features.more.dicom.title'), desc: t('features.more.dicom.desc') },
+                                { icon: PieChart,   bg: 'bg-emerald-50',color: 'text-emerald-600', title: t('features.more.reports.title'), desc: t('features.more.reports.desc') },
+                                { icon: Lock,       bg: 'bg-graphite-100', color: 'text-graphite-700', title: t('features.more.lgpd.title'), desc: t('features.more.lgpd.desc') },
                             ].map(c => (
                                 <div key={c.title} className="bg-white border border-ice-100 rounded-[24px] p-7 hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
                                     <div className={`w-12 h-12 ${c.bg} ${c.color} rounded-xl flex items-center justify-center mb-4`}>
@@ -557,58 +662,13 @@ function FeatureBlock({ badge, icon: Icon, iconBg, iconColor, title, description
 
 // ── Soluções por especialidade ─────────────────────────────────────────────
 
-const SOLUTIONS = [
-    {
-        icon: Stethoscope,
-        bg: 'bg-brand-primary/10', color: 'text-brand-primary',
-        title: 'Médico Autônomo',
-        desc: 'Consultório solo com agenda online, prontuário e WhatsApp automático. Funcione sem secretária 24h por dia.',
-        features: ['Agenda online 24/7', 'Lembretes automáticos', 'Prontuário digital', 'Portal do paciente'],
-        plan: 'Plano Essencial — R$ 197/mês',
-    },
-    {
-        icon: Users,
-        bg: 'bg-indigo-50', color: 'text-indigo-500',
-        title: 'Clínica Médica',
-        desc: 'Múltiplos profissionais, CRM de pacientes e hub financeiro integrado em uma só plataforma.',
-        features: ['Até 10 profissionais', 'Inbox WhatsApp', 'CRM + pipeline', 'Hub financeiro'],
-        plan: 'Plano Clínica — R$ 397/mês',
-    },
-    {
-        icon: Smile,
-        bg: 'bg-sky-50', color: 'text-sky-500',
-        title: 'Odontologia',
-        desc: 'Odontograma digital, orçamentos, visualizador DICOM e controle de tratamentos por paciente.',
-        features: ['Odontograma digital', 'Orçamentos de tratamento', 'DICOM (radiografias)', 'Parcelas via Dr. Cash'],
-        plan: 'Plano Clínica — R$ 397/mês',
-    },
-    {
-        icon: Leaf,
-        bg: 'bg-emerald-50', color: 'text-emerald-600',
-        title: 'Nutrição e Wellness',
-        desc: 'Avaliação antropométrica, composição corporal e planos alimentares integrados ao prontuário.',
-        features: ['Avaliação antropométrica', 'Composição corporal', 'Evolução de peso', 'Planos alimentares'],
-        plan: 'Plano Essencial — R$ 197/mês',
-    },
-    {
-        icon: Brain,
-        bg: 'bg-violet-50', color: 'text-violet-500',
-        title: 'Psicologia e Saúde Mental',
-        desc: 'Prontuário adaptado, prescrições digitais e agendamento recorrente para terapias semanais.',
-        features: ['Prontuário adaptado', 'Agendamento recorrente', 'Confirmação automática', 'Portal do paciente'],
-        plan: 'Plano Essencial — R$ 197/mês',
-    },
-    {
-        icon: Building2,
-        bg: 'bg-amber-50', color: 'text-amber-500',
-        title: 'Redes e Franquias',
-        desc: 'Master Dashboard com visão centralizada de todas as unidades, faturamento consolidado e API dedicada.',
-        features: ['Visão cross-unidade', 'Faturamento consolidado', 'Analytics da rede', 'API + webhooks'],
-        plan: 'Plano Rede — R$ 897/mês',
-    },
-];
+type Solution = {
+    icon: any; bg: string; color: string;
+    title: string; desc: string; features: string[]; plan: string;
+};
 
-function SolutionCard({ sol, onStart }: { sol: typeof SOLUTIONS[0]; onStart: () => void }) {
+function SolutionCard({ sol, onStart }: { sol: Solution; onStart: () => void }) {
+    const { t } = useTranslation('landing');
     const Icon = sol.icon;
     return (
         <div className="bg-white rounded-[28px] border border-ice-100 p-8 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col">
@@ -629,7 +689,7 @@ function SolutionCard({ sol, onStart }: { sol: typeof SOLUTIONS[0]; onStart: () 
                 <p className="text-xs font-black text-graphite-400 mb-3">{sol.plan}</p>
                 <button onClick={onStart}
                     className={`w-full py-3 rounded-xl text-sm font-black transition-all border-none cursor-pointer flex items-center justify-center gap-2 ${sol.bg} ${sol.color} hover:opacity-80`}>
-                    Começar trial grátis
+                    {t('solutions.startTrial')}
                     <ArrowRight size={14} />
                 </button>
             </div>
@@ -641,58 +701,6 @@ function SolutionCard({ sol, onStart }: { sol: typeof SOLUTIONS[0]; onStart: () 
 
 type CellVal = boolean | string | null;
 interface CompRow { type: 'row' | 'header'; label: string; values: Record<PlanId, CellVal>; }
-
-const COMPARISON_ROWS: CompRow[] = [
-    { type: 'header', label: 'Agenda e Atendimento', values: { essencial: null, clinica: null, rede: null } },
-    { type: 'row', label: 'Agenda inteligente (drag-and-drop)', values: { essencial: true, clinica: true, rede: true } },
-    { type: 'row', label: 'Agendamento online 24/7', values: { essencial: true, clinica: true, rede: true } },
-    { type: 'row', label: 'Check-in digital e sala de espera', values: { essencial: true, clinica: true, rede: true } },
-    { type: 'row', label: 'Profissionais de saúde', values: { essencial: 'Até 2', clinica: 'Até 10', rede: 'Ilimitado' } },
-    { type: 'row', label: 'Unidades / localizações', values: { essencial: '1', clinica: 'Até 3', rede: 'Ilimitado' } },
-    { type: 'row', label: 'Lista de espera', values: { essencial: false, clinica: true, rede: true } },
-
-    { type: 'header', label: 'Prontuário', values: { essencial: null, clinica: null, rede: null } },
-    { type: 'row', label: 'Prontuário eletrônico completo', values: { essencial: true, clinica: true, rede: true } },
-    { type: 'row', label: 'Upload de exames e documentos', values: { essencial: true, clinica: true, rede: true } },
-    { type: 'row', label: 'Receitas e prescrições digitais', values: { essencial: true, clinica: true, rede: true } },
-    { type: 'row', label: 'Explicação de termos médicos por IA', values: { essencial: false, clinica: true, rede: true } },
-    { type: 'row', label: 'Armazenamento', values: { essencial: '5 GB', clinica: '30 GB', rede: '200 GB' } },
-
-    { type: 'header', label: 'WhatsApp e Comunicação', values: { essencial: null, clinica: null, rede: null } },
-    { type: 'row', label: 'Conexão WhatsApp próprio (Z-API)', values: { essencial: true, clinica: true, rede: true } },
-    { type: 'row', label: 'Lembretes automáticos (48h, 24h, 2h)', values: { essencial: true, clinica: true, rede: true } },
-    { type: 'row', label: 'Confirmação e NPS automáticos', values: { essencial: true, clinica: true, rede: true } },
-    { type: 'row', label: 'Inbox humano (kanban de conversas)', values: { essencial: false, clinica: true, rede: true } },
-    { type: 'row', label: 'Envio de mídia (imagem, vídeo, áudio)', values: { essencial: false, clinica: true, rede: true } },
-    { type: 'row', label: 'Números WhatsApp inclusos', values: { essencial: '1', clinica: '1', rede: '3' } },
-
-    { type: 'header', label: 'CRM e Marketing', values: { essencial: null, clinica: null, rede: null } },
-    { type: 'row', label: 'Cadastro e gestão de pacientes/leads', values: { essencial: true, clinica: true, rede: true } },
-    { type: 'row', label: 'Kanban de follow-up (pipeline)', values: { essencial: false, clinica: true, rede: true } },
-    { type: 'row', label: 'Integração Meta Ads + Google Ads', values: { essencial: false, clinica: true, rede: true } },
-    { type: 'row', label: 'Dashboard ROAS e conversão', values: { essencial: false, clinica: true, rede: true } },
-
-    { type: 'header', label: 'Financeiro e Pagamentos', values: { essencial: null, clinica: null, rede: null } },
-    { type: 'row', label: 'Controle de cobranças manual', values: { essencial: true, clinica: true, rede: true } },
-    { type: 'row', label: 'Asaas (PIX automático, boleto, cartão)', values: { essencial: false, clinica: true, rede: true } },
-    { type: 'row', label: 'Pagar.me (cartão de crédito)', values: { essencial: false, clinica: true, rede: true } },
-    { type: 'row', label: 'Dr. Cash (financiamento)', values: { essencial: false, clinica: true, rede: true } },
-    { type: 'row', label: 'Faturamento consolidado da rede', values: { essencial: false, clinica: false, rede: true } },
-
-    { type: 'header', label: 'Módulos de Especialidade', values: { essencial: null, clinica: null, rede: null } },
-    { type: 'row', label: 'Módulos disponíveis', values: { essencial: '1 módulo', clinica: 'Todos', rede: 'Todos' } },
-    { type: 'row', label: 'Odontograma digital + DICOM', values: { essencial: false, clinica: true, rede: true } },
-    { type: 'row', label: 'Avaliação antropométrica (nutrição)', values: { essencial: false, clinica: true, rede: true } },
-
-    { type: 'header', label: 'Gestão e Suporte', values: { essencial: null, clinica: null, rede: null } },
-    { type: 'row', label: 'Master Dashboard (visão da rede)', values: { essencial: false, clinica: false, rede: true } },
-    { type: 'row', label: 'API dedicada e webhooks', values: { essencial: false, clinica: false, rede: true } },
-    { type: 'row', label: 'Suporte por e-mail', values: { essencial: true, clinica: true, rede: true } },
-    { type: 'row', label: 'Suporte por chat (horário comercial)', values: { essencial: false, clinica: true, rede: true } },
-    { type: 'row', label: 'Onboarding assistido + migração', values: { essencial: false, clinica: false, rede: true } },
-    { type: 'row', label: 'Gerente de sucesso dedicado', values: { essencial: false, clinica: false, rede: true } },
-    { type: 'row', label: 'SLA de uptime 99.9%', values: { essencial: false, clinica: false, rede: true } },
-];
 
 function CellValue({ value }: { value: CellVal }) {
     if (value === true)  return <Check size={18} className="text-emerald-500 mx-auto" />;

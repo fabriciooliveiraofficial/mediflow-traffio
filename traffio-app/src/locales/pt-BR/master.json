@@ -21,6 +21,7 @@
       "intelligence": "AI Orchestrator",
       "intelligenceBadge": "New",
       "logs": "System Logs",
+      "billing": "Financeiro",
       "settings": "Platform Config"
     },
     "signOut": "Sair",

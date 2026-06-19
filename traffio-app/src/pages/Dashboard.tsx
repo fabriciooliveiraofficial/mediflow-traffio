@@ -604,7 +604,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
     // ── Exportação PDF ───────────────────────────────────────────────────────
     const handleExportPDF = () => {
         const doc = new jsPDF();
-        const clinicName = tenant?.name || t('pdfReport.clinicLabel', { clinicName: '' }).split(':')[0].trim() || 'Clínica';
+        const clinicName = tenant?.name || 'Clínica';
         const periodLabel = period === 'custom' && customRange
             ? `${formatDate(customRange.from)} a ${formatDate(customRange.to)}`
             : PERIOD_LABELS[period];
@@ -672,35 +672,35 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
     // ── Exportação Excel ─────────────────────────────────────────────────────
     const handleExportExcel = () => {
         const summarySheet = XLSX.utils.json_to_sheet([
-            { Indicador: 'Leads Totais', Valor: kpis.totalLeads },
-            { Indicador: 'Conversão CRM', Valor: kpis.conversion },
-            { Indicador: 'Gasto em Ads', Valor: kpis.spent },
-            { Indicador: 'ROAS Médio', Valor: kpis.roas },
-            { Indicador: 'Impressões', Valor: kpis.impressions },
-            { Indicador: 'Cliques', Valor: kpis.clicks },
-            { Indicador: 'CTR', Valor: kpis.ctr },
-            { Indicador: 'CPC', Valor: kpis.cpc },
-            { Indicador: 'CPM', Valor: kpis.cpm },
-            { Indicador: 'CPA (Custo/Conversão)', Valor: kpis.cpa },
+            { [t('excelReport.indicatorColumn')]: t('excelReport.totalLeads'), [t('excelReport.valueColumn')]: kpis.totalLeads },
+            { [t('excelReport.indicatorColumn')]: t('excelReport.crmConversion'), [t('excelReport.valueColumn')]: kpis.conversion },
+            { [t('excelReport.indicatorColumn')]: t('excelReport.adSpend'), [t('excelReport.valueColumn')]: kpis.spent },
+            { [t('excelReport.indicatorColumn')]: t('excelReport.avgRoas'), [t('excelReport.valueColumn')]: kpis.roas },
+            { [t('excelReport.indicatorColumn')]: t('excelReport.impressions'), [t('excelReport.valueColumn')]: kpis.impressions },
+            { [t('excelReport.indicatorColumn')]: t('excelReport.clicks'), [t('excelReport.valueColumn')]: kpis.clicks },
+            { [t('excelReport.indicatorColumn')]: t('excelReport.ctr'), [t('excelReport.valueColumn')]: kpis.ctr },
+            { [t('excelReport.indicatorColumn')]: t('excelReport.cpc'), [t('excelReport.valueColumn')]: kpis.cpc },
+            { [t('excelReport.indicatorColumn')]: t('excelReport.cpm'), [t('excelReport.valueColumn')]: kpis.cpm },
+            { [t('excelReport.indicatorColumn')]: t('excelReport.cpa'), [t('excelReport.valueColumn')]: kpis.cpa },
         ]);
 
         const campaignSheet = XLSX.utils.json_to_sheet(campaignTable.map(c => ({
-            Campanha: c.campaign_name,
-            Plataforma: c.platform === 'meta' ? 'Meta' : 'Google',
-            'Gasto (R$)': Number(c.spend.toFixed(2)),
-            Impressões: c.impressions,
-            Cliques: c.clicks,
-            'CTR (%)': Number(c.ctr.toFixed(2)),
-            'CPC (R$)': Number(c.cpc.toFixed(2)),
-            'CPM (R$)': Number(c.cpm.toFixed(2)),
-            Conversões: c.conversions,
-            'CPA (R$)': Number(c.cpa.toFixed(2)),
-            ROAS: Number(c.roas.toFixed(2)),
+            [t('excelReport.campaignColumn')]: c.campaign_name,
+            [t('excelReport.platformColumn')]: c.platform === 'meta' ? t('excelReport.platformMeta') : t('excelReport.platformGoogle'),
+            [t('excelReport.spendColumn')]: Number(c.spend.toFixed(2)),
+            [t('excelReport.impressionsColumn')]: c.impressions,
+            [t('excelReport.clicksColumn')]: c.clicks,
+            [t('excelReport.ctrColumn')]: Number(c.ctr.toFixed(2)),
+            [t('excelReport.cpcColumn')]: Number(c.cpc.toFixed(2)),
+            [t('excelReport.cpmColumn')]: Number(c.cpm.toFixed(2)),
+            [t('excelReport.conversionsColumn')]: c.conversions,
+            [t('excelReport.cpaColumn')]: Number(c.cpa.toFixed(2)),
+            [t('excelReport.roasColumn')]: Number(c.roas.toFixed(2)),
         })));
 
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, summarySheet, 'Resumo');
-        XLSX.utils.book_append_sheet(wb, campaignSheet, 'Campanhas');
+        XLSX.utils.book_append_sheet(wb, summarySheet, t('excelReport.summarySheetName'));
+        XLSX.utils.book_append_sheet(wb, campaignSheet, t('excelReport.campaignSheetName'));
         XLSX.writeFile(wb, `analytics-pro-${new Date().toISOString().split('T')[0]}.xlsx`);
     };
 
@@ -718,15 +718,15 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                             <div className="p-2 bg-brand-primary/10 rounded-lg">
                                 <Activity size={18} className="text-brand-primary animate-pulse" />
                             </div>
-                            <span className="text-[10px] font-black uppercase text-brand-primary tracking-widest">Traffio Intelligence 2.0</span>
+                            <span className="text-[10px] font-black uppercase text-brand-primary tracking-widest">{t('header.brandTag')}</span>
                         </div>
 
                     </div>
                     <h2 className="text-5xl font-black text-graphite-900 tracking-tighter leading-tight">
-                        Analytics <span className="text-brand-primary italic">Pro</span>
+                        {t('header.title')} <span className="text-brand-primary italic">{t('header.titleHighlight')}</span>
                     </h2>
                     <p className="text-graphite-400 font-medium max-w-lg leading-relaxed">
-                        Orquestre seu tráfego pago, gerencie leads de alta intenção e visualize seu ROI em tempo real.
+                        {t('header.subtitle')}
                     </p>
                 </div>
 
@@ -774,7 +774,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                                     onChange={(e) => setCustomRange(prev => ({ from: e.target.value, to: prev?.to || e.target.value }))}
                                                     className="flex-1 px-3 py-2 bg-ice-50 rounded-xl text-xs font-bold text-graphite-900 border-none"
                                                 />
-                                                <span className="text-graphite-400 text-xs font-black">até</span>
+                                                <span className="text-graphite-400 text-xs font-black">{t('header.rangeSeparator')}</span>
                                                 <input
                                                     type="date"
                                                     value={customRange?.to || ''}
@@ -787,7 +787,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                                 disabled={!customRange?.from || !customRange?.to}
                                                 className="w-full py-2 bg-brand-primary text-white rounded-xl text-[10px] font-black uppercase tracking-widest border-none cursor-pointer disabled:opacity-40"
                                             >
-                                                Aplicar
+                                                {t('header.applyButton')}
                                             </button>
                                         </div>
                                     )}
@@ -801,7 +801,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                         className="px-5 py-4 bg-white border border-ice-100 text-graphite-900 rounded-[24px] text-xs font-black shadow-xl shadow-ice-100/30 hover:bg-ice-50 transition-all flex items-center gap-2 border-none cursor-pointer"
                     >
                         <FileText size={16} className="text-red-500" />
-                        PDF
+                        {t('header.pdfButton')}
                     </button>
 
                     <button
@@ -809,7 +809,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                         className="px-5 py-4 bg-white border border-ice-100 text-graphite-900 rounded-[24px] text-xs font-black shadow-xl shadow-ice-100/30 hover:bg-ice-50 transition-all flex items-center gap-2 border-none cursor-pointer"
                     >
                         <FileSpreadsheet size={16} className="text-green-600" />
-                        Excel
+                        {t('header.excelButton')}
                     </button>
 
                     <button
@@ -817,7 +817,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                         className="px-8 py-4 bg-brand-primary text-white rounded-[24px] text-sm font-black shadow-2xl shadow-brand-primary/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-3 border-none cursor-pointer"
                     >
                         <Plus size={18} className="stroke-[3px]" />
-                        Nova Consulta
+                        {t('header.newAppointmentButton')}
                     </button>
                 </div>
             </header>
@@ -834,7 +834,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                 activeTab === tab ? "bg-white text-graphite-900 shadow-sm" : "text-graphite-400 hover:text-graphite-600"
                             )}
                         >
-                            {tab === 'all' ? 'Todas Plataformas' : tab === 'meta' ? 'Meta Ads' : 'Google Ads'}
+                            {tab === 'all' ? t('filters.allPlatforms') : tab === 'meta' ? t('filters.metaAds') : t('filters.googleAds')}
                         </button>
                     ))}
                 </div>
@@ -846,7 +846,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                         onChange={(e) => setSelectedCampaign(e.target.value)}
                         className="bg-transparent border-none text-[11px] font-black text-graphite-900 cursor-pointer focus:outline-none max-w-[220px]"
                     >
-                        <option value="all">Todas as Campanhas</option>
+                        <option value="all">{t('filters.allCampaigns')}</option>
                         {campaignOptions.map((name) => (
                             <option key={name} value={name}>{name}</option>
                         ))}
@@ -856,20 +856,20 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
 
             {/* ── KPI GRID (PRINCIPAL) ──────────────────────────────────────────── */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard label="Leads Totais" value={kpis.totalLeads} subtext="Volume funnel no período" trend="+12%" trendType="up" color="bg-brand-primary" />
-                <StatCard label="Conversão CRM" value={kpis.conversion} subtext="Leads p/ Agendados" trend="+0.5%" trendType="up" color="bg-blue-500" />
-                <StatCard label="Gasto Ads" value={kpis.spent} subtext={PERIOD_LABELS[period]} trend="-2%" trendType="down" color="bg-orange-500" />
-                <StatCard label="ROAS Médio" value={kpis.roas} subtext="Investimento x Faturamento" trend="+1.2x" trendType="up" color="bg-graphite-900" />
+                <StatCard label={t('kpis.totalLeads')} value={kpis.totalLeads} subtext={t('kpis.totalLeadsSubtext')} trend="+12%" trendType="up" color="bg-brand-primary" />
+                <StatCard label={t('kpis.crmConversion')} value={kpis.conversion} subtext={t('kpis.crmConversionSubtext')} trend="+0.5%" trendType="up" color="bg-blue-500" />
+                <StatCard label={t('kpis.adSpend')} value={kpis.spent} subtext={PERIOD_LABELS[period]} trend="-2%" trendType="down" color="bg-orange-500" />
+                <StatCard label={t('kpis.avgRoas')} value={kpis.roas} subtext={t('kpis.avgRoasSubtext')} trend="+1.2x" trendType="up" color="bg-graphite-900" />
             </div>
 
             {/* ── KPI GRID (MÍDIA — métricas nativas das plataformas) ────────────── */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-                <StatCard label="Impressões" value={kpis.impressions} subtext="Alcance total" color="bg-purple-500" iconColorClass="text-purple-600" icon={<Eye size={20} className="stroke-[2.5px]" />} />
-                <StatCard label="Cliques" value={kpis.clicks} subtext="Engajamento" color="bg-cyan-500" iconColorClass="text-cyan-600" icon={<MousePointerClick size={20} className="stroke-[2.5px]" />} />
-                <StatCard label="CTR" value={kpis.ctr} subtext="Cliques / Impressões" color="bg-pink-500" iconColorClass="text-pink-600" icon={<Target size={20} className="stroke-[2.5px]" />} />
-                <StatCard label="CPC" value={kpis.cpc} subtext="Custo por Clique" color="bg-amber-500" iconColorClass="text-amber-600" icon={<DollarSign size={20} className="stroke-[2.5px]" />} />
-                <StatCard label="CPM" value={kpis.cpm} subtext="Custo / Mil Impressões" color="bg-indigo-500" iconColorClass="text-indigo-600" icon={<TrendingUp size={20} className="stroke-[2.5px]" />} />
-                <StatCard label="CPA" value={kpis.cpa} subtext="Custo por Conversão" color="bg-rose-500" iconColorClass="text-rose-600" icon={<Zap size={20} className="stroke-[2.5px]" />} />
+                <StatCard label={t('kpis.impressions')} value={kpis.impressions} subtext={t('kpis.impressionsSubtext')} color="bg-purple-500" iconColorClass="text-purple-600" icon={<Eye size={20} className="stroke-[2.5px]" />} />
+                <StatCard label={t('kpis.clicks')} value={kpis.clicks} subtext={t('kpis.clicksSubtext')} color="bg-cyan-500" iconColorClass="text-cyan-600" icon={<MousePointerClick size={20} className="stroke-[2.5px]" />} />
+                <StatCard label={t('kpis.ctr')} value={kpis.ctr} subtext={t('kpis.ctrSubtext')} color="bg-pink-500" iconColorClass="text-pink-600" icon={<Target size={20} className="stroke-[2.5px]" />} />
+                <StatCard label={t('kpis.cpc')} value={kpis.cpc} subtext={t('kpis.cpcSubtext')} color="bg-amber-500" iconColorClass="text-amber-600" icon={<DollarSign size={20} className="stroke-[2.5px]" />} />
+                <StatCard label={t('kpis.cpm')} value={kpis.cpm} subtext={t('kpis.cpmSubtext')} color="bg-indigo-500" iconColorClass="text-indigo-600" icon={<TrendingUp size={20} className="stroke-[2.5px]" />} />
+                <StatCard label={t('kpis.cpa')} value={kpis.cpa} subtext={t('kpis.cpaSubtext')} color="bg-rose-500" iconColorClass="text-rose-600" icon={<Zap size={20} className="stroke-[2.5px]" />} />
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-10">
@@ -878,7 +878,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <h4 className="text-2xl font-black tracking-tight flex items-center gap-3">
                             <BarChart3 className="text-brand-primary" />
-                            Evolução de Tráfego
+                            {t('charts.trafficEvolutionTitle')}
                         </h4>
                         <select
                             value={chartMetric}
@@ -902,7 +902,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                     <BarChart3 size={40} className="text-ice-100" />
                                 </div>
                                 <p className="text-xs font-black text-graphite-400 uppercase tracking-widest text-center px-20">
-                                    Aguardando integração. Suas métricas de tráfego aparecerão aqui após conectar as contas de Ads.
+                                    {t('charts.awaitingIntegration')}
                                 </p>
                             </div>
                         ) : !hasFilteredData ? (
@@ -911,7 +911,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                     <Filter size={40} className="text-ice-100" />
                                 </div>
                                 <p className="text-xs font-black text-graphite-400 uppercase tracking-widest text-center px-20">
-                                    Nenhum dado para os filtros selecionados neste período.
+                                    {t('charts.noDataForFilters')}
                                 </p>
                             </div>
                         ) : (
@@ -939,7 +939,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                         <Tooltip
                                             contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
                                             itemStyle={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase' }}
-                                            formatter={(value: any, name: any) => [value, name === 'meta' ? `Meta · ${selectedChartMetricLabel}` : `Google · ${selectedChartMetricLabel}`]}
+                                            formatter={(value: any, name: any) => [value, name === 'meta' ? t('charts.tooltipMeta', { metricLabel: selectedChartMetricLabel }) : t('charts.tooltipGoogle', { metricLabel: selectedChartMetricLabel })]}
                                         />
                                         {(activeTab === 'all' || activeTab === 'meta') && (
                                             <Area
@@ -971,7 +971,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                 {/* ── ADS INTEGRATION DRAWER (OAUTH) ───────────────────────────── */}
                 <div className="space-y-8">
                     <div className="flex items-center justify-between">
-                        <h4 className="text-2xl font-black tracking-tight">Conexões Ads</h4>
+                        <h4 className="text-2xl font-black tracking-tight">{t('integrations.title')}</h4>
                         <LinkIcon size={20} className="text-graphite-400" />
                     </div>
 
@@ -984,15 +984,15 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                         <Facebook className="text-white" fill="white" size={28} />
                                     </div>
                                     <div>
-                                        <p className="text-sm font-black text-graphite-900 tracking-tight">Meta Hub (Ads &amp; Mensagens)</p>
+                                        <p className="text-sm font-black text-graphite-900 tracking-tight">{t('integrations.metaHubName')}</p>
                                         <div className="flex items-center gap-2">
                                             {integrations.meta ? (
                                                 <div className="flex items-center gap-1">
                                                     <div className="w-1 h-1 bg-green-500 rounded-full"></div>
-                                                    <span className="text-[8px] font-black text-green-600 uppercase tracking-widest">Ativo</span>
+                                                    <span className="text-[8px] font-black text-green-600 uppercase tracking-widest">{t('integrations.active')}</span>
                                                 </div>
                                             ) : (
-                                                <span className="text-[8px] text-blue-600 font-black uppercase tracking-widest">Recomendado</span>
+                                                <span className="text-[8px] text-blue-600 font-black uppercase tracking-widest">{t('integrations.recommended')}</span>
                                             )}
                                         </div>
                                     </div>
@@ -1003,7 +1003,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                 )}></div>
                             </div>
                             <p className="text-[11px] text-graphite-400 leading-relaxed font-medium mb-6">
-                                Centralize anúncios do Facebook/Instagram e gerencie conversas do Instagram DM e Messenger em tempo real.
+                                {t('integrations.metaDescription')}
                             </p>
                             <button
                                 onClick={() => integrations.meta ? openManageModal('meta') : setMetaConnectModal(true)}
@@ -1015,7 +1015,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                 )}
                             >
                                 {integrations.meta ? <ShieldCheck size={16} /> : null}
-                                {integrations.meta ? "Gerenciar Conexão" : "Conectar Conta Meta"}
+                                {integrations.meta ? t('integrations.manageConnection') : t('integrations.connectMetaAccount')}
                             </button>
                          </div>
 
@@ -1027,15 +1027,15 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                         <Globe className="text-[#34A853]" size={28} />
                                     </div>
                                     <div>
-                                        <p className="text-sm font-black text-graphite-900 tracking-tight">Google Ads Hub</p>
+                                        <p className="text-sm font-black text-graphite-900 tracking-tight">{t('integrations.googleHubName')}</p>
                                         <div className="flex items-center gap-2">
                                             {integrations.google ? (
                                                 <div className="flex items-center gap-1">
                                                     <div className="w-1 h-1 bg-green-500 rounded-full"></div>
-                                                    <span className="text-[8px] font-black text-green-600 uppercase tracking-widest">Ativo</span>
+                                                    <span className="text-[8px] font-black text-green-600 uppercase tracking-widest">{t('integrations.active')}</span>
                                                 </div>
                                             ) : (
-                                                <span className="text-[8px] text-green-600 font-black uppercase tracking-widest">Tráfego Local</span>
+                                                <span className="text-[8px] text-green-600 font-black uppercase tracking-widest">{t('integrations.localTraffic')}</span>
                                             )}
                                         </div>
                                     </div>
@@ -1046,7 +1046,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                 )}></div>
                             </div>
                             <p className="text-[11px] text-graphite-400 leading-relaxed font-medium mb-6">
-                                Meça conversões de pesquisa do Google. Foco total em agendamentos diretos.
+                                {t('integrations.googleDescription')}
                             </p>
                             <button
                                 onClick={() => integrations.google ? openManageModal('google') : handleConnect('google')}
@@ -1058,7 +1058,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                 )}
                             >
                                 {integrations.google ? <ShieldCheck size={16} /> : null}
-                                {integrations.google ? "Gerenciar Conexão" : "Conectar Google Ads"}
+                                {integrations.google ? t('integrations.manageConnection') : t('integrations.connectGoogleAds')}
                             </button>
                          </div>
 
@@ -1069,16 +1069,16 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                     <Smartphone size={24} className="text-white" />
                                 </div>
                                 <h5 className="text-2xl font-black leading-tight tracking-tight">
-                                    Sugestão de Performance
+                                    {t('integrations.performanceSuggestionTitle')}
                                 </h5>
                                 <p className="text-[12px] text-white/80 font-medium leading-relaxed">
                                     {isLiveWithoutData ?
-                                        "Após conectar suas contas, nossa IA analisará o CPL e sugerirá remanejamento de orçamento em tempo real." :
-                                        "Identificamos que Meta Ads está com CPL 30% menor nesta semana. Recomendamos migrar 15% do orçamento para o Gerenciador de Anúncios."
+                                        t('integrations.performanceSuggestionTextEmpty') :
+                                        t('integrations.performanceSuggestionTextWithData')
                                     }
                                 </p>
                                 <button className="px-6 py-3 bg-white text-brand-primary rounded-xl font-black text-[10px] uppercase tracking-tighter hover:bg-ice-50 transition-colors border-none cursor-pointer shadow-lg shadow-brand-primary/20">
-                                    {isLiveWithoutData ? "Ver Simulação" : "Aplicar via Agente IA"}
+                                    {isLiveWithoutData ? t('integrations.viewSimulation') : t('integrations.applyViaAiAgent')}
                                 </button>
                             </div>
                             <div className="absolute -right-10 -top-10 w-40 h-40 bg-white opacity-10 rounded-full group-hover:scale-110 transition-transform duration-1000"></div>
@@ -1092,10 +1092,10 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                 <div className="flex items-center justify-between">
                     <h4 className="text-2xl font-black tracking-tight flex items-center gap-3">
                         <BarChart3 className="text-brand-primary" />
-                        Performance por Campanha
+                        {t('campaignTable.title')}
                     </h4>
                     <span className="text-[10px] font-black text-graphite-400 uppercase tracking-widest">
-                        {campaignTable.length} campanha{campaignTable.length === 1 ? '' : 's'}
+                        {campaignTable.length === 1 ? t('campaignTable.countLabel_one', { count: campaignTable.length }) : t('campaignTable.countLabel_other', { count: campaignTable.length })}
                     </span>
                 </div>
 
@@ -1103,7 +1103,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                     {campaignTable.length === 0 ? (
                         <div className="py-16 text-center">
                             <p className="text-xs font-black text-graphite-400 uppercase tracking-widest">
-                                Nenhum dado de campanha para os filtros selecionados.
+                                {t('campaignTable.noDataForFilters')}
                             </p>
                         </div>
                     ) : (
@@ -1131,7 +1131,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                             <td className="px-4 py-4 font-black text-graphite-900 text-xs whitespace-nowrap">{c.campaign_name}</td>
                                             <td className="px-4 py-4">
                                                 <span className={clsx("text-[9px] font-black uppercase px-2.5 py-1 rounded-full", c.platform === 'meta' ? "bg-blue-100 text-blue-600" : "bg-green-100 text-green-600")}>
-                                                    {c.platform === 'meta' ? 'Meta' : 'Google'}
+                                                    {c.platform === 'meta' ? t('campaignTable.platformMeta') : t('campaignTable.platformGoogle')}
                                                 </span>
                                             </td>
                                             <td className="px-4 py-4 text-xs font-bold text-graphite-900 tabular-nums whitespace-nowrap">{formatCurrency(c.spend)}</td>
@@ -1156,10 +1156,10 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
             <div className="space-y-8">
                 <div className="flex items-center justify-between">
                     <div className="space-y-1">
-                        <h4 className="text-3xl font-black tracking-tighter">Fluxo <span className="text-brand-primary">Recente</span></h4>
-                        <p className="text-xs text-graphite-400 font-medium tracking-tight">Leads qualificados aguardando orquestração.</p>
+                        <h4 className="text-3xl font-black tracking-tighter">{t('leadsFeed.titlePrefix')} <span className="text-brand-primary">{t('leadsFeed.titleHighlight')}</span></h4>
+                        <p className="text-xs text-graphite-400 font-medium tracking-tight">{t('leadsFeed.subtitle')}</p>
                     </div>
-                    <button className="px-6 py-3 bg-ice-100 rounded-2xl text-[10px] font-black uppercase tracking-widest text-graphite-600 hover:bg-ice-200 transition-all border-none cursor-pointer">Ver Funil Completo</button>
+                    <button className="px-6 py-3 bg-ice-100 rounded-2xl text-[10px] font-black uppercase tracking-widest text-graphite-600 hover:bg-ice-200 transition-all border-none cursor-pointer">{t('leadsFeed.viewFullFunnel')}</button>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -1184,14 +1184,14 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                 <p className="text-[15px] font-black text-graphite-900 tracking-tight">{lead.full_name}</p>
                                 <div className="flex items-center gap-2">
                                     <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
-                                    <p className="text-[10px] text-graphite-400 font-bold uppercase tracking-tighter">Captura: Form Ads</p>
+                                    <p className="text-[10px] text-graphite-400 font-bold uppercase tracking-tighter">{t('leadsFeed.captureSource')}</p>
                                 </div>
                             </div>
                             <div className="pt-4 border-t border-ice-100/50 flex items-center justify-between">
-                                <span className="text-[9px] font-black uppercase text-graphite-400 bg-ice-50 px-2.5 py-1 rounded-full">3h atrás</span>
+                                <span className="text-[9px] font-black uppercase text-graphite-400 bg-ice-50 px-2.5 py-1 rounded-full">{t('leadsFeed.timeAgo')}</span>
                                 <div className="flex items-center gap-1 text-brand-primary">
                                     <Zap size={12} fill="currentColor" />
-                                    <span className="text-[10px] font-black tracking-tighter">Qualificado</span>
+                                    <span className="text-[10px] font-black tracking-tighter">{t('leadsFeed.qualified')}</span>
                                 </div>
                             </div>
                         </motion.div>
@@ -1200,7 +1200,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                             <div className="w-20 h-20 bg-ice-50 rounded-full mx-auto flex items-center justify-center">
                                 <Search size={32} className="text-ice-200" />
                             </div>
-                            <p className="text-sm font-black text-graphite-400 italic tracking-tight">O radar de tráfego está ativo, mas nenhum lead novo foi capturado.</p>
+                            <p className="text-sm font-black text-graphite-400 italic tracking-tight">{t('leadsFeed.emptyState')}</p>
                         </div>
                     )}
                 </div>
@@ -1235,9 +1235,9 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                     </div>
                                     <div>
                                         <h3 className="text-base font-black text-graphite-900 tracking-tight">
-                                            {manageModal.platform === 'meta' ? 'Meta Ads Hub' : 'Google Ads Hub'}
+                                            {manageModal.platform === 'meta' ? t('manageModal.metaAdsHub') : t('manageModal.googleAdsHub')}
                                         </h3>
-                                        <span className="text-[10px] font-black text-green-600 uppercase tracking-widest">Ativo</span>
+                                        <span className="text-[10px] font-black text-green-600 uppercase tracking-widest">{t('manageModal.active')}</span>
                                     </div>
                                 </div>
                                 <button
@@ -1256,7 +1256,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                 <div className="space-y-4">
                                     {manageModal.platform === 'meta' && (
                                         <div className="space-y-2">
-                                            <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest">Conta de Anúncios</p>
+                                            <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest">{t('manageModal.adAccountLabel')}</p>
                                             {(manageData?.settings?.available_ad_accounts?.length > 1) ? (
                                                 <select
                                                     value={manageData?.settings?.ad_account_id || ''}
@@ -1269,7 +1269,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                                 </select>
                                             ) : (
                                                 <p className="text-sm font-bold text-graphite-900">
-                                                    {manageData?.settings?.ad_account_id || 'Nenhuma conta vinculada'}
+                                                    {manageData?.settings?.ad_account_id || t('manageModal.noAccountLinked')}
                                                 </p>
                                             )}
                                         </div>
@@ -1279,39 +1279,39 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                         <div className="space-y-4 border-b border-ice-100/50 pb-4">
                                             {manageData?.settings?.available_customers?.length > 1 ? (
                                                 <div className="space-y-2">
-                                                    <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest">Selecione a Conta Google Ads</p>
+                                                    <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest">{t('manageModal.selectGoogleAccountLabel')}</p>
                                                     <select
                                                         value={manageData?.settings?.customer_id || ''}
                                                         onChange={(e) => handleChangeGoogleCustomer(e.target.value)}
                                                         className="w-full px-4 py-3 bg-ice-50 rounded-2xl text-sm font-bold text-graphite-900 border-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-primary"
                                                     >
-                                                        <option value="">Selecione uma conta...</option>
+                                                        <option value="">{t('manageModal.selectAccountPlaceholder')}</option>
                                                         {manageData.settings.available_customers.map((cId: string) => (
-                                                            <option key={cId} value={cId}>Conta: {formatGoogleCustomerId(cId)}</option>
+                                                            <option key={cId} value={cId}>{t('manageModal.accountOption', { customerId: formatGoogleCustomerId(cId) })}</option>
                                                         ))}
                                                     </select>
                                                 </div>
                                             ) : manageData?.settings?.customer_id ? (
                                                 <div className="space-y-1">
-                                                    <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest">Conta Vinculada</p>
+                                                    <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest">{t('manageModal.linkedAccountLabel')}</p>
                                                     <p className="text-sm font-bold text-graphite-900">
-                                                        ID: {formatGoogleCustomerId(manageData.settings.customer_id)}
+                                                        {t('manageModal.idLabel', { customerId: formatGoogleCustomerId(manageData.settings.customer_id) })}
                                                     </p>
                                                 </div>
                                             ) : (
                                                 <p className="text-xs text-graphite-400 font-medium leading-relaxed">
-                                                    Nenhuma conta de anúncios selecionada. Tente desconectar e se autenticar novamente.
+                                                    {t('manageModal.noAdAccountSelected')}
                                                 </p>
                                             )}
                                         </div>
                                     )}
 
                                     <div className="space-y-2">
-                                        <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest">Última Sincronização</p>
+                                        <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest">{t('manageModal.lastSyncLabel')}</p>
                                         <p className="text-sm font-bold text-graphite-900">
                                             {manageData?.settings?.last_sync_at
                                                 ? formatDateTime(manageData.settings.last_sync_at)
-                                                : 'Ainda não sincronizado'}
+                                                : t('manageModal.notSyncedYet')}
                                         </p>
                                     </div>
 
@@ -1330,14 +1330,14 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                             className="w-full py-3 bg-brand-primary text-white rounded-2xl font-black text-xs flex items-center justify-center gap-2 border-none cursor-pointer hover:translate-y-[-1px] transition-all"
                                         >
                                             <RefreshCw size={14} />
-                                            Sincronizar Agora
+                                            {t('manageModal.syncNow')}
                                         </button>
                                         <button
                                             onClick={() => handleDisconnect(manageModal.platform)}
                                             className="w-full py-3 bg-red-50 text-red-600 rounded-2xl font-black text-xs flex items-center justify-center gap-2 border-none cursor-pointer hover:bg-red-100 transition-all"
                                         >
                                             <Unlink size={14} />
-                                            Desconectar
+                                            {t('manageModal.disconnect')}
                                         </button>
                                     </div>
                                 </div>
@@ -1371,9 +1371,9 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                     </div>
                                     <div>
                                         <h3 className="text-base font-black text-graphite-900 tracking-tight">
-                                            Conectar ao Meta
+                                            {t('metaConnectModal.title')}
                                         </h3>
-                                        <p className="text-[10px] font-bold text-graphite-400">Escolha o que deseja habilitar</p>
+                                        <p className="text-[10px] font-bold text-graphite-400">{t('metaConnectModal.subtitle')}</p>
                                     </div>
                                 </div>
                                 <button
@@ -1393,9 +1393,9 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                         className="mt-1 h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary cursor-pointer"
                                     />
                                     <div>
-                                        <p className="font-black text-sm text-graphite-900 leading-none">Anúncios (Meta Ads)</p>
+                                        <p className="font-black text-sm text-graphite-900 leading-none">{t('metaConnectModal.adsFeatureLabel')}</p>
                                         <p className="text-[11px] font-bold text-graphite-400 mt-1">
-                                            Sincronizar resultados de campanhas e ROI no painel do Analytics Pro.
+                                            {t('metaConnectModal.adsFeatureDescription')}
                                         </p>
                                     </div>
                                 </label>
@@ -1408,9 +1408,9 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                         className="mt-1 h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary cursor-pointer"
                                     />
                                     <div>
-                                        <p className="font-black text-sm text-graphite-900 leading-none">Mensagens (Instagram &amp; Messenger)</p>
+                                        <p className="font-black text-sm text-graphite-900 leading-none">{t('metaConnectModal.messagingFeatureLabel')}</p>
                                         <p className="text-[11px] font-bold text-graphite-400 mt-1">
-                                            Receber e responder directs do Instagram e Messenger em tempo real no Atendimento.
+                                            {t('metaConnectModal.messagingFeatureDescription')}
                                         </p>
                                     </div>
                                 </label>
@@ -1421,7 +1421,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                     onClick={() => setMetaConnectModal(false)}
                                     className="flex-1 py-3.5 bg-ice-50 hover:bg-ice-100 text-graphite-600 rounded-2xl font-black text-xs transition-colors border-none cursor-pointer"
                                 >
-                                    Cancelar
+                                    {t('metaConnectModal.cancel')}
                                 </button>
                                 <button
                                     disabled={!metaFeatures.ads && !metaFeatures.messaging}
@@ -1435,7 +1435,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                     }}
                                     className="flex-1 py-3.5 bg-[#0081FB] hover:bg-blue-600 text-white rounded-2xl font-black text-xs transition-colors border-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                                 >
-                                    Continuar para Facebook
+                                    {t('metaConnectModal.continueToFacebook')}
                                 </button>
                             </div>
                         </motion.div>
