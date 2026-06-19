@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Volume2, MessageSquare, Monitor, Shield, Mail, Eye, EyeOff, Save, Loader2 } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useTenant } from '../contexts/TenantContext';
 
 export const NotificationsPage = () => {
+    const { t } = useTranslation('tenantAdmin');
     const { showToast } = useToast();
     const { settings, updateSettings, requestPermission } = useNotifications();
     const { tenant, updateTenant } = useTenant();
@@ -38,9 +40,9 @@ export const NotificationsPage = () => {
                 smtp_pass: smtpPass,
                 smtp_from: smtpFrom
             });
-            showToast('success', 'Configurações de SMTP salvas com sucesso!');
+            showToast('success', t('notificationsPage.toasts.smtpSaved'));
         } catch (err: any) {
-            showToast('error', 'Erro ao salvar SMTP: ' + (err.message || err));
+            showToast('error', t('notificationsPage.toasts.smtpSaveErrorPrefix', { message: err.message || err }));
         } finally {
             setSavingSmtp(false);
         }
@@ -50,8 +52,8 @@ export const NotificationsPage = () => {
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto">
             {/* Header */}
             <div>
-                <h1 className="text-3xl font-black text-graphite-900 tracking-tight">Notificações</h1>
-                <p className="text-graphite-500 font-medium">Escolha como deseja ser avisado sobre novas mensagens e eventos.</p>
+                <h1 className="text-3xl font-black text-graphite-900 tracking-tight">{t('notificationsPage.header.title')}</h1>
+                <p className="text-graphite-500 font-medium">{t('notificationsPage.header.subtitle')}</p>
             </div>
 
             {/* Cards */}
@@ -69,8 +71,8 @@ export const NotificationsPage = () => {
                             <div className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-sm transition-all ${settings?.whatsapp_sound !== false ? 'left-8' : 'left-1'}`}></div>
                         </div>
                     </div>
-                    <h4 className="text-lg font-black text-graphite-900 mb-2">Aviso Sonoro</h4>
-                    <p className="text-sm text-graphite-500 font-medium leading-relaxed">Tocar um som de prioridade máxima a cada nova mensagem recebida (Recomendado).</p>
+                    <h4 className="text-lg font-black text-graphite-900 mb-2">{t('notificationsPage.cards.soundAlert.title')}</h4>
+                    <p className="text-sm text-graphite-500 font-medium leading-relaxed">{t('notificationsPage.cards.soundAlert.description')}</p>
                 </div>
 
                 {/* Toast Notification */}
@@ -86,8 +88,8 @@ export const NotificationsPage = () => {
                             <div className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-sm transition-all ${settings?.whatsapp_toast !== false ? 'left-8' : 'left-1'}`}></div>
                         </div>
                     </div>
-                    <h4 className="text-lg font-black text-graphite-900 mb-2">Aviso Flutuante</h4>
-                    <p className="text-sm text-graphite-500 font-medium leading-relaxed">Exibir um balão de notificação no canto da tela enquanto você navega pela plataforma.</p>
+                    <h4 className="text-lg font-black text-graphite-900 mb-2">{t('notificationsPage.cards.toastNotification.title')}</h4>
+                    <p className="text-sm text-graphite-500 font-medium leading-relaxed">{t('notificationsPage.cards.toastNotification.description')}</p>
                 </div>
 
                 {/* Web Push Notification */}
@@ -97,7 +99,7 @@ export const NotificationsPage = () => {
                         if (!settings?.whatsapp_push) {
                             const granted = await requestPermission();
                             if (granted) updateSettings({ whatsapp_push: true });
-                            else showToast('error', 'Permissão de notificação negada no navegador.');
+                            else showToast('error', t('notificationsPage.toasts.pushDenied'));
                         } else {
                             updateSettings({ whatsapp_push: false });
                         }
@@ -111,8 +113,8 @@ export const NotificationsPage = () => {
                             <div className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-sm transition-all ${settings?.whatsapp_push ? 'left-8' : 'left-1'}`}></div>
                         </div>
                     </div>
-                    <h4 className="text-lg font-black text-graphite-900 mb-2">Web Push Nativo</h4>
-                    <p className="text-sm text-graphite-500 font-medium leading-relaxed">Receber avisos do sistema mesmo com a aba fechada ou em segundo plano.</p>
+                    <h4 className="text-lg font-black text-graphite-900 mb-2">{t('notificationsPage.cards.webPush.title')}</h4>
+                    <p className="text-sm text-graphite-500 font-medium leading-relaxed">{t('notificationsPage.cards.webPush.description')}</p>
                 </div>
             </div>
 
@@ -123,25 +125,25 @@ export const NotificationsPage = () => {
                         <Mail size={24} />
                     </div>
                     <div>
-                        <h3 className="text-xl font-black text-graphite-900 tracking-tight">Servidor de E-mail (SMTP próprio)</h3>
-                        <p className="text-sm text-graphite-500 font-medium">Configure as credenciais para enviar e-mails de confirmação com seu próprio domínio.</p>
+                        <h3 className="text-xl font-black text-graphite-900 tracking-tight">{t('notificationsPage.smtp.title')}</h3>
+                        <p className="text-sm text-graphite-500 font-medium">{t('notificationsPage.smtp.subtitle')}</p>
                     </div>
                 </div>
 
                 <form onSubmit={handleSaveSmtp} className="space-y-4 max-w-3xl">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="md:col-span-2 space-y-1.5">
-                            <label className="text-xs font-bold text-graphite-700">Servidor SMTP (Host)</label>
+                            <label className="text-xs font-bold text-graphite-700">{t('notificationsPage.smtp.hostLabel')}</label>
                             <input
                                 type="text"
                                 value={smtpHost}
                                 onChange={e => setSmtpHost(e.target.value)}
-                                placeholder="ex: smtp.dominio.com"
+                                placeholder={t('notificationsPage.smtp.hostPlaceholder')}
                                 className="w-full bg-ice-50 border-2 border-ice-100 hover:border-ice-200 focus:border-brand-primary rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none transition-all"
                             />
                         </div>
                         <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-graphite-700">Porta</label>
+                            <label className="text-xs font-bold text-graphite-700">{t('notificationsPage.smtp.portLabel')}</label>
                             <input
                                 type="number"
                                 value={smtpPort}
@@ -154,17 +156,17 @@ export const NotificationsPage = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-graphite-700">Usuário SMTP</label>
+                            <label className="text-xs font-bold text-graphite-700">{t('notificationsPage.smtp.userLabel')}</label>
                             <input
                                 type="text"
                                 value={smtpUser}
                                 onChange={e => setSmtpUser(e.target.value)}
-                                placeholder="ex: agendamentos@dominio.com"
+                                placeholder={t('notificationsPage.smtp.userPlaceholder')}
                                 className="w-full bg-ice-50 border-2 border-ice-100 hover:border-ice-200 focus:border-brand-primary rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none transition-all"
                             />
                         </div>
                         <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-graphite-700">Senha SMTP</label>
+                            <label className="text-xs font-bold text-graphite-700">{t('notificationsPage.smtp.passLabel')}</label>
                             <div className="relative">
                                 <input
                                     type={showPassword ? "text" : "password"}
@@ -185,15 +187,15 @@ export const NotificationsPage = () => {
                     </div>
 
                     <div className="space-y-1.5 max-w-md">
-                        <label className="text-xs font-bold text-graphite-700">E-mail de Remetente (From)</label>
+                        <label className="text-xs font-bold text-graphite-700">{t('notificationsPage.smtp.fromLabel')}</label>
                         <input
                             type="email"
                             value={smtpFrom}
                             onChange={e => setSmtpFrom(e.target.value)}
-                            placeholder="ex: agendamentos@dominio.com"
+                            placeholder={t('notificationsPage.smtp.fromPlaceholder')}
                             className="w-full bg-ice-50 border-2 border-ice-100 hover:border-ice-200 focus:border-brand-primary rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none transition-all"
                         />
-                        <p className="text-[11px] text-graphite-400 font-medium">Deixe em branco para usar o mesmo e-mail do Usuário SMTP.</p>
+                        <p className="text-[11px] text-graphite-400 font-medium">{t('notificationsPage.smtp.fromHint')}</p>
                     </div>
 
                     <div className="flex justify-end pt-2">
@@ -203,7 +205,7 @@ export const NotificationsPage = () => {
                             className="bg-brand-primary hover:bg-brand-primary/95 text-white font-bold text-sm px-6 py-2.5 rounded-xl cursor-pointer transition-all flex items-center gap-2 shadow-lg shadow-brand-primary/10 disabled:opacity-50"
                         >
                             {savingSmtp ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                            Salvar Configurações SMTP
+                            {t('notificationsPage.smtp.saveButton')}
                         </button>
                     </div>
                 </form>
@@ -217,11 +219,10 @@ export const NotificationsPage = () => {
                 <div className="relative z-10 flex flex-col gap-4">
                     <h5 className="text-base font-black text-graphite-900 flex items-center gap-2">
                         <Shield size={20} className="text-brand-primary" />
-                        Importante: Disponibilidade dos Alertas
+                        {t('notificationsPage.infoBanner.title')}
                     </h5>
                     <p className="text-sm text-graphite-500 leading-relaxed font-medium max-w-2xl">
-                        Para garantir que você nunca perca o contato de um paciente, recomendamos manter o <strong>Aviso Sonoro</strong> e o <strong>Web Push</strong> ativos.
-                        Nosso sistema de som foi otimizado para superar silenciamentos automáticos de navegadores em abas inativas.
+                        {t('notificationsPage.infoBanner.body.prefix')} <strong>{t('notificationsPage.infoBanner.body.strong1')}</strong> {t('notificationsPage.infoBanner.body.middle')} <strong>{t('notificationsPage.infoBanner.body.strong2')}</strong> {t('notificationsPage.infoBanner.body.suffix')}
                     </p>
                 </div>
             </div>

@@ -15,7 +15,7 @@ export const PrivacyPolicy = () => {
             <img src="/favicon.png" alt="Traffio" className="h-10 w-10 rounded-xl cursor-pointer" onClick={() => navigate('/')} />
             <div>
               <p className="text-lg font-black leading-none">Traffio</p>
-              <p className="text-[10px] text-amber-400 font-bold tracking-wider">{t('legal.shared.brandTagline')}</p>
+              <p className="text-[10px] text-amber-400 font-bold tracking-wider">{t('shared.brandTagline')}</p>
             </div>
           </div>
           <button
@@ -23,7 +23,7 @@ export const PrivacyPolicy = () => {
             className="flex items-center gap-2 text-sm font-bold text-slate-300 hover:text-amber-400 transition-colors border-none bg-transparent cursor-pointer"
           >
             <ArrowLeft size={16} />
-            {t('legal.shared.backToHome')}
+            {t('shared.backToHome')}
           </button>
         </div>
       </header>
@@ -34,13 +34,13 @@ export const PrivacyPolicy = () => {
         <div className="max-w-4xl mx-auto relative z-10 text-center md:text-left">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-slate-800/80 border border-slate-700 text-amber-400 rounded-full text-xs font-black uppercase tracking-wider mb-4">
             <ShieldCheck size={14} />
-            {t('legal.privacyPolicy.heroBadge')}
+            {t('privacyPolicy.heroBadge')}
           </div>
           <h1 className="text-4xl md:text-5xl font-black mb-4 tracking-tight leading-tight">
-            {t('legal.privacyPolicy.heroTitle')}
+            {t('privacyPolicy.heroTitle')}
           </h1>
           <p className="text-slate-400 text-base font-medium max-w-2xl leading-relaxed">
-            {t('legal.privacyPolicy.lastUpdatedLabel')} 15 de junho de 2026. {t('legal.privacyPolicy.heroSubtitle')}
+            {t('privacyPolicy.lastUpdatedLabel')} 15 de junho de 2026. {t('privacyPolicy.heroSubtitle')}
           </p>
         </div>
       </div>
@@ -53,31 +53,31 @@ export const PrivacyPolicy = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-slate-50 rounded-2xl p-6 border border-slate-100">
             <div className="flex flex-col items-center text-center p-2">
               <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center text-amber-600 mb-3"><Lock size={20} /></div>
-              <h3 className="font-bold text-slate-900 text-sm mb-1">{t('legal.privacyPolicy.summaryCards.dataProtected.title')}</h3>
-              <p className="text-xs text-slate-500 font-medium">{t('legal.privacyPolicy.summaryCards.dataProtected.description')}</p>
+              <h3 className="font-bold text-slate-900 text-sm mb-1">{t('privacyPolicy.summaryCards.dataProtected.title')}</h3>
+              <p className="text-xs text-slate-500 font-medium">{t('privacyPolicy.summaryCards.dataProtected.description')}</p>
             </div>
             <div className="flex flex-col items-center text-center p-2">
               <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 mb-3"><Eye size={20} /></div>
-              <h3 className="font-bold text-slate-900 text-sm mb-1">{t('legal.privacyPolicy.summaryCards.transparentUse.title')}</h3>
-              <p className="text-xs text-slate-500 font-medium">{t('legal.privacyPolicy.summaryCards.transparentUse.description')}</p>
+              <h3 className="font-bold text-slate-900 text-sm mb-1">{t('privacyPolicy.summaryCards.transparentUse.title')}</h3>
+              <p className="text-xs text-slate-500 font-medium">{t('privacyPolicy.summaryCards.transparentUse.description')}</p>
             </div>
             <div className="flex flex-col items-center text-center p-2">
               <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 mb-3"><Mail size={20} /></div>
-              <h3 className="font-bold text-slate-900 text-sm mb-1">{t('legal.privacyPolicy.summaryCards.fullControl.title')}</h3>
-              <p className="text-xs text-slate-500 font-medium">{t('legal.privacyPolicy.summaryCards.fullControl.description')}</p>
+              <h3 className="font-bold text-slate-900 text-sm mb-1">{t('privacyPolicy.summaryCards.fullControl.title')}</h3>
+              <p className="text-xs text-slate-500 font-medium">{t('privacyPolicy.summaryCards.fullControl.description')}</p>
             </div>
           </div>
 
           {/* Seção 1 */}
           <section className="space-y-4">
             <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-              <span className="text-amber-500">1.</span> {t('legal.privacyPolicy.sections.whoWeAre.title')}
+              <span className="text-amber-500">1.</span> {t('privacyPolicy.sections.whoWeAre.title')}
             </h2>
             <p>
-              {t('legal.privacyPolicy.sections.whoWeAre.body1.prefix')} <strong>Traffio Odonto Marketing</strong> {t('legal.privacyPolicy.sections.whoWeAre.body1.middle')} <strong>fabriciooliveiraofficial@gmail.com</strong>{t('legal.privacyPolicy.sections.whoWeAre.body1.suffix')}
+              {t('privacyPolicy.sections.whoWeAre.body1.prefix')} <strong>Traffio Odonto Marketing</strong> {t('privacyPolicy.sections.whoWeAre.body1.middle')} <strong>fabriciooliveiraofficial@gmail.com</strong>{t('privacyPolicy.sections.whoWeAre.body1.suffix')}
             </p>
             <p>
-              {t('legal.privacyPolicy.sections.whoWeAre.body2')}
+              {t('privacyPolicy.sections.whoWeAre.body2')}
             </p>
           </section>
 
@@ -86,11 +86,11 @@ export const PrivacyPolicy = () => {
           {/* Seção 2 */}
           <section className="space-y-4">
             <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-              <span className="text-amber-500">2.</span> {t('legal.privacyPolicy.sections.dataCollection.title')}
+              <span className="text-amber-500">2.</span> {t('privacyPolicy.sections.dataCollection.title')}
             </h2>
-            <p>{t('legal.privacyPolicy.sections.dataCollection.intro')}</p>
+            <p>{t('privacyPolicy.sections.dataCollection.intro')}</p>
             <ul className="list-disc pl-6 space-y-2">
-              {(t('legal.privacyPolicy.sections.dataCollection.items', { returnObjects: true }) as { label: string; text: string }[]).map((item) => (
+              {(t('privacyPolicy.sections.dataCollection.items', { returnObjects: true }) as { label: string; text: string }[]).map((item) => (
                 <li key={item.label}><strong>{item.label}</strong> {item.text}</li>
               ))}
             </ul>
@@ -101,36 +101,36 @@ export const PrivacyPolicy = () => {
           {/* Seção 3 - Crítica para o Google OAuth */}
           <section className="space-y-4 bg-amber-50/50 p-6 md:p-8 rounded-3xl border border-amber-100/80">
             <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-              <span className="text-amber-500">3.</span> Integração com a API do Google Ads
+              <span className="text-amber-500">3.</span> {t('privacyPolicy.sections.googleAdsIntegration.title')}
             </h2>
             <p className="font-medium text-slate-800">
-              A Traffio oferece suporte a integrações opcionais com a API do Google Ads (usando o escopo <code>https://www.googleapis.com/auth/adwords</code>) para consolidação de métricas.
+              {t('privacyPolicy.sections.googleAdsIntegration.intro.prefix')} <code>{t('privacyPolicy.sections.googleAdsIntegration.intro.code')}</code>{t('privacyPolicy.sections.googleAdsIntegration.intro.suffix')}
             </p>
             <div className="space-y-4 text-sm mt-3">
               <div className="flex gap-3 items-start">
                 <CheckCircle size={18} className="text-emerald-500 shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="font-bold text-slate-900">Finalidade do Acesso aos Dados do Google Ads:</h4>
+                  <h4 className="font-bold text-slate-900">{t('privacyPolicy.sections.googleAdsIntegration.purpose.heading')}</h4>
                   <p className="text-slate-600">
-                    Acessamos de forma estritamente <strong>leitura (read-only)</strong> as informações de desempenho de suas campanhas de anúncios, incluindo: valor investido (custo), cliques, impressões e conversões. Esses dados são utilizados exclusivamente para calcular o Retorno sobre Investimento (ROAS), Custo por Lead (CPL) e exibir gráficos consolidados de faturamento e aquisição de pacientes no dashboard da sua conta Traffio.
+                    {t('privacyPolicy.sections.googleAdsIntegration.purpose.body.prefix')} <strong>{t('privacyPolicy.sections.googleAdsIntegration.purpose.body.strong')}</strong> {t('privacyPolicy.sections.googleAdsIntegration.purpose.body.suffix')}
                   </p>
                 </div>
               </div>
               <div className="flex gap-3 items-start">
                 <CheckCircle size={18} className="text-emerald-500 shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="font-bold text-slate-900">Não Compartilhamento de Dados do Google:</h4>
+                  <h4 className="font-bold text-slate-900">{t('privacyPolicy.sections.googleAdsIntegration.noSharing.heading')}</h4>
                   <p className="text-slate-600">
-                    Não compartilhamos, vendemos, alugamos ou transferimos quaisquer dados obtidos por meio da API do Google Ads com terceiros, sob qualquer circunstância. Os dados permanecem exclusivamente visíveis e restritos ao usuário administrador da clínica que realizou a autenticação.
+                    {t('privacyPolicy.sections.googleAdsIntegration.noSharing.body')}
                   </p>
                 </div>
               </div>
               <div className="flex gap-3 items-start">
                 <CheckCircle size={18} className="text-emerald-500 shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="font-bold text-slate-900">Conformidade com a Política do Google (Limited Use):</h4>
+                  <h4 className="font-bold text-slate-900">{t('privacyPolicy.sections.googleAdsIntegration.googleCompliance.heading')}</h4>
                   <p className="text-slate-600 font-medium">
-                    A utilização de informações recebidas das APIs do Google pela Traffio está em estrita conformidade com a <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer" className="text-brand-primary underline hover:text-amber-500 transition-colors">Política de Dados do Usuário dos Serviços de API do Google</a>, incluindo os requisitos de Uso Limitado (Limited Use Requirements).
+                    {t('privacyPolicy.sections.googleAdsIntegration.googleCompliance.body.prefix')} <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer" className="text-brand-primary underline hover:text-amber-500 transition-colors">{t('privacyPolicy.sections.googleAdsIntegration.googleCompliance.body.linkText')}</a>{t('privacyPolicy.sections.googleAdsIntegration.googleCompliance.body.suffix')}
                   </p>
                 </div>
               </div>
@@ -142,15 +142,15 @@ export const PrivacyPolicy = () => {
           {/* Seção 4 */}
           <section className="space-y-4">
             <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-              <span className="text-amber-500">4.</span> Como Compartilhamos Dados
+              <span className="text-amber-500">4.</span> {t('privacyPolicy.sections.dataSharing.title')}
             </h2>
             <p>
-              Nós **não vendemos nem alugamos** dados pessoais de nossos clientes ou de seus pacientes. Compartilhamos informações com terceiros somente nas seguintes circunstâncias:
+              {t('privacyPolicy.sections.dataSharing.intro')}
             </p>
             <ul className="list-disc pl-6 space-y-2">
-              <li><strong>Provedores de Infraestrutura e Serviços:</strong> Provedores de hospedagem na nuvem (Supabase, AWS), gateways de pagamento (Pagar.me, Asaas, Dr. Cash) e serviços de envio de mensagens (WhatsApp API, e-mail transactional), apenas na extensão estritamente necessária para execução do serviço.</li>
-              <li><strong>Obrigação Legal:</strong> Para cumprir ordens judiciais, leis aplicáveis ou regulamentações de órgãos competentes.</li>
-              <li><strong>Com o seu Consentimento:</strong> Quando você explicitamente autoriza a transferência de dados para outra plataforma através de chaves de API personalizadas.</li>
+              {(t('privacyPolicy.sections.dataSharing.items', { returnObjects: true }) as { label: string; text: string }[]).map((item) => (
+                <li key={item.label}><strong>{item.label}</strong> {item.text}</li>
+              ))}
             </ul>
           </section>
 
@@ -159,13 +159,13 @@ export const PrivacyPolicy = () => {
           {/* Seção 5 */}
           <section className="space-y-4">
             <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-              <span className="text-amber-500">5.</span> Segurança e Armazenamento dos Dados
+              <span className="text-amber-500">5.</span> {t('privacyPolicy.sections.dataSecurity.title')}
             </h2>
             <p>
-              Empregamos medidas de segurança técnicas e administrativas padrão da indústria para proteger seus dados, tais como criptografia SSL/TLS em trânsito e em repouso, políticas estritas de Row-Level Security (RLS) em nosso banco de dados no Supabase para garantir isolamento completo de tenants (uma clínica não pode ver dados de outra), além de backups diários e logs de auditoria.
+              {t('privacyPolicy.sections.dataSecurity.body1')}
             </p>
             <p>
-              Os dados coletados são armazenados enquanto o contrato de serviço estiver ativo ou até que o cliente solicite formalmente a exclusão da sua conta.
+              {t('privacyPolicy.sections.dataSecurity.body2')}
             </p>
           </section>
 
@@ -174,20 +174,18 @@ export const PrivacyPolicy = () => {
           {/* Seção 6 */}
           <section className="space-y-4">
             <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-              <span className="text-amber-500">6.</span> Seus Direitos (LGPD) e Exclusão de Dados
+              <span className="text-amber-500">6.</span> {t('privacyPolicy.sections.userRights.title')}
             </h2>
             <p>
-              Você, como Titular dos Dados, possui plenos direitos previstos no Artigo 18 da LGPD, que incluem:
+              {t('privacyPolicy.sections.userRights.intro')}
             </p>
             <ul className="list-disc pl-6 space-y-2">
-              <li>Confirmar a existência do tratamento de dados.</li>
-              <li>Acessar seus dados pessoais.</li>
-              <li>Corrigir dados incompletos, inexatos ou desatualizados.</li>
-              <li>Revogar a autorização de integrações a qualquer momento (como desconectar o Google Ads da plataforma, o que apaga imediatamente as credenciais armazenadas).</li>
-              <li>Solicitar a eliminação definitiva de seus dados cadastrados.</li>
+              {(t('privacyPolicy.sections.userRights.items', { returnObjects: true }) as string[]).map((item) => (
+                <li key={item}>{item}</li>
+              ))}
             </ul>
             <p>
-              Para exercer qualquer um desses direitos ou solicitar a exclusão total da sua conta e de seus dados associados, entre em contato através de: <strong>fabriciooliveiraofficial@gmail.com</strong> ou pelo e-mail <strong>contato@traffio.com.br</strong>. Sua solicitação será atendida gratuitamente em até 15 dias.
+              {t('privacyPolicy.sections.userRights.contact.prefix')} <strong>{t('privacyPolicy.sections.userRights.contact.strong1')}</strong> {t('privacyPolicy.sections.userRights.contact.middle')} <strong>{t('privacyPolicy.sections.userRights.contact.strong2')}</strong>{t('privacyPolicy.sections.userRights.contact.suffix')}
             </p>
           </section>
 
@@ -196,10 +194,10 @@ export const PrivacyPolicy = () => {
           {/* Seção 7 */}
           <section className="space-y-4">
             <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-              <span className="text-amber-500">7.</span> Alterações nesta Política de Privacidade
+              <span className="text-amber-500">7.</span> {t('privacyPolicy.sections.policyChanges.title')}
             </h2>
             <p>
-              Reservamo-nos o direito de atualizar esta política de tempos em tempos. Se realizarmos alterações significativas, notificaremos os usuários através de avisos proeminentes dentro do painel do Traffio ou por e-mail antes que a alteração entre em vigor. Recomendamos a leitura periódica desta página.
+              {t('privacyPolicy.sections.policyChanges.body')}
             </p>
           </section>
 
@@ -209,10 +207,10 @@ export const PrivacyPolicy = () => {
       {/* Footer */}
       <footer className="bg-[#0D1B2A] py-10 px-6 text-slate-500 text-sm border-t border-slate-800">
         <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <p>© 2026 Traffio Odonto Marketing. Todos os direitos reservados.</p>
+          <p>{t('shared.footerRights')}</p>
           <div className="flex gap-6 text-xs text-slate-400 font-medium">
-            <span className="cursor-pointer hover:text-white transition-colors" onClick={() => navigate('/termos')}>Termos de Uso</span>
-            <span className="cursor-pointer hover:text-white transition-colors" onClick={() => navigate('/')}>Home</span>
+            <span className="cursor-pointer hover:text-white transition-colors" onClick={() => navigate('/termos')}>{t('privacyPolicy.footerTermsLink')}</span>
+            <span className="cursor-pointer hover:text-white transition-colors" onClick={() => navigate('/')}>{t('shared.footerHome')}</span>
           </div>
         </div>
       </footer>

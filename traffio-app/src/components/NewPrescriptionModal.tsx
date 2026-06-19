@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Save, ClipboardList, Plus, Trash2, Pill } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
@@ -22,6 +23,7 @@ export const NewPrescriptionModal: React.FC<NewPrescriptionModalProps> = ({
     onSuccess,
     patientId
 }) => {
+    const { t } = useTranslation('medical');
     const { showToast } = useToast();
     const [loading, setLoading] = useState(false);
     const [medications, setMedications] = useState<Medication[]>([
@@ -49,7 +51,7 @@ export const NewPrescriptionModal: React.FC<NewPrescriptionModalProps> = ({
         // Filter out empty medications
         const validMeds = medications.filter(m => m.name.trim() !== '');
         if (validMeds.length === 0) {
-            showToast('error', 'Adicione pelo menos um medicamento.');
+            showToast('error', t('newPrescriptionModal.toasts.minOneMedication'));
             return;
         }
 
@@ -63,7 +65,7 @@ export const NewPrescriptionModal: React.FC<NewPrescriptionModalProps> = ({
                 .limit(1)
                 .single();
 
-            if (!memberData) throw new Error("Sessão não encontrada.");
+            if (!memberData) throw new Error(t('newPrescriptionModal.toasts.noSession'));
 
             const { error } = await supabase
                 .from('prescriptions')
@@ -76,14 +78,14 @@ export const NewPrescriptionModal: React.FC<NewPrescriptionModalProps> = ({
 
             if (error) throw error;
 
-            showToast('success', 'Receita emitida com sucesso!');
+            showToast('success', t('newPrescriptionModal.toasts.saved'));
             onSuccess();
             onClose();
             setMedications([{ name: '', dosage: '', instructions: '' }]);
 
         } catch (error: any) {
             console.error('Error adding prescription:', error);
-            showToast('error', 'Erro ao emitir receita: ' + error.message);
+            showToast('error', t('newPrescriptionModal.toasts.saveErrorPrefix') + error.message);
         } finally {
             setLoading(false);
         }
@@ -107,9 +109,9 @@ export const NewPrescriptionModal: React.FC<NewPrescriptionModalProps> = ({
                         <div>
                             <h3 className="text-xl font-black text-graphite-900 tracking-tight flex items-center gap-2">
                                 <ClipboardList className="text-brand-primary" size={24} />
-                                Nova Receita Médica
+                                {t('newPrescriptionModal.title')}
                             </h3>
-                            <p className="text-sm text-graphite-400 font-medium">Prescreva medicamentos e orientações</p>
+                            <p className="text-sm text-graphite-400 font-medium">{t('newPrescriptionModal.subtitle')}</p>
                         </div>
                         <button
                             onClick={onClose}
@@ -126,7 +128,7 @@ export const NewPrescriptionModal: React.FC<NewPrescriptionModalProps> = ({
                                 <div key={index} className="p-5 rounded-2xl bg-ice-50 border border-ice-100 relative group animate-in fade-in slide-in-from-top-2 duration-300">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div className="md:col-span-2">
-                                            <label className="text-[10px] font-black text-graphite-400 uppercase tracking-widest mb-1 block">Nome do Medicamento</label>
+                                            <label className="text-[10px] font-black text-graphite-400 uppercase tracking-widest mb-1 block">{t('newPrescriptionModal.medicationNameLabel')}</label>
                                             <div className="relative">
                                                 <Pill className="absolute left-3 top-1/2 -translate-y-1/2 text-ice-300" size={16} />
                                                 <input
@@ -134,28 +136,28 @@ export const NewPrescriptionModal: React.FC<NewPrescriptionModalProps> = ({
                                                     type="text"
                                                     value={med.name}
                                                     onChange={e => updateMedication(index, 'name', e.target.value)}
-                                                    placeholder="Ex: Amoxicilina 500mg"
+                                                    placeholder={t('newPrescriptionModal.medicationNamePlaceholder')}
                                                     className="w-full bg-white border border-ice-200 rounded-xl py-2.5 pl-10 pr-4 text-sm font-bold text-graphite-900 focus:outline-none focus:border-brand-primary/50 focus:ring-4 focus:ring-brand-primary/10 transition-all h-11"
                                                 />
                                             </div>
                                         </div>
                                         <div>
-                                            <label className="text-[10px] font-black text-graphite-400 uppercase tracking-widest mb-1 block">Posologia / Dose</label>
+                                            <label className="text-[10px] font-black text-graphite-400 uppercase tracking-widest mb-1 block">{t('newPrescriptionModal.dosageLabel')}</label>
                                             <input
                                                 type="text"
                                                 value={med.dosage}
                                                 onChange={e => updateMedication(index, 'dosage', e.target.value)}
-                                                placeholder="Ex: 1 comprimido"
+                                                placeholder={t('newPrescriptionModal.dosagePlaceholder')}
                                                 className="w-full bg-white border border-ice-200 rounded-xl px-4 py-2.5 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary/50 focus:ring-4 focus:ring-brand-primary/10 transition-all h-11"
                                             />
                                         </div>
                                         <div>
-                                            <label className="text-[10px] font-black text-graphite-400 uppercase tracking-widest mb-1 block">Frequência / Instruções</label>
+                                            <label className="text-[10px] font-black text-graphite-400 uppercase tracking-widest mb-1 block">{t('newPrescriptionModal.instructionsLabel')}</label>
                                             <input
                                                 type="text"
                                                 value={med.instructions}
                                                 onChange={e => updateMedication(index, 'instructions', e.target.value)}
-                                                placeholder="Ex: 8 em 8 horas por 7 dias"
+                                                placeholder={t('newPrescriptionModal.instructionsPlaceholder')}
                                                 className="w-full bg-white border border-ice-200 rounded-xl px-4 py-2.5 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary/50 focus:ring-4 focus:ring-brand-primary/10 transition-all h-11"
                                             />
                                         </div>
@@ -180,7 +182,7 @@ export const NewPrescriptionModal: React.FC<NewPrescriptionModalProps> = ({
                             className="w-full py-4 border-2 border-dashed border-ice-200 rounded-2xl text-sm font-black text-graphite-400 hover:border-brand-primary/40 hover:text-brand-primary hover:bg-brand-primary/5 transition-all flex items-center justify-center gap-2 cursor-pointer group"
                         >
                             <Plus size={18} className="group-hover:scale-110 transition-transform" />
-                            ADICIONAR OUTRO MEDICAMENTO
+                            {t('newPrescriptionModal.addMedication')}
                         </button>
                     </form>
 
@@ -191,14 +193,14 @@ export const NewPrescriptionModal: React.FC<NewPrescriptionModalProps> = ({
                             onClick={onClose}
                             className="flex-1 py-4 rounded-2xl font-bold text-graphite-700 hover:bg-white border border-ice-200 transition-all cursor-pointer"
                         >
-                            Cancelar
+                            {t('newPrescriptionModal.cancel')}
                         </button>
                         <button
                             onClick={handleSubmit}
                             disabled={loading}
                             className="flex-[2] bg-brand-primary text-white py-4 rounded-2xl font-black shadow-xl shadow-brand-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed border-none cursor-pointer"
                         >
-                            {loading ? 'Emitindo...' : (<><Save size={18} /><span>EMITIR RECEITA</span></>)}
+                            {loading ? t('newPrescriptionModal.issuing') : (<><Save size={18} /><span>{t('newPrescriptionModal.issue')}</span></>)}
                         </button>
                     </div>
                 </div>

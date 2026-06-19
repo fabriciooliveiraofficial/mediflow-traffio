@@ -93,42 +93,42 @@ export const BotConfigWizard = ({ isOpen, onClose, currentConfig, onSave, saving
 
         // Identidade do agente
         const roleMap = {
-            lead_capture:       t('automations.botConfigWizard.roleMap.leadCapture'),
-            agenda_management:  t('automations.botConfigWizard.roleMap.agendaManagement'),
-            hybrid:             t('automations.botConfigWizard.roleMap.hybrid'),
+            lead_capture:       t('botConfigWizard.roleMap.leadCapture'),
+            agenda_management:  t('botConfigWizard.roleMap.agendaManagement'),
+            hybrid:             t('botConfigWizard.roleMap.hybrid'),
         };
         next.identity = { name: base.identity.name || 'Amanda', role: roleMap[draft.objective!] };
 
         // Regras e workflow gerados automaticamente por objetivo
         if (isSales) {
             next.strict_rules = [
-                t('automations.botConfigWizard.strictRulesSales.neverCloseWithoutNextStep'),
-                t('automations.botConfigWizard.strictRulesSales.alwaysOfferAlternative'),
+                t('botConfigWizard.strictRulesSales.neverCloseWithoutNextStep'),
+                t('botConfigWizard.strictRulesSales.alwaysOfferAlternative'),
                 draft.has_commercial_team
-                    ? t('automations.botConfigWizard.strictRulesSales.transferAfterQualification')
-                    : t('automations.botConfigWizard.strictRulesSales.closeAutonomously'),
-                t('automations.botConfigWizard.strictRulesSales.neverMentionSlotTypes'),
+                    ? t('botConfigWizard.strictRulesSales.transferAfterQualification')
+                    : t('botConfigWizard.strictRulesSales.closeAutonomously'),
+                t('botConfigWizard.strictRulesSales.neverMentionSlotTypes'),
             ];
             next.workflow = [
-                t('automations.botConfigWizard.workflowSales.respondWithSlot'),
-                t('automations.botConfigWizard.workflowSales.qualify'),
-                t('automations.botConfigWizard.workflowSales.presentBenefits'),
-                t('automations.botConfigWizard.workflowSales.proposeSpecificTime'),
+                t('botConfigWizard.workflowSales.respondWithSlot'),
+                t('botConfigWizard.workflowSales.qualify'),
+                t('botConfigWizard.workflowSales.presentBenefits'),
+                t('botConfigWizard.workflowSales.proposeSpecificTime'),
                 draft.has_commercial_team
-                    ? t('automations.botConfigWizard.workflowSales.transferToHuman')
-                    : t('automations.botConfigWizard.workflowSales.closeAndConfirm'),
+                    ? t('botConfigWizard.workflowSales.transferToHuman')
+                    : t('botConfigWizard.workflowSales.closeAndConfirm'),
             ];
         } else {
             next.strict_rules = [
-                t('automations.botConfigWizard.strictRulesAgenda.neverScheduleWithoutValidating'),
-                t('automations.botConfigWizard.strictRulesAgenda.verifyIdentity'),
-                t('automations.botConfigWizard.strictRulesAgenda.alwaysWelcoming'),
+                t('botConfigWizard.strictRulesAgenda.neverScheduleWithoutValidating'),
+                t('botConfigWizard.strictRulesAgenda.verifyIdentity'),
+                t('botConfigWizard.strictRulesAgenda.alwaysWelcoming'),
             ];
             next.workflow = [
-                t('automations.botConfigWizard.workflowAgenda.greetByName'),
-                t('automations.botConfigWizard.workflowAgenda.understandNeed'),
-                t('automations.botConfigWizard.workflowAgenda.findAvailability'),
-                t('automations.botConfigWizard.workflowAgenda.confirmAndConclude'),
+                t('botConfigWizard.workflowAgenda.greetByName'),
+                t('botConfigWizard.workflowAgenda.understandNeed'),
+                t('botConfigWizard.workflowAgenda.findAvailability'),
+                t('botConfigWizard.workflowAgenda.confirmAndConclude'),
             ];
         }
 
@@ -180,8 +180,8 @@ export const BotConfigWizard = ({ isOpen, onClose, currentConfig, onSave, saving
                     <div className="min-h-[380px]">
                         {step === 1 && (
                             <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-                                <h2 className="text-2xl font-black text-graphite-900 mb-2">{t('automations.botConfigWizard.step1.title')}</h2>
-                                <p className="text-graphite-400 text-sm mb-8">{t('automations.botConfigWizard.step1.subtitle')}</p>
+                                <h2 className="text-2xl font-black text-graphite-900 mb-2">{t('botConfigWizard.step1.title')}</h2>
+                                <p className="text-graphite-400 text-sm mb-8">{t('botConfigWizard.step1.subtitle')}</p>
 
                                 <div className="grid grid-cols-1 gap-4">
                                     <button
@@ -195,10 +195,10 @@ export const BotConfigWizard = ({ isOpen, onClose, currentConfig, onSave, saving
                                                 <RefreshCw size={24} />
                                             </div>
                                             <div>
-                                                <p className="font-black text-graphite-900">{t('automations.botConfigWizard.step1.hybridTitle')}</p>
-                                                <p className="text-xs text-graphite-400 mt-1">{t('automations.botConfigWizard.step1.hybridDescription')}</p>
+                                                <p className="font-black text-graphite-900">{t('botConfigWizard.step1.hybridTitle')}</p>
+                                                <p className="text-xs text-graphite-400 mt-1">{t('botConfigWizard.step1.hybridDescription')}</p>
                                             </div>
-                                            <span className="absolute top-4 right-4 bg-emerald-100 text-emerald-600 text-[10px] font-black uppercase px-2 py-0.5 rounded-md">{t('automations.botConfigWizard.step1.mostUsedBadge')}</span>
+                                            <span className="absolute top-4 right-4 bg-emerald-100 text-emerald-600 text-[10px] font-black uppercase px-2 py-0.5 rounded-md">{t('botConfigWizard.step1.mostUsedBadge')}</span>
                                         </div>
                                     </button>
 
@@ -213,8 +213,8 @@ export const BotConfigWizard = ({ isOpen, onClose, currentConfig, onSave, saving
                                                 <Target size={24} />
                                             </div>
                                             <div>
-                                                <p className="font-black text-graphite-900">{t('automations.botConfigWizard.step1.leadCaptureTitle')}</p>
-                                                <p className="text-xs text-graphite-400 mt-1">{t('automations.botConfigWizard.step1.leadCaptureDescription')}</p>
+                                                <p className="font-black text-graphite-900">{t('botConfigWizard.step1.leadCaptureTitle')}</p>
+                                                <p className="text-xs text-graphite-400 mt-1">{t('botConfigWizard.step1.leadCaptureDescription')}</p>
                                             </div>
                                         </div>
                                     </button>
@@ -230,8 +230,8 @@ export const BotConfigWizard = ({ isOpen, onClose, currentConfig, onSave, saving
                                                 <Calendar size={24} />
                                             </div>
                                             <div>
-                                                <p className="font-black text-graphite-900">{t('automations.botConfigWizard.step1.agendaTitle')}</p>
-                                                <p className="text-xs text-graphite-400 mt-1">{t('automations.botConfigWizard.step1.agendaDescription')}</p>
+                                                <p className="font-black text-graphite-900">{t('botConfigWizard.step1.agendaTitle')}</p>
+                                                <p className="text-xs text-graphite-400 mt-1">{t('botConfigWizard.step1.agendaDescription')}</p>
                                             </div>
                                         </div>
                                     </button>
@@ -241,8 +241,8 @@ export const BotConfigWizard = ({ isOpen, onClose, currentConfig, onSave, saving
 
                         {step === 2 && (
                             <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-                                <h2 className="text-2xl font-black text-graphite-900 mb-2">{t('automations.botConfigWizard.step2.title')}</h2>
-                                <p className="text-graphite-400 text-sm mb-8">{t('automations.botConfigWizard.step2.subtitle')}</p>
+                                <h2 className="text-2xl font-black text-graphite-900 mb-2">{t('botConfigWizard.step2.title')}</h2>
+                                <p className="text-graphite-400 text-sm mb-8">{t('botConfigWizard.step2.subtitle')}</p>
 
                                 <div className="grid grid-cols-1 gap-4">
                                     <button
@@ -256,8 +256,8 @@ export const BotConfigWizard = ({ isOpen, onClose, currentConfig, onSave, saving
                                                 <Users size={24} />
                                             </div>
                                             <div>
-                                                <p className="font-black text-graphite-900">{t('automations.botConfigWizard.step2.teamTitle')}</p>
-                                                <p className="text-xs text-graphite-400 mt-1">{t('automations.botConfigWizard.step2.teamDescription')}</p>
+                                                <p className="font-black text-graphite-900">{t('botConfigWizard.step2.teamTitle')}</p>
+                                                <p className="text-xs text-graphite-400 mt-1">{t('botConfigWizard.step2.teamDescription')}</p>
                                             </div>
                                         </div>
                                     </button>
@@ -273,8 +273,8 @@ export const BotConfigWizard = ({ isOpen, onClose, currentConfig, onSave, saving
                                                 <Bot size={24} />
                                             </div>
                                             <div>
-                                                <p className="font-black text-graphite-900">{t('automations.botConfigWizard.step2.botOnlyTitle')}</p>
-                                                <p className="text-xs text-graphite-400 mt-1">{t('automations.botConfigWizard.step2.botOnlyDescription')}</p>
+                                                <p className="font-black text-graphite-900">{t('botConfigWizard.step2.botOnlyTitle')}</p>
+                                                <p className="text-xs text-graphite-400 mt-1">{t('botConfigWizard.step2.botOnlyDescription')}</p>
                                             </div>
                                         </div>
                                     </button>
@@ -284,8 +284,8 @@ export const BotConfigWizard = ({ isOpen, onClose, currentConfig, onSave, saving
 
                         {step === 3 && (
                             <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-                                <h2 className="text-2xl font-black text-graphite-900 mb-2">{t('automations.botConfigWizard.step3.title')}</h2>
-                                <p className="text-graphite-400 text-sm mb-8">{t('automations.botConfigWizard.step3.subtitle')}</p>
+                                <h2 className="text-2xl font-black text-graphite-900 mb-2">{t('botConfigWizard.step3.title')}</h2>
+                                <p className="text-graphite-400 text-sm mb-8">{t('botConfigWizard.step3.subtitle')}</p>
 
                                 <div className="grid grid-cols-1 gap-4">
                                     <button
@@ -299,8 +299,8 @@ export const BotConfigWizard = ({ isOpen, onClose, currentConfig, onSave, saving
                                                 <Heart size={24} />
                                             </div>
                                             <div>
-                                                <p className="font-black text-graphite-900">{t('automations.botConfigWizard.step3.welcomingTitle')}</p>
-                                                <p className="text-xs text-graphite-400 mt-1">{t('automations.botConfigWizard.step3.welcomingDescription')}</p>
+                                                <p className="font-black text-graphite-900">{t('botConfigWizard.step3.welcomingTitle')}</p>
+                                                <p className="text-xs text-graphite-400 mt-1">{t('botConfigWizard.step3.welcomingDescription')}</p>
                                             </div>
                                         </div>
                                     </button>
@@ -316,8 +316,8 @@ export const BotConfigWizard = ({ isOpen, onClose, currentConfig, onSave, saving
                                                 <Briefcase size={24} />
                                             </div>
                                             <div>
-                                                <p className="font-black text-graphite-900">{t('automations.botConfigWizard.step3.formalTitle')}</p>
-                                                <p className="text-xs text-graphite-400 mt-1">{t('automations.botConfigWizard.step3.formalDescription')}</p>
+                                                <p className="font-black text-graphite-900">{t('botConfigWizard.step3.formalTitle')}</p>
+                                                <p className="text-xs text-graphite-400 mt-1">{t('botConfigWizard.step3.formalDescription')}</p>
                                             </div>
                                         </div>
                                     </button>
@@ -333,8 +333,8 @@ export const BotConfigWizard = ({ isOpen, onClose, currentConfig, onSave, saving
                                                 <Zap size={24} />
                                             </div>
                                             <div>
-                                                <p className="font-black text-graphite-900">{t('automations.botConfigWizard.step3.efficientTitle')}</p>
-                                                <p className="text-xs text-graphite-400 mt-1">{t('automations.botConfigWizard.step3.efficientDescription')}</p>
+                                                <p className="font-black text-graphite-900">{t('botConfigWizard.step3.efficientTitle')}</p>
+                                                <p className="text-xs text-graphite-400 mt-1">{t('botConfigWizard.step3.efficientDescription')}</p>
                                             </div>
                                         </div>
                                     </button>
@@ -344,25 +344,25 @@ export const BotConfigWizard = ({ isOpen, onClose, currentConfig, onSave, saving
 
                         {step === 4 && (
                             <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-                                <h2 className="text-2xl font-black text-graphite-900 mb-2">{t('automations.botConfigWizard.step4.title')}</h2>
-                                <p className="text-graphite-400 text-sm mb-6">{t('automations.botConfigWizard.step4.subtitle')}</p>
+                                <h2 className="text-2xl font-black text-graphite-900 mb-2">{t('botConfigWizard.step4.title')}</h2>
+                                <p className="text-graphite-400 text-sm mb-6">{t('botConfigWizard.step4.subtitle')}</p>
 
                                 <div className="space-y-4 bg-ice-50/50 p-6 rounded-3xl border border-ice-100 mb-6">
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-1">
-                                            <p className="text-[10px] font-black text-graphite-400 uppercase tracking-wider">{t('automations.botConfigWizard.step4.objectiveLabel')}</p>
+                                            <p className="text-[10px] font-black text-graphite-400 uppercase tracking-wider">{t('botConfigWizard.step4.objectiveLabel')}</p>
                                             <div className="bg-white px-3 py-1.5 rounded-xl border border-ice-100 inline-block">
                                                 <p className="text-xs font-bold text-brand-primary">
-                                                    {draft.objective === 'hybrid' ? t('automations.botConfigWizard.step4.objectiveHybrid') :
-                                                     draft.objective === 'lead_capture' ? t('automations.botConfigWizard.step4.objectiveLeadCapture') : t('automations.botConfigWizard.step4.objectiveAgenda')}
+                                                    {draft.objective === 'hybrid' ? t('botConfigWizard.step4.objectiveHybrid') :
+                                                     draft.objective === 'lead_capture' ? t('botConfigWizard.step4.objectiveLeadCapture') : t('botConfigWizard.step4.objectiveAgenda')}
                                                 </p>
                                             </div>
                                         </div>
                                         <div className="space-y-1">
-                                            <p className="text-[10px] font-black text-graphite-400 uppercase tracking-wider">{t('automations.botConfigWizard.step4.serviceLabel')}</p>
+                                            <p className="text-[10px] font-black text-graphite-400 uppercase tracking-wider">{t('botConfigWizard.step4.serviceLabel')}</p>
                                             <div className="bg-white px-3 py-1.5 rounded-xl border border-ice-100 inline-block">
                                                 <p className="text-xs font-bold text-graphite-700">
-                                                    {draft.has_commercial_team ? t('automations.botConfigWizard.step4.serviceHandoff') : t('automations.botConfigWizard.step4.serviceAutonomous')}
+                                                    {draft.has_commercial_team ? t('botConfigWizard.step4.serviceHandoff') : t('botConfigWizard.step4.serviceAutonomous')}
                                                 </p>
                                             </div>
                                         </div>
@@ -370,19 +370,19 @@ export const BotConfigWizard = ({ isOpen, onClose, currentConfig, onSave, saving
 
                                     <div className="pt-4 mt-4 border-t border-ice-100 space-y-3">
                                         <div className="flex items-center justify-between text-xs">
-                                            <span className="text-graphite-400 font-medium italic">{t('automations.botConfigWizard.step4.identityLabel')}</span>
-                                            <span className="text-graphite-700 font-bold">{t('automations.botConfigWizard.step4.identityValue')}</span>
+                                            <span className="text-graphite-400 font-medium italic">{t('botConfigWizard.step4.identityLabel')}</span>
+                                            <span className="text-graphite-700 font-bold">{t('botConfigWizard.step4.identityValue')}</span>
                                         </div>
                                         <div className="flex items-center justify-between text-xs">
-                                            <span className="text-graphite-400 font-medium">{t('automations.botConfigWizard.step4.followUpLabel')}</span>
+                                            <span className="text-graphite-400 font-medium">{t('botConfigWizard.step4.followUpLabel')}</span>
                                             <span className="text-emerald-500 font-bold flex items-center gap-1">
                                                 {draft.objective !== 'agenda_management' ? <Check size={14} /> : <X size={14} className="text-graphite-300" />}
-                                                {draft.objective !== 'agenda_management' ? t('automations.botConfigWizard.step4.followUpActive') : t('automations.botConfigWizard.step4.followUpOffline')}
+                                                {draft.objective !== 'agenda_management' ? t('botConfigWizard.step4.followUpActive') : t('botConfigWizard.step4.followUpOffline')}
                                             </span>
                                         </div>
                                         <div className="flex items-center justify-between text-xs">
-                                            <span className="text-graphite-400 font-medium">{t('automations.botConfigWizard.step4.noShowLabel')}</span>
-                                            <span className="text-emerald-500 font-bold flex items-center gap-1"><Check size={14} /> {t('automations.botConfigWizard.step4.noShowActive')}</span>
+                                            <span className="text-graphite-400 font-medium">{t('botConfigWizard.step4.noShowLabel')}</span>
+                                            <span className="text-emerald-500 font-bold flex items-center gap-1"><Check size={14} /> {t('botConfigWizard.step4.noShowActive')}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -390,7 +390,7 @@ export const BotConfigWizard = ({ isOpen, onClose, currentConfig, onSave, saving
                                 <div className="flex items-center gap-3 p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
                                     <AlertCircle className="text-indigo-500 shrink-0" size={18} />
                                     <p className="text-[10px] text-indigo-700 font-bold leading-relaxed">
-                                        {t('automations.botConfigWizard.step4.disclaimer')}
+                                        {t('botConfigWizard.step4.disclaimer')}
                                     </p>
                                 </div>
                             </div>

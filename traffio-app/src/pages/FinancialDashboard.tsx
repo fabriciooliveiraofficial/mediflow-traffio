@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     DollarSign,
     TrendingUp,
@@ -31,6 +32,7 @@ import { useToast } from '../contexts/ToastContext';
 import { useLocaleFormat } from '../hooks/useLocaleFormat';
 
 export const FinancialDashboard = () => {
+    const { t } = useTranslation('tenantAdmin');
     const { formatDate } = useLocaleFormat();
     const [records, setRecords] = useState<any[]>([]);
     const [summary, setSummary] = useState({ total: 0, paid: 0, pending: 0, overdue: 0 });
@@ -73,7 +75,7 @@ export const FinancialDashboard = () => {
     };
 
     const handleCancel = async (id: string) => {
-        if (!confirm('Cancelar esta cobrança?')) return;
+        if (!confirm(t('financialDashboard.confirmCancel'))) return;
         await BillingService.cancel(id);
         fetchData();
     };
@@ -82,11 +84,11 @@ export const FinancialDashboard = () => {
         `R$ ${(cents / 100).toFixed(2).replace('.', ',')}`;
 
     const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
-        paid: { label: 'Pago', color: 'text-emerald-600', bg: 'bg-emerald-100' },
-        pending: { label: 'Pendente', color: 'text-amber-600', bg: 'bg-amber-100' },
-        overdue: { label: 'Vencido', color: 'text-rose-600', bg: 'bg-rose-100' },
-        canceled: { label: 'Cancelado', color: 'text-graphite-400', bg: 'bg-ice-100' },
-        refunded: { label: 'Estornado', color: 'text-sky-600', bg: 'bg-sky-100' },
+        paid: { label: t('financialDashboard.transactions.statusLabels.paid'), color: 'text-emerald-600', bg: 'bg-emerald-100' },
+        pending: { label: t('financialDashboard.transactions.statusLabels.pending'), color: 'text-amber-600', bg: 'bg-amber-100' },
+        overdue: { label: t('financialDashboard.transactions.statusLabels.overdue'), color: 'text-rose-600', bg: 'bg-rose-100' },
+        canceled: { label: t('financialDashboard.transactions.statusLabels.canceled'), color: 'text-graphite-400', bg: 'bg-ice-100' },
+        refunded: { label: t('financialDashboard.transactions.statusLabels.refunded'), color: 'text-sky-600', bg: 'bg-sky-100' },
     };
 
     return (
@@ -94,8 +96,8 @@ export const FinancialDashboard = () => {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-black text-graphite-900 tracking-tight">Financeiro</h1>
-                    <p className="text-graphite-500 font-medium">Visão consolidada de todas as suas unidades e conversão de hub.</p>
+                    <h1 className="text-3xl font-black text-graphite-900 tracking-tight">{t('financialDashboard.header.title')}</h1>
+                    <p className="text-graphite-500 font-medium">{t('financialDashboard.header.subtitle')}</p>
                 </div>
                 <div className="flex items-center gap-3">
                     <select
@@ -103,17 +105,17 @@ export const FinancialDashboard = () => {
                         onChange={(e) => setStatusFilter(e.target.value)}
                         className="px-4 py-2 bg-white border border-ice-200 rounded-xl text-sm font-bold text-graphite-600 cursor-pointer focus:outline-none focus:border-brand-primary"
                     >
-                        <option value="">Todos</option>
-                        <option value="paid">Pagos</option>
-                        <option value="pending">Pendentes</option>
-                        <option value="canceled">Cancelados</option>
+                        <option value="">{t('financialDashboard.header.filterAll')}</option>
+                        <option value="paid">{t('financialDashboard.header.filterPaid')}</option>
+                        <option value="pending">{t('financialDashboard.header.filterPending')}</option>
+                        <option value="canceled">{t('financialDashboard.header.filterCanceled')}</option>
                     </select>
                     <button
                         onClick={() => setShowNewModal(true)}
                         className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-xl font-bold hover:scale-105 transition-transform shadow-lg shadow-brand-primary/20 border-none cursor-pointer"
                     >
                         <Plus size={18} />
-                        Nova Cobrança
+                        {t('financialDashboard.header.newBillingButton')}
                     </button>
                 </div>
             </div>
@@ -121,28 +123,28 @@ export const FinancialDashboard = () => {
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <KPICard
-                    title="Receita Total"
+                    title={t('financialDashboard.kpis.totalRevenue')}
                     value={formatCurrency(summary.total)}
                     icon={DollarSign}
                     color="text-emerald-500"
                     bg="bg-emerald-500/10"
                 />
                 <KPICard
-                    title="Recebido"
+                    title={t('financialDashboard.kpis.received')}
                     value={formatCurrency(summary.paid)}
                     icon={TrendingUp}
                     color="text-brand-primary"
                     bg="bg-brand-primary/10"
                 />
                 <KPICard
-                    title="A Receber"
+                    title={t('financialDashboard.kpis.toReceive')}
                     value={formatCurrency(summary.pending)}
                     icon={CreditCard}
                     color="text-amber-500"
                     bg="bg-amber-500/10"
                 />
                 <KPICard
-                    title="Cobranças"
+                    title={t('financialDashboard.kpis.billings')}
                     value={String(records.length)}
                     icon={Calendar}
                     color="text-sky-500"
@@ -158,8 +160,8 @@ export const FinancialDashboard = () => {
                             <BarChart3 size={20} />
                         </div>
                         <div>
-                            <h3 className="text-xl font-black text-graphite-900">Conversão de Procedimentos</h3>
-                            <p className="text-xs text-graphite-400 font-bold uppercase tracking-widest">Performance Dr. Cash & Pagar.me</p>
+                            <h3 className="text-xl font-black text-graphite-900">{t('financialDashboard.analytics.sectionTitle')}</h3>
+                            <p className="text-xs text-graphite-400 font-bold uppercase tracking-widest">{t('financialDashboard.analytics.sectionSubtitle')}</p>
                         </div>
                     </div>
 
@@ -171,10 +173,10 @@ export const FinancialDashboard = () => {
                                 </div>
                                 <div className="flex items-center gap-1 text-emerald-500 font-black text-xs">
                                     <ArrowUpRight size={14} />
-                                    <span>High Approval</span>
+                                    <span>{t('financialDashboard.analytics.highApproval')}</span>
                                 </div>
                             </div>
-                            <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest mb-1">Taxa Aprovação Dr. Cash</p>
+                            <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest mb-1">{t('financialDashboard.analytics.approvalRateLabel')}</p>
                             <h4 className="text-3xl font-black text-graphite-900">{analytics.approvalRate.toFixed(1)}%</h4>
                         </div>
 
@@ -184,7 +186,7 @@ export const FinancialDashboard = () => {
                                     <Shield size={20} />
                                 </div>
                             </div>
-                            <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest mb-1">Volume de Crédito Assinado</p>
+                            <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest mb-1">{t('financialDashboard.analytics.financingVolumeLabel')}</p>
                             <h4 className="text-3xl font-black text-graphite-900">{formatCurrency(analytics.totalFinancingVolume)}</h4>
                         </div>
 
@@ -197,7 +199,7 @@ export const FinancialDashboard = () => {
                                     <TrendingUp size={20} />
                                 </div>
                             </div>
-                            <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest mb-1">Ticket Médio (Hub Híbrido)</p>
+                            <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest mb-1">{t('financialDashboard.analytics.avgTicketLabel')}</p>
                             <h4 className="text-3xl font-black text-graphite-900">
                                 {formatCurrency(
                                     ((analytics.mix.card + analytics.mix.financing) || 0) / 
@@ -210,16 +212,16 @@ export const FinancialDashboard = () => {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {/* Mix Distribution Chart */}
                         <div className="bg-white p-8 rounded-[32px] border border-ice-100 shadow-sm">
-                            <h4 className="text-sm font-black text-graphite-900 uppercase tracking-widest mb-8">Mix de Recebimento</h4>
+                            <h4 className="text-sm font-black text-graphite-900 uppercase tracking-widest mb-8">{t('financialDashboard.analytics.mixChartTitle')}</h4>
                             <div className="h-[300px]">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <RePieChart>
                                         <Pie
                                             data={[
-                                                { name: 'Pix', value: analytics.mix.pix },
-                                                { name: 'Cartão (Pagar.me)', value: analytics.mix.card },
-                                                { name: 'Financiamento (Dr. Cash)', value: analytics.mix.financing },
-                                                { name: 'Outros', value: analytics.mix.others }
+                                                { name: t('financialDashboard.analytics.mixPix'), value: analytics.mix.pix },
+                                                { name: t('financialDashboard.analytics.mixCard'), value: analytics.mix.card },
+                                                { name: t('financialDashboard.analytics.mixFinancing'), value: analytics.mix.financing },
+                                                { name: t('financialDashboard.analytics.mixOthers'), value: analytics.mix.others }
                                             ].filter(d => d.value > 0)}
                                             cx="50%"
                                             cy="50%"
@@ -246,12 +248,12 @@ export const FinancialDashboard = () => {
                         {/* Conversion Context */}
                         <div className="bg-graphite-900 p-8 rounded-[32px] shadow-2xl relative overflow-hidden text-white">
                             <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-brand-primary/10 rounded-full blur-3xl"></div>
-                            <h4 className="text-sm font-black uppercase tracking-widest mb-6 opacity-60">Status do Pipeline Dr. Cash</h4>
-                            
+                            <h4 className="text-sm font-black uppercase tracking-widest mb-6 opacity-60">{t('financialDashboard.analytics.pipelineTitle')}</h4>
+
                             <div className="space-y-6 relative z-10">
                                 <div>
                                     <div className="flex justify-between items-end mb-2">
-                                        <span className="text-xs font-bold uppercase">Propostas em Análise</span>
+                                        <span className="text-xs font-bold uppercase">{t('financialDashboard.analytics.activeProposalsLabel')}</span>
                                         <span className="text-xl font-black">{analytics.activeProposals}</span>
                                     </div>
                                     <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
@@ -269,9 +271,9 @@ export const FinancialDashboard = () => {
                                             <CheckCircle2 size={24} />
                                         </div>
                                         <div>
-                                            <p className="text-lg font-black italic">Conversão Otimizada</p>
+                                            <p className="text-lg font-black italic">{t('financialDashboard.analytics.conversionOptimizedTitle')}</p>
                                             <p className="text-xs font-medium opacity-60 leading-relaxed">
-                                                O uso do Hub Híbrido aumentou o ticket médio em comparação a pagamentos tradicionais em vista.
+                                                {t('financialDashboard.analytics.conversionOptimizedDescription')}
                                             </p>
                                         </div>
                                     </div>
@@ -285,16 +287,16 @@ export const FinancialDashboard = () => {
             {/* Transactions List */}
             <div className="bg-white rounded-[32px] border border-ice-200 shadow-sm overflow-hidden">
                 <div className="px-8 py-5 border-b border-ice-100 flex justify-between items-center">
-                    <h3 className="text-lg font-black text-graphite-900">Cobranças</h3>
+                    <h3 className="text-lg font-black text-graphite-900">{t('financialDashboard.transactions.title')}</h3>
                     <button className="flex items-center gap-2 text-xs font-bold text-graphite-400 hover:text-brand-primary transition-colors cursor-pointer border-none bg-transparent">
-                        <Download size={14} /> Exportar
+                        <Download size={14} /> {t('financialDashboard.transactions.exportButton')}
                     </button>
                 </div>
 
                 {loading ? (
-                    <div className="p-12 text-center text-graphite-400 font-medium">Carregando...</div>
+                    <div className="p-12 text-center text-graphite-400 font-medium">{t('financialDashboard.transactions.loading')}</div>
                 ) : records.length === 0 ? (
-                    <div className="p-12 text-center text-graphite-400 font-medium">Nenhuma cobrança encontrada.</div>
+                    <div className="p-12 text-center text-graphite-400 font-medium">{t('financialDashboard.transactions.empty')}</div>
                 ) : (
                     <div className="divide-y divide-ice-100">
                         {records.map((rec) => {
@@ -309,9 +311,9 @@ export const FinancialDashboard = () => {
                                                         <CreditCard size={18} />}
                                         </div>
                                         <div>
-                                            <p className="text-sm font-bold text-graphite-900">{rec.patients?.full_name || 'Paciente'}</p>
+                                            <p className="text-sm font-bold text-graphite-900">{rec.patients?.full_name || t('financialDashboard.transactions.patientFallback')}</p>
                                             <p className="text-[10px] text-graphite-400 font-bold uppercase">
-                                                {rec.method || 'Não definido'} · {formatDate(rec.due_date || rec.created_at)}
+                                                {rec.method || t('financialDashboard.transactions.methodFallback')} · {formatDate(rec.due_date || rec.created_at)}
                                             </p>
                                         </div>
                                     </div>
@@ -323,10 +325,10 @@ export const FinancialDashboard = () => {
                                         {rec.status === 'pending' && (
                                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <button onClick={() => handleMarkPaid(rec.id)} className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-none cursor-pointer transition-colors">
-                                                    Pagar
+                                                    {t('financialDashboard.transactions.payButton')}
                                                 </button>
                                                 <button onClick={() => handleCancel(rec.id)} className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-rose-50 text-rose-400 hover:bg-rose-100 border-none cursor-pointer transition-colors">
-                                                    Cancelar
+                                                    {t('financialDashboard.transactions.cancelButton')}
                                                 </button>
                                             </div>
                                         )}
@@ -367,6 +369,7 @@ const KPICard = ({ title, value, icon: Icon, color, bg }: any) => (
 
 // ---- New Billing Modal ----
 const NewBillingModal = ({ tenantId, onClose, onSuccess }: { tenantId: string; onClose: () => void; onSuccess: () => void }) => {
+    const { t } = useTranslation('tenantAdmin');
     const { showToast } = useToast();
     const [patients, setPatients] = useState<any[]>([]);
     const [form, setForm] = useState({ patient_id: '', amount: '', due_date: '', method: 'pix', notes: '' });
@@ -393,7 +396,7 @@ const NewBillingModal = ({ tenantId, onClose, onSuccess }: { tenantId: string; o
             onSuccess();
         } catch (err) {
             console.error('Error creating billing:', err);
-            showToast('error', 'Erro ao criar cobrança.');
+            showToast('error', t('financialDashboard.newBillingModal.createError'));
         } finally {
             setSaving(false);
         }
@@ -407,7 +410,7 @@ const NewBillingModal = ({ tenantId, onClose, onSuccess }: { tenantId: string; o
                     <div className="px-8 py-6 border-b border-ice-100 flex justify-between items-center bg-ice-50/50">
                         <h3 className="text-xl font-black text-graphite-900 flex items-center gap-2">
                             <DollarSign className="text-brand-primary" size={24} />
-                            Nova Cobrança
+                            {t('financialDashboard.newBillingModal.title')}
                         </h3>
                         <button onClick={onClose} className="w-10 h-10 rounded-xl bg-white border border-ice-200 flex items-center justify-center text-graphite-400 hover:text-brand-primary transition-all cursor-pointer">
                             <X size={20} />
@@ -415,36 +418,36 @@ const NewBillingModal = ({ tenantId, onClose, onSuccess }: { tenantId: string; o
                     </div>
                     <div className="p-8 space-y-5">
                         <div>
-                            <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">Paciente</label>
+                            <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">{t('financialDashboard.newBillingModal.patientLabel')}</label>
                             <select value={form.patient_id} onChange={(e) => setForm({ ...form, patient_id: e.target.value })} className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-bold text-graphite-900 cursor-pointer focus:outline-none focus:border-brand-primary">
-                                <option value="">Selecione...</option>
+                                <option value="">{t('financialDashboard.newBillingModal.selectPlaceholder')}</option>
                                 {patients.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
                             </select>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">Valor (R$)</label>
+                                <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">{t('financialDashboard.newBillingModal.amountLabel')}</label>
                                 <input type="number" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="150.00" className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary" />
                             </div>
                             <div>
-                                <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">Vencimento</label>
+                                <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">{t('financialDashboard.newBillingModal.dueDateLabel')}</label>
                                 <input type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary" />
                             </div>
                         </div>
                         <div>
-                            <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">Método</label>
+                            <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">{t('financialDashboard.newBillingModal.methodLabel')}</label>
                             <select value={form.method} onChange={(e) => setForm({ ...form, method: e.target.value })} className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-bold text-graphite-900 cursor-pointer focus:outline-none focus:border-brand-primary">
-                                <option value="pix">Pix</option>
-                                <option value="credit_card">Cartão de Crédito</option>
-                                <option value="boleto">Boleto</option>
-                                <option value="cash">Dinheiro</option>
+                                <option value="pix">{t('financialDashboard.newBillingModal.methodPix')}</option>
+                                <option value="credit_card">{t('financialDashboard.newBillingModal.methodCreditCard')}</option>
+                                <option value="boleto">{t('financialDashboard.newBillingModal.methodBoleto')}</option>
+                                <option value="cash">{t('financialDashboard.newBillingModal.methodCash')}</option>
                             </select>
                         </div>
                         <div className="flex gap-3 pt-2">
-                            <button onClick={onClose} className="flex-1 py-3.5 rounded-2xl font-bold text-graphite-700 hover:bg-ice-50 border border-ice-200 transition-all cursor-pointer">Cancelar</button>
+                            <button onClick={onClose} className="flex-1 py-3.5 rounded-2xl font-bold text-graphite-700 hover:bg-ice-50 border border-ice-200 transition-all cursor-pointer">{t('financialDashboard.newBillingModal.cancelButton')}</button>
                             <button onClick={handleSubmit} disabled={saving || !form.patient_id || !form.amount} className="flex-[2] bg-brand-primary text-white py-3.5 rounded-2xl font-bold shadow-lg shadow-brand-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 border-none cursor-pointer">
                                 <Save size={18} />
-                                {saving ? 'Criando...' : 'Criar Cobrança'}
+                                {saving ? t('financialDashboard.newBillingModal.creating') : t('financialDashboard.newBillingModal.createButton')}
                             </button>
                         </div>
                     </div>

@@ -162,7 +162,7 @@ async function handleEvent(supabase: any, eventType: string, payload: any): Prom
       });
 
       // Criar CDR com tenant_id explícito
-      await supabase.from("call_records").insert({
+      const { error: cdrError } = await supabase.from("call_records").insert({
         tenant_id:               tenantId,
         telnyx_call_control_id:  callControlId,
         telnyx_call_leg_id:      payload.call_leg_id,
@@ -173,6 +173,18 @@ async function handleEvent(supabase: any, eventType: string, payload: any): Prom
         status:                  "ringing",
         started_at:              new Date().toISOString(),
       });
+
+      if (cdrError) {
+        console.error(`[telnyx-call-webhook] Failed to create call record:`, cdrError.message);
+        await logPlatform(supabase, {
+          tenantId,
+          level: "error",
+          source: "telnyx-call-webhook",
+          eventName: "create_call_record_failed",
+          message: `Failed to create initial call record: ${cdrError.message}`,
+          metadata: { callControlId }
+        });
+      }
 
       // Roteamento e credenciais
       const { data: routing } = await supabase
@@ -285,13 +297,24 @@ async function handleEvent(supabase: any, eventType: string, payload: any): Prom
         : null;
 
       // Buscar tenant_id do CDR existente para escopo seguro
-      const { data: existing } = await supabase
+      const { data: existing, error: findError } = await supabase
         .from("call_records")
         .select("id, tenant_id, direction, tenant_phone_number_id")
         .eq("telnyx_call_control_id", callControlId)
         .maybeSingle();
 
-      await supabase
+      if (findError) {
+        console.error(`[telnyx-call-webhook] Failed to find existing call record:`, findError.message);
+        await logPlatform(supabase, {
+          level: "error",
+          source: "telnyx-call-webhook",
+          eventName: "find_call_record_failed",
+          message: `Failed to find call record on hangup: ${findError.message}`,
+          metadata: { callControlId }
+        });
+      }
+
+      const { error: updateError } = await supabase
         .from("call_records")
         .update({
           status:           "completed",
@@ -299,6 +322,18 @@ async function handleEvent(supabase: any, eventType: string, payload: any): Prom
           duration_seconds: durationSec,
         })
         .eq("telnyx_call_control_id", callControlId);
+
+      if (updateError) {
+        console.error(`[telnyx-call-webhook] Failed to update call record:`, updateError.message);
+        await logPlatform(supabase, {
+          tenantId: existing?.tenant_id,
+          level: "error",
+          source: "telnyx-call-webhook",
+          eventName: "update_call_record_failed",
+          message: `Failed to update call record on hangup: ${updateError.message}`,
+          metadata: { callControlId }
+        });
+      }
 
       // Rastrear uso: calcular minutos e custo
       if (existing && durationSec) {
@@ -309,7 +344,7 @@ async function handleEvent(supabase: any, eventType: string, payload: any): Prom
         const unitCost = pricing.unitCostUsd;
         const billingPeriod = getBillingPeriod();
 
-        await supabase.from("tenant_usage_log").insert({
+        const { error: insertError } = await supabase.from("tenant_usage_log").insert({
           tenant_id:     existing.tenant_id,
           resource_type: isInbound ? "call_inbound" : "call_outbound",
           resource_id:   existing.id,
@@ -319,7 +354,42 @@ async function handleEvent(supabase: any, eventType: string, payload: any): Prom
           billing_period: billingPeriod,
           tenant_phone_number: tenantPhone,
         });
-        console.log(`[telnyx-call-webhook] ✓ Usage logged: ${minutes.toFixed(2)} min | tenant: ${existing.tenant_id}`);
+
+        if (insertError) {
+          console.error(`[telnyx-call-webhook] Usage log insert failed:`, insertError.message);
+          await logPlatform(supabase, {
+            tenantId: existing.tenant_id,
+            level: "error",
+            source: "telnyx-call-webhook",
+            eventName: "usage_log_insert_failed",
+            message: `Usage log insert failed on hangup: ${insertError.message}`,
+            metadata: { callControlId, minutes, unitCost }
+          });
+        } else {
+          console.log(`[telnyx-call-webhook] ✓ Usage logged: ${minutes.toFixed(2)} min | tenant: ${existing.tenant_id}`);
+          await logPlatform(supabase, {
+            tenantId: existing.tenant_id,
+            level: "info",
+            source: "telnyx-call-webhook",
+            eventName: "usage_logged_success",
+            message: `Usage logged: ${minutes.toFixed(2)} min`,
+            metadata: { callControlId, minutes, totalCostUsd: minutes * unitCost }
+          });
+        }
+      } else {
+        if (!existing) {
+          console.warn(`[telnyx-call-webhook] Warning: call.hangup received but no existing call record found for ${callControlId}`);
+          await logPlatform(supabase, {
+            level: "warn",
+            source: "telnyx-call-webhook",
+            eventName: "hangup_no_cdr",
+            message: `call.hangup received but no existing call record found`,
+            metadata: { callControlId }
+          });
+        }
+        if (!durationSec) {
+          console.warn(`[telnyx-call-webhook] Warning: call.hangup received but duration is 0 or negative`);
+        }
       }
 
       console.log(`[telnyx-call-webhook] ✓ Call ended | duration: ${durationSec}s`);
@@ -411,7 +481,7 @@ async function logUsage(
   unitCost: number,
   phone?: string
 ): Promise<void> {
-  await supabase.from("tenant_usage_log").insert({
+  const { error } = await supabase.from("tenant_usage_log").insert({
     tenant_id:           tenantId,
     resource_type:       resourceType,
     resource_id:         resourceId,
@@ -420,7 +490,10 @@ async function logUsage(
     total_cost_usd:      quantity * unitCost,
     billing_period:      getBillingPeriod(),
     tenant_phone_number: phone ?? null,
-  }).catch((e: any) => console.error("[telnyx-call-webhook] Usage log failed:", e.message));
+  });
+  if (error) {
+    console.error("[telnyx-call-webhook] Usage log failed:", error.message);
+  }
 }
 
 function getBillingPeriod(): string {

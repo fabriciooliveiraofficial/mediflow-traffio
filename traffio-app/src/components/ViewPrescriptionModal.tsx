@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, ClipboardList, Printer, Calendar, Hash } from 'lucide-react';
 import { useLocaleFormat } from '../hooks/useLocaleFormat';
 
@@ -19,6 +20,7 @@ export const ViewPrescriptionModal: React.FC<ViewPrescriptionModalProps> = ({
     onClose,
     prescription
 }) => {
+    const { t } = useTranslation('medical');
     const { formatDate } = useLocaleFormat();
 
     if (!isOpen || !prescription) return null;
@@ -44,7 +46,7 @@ export const ViewPrescriptionModal: React.FC<ViewPrescriptionModalProps> = ({
                             </div>
                             <div>
                                 <h3 className="text-xl font-black text-graphite-900 tracking-tight">
-                                    Detalhes da Receita
+                                    {t('viewPrescriptionModal.title')}
                                 </h3>
                                 <div className="flex items-center gap-3 mt-0.5">
                                     <span className="flex items-center gap-1 text-[10px] font-bold text-graphite-400 uppercase tracking-wider">
@@ -53,7 +55,7 @@ export const ViewPrescriptionModal: React.FC<ViewPrescriptionModalProps> = ({
                                     </span>
                                     <span className="flex items-center gap-1 text-[10px] font-bold text-graphite-400 uppercase tracking-wider">
                                         <Hash size={12} />
-                                        ID: {prescription.id.slice(0, 8)}
+                                        {t('viewPrescriptionModal.idPrefix', { id: prescription.id.slice(0, 8) })}
                                     </span>
                                 </div>
                             </div>
@@ -77,12 +79,12 @@ export const ViewPrescriptionModal: React.FC<ViewPrescriptionModalProps> = ({
 
                             <div className="space-y-6">
                                 <h4 className="text-xs font-black text-brand-primary uppercase tracking-[0.2em] text-center border-b border-ice-200 pb-4">
-                                    Prescrição de Medicamentos
+                                    {t('viewPrescriptionModal.prescriptionHeading')}
                                 </h4>
 
                                 <div className="space-y-6">
                                     {medications.length === 0 ? (
-                                        <p className="text-sm text-graphite-400 italic text-center">Nenhum medicamento listado.</p>
+                                        <p className="text-sm text-graphite-400 italic text-center">{t('viewPrescriptionModal.noMedications')}</p>
                                     ) : (
                                         medications.map((med, idx) => (
                                             <div key={idx} className="space-y-2 border-b border-dashed border-ice-200 pb-6 last:border-0">
@@ -104,8 +106,8 @@ export const ViewPrescriptionModal: React.FC<ViewPrescriptionModalProps> = ({
                             <div className="pt-12 border-t border-ice-200 mt-12">
                                 <div className="max-w-[200px] mx-auto text-center space-y-1">
                                     <div className="h-px bg-graphite-200 mb-4" />
-                                    <p className="text-[10px] font-black text-graphite-900 uppercase">Assinatura do Profissional</p>
-                                    <p className="text-[9px] font-bold text-graphite-400 tracking-wider">Documento Digital</p>
+                                    <p className="text-[10px] font-black text-graphite-900 uppercase">{t('viewPrescriptionModal.signatureLabel')}</p>
+                                    <p className="text-[9px] font-bold text-graphite-400 tracking-wider">{t('viewPrescriptionModal.digitalDocument')}</p>
                                 </div>
                             </div>
                         </div>
@@ -117,14 +119,14 @@ export const ViewPrescriptionModal: React.FC<ViewPrescriptionModalProps> = ({
                             onClick={onClose}
                             className="flex-1 py-4 rounded-2xl font-bold text-graphite-700 hover:bg-white border border-ice-200 transition-all cursor-pointer"
                         >
-                            Fechar
+                            {t('viewPrescriptionModal.close')}
                         </button>
                         <button
                             onClick={() => window.print()}
                             className="flex-1 bg-graphite-900 text-white py-4 rounded-2xl font-black shadow-xl shadow-graphite-900/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 border-none cursor-pointer"
                         >
                             <Printer size={18} />
-                            <span>IMPRIMIR PDF</span>
+                            <span>{t('viewPrescriptionModal.printPdf')}</span>
                         </button>
                     </div>
                 </div>

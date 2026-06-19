@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Apple, Scale, Ruler, Save, Calculator } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 import { useTenant } from '../../contexts/TenantContext';
@@ -11,6 +12,7 @@ interface AnthropometryFormProps {
 }
 
 export const AnthropometryForm = ({ patientId, onSuccess, initialData }: AnthropometryFormProps) => {
+    const { t } = useTranslation('medical');
     const { showToast } = useToast();
     const { tenant } = useTenant();
     const [loading, setLoading] = useState(false);
@@ -38,7 +40,7 @@ export const AnthropometryForm = ({ patientId, onSuccess, initialData }: Anthrop
 
     const handleSave = async () => {
         if (!patientId) {
-            showToast('error', 'Paciente não selecionado');
+            showToast('error', t('anthropometryForm.toasts.patientRequired'));
             return;
         }
 
@@ -58,10 +60,10 @@ export const AnthropometryForm = ({ patientId, onSuccess, initialData }: Anthrop
 
             if (error) throw error;
 
-            showToast('success', 'Avaliação salva com sucesso!');
+            showToast('success', t('anthropometryForm.toasts.saved'));
             if (onSuccess) onSuccess();
         } catch (error: any) {
-            showToast('error', 'Erro ao salvar: ' + error.message);
+            showToast('error', t('anthropometryForm.toasts.saveErrorPrefix') + error.message);
         } finally {
             setLoading(false);
         }
@@ -73,10 +75,10 @@ export const AnthropometryForm = ({ patientId, onSuccess, initialData }: Anthrop
     };
 
     const getBmiCategory = (val: number) => {
-        if (val < 18.5) return { label: 'Abaixo do peso', color: 'text-amber-500' };
-        if (val < 25) return { label: 'Peso normal', color: 'text-emerald-500' };
-        if (val < 30) return { label: 'Sobrepeso', color: 'text-amber-500' };
-        return { label: 'Obesidade', color: 'text-rose-500' };
+        if (val < 18.5) return { label: t('anthropometryForm.bmiCategories.underweight'), color: 'text-amber-500' };
+        if (val < 25) return { label: t('anthropometryForm.bmiCategories.normal'), color: 'text-emerald-500' };
+        if (val < 30) return { label: t('anthropometryForm.bmiCategories.overweight'), color: 'text-amber-500' };
+        return { label: t('anthropometryForm.bmiCategories.obesity'), color: 'text-rose-500' };
     };
 
     return (
@@ -86,8 +88,8 @@ export const AnthropometryForm = ({ patientId, onSuccess, initialData }: Anthrop
                     <Apple size={24} />
                 </div>
                 <div>
-                    <h3 className="text-lg font-black text-graphite-900">Nova Avaliação</h3>
-                    <p className="text-xs text-graphite-400">Registre as medidas atuais do paciente</p>
+                    <h3 className="text-lg font-black text-graphite-900">{t('anthropometryForm.title')}</h3>
+                    <p className="text-xs text-graphite-400">{t('anthropometryForm.subtitle')}</p>
                 </div>
             </div>
 
@@ -96,10 +98,10 @@ export const AnthropometryForm = ({ patientId, onSuccess, initialData }: Anthrop
                 <div className="bg-white p-6 rounded-3xl border border-ice-200 shadow-sm space-y-4">
                     <div className="flex items-center gap-2 mb-2">
                         <Scale size={18} className="text-indigo-600" />
-                        <h4 className="font-black text-xs text-graphite-900 uppercase tracking-widest">Peso & Altura</h4>
+                        <h4 className="font-black text-xs text-graphite-900 uppercase tracking-widest">{t('anthropometryForm.weightHeight.title')}</h4>
                     </div>
                     <div>
-                        <label className="text-[10px] font-black text-graphite-400 uppercase">Peso (kg)</label>
+                        <label className="text-[10px] font-black text-graphite-400 uppercase">{t('anthropometryForm.weightHeight.weightLabel')}</label>
                         <input 
                             name="weight"
                             type="number" 
@@ -111,7 +113,7 @@ export const AnthropometryForm = ({ patientId, onSuccess, initialData }: Anthrop
                         />
                     </div>
                     <div>
-                        <label className="text-[10px] font-black text-graphite-400 uppercase">Altura (cm)</label>
+                        <label className="text-[10px] font-black text-graphite-400 uppercase">{t('anthropometryForm.weightHeight.heightLabel')}</label>
                         <input 
                             name="height"
                             type="number" 
@@ -127,10 +129,10 @@ export const AnthropometryForm = ({ patientId, onSuccess, initialData }: Anthrop
                 <div className="bg-white p-6 rounded-3xl border border-ice-200 shadow-sm space-y-4">
                     <div className="flex items-center gap-2 mb-2">
                         <Ruler size={18} className="text-rose-500" />
-                        <h4 className="font-black text-xs text-graphite-900 uppercase tracking-widest">Composição</h4>
+                        <h4 className="font-black text-xs text-graphite-900 uppercase tracking-widest">{t('anthropometryForm.composition.title')}</h4>
                     </div>
                     <div>
-                        <label className="text-[10px] font-black text-graphite-400 uppercase">Gordura Corporal (%)</label>
+                        <label className="text-[10px] font-black text-graphite-400 uppercase">{t('anthropometryForm.composition.bodyFatLabel')}</label>
                         <input 
                             name="body_fat_pct"
                             type="number" 
@@ -142,7 +144,7 @@ export const AnthropometryForm = ({ patientId, onSuccess, initialData }: Anthrop
                         />
                     </div>
                     <div>
-                        <label className="text-[10px] font-black text-graphite-400 uppercase">Cintura (cm)</label>
+                        <label className="text-[10px] font-black text-graphite-400 uppercase">{t('anthropometryForm.composition.waistLabel')}</label>
                         <input 
                             name="waist_circ"
                             type="number" 
@@ -157,7 +159,7 @@ export const AnthropometryForm = ({ patientId, onSuccess, initialData }: Anthrop
                 {/* BMI Result (Auto) */}
                 <div className="bg-indigo-600 p-6 rounded-3xl shadow-xl shadow-indigo-600/20 flex flex-col justify-between text-white">
                     <div className="flex items-center justify-between">
-                        <h4 className="font-black text-[10px] uppercase tracking-widest opacity-80">Cálculo de IMC</h4>
+                        <h4 className="font-black text-[10px] uppercase tracking-widest opacity-80">{t('anthropometryForm.bmi.title')}</h4>
                         <Calculator size={20} />
                     </div>
                     

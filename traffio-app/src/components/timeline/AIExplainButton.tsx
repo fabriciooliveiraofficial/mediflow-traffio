@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Sparkles, X, Loader2 } from 'lucide-react';
 
 interface AIExplainButtonProps {
@@ -10,6 +11,7 @@ interface AIExplainButtonProps {
  * Falls back gracefully if the API is unavailable.
  */
 export const AIExplainButton: React.FC<AIExplainButtonProps> = ({ term }) => {
+    const { t } = useTranslation('medical');
     const [isOpen, setIsOpen] = useState(false);
     const [explanation, setExplanation] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
@@ -25,10 +27,7 @@ export const AIExplainButton: React.FC<AIExplainButtonProps> = ({ term }) => {
 
             if (!groqApiKey) {
                 // Fallback: provide a generic explanation
-                setExplanation(
-                    `"${term}" é um termo médico utilizado pelo seu profissional de saúde. ` +
-                    `Consulte seu médico para uma explicação detalhada personalizada.`
-                );
+                setExplanation(t('aiExplainButton.fallbackExplanation', { term }));
                 return;
             }
 
@@ -43,11 +42,11 @@ export const AIExplainButton: React.FC<AIExplainButtonProps> = ({ term }) => {
                     messages: [
                         {
                             role: 'system',
-                            content: 'Você é um assistente médico que explica termos clínicos em português simples para pacientes leigos. Seja breve (máximo 2 frases), gentil e acessível. Não dê diagnósticos.'
+                            content: t('aiExplainButton.systemPrompt')
                         },
                         {
                             role: 'user',
-                            content: `Explique de forma simples o que significa: "${term}"`
+                            content: t('aiExplainButton.userPromptPrefix', { term })
                         }
                     ],
                     max_tokens: 150,
@@ -56,12 +55,9 @@ export const AIExplainButton: React.FC<AIExplainButtonProps> = ({ term }) => {
             });
 
             const data = await response.json();
-            setExplanation(data.choices?.[0]?.message?.content || 'Não foi possível gerar uma explicação neste momento.');
+            setExplanation(data.choices?.[0]?.message?.content || t('aiExplainButton.noExplanationGenerated'));
         } catch {
-            setExplanation(
-                `"${term}" é um termo registrado pelo seu médico. ` +
-                `Para mais detalhes, converse diretamente com o profissional que o atendeu.`
-            );
+            setExplanation(t('aiExplainButton.errorFallback', { term }));
         } finally {
             setLoading(false);
         }
@@ -74,7 +70,7 @@ export const AIExplainButton: React.FC<AIExplainButtonProps> = ({ term }) => {
                 className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-black bg-gradient-to-r from-brand-primary/10 to-brand-secondary/20 text-brand-primary rounded-lg uppercase hover:from-brand-primary hover:to-brand-primary hover:text-white transition-all border-none cursor-pointer"
             >
                 <Sparkles size={10} />
-                Explicar com IA
+                {t('aiExplainButton.trigger')}
             </button>
 
             {/* Explanation Modal */}
@@ -90,7 +86,7 @@ export const AIExplainButton: React.FC<AIExplainButtonProps> = ({ term }) => {
                                 <div className="w-8 h-8 rounded-xl bg-brand-primary/10 flex items-center justify-center">
                                     <Sparkles size={16} className="text-brand-primary" />
                                 </div>
-                                <h3 className="font-black text-sm text-graphite-900">IA Explain</h3>
+                                <h3 className="font-black text-sm text-graphite-900">{t('aiExplainButton.modalTitle')}</h3>
                             </div>
                             <button
                                 onClick={() => setIsOpen(false)}
@@ -101,18 +97,18 @@ export const AIExplainButton: React.FC<AIExplainButtonProps> = ({ term }) => {
                         </div>
 
                         <div className="bg-ice-50 rounded-2xl p-4 mb-3">
-                            <p className="text-[10px] font-black text-graphite-400 uppercase tracking-wider mb-1">Termo</p>
+                            <p className="text-[10px] font-black text-graphite-400 uppercase tracking-wider mb-1">{t('aiExplainButton.termLabel')}</p>
                             <p className="text-sm font-bold text-graphite-900">{term}</p>
                         </div>
 
                         {loading ? (
                             <div className="flex items-center justify-center gap-2 py-4 text-graphite-400">
                                 <Loader2 size={16} className="animate-spin" />
-                                <span className="text-xs font-medium">Consultando IA...</span>
+                                <span className="text-xs font-medium">{t('aiExplainButton.consultingAi')}</span>
                             </div>
                         ) : (
                             <div className="py-2">
-                                <p className="text-[10px] font-black text-graphite-400 uppercase tracking-wider mb-2">Explicação</p>
+                                <p className="text-[10px] font-black text-graphite-400 uppercase tracking-wider mb-2">{t('aiExplainButton.explanationLabel')}</p>
                                 <p className="text-sm text-graphite-700 font-medium leading-relaxed">
                                     {explanation}
                                 </p>
@@ -120,7 +116,7 @@ export const AIExplainButton: React.FC<AIExplainButtonProps> = ({ term }) => {
                         )}
 
                         <p className="text-[9px] text-graphite-300 text-center mt-4 font-medium">
-                            Gerado por IA • Não substitui orientação médica
+                            {t('aiExplainButton.footerNote')}
                         </p>
                     </div>
                 </div>

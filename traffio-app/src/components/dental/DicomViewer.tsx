@@ -26,7 +26,7 @@ export const DicomViewer: React.FC<DicomViewerProps> = ({ fileUrl }) => {
         return (
             <div className="bg-graphite-900 rounded-[32px] aspect-video flex flex-col items-center justify-center border border-graphite-800 text-graphite-500 gap-4">
                 <FileSearch size={48} className="opacity-20" />
-                <p className="font-black text-xs uppercase tracking-widest">{t('medical.dicomViewer.emptyState')}</p>
+                <p className="font-black text-xs uppercase tracking-widest">{t('dicomViewer.emptyState')}</p>
             </div>
         );
     }
@@ -112,7 +112,7 @@ export const DicomViewer: React.FC<DicomViewerProps> = ({ fileUrl }) => {
                 </div>
                 
                 <div className="flex flex-col items-end">
-                    <span className="text-[10px] font-black text-graphite-600 uppercase tracking-widest leading-tight">{t('medical.dicomViewer.seriesImages')}</span>
+                    <span className="text-[10px] font-black text-graphite-600 uppercase tracking-widest leading-tight">{t('dicomViewer.seriesImages')}</span>
                     <span className="text-sm font-black text-white leading-tight">1 / 1</span>
                 </div>
             </div>

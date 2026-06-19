@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     Brain,
     MessageSquare,
@@ -60,6 +61,7 @@ export interface BotConfig {
 }
 
 export const Intelligence = () => {
+    const { t } = useTranslation('tenantAdmin');
     const { showToast } = useToast();
     const { tenant, loading: tenantLoading, refresh: refreshTenant } = useTenant();
     const [loading, setLoading] = useState(true);
@@ -132,7 +134,7 @@ export const Intelligence = () => {
             }
         } catch (error) {
             console.error('Error fetching config:', error);
-            showToast('error', 'Erro ao carregar configuração: ' + (error as Error).message);
+            showToast('error', t('intelligence.toasts.loadConfigError', { message: (error as Error).message }));
         } finally {
             setLoading(false);
         }
@@ -141,7 +143,7 @@ export const Intelligence = () => {
     const saveConfig = async () => {
         setSaving(true);
         try {
-            if (!tenant?.id) throw new Error('Tenant não encontrado');
+            if (!tenant?.id) throw new Error(t('intelligence.toasts.tenantNotFound'));
 
             // Garantir que o objeto de configuração esteja completo e limpo
             const payload = {
@@ -159,10 +161,10 @@ export const Intelligence = () => {
             if (error) throw error;
 
             await refreshTenant();
-            showToast('success', 'Configurações de automação salvas com sucesso!');
+            showToast('success', t('intelligence.toasts.saveSuccess'));
         } catch (error: any) {
             console.error('[DEBUG] Error saving:', error);
-            showToast('error', 'Erro ao salvar: ' + (error.message || 'Erro desconhecido'));
+            showToast('error', t('intelligence.toasts.saveError', { message: error.message || t('intelligence.toasts.saveErrorUnknown') }));
         } finally {
             setSaving(false);
         }
@@ -178,17 +180,17 @@ export const Intelligence = () => {
                     <Zap size={32} />
                 </div>
                 <div>
-                    <h1 className="text-3xl font-black text-graphite-900 tracking-tight">Central de Automações</h1>
-                    <p className="text-graphite-400 font-medium tracking-tight">Gestão de Lembretes, NPS e Confirmações Audiovisuais.</p>
+                    <h1 className="text-3xl font-black text-graphite-900 tracking-tight">{t('intelligence.header.title')}</h1>
+                    <p className="text-graphite-400 font-medium tracking-tight">{t('intelligence.header.subtitle')}</p>
                 </div>
             </div>
 
             <div className="space-y-6">
-                <AutomationSettings 
-                    config={config} 
-                    setConfig={setConfig} 
-                    onSave={saveConfig} 
-                    saving={saving} 
+                <AutomationSettings
+                    config={config}
+                    setConfig={setConfig}
+                    onSave={saveConfig}
+                    saving={saving}
                 />
             </div>
         </div>
@@ -201,15 +203,16 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
     onSave: () => void,
     saving: boolean
 }) => {
+    const { t } = useTranslation('tenantAdmin');
     return (
         <div className="bg-white border border-ice-200 rounded-3xl shadow-sm overflow-hidden transition-all duration-300">
             <div className="p-8 space-y-8">
                 {/* ── Seção Principal ── */}
                 <div className="space-y-5">
                     <h4 className="text-xs font-black text-graphite-400 uppercase flex items-center gap-2">
-                        <Activity size={14} className="text-brand-primary" /> Configurações de Ativação
+                        <Activity size={14} className="text-brand-primary" /> {t('intelligence.activationSection.title')}
                     </h4>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {/* No-show prevention */}
                         <div className="bg-ice-50/50 rounded-2xl border border-ice-100 px-5 py-6 flex items-center justify-between hover:bg-white hover:shadow-md transition-all group">
@@ -218,8 +221,8 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
                                     <Bell size={20} />
                                 </div>
                                 <div>
-                                    <p className="text-sm font-black text-graphite-900">Prevenção de No-Show</p>
-                                    <p className="text-[10px] font-bold text-graphite-400">Confirmação 48h/24h + lembrete 2h</p>
+                                    <p className="text-sm font-black text-graphite-900">{t('intelligence.activationSection.noShowTitle')}</p>
+                                    <p className="text-[10px] font-bold text-graphite-400">{t('intelligence.activationSection.noShowDescription')}</p>
                                 </div>
                             </div>
                             <button
@@ -237,8 +240,8 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
                                     <Star size={20} />
                                 </div>
                                 <div>
-                                    <p className="text-sm font-black text-graphite-900">Pesquisa NPS</p>
-                                    <p className="text-[10px] font-bold text-graphite-400">Pesquisa automática às 19h pós-consulta</p>
+                                    <p className="text-sm font-black text-graphite-900">{t('intelligence.activationSection.npsTitle')}</p>
+                                    <p className="text-[10px] font-bold text-graphite-400">{t('intelligence.activationSection.npsDescription')}</p>
                                 </div>
                             </div>
                             <button
@@ -261,8 +264,8 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
                                 <Video size={20} />
                             </div>
                             <div>
-                                <h4 className="text-lg font-black text-graphite-900 tracking-tight">Vídeos de Confirmação</h4>
-                                <p className="text-[10px] font-bold text-indigo-600 uppercase">Aumente a presença com mensagens personalizadas</p>
+                                <h4 className="text-lg font-black text-graphite-900 tracking-tight">{t('intelligence.videoSection.title')}</h4>
+                                <p className="text-[10px] font-bold text-indigo-600 uppercase">{t('intelligence.videoSection.subtitle')}</p>
                             </div>
                         </div>
                         <button
@@ -275,8 +278,8 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
 
                     {config.reminder_videos_enabled && (
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
-                            <VideoReminderCard 
-                                label="48 Horas Antes" 
+                            <VideoReminderCard
+                                label={t('intelligence.videoSection.label48h')}
                                 enabled={config.active_reminders?.['48h'] ?? true}
                                 onToggle={() => setConfig(prev => ({
                                     ...prev,
@@ -293,8 +296,8 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
                                     reminder_captions: {...(prev.reminder_captions || {}), '48h': text}
                                 }))}
                             />
-                            <VideoReminderCard 
-                                label="24 Horas Antes" 
+                            <VideoReminderCard
+                                label={t('intelligence.videoSection.label24h')}
                                 enabled={config.active_reminders?.['24h'] ?? true}
                                 onToggle={() => setConfig(prev => ({
                                     ...prev,
@@ -311,8 +314,8 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
                                     reminder_captions: {...(prev.reminder_captions || {}), '24h': text}
                                 }))}
                             />
-                            <VideoReminderCard 
-                                label="2 Horas Antes" 
+                            <VideoReminderCard
+                                label={t('intelligence.videoSection.label2h')}
                                 enabled={config.active_reminders?.['2h'] ?? true}
                                 onToggle={() => setConfig(prev => ({
                                     ...prev,
@@ -329,8 +332,8 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
                                     reminder_captions: {...(prev.reminder_captions || {}), '2h': text}
                                 }))}
                             />
-                            <VideoReminderCard 
-                                label="🧪 Teste (5 Min)" 
+                            <VideoReminderCard
+                                label={t('intelligence.videoSection.labelTest')}
                                 enabled={config.active_reminders?.['15m'] ?? true}
                                 onToggle={() => setConfig(prev => ({
                                     ...prev,
@@ -353,7 +356,7 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
                     <div className="p-4 bg-white/50 rounded-2xl border border-indigo-100 flex items-center gap-3">
                         <AlertTriangle size={16} className="text-indigo-500 flex-shrink-0" />
                         <p className="text-xs font-bold text-indigo-800 leading-relaxed">
-                            O vídeo será enviado como mídia principal e a mensagem de texto padrão será o "caption" (legenda). Use proporção 9:16 (vertical).
+                            {t('intelligence.videoSection.infoBanner')}
                         </p>
                     </div>
                 </div>
@@ -363,7 +366,7 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
                     <div className="flex items-center gap-4 bg-ice-50 px-5 py-3 rounded-2xl border border-ice-100">
                         <div className="flex items-center gap-2">
                             <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                            <p className="text-[10px] font-black text-graphite-400 uppercase">Modo Teste (5m)</p>
+                            <p className="text-[10px] font-black text-graphite-400 uppercase">{t('intelligence.testModeLabel')}</p>
                         </div>
                         <button
                             onClick={() => setConfig(prev => ({ ...prev, test_mode_15m: !prev.test_mode_15m }))}
@@ -379,7 +382,7 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
                         className="w-full md:w-auto flex items-center justify-center gap-2 bg-brand-primary text-white px-10 py-4 rounded-2xl font-black shadow-xl shadow-brand-primary/20 hover:scale-105 active:scale-95 transition-all border-none cursor-pointer disabled:opacity-50"
                     >
                         {saving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
-                        SALVAR ALTERAÇÕES
+                        {t('intelligence.saveButton')}
                     </button>
                 </div>
             </div>
@@ -396,6 +399,7 @@ const VideoReminderCard = ({ label, enabled, onToggle, videoUrl, caption, onVide
     onVideoChange: (url: string | null) => void;
     onCaptionChange: (text: string) => void;
 }) => {
+    const { t } = useTranslation('tenantAdmin');
     const [uploading, setUploading] = useState(false);
     const { tenant } = useTenant();
     const { showToast } = useToast();
@@ -405,7 +409,7 @@ const VideoReminderCard = ({ label, enabled, onToggle, videoUrl, caption, onVide
         if (!file || !tenant?.id) return;
 
         if (file.size > 16 * 1024 * 1024) {
-            showToast('error', 'O vídeo deve ter menos de 16MB.');
+            showToast('error', t('intelligence.toasts.videoTooLarge'));
             return;
         }
 
@@ -423,10 +427,10 @@ const VideoReminderCard = ({ label, enabled, onToggle, videoUrl, caption, onVide
                 .getPublicUrl(fileName);
 
             onVideoChange(publicUrl);
-            showToast('success', 'Vídeo carregado!');
+            showToast('success', t('intelligence.toasts.videoUploaded'));
         } catch (error: any) {
             console.error('Error uploading video:', error);
-            showToast('error', 'Erro ao carregar vídeo.');
+            showToast('error', t('intelligence.toasts.videoUploadError'));
         } finally {
             setUploading(false);
         }
@@ -468,7 +472,7 @@ const VideoReminderCard = ({ label, enabled, onToggle, videoUrl, caption, onVide
                                     <div className="p-2 bg-indigo-500/10 rounded-full text-indigo-400 group-hover/upload:bg-indigo-500 group-hover/upload:text-white transition-all">
                                         <Upload size={18} />
                                     </div>
-                                    <span className="text-[8px] font-black text-indigo-400 uppercase mt-2">VÍDEO</span>
+                                    <span className="text-[8px] font-black text-indigo-400 uppercase mt-2">{t('intelligence.videoSection.uploadLabel')}</span>
                                 </>
                             )}
                             <input type="file" accept="video/*" className="hidden" onChange={handleUpload} disabled={uploading} />
@@ -479,19 +483,19 @@ const VideoReminderCard = ({ label, enabled, onToggle, videoUrl, caption, onVide
                 {/* Text Area */}
                 <div className="flex flex-col space-y-2">
                     <label className="text-[9px] font-black text-graphite-400 uppercase flex items-center gap-1.5">
-                        <MessageSquare size={10} className="text-indigo-500" /> Legenda do Vídeo
+                        <MessageSquare size={10} className="text-indigo-500" /> {t('intelligence.videoSection.captionLabel')}
                     </label>
-                    <textarea 
+                    <textarea
                         value={caption}
                         onChange={(e) => onCaptionChange(e.target.value)}
-                        placeholder="Digite a mensagem que acompanhará o vídeo..."
+                        placeholder={t('intelligence.videoSection.captionPlaceholder')}
                         className="flex-1 w-full bg-white/80 border border-ice-200 rounded-xl p-3 text-xs font-medium text-graphite-700 placeholder:text-graphite-300 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none outline-none leading-relaxed"
                     />
                     <div className="flex items-center justify-between">
-                        <span className="text-[8px] font-bold text-graphite-300 uppercase">Aprox. {caption.length} caracteres</span>
+                        <span className="text-[8px] font-bold text-graphite-300 uppercase">{t('intelligence.videoSection.charCountLabel', { count: caption.length })}</span>
                         <div className="flex items-center gap-1">
                             <Check size={8} className="text-emerald-500" />
-                            <span className="text-[8px] font-black text-emerald-500 uppercase">Sincronizado</span>
+                            <span className="text-[8px] font-black text-emerald-500 uppercase">{t('intelligence.videoSection.syncedLabel')}</span>
                         </div>
                     </div>
                 </div>

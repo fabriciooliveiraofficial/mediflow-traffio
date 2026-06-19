@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     Plus,
     Search,
@@ -45,6 +46,7 @@ const EMPTY_FORM = {
 };
 
 export const Services = () => {
+    const { t } = useTranslation('tenantAdmin');
     const { showToast } = useToast();
     const [services, setServices] = useState<ServiceType[]>([]);
     const [loading, setLoading] = useState(true);
@@ -140,7 +142,7 @@ export const Services = () => {
             
             if (tenantErr || !tenantId) {
                 console.error('Tenant fetch error:', tenantErr);
-                showToast('error', 'Erro: Não foi possível identificar sua clínica. Verifique se você está logado corretamente.');
+                showToast('error', t('services.toasts.tenantNotIdentified'));
                 setSaving(false);
                 return;
             }
@@ -207,7 +209,7 @@ export const Services = () => {
                 console.log('Links to insert:', linksToInsert);
 
                 if (serviceLinks.length > 0 && linksToInsert.length === 0) {
-                    showToast('warning', 'Aviso: Você adicionou locais mas não selecionou o médico em nenhum deles. Os locais não serão salvos.');
+                    showToast('warning', t('services.toasts.linksWithoutDoctorWarning'));
                 }
 
                 if (linksToInsert.length > 0) {
@@ -220,7 +222,7 @@ export const Services = () => {
             }
 
             console.log('Save comprehensive success');
-            showToast('success', 'Procedimento salvo com sucesso!');
+            showToast('success', t('services.toasts.saveSuccess'));
             setShowModal(false);
             setEditingId(null);
             setForm(EMPTY_FORM);
@@ -228,7 +230,7 @@ export const Services = () => {
             fetchServices();
         } catch (err: any) {
             console.error('CRITICAL SAVE ERROR:', err);
-            showToast('error', 'Falha ao salvar: ' + (err.message || JSON.stringify(err)));
+            showToast('error', t('services.toasts.saveErrorPrefix', { message: err.message || JSON.stringify(err) }));
         } finally {
             setSaving(false);
         }
@@ -261,7 +263,7 @@ export const Services = () => {
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm('Remover este tipo de consulta?')) return;
+        if (!confirm(t('services.deleteConfirm'))) return;
         await supabase.from('appointment_types').delete().eq('id', id);
         fetchServices();
     };
@@ -342,7 +344,7 @@ export const Services = () => {
                     <button
                         onClick={(e) => { e.stopPropagation(); handleToggle(s.id, s.is_active); }}
                         className="p-1.5 rounded-lg border-none cursor-pointer transition-colors hover:bg-ice-50"
-                        title={s.is_active ? 'Desativar' : 'Ativar'}
+                        title={s.is_active ? t('services.card.deactivate') : t('services.card.activate')}
                     >
                         {s.is_active ? (
                             <ToggleRight size={20} className="text-emerald-500" />
@@ -361,7 +363,7 @@ export const Services = () => {
 
             {!s.is_active && (
                 <span className="mt-2 inline-block px-2 py-0.5 rounded-lg text-[10px] font-black uppercase bg-rose-100 text-rose-600 ml-3">
-                    Inativo
+                    {t('services.card.inactiveBadge')}
                 </span>
             )}
         </div>
@@ -372,15 +374,15 @@ export const Services = () => {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-black text-graphite-900 tracking-tight">Tipos de Consulta</h1>
-                    <p className="text-graphite-500 font-medium">Serviços, preços e durações.</p>
+                    <h1 className="text-3xl font-black text-graphite-900 tracking-tight">{t('services.header.title')}</h1>
+                    <p className="text-graphite-500 font-medium">{t('services.header.subtitle')}</p>
                 </div>
                 <button
                     onClick={() => { setEditingId(null); setForm(EMPTY_FORM); setServiceLinks([]); setShowModal(true); }}
                     className="flex items-center gap-2 bg-brand-primary text-white px-5 py-3 rounded-xl font-bold shadow-lg shadow-brand-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-transform border-none cursor-pointer"
                 >
                     <Plus size={18} />
-                    Novo Tipo
+                    {t('services.header.newButton')}
                 </button>
             </div>
 
@@ -390,7 +392,7 @@ export const Services = () => {
                 <input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Buscar tipo de consulta..."
+                    placeholder={t('services.searchPlaceholder')}
                     className="w-full bg-white border border-ice-200 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10 transition-all placeholder:text-graphite-300"
                 />
             </div>
@@ -408,7 +410,7 @@ export const Services = () => {
                     </div>
                 ) : filtered.length === 0 ? (
                     <div className="text-center py-12 text-graphite-400 font-medium bg-ice-50 rounded-3xl border border-dashed border-ice-200">
-                        Nenhum tipo de consulta encontrado.
+                        {t('services.emptyState')}
                     </div>
                 ) : (
                     <>
@@ -445,8 +447,8 @@ export const Services = () => {
                                         <Palette size={20} />
                                     </div>
                                     <div>
-                                        <h2 className="text-xl font-black text-graphite-900 tracking-tight leading-none mb-1">Serviços da Clínica</h2>
-                                        <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest">Gerais / Sem Profissional</p>
+                                        <h2 className="text-xl font-black text-graphite-900 tracking-tight leading-none mb-1">{t('services.clinicGeneral.title')}</h2>
+                                        <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest">{t('services.clinicGeneral.subtitle')}</p>
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -470,7 +472,7 @@ export const Services = () => {
                                 <div>
                                     <h3 className="text-xl font-black text-graphite-900 tracking-tight flex items-center gap-2">
                                         <Tag className="text-brand-primary" size={24} />
-                                        {editingId ? 'Editar Tipo' : 'Novo Tipo de Consulta'}
+                                        {editingId ? t('services.modal.titleEdit') : t('services.modal.titleNew')}
                                     </h3>
                                 </div>
                                 <button onClick={() => setShowModal(false)} className="w-10 h-10 rounded-xl bg-white border border-ice-200 flex items-center justify-center text-graphite-400 hover:text-brand-primary transition-all cursor-pointer">
@@ -481,9 +483,9 @@ export const Services = () => {
                             <div className="p-8 space-y-5">
                                 <div>
                                     <div className="flex items-center justify-between">
-                                        <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">Nome do Procedimento</label>
+                                        <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">{t('services.modal.nameLabel')}</label>
                                         <div className="flex items-center gap-2">
-                                            <span className="text-[10px] font-black uppercase text-graphite-400">{form.is_active ? 'Ativo' : 'Inativo'}</span>
+                                            <span className="text-[10px] font-black uppercase text-graphite-400">{form.is_active ? t('services.modal.activeLabel') : t('services.modal.inactiveLabel')}</span>
                                             <button 
                                                 onClick={() => setForm({ ...form, is_active: !form.is_active })}
                                                 className="focus:outline-none"
@@ -496,18 +498,18 @@ export const Services = () => {
                                             </button>
                                         </div>
                                     </div>
-                                    <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ex: Consulta Inicial" className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors" />
+                                    <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t('services.modal.namePlaceholder')} className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors" />
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="text-xs font-black text-graphite-400 uppercase mb-1 block flex items-center gap-1">
-                                            <Clock size={12} /> Duração (min)
+                                            <Clock size={12} /> {t('services.modal.durationLabel')}
                                         </label>
                                         <input type="number" value={form.duration_minutes} onChange={(e) => setForm({ ...form, duration_minutes: parseInt(e.target.value) || 0 })} className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors" />
                                     </div>
                                     <div>
                                         <label className="text-xs font-black text-graphite-400 uppercase mb-1 block flex items-center gap-1">
-                                            <DollarSign size={12} /> Preço (R$)
+                                            <DollarSign size={12} /> {t('services.modal.priceLabel')}
                                         </label>
                                         <div className="relative">
                                             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-graphite-500 font-bold text-sm">R$</span>
@@ -526,7 +528,7 @@ export const Services = () => {
                                 </div>
                                 <div>
                                     <label className="text-xs font-black text-graphite-400 uppercase mb-1 block flex items-center gap-1">
-                                        <Palette size={12} /> Cor no Calendário
+                                        <Palette size={12} /> {t('services.modal.colorLabel')}
                                     </label>
                                     <div className="flex items-center gap-3">
                                         <input type="color" value={form.color_hex} onChange={(e) => setForm({ ...form, color_hex: e.target.value })} className="w-10 h-10 rounded-xl border border-ice-200 cursor-pointer" />
@@ -534,11 +536,11 @@ export const Services = () => {
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">Instruções de Preparo (Bot)</label>
+                                    <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">{t('services.modal.instructionsLabel')}</label>
                                     <textarea
                                         value={form.preparation_instructions}
                                         onChange={(e) => setForm({ ...form, preparation_instructions: e.target.value })}
-                                        placeholder="Ex: Jejum de 8h, Trazer exames anteriores..."
+                                        placeholder={t('services.modal.instructionsPlaceholder')}
                                         rows={3}
                                         className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors resize-none"
                                     />
@@ -549,20 +551,20 @@ export const Services = () => {
                              <div className="px-8 pb-8 space-y-4">
                                 <div className="flex items-center justify-between">
                                     <label className="text-xs font-black text-graphite-400 uppercase flex items-center gap-1">
-                                        <MapPin size={12} /> Atribuição de Unidades
+                                        <MapPin size={12} /> {t('services.modal.assignmentsLabel')}
                                     </label>
-                                    <button 
+                                    <button
                                         onClick={() => setServiceLinks(prev => [...prev, { doctor_id: '', location_id: null }])}
                                         className="text-[10px] font-black uppercase text-brand-primary bg-brand-primary/10 px-2 py-1 rounded-lg hover:bg-brand-primary/20 transition-colors border-none cursor-pointer"
                                     >
-                                        + Adicionar Local
+                                        {t('services.modal.addLocationButton')}
                                     </button>
                                 </div>
-                                
+
                                 <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
                                     {serviceLinks.length === 0 ? (
                                         <div className="text-center py-6 bg-ice-50 rounded-2xl border-2 border-dashed border-ice-200">
-                                            <p className="text-xs text-graphite-400 font-medium">Nenhuma unidade selecionada.</p>
+                                            <p className="text-xs text-graphite-400 font-medium">{t('services.modal.noLocationsSelected')}</p>
                                         </div>
                                     ) : (
                                         serviceLinks.map((link, idx) => (
@@ -577,7 +579,7 @@ export const Services = () => {
                                                         }}
                                                         className="bg-transparent border-none text-xs font-bold text-graphite-700 focus:outline-none cursor-pointer"
                                                     >
-                                                        <option value="">Selecione o Médico</option>
+                                                        <option value="">{t('services.modal.selectDoctorPlaceholder')}</option>
                                                         {doctors.map(d => (
                                                             <option key={d.id} value={d.id}>{d.full_name}</option>
                                                         ))}
@@ -591,7 +593,7 @@ export const Services = () => {
                                                         }}
                                                         className="bg-transparent border-none text-xs font-bold text-graphite-700 focus:outline-none cursor-pointer"
                                                     >
-                                                        <option value="">Qualquer Unidade</option>
+                                                        <option value="">{t('services.modal.anyLocationPlaceholder')}</option>
                                                         {locations.map(l => (
                                                             <option key={l.id} value={l.id}>{l.name}</option>
                                                         ))}
@@ -611,7 +613,7 @@ export const Services = () => {
 
                             <div className="flex gap-3 pt-2">
                                 <button onClick={() => setShowModal(false)} className="flex-1 py-3.5 rounded-2xl font-bold text-graphite-700 hover:bg-ice-50 border border-ice-200 transition-all cursor-pointer">
-                                    Cancelar
+                                    {t('services.modal.cancelButton')}
                                 </button>
                                 <button
                                     onClick={handleSave}
@@ -619,7 +621,7 @@ export const Services = () => {
                                     className="flex-[2] bg-brand-primary text-white py-3.5 rounded-2xl font-bold shadow-lg shadow-brand-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 border-none cursor-pointer"
                                 >
                                     <Save size={18} />
-                                    {saving ? 'Salvando...' : 'Salvar'}
+                                    {saving ? t('services.modal.saving') : t('services.modal.saveButton')}
                                 </button>
                             </div>
                         </div>

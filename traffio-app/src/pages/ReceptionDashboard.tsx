@@ -42,10 +42,10 @@ export const ReceptionDashboard = () => {
             setAppointments(data.map((a: any) => ({
                 id: a.id,
                 time: formatTime(a.start_time),
-                patient: a.patients?.full_name || t('crm.receptionDashboard.patientFallback'),
+                patient: a.patients?.full_name || t('receptionDashboard.patientFallback'),
                 doctor: 'Dr. ' + (a.doctors?.profiles?.full_name || 'N/A'),
                 status: a.status,
-                type: a.notes || t('crm.receptionDashboard.consultationFallback'),
+                type: a.notes || t('receptionDashboard.consultationFallback'),
                 checkin_at: a.checkin_at,
             })));
         }
@@ -69,9 +69,9 @@ export const ReceptionDashboard = () => {
         const next = appointments.find(a => a.status === 'waiting' || a.status === 'checkin_done');
         if (next) {
             handleStatusChange(next.id, 'in_consult');
-            showToast('success', t('crm.receptionDashboard.toasts.calling', { name: next.patient }));
+            showToast('success', t('receptionDashboard.toasts.calling', { name: next.patient }));
         } else {
-            showToast('info', t('crm.receptionDashboard.toasts.noPatientInQueue'));
+            showToast('info', t('receptionDashboard.toasts.noPatientInQueue'));
         }
     };
 
@@ -88,11 +88,11 @@ export const ReceptionDashboard = () => {
 
     const getStatusLabel = (status: string) => {
         switch (status) {
-            case 'scheduled': return t('crm.receptionDashboard.status.scheduled');
-            case 'waiting': return t('crm.receptionDashboard.status.waiting');
-            case 'in_consult': return t('crm.receptionDashboard.status.inConsult');
-            case 'completed': return t('crm.receptionDashboard.status.completed');
-            case 'cancelled': return t('crm.receptionDashboard.status.cancelled');
+            case 'scheduled': return t('receptionDashboard.status.scheduled');
+            case 'waiting': return t('receptionDashboard.status.waiting');
+            case 'in_consult': return t('receptionDashboard.status.inConsult');
+            case 'completed': return t('receptionDashboard.status.completed');
+            case 'cancelled': return t('receptionDashboard.status.cancelled');
             default: return status;
         }
     };
@@ -128,7 +128,7 @@ export const ReceptionDashboard = () => {
                             type="text"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            placeholder={t('crm.receptionDashboard.searchPlaceholder')}
+                            placeholder={t('receptionDashboard.searchPlaceholder')}
                             className="bg-transparent border-none outline-none text-sm font-medium w-64"
                         />
                     </div>
@@ -137,14 +137,14 @@ export const ReceptionDashboard = () => {
                         className="flex items-center gap-2 bg-emerald-500 text-white px-5 py-2.5 rounded-xl font-bold shadow-md shadow-emerald-500/20 hover:scale-105 transition-transform border-none cursor-pointer"
                     >
                         <Megaphone size={18} />
-                        {t('crm.receptionDashboard.callNext')}
+                        {t('receptionDashboard.callNext')}
                     </button>
                     <button
                         onClick={() => setIsNewPatientModalOpen(true)}
                         className="flex items-center gap-2 bg-brand-primary text-white px-5 py-2.5 rounded-xl font-bold shadow-md shadow-brand-primary/20 hover:scale-105 transition-transform border-none cursor-pointer"
                     >
                         <UserPlus size={18} />
-                        <span>{t('crm.receptionDashboard.newPatient')}</span>
+                        <span>{t('receptionDashboard.newPatient')}</span>
                     </button>
                 </div>
             </div>
@@ -152,23 +152,23 @@ export const ReceptionDashboard = () => {
             {/* Quick Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-white p-4 rounded-2xl border border-ice-100 shadow-sm">
-                    <p className="text-xs font-black text-graphite-400 uppercase tracking-wider mb-1">{t('crm.receptionDashboard.totalToday')}</p>
+                    <p className="text-xs font-black text-graphite-400 uppercase tracking-wider mb-1">{t('receptionDashboard.totalToday')}</p>
                     <p className="text-2xl font-black text-graphite-900">{appointments.length}</p>
                 </div>
                 <div className="bg-amber-50 p-4 rounded-2xl border border-amber-100 shadow-sm">
-                    <p className="text-xs font-black text-amber-700 uppercase tracking-wider mb-1">{t('crm.receptionDashboard.waiting')}</p>
+                    <p className="text-xs font-black text-amber-700 uppercase tracking-wider mb-1">{t('receptionDashboard.waiting')}</p>
                     <p className="text-2xl font-black text-amber-900">
                         {appointments.filter(a => a.status === 'waiting').length}
                     </p>
                 </div>
                 <div className="bg-brand-secondary/10 p-4 rounded-2xl border border-brand-secondary/20 shadow-sm">
-                    <p className="text-xs font-black text-brand-primary uppercase tracking-wider mb-1">{t('crm.receptionDashboard.inConsult')}</p>
+                    <p className="text-xs font-black text-brand-primary uppercase tracking-wider mb-1">{t('receptionDashboard.inConsult')}</p>
                     <p className="text-2xl font-black text-brand-primary">
                         {appointments.filter(a => a.status === 'in_consult').length}
                     </p>
                 </div>
                 <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 shadow-sm">
-                    <p className="text-xs font-black text-emerald-700 uppercase tracking-wider mb-1">{t('crm.receptionDashboard.completed')}</p>
+                    <p className="text-xs font-black text-emerald-700 uppercase tracking-wider mb-1">{t('receptionDashboard.completed')}</p>
                     <p className="text-2xl font-black text-emerald-900">
                         {appointments.filter(a => a.status === 'completed').length}
                     </p>
@@ -179,7 +179,7 @@ export const ReceptionDashboard = () => {
             <div className="bg-white rounded-[32px] border border-ice-200 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
                 {/* List Header */}
                 <div className="p-6 border-b border-ice-100 flex items-center justify-between bg-ice-50/50">
-                    <h3 className="font-black text-lg text-graphite-900">{t('crm.receptionDashboard.dayAgenda')}</h3>
+                    <h3 className="font-black text-lg text-graphite-900">{t('receptionDashboard.dayAgenda')}</h3>
                     <div className="flex bg-white border border-ice-200 rounded-lg p-1">
                         {['all', 'waiting', 'completed'].map((f) => (
                             <button
@@ -190,7 +190,7 @@ export const ReceptionDashboard = () => {
                                     : 'text-graphite-500 hover:text-graphite-900 hover:bg-ice-50'
                                     }`}
                             >
-                                {f === 'all' ? t('crm.receptionDashboard.filters.all') : f === 'waiting' ? t('crm.receptionDashboard.filters.waiting') : t('crm.receptionDashboard.filters.completed')}
+                                {f === 'all' ? t('receptionDashboard.filters.all') : f === 'waiting' ? t('receptionDashboard.filters.waiting') : t('receptionDashboard.filters.completed')}
                             </button>
                         ))}
                     </div>
@@ -200,7 +200,7 @@ export const ReceptionDashboard = () => {
                 <div className="divide-y divide-ice-50 overflow-y-auto">
                     {filteredAppointments.length === 0 ? (
                         <div className="p-12 text-center text-graphite-400">
-                            <p className="font-medium">{t('crm.receptionDashboard.empty')}</p>
+                            <p className="font-medium">{t('receptionDashboard.empty')}</p>
                         </div>
                     ) : (
                         filteredAppointments.map((app) => (
@@ -222,7 +222,7 @@ export const ReceptionDashboard = () => {
                                         </span>
                                         {app.checkin_at && (
                                             <span className="flex items-center gap-1 text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-                                                <Wifi size={10} /> {t('crm.receptionDashboard.checkinOk')}
+                                                <Wifi size={10} /> {t('receptionDashboard.checkinOk')}
                                             </span>
                                         )}
                                     </div>
@@ -239,7 +239,7 @@ export const ReceptionDashboard = () => {
                                             className="px-4 py-2 bg-brand-primary text-white rounded-xl text-xs font-bold hover:scale-105 transition-transform shadow-md shadow-brand-primary/20 border-none cursor-pointer flex items-center gap-2"
                                         >
                                             <CheckCircle2 size={14} />
-                                            {t('crm.receptionDashboard.actions.arrived')}
+                                            {t('receptionDashboard.actions.arrived')}
                                         </button>
                                     )}
                                     {app.status === 'waiting' && (
@@ -248,7 +248,7 @@ export const ReceptionDashboard = () => {
                                             className="px-4 py-2 bg-brand-secondary text-brand-primary rounded-xl text-xs font-bold hover:bg-brand-secondary/80 transition-colors border-none cursor-pointer flex items-center gap-2"
                                         >
                                             <Megaphone size={14} />
-                                            {t('crm.receptionDashboard.actions.call')}
+                                            {t('receptionDashboard.actions.call')}
                                         </button>
                                     )}
                                     {app.status === 'in_consult' && (
@@ -257,7 +257,7 @@ export const ReceptionDashboard = () => {
                                             className="px-4 py-2 bg-emerald-100 text-emerald-700 rounded-xl text-xs font-bold hover:bg-emerald-200 transition-colors border-none cursor-pointer flex items-center gap-2"
                                         >
                                             <CheckCircle2 size={14} />
-                                            {t('crm.receptionDashboard.actions.finish')}
+                                            {t('receptionDashboard.actions.finish')}
                                         </button>
                                     )}
                                 </div>
@@ -272,7 +272,7 @@ export const ReceptionDashboard = () => {
                 onClose={() => setIsNewPatientModalOpen(false)}
                 onSuccess={() => {
                     // Refresh appointments or add waiting walk-in
-                    showToast('success', t('crm.receptionDashboard.toasts.patientRegistered'));
+                    showToast('success', t('receptionDashboard.toasts.patientRegistered'));
                     fetchAppointments();
                 }}
             />

@@ -386,13 +386,13 @@ export const LandingPage = () => {
                     <div className="text-center max-w-2xl mx-auto mb-16">
                         <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 rounded-full text-xs font-black uppercase tracking-wider mb-4 border border-amber-200">
                             <Zap size={14} className="fill-amber-500" />
-                            Soluções
+                            {t('solutions.badge')}
                         </div>
                         <h2 className="text-4xl md:text-5xl font-black text-graphite-900 tracking-tight mb-4">
-                            Feito para a sua especialidade
+                            {t('solutions.title')}
                         </h2>
                         <p className="text-graphite-500 text-lg font-medium">
-                            A mesma plataforma, configurada para cada tipo de clínica. Sem módulos extras, sem custo adicional.
+                            {t('solutions.subtitle')}
                         </p>
                     </div>
 
@@ -413,22 +413,22 @@ export const LandingPage = () => {
                                     ))}
                                 </div>
                                 <blockquote className="text-xl font-bold text-graphite-800 leading-relaxed">
-                                    "Antes usávamos três sistemas diferentes. Com o Traffio, a equipe agenda, atende pelo WhatsApp e fecha o pagamento na mesma tela. Reduzimos faltas em mais de 60% no primeiro mês."
+                                    "{t('solutions.testimonial.quote')}"
                                 </blockquote>
                                 <div className="flex items-center gap-3">
                                     <div className="w-12 h-12 bg-brand-primary/10 rounded-full flex items-center justify-center text-brand-primary font-black text-lg">D</div>
                                     <div>
-                                        <p className="font-black text-graphite-900">Dra. Camila Souza</p>
-                                        <p className="text-sm text-graphite-500 font-medium">Clínica Odontológica · São Paulo</p>
+                                        <p className="font-black text-graphite-900">{t('solutions.testimonial.authorName')}</p>
+                                        <p className="text-sm text-graphite-500 font-medium">{t('solutions.testimonial.authorRole')}</p>
                                     </div>
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 {[
-                                    { label: 'Redução de faltas', value: '-61%' },
-                                    { label: 'Conversão de leads', value: '+3×' },
-                                    { label: 'Tempo na agenda', value: '-4h/sem' },
-                                    { label: 'Faturamento', value: '+R$ 8k/mês' },
+                                    { label: t('solutions.testimonial.metricNoShow'), value: '-61%' },
+                                    { label: t('solutions.testimonial.metricConversion'), value: '+3×' },
+                                    { label: t('solutions.testimonial.metricTime'), value: '-4h/sem' },
+                                    { label: t('solutions.testimonial.metricRevenue'), value: '+R$ 8k/mês' },
                                 ].map(m => (
                                     <div key={m.label} className="bg-ice-50 rounded-2xl p-4 text-center">
                                         <p className="text-2xl font-black text-brand-primary">{m.value}</p>
@@ -449,13 +449,13 @@ export const LandingPage = () => {
                     <div className="text-center max-w-2xl mx-auto mb-12">
                         <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 rounded-full text-xs font-black uppercase tracking-wider mb-4 border border-amber-200">
                             <Zap size={14} className="fill-amber-500" />
-                            Planos e Preços
+                            {t('pricing.badge')}
                         </div>
                         <h2 className="text-4xl md:text-5xl font-black text-graphite-900 tracking-tight mb-4">
-                            Simples, sem surpresas
+                            {t('pricing.title')}
                         </h2>
                         <p className="text-graphite-500 text-lg font-medium">
-                            Preço fixo por clínica. Sem cobranças por profissional. Cancele quando quiser.
+                            {t('pricing.subtitle')}
                         </p>
                     </div>
 
@@ -464,11 +464,11 @@ export const LandingPage = () => {
                         <div className="inline-flex items-center bg-ice-100 rounded-2xl p-1 gap-1">
                             <button onClick={() => setBillingCycle('monthly')}
                                 className={`px-6 py-2.5 rounded-xl text-sm font-black transition-all border-none cursor-pointer ${billingCycle === 'monthly' ? 'bg-white text-graphite-900 shadow-sm' : 'text-graphite-500 hover:text-graphite-700 bg-transparent'}`}>
-                                Mensal
+                                {t('pricing.toggleMonthly')}
                             </button>
                             <button onClick={() => setBillingCycle('annual')}
                                 className={`px-6 py-2.5 rounded-xl text-sm font-black transition-all flex items-center gap-2 border-none cursor-pointer ${billingCycle === 'annual' ? 'bg-white text-graphite-900 shadow-sm' : 'text-graphite-500 hover:text-graphite-700 bg-transparent'}`}>
-                                Anual
+                                {t('pricing.toggleAnnual')}
                                 <span className="text-[10px] font-black bg-emerald-500 text-white px-2 py-0.5 rounded-full">-20%</span>
                             </button>
                         </div>
@@ -486,7 +486,7 @@ export const LandingPage = () => {
                                     className={`relative bg-white rounded-[32px] p-8 border-2 flex flex-col transition-all ${isPopular ? 'border-amber-400 shadow-2xl shadow-amber-400/15 scale-[1.02]' : 'border-ice-100 hover:border-amber-200 hover:shadow-lg'}`}>
                                     {isPopular && (
                                         <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-yellow-400 text-white text-[10px] font-black px-5 py-1.5 rounded-full uppercase tracking-widest whitespace-nowrap shadow-lg shadow-amber-500/30">
-                                            Mais Popular
+                                            {t('pricing.mostPopular')}
                                         </div>
                                     )}
                                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-6 ${plan.badgeClass}`}>
@@ -496,10 +496,10 @@ export const LandingPage = () => {
                                     <p className="text-sm text-graphite-400 font-medium mb-6 leading-relaxed">{plan.description}</p>
                                     <div className="mb-2">
                                         <span className="text-4xl font-black text-graphite-900">{formatPrice(price)}</span>
-                                        <span className="text-graphite-400 text-sm font-medium">/mês</span>
+                                        <span className="text-graphite-400 text-sm font-medium">{t('pricing.perMonth')}</span>
                                     </div>
                                     {billingCycle === 'annual'
-                                        ? <p className="text-xs text-emerald-600 font-black mb-6">cobrado {formatPrice(price * 12)}/ano · economize {formatPrice((plan.monthlyPrice - price) * 12)}</p>
+                                        ? <p className="text-xs text-emerald-600 font-black mb-6">{t('pricing.billedAnnually', { total: formatPrice(price * 12), savings: formatPrice((plan.monthlyPrice - price) * 12) })}</p>
                                         : <div className="mb-6" />}
                                     <ul className="space-y-3 flex-1 mb-8">
                                         {plan.highlightFeatures.map(f => (
@@ -513,10 +513,10 @@ export const LandingPage = () => {
                                     </ul>
                                     <button onClick={() => navigate(`/register?plan=${id}&cycle=${billingCycle}`)}
                                         className={`w-full py-4 rounded-2xl font-black text-sm transition-all border-none cursor-pointer ${isPopular ? 'bg-gradient-to-r from-amber-500 to-yellow-400 text-white shadow-lg shadow-amber-500/30 hover:scale-[1.02] active:scale-[0.98]' : id === 'rede' ? 'bg-[#0D1B2A] text-white hover:scale-[1.02] active:scale-[0.98]' : 'bg-ice-100 text-graphite-700 hover:bg-amber-50 hover:text-amber-700'}`}>
-                                        {id === 'rede' ? 'Falar com vendas' : 'Começar trial de 14 dias'}
+                                        {id === 'rede' ? t('pricing.talkToSales') : t('pricing.startTrial14')}
                                     </button>
                                     <p className="text-center text-xs text-graphite-400 font-medium mt-3">
-                                        {id === 'rede' ? 'Implantação assistida inclusa' : '14 dias grátis · cancele quando quiser'}
+                                        {id === 'rede' ? t('pricing.assistedOnboarding') : t('pricing.freeTrialCancelAnytime')}
                                     </p>
                                 </div>
                             );
@@ -528,7 +528,7 @@ export const LandingPage = () => {
                         <table className="w-full text-sm">
                             <thead>
                                 <tr className="border-b border-ice-100">
-                                    <th className="text-left p-6 font-black text-graphite-900 w-2/5 bg-ice-50/50">Recurso</th>
+                                    <th className="text-left p-6 font-black text-graphite-900 w-2/5 bg-ice-50/50">{t('pricing.comparisonResourceHeader')}</th>
                                     {PLAN_ORDER.map(id => {
                                         const plan = PLANS[id];
                                         const Icon = plan.icon;
@@ -561,11 +561,11 @@ export const LandingPage = () => {
 
                     <div className="text-center mt-12">
                         <p className="text-graphite-500 font-medium mb-4">
-                            Dúvidas? <a href="mailto:contato@traffio.com.br" className="text-brand-primary font-bold underline">Fale com nosso time</a>
+                            {t('pricing.questionsPrefix')} <a href="mailto:contato@traffio.com.br" className="text-brand-primary font-bold underline">{t('pricing.talkToTeam')}</a>
                         </p>
                         <p className="text-xs text-graphite-400 font-medium">
                             <ShieldCheck size={12} className="inline mr-1 text-emerald-500" />
-                            Todos os planos incluem 14 dias de trial grátis · Sem fidelidade · Cancele quando quiser
+                            {t('pricing.allPlansTrial')}
                         </p>
                     </div>
                 </div>
@@ -580,40 +580,45 @@ export const LandingPage = () => {
                                 <img src="/favicon.png" alt="Traffio" className="h-12 w-12 rounded-xl" />
                                 <div>
                                     <p className="text-xl font-black text-white leading-none">Traffio</p>
-                                    <p className="text-xs text-amber-400 font-bold tracking-wider">ODONTO • MARKETING</p>
+                                    <p className="text-xs text-amber-400 font-bold tracking-wider">{t('footer.tagline')}</p>
                                 </div>
                             </div>
                             <p className="text-slate-400 font-medium text-sm leading-relaxed max-w-xs">
-                                A plataforma completa para clínicas odontológicas que buscam crescimento e eficiência máxima.
+                                {t('footer.description')}
                             </p>
                             <div className="flex items-center gap-3 text-xs text-slate-500 font-medium pt-2">
-                                <ShieldCheck size={14} className="text-emerald-400" /> LGPD Compliant
-                                <Globe size={14} className="text-amber-400" /> 100% Nuvem
+                                <ShieldCheck size={14} className="text-emerald-400" /> {t('footer.lgpdCompliant')}
+                                <Globe size={14} className="text-amber-400" /> {t('footer.cloud100')}
                             </div>
                         </div>
                         <div className="space-y-4">
-                            <h4 className="text-white font-black text-sm uppercase tracking-wider">Plataforma</h4>
+                            <h4 className="text-white font-black text-sm uppercase tracking-wider">{t('footer.platformHeading')}</h4>
                             <ul className="space-y-2">
-                                {['Recursos', 'Soluções', 'Planos', 'Segurança'].map(l => (
-                                    <li key={l}><a href={`#${l.toLowerCase()}`} className="text-graphite-400 text-sm font-medium hover:text-white transition-colors no-underline" style={{ color: 'inherit' }}>{l}</a></li>
+                                {[
+                                    { key: 'features', label: t('footer.linkFeatures') },
+                                    { key: 'solutions', label: t('footer.linkSolutions') },
+                                    { key: 'pricing', label: t('footer.linkPricing') },
+                                    { key: 'security', label: t('footer.linkSecurity') },
+                                ].map(l => (
+                                    <li key={l.key}><a href={`#${l.key}`} className="text-graphite-400 text-sm font-medium hover:text-white transition-colors no-underline" style={{ color: 'inherit' }}>{l.label}</a></li>
                                 ))}
                             </ul>
                         </div>
                         <div className="space-y-4">
-                            <h4 className="text-white font-black text-sm uppercase tracking-wider">Empresa</h4>
+                            <h4 className="text-white font-black text-sm uppercase tracking-wider">{t('footer.companyHeading')}</h4>
                             <ul className="space-y-2">
-                                {['Sobre', 'Blog', 'Contato', 'Suporte'].map(l => (
+                                {[t('footer.linkAbout'), t('footer.linkBlog'), t('footer.linkContact'), t('footer.linkSupport')].map(l => (
                                     <li key={l}><span className="text-graphite-400 text-sm font-medium hover:text-white transition-colors cursor-pointer">{l}</span></li>
                                 ))}
                             </ul>
                         </div>
                     </div>
                     <div className="border-t border-slate-800 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-                        <p className="text-slate-500 text-sm font-medium">© 2026 Traffio Odonto Marketing. Todos os direitos reservados.</p>
+                        <p className="text-slate-500 text-sm font-medium">{t('footer.copyright')}</p>
                         <div className="flex gap-6 text-xs text-slate-500 font-medium">
-                            <span onClick={() => navigate('/privacidade')} className="cursor-pointer hover:text-graphite-300 transition-colors">Privacidade</span>
-                            <span onClick={() => navigate('/termos')} className="cursor-pointer hover:text-graphite-300 transition-colors">Termos de Uso</span>
-                            <span className="cursor-pointer hover:text-graphite-300 transition-colors">Cookies</span>
+                            <span onClick={() => navigate('/privacidade')} className="cursor-pointer hover:text-graphite-300 transition-colors">{t('footer.privacy')}</span>
+                            <span onClick={() => navigate('/termos')} className="cursor-pointer hover:text-graphite-300 transition-colors">{t('footer.terms')}</span>
+                            <span className="cursor-pointer hover:text-graphite-300 transition-colors">{t('footer.cookies')}</span>
                         </div>
                     </div>
                 </div>

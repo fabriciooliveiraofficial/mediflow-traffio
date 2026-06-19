@@ -85,13 +85,13 @@ interface ScheduleBlock {
 export const Professionals = () => {
     const { t } = useTranslation('tenantAdmin');
     const DAYS = [
-        t('tenantAdmin.professionals.days.sunday'),
-        t('tenantAdmin.professionals.days.monday'),
-        t('tenantAdmin.professionals.days.tuesday'),
-        t('tenantAdmin.professionals.days.wednesday'),
-        t('tenantAdmin.professionals.days.thursday'),
-        t('tenantAdmin.professionals.days.friday'),
-        t('tenantAdmin.professionals.days.saturday'),
+        t('professionals.days.sunday'),
+        t('professionals.days.monday'),
+        t('professionals.days.tuesday'),
+        t('professionals.days.wednesday'),
+        t('professionals.days.thursday'),
+        t('professionals.days.friday'),
+        t('professionals.days.saturday'),
     ];
     const [professionals, setProfessionals] = useState<Professional[]>([]);
     const [loading, setLoading] = useState(true);

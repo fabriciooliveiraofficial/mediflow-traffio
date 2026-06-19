@@ -206,5 +206,287 @@
       "cancel": "Cancelar",
       "confirm": "Excluir"
     }
+  },
+  "notificationsPage": {
+    "header": {
+      "title": "Notificações",
+      "subtitle": "Escolha como deseja ser avisado sobre novas mensagens e eventos."
+    },
+    "cards": {
+      "soundAlert": {
+        "title": "Aviso Sonoro",
+        "description": "Tocar um som de prioridade máxima a cada nova mensagem recebida (Recomendado)."
+      },
+      "toastNotification": {
+        "title": "Aviso Flutuante",
+        "description": "Exibir um balão de notificação no canto da tela enquanto você navega pela plataforma."
+      },
+      "webPush": {
+        "title": "Web Push Nativo",
+        "description": "Receber avisos do sistema mesmo com a aba fechada ou em segundo plano."
+      }
+    },
+    "toasts": {
+      "pushDenied": "Permissão de notificação negada no navegador.",
+      "smtpSaved": "Configurações de SMTP salvas com sucesso!",
+      "smtpSaveErrorPrefix": "Erro ao salvar SMTP: {{message}}"
+    },
+    "smtp": {
+      "title": "Servidor de E-mail (SMTP próprio)",
+      "subtitle": "Configure as credenciais para enviar e-mails de confirmação com seu próprio domínio.",
+      "hostLabel": "Servidor SMTP (Host)",
+      "hostPlaceholder": "ex: smtp.dominio.com",
+      "portLabel": "Porta",
+      "userLabel": "Usuário SMTP",
+      "userPlaceholder": "ex: agendamentos@dominio.com",
+      "passLabel": "Senha SMTP",
+      "fromLabel": "E-mail de Remetente (From)",
+      "fromPlaceholder": "ex: agendamentos@dominio.com",
+      "fromHint": "Deixe em branco para usar o mesmo e-mail do Usuário SMTP.",
+      "saveButton": "Salvar Configurações SMTP"
+    },
+    "infoBanner": {
+      "title": "Importante: Disponibilidade dos Alertas",
+      "body": {
+        "prefix": "Para garantir que você nunca perca o contato de um paciente, recomendamos manter o",
+        "strong1": "Aviso Sonoro",
+        "middle": "e o",
+        "strong2": "Web Push",
+        "suffix": "ativos. Nosso sistema de som foi otimizado para superar silenciamentos automáticos de navegadores em abas inativas."
+      }
+    }
+  },
+  "financialDashboard": {
+    "header": {
+      "title": "Financeiro",
+      "subtitle": "Visão consolidada de todas as suas unidades e conversão de hub.",
+      "filterAll": "Todos",
+      "filterPaid": "Pagos",
+      "filterPending": "Pendentes",
+      "filterCanceled": "Cancelados",
+      "newBillingButton": "Nova Cobrança"
+    },
+    "confirmCancel": "Cancelar esta cobrança?",
+    "kpis": {
+      "totalRevenue": "Receita Total",
+      "received": "Recebido",
+      "toReceive": "A Receber",
+      "billings": "Cobranças"
+    },
+    "analytics": {
+      "sectionTitle": "Conversão de Procedimentos",
+      "sectionSubtitle": "Performance Dr. Cash & Pagar.me",
+      "highApproval": "High Approval",
+      "approvalRateLabel": "Taxa Aprovação Dr. Cash",
+      "financingVolumeLabel": "Volume de Crédito Assinado",
+      "avgTicketLabel": "Ticket Médio (Hub Híbrido)",
+      "mixChartTitle": "Mix de Recebimento",
+      "mixPix": "Pix",
+      "mixCard": "Cartão (Pagar.me)",
+      "mixFinancing": "Financiamento (Dr. Cash)",
+      "mixOthers": "Outros",
+      "pipelineTitle": "Status do Pipeline Dr. Cash",
+      "activeProposalsLabel": "Propostas em Análise",
+      "conversionOptimizedTitle": "Conversão Otimizada",
+      "conversionOptimizedDescription": "O uso do Hub Híbrido aumentou o ticket médio em comparação a pagamentos tradicionais em vista."
+    },
+    "transactions": {
+      "title": "Cobranças",
+      "exportButton": "Exportar",
+      "loading": "Carregando...",
+      "empty": "Nenhuma cobrança encontrada.",
+      "patientFallback": "Paciente",
+      "methodFallback": "Não definido",
+      "payButton": "Pagar",
+      "cancelButton": "Cancelar",
+      "statusLabels": {
+        "paid": "Pago",
+        "pending": "Pendente",
+        "overdue": "Vencido",
+        "canceled": "Cancelado",
+        "refunded": "Estornado"
+      }
+    },
+    "newBillingModal": {
+      "title": "Nova Cobrança",
+      "patientLabel": "Paciente",
+      "selectPlaceholder": "Selecione...",
+      "amountLabel": "Valor (R$)",
+      "dueDateLabel": "Vencimento",
+      "methodLabel": "Método",
+      "methodPix": "Pix",
+      "methodCreditCard": "Cartão de Crédito",
+      "methodBoleto": "Boleto",
+      "methodCash": "Dinheiro",
+      "cancelButton": "Cancelar",
+      "createButton": "Criar Cobrança",
+      "creating": "Criando...",
+      "createError": "Erro ao criar cobrança."
+    }
+  },
+  "services": {
+    "header": {
+      "title": "Tipos de Consulta",
+      "subtitle": "Serviços, preços e durações.",
+      "newButton": "Novo Tipo"
+    },
+    "searchPlaceholder": "Buscar tipo de consulta...",
+    "emptyState": "Nenhum tipo de consulta encontrado.",
+    "clinicGeneral": {
+      "title": "Serviços da Clínica",
+      "subtitle": "Gerais / Sem Profissional"
+    },
+    "card": {
+      "activate": "Ativar",
+      "deactivate": "Desativar",
+      "inactiveBadge": "Inativo"
+    },
+    "toasts": {
+      "tenantNotIdentified": "Erro: Não foi possível identificar sua clínica. Verifique se você está logado corretamente.",
+      "saveSuccess": "Procedimento salvo com sucesso!",
+      "saveErrorPrefix": "Falha ao salvar: {{message}}",
+      "linksWithoutDoctorWarning": "Aviso: Você adicionou locais mas não selecionou o médico em nenhum deles. Os locais não serão salvos."
+    },
+    "deleteConfirm": "Remover este tipo de consulta?",
+    "modal": {
+      "titleNew": "Novo Tipo de Consulta",
+      "titleEdit": "Editar Tipo",
+      "nameLabel": "Nome do Procedimento",
+      "namePlaceholder": "Ex: Consulta Inicial",
+      "activeLabel": "Ativo",
+      "inactiveLabel": "Inativo",
+      "durationLabel": "Duração (min)",
+      "priceLabel": "Preço (R$)",
+      "colorLabel": "Cor no Calendário",
+      "instructionsLabel": "Instruções de Preparo (Bot)",
+      "instructionsPlaceholder": "Ex: Jejum de 8h, Trazer exames anteriores...",
+      "assignmentsLabel": "Atribuição de Unidades",
+      "addLocationButton": "+ Adicionar Local",
+      "noLocationsSelected": "Nenhuma unidade selecionada.",
+      "selectDoctorPlaceholder": "Selecione o Médico",
+      "anyLocationPlaceholder": "Qualquer Unidade",
+      "cancelButton": "Cancelar",
+      "saveButton": "Salvar",
+      "saving": "Salvando..."
+    }
+  },
+  "adminWhatsApp": {
+    "loadingClinic": "Carregando dados da clínica...",
+    "header": {
+      "title": "WhatsApp",
+      "subtitle": "Conecte o WhatsApp da sua clínica para ativar o agente de IA."
+    },
+    "providerTabs": {
+      "zapi": "WhatsApp Web (Z-API)",
+      "cloudApi": "Oficial (Cloud API)"
+    },
+    "statusConfig": {
+      "loading": "Verificando...",
+      "noInstance": "Aguardando Configuração",
+      "configured": "Pronto para Conectar",
+      "connecting": "Aguardando Leitura do QR...",
+      "connected": "WhatsApp Conectado",
+      "cloudApiActive": "Cloud API Ativo"
+    },
+    "toasts": {
+      "connectedSuccess": "WhatsApp conectado com sucesso!",
+      "credentialsMissing": "Credenciais Z-API não configuradas para esta clínica.",
+      "qrGenerateError": "Erro ao gerar QR Code. Verifique o status da instância no painel Master.",
+      "connectionError": "Erro de conexão com o servidor de WhatsApp.",
+      "disconnectedSuccess": "WhatsApp desconectado.",
+      "disconnectError": "Erro ao desconectar. Tente novamente ou use o painel Master.",
+      "disconnectProcessError": "Erro ao processar desconexão.",
+      "cloudSettingsSaved": "Configurações do Cloud API salvas!",
+      "cloudSettingsSaveError": "Erro ao salvar configurações.",
+      "cloudRequestError": "Falha ao processar requisição.",
+      "cloudFillFieldsError": "Preencha o ID e o Token para testar."
+    },
+    "disconnectConfirm": "Deseja realmente desconectar o WhatsApp da clínica?",
+    "cloudApi": {
+      "title": "WhatsApp Cloud API",
+      "subtitle": "Conexão oficial e de alta performance via Meta.",
+      "phoneNumberIdLabel": "Phone Number ID",
+      "accessTokenLabel": "Access Token (System User)",
+      "businessAccountIdLabel": "Business Account ID",
+      "techConfigTitle": "Configuração Técnica",
+      "techConfigBody": "Para usar a API Oficial, sua conta no Meta Business Suite deve estar verificada.",
+      "metaDevelopersLink": "Meta Developers",
+      "activateButton": "Ativar Cloud API",
+      "testConnectionButton": "Testar conexão"
+    },
+    "zapiContent": {
+      "syncingMessage": "Sincronizando com WhatsApp em tempo real...",
+      "noInstance": {
+        "title": "Em preparação",
+        "description": "A equipe de suporte do Traffio está configurando sua instância técnica.",
+        "nextStepTitle": "Próximo passo",
+        "nextStepDescription": "Você será avisado quando puder gerar o QR Code.",
+        "checkAgainButton": "Verificar novamente"
+      },
+      "configured": {
+        "title": "Tudo pronto!",
+        "description": "Clique no botão para gerar o QR Code e conectar o número da clínica.",
+        "step1": "Clique em \"Gerar QR Code\"",
+        "step2": "Abra o WhatsApp no celular da clínica",
+        "step3": "Vá em Ver Aparelhos → Conectar Aparelho",
+        "step4": "Escaneie o código que aparecerá na tela",
+        "generateQrButton": "Gerar QR Code"
+      },
+      "connecting": {
+        "title": "Escaneie o QR Code",
+        "description": "A conexão será reconhecida automaticamente.",
+        "waitingScan": "Aguardando leitura do celular...",
+        "generatingCode": "Gerando código...",
+        "connectedDevicesHint": "Vá em Aparelhos Conectados no seu WhatsApp"
+      },
+      "connected": {
+        "title": "WhatsApp Ativo!",
+        "description": "O agente de IA está pronto para responder seus pacientes.",
+        "statusLabel": "Status",
+        "online": "Online",
+        "numberLabel": "Número",
+        "clinicLabel": "Clínica",
+        "disconnectButton": "Desconectar WhatsApp"
+      }
+    }
+  },
+  "intelligence": {
+    "header": {
+      "title": "Central de Automações",
+      "subtitle": "Gestão de Lembretes, NPS e Confirmações Audiovisuais."
+    },
+    "toasts": {
+      "loadConfigError": "Erro ao carregar configuração: {{message}}",
+      "tenantNotFound": "Tenant não encontrado",
+      "saveSuccess": "Configurações de automação salvas com sucesso!",
+      "saveError": "Erro ao salvar: {{message}}",
+      "saveErrorUnknown": "Erro desconhecido",
+      "videoTooLarge": "O vídeo deve ter menos de 16MB.",
+      "videoUploaded": "Vídeo carregado!",
+      "videoUploadError": "Erro ao carregar vídeo."
+    },
+    "activationSection": {
+      "title": "Configurações de Ativação",
+      "noShowTitle": "Prevenção de No-Show",
+      "noShowDescription": "Confirmação 48h/24h + lembrete 2h",
+      "npsTitle": "Pesquisa NPS",
+      "npsDescription": "Pesquisa automática às 19h pós-consulta"
+    },
+    "videoSection": {
+      "title": "Vídeos de Confirmação",
+      "subtitle": "Aumente a presença com mensagens personalizadas",
+      "infoBanner": "O vídeo será enviado como mídia principal e a mensagem de texto padrão será o \"caption\" (legenda). Use proporção 9:16 (vertical).",
+      "label48h": "48 Horas Antes",
+      "label24h": "24 Horas Antes",
+      "label2h": "2 Horas Antes",
+      "labelTest": "🧪 Teste (5 Min)",
+      "uploadLabel": "VÍDEO",
+      "captionLabel": "Legenda do Vídeo",
+      "captionPlaceholder": "Digite a mensagem que acompanhará o vídeo...",
+      "charCountLabel": "Aprox. {{count}} caracteres",
+      "syncedLabel": "Sincronizado"
+    },
+    "testModeLabel": "Modo Teste (5m)",
+    "saveButton": "SALVAR ALTERAÇÕES"
   }
 }

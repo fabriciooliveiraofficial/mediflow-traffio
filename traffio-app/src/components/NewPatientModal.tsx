@@ -123,9 +123,9 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
                     .update(payload)
                     .eq('id', patientId);
                 if (error) throw error;
-                showToast('success', t('crm.newPatientModal.toasts.updated'));
+                showToast('success', t('newPatientModal.toasts.updated'));
             } else {
-                if (!tenant?.id) throw new Error(t('crm.newPatientModal.errors.tenantNotIdentified'));
+                if (!tenant?.id) throw new Error(t('newPatientModal.errors.tenantNotIdentified'));
                 const { error } = await supabase
                     .from('patients')
                     .insert([{
@@ -133,7 +133,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
                         tenant_id: tenant.id
                     }]);
                 if (error) throw error;
-                showToast('success', t('crm.newPatientModal.toasts.created'));
+                showToast('success', t('newPatientModal.toasts.created'));
             }
 
             onSuccess();
@@ -141,7 +141,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
 
         } catch (error: any) {
             console.error('Error adding patient:', error);
-            showToast('error', t('crm.newPatientModal.errors.createPrefix', { message: error.message }));
+            showToast('error', t('newPatientModal.errors.createPrefix', { message: error.message }));
         } finally {
             setLoading(false);
         }
@@ -172,10 +172,10 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
                             <div className="px-8 py-6 border-b border-ice-100 flex justify-between items-center bg-ice-50/50">
                                 <div>
                                     <h3 className="text-xl font-black text-graphite-900 tracking-tight">
-                                        {patientId ? t('crm.newPatientModal.editTitle') : t('crm.newPatientModal.newTitle')}
+                                        {patientId ? t('newPatientModal.editTitle') : t('newPatientModal.newTitle')}
                                     </h3>
                                     <p className="text-sm text-graphite-400 font-medium">
-                                        {patientId ? t('crm.newPatientModal.editSubtitle') : t('crm.newPatientModal.newSubtitle')}
+                                        {patientId ? t('newPatientModal.editSubtitle') : t('newPatientModal.newSubtitle')}
                                     </p>
                                 </div>
                                 <button
@@ -190,7 +190,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
                             <form onSubmit={handleSubmit} className="p-8 space-y-6">
                                 <div className="space-y-4">
                                     <div className="group">
-                                        <label className="block text-xs font-black text-graphite-700 uppercase tracking-widest mb-2 ml-1">{t('crm.newPatientModal.fullNameLabel')}</label>
+                                        <label className="block text-xs font-black text-graphite-700 uppercase tracking-widest mb-2 ml-1">{t('newPatientModal.fullNameLabel')}</label>
                                         <div className="relative">
                                             <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-graphite-400 group-focus-within:text-brand-primary transition-colors" />
                                             <input
@@ -199,7 +199,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
                                                 value={formData.full_name}
                                                 onChange={e => setFormData({ ...formData, full_name: e.target.value })}
                                                 className="w-full bg-ice-50 border border-ice-200 rounded-2xl py-3.5 pl-12 pr-4 text-sm font-bold text-graphite-900 focus:outline-none focus:border-brand-primary/50 focus:ring-4 focus:ring-brand-primary/10 transition-all placeholder:text-graphite-300"
-                                                placeholder={t('crm.newPatientModal.fullNamePlaceholder')}
+                                                placeholder={t('newPatientModal.fullNamePlaceholder')}
                                             />
                                         </div>
                                     </div>
@@ -215,12 +215,12 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
                                             value={formData.phone}
                                             onChange={v => setFormData({ ...formData, phone: v })}
                                             country={formData.country}
-                                            label={t('crm.newPatientModal.phoneLabel')}
+                                            label={t('newPatientModal.phoneLabel')}
                                         />
                                     </div>
 
                                     <div className="group">
-                                        <label className="block text-xs font-black text-graphite-700 uppercase tracking-widest mb-2 ml-1">{t('crm.newPatientModal.birthDateLabel')}</label>
+                                        <label className="block text-xs font-black text-graphite-700 uppercase tracking-widest mb-2 ml-1">{t('newPatientModal.birthDateLabel')}</label>
                                         <div className="relative">
                                             <Calendar size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-graphite-400 group-focus-within:text-brand-primary transition-colors" />
                                             <input
@@ -235,7 +235,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
                                     </div>
 
                                     <div className="group">
-                                        <label className="block text-xs font-black text-graphite-700 uppercase tracking-widest mb-2 ml-1">{t('crm.newPatientModal.emailLabel')}</label>
+                                        <label className="block text-xs font-black text-graphite-700 uppercase tracking-widest mb-2 ml-1">{t('newPatientModal.emailLabel')}</label>
                                         <div className="relative">
                                             <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-graphite-400 group-focus-within:text-brand-primary transition-colors" />
                                             <input
@@ -243,14 +243,14 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
                                                 value={formData.email}
                                                 onChange={e => setFormData({ ...formData, email: e.target.value })}
                                                 className="w-full bg-ice-50 border border-ice-200 rounded-2xl py-3.5 pl-12 pr-4 text-sm font-bold text-graphite-900 focus:outline-none focus:border-brand-primary/50 focus:ring-4 focus:ring-brand-primary/10 transition-all placeholder:text-graphite-300"
-                                                placeholder={t('crm.newPatientModal.emailPlaceholder')}
+                                                placeholder={t('newPatientModal.emailPlaceholder')}
                                             />
                                         </div>
                                     </div>
 
                                     {/* Healthcare Info */}
                                     <div className="pt-4 border-t border-ice-100 mt-4 space-y-4">
-                                        <label className="block text-xs font-black text-graphite-700 uppercase tracking-widest mb-2 ml-1">{t('crm.newPatientModal.careTypeLabel')}</label>
+                                        <label className="block text-xs font-black text-graphite-700 uppercase tracking-widest mb-2 ml-1">{t('newPatientModal.careTypeLabel')}</label>
                                         <div className="flex bg-ice-50 p-1 rounded-2xl border border-ice-100">
                                             <button
                                                 type="button"
@@ -262,7 +262,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
                                                         : "text-graphite-400 hover:text-graphite-600"
                                                 )}
                                             >
-                                                {t('crm.newPatientModal.particular')}
+                                                {t('newPatientModal.particular')}
                                             </button>
                                             <button
                                                 type="button"
@@ -274,7 +274,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
                                                         : "text-graphite-400 hover:text-graphite-600"
                                                 )}
                                             >
-                                                {t('crm.newPatientModal.insurance')}
+                                                {t('newPatientModal.insurance')}
                                             </button>
                                         </div>
 
@@ -285,20 +285,20 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
                                                 className="grid grid-cols-2 gap-4 overflow-hidden"
                                             >
                                                 <div className="space-y-1">
-                                                    <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wider ml-1">{t('crm.newPatientModal.insuranceProviderLabel')}</label>
+                                                    <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wider ml-1">{t('newPatientModal.insuranceProviderLabel')}</label>
                                                     <input
                                                         type="text"
-                                                        placeholder={t('crm.newPatientModal.insuranceProviderPlaceholder')}
+                                                        placeholder={t('newPatientModal.insuranceProviderPlaceholder')}
                                                         value={formData.insurance_provider}
                                                         onChange={e => setFormData({ ...formData, insurance_provider: e.target.value })}
                                                         className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-2.5 text-xs font-bold text-graphite-900 focus:outline-none focus:border-emerald-500/50 transition-all"
                                                     />
                                                 </div>
                                                 <div className="space-y-1">
-                                                    <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wider ml-1">{t('crm.newPatientModal.insuranceCardLabel')}</label>
+                                                    <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wider ml-1">{t('newPatientModal.insuranceCardLabel')}</label>
                                                     <input
                                                         type="text"
-                                                        placeholder={t('crm.newPatientModal.insuranceCardPlaceholder')}
+                                                        placeholder={t('newPatientModal.insuranceCardPlaceholder')}
                                                         value={formData.insurance_card}
                                                         onChange={e => setFormData({ ...formData, insurance_card: e.target.value })}
                                                         className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-2.5 text-xs font-bold text-graphite-900 focus:outline-none focus:border-emerald-500/50 transition-all"
@@ -315,7 +315,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
                                         onClick={onClose}
                                         className="flex-1 py-4 rounded-2xl font-bold text-graphite-700 hover:bg-ice-50 border border-transparent hover:border-ice-200 transition-all cursor-pointer"
                                     >
-                                        {t('crm.newPatientModal.cancel')}
+                                        {t('newPatientModal.cancel')}
                                     </button>
                                     <button
                                         type="submit"
@@ -323,11 +323,11 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
                                         className="flex-[2] bg-brand-primary text-white py-4 rounded-2xl font-bold shadow-xl shadow-brand-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed border-none cursor-pointer"
                                     >
                                         {loading ? (
-                                            t('crm.newPatientModal.saving')
+                                            t('newPatientModal.saving')
                                         ) : (
                                             <>
                                                 <Save size={20} />
-                                                <span>{patientId ? t('crm.newPatientModal.saveChanges') : t('crm.newPatientModal.register')}</span>
+                                                <span>{patientId ? t('newPatientModal.saveChanges') : t('newPatientModal.register')}</span>
                                             </>
                                         )}
                                     </button>

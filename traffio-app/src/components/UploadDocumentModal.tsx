@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Upload, Save, FlaskConical, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
@@ -16,6 +17,7 @@ export const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({
     onSuccess,
     patientId
 }) => {
+    const { t } = useTranslation('medical');
     const { showToast } = useToast();
     const [loading, setLoading] = useState(false);
     const [file, setFile] = useState<File | null>(null);
@@ -24,7 +26,7 @@ export const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!file) {
-            showToast('error', 'Selecione um arquivo para upload.');
+            showToast('error', t('uploadDocumentModal.toasts.fileRequired'));
             return;
         }
 
@@ -38,7 +40,7 @@ export const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({
                 .limit(1)
                 .single();
 
-            if (!memberData) throw new Error("Sessão não encontrada.");
+            if (!memberData) throw new Error(t('uploadDocumentModal.toasts.noSession'));
 
             // 2. Upload file to Storage (MOCK VERSION)
             // In a real scenario, we'd use supabase.storage.from('exams').upload(...)
@@ -60,7 +62,7 @@ export const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({
 
             if (error) throw error;
 
-            showToast('success', 'Exame anexado com sucesso! (Modo Simulação)');
+            showToast('success', t('uploadDocumentModal.toasts.saved'));
             onSuccess();
             onClose();
             setFile(null);
@@ -68,7 +70,7 @@ export const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({
 
         } catch (error: any) {
             console.error('Error uploading document:', error);
-            showToast('error', 'Erro ao anexar exame: ' + error.message);
+            showToast('error', t('uploadDocumentModal.toasts.saveErrorPrefix') + error.message);
         } finally {
             setLoading(false);
         }
@@ -92,9 +94,9 @@ export const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({
                         <div>
                             <h3 className="text-xl font-black text-graphite-900 tracking-tight flex items-center gap-2">
                                 <FlaskConical className="text-emerald-500" size={24} />
-                                Anexar Exame
+                                {t('uploadDocumentModal.title')}
                             </h3>
-                            <p className="text-sm text-graphite-400 font-medium">Envie resultados de laboratório ou imagens</p>
+                            <p className="text-sm text-graphite-400 font-medium">{t('uploadDocumentModal.subtitle')}</p>
                         </div>
                         <button
                             onClick={onClose}
@@ -108,27 +110,27 @@ export const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({
                     <form onSubmit={handleSubmit} className="p-8 space-y-6">
                         <div className="space-y-4">
                             <div className="space-y-1">
-                                <label className="text-[10px] font-black text-graphite-400 uppercase tracking-widest mb-1 block">Descrição do Exame</label>
+                                <label className="text-[10px] font-black text-graphite-400 uppercase tracking-widest mb-1 block">{t('uploadDocumentModal.descriptionLabel')}</label>
                                 <input
                                     type="text"
                                     value={description}
                                     onChange={e => setDescription(e.target.value)}
-                                    placeholder="Ex: Hemograma Completo"
+                                    placeholder={t('uploadDocumentModal.descriptionPlaceholder')}
                                     className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-bold text-graphite-900 focus:outline-none focus:border-brand-primary/50 focus:ring-4 focus:ring-brand-primary/10 transition-all"
                                 />
                             </div>
 
                             <div className="space-y-1">
-                                <label className="text-[10px] font-black text-graphite-400 uppercase tracking-widest mb-1 block">Arquivo</label>
+                                <label className="text-[10px] font-black text-graphite-400 uppercase tracking-widest mb-1 block">{t('uploadDocumentModal.fileLabel')}</label>
                                 <label className="flex flex-col items-center justify-center gap-3 w-full py-12 border-2 border-dashed border-ice-200 rounded-2xl text-sm font-medium text-graphite-400 hover:border-emerald-500/40 hover:bg-emerald-50/30 transition-all cursor-pointer group">
                                     <div className="w-16 h-16 rounded-2xl bg-ice-50 flex items-center justify-center group-hover:scale-110 group-hover:bg-emerald-50 transition-all">
                                         <Upload className="text-ice-300 group-hover:text-emerald-500" size={32} />
                                     </div>
                                     <div className="text-center">
                                         <p className="font-bold text-graphite-900 group-hover:text-emerald-600">
-                                            {file ? file.name : 'Clique para selecionar'}
+                                            {file ? file.name : t('uploadDocumentModal.fileSelectPlaceholder')}
                                         </p>
-                                        <p className="text-xs text-graphite-400">PDF, JPG, PNG ou DICOM (máx 10MB)</p>
+                                        <p className="text-xs text-graphite-400">{t('uploadDocumentModal.fileHint')}</p>
                                     </div>
                                     <input
                                         type="file"
@@ -147,7 +149,7 @@ export const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({
                                 onClick={onClose}
                                 className="flex-1 py-4 rounded-2xl font-bold text-graphite-700 hover:bg-ice-50 border border-ice-200 transition-all cursor-pointer"
                             >
-                                Cancelar
+                                {t('uploadDocumentModal.cancel')}
                             </button>
                             <button
                                 type="submit"
@@ -157,7 +159,7 @@ export const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({
                                 {loading ? (
                                     <Loader2 className="animate-spin" size={18} />
                                 ) : (
-                                    <><Save size={18} /><span>SALVAR EXAME</span></>
+                                    <><Save size={18} /><span>{t('uploadDocumentModal.save')}</span></>
                                 )}
                             </button>
                         </div>
