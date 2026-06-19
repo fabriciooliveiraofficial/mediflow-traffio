@@ -240,10 +240,11 @@ export function useTelnyxWebRTC(enabled: boolean): UseTelnyxWebRTCReturn {
         callRef.current = call;
 
         if (state === 'ringing' || state === 'early') {
-          setCallState('ringing');
+          const isIncoming = call.direction === 'inbound' || call.direction === 'incoming';
+          setCallState(isIncoming ? 'ringing' : 'calling');
           setActiveCall({
             id:           call.id,
-            direction:    call.direction === 'inbound' ? 'inbound' : 'outbound',
+            direction:    isIncoming ? 'inbound' : 'outbound',
             remoteNumber: call.remoteNumber ?? call.callerNumber ?? '',
             remoteName:   call.callerName ?? undefined,
             startedAt:    new Date(),
@@ -251,16 +252,18 @@ export function useTelnyxWebRTC(enabled: boolean): UseTelnyxWebRTCReturn {
           });
         } else if (state === 'active') {
           setCallState('active');
-          setActiveCall((prev) => prev
-            ? { ...prev, callRef: call }
-            : {
-                id:           call.id,
-                direction:    'outbound',
-                remoteNumber: call.remoteNumber ?? '',
-                startedAt:    new Date(),
-                callRef:      call,
-              }
-          );
+          setActiveCall((prev) => {
+            const isIncoming = call.direction === 'inbound' || call.direction === 'incoming';
+            return prev
+              ? { ...prev, callRef: call }
+              : {
+                  id:           call.id,
+                  direction:    isIncoming ? 'inbound' : 'outbound',
+                  remoteNumber: call.remoteNumber ?? '',
+                  startedAt:    new Date(),
+                  callRef:      call,
+                };
+          });
         } else if (state === 'held') {
           setCallState('held');
           setIsOnHold(true);

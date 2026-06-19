@@ -436,9 +436,11 @@ export function FloatingCommunicationsButton({ enabled, activeNumber: activeNumb
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-white font-black text-sm truncate">
-                {callerName ?? activeCall.remoteNumber ?? 'Em chamada'}
+                {callerName ?? activeCall.remoteNumber ?? (callState === 'calling' ? 'Discando' : 'Em chamada')}
               </p>
-              <p className="text-white/70 text-xs font-mono">{fmt(callDuration)}</p>
+              <p className="text-white/70 text-xs font-mono">
+                {callState === 'calling' ? 'Chamando...' : fmt(callDuration)}
+              </p>
             </div>
           </div>
           <div className="px-3 py-3 grid grid-cols-4 gap-1.5">
