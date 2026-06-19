@@ -22,6 +22,7 @@ import {
 import { useTelnyxWebRTC } from '../../hooks/useTelnyxWebRTC';
 import type { ActiveCall } from '../../hooks/useTelnyxWebRTC';
 import { supabase } from '../../lib/supabase';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
 
 // ─── Sons via Web Audio API (sem arquivos externos) ─────────────────────────
 
@@ -142,12 +143,62 @@ export function FloatingCommunicationsButton({ enabled, activeNumber, tenantId }
   const audioCtxRef  = useRef<AudioContext | null>(null);
   const ringStopRef  = useRef({ value: false });
   const durationRef  = useRef<ReturnType<typeof setInterval> | null>(null);
+  const dialInputRef = useRef<HTMLInputElement>(null);
+
+  // Foca o input automaticamente quando o widget for expandido no modo dial
+  useEffect(() => {
+    if (expanded && mode === 'dial' && callState === 'idle') {
+      const timer = setTimeout(() => {
+        dialInputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [expanded, mode, callState]);
 
   const {
     status, callState, activeCall,
     isMuted, isOnHold,
     dial, answer, hangup, toggleMute, toggleHold, transfer,
   } = useTelnyxWebRTC(enabled);
+
+  const handleCall = () => {
+    if (dialInput.length < 5) return;
+
+    let numberToDial = dialInput.trim();
+
+    // Se o número não começa com '+', tentamos inferir o código do país pelo activeNumber
+    if (!numberToDial.startsWith('+') && activeNumber) {
+      const parsedActive = parsePhoneNumberFromString(activeNumber);
+      const defaultCountry = parsedActive?.country; // e.g. 'BR'
+      
+      const parsedDial = parsePhoneNumberFromString(numberToDial, defaultCountry);
+      
+      if (parsedDial && parsedDial.isValid()) {
+        numberToDial = parsedDial.number;
+      } else {
+        // Fallback se libphonenumber-js achar inválido ou incompleto (ex: 5541997759569 sem +)
+        const ddi = parsedActive?.countryCallingCode;
+        if (ddi) {
+          const cleanNumber = numberToDial.replace(/\D/g, '');
+          // Se o número limpo já começa com o DDI correspondente do activeNumber e tem comprimento razoável,
+          // assumimos que o usuário digitou o DDI mas esqueceu o '+'
+          if (cleanNumber.startsWith(ddi) && cleanNumber.length > ddi.length + 6) {
+            numberToDial = `+${cleanNumber}`;
+          } else {
+            numberToDial = `+${ddi}${cleanNumber}`;
+          }
+        } else {
+          numberToDial = numberToDial.replace(/[^\d+]/g, '');
+        }
+      }
+    } else {
+      numberToDial = numberToDial.replace(/[^\d+]/g, '');
+    }
+
+    dial(numberToDial, activeNumber);
+    setExpanded(false);
+    setDialInput('');
+  };
 
   // ── Identificar paciente na chamada recebida ──────────────────────────────
   useEffect(() => {
@@ -350,9 +401,15 @@ export function FloatingCommunicationsButton({ enabled, activeNumber, tenantId }
           {mode === 'dial' && (
             <div className="p-4 space-y-3">
               <input
+                ref={dialInputRef}
                 type="tel"
                 value={dialInput}
                 onChange={(e) => setDialInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleCall();
+                  }
+                }}
                 placeholder="Digite o número..."
                 className="w-full text-center text-xl font-black text-graphite-800 bg-ice-50 border border-ice-200 rounded-2xl px-3 py-2.5 focus:outline-none focus:border-brand-primary font-mono tracking-widest"
               />
@@ -367,12 +424,34 @@ export function FloatingCommunicationsButton({ enabled, activeNumber, tenantId }
                   ))}
                 </div>
               ))}
+              {/* Botões de +, backspace e limpar */}
               <div className="grid grid-cols-3 gap-2">
-                <button onClick={() => setDialInput((p) => p.slice(0, -1))} className="py-3 rounded-2xl bg-ice-50 text-graphite-400 font-bold hover:bg-ice-100 border-none cursor-pointer">⌫</button>
                 <button
-                  onClick={() => { if (dialInput.length >= 5) { dial(dialInput, activeNumber); setExpanded(false); setDialInput(''); } }}
+                  onClick={() => setDialInput((p) => p + '+')}
+                  className="py-3 rounded-2xl bg-ice-50 text-graphite-700 font-black text-lg hover:bg-ice-100 active:scale-95 transition-all border-none cursor-pointer"
+                >
+                  +
+                </button>
+                <button
+                  onClick={() => setDialInput((p) => p.slice(0, -1))}
+                  className="py-3 rounded-2xl bg-ice-50 text-graphite-400 font-bold text-sm hover:bg-ice-100 transition-all border-none cursor-pointer"
+                >
+                  ⌫
+                </button>
+                <button
+                  onClick={() => setDialInput('')}
+                  className="py-3 rounded-2xl bg-ice-50 text-graphite-400 font-bold text-sm hover:bg-ice-100 transition-all border-none cursor-pointer"
+                >
+                  C
+                </button>
+              </div>
+
+              {/* Botão de ligar */}
+              <div className="mt-1">
+                <button
+                  onClick={handleCall}
                   disabled={dialInput.length < 5 || status !== 'ready'}
-                  className="col-span-2 py-3 rounded-2xl bg-green-500 text-white font-black flex items-center justify-center gap-2 hover:bg-green-600 disabled:opacity-40 disabled:cursor-not-allowed border-none cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-green-500 text-white font-black text-sm hover:bg-green-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all border-none cursor-pointer"
                 >
                   <Phone size={18} /> Ligar
                 </button>
