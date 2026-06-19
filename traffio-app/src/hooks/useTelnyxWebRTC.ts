@@ -311,6 +311,7 @@ export function useTelnyxWebRTC(enabled: boolean): UseTelnyxWebRTCReturn {
       destinationNumber: number,
       callerName:        'Traffio',
       callerNumber:      callerNumber ?? '',
+      audio:             true,
     });
   }, [status]);
 
