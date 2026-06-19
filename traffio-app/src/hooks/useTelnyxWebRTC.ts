@@ -214,6 +214,24 @@ export function useTelnyxWebRTC(enabled: boolean): UseTelnyxWebRTCReturn {
 
       client.on('telnyx.notification', (notification: any) => {
         if (!mounted) return;
+
+        // Registrar notificações do WebRTC para diagnóstico detalhado do ciclo de chamada
+        logPlatformClient({
+          level: 'info',
+          source: 'useTelnyxWebRTC',
+          eventName: `notification_${notification.type}`,
+          message: `Telnyx notification received: ${notification.type} (call state: ${notification.call?.state ?? 'N/A'})`,
+          metadata: {
+            type: notification.type,
+            callId: notification.call?.id,
+            state: notification.call?.state,
+            direction: notification.call?.direction,
+            cause: notification.call?.cause,
+            remoteNumber: notification.call?.remoteNumber,
+            callerNumber: notification.call?.callerNumber,
+          }
+        });
+
         if (notification.type !== 'callUpdate') return;
 
         const call  = notification.call;
