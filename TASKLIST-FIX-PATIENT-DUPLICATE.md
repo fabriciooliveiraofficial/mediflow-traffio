@@ -9,33 +9,35 @@ HTTP 500 em public-booking (action=book)
 ```
 Ocorre no passo final do widget (confirmar agendamento), ao criar/recuperar o paciente "guest" antes de chamar `book_appointment`.
 
-## Causa raiz
-`upsertGuestPatient` (em `traffio-app/supabase/functions/public-booking/index.ts`) usa um único filtro `.or("phone.eq.X,email.eq.Y")` para checar se o paciente já existe:
-1. Não verifica `error` da consulta — trata falha de leitura como "não encontrado" e segue para o `INSERT`.
-2. Se telefone e e-mail digitados pertencerem a **dois pacientes diferentes** (provável dado os testes repetidos com autofill), a consulta combinada só traz um deles — o código erra ao concluir que o e-mail "não existe" e tenta inserir, colidindo com `idx_patients_tenant_email`.
+## Causa raiz (confirmada com `pg_indexes`)
+```
+idx_patients_phone        → índice NORMAL, telefone NÃO é único (pode ser compartilhado, ex. familiares)
+idx_patients_tenant_email → ÚNICO (tenant_id, email) WHERE email IS NOT NULL  ← única identidade real
+```
+`upsertGuestPatient` usava `.or("phone.eq.X,email.eq.Y")`, o que era desnecessário e frágil:
+1. Não verificava `error` da consulta — falha de leitura era tratada como "não encontrado", seguindo para o `INSERT` às escuras.
+2. Telefone nunca foi uma fonte válida de deduplicação (não é único); misturar os dois critérios só introduzia ambiguidade.
+
+A correção usa **somente e-mail** como identidade de deduplicação — é a única coisa que o banco garante única.
 
 ## Diagnóstico — ações de verificação (somente leitura)
-- [ ] **D.1** Rodar no SQL Editor do Supabase o script de 3 queries fornecido no chat (lista de pacientes de teste + e-mails duplicados + constraints reais).
-- [ ] **D.2** Confirmar com o resultado: há pacientes de teste com telefone/e-mail cruzados entre registros diferentes?
-- [ ] **D.3** Confirmar nome exato das constraints únicas (`idx_patients_tenant_email`, e a de telefone, se existir) para mapear o `error.code`/`constraint` corretamente no tratamento de conflito.
+- [x] **D.1** Script de `pg_indexes` rodado pelo usuário — confirmou que telefone não é único, só e-mail.
+- [x] **D.2/D.3** Causa raiz confirmada e simplificada (ver acima).
 
-## Correção de código (aguardando autorização para implementar)
-- [ ] **C.1** Reescrever `upsertGuestPatient` em `public-booking/index.ts`:
-  - [ ] Consulta **1**: buscar por e-mail (autoridade principal, é o canal de confirmação).
-  - [ ] Consulta **2**: se não achar por e-mail, buscar por telefone.
-  - [ ] Verificar `error` em **ambas** as consultas — nunca seguir para `INSERT` silenciosamente em caso de falha de leitura.
-- [ ] **C.2** No catch do `INSERT` (`error.code === '23505'`):
-  - [ ] Reconsultar por e-mail, depois por telefone, para recuperar o `id` real.
-  - [ ] Se ainda assim não resolver, devolver erro **amigável** (`409` com mensagem clara), nunca o texto bruto do Postgres.
-- [ ] **C.3** Adicionar log estruturado (console.error) nos pontos de falha de leitura para facilitar diagnóstico futuro sem precisar reproduzir no browser.
-- [ ] **C.4** *(Melhoria não bloqueante)* Normalizar telefone para dígitos antes de gravar/comparar (hoje grava formatado, ex.: `(11) 90000-0000`), reduzindo falsas não-correspondências futuras.
+## Correção de código
+- [x] **C.1** Reescrita `upsertGuestPatient` em `public-booking/index.ts`: busca **somente por e-mail**, com `error` verificado explicitamente (nunca segue para INSERT em caso de falha de leitura).
+- [x] **C.2** Catch do `INSERT` (`23505`): reconsulta por e-mail e reaproveita o `id`; se não resolver, lança erro amigável (sem texto bruto do Postgres).
+- [x] **C.3** `console.error` nos pontos de falha de leitura/insert.
+- [ ] **C.4** *(Melhoria não bloqueante, não feita agora)* Normalizar telefone para dígitos antes de gravar (hoje grava formatado, ex.: `(11) 90000-0000`).
 
-## Deploy e validação (após autorização)
-- [ ] **V.1** Deploy da edge function `public-booking` (`npx supabase functions deploy public-booking --no-verify-jwt`).
-- [ ] **V.2** Teste via curl: mesmo e-mail + telefone novo → deve reusar paciente existente (sem erro).
-- [ ] **V.3** Teste via curl: telefone já usado por paciente A + e-mail já usado por paciente B (cenário ambíguo) → deve resolver por e-mail (prioridade), sem 500.
-- [ ] **V.4** Teste no widget real (demo) repetindo o fluxo completo 2x com os mesmos dados.
-- [ ] **V.5** Confirmar que nenhum erro bruto do Postgres aparece mais no console do navegador.
+## Deploy e validação
+- [x] **V.1** ✅ Deploy concluído (`npx supabase functions deploy public-booking --no-verify-jwt`).
+- [x] **V.2** ✅ E-mail já existente + telefone novo → reaproveitou o mesmo `patient_id`, sem erro.
+- [x] **V.3** ✅ E-mail novo → criou paciente novo normalmente, sem erro.
+- [ ] **V.4** **Pendente — ação do usuário:** repetir o fluxo completo 2x no widget real (demo), incluindo reenviar o mesmo e-mail.
+- [ ] **V.5** **Pendente — ação do usuário:** confirmar que não aparece mais erro bruto do Postgres no console do navegador.
+
+> Nota: durante o teste V.3 apareceu, à parte, `no_overlap_appointments` ao reusar um horário já ocupado por testes anteriores — é o anti-double-booking funcionando corretamente, não um bug.
 
 ## Itens não-bug (apenas para registro, sem ação necessária)
 - [x] `favicon.ico 404` — cosmético; resolver depois adicionando um `<link rel="icon">` na demo, sem urgência.

@@ -12,8 +12,10 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 export const MasterDashboard = () => {
+    const { t } = useTranslation('master');
     const navigate = useNavigate();
     const [stats, setStats] = useState({
         totalTenants: 0,
@@ -75,43 +77,43 @@ export const MasterDashboard = () => {
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Header */}
             <div>
-                <h1 className="text-3xl font-black text-white tracking-tight mb-2">Master Command Center</h1>
-                <p className="text-slate-400 font-medium">Visão global da plataforma Traffio.</p>
+                <h1 className="text-3xl font-black text-white tracking-tight mb-2">{t('dashboard.headerTitle')}</h1>
+                <p className="text-slate-400 font-medium">{t('dashboard.headerSubtitle')}</p>
             </div>
 
             {/* KPI Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <KPICard
-                    title="Total Tenants"
+                    title={t('dashboard.kpis.totalTenants')}
                     value={stats.totalTenants}
                     icon={Building2}
                     color="text-emerald-400"
                     bg="bg-emerald-400/10"
-                    trend="+12% esse mês"
+                    trend={t('dashboard.kpis.totalTenantsTrend')}
                 />
                 <KPICard
-                    title="Instâncias Z-API"
+                    title={t('dashboard.kpis.instances')}
                     value={stats.activeInstances}
                     icon={MessageSquare}
                     color="text-sky-400"
                     bg="bg-sky-400/10"
-                    trend="98.5% Uptime"
+                    trend={t('dashboard.kpis.instancesTrend')}
                 />
                 <KPICard
-                    title="Usuários Totais"
+                    title={t('dashboard.kpis.totalUsers')}
                     value={stats.totalUsers}
                     icon={Users}
                     color="text-indigo-400"
                     bg="bg-indigo-400/10"
-                    trend="Médicos e Staff"
+                    trend={t('dashboard.kpis.totalUsersTrend')}
                 />
                 <KPICard
-                    title="MRR Estimado"
+                    title={t('dashboard.kpis.mrr')}
                     value={`R$ ${stats.mrr.toLocaleString('pt-BR')}`}
                     icon={TrendingUp}
                     color="text-amber-400"
                     bg="bg-amber-400/10"
-                    trend="Baseado em R$297/mo"
+                    trend={t('dashboard.kpis.mrrTrend')}
                 />
             </div>
 
@@ -124,18 +126,18 @@ export const MasterDashboard = () => {
                             <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-500">
                                 <Activity size={20} />
                             </div>
-                            <h3 className="text-lg font-bold text-white">Atividade da Rede</h3>
+                            <h3 className="text-lg font-bold text-white">{t('dashboard.networkActivity.title')}</h3>
                         </div>
                         <select className="bg-[#1A2035] border border-[#2D3B55] text-slate-400 text-xs font-bold rounded-lg px-3 py-1.5 focus:outline-none">
-                            <option>Últimos 7 dias</option>
-                            <option>Últimos 30 dias</option>
+                            <option>{t('dashboard.networkActivity.last7Days')}</option>
+                            <option>{t('dashboard.networkActivity.last30Days')}</option>
                         </select>
                     </div>
 
                     <div className="h-[300px] flex items-center justify-center border border-dashed border-[#2D3B55] rounded-xl bg-[#0B101F]">
                         <p className="text-slate-500 text-sm font-medium flex items-center gap-2">
                             <Shield size={16} />
-                            Logs de Atividade em breve
+                            {t('dashboard.networkActivity.comingSoon')}
                         </p>
                     </div>
                 </div>
@@ -147,19 +149,19 @@ export const MasterDashboard = () => {
                             <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-500">
                                 <Server size={20} />
                             </div>
-                            <h3 className="text-lg font-bold text-white">Tenants Recentes</h3>
+                            <h3 className="text-lg font-bold text-white">{t('dashboard.recentTenants.title')}</h3>
                         </div>
                         <button
                             onClick={() => navigate('/master/tenants')}
                             className="text-xs font-bold text-indigo-400 hover:text-indigo-300 transition-colors border-none bg-transparent cursor-pointer"
                         >
-                            Ver todos
+                            {t('dashboard.recentTenants.viewAll')}
                         </button>
                     </div>
 
                     <div className="space-y-4">
                         {loading ? (
-                            <div className="text-slate-500 text-sm text-center py-4">Carregando...</div>
+                            <div className="text-slate-500 text-sm text-center py-4">{t('dashboard.recentTenants.loading')}</div>
                         ) : recentTenants.map((tenant) => (
                             <div key={tenant.id} className="flex items-center gap-3 p-3 rounded-xl bg-[#1A2035] border border-[#2D3B55] hover:border-indigo-500/30 transition-colors group cursor-pointer">
                                 <div className="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
@@ -167,14 +169,14 @@ export const MasterDashboard = () => {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <h4 className="text-sm font-bold text-white truncate group-hover:text-indigo-400 transition-colors">{tenant.name}</h4>
-                                    <p className="text-xs text-slate-500 truncate">{tenant.slug || 'sem-slug'}</p>
+                                    <p className="text-xs text-slate-500 truncate">{tenant.slug || t('dashboard.recentTenants.noSlug')}</p>
                                 </div>
                                 <ExternalLink size={14} className="text-slate-600 group-hover:text-white transition-colors" />
                             </div>
                         ))}
 
                         {recentTenants.length === 0 && !loading && (
-                            <div className="text-slate-500 text-sm text-center py-4">Nenhum tenant encontrado.</div>
+                            <div className="text-slate-500 text-sm text-center py-4">{t('dashboard.recentTenants.empty')}</div>
                         )}
                     </div>
                 </div>

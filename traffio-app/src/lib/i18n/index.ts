@@ -31,6 +31,7 @@ export const NAMESPACES = [
     'billing',
     'communications',
     'automations',
+    'master',
 ] as const;
 
 export const LANGUAGE_STORAGE_KEY = 'traffio_language';

@@ -70,7 +70,18 @@ serve(async (req: Request) => {
         upsertData.telnyx_number_id = telnyxNumberId;
       }
 
-      await supabase.from("tenant_phone_numbers").upsert(upsertData, { onConflict: "tenant_id,phone_number" });
+      const { data: existingNum } = await supabase
+        .from("tenant_phone_numbers")
+        .select("id")
+        .eq("tenant_id", order.tenant_id)
+        .eq("phone_number", phoneNumber)
+        .maybeSingle();
+
+      if (existingNum) {
+        await supabase.from("tenant_phone_numbers").update(upsertData).eq("id", existingNum.id);
+      } else {
+        await supabase.from("tenant_phone_numbers").insert(upsertData);
+      }
 
       // Registrar uso: aquisição de número (KYC aprovado)
       const pricing = getNumberPricing(order.country_code);

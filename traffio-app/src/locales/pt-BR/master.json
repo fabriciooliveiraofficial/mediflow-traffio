@@ -1,0 +1,58 @@
+{
+  "adminLayout": {
+    "nav": {
+      "dashboard": "Command Center",
+      "tenants": "Tenants",
+      "tenantsBadge": "SaaS",
+      "whatsapp": "Instâncias Z-API",
+      "billing": "Financeiro",
+      "logs": "Logs & Auditoria"
+    },
+    "platformControl": "Platform Control",
+    "collapse": "Recolher",
+    "signOut": "Sair da Conta"
+  },
+  "app": {
+    "nav": {
+      "dashboard": "Command Center",
+      "tenants": "Tenants & SaaS",
+      "whatsapp": "Z-API Instances",
+      "whatsappBadge": "Status",
+      "intelligence": "AI Orchestrator",
+      "intelligenceBadge": "New",
+      "logs": "System Logs",
+      "settings": "Platform Config"
+    },
+    "signOut": "Sair",
+    "menu": "MENU",
+    "logsPlaceholder": "Logs do Sistema em construção",
+    "settingsPlaceholder": "Configurações da Plataforma em construção"
+  },
+  "dashboard": {
+    "headerTitle": "Master Command Center",
+    "headerSubtitle": "Visão global da plataforma Traffio.",
+    "kpis": {
+      "totalTenants": "Total Tenants",
+      "totalTenantsTrend": "+12% esse mês",
+      "instances": "Instâncias Z-API",
+      "instancesTrend": "98.5% Uptime",
+      "totalUsers": "Usuários Totais",
+      "totalUsersTrend": "Médicos e Staff",
+      "mrr": "MRR Estimado",
+      "mrrTrend": "Baseado em R$297/mo"
+    },
+    "networkActivity": {
+      "title": "Atividade da Rede",
+      "last7Days": "Últimos 7 dias",
+      "last30Days": "Últimos 30 dias",
+      "comingSoon": "Logs de Atividade em breve"
+    },
+    "recentTenants": {
+      "title": "Tenants Recentes",
+      "viewAll": "Ver todos",
+      "loading": "Carregando...",
+      "noSlug": "sem-slug",
+      "empty": "Nenhum tenant encontrado."
+    }
+  }
+}

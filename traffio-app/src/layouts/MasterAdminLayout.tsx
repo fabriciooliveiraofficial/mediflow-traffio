@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { clsx } from 'clsx';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 
@@ -24,22 +25,23 @@ interface NavItem {
     badge?: string;
 }
 
-const navItems: NavItem[] = [
-    { id: 'dashboard', label: 'Command Center', icon: LayoutDashboard },
-    { id: 'tenants', label: 'Tenants', icon: Users, badge: 'SaaS' },
-    { id: 'whatsapp', label: 'Instâncias Z-API', icon: MessageCircle },
-    { id: 'billing', label: 'Financeiro', icon: CreditCard },
-    { id: 'logs', label: 'Logs & Auditoria', icon: ScrollText },
-];
-
 export const MasterAdminLayout = ({ children, activeScreen, onNavigate }: {
     children: React.ReactNode,
     activeScreen: string,
     onNavigate: (id: string) => void
 }) => {
+    const { t } = useTranslation('master');
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const navigate = useNavigate();
+
+    const navItems: NavItem[] = [
+        { id: 'dashboard', label: t('adminLayout.nav.dashboard'), icon: LayoutDashboard },
+        { id: 'tenants', label: t('adminLayout.nav.tenants'), icon: Users, badge: t('adminLayout.nav.tenantsBadge') },
+        { id: 'whatsapp', label: t('adminLayout.nav.whatsapp'), icon: MessageCircle },
+        { id: 'billing', label: t('adminLayout.nav.billing'), icon: CreditCard },
+        { id: 'logs', label: t('adminLayout.nav.logs'), icon: ScrollText },
+    ];
 
     const handleSignOut = async () => {
         await supabase.auth.signOut();
@@ -74,7 +76,7 @@ export const MasterAdminLayout = ({ children, activeScreen, onNavigate }: {
                 {/* Nav */}
                 <nav className="flex-1 px-4 space-y-1 mt-6">
                     <p className={clsx("text-[10px] font-black uppercase tracking-widest text-slate-500 px-4 mb-3 transition-opacity", !isSidebarOpen && "opacity-0")}>
-                        Platform Control
+                        {t('adminLayout.platformControl')}
                     </p>
                     {navItems.map((item) => {
                         const isActive = activeScreen === item.id;
@@ -125,14 +127,14 @@ export const MasterAdminLayout = ({ children, activeScreen, onNavigate }: {
                         className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:text-white hover:bg-white/5 transition-all border-none cursor-pointer bg-transparent"
                     >
                         {isSidebarOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
-                        <span className={clsx("text-sm font-medium", !isSidebarOpen && "hidden")}>Recolher</span>
+                        <span className={clsx("text-sm font-medium", !isSidebarOpen && "hidden")}>{t('adminLayout.collapse')}</span>
                     </button>
                     <button
                         onClick={handleSignOut}
                         className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-all border-none cursor-pointer bg-transparent mt-1"
                     >
                         <LogOut size={18} />
-                        <span className={clsx("text-sm font-medium", !isSidebarOpen && "hidden")}>Sair da Conta</span>
+                        <span className={clsx("text-sm font-medium", !isSidebarOpen && "hidden")}>{t('adminLayout.signOut')}</span>
                     </button>
                 </div>
             </aside>
@@ -199,7 +201,7 @@ export const MasterAdminLayout = ({ children, activeScreen, onNavigate }: {
                                     className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-rose-400 hover:bg-rose-500/10 transition-all border-none cursor-pointer bg-transparent"
                                 >
                                     <LogOut size={20} />
-                                    <span className="font-semibold text-sm">Sair da Conta</span>
+                                    <span className="font-semibold text-sm">{t('adminLayout.signOut')}</span>
                                 </button>
                             </div>
                         </motion.aside>

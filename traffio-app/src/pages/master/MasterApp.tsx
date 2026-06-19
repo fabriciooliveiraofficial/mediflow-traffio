@@ -19,21 +19,23 @@ import { MasterWhatsApp } from './MasterWhatsApp';
 import { MasterIntelligence } from './MasterIntelligence';
 import { clsx } from 'clsx';
 import { AnimatePresence, motion } from 'framer-motion';
-
-const navItems = [
-    { id: 'dashboard', label: 'Command Center', icon: LayoutDashboard, path: '/master/dashboard' },
-    { id: 'tenants', label: 'Tenants & SaaS', icon: Building2, path: '/master/tenants' },
-    { id: 'whatsapp', label: 'Z-API Instances', icon: MessageSquare, path: '/master/whatsapp', badge: 'Status' },
-    { id: 'intelligence', label: 'AI Orchestrator', icon: BrainCircuit, path: '/master/intelligence', badge: 'New' },
-    { id: 'logs', label: 'System Logs', icon: Server, path: '/master/logs' },
-    { id: 'settings', label: 'Platform Config', icon: Settings, path: '/master/settings' },
-];
+import { useTranslation } from 'react-i18next';
 
 export const MasterApp = () => {
+    const { t } = useTranslation('master');
     const [isSidebarOpen] = useState(true);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
+
+    const navItems = [
+        { id: 'dashboard', label: t('app.nav.dashboard'), icon: LayoutDashboard, path: '/master/dashboard' },
+        { id: 'tenants', label: t('app.nav.tenants'), icon: Building2, path: '/master/tenants' },
+        { id: 'whatsapp', label: t('app.nav.whatsapp'), icon: MessageSquare, path: '/master/whatsapp', badge: t('app.nav.whatsappBadge') },
+        { id: 'intelligence', label: t('app.nav.intelligence'), icon: BrainCircuit, path: '/master/intelligence', badge: t('app.nav.intelligenceBadge') },
+        { id: 'logs', label: t('app.nav.logs'), icon: Server, path: '/master/logs' },
+        { id: 'settings', label: t('app.nav.settings'), icon: Settings, path: '/master/settings' },
+    ];
 
     const handleSignOut = async () => {
         await supabase.auth.signOut();
@@ -102,7 +104,7 @@ export const MasterApp = () => {
                         )}
                     >
                         <LogOut size={20} />
-                        <span className={clsx("font-bold text-sm", !isSidebarOpen && "hidden")}>Sair</span>
+                        <span className={clsx("font-bold text-sm", !isSidebarOpen && "hidden")}>{t('app.signOut')}</span>
                     </button>
                 </div>
             </aside>
@@ -132,8 +134,8 @@ export const MasterApp = () => {
                         <Route path="tenants" element={<MasterTenants />} />
                         <Route path="whatsapp" element={<MasterWhatsApp />} />
                         <Route path="intelligence" element={<MasterIntelligence />} />
-                        <Route path="logs" element={<div className="p-8 text-center text-slate-500">Logs do Sistema em construção</div>} />
-                        <Route path="settings" element={<div className="p-8 text-center text-slate-500">Configurações da Plataforma em construção</div>} />
+                        <Route path="logs" element={<div className="p-8 text-center text-slate-500">{t('app.logsPlaceholder')}</div>} />
+                        <Route path="settings" element={<div className="p-8 text-center text-slate-500">{t('app.settingsPlaceholder')}</div>} />
                         <Route path="*" element={<Navigate to="/master/dashboard" replace />} />
                     </Routes>
                 </div>
@@ -157,7 +159,7 @@ export const MasterApp = () => {
                             className="fixed left-0 top-0 bottom-0 w-72 bg-[#0F1629] border-r border-[#1E293B] z-50 lg:hidden flex flex-col p-6"
                         >
                             <div className="flex items-center justify-between mb-8">
-                                <span className="font-black text-xl text-white">MENU</span>
+                                <span className="font-black text-xl text-white">{t('app.menu')}</span>
                                 <button onClick={() => setIsMobileMenuOpen(false)} className="text-slate-500 hover:text-white bg-transparent border-none">
                                     <X size={24} />
                                 </button>
@@ -184,7 +186,7 @@ export const MasterApp = () => {
                                 className="w-full flex items-center gap-4 px-4 py-4 rounded-xl text-rose-400 hover:bg-rose-500/10 transition-all border-none bg-transparent mt-auto"
                             >
                                 <LogOut size={22} />
-                                <span className="font-bold">Sair</span>
+                                <span className="font-bold">{t('app.signOut')}</span>
                             </button>
                         </motion.div>
                     </>
