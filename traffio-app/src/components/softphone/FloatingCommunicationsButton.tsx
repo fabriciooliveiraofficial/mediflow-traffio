@@ -124,12 +124,13 @@ interface Props {
   tenantId?:     string;
 }
 
-export function FloatingCommunicationsButton({ enabled, activeNumber, tenantId }: Props) {
+export function FloatingCommunicationsButton({ enabled, activeNumber: activeNumberProp, tenantId }: Props) {
   const { pos, onMouseDown } = useDraggable(
     { x: window.innerWidth - 80, y: window.innerHeight - 80 },
     'traffio_softphone_pos'
   );
 
+  const [activeNumber,   setActiveNumber]   = useState<string | undefined>(activeNumberProp);
   const [expanded,       setExpanded]       = useState(false);
   const [dialInput,      setDialInput]      = useState('');
   const [smsInput,       setSmsInput]       = useState('');
@@ -160,6 +161,28 @@ export function FloatingCommunicationsButton({ enabled, activeNumber, tenantId }
       return () => clearTimeout(timer);
     }
   }, [expanded, mode, callState]);
+
+  // Buscar o número de telefone ativo do tenant se não for passado via prop
+  useEffect(() => {
+    if (activeNumberProp) {
+      setActiveNumber(activeNumberProp);
+      return;
+    }
+    if (!tenantId) return;
+
+    supabase
+      .from('tenant_phone_numbers')
+      .select('phone_number')
+      .eq('tenant_id', tenantId)
+      .eq('is_active', true)
+      .limit(1)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (data && !error) {
+          setActiveNumber(data.phone_number);
+        }
+      });
+  }, [activeNumberProp, tenantId]);
 
   const handleCall = () => {
     if (dialInput.length < 5) return;
