@@ -36,6 +36,40 @@ export const MasterBilling = () => {
     const [wallets, setWallets] = useState<any[]>([]);
     const [usageLogs, setUsageLogs] = useState<any[]>([]);
     const [transactions, setTransactions] = useState<any[]>([]);
+    const [masterBalance, setMasterBalance] = useState<{ balance: number; currency: string } | null>(null);
+    const [refreshingBalance, setRefreshingBalance] = useState(false);
+
+    const fetchMasterBalance = async () => {
+        setRefreshingBalance(true);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return;
+
+            const res = await fetch(
+                `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/telnyx-balance`,
+                {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${session.access_token}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+            if (res.ok) {
+                const data = await res.json();
+                setMasterBalance({
+                    balance: parseFloat(data.balance) || 0,
+                    currency: data.currency || 'USD'
+                });
+            } else {
+                console.error('Failed to fetch Telnyx master balance. Status:', res.status);
+            }
+        } catch (err) {
+            console.error('Error fetching Telnyx master balance:', err);
+        } finally {
+            setRefreshingBalance(false);
+        }
+    };
 
     useEffect(() => {
         const fetchMasterBillingData = async () => {
@@ -65,6 +99,9 @@ export const MasterBilling = () => {
                     .select('tenant_id, amount_brl, type')
                     .eq('type', 'recharge');
                 setTransactions(txsData ?? []);
+
+                // Fetch Telnyx master balance
+                await fetchMasterBalance();
             } catch (e) {
                 console.error('Error fetching master billing data:', e);
             } finally {
@@ -174,6 +211,70 @@ export const MasterBilling = () => {
                 </div>
                 <div className="bg-[#1E293B] border border-slate-700/50 rounded-xl px-4 py-2 flex items-center gap-2 text-slate-300 text-xs font-bold font-mono">
                     <Activity size={14} className="text-emerald-400" /> {t('billing.fixedExchange')}
+                </div>
+            </div>
+
+            {/* Telnyx Master Account Status Banner */}
+            <div className="bg-[#0F1629] border border-[#1E293B] rounded-2xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xl relative overflow-hidden">
+                {masterBalance && masterBalance.balance < 20 && (
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500 animate-pulse" />
+                )}
+                
+                <div className="flex items-start gap-4">
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border ${
+                        masterBalance && masterBalance.balance < 20
+                            ? 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                            : 'bg-[#1E293B] border-slate-700/50 text-emerald-400'
+                    }`}>
+                        {masterBalance && masterBalance.balance < 20 ? (
+                            <AlertTriangle size={24} className="animate-bounce" />
+                        ) : (
+                            <Activity size={24} />
+                        )}
+                    </div>
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <h4 className="font-bold text-white text-base">Conta Central Telnyx (Provedor)</h4>
+                            {masterBalance && masterBalance.balance < 20 && (
+                                <span className="text-[10px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full border border-amber-500/30 animate-pulse">
+                                    Saldo Baixo
+                                </span>
+                            )}
+                        </div>
+                        <p className="text-slate-500 text-xs mt-1">
+                            Saldo global utilizado para custear ligações, SMS e MMS de todas as clínicas da plataforma.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-6 self-end md:self-auto">
+                    <div className="text-right">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Crédito Disponível</p>
+                        <div className="flex items-baseline gap-2 justify-end mt-1">
+                            <span className="text-2xl font-black text-white font-mono">
+                                {masterBalance ? `$ ${masterBalance.balance.toFixed(2)}` : '$ --.--'}
+                            </span>
+                            <span className="text-xs text-slate-400">{masterBalance?.currency ?? 'USD'}</span>
+                        </div>
+                        {masterBalance && (
+                            <p className="text-xs font-mono text-slate-400 mt-0.5">
+                                ≈ R$ {(masterBalance.balance * 5.5).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </p>
+                        )}
+                    </div>
+
+                    <button
+                        onClick={fetchMasterBalance}
+                        disabled={refreshingBalance}
+                        className="px-4 py-2.5 bg-[#1E293B] border border-slate-700/50 hover:bg-slate-800 transition-all rounded-xl text-white text-xs font-bold flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                    >
+                        {refreshingBalance ? (
+                            <Loader2 className="animate-spin" size={14} />
+                        ) : (
+                            <Clock size={14} />
+                        )}
+                        Sincronizar Saldo
+                    </button>
                 </div>
             </div>
 
