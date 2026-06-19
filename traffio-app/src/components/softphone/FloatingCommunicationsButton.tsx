@@ -145,6 +145,12 @@ export function FloatingCommunicationsButton({ enabled, activeNumber, tenantId }
   const durationRef  = useRef<ReturnType<typeof setInterval> | null>(null);
   const dialInputRef = useRef<HTMLInputElement>(null);
 
+  const {
+    status, callState, activeCall,
+    isMuted, isOnHold,
+    dial, answer, hangup, toggleMute, toggleHold, transfer,
+  } = useTelnyxWebRTC(enabled);
+
   // Foca o input automaticamente quando o widget for expandido no modo dial
   useEffect(() => {
     if (expanded && mode === 'dial' && callState === 'idle') {
@@ -154,12 +160,6 @@ export function FloatingCommunicationsButton({ enabled, activeNumber, tenantId }
       return () => clearTimeout(timer);
     }
   }, [expanded, mode, callState]);
-
-  const {
-    status, callState, activeCall,
-    isMuted, isOnHold,
-    dial, answer, hangup, toggleMute, toggleHold, transfer,
-  } = useTelnyxWebRTC(enabled);
 
   const handleCall = () => {
     if (dialInput.length < 5) return;
