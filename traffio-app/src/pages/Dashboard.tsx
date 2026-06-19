@@ -74,38 +74,6 @@ type CampaignRow = {
     roas: number;
 };
 
-const PERIOD_LABELS: Record<Period, string> = {
-    today: 'Hoje',
-    '7d': 'Últimos 7 Dias',
-    '30d': 'Últimos 30 Dias',
-    custom: 'Personalizado',
-};
-
-const CHART_METRICS: { key: ChartMetric; label: string }[] = [
-    { key: 'leads', label: 'Leads' },
-    { key: 'spend', label: 'Gasto' },
-    { key: 'impressions', label: 'Impressões' },
-    { key: 'clicks', label: 'Cliques' },
-    { key: 'conversions', label: 'Conversões' },
-    { key: 'ctr', label: 'CTR' },
-    { key: 'cpc', label: 'CPC' },
-    { key: 'cpm', label: 'CPM' },
-];
-
-const CAMPAIGN_COLUMNS: { key: CampaignSortKey; label: string }[] = [
-    { key: 'campaign_name', label: 'Campanha' },
-    { key: 'platform', label: 'Plataforma' },
-    { key: 'spend', label: 'Gasto' },
-    { key: 'impressions', label: 'Impressões' },
-    { key: 'clicks', label: 'Cliques' },
-    { key: 'ctr', label: 'CTR' },
-    { key: 'cpc', label: 'CPC' },
-    { key: 'cpm', label: 'CPM' },
-    { key: 'conversions', label: 'Conversões' },
-    { key: 'cpa', label: 'CPA' },
-    { key: 'roas', label: 'ROAS' },
-];
-
 const formatCurrency = (value: number) =>
     `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -139,9 +107,42 @@ const StatCard = ({ label, value, subtext, trend, trendType, color, icon, iconCo
 );
 
 export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onNavigate }) => {
+    const { t } = useTranslation('dashboard');
     const { tenant } = useTenant();
     const { showToast } = useToast();
     const { locale, formatDate, formatDateTime } = useLocaleFormat();
+
+    const PERIOD_LABELS: Record<Period, string> = {
+        today: t('periodLabels.today'),
+        '7d': t('periodLabels.7d'),
+        '30d': t('periodLabels.30d'),
+        custom: t('periodLabels.custom'),
+    };
+
+    const CHART_METRICS: { key: ChartMetric; label: string }[] = [
+        { key: 'leads', label: t('chartMetrics.leads') },
+        { key: 'spend', label: t('chartMetrics.spend') },
+        { key: 'impressions', label: t('chartMetrics.impressions') },
+        { key: 'clicks', label: t('chartMetrics.clicks') },
+        { key: 'conversions', label: t('chartMetrics.conversions') },
+        { key: 'ctr', label: t('chartMetrics.ctr') },
+        { key: 'cpc', label: t('chartMetrics.cpc') },
+        { key: 'cpm', label: t('chartMetrics.cpm') },
+    ];
+
+    const CAMPAIGN_COLUMNS: { key: CampaignSortKey; label: string }[] = [
+        { key: 'campaign_name', label: t('campaignColumns.campaignName') },
+        { key: 'platform', label: t('campaignColumns.platform') },
+        { key: 'spend', label: t('campaignColumns.spend') },
+        { key: 'impressions', label: t('campaignColumns.impressions') },
+        { key: 'clicks', label: t('campaignColumns.clicks') },
+        { key: 'ctr', label: t('campaignColumns.ctr') },
+        { key: 'cpc', label: t('campaignColumns.cpc') },
+        { key: 'cpm', label: t('campaignColumns.cpm') },
+        { key: 'conversions', label: t('campaignColumns.conversions') },
+        { key: 'cpa', label: t('campaignColumns.cpa') },
+        { key: 'roas', label: t('campaignColumns.roas') },
+    ];
 
     const [period, setPeriod] = useState<Period>('30d');
     const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(null);
@@ -242,7 +243,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
 
     const handleConnect = (platform: 'meta' | 'google', features?: string) => {
         if (!tenant?.id) {
-            showToast('error', 'Erro: Perfil da clínica não identificado. Atualize a página.');
+            showToast('error', t('toasts.tenantNotIdentified'));
             return;
         }
 
@@ -276,13 +277,13 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                 console.warn('COOP blocked window.close call:', e);
             }
 
-            const platformLabel = platform === 'meta' ? 'Meta Ads' : 'Google Ads';
+            const platformLabel = platform === 'meta' ? t('filters.metaAds') : t('filters.googleAds');
             if (data.type === 'OAUTH_CONNECTED') {
                 setIntegrations(prev => ({ ...prev, [platform]: true }));
-                showToast('success', `Conta ${platformLabel} conectada com sucesso!`);
+                showToast('success', t('toasts.platformConnected', { platformLabel }));
                 triggerSyncAndRefresh();
             } else {
-                showToast('error', data.message || `Erro ao conectar com ${platformLabel}.`);
+                showToast('error', data.message || t('toasts.platformConnectError', { platformLabel }));
             }
         };
 
@@ -349,13 +350,13 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
             .eq('tenant_id', tenant.id)
             .eq('platform', platform);
         setIntegrations(prev => ({ ...prev, [platform]: false }));
-        showToast('success', 'Conexão desconectada.');
+        showToast('success', t('toasts.disconnectedSuccess'));
         closeManageModal();
         fetchDashboardData();
     };
 
     const handleSyncNow = () => {
-        showToast('success', 'Sincronização iniciada. Os dados podem levar alguns segundos para atualizar.');
+        showToast('success', t('toasts.syncStarted'));
         triggerSyncAndRefresh();
         closeManageModal();
     };
@@ -369,7 +370,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
             .eq('tenant_id', tenant.id)
             .eq('platform', manageModal.platform);
         setManageData((prev: any) => ({ ...prev, settings: newSettings }));
-        showToast('success', 'Conta de anúncios atualizada.');
+        showToast('success', t('toasts.adAccountUpdated'));
     };
 
     const handleChangeGoogleCustomer = async (customerId: string) => {
@@ -381,7 +382,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
             .eq('tenant_id', tenant.id)
             .eq('platform', 'google');
         setManageData((prev: any) => ({ ...prev, settings: newSettings }));
-        showToast('success', 'Conta do Google Ads vinculada com sucesso.');
+        showToast('success', t('toasts.googleAccountLinked'));
     };
 
     useEffect(() => {
@@ -603,35 +604,35 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
     // ── Exportação PDF ───────────────────────────────────────────────────────
     const handleExportPDF = () => {
         const doc = new jsPDF();
-        const clinicName = tenant?.name || 'Clínica';
+        const clinicName = tenant?.name || t('pdfReport.clinicLabel', { clinicName: '' }).split(':')[0].trim() || 'Clínica';
         const periodLabel = period === 'custom' && customRange
             ? `${formatDate(customRange.from)} a ${formatDate(customRange.to)}`
             : PERIOD_LABELS[period];
 
         doc.setFontSize(18);
         doc.setFont('helvetica', 'bold');
-        doc.text('Relatório de Performance — Analytics Pro', 14, 18);
+        doc.text(t('pdfReport.documentTitle'), 14, 18);
 
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
-        doc.text(`Clínica: ${clinicName}`, 14, 26);
-        doc.text(`Período: ${periodLabel}`, 14, 32);
-        doc.text(`Gerado em: ${formatDateTime(new Date())}`, 14, 38);
+        doc.text(t('pdfReport.clinicLabel', { clinicName }), 14, 26);
+        doc.text(t('pdfReport.periodLabel', { periodLabel }), 14, 32);
+        doc.text(t('pdfReport.generatedAtLabel', { generatedAt: formatDateTime(new Date()) }), 14, 38);
 
         autoTable(doc, {
             startY: 45,
-            head: [['Indicador', 'Valor']],
+            head: [[t('pdfReport.summaryHeaderIndicator'), t('pdfReport.summaryHeaderValue')]],
             body: [
-                ['Leads Totais', kpis.totalLeads],
-                ['Conversão CRM', kpis.conversion],
-                ['Gasto em Ads', kpis.spent],
-                ['ROAS Médio', kpis.roas],
-                ['Impressões', kpis.impressions],
-                ['Cliques', kpis.clicks],
-                ['CTR', kpis.ctr],
-                ['CPC', kpis.cpc],
-                ['CPM', kpis.cpm],
-                ['CPA (Custo/Conversão)', kpis.cpa],
+                [t('pdfReport.totalLeads'), kpis.totalLeads],
+                [t('pdfReport.crmConversion'), kpis.conversion],
+                [t('pdfReport.adSpend'), kpis.spent],
+                [t('pdfReport.avgRoas'), kpis.roas],
+                [t('pdfReport.impressions'), kpis.impressions],
+                [t('pdfReport.clicks'), kpis.clicks],
+                [t('pdfReport.ctr'), kpis.ctr],
+                [t('pdfReport.cpc'), kpis.cpc],
+                [t('pdfReport.cpm'), kpis.cpm],
+                [t('pdfReport.cpa'), kpis.cpa],
             ],
             theme: 'grid',
             headStyles: { fillColor: [0, 129, 251] },
@@ -641,10 +642,15 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
 
         autoTable(doc, {
             startY: afterSummaryY,
-            head: [['Campanha', 'Plataforma', 'Gasto', 'Impressões', 'Cliques', 'CTR', 'CPC', 'CPM', 'Conversões', 'CPA', 'ROAS']],
+            head: [[
+                t('pdfReport.campaignColumn'), t('pdfReport.platformColumn'), t('pdfReport.spendColumn'),
+                t('pdfReport.impressionsColumn'), t('pdfReport.clicksColumn'), t('pdfReport.ctr'),
+                t('pdfReport.cpc'), t('pdfReport.cpm'), t('pdfReport.conversionsColumn'),
+                t('pdfReport.cpaColumn'), t('pdfReport.roasColumn'),
+            ]],
             body: campaignTable.map(c => [
                 c.campaign_name,
-                c.platform === 'meta' ? 'Meta' : 'Google',
+                c.platform === 'meta' ? t('pdfReport.platformMeta') : t('pdfReport.platformGoogle'),
                 formatCurrency(c.spend),
                 c.impressions.toLocaleString('pt-BR'),
                 c.clicks.toLocaleString('pt-BR'),
@@ -700,7 +706,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
 
     const isLiveWithoutData = rawPerformanceData.length === 0;
     const hasFilteredData = chartData.length > 0;
-    const selectedChartMetricLabel = CHART_METRICS.find(m => m.key === chartMetric)?.label || 'Leads';
+    const selectedChartMetricLabel = CHART_METRICS.find(m => m.key === chartMetric)?.label || t('chartMetrics.leads');
 
     return (
         <div className="px-2 space-y-10 pb-20 max-w-[1440px] mx-auto">
