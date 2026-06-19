@@ -9,7 +9,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
-import { getTelnyxApiKey } from "../_shared/masterConfig.ts";
+import { getTelnyxApiKey, getTelnyxConnectionId } from "../_shared/masterConfig.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { logPlatform } from "../_shared/logger.ts";
 
@@ -53,21 +53,71 @@ serve(async (req: Request) => {
     }
 
     // Consultar saldo na Telnyx
-    const telnyxRes = await fetch("https://api.telnyx.com/v2/balance", {
+    const balanceRes = await fetch("https://api.telnyx.com/v2/balance", {
       headers: {
         "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json"
       }
     });
 
-    if (!telnyxRes.ok) {
-      const errorText = await telnyxRes.text();
-      throw new Error(`Telnyx API Error: ${telnyxRes.status} - ${errorText}`);
+    if (!balanceRes.ok) {
+      const errorText = await balanceRes.text();
+      throw new Error(`Telnyx API Error: ${balanceRes.status} - ${errorText}`);
     }
 
-    const telnyxData = await telnyxRes.json();
+    const balanceData = await balanceRes.json();
+    const balance = balanceData.data;
 
-    return json(telnyxData.data);
+    // Buscar Connection ID
+    const connectionId = await getTelnyxConnectionId(supabase);
+    let connection = null;
+    let outboundProfile = null;
+
+    if (connectionId) {
+      try {
+        const connRes = await fetch(`https://api.telnyx.com/v2/connections/${connectionId}`, {
+          headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "Content-Type": "application/json"
+          }
+        });
+        if (connRes.ok) {
+          const connData = await connRes.json();
+          connection = {
+            id: connData.data.id,
+            connection_name: connData.data.connection_name,
+            active: connData.data.active,
+            webhook_event_url: connData.data.webhook_event_url,
+          };
+
+          const profileId = connData.data.outbound_voice_profile_id;
+          if (profileId) {
+            const profRes = await fetch(`https://api.telnyx.com/v2/outbound_voice_profiles/${profileId}`, {
+              headers: {
+                "Authorization": `Bearer ${apiKey}`,
+                "Content-Type": "application/json"
+              }
+            });
+            if (profRes.ok) {
+              const profData = await profRes.json();
+              outboundProfile = {
+                id: profData.data.id,
+                name: profData.data.name,
+                whitelisted_destinations: profData.data.whitelisted_destinations,
+              };
+            }
+          }
+        }
+      } catch (err: any) {
+        console.error("Error fetching Telnyx connection/profile details:", err.message);
+      }
+    }
+
+    return json({
+      balance,
+      connection,
+      outbound_profile: outboundProfile
+    });
 
   } catch (err: any) {
     console.error("[telnyx-balance] Error:", err.message);

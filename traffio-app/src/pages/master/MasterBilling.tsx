@@ -2,17 +2,17 @@ import { useState, useEffect, useMemo } from 'react';
 import {
     CreditCard,
     TrendingUp,
-    Users,
     CheckCircle2,
     Clock,
     XCircle,
     AlertTriangle,
     DollarSign,
-    ArrowUpRight,
     BarChart3,
     Activity,
     ShieldAlert,
-    Loader2
+    Loader2,
+    ShieldCheck,
+    Globe
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
@@ -36,7 +36,25 @@ export const MasterBilling = () => {
     const [wallets, setWallets] = useState<any[]>([]);
     const [usageLogs, setUsageLogs] = useState<any[]>([]);
     const [transactions, setTransactions] = useState<any[]>([]);
-    const [masterBalance, setMasterBalance] = useState<{ balance: number; currency: string } | null>(null);
+    const [masterBillingDetails, setMasterBillingDetails] = useState<{
+        balance: {
+            balance: number;
+            available_credit: number;
+            credit_limit: number;
+            currency: string;
+        } | null;
+        connection: {
+            id: string;
+            connection_name: string;
+            active: boolean;
+            webhook_event_url: string | null;
+        } | null;
+        outbound_profile: {
+            id: string;
+            name: string;
+            whitelisted_destinations: string[];
+        } | null;
+    } | null>(null);
     const [refreshingBalance, setRefreshingBalance] = useState(false);
 
     const fetchMasterBalance = async () => {
@@ -57,15 +75,21 @@ export const MasterBilling = () => {
             );
             if (res.ok) {
                 const data = await res.json();
-                setMasterBalance({
-                    balance: parseFloat(data.balance) || 0,
-                    currency: data.currency || 'USD'
+                setMasterBillingDetails({
+                    balance: data.balance ? {
+                        balance: parseFloat(data.balance.balance) || 0,
+                        available_credit: parseFloat(data.balance.available_credit) || 0,
+                        credit_limit: parseFloat(data.balance.credit_limit) || 0,
+                        currency: data.balance.currency || 'USD',
+                    } : null,
+                    connection: data.connection,
+                    outbound_profile: data.outbound_profile
                 });
             } else {
-                console.error('Failed to fetch Telnyx master balance. Status:', res.status);
+                console.error('Failed to fetch Telnyx master details. Status:', res.status);
             }
         } catch (err) {
-            console.error('Error fetching Telnyx master balance:', err);
+            console.error('Error fetching Telnyx master details:', err);
         } finally {
             setRefreshingBalance(false);
         }
@@ -215,66 +239,191 @@ export const MasterBilling = () => {
             </div>
 
             {/* Telnyx Master Account Status Banner */}
-            <div className="bg-[#0F1629] border border-[#1E293B] rounded-2xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xl relative overflow-hidden">
-                {masterBalance && masterBalance.balance < 20 && (
+            <div className="bg-[#0F1629] border border-[#1E293B] rounded-2xl shadow-xl relative overflow-hidden">
+                {masterBillingDetails?.balance && masterBillingDetails.balance.available_credit < 20 && (
                     <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500 animate-pulse" />
                 )}
                 
-                <div className="flex items-start gap-4">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border ${
-                        masterBalance && masterBalance.balance < 20
-                            ? 'bg-amber-500/10 border-amber-500/20 text-amber-400'
-                            : 'bg-[#1E293B] border-slate-700/50 text-emerald-400'
-                    }`}>
-                        {masterBalance && masterBalance.balance < 20 ? (
-                            <AlertTriangle size={24} className="animate-bounce" />
-                        ) : (
-                            <Activity size={24} />
-                        )}
-                    </div>
-                    <div>
-                        <div className="flex items-center gap-2">
-                            <h4 className="font-bold text-white text-base">Conta Central Telnyx (Provedor)</h4>
-                            {masterBalance && masterBalance.balance < 20 && (
-                                <span className="text-[10px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full border border-amber-500/30 animate-pulse">
-                                    Saldo Baixo
-                                </span>
+                {/* Header info */}
+                <div className="p-6 border-b border-[#1E293B] flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div className="flex items-start gap-4">
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border ${
+                            masterBillingDetails?.balance && masterBillingDetails.balance.available_credit < 20
+                                ? 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                                : 'bg-[#1E293B] border-slate-700/50 text-emerald-400'
+                        }`}>
+                            {masterBillingDetails?.balance && masterBillingDetails.balance.available_credit < 20 ? (
+                                <AlertTriangle size={24} className="animate-bounce" />
+                            ) : (
+                                <Activity size={24} />
                             )}
                         </div>
-                        <p className="text-slate-500 text-xs mt-1">
-                            Saldo global utilizado para custear ligações, SMS e MMS de todas as clínicas da plataforma.
-                        </p>
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-6 self-end md:self-auto">
-                    <div className="text-right">
-                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Crédito Disponível</p>
-                        <div className="flex items-baseline gap-2 justify-end mt-1">
-                            <span className="text-2xl font-black text-white font-mono">
-                                {masterBalance ? `$ ${masterBalance.balance.toFixed(2)}` : '$ --.--'}
-                            </span>
-                            <span className="text-xs text-slate-400">{masterBalance?.currency ?? 'USD'}</span>
-                        </div>
-                        {masterBalance && (
-                            <p className="text-xs font-mono text-slate-400 mt-0.5">
-                                ≈ R$ {(masterBalance.balance * 5.5).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <h4 className="font-bold text-white text-base">Conta Central Telnyx (Provedor)</h4>
+                                {masterBillingDetails?.balance && masterBillingDetails.balance.available_credit < 20 && (
+                                    <span className="text-[10px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full border border-amber-500/30 animate-pulse">
+                                        Saldo Crítico (Abaixo de $20 USD)
+                                    </span>
+                                )}
+                            </div>
+                            <p className="text-slate-500 text-xs mt-1">
+                                Integração e bilhetagem master para chamadas de voz, SMS e MMS em todas as clínicas.
                             </p>
-                        )}
+                        </div>
                     </div>
 
                     <button
                         onClick={fetchMasterBalance}
                         disabled={refreshingBalance}
-                        className="px-4 py-2.5 bg-[#1E293B] border border-slate-700/50 hover:bg-slate-800 transition-all rounded-xl text-white text-xs font-bold flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                        className="px-4 py-2.5 bg-[#1E293B] border border-slate-700/50 hover:bg-slate-800 transition-all rounded-xl text-white text-xs font-bold flex items-center gap-2 cursor-pointer disabled:opacity-50 self-end md:self-auto"
                     >
                         {refreshingBalance ? (
                             <Loader2 className="animate-spin" size={14} />
                         ) : (
                             <Clock size={14} />
                         )}
-                        Sincronizar Saldo
+                        Sincronizar Telnyx
                     </button>
+                </div>
+
+                {/* Sub-grid of detailed metrics */}
+                <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-[#1E293B] border-b border-[#1E293B]">
+                    {/* Crédito Disponível */}
+                    <div className="p-6">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Crédito Disponível</p>
+                        <div className="flex items-baseline gap-2 mt-1">
+                            <span className="text-3xl font-black text-white font-mono">
+                                {masterBillingDetails?.balance ? `$ ${masterBillingDetails.balance.available_credit.toFixed(2)}` : '$ --.--'}
+                            </span>
+                            <span className="text-xs text-slate-400">{masterBillingDetails?.balance?.currency ?? 'USD'}</span>
+                        </div>
+                        {masterBillingDetails?.balance && (
+                            <p className="text-xs font-mono text-emerald-400 mt-1">
+                                ≈ R$ {(masterBillingDetails.balance.available_credit * 5.5).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </p>
+                        )}
+                    </div>
+
+                    {/* Saldo Líquido */}
+                    <div className="p-6">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Saldo Atual da Conta</p>
+                        <div className="flex items-baseline gap-2 mt-1">
+                            <span className="text-2xl font-bold text-slate-300 font-mono">
+                                {masterBillingDetails?.balance ? `$ ${masterBillingDetails.balance.balance.toFixed(2)}` : '$ --.--'}
+                            </span>
+                            <span className="text-xs text-slate-500">{masterBillingDetails?.balance?.currency ?? 'USD'}</span>
+                        </div>
+                        {masterBillingDetails?.balance && (
+                            <p className="text-xs font-mono text-slate-500 mt-1">
+                                ≈ R$ {(masterBillingDetails.balance.balance * 5.5).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </p>
+                        )}
+                    </div>
+
+                    {/* Limite de Crédito */}
+                    <div className="p-6">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Limite de Crédito Adicional</p>
+                        <div className="flex items-baseline gap-2 mt-1">
+                            <span className="text-2xl font-bold text-slate-300 font-mono">
+                                {masterBillingDetails?.balance ? `$ ${masterBillingDetails.balance.credit_limit.toFixed(2)}` : '$ --.--'}
+                            </span>
+                            <span className="text-xs text-slate-500">{masterBillingDetails?.balance?.currency ?? 'USD'}</span>
+                        </div>
+                        {masterBillingDetails?.balance && (
+                            <p className="text-xs font-mono text-slate-500 mt-1">
+                                ≈ R$ {(masterBillingDetails.balance.credit_limit * 5.5).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </p>
+                        )}
+                    </div>
+                </div>
+
+                {/* Connection & Whitelist Details */}
+                <div className="p-6 bg-[#090D1A] grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+                    {/* SIP Connection & Webhooks */}
+                    <div className="space-y-4">
+                        <h5 className="font-black text-slate-400 text-xs uppercase tracking-wider flex items-center gap-2">
+                            <ShieldCheck className="text-emerald-400" size={14} />
+                            Conexão SIP e Webhooks
+                        </h5>
+                        
+                        {masterBillingDetails?.connection ? (
+                            <div className="space-y-2.5">
+                                <div className="flex justify-between items-center bg-[#0F1629] p-3 rounded-xl border border-[#1E293B]">
+                                    <span className="text-xs text-slate-400">Nome da Conexão:</span>
+                                    <span className="font-mono text-xs text-white font-bold">{masterBillingDetails.connection.connection_name}</span>
+                                </div>
+                                <div className="flex justify-between items-center bg-[#0F1629] p-3 rounded-xl border border-[#1E293B]">
+                                    <span className="text-xs text-slate-400">Status no Provedor:</span>
+                                    <span className={`inline-flex items-center gap-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-md border ${
+                                        masterBillingDetails.connection.active
+                                            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                                            : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                                    }`}>
+                                        {masterBillingDetails.connection.active ? 'Ativa / Online' : 'Inativa'}
+                                    </span>
+                                </div>
+                                <div className="flex flex-col gap-1.5 bg-[#0F1629] p-3 rounded-xl border border-[#1E293B]">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-xs text-slate-400">Webhook Eventos:</span>
+                                        <span className={`inline-flex items-center gap-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-md border ${
+                                            masterBillingDetails.connection.webhook_event_url
+                                                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                                                : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                                        }`}>
+                                            {masterBillingDetails.connection.webhook_event_url ? 'Configurado' : 'Desconfigurado'}
+                                        </span>
+                                    </div>
+                                    {masterBillingDetails.connection.webhook_event_url && (
+                                        <p className="text-[10px] font-mono text-slate-500 break-all select-all mt-1">
+                                            {masterBillingDetails.connection.webhook_event_url}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="text-slate-500 text-xs italic p-4 bg-[#0F1629] rounded-xl border border-[#1E293B] text-center">
+                                Detalhes de conexão indisponíveis. Sincronize os dados.
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Routing Profile & Whitelist */}
+                    <div className="space-y-4">
+                        <h5 className="font-black text-slate-400 text-xs uppercase tracking-wider flex items-center gap-2">
+                            <Globe className="text-sky-400" size={14} />
+                            Rotas de Voz Autorizadas (Outbound)
+                        </h5>
+                        
+                        {masterBillingDetails?.outbound_profile ? (
+                            <div className="space-y-2.5">
+                                <div className="flex justify-between items-center bg-[#0F1629] p-3 rounded-xl border border-[#1E293B]">
+                                    <span className="text-xs text-slate-400">Perfil de Saída:</span>
+                                    <span className="font-mono text-xs text-white font-bold">{masterBillingDetails.outbound_profile.name}</span>
+                                </div>
+                                <div className="flex flex-col gap-2 bg-[#0F1629] p-3 rounded-xl border border-[#1E293B]">
+                                    <span className="text-xs text-slate-400">Países Autorizados na Operadora (Whitelist):</span>
+                                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                        {masterBillingDetails.outbound_profile.whitelisted_destinations?.map((dest) => (
+                                            <span key={dest} className="inline-flex items-center gap-1 text-[10px] font-black uppercase bg-[#1E293B] border border-slate-700 text-slate-300 px-2 py-0.5 rounded">
+                                                {dest === 'BR' && '🇧🇷 '}
+                                                {dest === 'US' && '🇺🇸 '}
+                                                {dest === 'CA' && '🇨🇦 '}
+                                                {dest === 'NZ' && '🇳🇿 '}
+                                                {dest}
+                                            </span>
+                                        )) ?? (
+                                            <span className="text-slate-500 text-xs italic">Nenhuma rota configurada</span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="text-slate-500 text-xs italic p-4 bg-[#0F1629] rounded-xl border border-[#1E293B] text-center">
+                                Detalhes de roteamento indisponíveis. Sincronize os dados.
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 
