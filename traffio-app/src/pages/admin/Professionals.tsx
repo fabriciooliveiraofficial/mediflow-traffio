@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 import { formatPhone, phoneFlag } from '../../lib/formatPhone';
 import {
@@ -65,8 +66,6 @@ const EMPTY_FORM = {
     }
 };
 
-const DAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-
 // --- GRID CONSTANTS ---
 const HOURS = Array.from({ length: 13 }, (_, i) => i + 7); // 07 to 19
 type CellType = { type: 'prime' | 'regular' | 'blocked'; location_id: string | null } | null;
@@ -84,6 +83,16 @@ interface ScheduleBlock {
 }
 
 export const Professionals = () => {
+    const { t } = useTranslation('tenantAdmin');
+    const DAYS = [
+        t('tenantAdmin.professionals.days.sunday'),
+        t('tenantAdmin.professionals.days.monday'),
+        t('tenantAdmin.professionals.days.tuesday'),
+        t('tenantAdmin.professionals.days.wednesday'),
+        t('tenantAdmin.professionals.days.thursday'),
+        t('tenantAdmin.professionals.days.friday'),
+        t('tenantAdmin.professionals.days.saturday'),
+    ];
     const [professionals, setProfessionals] = useState<Professional[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');

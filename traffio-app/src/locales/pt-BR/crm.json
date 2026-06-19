@@ -103,6 +103,8 @@
     }
   },
   "receptionDashboard": {
+    "patientFallback": "Paciente",
+    "consultationFallback": "Consulta",
     "searchPlaceholder": "Buscar paciente...",
     "callNext": "Chamar Próximo",
     "newPatient": "Novo Paciente",

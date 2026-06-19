@@ -16,8 +16,9 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { getSmsPricing } from "../_shared/pricing.ts";
 import { downloadRecording } from "../_shared/telnyxClient.ts";
 import { getTelnyxApiKey } from "../_shared/masterConfig.ts";
+import { logPlatform } from "../_shared/logger.ts";
 
-console.log("telnyx-sms-webhook v1 — Initialized");
+console.log("telnyx-sms-webhook v2 (with platform logging) — Initialized");
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -36,6 +37,14 @@ serve(async (req: Request) => {
     const body      = await req.json();
     const eventType = body.data?.event_type;
 
+    await logPlatform(supabase, {
+      level: "info",
+      source: "telnyx-sms-webhook",
+      eventName: `webhook_received:${eventType || "unknown"}`,
+      message: `Received SMS webhook event`,
+      metadata: { body }
+    });
+
     if (eventType !== "message.received") {
       return response200;
     }
@@ -51,14 +60,28 @@ serve(async (req: Request) => {
     console.log(`[telnyx-sms-webhook] SMS/MMS from ${from} to ${to}: "${text.substring(0, 50)}"`);
 
     // Processar assincronamente
-    processInboundSms(supabase, from, to, msg, msgId).catch((err) =>
-      console.error("[telnyx-sms-webhook] Error:", err.message)
-    );
+    processInboundSms(supabase, from, to, msg, msgId).catch(async (err) => {
+      console.error("[telnyx-sms-webhook] Error:", err.message);
+      await logPlatform(supabase, {
+        level: "error",
+        source: "telnyx-sms-webhook",
+        eventName: "async_process_error",
+        message: err.message,
+        metadata: { from, to, msgId }
+      });
+    });
 
     return response200;
 
   } catch (err: any) {
     console.error("[telnyx-sms-webhook] Fatal:", err.message);
+    await logPlatform(supabase, {
+      level: "fatal",
+      source: "telnyx-sms-webhook",
+      eventName: "fatal_error",
+      message: err.message,
+      metadata: { stack: err.stack }
+    });
     return response200;
   }
 });
@@ -83,10 +106,26 @@ async function processInboundSms(
 
   if (!numRow) {
     console.warn(`[telnyx-sms-webhook] No tenant for number ${to}`);
+    await logPlatform(supabase, {
+      level: "warn",
+      source: "telnyx-sms-webhook",
+      eventName: "no_tenant_found",
+      message: `No active tenant found matching SMS destination phone number: ${to}`,
+      metadata: { from, to, msgId }
+    });
     return;
   }
 
   const tenantId = numRow.tenant_id;
+
+  await logPlatform(supabase, {
+    tenantId,
+    level: "info",
+    source: "telnyx-sms-webhook",
+    eventName: "message_processing",
+    message: `Processing inbound SMS/MMS from ${from} to ${to}`,
+    metadata: { msgId, text, mediaCount: mediaList.length }
+  });
 
   // Idempotência
   const { data: already } = await supabase
@@ -198,6 +237,14 @@ async function processInboundSms(
 
     } catch (mediaErr: any) {
       console.error(`[telnyx-sms-webhook] Failed to process MMS media:`, mediaErr.message);
+      await logPlatform(supabase, {
+        tenantId,
+        level: "error",
+        source: "telnyx-sms-webhook",
+        eventName: "media_process_error",
+        message: mediaErr.message,
+        metadata: { msgId, mediaList }
+      });
     }
   }
 

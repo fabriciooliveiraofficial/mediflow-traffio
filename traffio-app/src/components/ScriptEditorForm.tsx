@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  X, Paperclip, Link as LinkIcon, Trash2, Loader2, Sparkles, 
+import {
+  X, Paperclip, Link as LinkIcon, Trash2, Loader2, Sparkles,
   Image as ImageIcon, Music, FileText, Globe, Plus, MessageSquare,
   AlertTriangle
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useToast } from '../contexts/ToastContext';
 import { salesScriptService } from '../services/salesScriptService';
 import type { SalesScript, ScriptAttachment } from '../services/salesScriptService';
@@ -17,21 +18,22 @@ interface ScriptEditorFormProps {
 }
 
 const PREDEFINED_ICONS = [
-  { char: '💬', name: 'Chat' },
-  { char: '📅', name: 'Agenda' },
-  { char: '🎉', name: 'Festa' },
-  { char: '⚠️', name: 'Aviso' },
-  { char: '💰', name: 'Preço' },
-  { char: '📍', name: 'Local' },
-  { char: '🎁', name: 'Brinde' },
-  { char: '⏱️', name: 'Urgente' },
-  { char: '📝', name: 'Nota' },
-  { char: '🤝', name: 'Acordo' }
+  { char: '💬', nameKey: 'chat' },
+  { char: '📅', nameKey: 'agenda' },
+  { char: '🎉', nameKey: 'festa' },
+  { char: '⚠️', nameKey: 'aviso' },
+  { char: '💰', nameKey: 'preco' },
+  { char: '📍', nameKey: 'local' },
+  { char: '🎁', nameKey: 'brinde' },
+  { char: '⏱️', nameKey: 'urgente' },
+  { char: '📝', nameKey: 'nota' },
+  { char: '🤝', nameKey: 'acordo' }
 ];
 
 export function ScriptEditorForm({ tenantId, script, onSave, onCancel }: ScriptEditorFormProps) {
+  const { t } = useTranslation('communications');
   const { showToast } = useToast();
-  
+
   const [shortcut, setShortcut] = useState('');
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('Geral');
@@ -127,9 +129,9 @@ export function ScriptEditorForm({ tenantId, script, onSave, onCancel }: ScriptE
       };
 
       setAttachments(prev => [...prev, newAttachment]);
-      showToast('success', 'Arquivo carregado com sucesso!');
+      showToast('success', t('communications.scriptEditorForm.toasts.fileUploadSuccess'));
     } catch (err: any) {
-      showToast('error', 'Erro ao carregar arquivo: ' + err.message);
+      showToast('error', t('communications.scriptEditorForm.toasts.fileUploadError', { message: err.message }));
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -154,7 +156,7 @@ export function ScriptEditorForm({ tenantId, script, onSave, onCancel }: ScriptE
         const cleanAlias = customAlias.trim().toLowerCase().replace(/[^a-z0-9-_]/g, '');
         const shortLink = await shortLinkService.create(tenantId, formattedUrl, cleanAlias || undefined);
         finalUrl = window.location.origin + '/l/' + shortLink.code;
-        showToast('success', 'Link encurtado criado com sucesso!');
+        showToast('success', t('communications.scriptEditorForm.toasts.linkShortenSuccess'));
       }
 
       const newAttachment: ScriptAttachment = {
@@ -170,7 +172,7 @@ export function ScriptEditorForm({ tenantId, script, onSave, onCancel }: ScriptE
       setShouldShorten(false);
       setShowLinkFields(false);
     } catch (err: any) {
-      showToast('error', 'Erro ao encurtar/adicionar link: ' + err.message);
+      showToast('error', t('communications.scriptEditorForm.toasts.linkAddError', { message: err.message }));
     } finally {
       setShortening(false);
     }
@@ -183,15 +185,15 @@ export function ScriptEditorForm({ tenantId, script, onSave, onCancel }: ScriptE
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!shortcut) {
-      showToast('warning', 'O atalho do script é obrigatório.');
+      showToast('warning', t('communications.scriptEditorForm.toasts.shortcutRequired'));
       return;
     }
     if (!title) {
-      showToast('warning', 'O título do script é obrigatório.');
+      showToast('warning', t('communications.scriptEditorForm.toasts.titleRequired'));
       return;
     }
     if (!content) {
-      showToast('warning', 'O conteúdo do script é obrigatório.');
+      showToast('warning', t('communications.scriptEditorForm.toasts.contentRequired'));
       return;
     }
 
@@ -222,9 +224,9 @@ export function ScriptEditorForm({ tenantId, script, onSave, onCancel }: ScriptE
         variables: manualMatches,
         tenant_id: tenantId
       });
-      showToast('success', script ? 'Script atualizado!' : 'Script criado com sucesso!');
+      showToast('success', script ? t('communications.scriptEditorForm.toasts.scriptUpdated') : t('communications.scriptEditorForm.toasts.scriptCreated'));
     } catch (err: any) {
-      showToast('error', 'Erro ao salvar script: ' + err.message);
+      showToast('error', t('communications.scriptEditorForm.toasts.saveError', { message: err.message }));
     } finally {
       setSaving(false);
     }

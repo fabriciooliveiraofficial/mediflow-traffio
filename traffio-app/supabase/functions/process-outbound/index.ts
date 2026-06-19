@@ -24,6 +24,7 @@ import { TelnyxSmsClient } from "../_shared/telnyxSmsClient.ts";
 import { getTelnyxApiKey } from "../_shared/masterConfig.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { getSmsPricing } from "../_shared/pricing.ts";
+import { logPlatform } from "../_shared/logger.ts";
 
 console.log("process-outbound v3 — Multi-Canal Initialized");
 
@@ -311,6 +312,13 @@ serve(async (req: Request) => {
 
   } catch (err: any) {
     console.error("[process-outbound] Fatal error:", err);
+    await logPlatform(supabase, {
+      level: "fatal",
+      source: "process-outbound",
+      eventName: "fatal_error",
+      message: err.message,
+      metadata: { stack: err.stack }
+    });
     return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders });
   }
 });

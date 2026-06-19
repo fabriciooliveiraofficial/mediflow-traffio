@@ -41,10 +41,11 @@ import { TeamManagement } from '../components/settings/TeamManagement';
 import { useTenant } from '../contexts/TenantContext';
 import { listCountries, getCountry, DEFAULT_COUNTRY, type CountryCode } from '../lib/i18n/countryFormats';
 import { formatPhone, phoneFlag } from '../lib/formatPhone';
-import { Activity, Stethoscope, Apple } from 'lucide-react';
+import { Activity, Stethoscope, Apple, Terminal } from 'lucide-react';
 import { clsx } from 'clsx';
 import { BuyNumberModal } from '../components/numbers/BuyNumberModal';
 import { PendingOrdersList } from '../components/numbers/PendingOrdersList';
+import { SystemLogs } from '../components/settings/SystemLogs';
 
 
 
@@ -809,6 +810,7 @@ export const Settings = () => {
                     { id: 'team', label: t('tabs.team'), icon: Users },
                     { id: 'communications', label: t('tabs.communications'), icon: Phone },
                     { id: 'profile', label: t('tabs.profile'), icon: User },
+                    { id: 'logs', label: t('tabs.logs', 'Logs'), icon: Terminal },
                 ].map((tab) => (
                     <button
                         key={tab.id}
@@ -1946,6 +1948,11 @@ export const Settings = () => {
                             </div>
                         </div>
                     </div>
+                )}
+
+                {/* Logs Tab */}
+                {activeTab === 'logs' && (
+                    <SystemLogs tenantId={currentTenant?.id} />
                 )}
 
             </div>

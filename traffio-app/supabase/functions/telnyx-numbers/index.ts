@@ -29,6 +29,7 @@ import {
   getTelnyxMessagingProfileId,
 } from "../_shared/masterConfig.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { logPlatform } from "../_shared/logger.ts";
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -457,6 +458,13 @@ serve(async (req: Request) => {
 
   } catch (err: any) {
     console.error("[telnyx-numbers] Error:", err.message);
+    await logPlatform(supabase, {
+      level: "fatal",
+      source: "telnyx-numbers",
+      eventName: "fatal_error",
+      message: err.message,
+      metadata: { stack: err.stack }
+    });
     return json({ error: err.message }, 500);
   }
 });

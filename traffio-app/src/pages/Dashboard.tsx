@@ -32,6 +32,7 @@ import {
     FileSpreadsheet,
     ArrowUpDown
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useTenant } from '../contexts/TenantContext';
 import { useToast } from '../contexts/ToastContext';
 import { useLocaleFormat } from '../hooks/useLocaleFormat';

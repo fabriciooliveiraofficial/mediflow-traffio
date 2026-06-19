@@ -53,31 +53,31 @@ export const PrivacyPolicy = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-slate-50 rounded-2xl p-6 border border-slate-100">
             <div className="flex flex-col items-center text-center p-2">
               <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center text-amber-600 mb-3"><Lock size={20} /></div>
-              <h3 className="font-bold text-slate-900 text-sm mb-1">Dados Protegidos</h3>
-              <p className="text-xs text-slate-500 font-medium">Criptografia de ponta a ponta e segurança rigorosa dos dados da clínica.</p>
+              <h3 className="font-bold text-slate-900 text-sm mb-1">{t('legal.privacyPolicy.summaryCards.dataProtected.title')}</h3>
+              <p className="text-xs text-slate-500 font-medium">{t('legal.privacyPolicy.summaryCards.dataProtected.description')}</p>
             </div>
             <div className="flex flex-col items-center text-center p-2">
               <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 mb-3"><Eye size={20} /></div>
-              <h3 className="font-bold text-slate-900 text-sm mb-1">Uso Transparente</h3>
-              <p className="text-xs text-slate-500 font-medium">Os dados das APIs do Google Ads e Meta Ads são usados apenas para relatórios.</p>
+              <h3 className="font-bold text-slate-900 text-sm mb-1">{t('legal.privacyPolicy.summaryCards.transparentUse.title')}</h3>
+              <p className="text-xs text-slate-500 font-medium">{t('legal.privacyPolicy.summaryCards.transparentUse.description')}</p>
             </div>
             <div className="flex flex-col items-center text-center p-2">
               <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 mb-3"><Mail size={20} /></div>
-              <h3 className="font-bold text-slate-900 text-sm mb-1">Controle Total</h3>
-              <p className="text-xs text-slate-500 font-medium">Você pode revogar permissões e apagar dados a qualquer momento.</p>
+              <h3 className="font-bold text-slate-900 text-sm mb-1">{t('legal.privacyPolicy.summaryCards.fullControl.title')}</h3>
+              <p className="text-xs text-slate-500 font-medium">{t('legal.privacyPolicy.summaryCards.fullControl.description')}</p>
             </div>
           </div>
 
           {/* Seção 1 */}
           <section className="space-y-4">
             <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-              <span className="text-amber-500">1.</span> Quem Somos e Escopo
+              <span className="text-amber-500">1.</span> {t('legal.privacyPolicy.sections.whoWeAre.title')}
             </h2>
             <p>
-              A <strong>Traffio Odonto Marketing</strong> ("Traffio", "nós", "nosso"), operada pelo desenvolvedor responsável <strong>fabriciooliveiraofficial@gmail.com</strong>, é uma plataforma de gestão e automação de marketing para clínicas odontológicas e de saúde. Esta Política de Privacidade descreve como tratamos as informações pessoais e operacionais de nossos usuários ("Clientes", "Clínicas") e dos pacientes das Clínicas que utilizam nossos serviços.
+              {t('legal.privacyPolicy.sections.whoWeAre.body1.prefix')} <strong>Traffio Odonto Marketing</strong> {t('legal.privacyPolicy.sections.whoWeAre.body1.middle')} <strong>fabriciooliveiraofficial@gmail.com</strong>{t('legal.privacyPolicy.sections.whoWeAre.body1.suffix')}
             </p>
             <p>
-              Ao utilizar a Traffio, você concorda com a coleta e uso de informações em conformidade com esta política e em estrita consonância com a Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018).
+              {t('legal.privacyPolicy.sections.whoWeAre.body2')}
             </p>
           </section>
 
@@ -86,13 +86,13 @@ export const PrivacyPolicy = () => {
           {/* Seção 2 */}
           <section className="space-y-4">
             <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-              <span className="text-amber-500">2.</span> Informações que Coletamos
+              <span className="text-amber-500">2.</span> {t('legal.privacyPolicy.sections.dataCollection.title')}
             </h2>
-            <p>Coletamos as seguintes categorias de informações necessárias para fornecer nossos serviços:</p>
+            <p>{t('legal.privacyPolicy.sections.dataCollection.intro')}</p>
             <ul className="list-disc pl-6 space-y-2">
-              <li><strong>Informações de Registro e Conta:</strong> Nome completo, e-mail, telefone, CPF/CNPJ, nome da clínica, especialidades, credenciais de acesso e informações de faturamento.</li>
-              <li><strong>Dados Clínicos e de Pacientes (como Operador):</strong> Agenda de consultas, fichas cadastrais de pacientes (nome, e-mail, celular, data de nascimento), históricos de atendimento odontológicos e prontuários que você decide inserir na plataforma.</li>
-              <li><strong>Dados de Integração de Terceiros:</strong> Tokens de acesso e dados analíticos quando você integra sua conta Traffio ao Google Ads, Meta Ads (Facebook/Instagram Ads), WhatsApp API ou gateways de pagamento.</li>
+              {(t('legal.privacyPolicy.sections.dataCollection.items', { returnObjects: true }) as { label: string; text: string }[]).map((item) => (
+                <li key={item.label}><strong>{item.label}</strong> {item.text}</li>
+              ))}
             </ul>
           </section>
 

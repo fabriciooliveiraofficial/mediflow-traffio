@@ -41,9 +41,9 @@
         "title": "Informações que Coletamos",
         "intro": "Coletamos as seguintes categorias de informações necessárias para fornecer nossos serviços:",
         "items": [
-          "<strong>Informações de Registro e Conta:</strong> Nome completo, e-mail, telefone, CPF/CNPJ, nome da clínica, especialidades, credenciais de acesso e informações de faturamento.",
-          "<strong>Dados Clínicos e de Pacientes (como Operador):</strong> Agenda de consultas, fichas cadastrais de pacientes (nome, e-mail, celular, data de nascimento), históricos de atendimento odontológicos e prontuários que você decide inserir na plataforma.",
-          "<strong>Dados de Integração de Terceiros:</strong> Tokens de acesso e dados analíticos quando você integra sua conta Traffio ao Google Ads, Meta Ads (Facebook/Instagram Ads), WhatsApp API ou gateways de pagamento."
+          { "label": "Informações de Registro e Conta:", "text": "Nome completo, e-mail, telefone, CPF/CNPJ, nome da clínica, especialidades, credenciais de acesso e informações de faturamento." },
+          { "label": "Dados Clínicos e de Pacientes (como Operador):", "text": "Agenda de consultas, fichas cadastrais de pacientes (nome, e-mail, celular, data de nascimento), históricos de atendimento odontológicos e prontuários que você decide inserir na plataforma." },
+          { "label": "Dados de Integração de Terceiros:", "text": "Tokens de acesso e dados analíticos quando você integra sua conta Traffio ao Google Ads, Meta Ads (Facebook/Instagram Ads), WhatsApp API ou gateways de pagamento." }
         ]
       },
       "googleAdsIntegration": {
@@ -78,9 +78,9 @@
         "title": "Como Compartilhamos Dados",
         "intro": "Nós **não vendemos nem alugamos** dados pessoais de nossos clientes ou de seus pacientes. Compartilhamos informações com terceiros somente nas seguintes circunstâncias:",
         "items": [
-          "<strong>Provedores de Infraestrutura e Serviços:</strong> Provedores de hospedagem na nuvem (Supabase, AWS), gateways de pagamento (Pagar.me, Asaas, Dr. Cash) e serviços de envio de mensagens (WhatsApp API, e-mail transactional), apenas na extensão estritamente necessária para execução do serviço.",
-          "<strong>Obrigação Legal:</strong> Para cumprir ordens judiciais, leis aplicáveis ou regulamentações de órgãos competentes.",
-          "<strong>Com o seu Consentimento:</strong> Quando você explicitamente autoriza a transferência de dados para outra plataforma através de chaves de API personalizadas."
+          { "label": "Provedores de Infraestrutura e Serviços:", "text": "Provedores de hospedagem na nuvem (Supabase, AWS), gateways de pagamento (Pagar.me, Asaas, Dr. Cash) e serviços de envio de mensagens (WhatsApp API, e-mail transactional), apenas na extensão estritamente necessária para execução do serviço." },
+          { "label": "Obrigação Legal:", "text": "Para cumprir ordens judiciais, leis aplicáveis ou regulamentações de órgãos competentes." },
+          { "label": "Com o seu Consentimento:", "text": "Quando você explicitamente autoriza a transferência de dados para outra plataforma através de chaves de API personalizadas." }
         ]
       },
       "dataSecurity": {
@@ -168,18 +168,18 @@
           "suffix": ". Ao utilizar essas integrações:"
         },
         "items": [
-          "<strong>Autorização de Acesso:</strong> Você autoriza a Traffio a acessar e importar dados analíticos de sua conta publicitária (custos, cliques, exibições, etc.) com a finalidade exclusiva de consolidação no seu painel da Traffio.",
-          "<strong>Responsabilidade do Usuário:</strong> Você reconhece que todas as campanhas de anúncios, orçamentos, cobranças e políticas são de sua exclusiva responsabilidade e são faturadas diretamente pelas respectivas plataformas (Google LLC e Meta Platforms, Inc.). A Traffio não possui gerência sobre faturas ou orçamentos desses provedores.",
-          "<strong>Uso Limitado do Google:</strong> Declaramos que o uso dos dados obtidos a partir de qualquer API do Google está sujeito a restrições estritas de uso e cumpre integralmente a Política de Dados do Usuário dos Serviços de API do Google, não sendo utilizados para quaisquer fins que não sejam o fornecimento dos relatórios internos da Traffio."
+          { "label": "Autorização de Acesso:", "text": "Você autoriza a Traffio a acessar e importar dados analíticos de sua conta publicitária (custos, cliques, exibições, etc.) com a finalidade exclusiva de consolidação no seu painel da Traffio." },
+          { "label": "Responsabilidade do Usuário:", "text": "Você reconhece que todas as campanhas de anúncios, orçamentos, cobranças e políticas são de sua exclusiva responsabilidade e são faturadas diretamente pelas respectivas plataformas (Google LLC e Meta Platforms, Inc.). A Traffio não possui gerência sobre faturas ou orçamentos desses provedores." },
+          { "label": "Uso Limitado do Google:", "text": "Declaramos que o uso dos dados obtidos a partir de qualquer API do Google está sujeito a restrições estritas de uso e cumpre integralmente a Política de Dados do Usuário dos Serviços de API do Google, não sendo utilizados para quaisquer fins que não sejam o fornecimento dos relatórios internos da Traffio." }
         ]
       },
       "billing": {
         "title": "Assinatura, Cobrança e Reajuste",
         "intro": "O acesso à plataforma Traffio é faturado periodicamente (mensal ou anualmente, conforme escolha no plano).",
         "items": [
-          "<strong>Período de Testes (Trial):</strong> Oferecemos 14 dias de acesso de teste gratuito sem fidelidade. Se você não cancelar antes do término deste período, o faturamento automático será iniciado no meio de pagamento cadastrado.",
-          "<strong>Cancelamento:</strong> Você pode cancelar sua assinatura a qualquer momento através da página de faturamento do sistema. Não há multas ou período mínimo de permanência. Ao cancelar, o serviço continuará ativo até o final do período já pago.",
-          "<strong>Inadimplência:</strong> A falta de pagamento suspenderá automaticamente o acesso à plataforma em até 5 dias após o vencimento não liquidado."
+          { "label": "Período de Testes (Trial):", "text": "Oferecemos 14 dias de acesso de teste gratuito sem fidelidade. Se você não cancelar antes do término deste período, o faturamento automático será iniciado no meio de pagamento cadastrado." },
+          { "label": "Cancelamento:", "text": "Você pode cancelar sua assinatura a qualquer momento através da página de faturamento do sistema. Não há multas ou período mínimo de permanência. Ao cancelar, o serviço continuará ativo até o final do período já pago." },
+          { "label": "Inadimplência:", "text": "A falta de pagamento suspenderá automaticamente o acesso à plataforma em até 5 dias após o vencimento não liquidado." }
         ]
       },
       "liabilityLimitation": {

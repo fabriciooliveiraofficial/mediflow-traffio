@@ -17,8 +17,9 @@ import { answerCall, startRecording, downloadRecording } from "../_shared/telnyx
 import { getTelnyxApiKey, getTelnyxPublicKey } from "../_shared/masterConfig.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { getCallPricing } from "../_shared/pricing.ts";
+import { logPlatform } from "../_shared/logger.ts";
 
-console.log("telnyx-call-webhook v3 (masterConfig fallback) — Initialized");
+console.log("telnyx-call-webhook v4 (with platform logging) — Initialized");
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -30,9 +31,6 @@ serve(async (req: Request) => {
   });
 
   try {
-    // ── Verificação de assinatura Telnyx (Ed25519) ────────────────────────────
-    // Telnyx envia "telnyx-signature-ed25519" e "telnyx-timestamp" nos headers
-    // Na ausência do PUBLIC_KEY configurado, aceita (dev mode) — mas loga aviso
     const telnyxTimestamp = req.headers.get("telnyx-timestamp");
     const telnyxSignature = req.headers.get("telnyx-signature-ed25519");
     const telnyxPublicKey = await getTelnyxPublicKey(supabase);
@@ -40,7 +38,6 @@ serve(async (req: Request) => {
     const rawBody = await req.text();
 
     if (telnyxPublicKey && telnyxSignature && telnyxTimestamp) {
-      // Verificação Ed25519 via Web Crypto API
       try {
         const signedPayload = `${telnyxTimestamp}|${rawBody}`;
         const keyBytes = base64ToBytes(telnyxPublicKey);
@@ -54,12 +51,24 @@ serve(async (req: Request) => {
 
         if (!valid) {
           console.error("[telnyx-call-webhook] Invalid signature — rejecting");
+          await logPlatform(supabase, {
+            level: "error",
+            source: "telnyx-call-webhook",
+            eventName: "signature_verification_failed",
+            message: "Signature verification failed",
+            metadata: { timestamp: telnyxTimestamp, signature: telnyxSignature }
+          });
           return new Response("Unauthorized", { status: 401 });
         }
       } catch (sigErr: any) {
         console.warn("[telnyx-call-webhook] Signature verification failed:", sigErr.message);
-        // Em dev: continua. Em prod: descomentar o return abaixo
-        // return new Response("Unauthorized", { status: 401 });
+        await logPlatform(supabase, {
+          level: "warn",
+          source: "telnyx-call-webhook",
+          eventName: "signature_verification_exception",
+          message: sigErr.message,
+          metadata: { timestamp: telnyxTimestamp, signature: telnyxSignature }
+        });
       }
     } else if (!telnyxPublicKey) {
       console.warn("[telnyx-call-webhook] TELNYX_PUBLIC_KEY not set — skipping signature check");
@@ -76,14 +85,28 @@ serve(async (req: Request) => {
     console.log(`[telnyx-call-webhook] Event: ${eventType} | call_control_id: ${payload.call_control_id}`);
 
     // Processar assincronamente para responder em <200ms
-    handleEvent(supabase, eventType, payload).catch((err) =>
-      console.error(`[telnyx-call-webhook] Handler error:`, err.message)
-    );
+    handleEvent(supabase, eventType, payload).catch(async (err) => {
+      console.error(`[telnyx-call-webhook] Handler error:`, err.message);
+      await logPlatform(supabase, {
+        level: "error",
+        source: "telnyx-call-webhook",
+        eventName: "async_handler_error",
+        message: err.message,
+        metadata: { eventType, callControlId: payload.call_control_id }
+      });
+    });
 
     return new Response("ok", { status: 200 });
 
   } catch (err: any) {
     console.error("[telnyx-call-webhook] Fatal:", err.message);
+    await logPlatform(supabase, {
+      level: "fatal",
+      source: "telnyx-call-webhook",
+      eventName: "fatal_error",
+      message: err.message,
+      metadata: { stack: err.stack }
+    });
     return new Response("ok", { status: 200 }); // Sempre 200 para Telnyx não reenviar
   }
 });
@@ -94,8 +117,15 @@ async function handleEvent(supabase: any, eventType: string, payload: any): Prom
   const to            = payload.to;
   const direction     = payload.direction;
 
-  switch (eventType) {
+  await logPlatform(supabase, {
+    level: "info",
+    source: "telnyx-call-webhook",
+    eventName: `webhook_received:${eventType}`,
+    message: `Received Telnyx call webhook event: ${eventType}`,
+    metadata: { callControlId, from, to, direction, eventType }
+  });
 
+  switch (eventType) {
     case "call.initiated": {
       const isIncoming = direction === "incoming";
       const lookupNumber = isIncoming ? to : from;
@@ -109,11 +139,27 @@ async function handleEvent(supabase: any, eventType: string, payload: any): Prom
         .maybeSingle();
 
       if (!numRow) {
-        console.warn(`[telnyx-call-webhook] No tenant for number: ${lookupNumber}`);
+        console.warn(`[telnyx-call-webhook] No tenant found for number: ${lookupNumber}`);
+        await logPlatform(supabase, {
+          level: "warn",
+          source: "telnyx-call-webhook",
+          eventName: "call_initiated_no_tenant",
+          message: `No active tenant found matching phone number: ${lookupNumber}`,
+          metadata: { lookupNumber, direction, callControlId }
+        });
         break;
       }
 
       const tenantId = numRow.tenant_id;
+
+      await logPlatform(supabase, {
+        tenantId,
+        level: "info",
+        source: "telnyx-call-webhook",
+        eventName: "call_initiated",
+        message: `Call initiated (${direction}) from ${from} to ${to}`,
+        metadata: { callControlId, numRow }
+      });
 
       // Criar CDR com tenant_id explícito
       await supabase.from("call_records").insert({
@@ -144,16 +190,62 @@ async function handleEvent(supabase: any, eventType: string, payload: any): Prom
 
       // Prioridade: tenant key → Supabase Secret → master_config (UI)
       const apiKey = await getTelnyxApiKey(supabase, tenant?.telnyx_api_key);
-      if (!apiKey) break;
+      if (!apiKey) {
+        await logPlatform(supabase, {
+          tenantId,
+          level: "error",
+          source: "telnyx-call-webhook",
+          eventName: "telnyx_api_key_missing",
+          message: `Could not retrieve Telnyx API Key for tenant ${tenantId}`,
+          metadata: { tenantId }
+        });
+        break;
+      }
 
       // Atender somente chamadas recebidas (inbound)
       if (isIncoming) {
-        await answerCall(apiKey, callControlId);
+        try {
+          await answerCall(apiKey, callControlId);
+          await logPlatform(supabase, {
+            tenantId,
+            level: "info",
+            source: "telnyx-call-webhook",
+            eventName: "answer_call_success",
+            message: `Successfully sent answer command to Telnyx for call ${callControlId}`
+          });
+        } catch (err: any) {
+          await logPlatform(supabase, {
+            tenantId,
+            level: "error",
+            source: "telnyx-call-webhook",
+            eventName: "answer_call_failed",
+            message: err.message,
+            metadata: { callControlId }
+          });
+        }
       }
 
       // Gravar se auto_record for verdadeiro (tanto inbound quanto outbound)
       if (routing?.auto_record !== false) {
-        await startRecording(apiKey, callControlId);
+        try {
+          await startRecording(apiKey, callControlId);
+          await logPlatform(supabase, {
+            tenantId,
+            level: "info",
+            source: "telnyx-call-webhook",
+            eventName: "start_recording_success",
+            message: `Successfully sent record_start command to Telnyx for call ${callControlId}`
+          });
+        } catch (err: any) {
+          await logPlatform(supabase, {
+            tenantId,
+            level: "warn",
+            source: "telnyx-call-webhook",
+            eventName: "start_recording_failed",
+            message: err.message,
+            metadata: { callControlId }
+          });
+        }
       }
 
       if (isIncoming) {

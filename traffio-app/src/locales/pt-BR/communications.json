@@ -249,5 +249,75 @@
         "confirm": "Confirmar"
       }
     }
+  },
+  "scriptEditorForm": {
+    "icons": {
+      "chat": "Chat",
+      "agenda": "Agenda",
+      "festa": "Festa",
+      "aviso": "Aviso",
+      "preco": "Preço",
+      "local": "Local",
+      "brinde": "Brinde",
+      "urgente": "Urgente",
+      "nota": "Nota",
+      "acordo": "Acordo"
+    },
+    "toasts": {
+      "fileUploadSuccess": "Arquivo carregado com sucesso!",
+      "fileUploadError": "Erro ao carregar arquivo: {{message}}",
+      "linkShortenSuccess": "Link encurtado criado com sucesso!",
+      "linkAddError": "Erro ao encurtar/adicionar link: {{message}}",
+      "shortcutRequired": "O atalho do script é obrigatório.",
+      "titleRequired": "O título do script é obrigatório.",
+      "contentRequired": "O conteúdo do script é obrigatório.",
+      "scriptUpdated": "Script atualizado!",
+      "scriptCreated": "Script criado com sucesso!",
+      "saveError": "Erro ao salvar script: {{message}}"
+    },
+    "header": {
+      "editTitle": "Editar Script",
+      "newTitle": "Novo Script"
+    },
+    "suggestedBanner": {
+      "label": "Modelo Sugerido da Plataforma:",
+      "text": "Este script é um modelo sugerido. Ao salvá-lo, uma cópia personalizada será criada exclusivamente para sua clínica, mantendo o modelo original intacto."
+    },
+    "fields": {
+      "shortcutLabel": "Atalho (sem espaço)",
+      "shortcutPlaceholder": "ex: boasvindas",
+      "categoryLabel": "Categoria",
+      "categoryPlaceholder": "ex: Atendimento, Vendas",
+      "titleLabel": "Título do Script",
+      "titlePlaceholder": "ex: Apresentação inicial da clínica",
+      "iconLabel": "Ícone",
+      "contentLabel": "Conteúdo da Mensagem",
+      "contentPlaceholder": "Digite sua mensagem de venda aqui. Use [[Variável]] para campos que deseja preencher na hora de enviar."
+    },
+    "variables": {
+      "insertLabel": "Inserir Variável Automática",
+      "patient": "👤 Paciente",
+      "clinic": "🏥 Clínica",
+      "agent": "💼 Atendente",
+      "manualVariable": "Variável Manual"
+    },
+    "attachments": {
+      "sectionLabel": "Mídia & Anexos ({{count}})",
+      "fileButton": "Arquivo",
+      "linkButton": "Link",
+      "linkTitlePlaceholder": "Título do Link",
+      "linkUrlPlaceholder": "URL (ex: google.com)",
+      "shortenCheckboxLabel": "Encurtar link com domínio Traffio",
+      "customAliasLabel": "Sufixo Personalizado (Opcional)",
+      "customAliasPlaceholder": "ex: promocao-junho",
+      "previewLabel": "Visualização:",
+      "previewRandomPlaceholder": "[aleatório]",
+      "cancel": "Cancelar",
+      "add": "Adicionar"
+    },
+    "footer": {
+      "cancel": "Cancelar",
+      "save": "Salvar Script"
+    }
   }
 }

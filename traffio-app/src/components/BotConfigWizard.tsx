@@ -93,42 +93,42 @@ export const BotConfigWizard = ({ isOpen, onClose, currentConfig, onSave, saving
 
         // Identidade do agente
         const roleMap = {
-            lead_capture:       'Especialista em Captação e Agendamento',
-            agenda_management:  'Especialista em Acolhimento e Agendamento',
-            hybrid:             'Especialista em Atendimento e Agendamento',
+            lead_capture:       t('automations.botConfigWizard.roleMap.leadCapture'),
+            agenda_management:  t('automations.botConfigWizard.roleMap.agendaManagement'),
+            hybrid:             t('automations.botConfigWizard.roleMap.hybrid'),
         };
         next.identity = { name: base.identity.name || 'Amanda', role: roleMap[draft.objective!] };
 
         // Regras e workflow gerados automaticamente por objetivo
         if (isSales) {
             next.strict_rules = [
-                'Nunca encerrar conversa sem propor próximo passo concreto',
-                'Sempre oferecer alternativa imediata após objeção',
+                t('automations.botConfigWizard.strictRulesSales.neverCloseWithoutNextStep'),
+                t('automations.botConfigWizard.strictRulesSales.alwaysOfferAlternative'),
                 draft.has_commercial_team
-                    ? 'Transferir para humano após qualificação confirmada'
-                    : 'Fechar o agendamento de forma totalmente autônoma',
-                'Nunca mencionar que existem tipos de slots (prime/regular)',
+                    ? t('automations.botConfigWizard.strictRulesSales.transferAfterQualification')
+                    : t('automations.botConfigWizard.strictRulesSales.closeAutonomously'),
+                t('automations.botConfigWizard.strictRulesSales.neverMentionSlotTypes'),
             ];
             next.workflow = [
-                'Responder imediatamente com oferta direta de horário',
-                'Qualificar: entender necessidade, urgência e perfil',
-                'Apresentar benefícios e prova social do profissional',
-                'Propor horário específico — não perguntar "quando quer?"',
+                t('automations.botConfigWizard.workflowSales.respondWithSlot'),
+                t('automations.botConfigWizard.workflowSales.qualify'),
+                t('automations.botConfigWizard.workflowSales.presentBenefits'),
+                t('automations.botConfigWizard.workflowSales.proposeSpecificTime'),
                 draft.has_commercial_team
-                    ? 'Transferir para especialista humano no momento ideal'
-                    : 'Fechar agendamento e enviar confirmação automática',
+                    ? t('automations.botConfigWizard.workflowSales.transferToHuman')
+                    : t('automations.botConfigWizard.workflowSales.closeAndConfirm'),
             ];
         } else {
             next.strict_rules = [
-                'Nunca agendar sem validar cadastro do paciente',
-                'Verificar identidade antes de exibir dados sensíveis',
-                'Sempre ser acolhedora e empática',
+                t('automations.botConfigWizard.strictRulesAgenda.neverScheduleWithoutValidating'),
+                t('automations.botConfigWizard.strictRulesAgenda.verifyIdentity'),
+                t('automations.botConfigWizard.strictRulesAgenda.alwaysWelcoming'),
             ];
             next.workflow = [
-                'Cumprimentar pelo nome e perguntar como pode ajudar',
-                'Entender a necessidade ou intenção do paciente',
-                'Buscar disponibilidade e apresentar opções',
-                'Confirmar dados e concluir o agendamento',
+                t('automations.botConfigWizard.workflowAgenda.greetByName'),
+                t('automations.botConfigWizard.workflowAgenda.understandNeed'),
+                t('automations.botConfigWizard.workflowAgenda.findAvailability'),
+                t('automations.botConfigWizard.workflowAgenda.confirmAndConclude'),
             ];
         }
 
@@ -180,11 +180,11 @@ export const BotConfigWizard = ({ isOpen, onClose, currentConfig, onSave, saving
                     <div className="min-h-[380px]">
                         {step === 1 && (
                             <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-                                <h2 className="text-2xl font-black text-graphite-900 mb-2">Qual seu objetivo principal?</h2>
-                                <p className="text-graphite-400 text-sm mb-8">Escolha como o Clinical Agent deve atuar na sua clínica.</p>
-                                
+                                <h2 className="text-2xl font-black text-graphite-900 mb-2">{t('automations.botConfigWizard.step1.title')}</h2>
+                                <p className="text-graphite-400 text-sm mb-8">{t('automations.botConfigWizard.step1.subtitle')}</p>
+
                                 <div className="grid grid-cols-1 gap-4">
-                                    <button 
+                                    <button
                                         onClick={() => setDraft({...draft, objective: 'hybrid'})}
                                         className={`relative p-5 rounded-2xl border-2 text-left transition-all ${
                                             draft.objective === 'hybrid' ? 'border-brand-primary bg-brand-primary/5' : 'border-ice-100 hover:border-ice-300'
@@ -195,14 +195,14 @@ export const BotConfigWizard = ({ isOpen, onClose, currentConfig, onSave, saving
                                                 <RefreshCw size={24} />
                                             </div>
                                             <div>
-                                                <p className="font-black text-graphite-900">Os Dois (Híbrido)</p>
-                                                <p className="text-xs text-graphite-400 mt-1">Captação para pacientes novos + gestão para pacientes existentes.</p>
+                                                <p className="font-black text-graphite-900">{t('automations.botConfigWizard.step1.hybridTitle')}</p>
+                                                <p className="text-xs text-graphite-400 mt-1">{t('automations.botConfigWizard.step1.hybridDescription')}</p>
                                             </div>
-                                            <span className="absolute top-4 right-4 bg-emerald-100 text-emerald-600 text-[10px] font-black uppercase px-2 py-0.5 rounded-md">Mais Usado</span>
+                                            <span className="absolute top-4 right-4 bg-emerald-100 text-emerald-600 text-[10px] font-black uppercase px-2 py-0.5 rounded-md">{t('automations.botConfigWizard.step1.mostUsedBadge')}</span>
                                         </div>
                                     </button>
 
-                                    <button 
+                                    <button
                                         onClick={() => setDraft({...draft, objective: 'lead_capture'})}
                                         className={`p-5 rounded-2xl border-2 text-left transition-all ${
                                             draft.objective === 'lead_capture' ? 'border-brand-primary bg-brand-primary/5' : 'border-ice-100 hover:border-ice-300'
@@ -213,13 +213,13 @@ export const BotConfigWizard = ({ isOpen, onClose, currentConfig, onSave, saving
                                                 <Target size={24} />
                                             </div>
                                             <div>
-                                                <p className="font-black text-graphite-900">Captação de Novos Pacientes</p>
-                                                <p className="text-xs text-graphite-400 mt-1">Bot proativo e orientado a conversão de anúncios e leads.</p>
+                                                <p className="font-black text-graphite-900">{t('automations.botConfigWizard.step1.leadCaptureTitle')}</p>
+                                                <p className="text-xs text-graphite-400 mt-1">{t('automations.botConfigWizard.step1.leadCaptureDescription')}</p>
                                             </div>
                                         </div>
                                     </button>
 
-                                    <button 
+                                    <button
                                         onClick={() => setDraft({...draft, objective: 'agenda_management'})}
                                         className={`p-5 rounded-2xl border-2 text-left transition-all ${
                                             draft.objective === 'agenda_management' ? 'border-brand-primary bg-brand-primary/5' : 'border-ice-100 hover:border-ice-300'
@@ -230,8 +230,8 @@ export const BotConfigWizard = ({ isOpen, onClose, currentConfig, onSave, saving
                                                 <Calendar size={24} />
                                             </div>
                                             <div>
-                                                <p className="font-black text-graphite-900">Gestão de Agenda</p>
-                                                <p className="text-xs text-graphite-400 mt-1">Gerenciar agendamentos e dúvidas de pacientes existentes.</p>
+                                                <p className="font-black text-graphite-900">{t('automations.botConfigWizard.step1.agendaTitle')}</p>
+                                                <p className="text-xs text-graphite-400 mt-1">{t('automations.botConfigWizard.step1.agendaDescription')}</p>
                                             </div>
                                         </div>
                                     </button>
@@ -241,11 +241,11 @@ export const BotConfigWizard = ({ isOpen, onClose, currentConfig, onSave, saving
 
                         {step === 2 && (
                             <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-                                <h2 className="text-2xl font-black text-graphite-900 mb-2">Quem finaliza o agendamento?</h2>
-                                <p className="text-graphite-400 text-sm mb-8">Defina se o bot trabalha sozinho ou com ajuda humana.</p>
-                                
+                                <h2 className="text-2xl font-black text-graphite-900 mb-2">{t('automations.botConfigWizard.step2.title')}</h2>
+                                <p className="text-graphite-400 text-sm mb-8">{t('automations.botConfigWizard.step2.subtitle')}</p>
+
                                 <div className="grid grid-cols-1 gap-4">
-                                    <button 
+                                    <button
                                         onClick={() => setDraft({...draft, has_commercial_team: true})}
                                         className={`p-5 rounded-2xl border-2 text-left transition-all ${
                                             draft.has_commercial_team === true ? 'border-brand-primary bg-brand-primary/5' : 'border-ice-100 hover:border-ice-300'
@@ -256,13 +256,13 @@ export const BotConfigWizard = ({ isOpen, onClose, currentConfig, onSave, saving
                                                 <Users size={24} />
                                             </div>
                                             <div>
-                                                <p className="font-black text-graphite-900">Tenho Equipe / Secretária</p>
-                                                <p className="text-xs text-graphite-400 mt-1">O bot qualifica e passa o bastão para um humano fechar.</p>
+                                                <p className="font-black text-graphite-900">{t('automations.botConfigWizard.step2.teamTitle')}</p>
+                                                <p className="text-xs text-graphite-400 mt-1">{t('automations.botConfigWizard.step2.teamDescription')}</p>
                                             </div>
                                         </div>
                                     </button>
 
-                                    <button 
+                                    <button
                                         onClick={() => setDraft({...draft, has_commercial_team: false})}
                                         className={`p-5 rounded-2xl border-2 text-left transition-all ${
                                             draft.has_commercial_team === false ? 'border-brand-primary bg-brand-primary/5' : 'border-ice-100 hover:border-ice-300'
@@ -273,8 +273,8 @@ export const BotConfigWizard = ({ isOpen, onClose, currentConfig, onSave, saving
                                                 <Bot size={24} />
                                             </div>
                                             <div>
-                                                <p className="font-black text-graphite-900">Não, o Bot faz tudo</p>
-                                                <p className="text-xs text-graphite-400 mt-1">O bot vai lidar com as objeções e agendar de forma autônoma.</p>
+                                                <p className="font-black text-graphite-900">{t('automations.botConfigWizard.step2.botOnlyTitle')}</p>
+                                                <p className="text-xs text-graphite-400 mt-1">{t('automations.botConfigWizard.step2.botOnlyDescription')}</p>
                                             </div>
                                         </div>
                                     </button>
@@ -284,11 +284,11 @@ export const BotConfigWizard = ({ isOpen, onClose, currentConfig, onSave, saving
 
                         {step === 3 && (
                             <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-                                <h2 className="text-2xl font-black text-graphite-900 mb-2">Qual o tom de voz ideal?</h2>
-                                <p className="text-graphite-400 text-sm mb-8">Defina a personalidade da sua assistente virtual.</p>
-                                
+                                <h2 className="text-2xl font-black text-graphite-900 mb-2">{t('automations.botConfigWizard.step3.title')}</h2>
+                                <p className="text-graphite-400 text-sm mb-8">{t('automations.botConfigWizard.step3.subtitle')}</p>
+
                                 <div className="grid grid-cols-1 gap-4">
-                                    <button 
+                                    <button
                                         onClick={() => setDraft({...draft, personality: 'acolhedor'})}
                                         className={`p-5 rounded-2xl border-2 text-left transition-all ${
                                             draft.personality === 'acolhedor' ? 'border-brand-primary bg-brand-primary/5' : 'border-ice-100 hover:border-ice-300'
@@ -299,13 +299,13 @@ export const BotConfigWizard = ({ isOpen, onClose, currentConfig, onSave, saving
                                                 <Heart size={24} />
                                             </div>
                                             <div>
-                                                <p className="font-black text-graphite-900">Acolhedor e Empático</p>
-                                                <p className="text-xs text-graphite-400 mt-1">Linguagem warm e humanizada. Ideal para clínicas de saúde.</p>
+                                                <p className="font-black text-graphite-900">{t('automations.botConfigWizard.step3.welcomingTitle')}</p>
+                                                <p className="text-xs text-graphite-400 mt-1">{t('automations.botConfigWizard.step3.welcomingDescription')}</p>
                                             </div>
                                         </div>
                                     </button>
 
-                                    <button 
+                                    <button
                                         onClick={() => setDraft({...draft, personality: 'formal'})}
                                         className={`p-5 rounded-2xl border-2 text-left transition-all ${
                                             draft.personality === 'formal' ? 'border-brand-primary bg-brand-primary/5' : 'border-ice-100 hover:border-ice-300'
@@ -316,13 +316,13 @@ export const BotConfigWizard = ({ isOpen, onClose, currentConfig, onSave, saving
                                                 <Briefcase size={24} />
                                             </div>
                                             <div>
-                                                <p className="font-black text-graphite-900">Profissional e Direto</p>
-                                                <p className="text-xs text-graphite-400 mt-1">Claro e objetivo. Ideal para ambientes corporativos.</p>
+                                                <p className="font-black text-graphite-900">{t('automations.botConfigWizard.step3.formalTitle')}</p>
+                                                <p className="text-xs text-graphite-400 mt-1">{t('automations.botConfigWizard.step3.formalDescription')}</p>
                                             </div>
                                         </div>
                                     </button>
 
-                                    <button 
+                                    <button
                                         onClick={() => setDraft({...draft, personality: 'eficiente'})}
                                         className={`p-5 rounded-2xl border-2 text-left transition-all ${
                                             draft.personality === 'eficiente' ? 'border-brand-primary bg-brand-primary/5' : 'border-ice-100 hover:border-ice-300'
@@ -333,8 +333,8 @@ export const BotConfigWizard = ({ isOpen, onClose, currentConfig, onSave, saving
                                                 <Zap size={24} />
                                             </div>
                                             <div>
-                                                <p className="font-black text-graphite-900">Dinâmico e Proativo</p>
-                                                <p className="text-xs text-graphite-400 mt-1">Foco em agilidade e resultados. Ideal para alta demanda.</p>
+                                                <p className="font-black text-graphite-900">{t('automations.botConfigWizard.step3.efficientTitle')}</p>
+                                                <p className="text-xs text-graphite-400 mt-1">{t('automations.botConfigWizard.step3.efficientDescription')}</p>
                                             </div>
                                         </div>
                                     </button>
@@ -344,25 +344,25 @@ export const BotConfigWizard = ({ isOpen, onClose, currentConfig, onSave, saving
 
                         {step === 4 && (
                             <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-                                <h2 className="text-2xl font-black text-graphite-900 mb-2">Seu Perfil Configurado</h2>
-                                <p className="text-graphite-400 text-sm mb-6">Tudo pronto! Confira o comportamento gerado abaixo.</p>
-                                
+                                <h2 className="text-2xl font-black text-graphite-900 mb-2">{t('automations.botConfigWizard.step4.title')}</h2>
+                                <p className="text-graphite-400 text-sm mb-6">{t('automations.botConfigWizard.step4.subtitle')}</p>
+
                                 <div className="space-y-4 bg-ice-50/50 p-6 rounded-3xl border border-ice-100 mb-6">
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-1">
-                                            <p className="text-[10px] font-black text-graphite-400 uppercase tracking-wider">Objetivo</p>
+                                            <p className="text-[10px] font-black text-graphite-400 uppercase tracking-wider">{t('automations.botConfigWizard.step4.objectiveLabel')}</p>
                                             <div className="bg-white px-3 py-1.5 rounded-xl border border-ice-100 inline-block">
                                                 <p className="text-xs font-bold text-brand-primary">
-                                                    {draft.objective === 'hybrid' ? 'Captação + Gestão' : 
-                                                     draft.objective === 'lead_capture' ? 'Captação de Leads' : 'Gestão de Agenda'}
+                                                    {draft.objective === 'hybrid' ? t('automations.botConfigWizard.step4.objectiveHybrid') :
+                                                     draft.objective === 'lead_capture' ? t('automations.botConfigWizard.step4.objectiveLeadCapture') : t('automations.botConfigWizard.step4.objectiveAgenda')}
                                                 </p>
                                             </div>
                                         </div>
                                         <div className="space-y-1">
-                                            <p className="text-[10px] font-black text-graphite-400 uppercase tracking-wider">Atendimento</p>
+                                            <p className="text-[10px] font-black text-graphite-400 uppercase tracking-wider">{t('automations.botConfigWizard.step4.serviceLabel')}</p>
                                             <div className="bg-white px-3 py-1.5 rounded-xl border border-ice-100 inline-block">
                                                 <p className="text-xs font-bold text-graphite-700">
-                                                    {draft.has_commercial_team ? 'Handoff Humano' : 'Bot Autônomo'}
+                                                    {draft.has_commercial_team ? t('automations.botConfigWizard.step4.serviceHandoff') : t('automations.botConfigWizard.step4.serviceAutonomous')}
                                                 </p>
                                             </div>
                                         </div>
@@ -370,19 +370,19 @@ export const BotConfigWizard = ({ isOpen, onClose, currentConfig, onSave, saving
 
                                     <div className="pt-4 mt-4 border-t border-ice-100 space-y-3">
                                         <div className="flex items-center justify-between text-xs">
-                                            <span className="text-graphite-400 font-medium italic">Identidade Gerada:</span>
-                                            <span className="text-graphite-700 font-bold">Amanda · Especialista</span>
+                                            <span className="text-graphite-400 font-medium italic">{t('automations.botConfigWizard.step4.identityLabel')}</span>
+                                            <span className="text-graphite-700 font-bold">{t('automations.botConfigWizard.step4.identityValue')}</span>
                                         </div>
                                         <div className="flex items-center justify-between text-xs">
-                                            <span className="text-graphite-400 font-medium">Follow-up Automático:</span>
+                                            <span className="text-graphite-400 font-medium">{t('automations.botConfigWizard.step4.followUpLabel')}</span>
                                             <span className="text-emerald-500 font-bold flex items-center gap-1">
                                                 {draft.objective !== 'agenda_management' ? <Check size={14} /> : <X size={14} className="text-graphite-300" />}
-                                                {draft.objective !== 'agenda_management' ? 'Ativado' : 'Offline'}
+                                                {draft.objective !== 'agenda_management' ? t('automations.botConfigWizard.step4.followUpActive') : t('automations.botConfigWizard.step4.followUpOffline')}
                                             </span>
                                         </div>
                                         <div className="flex items-center justify-between text-xs">
-                                            <span className="text-graphite-400 font-medium">Prevenção de No-Show:</span>
-                                            <span className="text-emerald-500 font-bold flex items-center gap-1"><Check size={14} /> Ativado</span>
+                                            <span className="text-graphite-400 font-medium">{t('automations.botConfigWizard.step4.noShowLabel')}</span>
+                                            <span className="text-emerald-500 font-bold flex items-center gap-1"><Check size={14} /> {t('automations.botConfigWizard.step4.noShowActive')}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -390,7 +390,7 @@ export const BotConfigWizard = ({ isOpen, onClose, currentConfig, onSave, saving
                                 <div className="flex items-center gap-3 p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
                                     <AlertCircle className="text-indigo-500 shrink-0" size={18} />
                                     <p className="text-[10px] text-indigo-700 font-bold leading-relaxed">
-                                        As regras estritas e o workflow operacional foram otimizados automaticamente para o seu objetivo. Você poderá editá-los manualmente após ativar o perfil.
+                                        {t('automations.botConfigWizard.step4.disclaimer')}
                                     </p>
                                 </div>
                             </div>

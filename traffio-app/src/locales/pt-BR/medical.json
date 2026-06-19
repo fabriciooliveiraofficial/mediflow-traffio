@@ -365,5 +365,217 @@
         "manualPlanError": "Erro ao salvar plano: "
       }
     }
+  },
+  "patientDetails": {
+    "loading": "Carregando prontuário...",
+    "notFound": "Paciente não encontrado.",
+    "backToList": "Voltar para Lista",
+    "newFinancingProposal": "Nova Proposta Financeira",
+    "newEvolution": "Nova Evolução",
+    "active": "Ativo",
+    "recallPrefix": "Recall: {{date}}",
+    "insuranceFallback": "Convênio",
+    "private": "Particular",
+    "docNotInformed": "Não informado",
+    "birthDatePrefix": "Nasc: {{date}}",
+    "cardPrefix": "Cartão: {{card}}",
+    "mobileLabel": "Celular",
+    "mobileNotRegistered": "Não cadastrado",
+    "callTitle": "Ligar para {{number}}",
+    "emailLabel": "Email",
+    "emailNotRegistered": "Não cadastrado",
+    "tabs": {
+      "timeline": "LINHA DO TEMPO",
+      "calls": "CHAMADAS",
+      "medicalRecord": "PRONTUÁRIO",
+      "dental": "ODONTOLOGIA",
+      "exams": "EXAMES",
+      "nutrition": "NUTRIÇÃO"
+    },
+    "timeline": {
+      "heading": "Linha do Tempo Clínica",
+      "emptyTitle": "Nenhum registro clínico encontrado.",
+      "emptySubtitle": "Inicie uma nova evolução para registrar o atendimento."
+    },
+    "calls": {
+      "emptyTitle": "Nenhuma chamada registrada",
+      "emptySubtitle": "As chamadas feitas ou recebidas deste paciente aparecerão aqui.",
+      "inbound": "Recebida",
+      "outbound": "Realizada",
+      "missedSuffix": " (Perdida)",
+      "callBackTitle": "Retornar chamada"
+    },
+    "medicalRecord": {
+      "title": "Histórico de Prontuário",
+      "subtitle": "Visualize todas as evoluções clínicas em formato de documento contínuo."
+    },
+    "dental": {
+      "title": "Mapa Odontológico",
+      "subtitle": "Clique nas faces dos dentes para registrar diagnósticos ou gerar orçamentos.",
+      "idocsTitle": "Acessar exames no iDoc (Radio Memory)",
+      "generateTreatmentPlan": "Gerar Plano de Tratamento"
+    },
+    "nutrition": {
+      "title": "Módulo Nutricional",
+      "subtitle": "Avaliação Antropométrica e Composição Corporal",
+      "evolution": "Evolução"
+    },
+    "sidebar": {
+      "prescriptionsTitle": "Histórico de Receitas",
+      "prescriptionsEmpty": "Nenhuma receita emitida recentemente.",
+      "prescriptionName": "Receita Médica",
+      "financingTitle": "Crédito & Parcelamento",
+      "financingEmpty": "Sem propostas ativas",
+      "financingViewOptions": "VER OPÇÕES DE CRÉDITO",
+      "resendSignatureLink": "REENVIAR LINK DE ASSINATURA",
+      "examsTitle": "Resultados de Exames",
+      "examsEmpty": "Aguardando anexos de laboratório.",
+      "dentalBudgetsTitle": "Planos de Tratamento",
+      "dentalBudgetsEmpty": "Nenhum orçamento gerado.",
+      "dentalBudgetFallbackName": "Plano de Tratamento"
+    },
+    "toasts": {
+      "historyLoadErrorPrefix": "Erro ao carregar histórico: ",
+      "idocsCpfRequired": "CPF do paciente é necessário para consulta no iDocs.",
+      "idocsOpening": "Abrindo exames no iDoc (Radio Memory)..."
+    }
+  },
+  "dicomViewer": {
+    "emptyState": "Nenhum exame DICOM selecionado",
+    "seriesImages": "Série Imagens"
+  },
+  "anthropometryForm": {
+    "toasts": {
+      "patientRequired": "Paciente não selecionado",
+      "saved": "Avaliação salva com sucesso!",
+      "saveErrorPrefix": "Erro ao salvar: "
+    },
+    "title": "Nova Avaliação",
+    "subtitle": "Registre as medidas atuais do paciente",
+    "bmiCategories": {
+      "underweight": "Abaixo do peso",
+      "normal": "Peso normal",
+      "overweight": "Sobrepeso",
+      "obesity": "Obesidade"
+    },
+    "weightHeight": {
+      "title": "Peso & Altura",
+      "weightLabel": "Peso (kg)",
+      "heightLabel": "Altura (cm)"
+    },
+    "composition": {
+      "title": "Composição",
+      "bodyFatLabel": "Gordura Corporal (%)",
+      "waistLabel": "Cintura (cm)"
+    },
+    "bmi": {
+      "title": "Cálculo de IMC",
+      "placeholder": "Preencha peso e altura para calcular"
+    },
+    "notesLabel": "Observações Clínicas",
+    "notesPlaceholder": "Evolução do paciente, dificuldades na dieta, etc...",
+    "saving": "Salvando...",
+    "save": "Salvar Avaliação"
+  },
+  "newMedicalRecordModal": {
+    "errors": {
+      "noSession": "No active session found.",
+      "noClinic": "User is not associated with any clinic."
+    },
+    "contentPrefix": "Evolução SOAP - {{date}}",
+    "toasts": {
+      "saved": "Evolução registrada com sucesso!",
+      "saveErrorPrefix": "Erro ao registrar evolução: ",
+      "idocsCpfRequired": "CPF do paciente é necessário para consulta no iDocs.",
+      "idocsOpening": "Abrindo exames no iDoc (Radio Memory)..."
+    },
+    "title": "Nova Evolução Clínica",
+    "subtitle": "Método SOAP (Subjetivo, Objetivo, Avaliação, Plano)",
+    "idocs": "iDocs",
+    "subjective": {
+      "label": "(S) Subjetivo",
+      "placeholder": "Queixa principal, história..."
+    },
+    "objective": {
+      "label": "(O) Objetivo",
+      "placeholder": "Exame físico, sinais vitais..."
+    },
+    "assessment": {
+      "label": "(A) Avaliação",
+      "placeholder": "Hipóteses diagnósticas..."
+    },
+    "plan": {
+      "label": "(P) Plano",
+      "placeholder": "Conduta, prescrição..."
+    },
+    "attachLabel": "Anexar Exame / Documento",
+    "attachPlaceholder": "Clique para selecionar arquivo",
+    "cancel": "Cancelar",
+    "saving": "Salvando...",
+    "save": "Salvar Evolução",
+    "history": {
+      "title": "Histórico",
+      "empty": "Nenhuma evolução anterior."
+    }
+  },
+  "newPrescriptionModal": {
+    "toasts": {
+      "minOneMedication": "Adicione pelo menos um medicamento.",
+      "noSession": "Sessão não encontrada.",
+      "saved": "Receita emitida com sucesso!",
+      "saveErrorPrefix": "Erro ao emitir receita: "
+    },
+    "title": "Nova Receita Médica",
+    "subtitle": "Prescreva medicamentos e orientações",
+    "medicationNameLabel": "Nome do Medicamento",
+    "medicationNamePlaceholder": "Ex: Amoxicilina 500mg",
+    "dosageLabel": "Posologia / Dose",
+    "dosagePlaceholder": "Ex: 1 comprimido",
+    "instructionsLabel": "Frequência / Instruções",
+    "instructionsPlaceholder": "Ex: 8 em 8 horas por 7 dias",
+    "addMedication": "ADICIONAR OUTRO MEDICAMENTO",
+    "cancel": "Cancelar",
+    "issuing": "Emitindo...",
+    "issue": "EMITIR RECEITA"
+  },
+  "viewPrescriptionModal": {
+    "title": "Detalhes da Receita",
+    "idPrefix": "ID: {{id}}",
+    "prescriptionHeading": "Prescrição de Medicamentos",
+    "noMedications": "Nenhum medicamento listado.",
+    "signatureLabel": "Assinatura do Profissional",
+    "digitalDocument": "Documento Digital",
+    "close": "Fechar",
+    "printPdf": "IMPRIMIR PDF"
+  },
+  "uploadDocumentModal": {
+    "toasts": {
+      "fileRequired": "Selecione um arquivo para upload.",
+      "noSession": "Sessão não encontrada.",
+      "saved": "Exame anexado com sucesso! (Modo Simulação)",
+      "saveErrorPrefix": "Erro ao anexar exame: "
+    },
+    "title": "Anexar Exame",
+    "subtitle": "Envie resultados de laboratório ou imagens",
+    "descriptionLabel": "Descrição do Exame",
+    "descriptionPlaceholder": "Ex: Hemograma Completo",
+    "fileLabel": "Arquivo",
+    "fileSelectPlaceholder": "Clique para selecionar",
+    "fileHint": "PDF, JPG, PNG ou DICOM (máx 10MB)",
+    "cancel": "Cancelar",
+    "save": "SALVAR EXAME"
+  },
+  "aiExplainButton": {
+    "trigger": "Explicar com IA",
+    "fallbackExplanation": "\"{{term}}\" é um termo médico utilizado pelo seu profissional de saúde. Consulte seu médico para uma explicação detalhada personalizada.",
+    "systemPrompt": "Você é um assistente médico que explica termos clínicos em português simples para pacientes leigos. Seja breve (máximo 2 frases), gentil e acessível. Não dê diagnósticos.",
+    "userPromptPrefix": "Explique de forma simples o que significa: \"{{term}}\"",
+    "noExplanationGenerated": "Não foi possível gerar uma explicação neste momento.",
+    "errorFallback": "\"{{term}}\" é um termo registrado pelo seu médico. Para mais detalhes, converse diretamente com o profissional que o atendeu.",
+    "modalTitle": "IA Explain",
+    "termLabel": "Termo",
+    "consultingAi": "Consultando IA...",
+    "explanationLabel": "Explicação",
+    "footerNote": "Gerado por IA • Não substitui orientação médica"
   }
 }

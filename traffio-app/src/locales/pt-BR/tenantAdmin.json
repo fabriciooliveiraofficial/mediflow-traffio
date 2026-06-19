@@ -1,1 +1,210 @@
-{}
+{
+  "professionals": {
+    "days": {
+      "sunday": "Domingo",
+      "monday": "Segunda",
+      "tuesday": "Terça",
+      "wednesday": "Quarta",
+      "thursday": "Quinta",
+      "friday": "Sexta",
+      "saturday": "Sábado"
+    },
+    "roleLabel": {
+      "owner": "Proprietário",
+      "admin": "Administrador",
+      "doctor": "Médico",
+      "staff": "Recepção"
+    },
+    "errors": {
+      "locationClosedOnDay": "O local {{locationName}} está FECHADO neste dia.",
+      "locationHoursWindow": "Neste dia, o local {{locationName}} funciona apenas das {{start}} às {{end}}.",
+      "saveScheduleError": "Erro ao salvar agenda.",
+      "loadError": "Erro ao carregar profissionais.",
+      "nameRequired": "Nome é obrigatório.",
+      "saveError": "Erro ao salvar as informações.",
+      "toggleActiveError": "Erro ao alterar status: {{message}}",
+      "deleteError": "Erro ao excluir: {{message}}",
+      "botProfileSaveError": "Erro ao salvar.",
+      "botProfileGenerateError": "Erro ao gerar perfil.",
+      "botProfileGenerateFnError": "Erro na geração"
+    },
+    "success": {
+      "scheduleUpdated": "Agenda atualizada com sucesso!",
+      "registered": "Profissional cadastrado com sucesso!",
+      "dataSaved": "Dados salvos!",
+      "updated": "Profissional atualizado com sucesso!",
+      "botSkillsSaved": "Skills do Bot salvas!",
+      "botProfileGenerated": "Perfil gerado com IA! Revise e salve quando estiver satisfeito."
+    },
+    "detail": {
+      "newProfessional": "Novo Profissional",
+      "fillFieldsBelow": "Preencha os dados abaixo",
+      "crmPrefix": "CRM {{crm}}",
+      "edit": "Editar",
+      "tabs": {
+        "data": "Dados",
+        "weeklySchedule": "Agenda Semanal",
+        "insurancePlans": "Convênios",
+        "botSkills": "Skills do Bot"
+      },
+      "saveDataFirst": "Salve os dados primeiro",
+      "dataTab": {
+        "fullName": "Nome Completo *",
+        "fullNamePlaceholder": "Ex: Dr. João Silva",
+        "email": "E-mail",
+        "emailPlaceholder": "email@exemplo.com",
+        "phone": "Telefone",
+        "phonePlaceholder": "(11) 99999-0000",
+        "role": "Função",
+        "roleDoctor": "Médico",
+        "roleStaff": "Recepção",
+        "roleAdmin": "Administrador",
+        "specialty": "Especialidade",
+        "specialtyPlaceholder": "Ex: Cardiologia",
+        "crm": "CRM",
+        "crmPlaceholder": "Ex: 123456/SP",
+        "rqe": "RQE",
+        "rqePlaceholder": "Opcional",
+        "bio": "Bio / Observações",
+        "bioPlaceholder": "Informações adicionais...",
+        "avatarColor": "Cor do Avatar",
+        "cancellationPolicy": {
+          "title": "Regras de Cancelamento",
+          "subtitle": "Defina se haverá cobrança de multa em caso de cancelamento tardio ou não comparecimento.",
+          "freeWindowHours": "Grátis até (Horas antes)",
+          "freeWindowHint": "Ex: 24h ou 48h antes da consulta.",
+          "latePenaltyPercent": "Multa Cancel. Tardio (%)",
+          "latePenaltyHint": "Acaba recaindo sobre o valor do procedimento/consulta.",
+          "noShowPenaltyPercent": "Multa No-Show (%)",
+          "noShowPenaltyHint": "Multa caso o paciente não desmarque e falte.",
+          "noneConfigured": "Nenhuma regra de cancelamento e multa configurada.",
+          "freeUntil": "Grátis até <strong>{{hours}}h</strong>",
+          "latePenaltyLabel": "Multa Atraso:",
+          "noShowPenaltyLabel": "Multa Falta:"
+        },
+        "cancel": "Cancelar",
+        "saving": "Salvando...",
+        "next": "Próximo",
+        "save": "Salvar",
+        "readOnly": {
+          "fullName": "Nome Completo",
+          "email": "E-mail",
+          "phone": "Telefone",
+          "role": "Função",
+          "specialty": "Especialidade",
+          "crm": "CRM",
+          "rqe": "RQE",
+          "autoRelease": "Auto-Release",
+          "autoReleaseValue": "{{hours}}h antes do slot",
+          "bio": "Bio",
+          "empty": "—"
+        }
+      },
+      "agendaTab": {
+        "title": "Blocos de Horário",
+        "subtitle": "Configure horários particulares e regulares para agenda inteligente.",
+        "tools": {
+          "prime": "Prime",
+          "regular": "Regular",
+          "blocked": "Bloquear",
+          "eraser": "Borracha"
+        },
+        "selectedLocation": "Local Selecionado:",
+        "loadingLocations": "Carregando locais...",
+        "saveSchedule": "Salvar Agenda",
+        "saving": "Salvando...",
+        "hourLabel": "Hora",
+        "dragHint": "Clique e arraste para definir horários.",
+        "saveGridChanges": "Salvar Alterações na Grade",
+        "previous": "Anterior",
+        "next": "Próximo"
+      },
+      "insuranceTab": {
+        "title": "Convênios Aceitos",
+        "subtitle": "Selecione os convênios que este profissional atende.",
+        "emptyTitle": "Nenhum convênio cadastrado",
+        "emptySubtitle": "Cadastre convênios em Configurações → Convênios primeiro.",
+        "ansCode": "ANS: {{code}}",
+        "linked": "Vinculado",
+        "link": "Vincular",
+        "previous": "Anterior",
+        "finish": "Concluir"
+      },
+      "botTab": {
+        "title": "Skills do Bot",
+        "subtitle": "O agente usa essas informações para personalizar o atendimento deste profissional.",
+        "generateWithAI": "Gerar com IA",
+        "generating": "Gerando...",
+        "generateTitle": "Gera automaticamente o perfil do bot com base nos dados do profissional",
+        "pitch": {
+          "label": "Apresentação do Profissional",
+          "hint": "Como o bot deve apresentar este profissional. Ex: \"Dr. João é especialista em Ortodontia Invisível com 12 anos de experiência.\"",
+          "placeholder": "Descreva o diferencial e especialização do profissional..."
+        },
+        "consultationOpening": {
+          "label": "Abertura da Consulta",
+          "hint": "O que o paciente pode esperar nesta consulta. Usado quando o bot apresenta o serviço.",
+          "placeholder": "Ex: A avaliação ortodôntica inclui análise completa e apresentação de um plano personalizado..."
+        },
+        "sellingPoints": {
+          "label": "Diferenciais / Pontos de Venda",
+          "hint": "Argumentos que o bot pode usar para convencer o paciente a agendar.",
+          "placeholder": "Ex: Parcelamento em até 24x sem juros",
+          "add": "Adicionar diferencial"
+        },
+        "objectionScripts": {
+          "label": "Scripts de Objeção",
+          "hint": "Respostas exatas que o bot deve usar quando o paciente apresentar cada objeção.",
+          "preco": {
+            "label": "Objeção de Preço",
+            "placeholder": "Ex: Temos parcelamento em até 24x. Posso confirmar o horário para a avaliação, que é sem compromisso?"
+          },
+          "tempo": {
+            "label": "Objeção de Tempo",
+            "placeholder": "Ex: A consulta dura apenas 30 minutos. Tenho um horário às 7h da manhã que pode facilitar..."
+          },
+          "urgencia": {
+            "label": "Objeção de Urgência (\"não é urgente\")",
+            "placeholder": "Ex: Entendo! A agenda costuma fechar 2-3 semanas à frente. Quer garantir agora para não ter essa preocupação depois?"
+          }
+        },
+        "faq": {
+          "label": "Perguntas Frequentes (FAQ)",
+          "hint": "O bot responde diretamente com estas respostas quando detectar as perguntas dos pacientes.",
+          "questionPlaceholder": "Pergunta do paciente (ex: Quanto custa?)",
+          "answerPlaceholder": "Resposta do bot...",
+          "add": "Adicionar pergunta"
+        },
+        "preAppointmentTip": {
+          "label": "Instrução Pré-Consulta",
+          "hint": "Enviada ao paciente na confirmação do agendamento. Ex: \"Traga radiografias recentes.\"",
+          "placeholder": "Ex: Para aproveitar melhor a consulta, traga exames recentes se tiver."
+        },
+        "saving": "Salvando...",
+        "save": "Salvar Skills"
+      }
+    },
+    "list": {
+      "headerTitle": "Profissionais",
+      "headerSubtitle": "Equipe médica e administrativa da clínica.",
+      "add": "Adicionar",
+      "searchPlaceholder": "Buscar por nome, especialidade ou CRM...",
+      "loading": "Carregando equipe...",
+      "emptyAll": "Nenhum profissional cadastrado. Clique em \"Adicionar\" para começar.",
+      "emptySearch": "Nenhum resultado para a busca.",
+      "noName": "Sem nome",
+      "inactive": "Inativo",
+      "crmPrefix": "CRM {{crm}}",
+      "edit": "Editar",
+      "activate": "Ativar",
+      "deactivate": "Desativar",
+      "delete": "Excluir"
+    },
+    "deleteDialog": {
+      "title": "Remover Profissional?",
+      "message": "Esta ação não pode ser desfeita. O profissional será removido do quadro da clínica.",
+      "cancel": "Cancelar",
+      "confirm": "Excluir"
+    }
+  }
+}
