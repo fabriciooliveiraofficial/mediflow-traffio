@@ -5,12 +5,13 @@
  * Gerencia o ciclo completo: idle → discando → em chamada → encerrado.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Phone, PhoneCall, ChevronDown, Loader2 } from 'lucide-react';
 import { useTelnyxWebRTC } from '../../hooks/useTelnyxWebRTC';
 import { ActiveCallView } from './ActiveCallView';
 import { IncomingCallNotification } from './IncomingCallNotification';
 import { supabase } from '../../lib/supabase';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
 
 interface Props {
   enabled:       boolean;
@@ -29,12 +30,24 @@ export function SoftphoneWidget({ enabled, activeNumber }: Props) {
   const [dialInput,      setDialInput]      = useState('');
   const [callerPatient,  setCallerPatient]  = useState<{ id: string; name: string } | null>(null);
 
+  const inputRef = useRef<HTMLInputElement>(null);
+
   const {
     status, callState, activeCall,
     isMuted, isOnHold,
     dial, answer, hangup, toggleMute, toggleHold, transfer,
     error,
   } = useTelnyxWebRTC(enabled);
+
+  // Foca o input automaticamente quando o widget for expandido
+  useEffect(() => {
+    if (expanded && callState === 'idle') {
+      const timer = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [expanded, callState]);
 
   // I.1 — Listener para click-to-call disparado de PatientDetails
   useEffect(() => {
@@ -69,7 +82,39 @@ export function SoftphoneWidget({ enabled, activeNumber }: Props) {
   const handleKey = (k: string) => setDialInput((prev) => prev + k);
   const handleCall = () => {
     if (dialInput.length < 5) return;
-    dial(dialInput, activeNumber);
+
+    let numberToDial = dialInput.trim();
+
+    // Se o número não começa com '+', tentamos inferir o código do país pelo activeNumber
+    if (!numberToDial.startsWith('+') && activeNumber) {
+      const parsedActive = parsePhoneNumberFromString(activeNumber);
+      const defaultCountry = parsedActive?.country; // e.g. 'BR'
+      
+      const parsedDial = parsePhoneNumberFromString(numberToDial, defaultCountry);
+      
+      if (parsedDial && parsedDial.isValid()) {
+        numberToDial = parsedDial.number;
+      } else {
+        // Fallback se libphonenumber-js achar inválido ou incompleto (ex: 5541997759569 sem +)
+        const ddi = parsedActive?.countryCallingCode;
+        if (ddi) {
+          const cleanNumber = numberToDial.replace(/\D/g, '');
+          // Se o número limpo já começa com o DDI correspondente do activeNumber e tem comprimento razoável,
+          // assumimos que o usuário digitou o DDI mas esqueceu o '+'
+          if (cleanNumber.startsWith(ddi) && cleanNumber.length > ddi.length + 6) {
+            numberToDial = `+${cleanNumber}`;
+          } else {
+            numberToDial = `+${ddi}${cleanNumber}`;
+          }
+        } else {
+          numberToDial = numberToDial.replace(/[^\d+]/g, '');
+        }
+      }
+    } else {
+      numberToDial = numberToDial.replace(/[^\d+]/g, '');
+    }
+
+    dial(numberToDial, activeNumber);
     setDialInput('');
   };
 
@@ -137,9 +182,15 @@ export function SoftphoneWidget({ enabled, activeNumber }: Props) {
             {/* Display */}
             <div className="px-4 pt-4 pb-2">
               <input
+                ref={inputRef}
                 type="tel"
                 value={dialInput}
                 onChange={(e) => setDialInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleCall();
+                  }
+                }}
                 placeholder="Digite o número..."
                 className="w-full text-center text-xl font-black text-graphite-800 bg-ice-50 border border-ice-200 rounded-2xl px-3 py-2.5 focus:outline-none focus:border-brand-primary font-mono tracking-widest"
               />
@@ -161,8 +212,14 @@ export function SoftphoneWidget({ enabled, activeNumber }: Props) {
                 </div>
               ))}
 
-              {/* Botão de backspace + ligar */}
+              {/* Botão de +, backspace e limpar */}
               <div className="grid grid-cols-3 gap-2 mt-1">
+                <button
+                  onClick={() => handleKey('+')}
+                  className="py-3 rounded-2xl bg-ice-50 text-graphite-700 font-black text-lg hover:bg-ice-100 active:scale-95 transition-all border-none cursor-pointer"
+                >
+                  +
+                </button>
                 <button
                   onClick={() => setDialInput((p) => p.slice(0, -1))}
                   className="py-3 rounded-2xl bg-ice-50 text-graphite-400 font-bold text-sm hover:bg-ice-100 transition-all border-none cursor-pointer"
@@ -170,9 +227,19 @@ export function SoftphoneWidget({ enabled, activeNumber }: Props) {
                   ⌫
                 </button>
                 <button
+                  onClick={() => setDialInput('')}
+                  className="py-3 rounded-2xl bg-ice-50 text-graphite-400 font-bold text-sm hover:bg-ice-100 transition-all border-none cursor-pointer"
+                >
+                  C
+                </button>
+              </div>
+
+              {/* Botão de ligar */}
+              <div className="mt-1">
+                <button
                   onClick={handleCall}
                   disabled={dialInput.length < 5 || status !== 'ready'}
-                  className="col-span-2 flex items-center justify-center gap-2 py-3 rounded-2xl bg-green-500 text-white font-black text-sm hover:bg-green-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all border-none cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-green-500 text-white font-black text-sm hover:bg-green-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all border-none cursor-pointer"
                 >
                   <Phone size={18} />
                   Ligar
