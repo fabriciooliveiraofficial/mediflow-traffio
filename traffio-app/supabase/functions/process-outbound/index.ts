@@ -226,7 +226,8 @@ serve(async (req: Request) => {
             }
 
             const smsClient = new TelnyxSmsClient(smsApiKey);
-            await smsClient.sendSms(senderRow.phone_number, recipient, text);
+            const mediaUrls = msg.media_url ? [msg.media_url] : undefined;
+            await smsClient.sendSms(senderRow.phone_number, recipient, text, mediaUrls);
 
             // Rastrear uso: SMS outbound
             const pricing = getSmsPricing(senderRow?.country_code ?? "US", "sms");

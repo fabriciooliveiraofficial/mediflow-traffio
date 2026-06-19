@@ -11,6 +11,7 @@ import {
     Link,
     X
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 import { zapiService } from '../../services/zapiService';
 import { useToast } from '../../contexts/ToastContext';
@@ -28,6 +29,7 @@ interface WhatsAppInstance {
 }
 
 export const MasterWhatsApp = () => {
+    const { t } = useTranslation('master');
     const { showToast } = useToast();
     const [instances, setInstances] = useState<WhatsAppInstance[]>([]);
     const [loading, setLoading] = useState(true);
@@ -63,12 +65,12 @@ export const MasterWhatsApp = () => {
 
             if (error) throw error;
 
-            const mapped: WhatsAppInstance[] = data.map(t => ({
-                tenant_id: t.id,
-                tenant_name: t.name,
-                instance_id: t.zapi_instance_id,
-                token: t.zapi_token,
-                client_token: t.zapi_client_token, // Fixed: Added client_token
+            const mapped: WhatsAppInstance[] = data.map(tenant => ({
+                tenant_id: tenant.id,
+                tenant_name: tenant.name,
+                instance_id: tenant.zapi_instance_id,
+                token: tenant.zapi_token,
+                client_token: tenant.zapi_client_token, // Fixed: Added client_token
                 status: 'unknown',
                 last_ping: new Date().toISOString()
             }));
@@ -121,27 +123,27 @@ export const MasterWhatsApp = () => {
     };
 
     const handleRestart = async (instance: WhatsAppInstance) => {
-        if (!confirm('Tem certeza que deseja reiniciar esta instância?')) return;
+        if (!confirm(t('whatsapp.confirms.restart'))) return;
         setRefreshing(instance.instance_id);
         const success = await zapiService.restart(instance.instance_id, instance.token, instance.client_token);
         if (success) {
-            showToast('success', 'Comando de reinício enviado com sucesso.');
+            showToast('success', t('whatsapp.toasts.restartSuccess'));
             // Wait a bit before checking status
             setTimeout(() => handleRefreshStatus(instance), 5000);
         } else {
-            showToast('error', 'Erro ao enviar comando de reinício.');
+            showToast('error', t('whatsapp.toasts.restartError'));
             setRefreshing(null);
         }
     };
 
     const handleDisconnect = async (instance: WhatsAppInstance) => {
-        if (!confirm('Deseja realmente desconectar? O tenant perderá a conexão imediatamente.')) return;
+        if (!confirm(t('whatsapp.confirms.disconnect'))) return;
         setRefreshing(instance.instance_id);
         const success = await zapiService.disconnect(instance.instance_id, instance.token, instance.client_token);
         if (success) {
             handleRefreshStatus(instance);
         } else {
-            showToast('error', 'Erro ao desconectar.');
+            showToast('error', t('whatsapp.toasts.disconnectError'));
             setRefreshing(null);
         }
     };
@@ -156,7 +158,7 @@ export const MasterWhatsApp = () => {
             setQrCode(qr);
             setShowQrModal(true);
         } else {
-            showToast('error', 'Não foi possível gerar o QR Code. Verifique as credenciais.');
+            showToast('error', t('whatsapp.toasts.qrError'));
         }
     };
 
@@ -173,7 +175,7 @@ export const MasterWhatsApp = () => {
 
         if (error) {
             console.error('Erro ao buscar tenants:', error);
-            showToast('error', 'Erro ao carregar tenants: ' + error.message);
+            showToast('error', t('whatsapp.toasts.fetchTenantsError', { message: error.message }));
             setLoading(false);
             return;
         }
@@ -186,7 +188,7 @@ export const MasterWhatsApp = () => {
 
     const handleSaveLink = async () => {
         if (!linkForm.tenant_id || !linkForm.instance_id || !linkForm.token || !linkForm.client_token) {
-            showToast('warning', 'Preencha todos os campos!');
+            showToast('warning', t('whatsapp.toasts.fillAllFields'));
             return;
         }
 
@@ -200,7 +202,7 @@ export const MasterWhatsApp = () => {
             .eq('id', linkForm.tenant_id);
 
         if (error) {
-            showToast('error', 'Erro ao vincular: ' + error.message);
+            showToast('error', t('whatsapp.toasts.linkError', { message: error.message }));
         } else {
             setShowLinkModal(false);
             fetchInstances();
@@ -218,9 +220,9 @@ export const MasterWhatsApp = () => {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
                 <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sky-400 mb-1">Connectivity</p>
-                    <h1 className="text-3xl font-black text-white tracking-tight">Gestão de Instâncias Z-API</h1>
-                    <p className="text-slate-500 font-medium text-sm mt-1">Monitoramento global de conexões WhatsApp.</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sky-400 mb-1">{t('whatsapp.sectionLabel')}</p>
+                    <h1 className="text-3xl font-black text-white tracking-tight">{t('whatsapp.headerTitle')}</h1>
+                    <p className="text-slate-500 font-medium text-sm mt-1">{t('whatsapp.headerSubtitle')}</p>
                 </div>
                 <div className="flex gap-3">
                     <button
@@ -228,14 +230,14 @@ export const MasterWhatsApp = () => {
                         className="flex items-center gap-2 bg-[#1A2035] text-slate-300 px-4 py-3 rounded-xl font-bold text-sm hover:text-white hover:bg-[#2D3B55] transition-all border-none cursor-pointer"
                     >
                         <RefreshCcw size={16} className={loading && !refreshing ? 'animate-spin' : ''} />
-                        Atualizar Lista
+                        {t('whatsapp.refreshList')}
                     </button>
                     <button
                         onClick={openLinkModal}
                         className="flex items-center gap-2 bg-sky-500 text-white px-5 py-3 rounded-xl font-bold text-sm shadow-lg shadow-sky-500/20 hover:bg-sky-600 transition-all border-none cursor-pointer"
                     >
                         <Link size={16} />
-                        Vincular Instância
+                        {t('whatsapp.linkInstance')}
                     </button>
                 </div>
             </div>
@@ -245,7 +247,7 @@ export const MasterWhatsApp = () => {
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
                 <input
                     type="text"
-                    placeholder="Buscar por tenant ou instance ID..."
+                    placeholder={t('whatsapp.searchPlaceholder')}
                     value={search}
                     onChange={e => setSearch(e.target.value)}
                     className="w-full bg-[#0F1629] border border-[#1E293B] rounded-xl pl-12 pr-4 py-3.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-sky-500/50 focus:ring-2 focus:ring-sky-500/10 transition-all font-medium"
@@ -257,11 +259,11 @@ export const MasterWhatsApp = () => {
                 {loading && instances.length === 0 ? (
                     <div className="col-span-full text-center py-12 text-slate-600 flex flex-col items-center gap-3">
                         <Loader2 className="animate-spin text-sky-500" size={32} />
-                        <p>Carregando...</p>
+                        <p>{t('whatsapp.loading')}</p>
                     </div>
                 ) : filtered.length === 0 ? (
                     <div className="col-span-full text-center py-12 text-slate-600 border border-dashed border-[#1E293B] rounded-2xl">
-                        Nenhuma instância conectada.
+                        {t('whatsapp.empty')}
                     </div>
                 ) : (
                     filtered.map((instance) => {
@@ -287,21 +289,21 @@ export const MasterWhatsApp = () => {
                                             instance.status === 'disconnected' ? 'bg-rose-500/10 text-rose-400' : 'bg-slate-500/10 text-slate-400'
                                         }`}>
                                         {instance.status === 'connected' ? <Wifi size={12} /> : <WifiOff size={12} />}
-                                        {instance.status === 'connected' ? 'Online' : instance.status === 'disconnected' ? 'Offline' : '...'}
+                                        {instance.status === 'connected' ? t('whatsapp.statusOnline') : instance.status === 'disconnected' ? t('whatsapp.statusOffline') : t('whatsapp.statusUnknown')}
                                     </div>
                                 </div>
 
                                 <div className="space-y-2 mb-6">
                                     <div className="flex justify-between text-xs">
-                                        <span className="text-slate-600 font-bold">Marketing Name</span>
+                                        <span className="text-slate-600 font-bold">{t('whatsapp.marketingName')}</span>
                                         <span className="text-slate-400">{instance.marketing_name || '-'}</span>
                                     </div>
                                     <div className="flex justify-between text-xs">
-                                        <span className="text-slate-600 font-bold">Telefone</span>
+                                        <span className="text-slate-600 font-bold">{t('whatsapp.phone')}</span>
                                         <span className="text-slate-400 font-mono">{instance.phone || '-'}</span>
                                     </div>
                                     <div className="flex justify-between text-xs">
-                                        <span className="text-slate-600 font-bold">Ultimo Ping</span>
+                                        <span className="text-slate-600 font-bold">{t('whatsapp.lastPing')}</span>
                                         <span className="text-slate-400">{new Date(instance.last_ping).toLocaleTimeString()}</span>
                                     </div>
                                 </div>
@@ -314,14 +316,14 @@ export const MasterWhatsApp = () => {
                                                 disabled={isRefreshing}
                                                 className="flex-1 px-3 py-2 rounded-lg bg-[#1A2035] text-slate-300 text-xs font-bold hover:bg-amber-500/10 hover:text-amber-400 transition-colors border-none cursor-pointer flex items-center justify-center gap-2"
                                             >
-                                                <RefreshCcw size={14} className={isRefreshing ? 'animate-spin' : ''} /> Reiniciar
+                                                <RefreshCcw size={14} className={isRefreshing ? 'animate-spin' : ''} /> {t('whatsapp.restart')}
                                             </button>
                                             <button
                                                 onClick={() => handleDisconnect(instance)}
                                                 disabled={isRefreshing}
                                                 className="flex-1 px-3 py-2 rounded-lg bg-[#1A2035] text-slate-300 text-xs font-bold hover:bg-rose-500/10 hover:text-rose-400 transition-colors border-none cursor-pointer flex items-center justify-center gap-2"
                                             >
-                                                <Power size={14} /> Desconectar
+                                                <Power size={14} /> {t('whatsapp.disconnect')}
                                             </button>
                                         </>
                                     ) : (
@@ -330,7 +332,7 @@ export const MasterWhatsApp = () => {
                                             disabled={isRefreshing}
                                             className="w-full px-3 py-2 rounded-lg bg-emerald-500/10 text-emerald-400 text-xs font-bold hover:bg-emerald-500/20 transition-colors border-none cursor-pointer flex items-center justify-center gap-2"
                                         >
-                                            <QrCode size={14} /> Conectar (QR)
+                                            <QrCode size={14} /> {t('whatsapp.connectQr')}
                                         </button>
                                     )}
                                 </div>
@@ -346,38 +348,38 @@ export const MasterWhatsApp = () => {
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-[#0F1629] border border-[#1E293B] rounded-2xl w-full max-w-md p-6">
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-black text-white">Vincular Instância Z-API</h2>
+                            <h2 className="text-xl font-black text-white">{t('whatsapp.linkModal.title')}</h2>
                             <button onClick={() => setShowLinkModal(false)} className="text-slate-400 hover:text-white border-none bg-transparent cursor-pointer"><X size={20} /></button>
                         </div>
 
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-xs font-bold text-slate-400 mb-1">Clinic/Tenant</label>
+                                <label className="block text-xs font-bold text-slate-400 mb-1">{t('whatsapp.linkModal.clinicTenantLabel')}</label>
                                 <select
                                     value={linkForm.tenant_id}
                                     onChange={e => setLinkForm({ ...linkForm, tenant_id: e.target.value })}
                                     className="w-full bg-[#1A2035] border border-[#2D3B55] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-sky-500"
                                 >
-                                    <option value="">Selecione um tenant...</option>
-                                    {tenantsWithoutZapi.map(t => (
-                                        <option key={t.id} value={t.id}>
-                                            {t.name}{t.zapi_instance_id ? ' (atualizar)' : ''}
+                                    <option value="">{t('whatsapp.linkModal.selectTenant')}</option>
+                                    {tenantsWithoutZapi.map(tenant => (
+                                        <option key={tenant.id} value={tenant.id}>
+                                            {tenant.name}{tenant.zapi_instance_id ? t('whatsapp.linkModal.updateSuffix') : ''}
                                         </option>
                                     ))}
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-400 mb-1">Instance ID</label>
+                                <label className="block text-xs font-bold text-slate-400 mb-1">{t('whatsapp.linkModal.instanceIdLabel')}</label>
                                 <input
                                     type="text"
                                     value={linkForm.instance_id}
                                     onChange={e => setLinkForm({ ...linkForm, instance_id: e.target.value })}
-                                    placeholder="Ex: 3B2D..."
+                                    placeholder={t('whatsapp.linkModal.instanceIdPlaceholder')}
                                     className="w-full bg-[#1A2035] border border-[#2D3B55] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-sky-500"
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-400 mb-1">Token da Instância</label>
+                                <label className="block text-xs font-bold text-slate-400 mb-1">{t('whatsapp.linkModal.tokenLabel')}</label>
                                 <input
                                     type="text"
                                     value={linkForm.token}
@@ -386,7 +388,7 @@ export const MasterWhatsApp = () => {
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-400 mb-1">Client Token</label>
+                                <label className="block text-xs font-bold text-slate-400 mb-1">{t('whatsapp.linkModal.clientTokenLabel')}</label>
                                 <input
                                     type="text"
                                     value={linkForm.client_token}
@@ -399,7 +401,7 @@ export const MasterWhatsApp = () => {
                                 onClick={handleSaveLink}
                                 className="w-full bg-sky-500 text-white py-3 rounded-xl font-bold hover:bg-sky-600 transition-colors mt-4 border-none cursor-pointer"
                             >
-                                Salvar Vínculo
+                                {t('whatsapp.linkModal.save')}
                             </button>
                         </div>
                     </div>
@@ -410,12 +412,12 @@ export const MasterWhatsApp = () => {
             {showQrModal && qrCode && selectedInstance && (
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl w-full max-w-sm p-8 text-center">
-                        <h2 className="text-xl font-black text-graphite-900 mb-2">Conectar WhatsApp</h2>
-                        <p className="text-sm text-graphite-500 mb-6">Abra o WhatsApp no seu celular e escaneie o código abaixo.</p>
+                        <h2 className="text-xl font-black text-graphite-900 mb-2">{t('whatsapp.qrModal.title')}</h2>
+                        <p className="text-sm text-graphite-500 mb-6">{t('whatsapp.qrModal.subtitle')}</p>
 
                         <div className="bg-white p-4 rounded-xl border border-slate-200 inline-block mb-6 shadow-inner">
                             {/* Render QR Image from Z-API (Base64) */}
-                            <img src={qrCode} alt="QR Code" className="w-64 h-64 object-contain" />
+                            <img src={qrCode} alt={t('whatsapp.qrModal.qrAlt')} className="w-64 h-64 object-contain" />
                         </div>
 
                         <div className="flex gap-3">
@@ -423,7 +425,7 @@ export const MasterWhatsApp = () => {
                                 onClick={() => setShowQrModal(false)}
                                 className="flex-1 py-3 text-slate-500 font-bold hover:bg-slate-100 rounded-xl transition-colors border-none cursor-pointer"
                             >
-                                Cancelar
+                                {t('whatsapp.qrModal.cancel')}
                             </button>
                             <button
                                 onClick={() => {
@@ -432,7 +434,7 @@ export const MasterWhatsApp = () => {
                                 }}
                                 className="flex-1 py-3 bg-emerald-500 text-white font-bold rounded-xl hover:bg-emerald-600 transition-colors border-none cursor-pointer"
                             >
-                                Já Escaneei
+                                {t('whatsapp.qrModal.alreadyScanned')}
                             </button>
                         </div>
                     </div>

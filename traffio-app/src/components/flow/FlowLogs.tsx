@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 import { Terminal, Clock, AlertCircle, CheckCircle2, Search, ArrowRight } from 'lucide-react';
 import { clsx } from 'clsx';
 
 export const FlowLogs = ({ flowId }: { flowId?: string }) => {
+    const { t } = useTranslation('flowBuilder');
     const [logs, setLogs] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -30,7 +32,7 @@ export const FlowLogs = ({ flowId }: { flowId?: string }) => {
     if (loading) {
         return (
             <div className="p-8 flex items-center justify-center">
-                <div className="text-slate-400 font-bold animate-pulse uppercase tracking-widest text-xs">Carregando Auditoria...</div>
+                <div className="text-slate-400 font-bold animate-pulse uppercase tracking-widest text-xs">{t('flowBuilder.logs.loadingAudit')}</div>
             </div>
         );
     }
@@ -40,16 +42,16 @@ export const FlowLogs = ({ flowId }: { flowId?: string }) => {
             <div className="p-8 border-b border-ice-100 flex justify-between items-center bg-slate-50/50">
                 <div>
                     <h2 className="text-2xl font-black text-graphite-900 tracking-tight flex items-center gap-3">
-                        <Terminal className="text-brand-primary" /> Audit Logs
+                        <Terminal className="text-brand-primary" /> {t('flowBuilder.logs.title')}
                     </h2>
-                    <p className="text-slate-500 text-sm mt-1 font-medium">Observabilidade em tempo real do motor de execução v2.</p>
+                    <p className="text-slate-500 text-sm mt-1 font-medium">{t('flowBuilder.logs.subtitle')}</p>
                 </div>
 
                 <div className="flex gap-3">
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                         <input
-                            placeholder="Buscar Session ID..."
+                            placeholder={t('flowBuilder.logs.searchSessionId')}
                             className="pl-10 pr-4 py-2.5 bg-white border border-ice-200 rounded-xl text-xs font-bold outline-none focus:border-brand-primary transition-all w-64"
                         />
                     </div>
@@ -85,7 +87,7 @@ export const FlowLogs = ({ flowId }: { flowId?: string }) => {
 
                             <div className="flex items-center gap-6">
                                 <div className="text-right">
-                                    <div className="text-[10px] font-black text-slate-400 uppercase mb-1">Session</div>
+                                    <div className="text-[10px] font-black text-slate-400 uppercase mb-1">{t('flowBuilder.logs.session')}</div>
                                     <div className="text-xs font-bold text-graphite-700 truncate w-32 tracking-tighter">{log.session_id}</div>
                                 </div>
                                 <button className="p-2.5 bg-ice-50 hover:bg-ice-100 rounded-xl text-brand-primary transition-all">
@@ -98,7 +100,7 @@ export const FlowLogs = ({ flowId }: { flowId?: string }) => {
                     {logs.length === 0 && (
                         <div className="py-20 text-center">
                             <Terminal size={48} className="mx-auto text-ice-200 mb-4" />
-                            <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Nenhum log de execução encontrado.</p>
+                            <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">{t('flowBuilder.logs.noLogsFound')}</p>
                         </div>
                     )}
                 </div>

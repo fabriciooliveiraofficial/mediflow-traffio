@@ -103,5 +103,156 @@
     "legendRegular": "Regular",
     "legendPrime": "Prime",
     "legendReleased": "Liberado"
+  },
+  "sidebarBookingView": {
+    "headerLabel": "Agendamento Expresso",
+    "steps": {
+      "selectProfessional": "1. Selecione o Profissional",
+      "selectLocationQuestion": "2. Onde deseja ser atendido?",
+      "selectProcedure": "3. Escolha o Procedimento",
+      "selectDateTime": "4. Selecione a Data e Horário"
+    },
+    "generalSpecialtyFallback": "Geral",
+    "changeProfessional": "Trocar Profissional",
+    "changeUnit": "Trocar Unidade",
+    "changeService": "Trocar Serviço",
+    "changeLabel": "Trocar {{target}}",
+    "noProceduresFound": "Nenhum procedimento encontrado.",
+    "agendaForDate": "Agenda para {{date}}",
+    "noSlotsForDay": "Nenhum horário disponível para este dia.",
+    "findNextAvailableDay": "Procurar Próximo Dia Disponível",
+    "dailyAgenda": "Agenda Diária",
+    "unavailable": "INDISPONÍVEL",
+    "blocked": "BLOQUEADO",
+    "occupied": "OCUPADO",
+    "messageCustomizationTitle": "Links na Mensagem de Confirmação",
+    "checkinOption": {
+      "title": "Sala de Espera (Check-in)",
+      "subtitle": "Link para espera virtual do paciente"
+    },
+    "paymentOption": {
+      "title": "Link de Pagamento",
+      "subtitle": "Link de checkout para confirmar vaga"
+    },
+    "mapsOption": {
+      "title": "Instruções de Acesso (Google Maps)",
+      "subtitle": "Link com o endereço da clínica"
+    },
+    "successTitle": "Agendado com Sucesso!",
+    "successSubtitle": "O link de pagamento já está pronto.",
+    "paymentLinkLabel": "Link de Pagamento (Asaas)",
+    "backToService": "Voltar para o Atendimento",
+    "confirmAppointment": "Confirmar Agendamento",
+    "professionalFallback": "Profissional",
+    "toasts": {
+      "skippingToDate": "Pulando para {{date}}",
+      "noOtherSlotsAvailable": "Nenhum outro horário disponível nos próximos dias.",
+      "linkCopied": "Link copiado para a área de transferência",
+      "rescheduleCompleted": "Reagendamento concluído!",
+      "bookingCompleted": "Agendamento realizado!"
+    },
+    "errors": {
+      "slotTaken": "Este horário já foi preenchido por outro atendente. Por favor, escolha outro horário.",
+      "unknown": "Erro desconhecido ao agendar.",
+      "invalidResponse": "Resposta de agendamento inválida."
+    },
+    "rescheduleNote": "Reagendado para {{date}} {{time}}",
+    "message": {
+      "greeting": "Olá *{{name}}*! 😊",
+      "rescheduled": "Seu reagendamento foi realizado com sucesso!",
+      "booked": "Seu agendamento foi realizado com sucesso!",
+      "detailsTitle": "📝 *Detalhes da Consulta:*",
+      "dateLine": "📅 *Data:* {{date}}",
+      "timeLine": "🕒 *Horário:* {{time}}",
+      "doctorLine": "👨‍⚕️ *Profissional:* {{doctor}}",
+      "locationLine": "📍 *Local:* {{location}}",
+      "mapsLine": "🗺️ *Como Chegar:* {{url}}",
+      "checkinTitle": "🔗 *SALA DE ESPERA VIRTUAL:*",
+      "checkinInstructions": "Acesse para fazer seu check-in na hora da consulta:",
+      "paymentTitle": "💳 *PAGAMENTO / CONFIRMAÇÃO:*",
+      "paymentInstructions": "Para garantir sua vaga, realize o pagamento no link:",
+      "closing": "_Nos vemos em breve!_ 💙"
+    }
+  },
+  "sidebarAppointmentsView": {
+    "headerLabel": "Consultas",
+    "tabs": {
+      "upcoming": "Próximas ({{count}})",
+      "history": "Histórico ({{count}})"
+    },
+    "empty": {
+      "upcoming": "Nenhuma consulta agendada",
+      "history": "Sem histórico"
+    },
+    "consultationFallback": "Consulta",
+    "professionalFallback": "Profissional",
+    "yourProfessionalFallback": "seu profissional",
+    "dateTimeLabel": "{{date}} às {{time}}",
+    "status": {
+      "scheduled": "Agendado",
+      "confirmed": "Confirmado",
+      "completed": "Concluído",
+      "canceled": "Cancelado",
+      "no_show": "Faltou",
+      "in_progress": "Em andamento"
+    },
+    "billing": {
+      "paid": "Pago",
+      "pending": "Pendente"
+    },
+    "actions": {
+      "reschedule": "Reagendar",
+      "sendReminder": "Enviar Lembrete",
+      "sendCheckinLink": "Link Sala de Espera",
+      "sendPaymentLink": "Link Pagamento",
+      "cancelAppointment": "Cancelar Consulta"
+    },
+    "confirmCancel": "Cancelar consulta de {{date}}?",
+    "cancelReason": "Cancelado pelo atendente via inbox",
+    "toasts": {
+      "canceled": "Consulta cancelada",
+      "checkinSent": "Link de check-in enviado!",
+      "reminderSent": "Lembrete enviado!",
+      "paymentLinkSent": "Link de pagamento enviado!"
+    },
+    "errors": {
+      "cancelFailed": "Erro ao cancelar"
+    },
+    "message": {
+      "checkin": "Olá {{name}}! 😊 Aqui está o link para a sua sala de espera virtual da consulta do dia {{date}}: {{link}}",
+      "reminder": "Olá {{name}}! 😊 Lembrando da sua consulta com {{doctor}} no dia {{date}} às {{time}}. Nos vemos lá! 💙",
+      "paymentLink": "Olá {{name}}! 😊 Aqui está o seu link para pagamento/confirmação da consulta: {{link}}"
+    }
+  },
+  "checkoutModal": {
+    "title": "Receber Pagamento",
+    "patientLabel": "Paciente:",
+    "amountToReceiveLabel": "Valor a Receber",
+    "creditCard": {
+      "title": "Cartão de Crédito",
+      "subtitle": "Até 21x Parcelado"
+    },
+    "financing": {
+      "title": "Financiamento",
+      "subtitle": "Até 24x sem Cartão"
+    },
+    "installmentsLabel": "Número de Parcelas",
+    "generatePaymentLink": "Gerar Link de Pagamento",
+    "sendDrCashStudy": "Enviar Estudo Dr. Cash",
+    "operationStarted": "Operação Iniciada!",
+    "successCreditCard": "Aguardando o paciente processar o pagamento no cartão via link.",
+    "successFinancing": "O paciente recebeu o link da proposta no celular para análise de crédito.",
+    "closeWindow": "Fechar Janela",
+    "securityBadge": {
+      "environment": "Ambiente Seguro PCI-DSS",
+      "encryption": "Criptografia SSL"
+    },
+    "toasts": {
+      "financingSent": "Proposta de financiamento enviada com sucesso!",
+      "checkoutStarted": "Checkout Pagar.me iniciado!"
+    },
+    "errors": {
+      "paymentFailed": "Erro ao processar pagamento."
+    }
   }
 }

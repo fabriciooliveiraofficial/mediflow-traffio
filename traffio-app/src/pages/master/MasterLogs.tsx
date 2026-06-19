@@ -12,6 +12,7 @@ import {
     Clock,
     Activity
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 type LogType = 'auth' | 'phi' | 'billing' | 'system' | 'error';
 
@@ -35,14 +36,6 @@ const MOCK_LOGS: LogEntry[] = [
     { id: '1', timestamp: '2026-02-16T09:00:00', type: 'system', message: 'Backup diário automático concluído (3 tenants)', tenant: 'Global' },
 ];
 
-const typeConfig: Record<LogType, { label: string; color: string; icon: any }> = {
-    auth: { label: 'Auth', color: 'text-sky-400 bg-sky-500/10', icon: Shield },
-    phi: { label: 'PHI', color: 'text-amber-400 bg-amber-500/10', icon: AlertTriangle },
-    billing: { label: 'Billing', color: 'text-emerald-400 bg-emerald-500/10', icon: CheckCircle2 },
-    system: { label: 'Sistema', color: 'text-violet-400 bg-violet-500/10', icon: Server },
-    error: { label: 'Erro', color: 'text-rose-400 bg-rose-500/10', icon: XCircle },
-};
-
 interface HealthItem {
     name: string;
     status: 'healthy' | 'warning' | 'down';
@@ -50,15 +43,24 @@ interface HealthItem {
     icon: any;
 }
 
-const HEALTH: HealthItem[] = [
-    { name: 'Supabase (PostgreSQL)', status: 'healthy', latency: '12ms', icon: Database },
-    { name: 'Servidor Webhook', status: 'healthy', latency: '3ms', icon: Server },
-    { name: 'Z-API Gateway', status: 'warning', latency: '210ms', icon: Wifi },
-    { name: 'Edge Functions', status: 'healthy', latency: '45ms', icon: Activity },
-];
-
 export const MasterLogs = () => {
+    const { t } = useTranslation('master');
     const [activeFilter, setActiveFilter] = useState<LogType | 'all'>('all');
+
+    const typeConfig: Record<LogType, { label: string; color: string; icon: any }> = {
+        auth: { label: t('logs.types.auth'), color: 'text-sky-400 bg-sky-500/10', icon: Shield },
+        phi: { label: t('logs.types.phi'), color: 'text-amber-400 bg-amber-500/10', icon: AlertTriangle },
+        billing: { label: t('logs.types.billing'), color: 'text-emerald-400 bg-emerald-500/10', icon: CheckCircle2 },
+        system: { label: t('logs.types.system'), color: 'text-violet-400 bg-violet-500/10', icon: Server },
+        error: { label: t('logs.types.error'), color: 'text-rose-400 bg-rose-500/10', icon: XCircle },
+    };
+
+    const HEALTH: HealthItem[] = [
+        { name: 'Supabase (PostgreSQL)', status: 'healthy', latency: '12ms', icon: Database },
+        { name: t('logs.health.webhookServer'), status: 'healthy', latency: '3ms', icon: Server },
+        { name: 'Z-API Gateway', status: 'warning', latency: '210ms', icon: Wifi },
+        { name: 'Edge Functions', status: 'healthy', latency: '45ms', icon: Activity },
+    ];
 
     const filtered = activeFilter === 'all'
         ? MOCK_LOGS
@@ -69,9 +71,9 @@ export const MasterLogs = () => {
 
             {/* Header */}
             <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400 mb-1">Observability</p>
-                <h1 className="text-3xl font-black text-white tracking-tight">Logs & Auditoria</h1>
-                <p className="text-slate-500 font-medium text-sm mt-1">Timeline de eventos, saúde do sistema e rastreamento de acesso PHI.</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400 mb-1">{t('logs.sectionLabel')}</p>
+                <h1 className="text-3xl font-black text-white tracking-tight">{t('logs.headerTitle')}</h1>
+                <p className="text-slate-500 font-medium text-sm mt-1">{t('logs.headerSubtitle')}</p>
             </div>
 
             {/* System Health */}
@@ -84,7 +86,7 @@ export const MasterLogs = () => {
                         </div>
                         <div className="flex items-center justify-between">
                             <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${h.status === 'healthy' ? 'bg-emerald-500/10 text-emerald-400' : h.status === 'warning' ? 'bg-amber-500/10 text-amber-400' : 'bg-rose-500/10 text-rose-400'}`}>
-                                {h.status === 'healthy' ? '● Online' : h.status === 'warning' ? '● Lento' : '● Offline'}
+                                {h.status === 'healthy' ? t('logs.health.online') : h.status === 'warning' ? t('logs.health.slow') : t('logs.health.offline')}
                             </span>
                             <span className="text-[10px] font-mono text-slate-600">{h.latency}</span>
                         </div>
@@ -104,7 +106,7 @@ export const MasterLogs = () => {
                             : 'bg-[#0F1629] text-slate-500 hover:text-white hover:bg-white/5'
                             }`}
                     >
-                        {f === 'all' ? 'Todos' : typeConfig[f].label}
+                        {f === 'all' ? t('logs.filterAll') : typeConfig[f].label}
                     </button>
                 ))}
             </div>
@@ -113,8 +115,8 @@ export const MasterLogs = () => {
             <div className="bg-[#0F1629] border border-[#1E293B] rounded-2xl overflow-hidden">
                 <div className="flex items-center gap-3 px-6 py-4 border-b border-[#1E293B]">
                     <ScrollText size={18} className="text-emerald-400" />
-                    <h3 className="font-bold text-white text-sm">Timeline de Eventos</h3>
-                    <span className="text-xs text-slate-600 ml-auto">{filtered.length} eventos</span>
+                    <h3 className="font-bold text-white text-sm">{t('logs.timeline.title')}</h3>
+                    <span className="text-xs text-slate-600 ml-auto">{t('logs.timeline.eventsCount', { count: filtered.length })}</span>
                 </div>
                 <div className="divide-y divide-[#1E293B]/30">
                     {filtered.map(log => {

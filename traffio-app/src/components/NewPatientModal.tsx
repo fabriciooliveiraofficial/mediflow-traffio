@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, User, Mail, Save, Calendar } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -19,6 +20,7 @@ interface NewPatientModalProps {
 }
 
 export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClose, onSuccess, patientId, initialData }) => {
+    const { t } = useTranslation('crm');
     const { tenant } = useTenant();
     const { showToast } = useToast();
     const [loading, setLoading] = useState(false);
@@ -121,9 +123,9 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
                     .update(payload)
                     .eq('id', patientId);
                 if (error) throw error;
-                showToast('success', 'Paciente atualizado com sucesso!');
+                showToast('success', t('crm.newPatientModal.toasts.updated'));
             } else {
-                if (!tenant?.id) throw new Error('Tenant não identificado.');
+                if (!tenant?.id) throw new Error(t('crm.newPatientModal.errors.tenantNotIdentified'));
                 const { error } = await supabase
                     .from('patients')
                     .insert([{
@@ -131,7 +133,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
                         tenant_id: tenant.id
                     }]);
                 if (error) throw error;
-                showToast('success', 'Paciente cadastrado com sucesso!');
+                showToast('success', t('crm.newPatientModal.toasts.created'));
             }
 
             onSuccess();
@@ -139,7 +141,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
 
         } catch (error: any) {
             console.error('Error adding patient:', error);
-            showToast('error', 'Erro ao cadastrar: ' + error.message);
+            showToast('error', t('crm.newPatientModal.errors.createPrefix', { message: error.message }));
         } finally {
             setLoading(false);
         }
@@ -170,10 +172,10 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
                             <div className="px-8 py-6 border-b border-ice-100 flex justify-between items-center bg-ice-50/50">
                                 <div>
                                     <h3 className="text-xl font-black text-graphite-900 tracking-tight">
-                                        {patientId ? 'Editar Paciente' : 'Novo Paciente'}
+                                        {patientId ? t('crm.newPatientModal.editTitle') : t('crm.newPatientModal.newTitle')}
                                     </h3>
                                     <p className="text-sm text-graphite-400 font-medium">
-                                        {patientId ? 'Atualize as informações do paciente.' : 'Preencha os dados do cartão de visitas.'}
+                                        {patientId ? t('crm.newPatientModal.editSubtitle') : t('crm.newPatientModal.newSubtitle')}
                                     </p>
                                 </div>
                                 <button
@@ -188,7 +190,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
                             <form onSubmit={handleSubmit} className="p-8 space-y-6">
                                 <div className="space-y-4">
                                     <div className="group">
-                                        <label className="block text-xs font-black text-graphite-700 uppercase tracking-widest mb-2 ml-1">Nome Completo</label>
+                                        <label className="block text-xs font-black text-graphite-700 uppercase tracking-widest mb-2 ml-1">{t('crm.newPatientModal.fullNameLabel')}</label>
                                         <div className="relative">
                                             <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-graphite-400 group-focus-within:text-brand-primary transition-colors" />
                                             <input
@@ -197,7 +199,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
                                                 value={formData.full_name}
                                                 onChange={e => setFormData({ ...formData, full_name: e.target.value })}
                                                 className="w-full bg-ice-50 border border-ice-200 rounded-2xl py-3.5 pl-12 pr-4 text-sm font-bold text-graphite-900 focus:outline-none focus:border-brand-primary/50 focus:ring-4 focus:ring-brand-primary/10 transition-all placeholder:text-graphite-300"
-                                                placeholder="Ex: Ricardo Albeniz"
+                                                placeholder={t('crm.newPatientModal.fullNamePlaceholder')}
                                             />
                                         </div>
                                     </div>
@@ -213,7 +215,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
                                             value={formData.phone}
                                             onChange={v => setFormData({ ...formData, phone: v })}
                                             country={formData.country}
-                                            label="Celular"
+                                            label={t('crm.newPatientModal.phoneLabel')}
                                         />
                                     </div>
 

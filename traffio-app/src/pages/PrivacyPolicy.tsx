@@ -1,7 +1,9 @@
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ArrowLeft, ShieldCheck, Mail, Lock, Eye, CheckCircle } from 'lucide-react';
 
 export const PrivacyPolicy = () => {
+  const { t } = useTranslation('legal');
   const navigate = useNavigate();
 
   return (
@@ -13,7 +15,7 @@ export const PrivacyPolicy = () => {
             <img src="/favicon.png" alt="Traffio" className="h-10 w-10 rounded-xl cursor-pointer" onClick={() => navigate('/')} />
             <div>
               <p className="text-lg font-black leading-none">Traffio</p>
-              <p className="text-[10px] text-amber-400 font-bold tracking-wider">ODONTO • MARKETING</p>
+              <p className="text-[10px] text-amber-400 font-bold tracking-wider">{t('legal.shared.brandTagline')}</p>
             </div>
           </div>
           <button
@@ -21,7 +23,7 @@ export const PrivacyPolicy = () => {
             className="flex items-center gap-2 text-sm font-bold text-slate-300 hover:text-amber-400 transition-colors border-none bg-transparent cursor-pointer"
           >
             <ArrowLeft size={16} />
-            Voltar para a Home
+            {t('legal.shared.backToHome')}
           </button>
         </div>
       </header>
@@ -32,13 +34,13 @@ export const PrivacyPolicy = () => {
         <div className="max-w-4xl mx-auto relative z-10 text-center md:text-left">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-slate-800/80 border border-slate-700 text-amber-400 rounded-full text-xs font-black uppercase tracking-wider mb-4">
             <ShieldCheck size={14} />
-            Privacidade e Segurança
+            {t('legal.privacyPolicy.heroBadge')}
           </div>
           <h1 className="text-4xl md:text-5xl font-black mb-4 tracking-tight leading-tight">
-            Política de Privacidade
+            {t('legal.privacyPolicy.heroTitle')}
           </h1>
           <p className="text-slate-400 text-base font-medium max-w-2xl leading-relaxed">
-            Última atualização: 15 de junho de 2026. Entenda como coletamos, protegemos, utilizamos e garantimos seus direitos sobre as informações em nossa plataforma.
+            {t('legal.privacyPolicy.lastUpdatedLabel')} 15 de junho de 2026. {t('legal.privacyPolicy.heroSubtitle')}
           </p>
         </div>
       </div>

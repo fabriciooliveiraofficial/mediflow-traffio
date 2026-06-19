@@ -63,6 +63,14 @@ export async function getTelnyxConnectionId(
   return getMasterConfig(supabase, "TELNYX_CONNECTION_ID");
 }
 
+export async function getTelnyxMessagingProfileId(
+  supabase: SupabaseClient,
+  tenantMessagingProfileId?: string | null
+): Promise<string> {
+  if (tenantMessagingProfileId) return tenantMessagingProfileId;
+  return getMasterConfig(supabase, "TELNYX_MESSAGING_PROFILE_ID");
+}
+
 export async function getTelnyxPublicKey(supabase: SupabaseClient): Promise<string> {
   return getMasterConfig(supabase, "TELNYX_PUBLIC_KEY");
 }

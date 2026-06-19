@@ -17,6 +17,7 @@ import {
     X,
     Sliders
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../contexts/ToastContext';
 import { MasterTenantWidgetConfig } from '../../components/master/MasterTenantWidgetConfig';
@@ -38,6 +39,7 @@ interface Tenant {
 }
 
 export const MasterTenants = () => {
+    const { t } = useTranslation('master');
     const { showToast } = useToast();
     const [tenants, setTenants] = useState<Tenant[]>([]);
     const [loading, setLoading] = useState(true);
@@ -89,28 +91,28 @@ export const MasterTenants = () => {
             // 2. Invite/Create Admin User is complex without Service Role in client.
             // Ideally we call an Edge Function here.
             // For now, we will just notify the Super Admin to invite the user manually or use the Invite Link.
-            showToast('success', `Tenant ${tenantData.name} criado! ID: ${tenantData.id}. Agora convide o admin (${newTenant.adminEmail}).`);
+            showToast('success', t('tenants.toasts.createSuccess', { name: tenantData.name, id: tenantData.id, email: newTenant.adminEmail }));
 
             setShowCreateModal(false);
             setNewTenant({ name: '', slug: '', address: '', adminEmail: '' });
             fetchTenants();
 
         } catch (error: any) {
-            showToast('error', 'Erro ao criar tenant: ' + error.message);
+            showToast('error', t('tenants.toasts.createError', { message: error.message }));
         } finally {
             setCreating(false);
         }
     };
 
-    const filtered = tenants.filter(t =>
-        t.name.toLowerCase().includes(search.toLowerCase()) ||
-        t.address?.toLowerCase().includes(search.toLowerCase()) ||
-        t.id.includes(search)
+    const filtered = tenants.filter(tenant =>
+        tenant.name.toLowerCase().includes(search.toLowerCase()) ||
+        tenant.address?.toLowerCase().includes(search.toLowerCase()) ||
+        tenant.id.includes(search)
     );
 
-    const getStatusBadge = (t: Tenant) => {
-        if (t.zapi_instance_id) return { label: 'WhatsApp Ativo', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' };
-        return { label: 'Pendente', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20' };
+    const getStatusBadge = (tenant: Tenant) => {
+        if (tenant.zapi_instance_id) return { label: t('tenants.statusBadge.active'), color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' };
+        return { label: t('tenants.statusBadge.pending'), color: 'bg-amber-500/10 text-amber-400 border-amber-500/20' };
     };
 
     return (
@@ -119,16 +121,16 @@ export const MasterTenants = () => {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
                 <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400 mb-1">SaaS Management</p>
-                    <h1 className="text-3xl font-black text-white tracking-tight">Gestão de Tenants</h1>
-                    <p className="text-slate-500 font-medium text-sm mt-1">{tenants.length} clínicas cadastradas na plataforma.</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400 mb-1">{t('tenants.sectionLabel')}</p>
+                    <h1 className="text-3xl font-black text-white tracking-tight">{t('tenants.headerTitle')}</h1>
+                    <p className="text-slate-500 font-medium text-sm mt-1">{t('tenants.headerSubtitle', { count: tenants.length })}</p>
                 </div>
                 <button
                     onClick={() => setShowCreateModal(true)}
                     className="flex items-center gap-2 bg-emerald-500 text-white px-5 py-3 rounded-xl font-bold text-sm shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 transition-all border-none cursor-pointer"
                 >
                     <Plus size={16} />
-                    Novo Tenant
+                    {t('tenants.newTenant')}
                 </button>
             </div>
 
@@ -137,7 +139,7 @@ export const MasterTenants = () => {
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
                 <input
                     type="text"
-                    placeholder="Buscar por nome, endereço ou ID..."
+                    placeholder={t('tenants.searchPlaceholder')}
                     value={search}
                     onChange={e => setSearch(e.target.value)}
                     className="w-full bg-[#0F1629] border border-[#1E293B] rounded-xl pl-12 pr-4 py-3.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/10 transition-all font-medium"
@@ -149,11 +151,11 @@ export const MasterTenants = () => {
                 {loading ? (
                     <div className="text-center py-12 text-slate-600 flex flex-col items-center gap-3">
                         <Loader2 className="animate-spin text-emerald-500" size={32} />
-                        <p>Carregando tenants...</p>
+                        <p>{t('tenants.loading')}</p>
                     </div>
                 ) : filtered.length === 0 ? (
                     <div className="text-center py-12 text-slate-600 border border-dashed border-[#1E293B] rounded-2xl">
-                        Nenhum tenant encontrado.
+                        {t('tenants.empty')}
                     </div>
                 ) : (
                     filtered.map((tenant) => {
@@ -208,7 +210,7 @@ export const MasterTenants = () => {
                                                         : 'border-transparent text-slate-500 hover:text-slate-300'
                                                 }`}
                                             >
-                                                Informações Gerais
+                                                {t('tenants.tabs.general')}
                                             </button>
                                             <button
                                                 type="button"
@@ -219,7 +221,7 @@ export const MasterTenants = () => {
                                                         : 'border-transparent text-slate-500 hover:text-slate-300'
                                                 }`}
                                             >
-                                                Widget de Agendamento
+                                                {t('tenants.tabs.widget')}
                                             </button>
                                         </div>
 
@@ -227,72 +229,72 @@ export const MasterTenants = () => {
                                             <>
                                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                                                     <div>
-                                                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1">Tenant ID</p>
+                                                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1">{t('tenants.general.tenantId')}</p>
                                                         <div className="flex items-center gap-2 group cursor-copy" onClick={() => navigator.clipboard.writeText(tenant.id)}>
                                                             <p className="text-xs font-mono text-slate-400 truncate group-hover:text-white transition-colors">{tenant.id}</p>
                                                         </div>
                                                     </div>
                                                     <div>
-                                                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1">WhatsApp Status</p>
+                                                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1">{t('tenants.general.whatsappStatus')}</p>
                                                         <p className="text-xs text-slate-400 flex items-center gap-1.5">
                                                             {tenant.zapi_instance_id ? (
-                                                                <><CheckCircle2 size={12} className="text-emerald-400" /> <span className="text-emerald-400 font-bold">Conectado</span></>
+                                                                <><CheckCircle2 size={12} className="text-emerald-400" /> <span className="text-emerald-400 font-bold">{t('tenants.general.connected')}</span></>
                                                             ) : (
-                                                                <><XCircle size={12} className="text-amber-400" /> <span className="text-amber-400 font-bold">Desconectado</span></>
+                                                                <><XCircle size={12} className="text-amber-400" /> <span className="text-amber-400 font-bold">{t('tenants.general.disconnected')}</span></>
                                                             )}
                                                         </p>
                                                     </div>
                                                     <div>
-                                                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1">Plano Atual</p>
+                                                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1">{t('tenants.general.currentPlan')}</p>
                                                         <div className="flex items-center gap-1.5">
                                                             <div className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></div>
-                                                            <p className="text-xs text-sky-400 font-bold">Professional</p>
+                                                            <p className="text-xs text-sky-400 font-bold">{t('tenants.general.planValue')}</p>
                                                         </div>
                                                     </div>
                                                     <div>
-                                                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1">Usuários</p>
-                                                        <p className="text-xs text-slate-400">Total: 3 (1 Admin)</p>
+                                                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1">{t('tenants.general.users')}</p>
+                                                        <p className="text-xs text-slate-400">{t('tenants.general.usersValue')}</p>
                                                     </div>
                                                 </div>
 
                                                 {/* Telnyx — visível apenas para super-admin da Traffio */}
                                                 <div className="pt-4 border-t border-[#1E293B] space-y-3">
                                                     <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">
-                                                        Comunicações (Telnyx) — apenas Traffio Admin
+                                                        {t('tenants.general.telnyxSectionTitle')}
                                                     </p>
                                                     <div className="grid grid-cols-3 gap-3">
                                                         <div>
-                                                            <p className="text-[10px] text-slate-500 mb-1">Softphone</p>
+                                                            <p className="text-[10px] text-slate-500 mb-1">{t('tenants.general.softphone')}</p>
                                                             <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${tenant.telnyx_enabled ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-700 text-slate-500'}`}>
-                                                                {tenant.telnyx_enabled ? 'Ativo' : 'Inativo'}
+                                                                {tenant.telnyx_enabled ? t('tenants.general.softphoneActive') : t('tenants.general.softphoneInactive')}
                                                             </span>
                                                         </div>
                                                         <div>
-                                                            <p className="text-[10px] text-slate-500 mb-1">API Key própria</p>
-                                                            <span className="text-xs text-slate-400">{tenant.telnyx_api_key ? '●●●●●●●' : 'Usa master key'}</span>
+                                                            <p className="text-[10px] text-slate-500 mb-1">{t('tenants.general.ownApiKey')}</p>
+                                                            <span className="text-xs text-slate-400">{tenant.telnyx_api_key ? '●●●●●●●' : t('tenants.general.usesMasterKey')}</span>
                                                         </div>
                                                         <div>
-                                                            <p className="text-[10px] text-slate-500 mb-1">Connection ID próprio</p>
-                                                            <span className="text-xs text-slate-400">{tenant.telnyx_app_id ?? 'Usa master'}</span>
+                                                            <p className="text-[10px] text-slate-500 mb-1">{t('tenants.general.ownConnectionId')}</p>
+                                                            <span className="text-xs text-slate-400">{tenant.telnyx_app_id ?? t('tenants.general.usesMaster')}</span>
                                                         </div>
                                                     </div>
                                                 </div>
 
                                                 <div className="flex flex-wrap gap-2 pt-4 border-t border-[#1E293B]">
                                                     <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold text-slate-300 bg-[#1E293B] hover:text-white hover:bg-[#2D3B55] transition-all border-none cursor-pointer">
-                                                        <Eye size={14} /> Ver Dashboard
+                                                        <Eye size={14} /> {t('tenants.general.viewDashboard')}
                                                     </button>
                                                     <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold text-sky-400 bg-sky-500/5 hover:bg-sky-500/10 transition-all border border-sky-500/20 cursor-pointer">
-                                                        <MessageCircle size={14} /> Configurar Z-API
+                                                        <MessageCircle size={14} /> {t('tenants.general.configureZApi')}
                                                     </button>
 
                                                     <div className="flex-1" />
 
                                                     <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold text-amber-400 hover:bg-amber-500/10 transition-all border border-transparent hover:border-amber-500/20 bg-transparent cursor-pointer">
-                                                        <Power size={14} /> Suspender
+                                                        <Power size={14} /> {t('tenants.general.suspend')}
                                                     </button>
                                                     <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold text-rose-400 hover:bg-rose-500/10 transition-all border border-transparent hover:border-rose-500/20 bg-transparent cursor-pointer">
-                                                        <Trash2 size={14} /> Deletar
+                                                        <Trash2 size={14} /> {t('tenants.general.delete')}
                                                     </button>
                                                 </div>
                                             </>
@@ -312,7 +314,7 @@ export const MasterTenants = () => {
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
                     <div className="bg-[#0F1629] border border-[#1E293B] rounded-2xl w-full max-w-lg p-6 shadow-2xl animate-in zoom-in-95 duration-200">
                         <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-xl font-black text-white">Novo Tenant</h3>
+                            <h3 className="text-xl font-black text-white">{t('tenants.createModal.title')}</h3>
                             <button onClick={() => setShowCreateModal(false)} className="text-slate-500 hover:text-white transition-colors bg-transparent border-none cursor-pointer">
                                 <X size={24} />
                             </button>
@@ -320,49 +322,49 @@ export const MasterTenants = () => {
 
                         <form onSubmit={handleCreateTenant} className="space-y-4">
                             <div>
-                                <label className="text-xs font-black text-slate-400 uppercase mb-1 block">Nome da Clínica</label>
+                                <label className="text-xs font-black text-slate-400 uppercase mb-1 block">{t('tenants.createModal.clinicNameLabel')}</label>
                                 <input
                                     type="text"
                                     required
                                     value={newTenant.name}
                                     onChange={e => setNewTenant({ ...newTenant, name: e.target.value })}
                                     className="w-full bg-[#1A2035] border border-[#2D3B55] rounded-xl px-4 py-3 text-white focus:border-emerald-500 focus:outline-none transition-colors"
-                                    placeholder="Ex: Clínica Saúde Total"
+                                    placeholder={t('tenants.createModal.clinicNamePlaceholder')}
                                 />
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="text-xs font-black text-slate-400 uppercase mb-1 block">Slug (URL)</label>
+                                    <label className="text-xs font-black text-slate-400 uppercase mb-1 block">{t('tenants.createModal.slugLabel')}</label>
                                     <input
                                         type="text"
                                         value={newTenant.slug}
                                         onChange={e => setNewTenant({ ...newTenant, slug: e.target.value })}
                                         className="w-full bg-[#1A2035] border border-[#2D3B55] rounded-xl px-4 py-3 text-white focus:border-emerald-500 focus:outline-none transition-colors"
-                                        placeholder="clinica-saude"
+                                        placeholder={t('tenants.createModal.slugPlaceholder')}
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-xs font-black text-slate-400 uppercase mb-1 block">Email Admin</label>
+                                    <label className="text-xs font-black text-slate-400 uppercase mb-1 block">{t('tenants.createModal.adminEmailLabel')}</label>
                                     <input
                                         type="email"
                                         required
                                         value={newTenant.adminEmail}
                                         onChange={e => setNewTenant({ ...newTenant, adminEmail: e.target.value })}
                                         className="w-full bg-[#1A2035] border border-[#2D3B55] rounded-xl px-4 py-3 text-white focus:border-emerald-500 focus:outline-none transition-colors"
-                                        placeholder="admin@clinica.com"
+                                        placeholder={t('tenants.createModal.adminEmailPlaceholder')}
                                     />
                                 </div>
                             </div>
 
                             <div>
-                                <label className="text-xs font-black text-slate-400 uppercase mb-1 block">Endereço</label>
+                                <label className="text-xs font-black text-slate-400 uppercase mb-1 block">{t('tenants.createModal.addressLabel')}</label>
                                 <input
                                     type="text"
                                     value={newTenant.address}
                                     onChange={e => setNewTenant({ ...newTenant, address: e.target.value })}
                                     className="w-full bg-[#1A2035] border border-[#2D3B55] rounded-xl px-4 py-3 text-white focus:border-emerald-500 focus:outline-none transition-colors"
-                                    placeholder="Rua das Flores, 123"
+                                    placeholder={t('tenants.createModal.addressPlaceholder')}
                                 />
                             </div>
 
@@ -372,7 +374,7 @@ export const MasterTenants = () => {
                                     onClick={() => setShowCreateModal(false)}
                                     className="px-4 py-3 rounded-xl font-bold text-slate-400 hover:text-white hover:bg-white/5 transition-all border-none bg-transparent cursor-pointer"
                                 >
-                                    Cancelar
+                                    {t('tenants.createModal.cancel')}
                                 </button>
                                 <button
                                     type="submit"
@@ -380,7 +382,7 @@ export const MasterTenants = () => {
                                     className="flex items-center gap-2 bg-emerald-500 text-white px-6 py-3 rounded-xl font-bold hover:bg-emerald-600 transition-all border-none cursor-pointer disabled:opacity-50"
                                 >
                                     {creating ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                                    Criar Tenant
+                                    {t('tenants.createModal.submit')}
                                 </button>
                             </div>
                         </form>

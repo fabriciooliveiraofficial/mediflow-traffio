@@ -1,18 +1,19 @@
 import { useState } from 'react';
-import { 
-    Zap, 
-    Target, 
-    Calendar, 
-    RefreshCw, 
-    Users, 
-    Bot, 
-    Heart, 
-    Briefcase, 
-    Save, 
-    Loader2, 
-    X, 
-    ChevronLeft, 
-    ChevronRight, 
+import { useTranslation } from 'react-i18next';
+import {
+    Zap,
+    Target,
+    Calendar,
+    RefreshCw,
+    Users,
+    Bot,
+    Heart,
+    Briefcase,
+    Save,
+    Loader2,
+    X,
+    ChevronLeft,
+    ChevronRight,
     Check,
     AlertCircle
 } from 'lucide-react';
@@ -35,6 +36,7 @@ interface WizardDraft {
 type WizardStep = 1 | 2 | 3 | 4;
 
 export const BotConfigWizard = ({ isOpen, onClose, currentConfig, onSave, saving }: BotConfigWizardProps) => {
+    const { t } = useTranslation('automations');
     const [step, setStep] = useState<WizardStep>(1);
     const [draft, setDraft] = useState<WizardDraft>({
         objective: currentConfig.objective || null,

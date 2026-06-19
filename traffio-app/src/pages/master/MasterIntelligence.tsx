@@ -15,6 +15,7 @@ import {
     Globe,
     Info,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../contexts/ToastContext';
 
@@ -32,6 +33,7 @@ interface TenantUsage {
 }
 
 export const MasterIntelligence = () => {
+    const { t } = useTranslation('master');
     const { showToast } = useToast();
     const [configs, setConfigs] = useState<MasterConfig[]>([]);
     const [usageData, setUsageData] = useState<TenantUsage[]>([]);
@@ -140,9 +142,9 @@ export const MasterIntelligence = () => {
             if (error) throw error;
 
             setConfigs(prev => prev.map(c => c.key === key ? { ...c, value } : c));
-            showToast('success', 'Configuração salva!');
+            showToast('success', t('intelligence.toasts.saveSuccess'));
         } catch (error) {
-            showToast('error', 'Erro ao salvar: ' + (error as any).message);
+            showToast('error', t('intelligence.toasts.saveError', { message: (error as any).message }));
         } finally {
             setSaving(null);
         }
@@ -157,20 +159,20 @@ export const MasterIntelligence = () => {
                         <BrainCircuit className="text-white" size={24} />
                     </div>
                     <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400">Platform Core</p>
-                        <h1 className="text-3xl font-black text-white tracking-tight">AI Orchestrator</h1>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400">{t('intelligence.sectionLabel')}</p>
+                        <h1 className="text-3xl font-black text-white tracking-tight">{t('intelligence.headerTitle')}</h1>
                     </div>
                 </div>
-                <p className="text-slate-500 font-medium text-sm">Gerenciamento centralizado de modelos, chaves e custos de IA.</p>
+                <p className="text-slate-500 font-medium text-sm">{t('intelligence.headerSubtitle')}</p>
             </div>
 
             {/* Stats Overview */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                    { label: 'Tokens Processados (30d)', value: stats.totalTokens.toLocaleString(), icon: Activity, color: 'text-indigo-400' },
-                    { label: 'Latência Média', value: stats.avgLatency, icon: Zap, color: 'text-amber-400' },
-                    { label: 'Robôs Ativos', value: stats.activeBots.toString(), icon: Cpu, color: 'text-emerald-400' },
-                    { label: 'Custo API (30d)', value: `$${stats.monthlyCost.toFixed(4)}`, icon: TrendingUp, color: 'text-sky-400' },
+                    { label: t('intelligence.stats.tokensProcessed'), value: stats.totalTokens.toLocaleString(), icon: Activity, color: 'text-indigo-400' },
+                    { label: t('intelligence.stats.avgLatency'), value: stats.avgLatency, icon: Zap, color: 'text-amber-400' },
+                    { label: t('intelligence.stats.activeBots'), value: stats.activeBots.toString(), icon: Cpu, color: 'text-emerald-400' },
+                    { label: t('intelligence.stats.apiCost'), value: `$${stats.monthlyCost.toFixed(4)}`, icon: TrendingUp, color: 'text-sky-400' },
                 ].map((stat, i) => (
                     <div key={i} className="bg-[#0F1629] border border-[#1E293B] p-5 rounded-2xl">
                         <div className="flex justify-between items-start mb-4">
@@ -191,7 +193,7 @@ export const MasterIntelligence = () => {
                         <div className="p-6 border-b border-[#1E293B] flex items-center justify-between bg-[#131B31]">
                             <div className="flex items-center gap-3">
                                 <Key className="text-indigo-400" size={20} />
-                                <h3 className="font-bold text-white uppercase tracking-wider text-sm">Configuração de Credenciais</h3>
+                                <h3 className="font-bold text-white uppercase tracking-wider text-sm">{t('intelligence.credentialsSection.title')}</h3>
                             </div>
                             <ShieldCheck className="text-emerald-500" size={18} />
                         </div>
@@ -204,7 +206,7 @@ export const MasterIntelligence = () => {
                                     {/* AI Configuration Section */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 rounded-2xl bg-[#131B31] border border-[#1E293B]">
                                         <div className="space-y-2">
-                                            <label className="text-xs font-black text-indigo-400 uppercase tracking-widest">IA Provider</label>
+                                            <label className="text-xs font-black text-indigo-400 uppercase tracking-widest">{t('intelligence.credentialsSection.aiProviderLabel')}</label>
                                             <select
                                                 value={configs.find(c => c.key === 'AI_MODEL_PROVIDER')?.value || 'google'}
                                                 onChange={(e) => handleUpdateConfig('AI_MODEL_PROVIDER', e.target.value)}
@@ -215,7 +217,7 @@ export const MasterIntelligence = () => {
                                             </select>
                                         </div>
                                         <div className="space-y-2">
-                                            <label className="text-xs font-black text-indigo-400 uppercase tracking-widest">Modelo Ativo</label>
+                                            <label className="text-xs font-black text-indigo-400 uppercase tracking-widest">{t('intelligence.credentialsSection.activeModelLabel')}</label>
                                             <select
                                                 value={configs.find(c => c.key === 'AI_MODEL_NAME')?.value || ''}
                                                 onChange={(e) => handleUpdateConfig('AI_MODEL_NAME', e.target.value)}
@@ -253,7 +255,7 @@ export const MasterIntelligence = () => {
                                                         const newValue = e.target.value;
                                                         setConfigs(prev => prev.map(c => c.key === config.key ? { ...c, value: newValue } : c));
                                                     }}
-                                                    placeholder="Inserir chave de API..."
+                                                    placeholder={t('intelligence.credentialsSection.apiKeyPlaceholder')}
                                                     className="flex-1 bg-[#1A2035] border border-[#2D3B55] rounded-xl px-4 py-3.5 text-white focus:outline-none focus:border-indigo-500 transition-all font-mono text-sm leading-none"
                                                 />
                                                 <button
@@ -272,9 +274,9 @@ export const MasterIntelligence = () => {
                                         <div className="space-y-4">
                                             <div className="flex items-center gap-2 pb-2 border-b border-[#1E293B]">
                                                 <Phone className="text-blue-400" size={16} />
-                                                <h4 className="text-xs font-black text-blue-400 uppercase tracking-widest">Comunicações (Telnyx)</h4>
+                                                <h4 className="text-xs font-black text-blue-400 uppercase tracking-widest">{t('intelligence.credentialsSection.telnyxTitle')}</h4>
                                                 <div className="ml-auto flex items-center gap-1.5 text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
-                                                    <Info size={10} /> Valores devem coincidir com Supabase Secrets
+                                                    <Info size={10} /> {t('intelligence.credentialsSection.telnyxWarning')}
                                                 </div>
                                             </div>
                                             {configs.filter(c => c.key.startsWith('TELNYX_')).map((config) => (
@@ -291,7 +293,7 @@ export const MasterIntelligence = () => {
                                                                 const v = e.target.value;
                                                                 setConfigs(prev => prev.map(c => c.key === config.key ? { ...c, value: v } : c));
                                                             }}
-                                                            placeholder={`Inserir ${config.key}...`}
+                                                            placeholder={t('intelligence.credentialsSection.genericKeyPlaceholder', { key: config.key })}
                                                             className="flex-1 bg-[#1A2035] border border-blue-500/20 rounded-xl px-4 py-3.5 text-white focus:outline-none focus:border-blue-500 transition-all font-mono text-sm"
                                                         />
                                                         <button
@@ -312,7 +314,7 @@ export const MasterIntelligence = () => {
                                         <div className="space-y-4">
                                             <div className="flex items-center gap-2 pb-2 border-b border-[#1E293B]">
                                                 <Globe className="text-blue-500" size={16} />
-                                                <h4 className="text-xs font-black text-blue-500 uppercase tracking-widest">Meta (Instagram DM + Facebook Messenger)</h4>
+                                                <h4 className="text-xs font-black text-blue-500 uppercase tracking-widest">{t('intelligence.credentialsSection.metaTitle')}</h4>
                                             </div>
                                             {configs.filter(c => c.key.startsWith('META_')).map((config) => (
                                                 <div key={config.key} className="space-y-2">
@@ -328,7 +330,7 @@ export const MasterIntelligence = () => {
                                                                 const v = e.target.value;
                                                                 setConfigs(prev => prev.map(c => c.key === config.key ? { ...c, value: v } : c));
                                                             }}
-                                                            placeholder={`Inserir ${config.key}...`}
+                                                            placeholder={t('intelligence.credentialsSection.genericKeyPlaceholder', { key: config.key })}
                                                             className="flex-1 bg-[#1A2035] border border-blue-500/20 rounded-xl px-4 py-3.5 text-white focus:outline-none focus:border-blue-500 transition-all font-mono text-sm"
                                                         />
                                                         <button
@@ -355,7 +357,7 @@ export const MasterIntelligence = () => {
                                                 onClick={() => handleUpdateConfig(config.key, config.value === 'true' ? 'false' : 'true')}
                                                 className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase transition-all ${config.value === 'true' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-slate-500/10 text-slate-500 border border-slate-500/20'}`}
                                             >
-                                                {config.value === 'true' ? 'Ativo' : 'Inativo'}
+                                                {config.value === 'true' ? t('intelligence.credentialsSection.toggleActive') : t('intelligence.credentialsSection.toggleInactive')}
                                             </button>
                                         </div>
                                     ))}
@@ -369,27 +371,27 @@ export const MasterIntelligence = () => {
                     <div className="bg-[#0F1629] border border-[#1E293B] rounded-2xl p-6">
                         <div className="flex items-center gap-3 mb-6">
                             <BarChart3 className="text-sky-400" size={20} />
-                            <h3 className="font-bold text-white uppercase tracking-wider text-sm">Analítico de ROI por Cliente</h3>
+                            <h3 className="font-bold text-white uppercase tracking-wider text-sm">{t('intelligence.costAnalytics.title')}</h3>
                         </div>
                         <div className="space-y-4">
                             {usageData.length === 0 ? (
                                 <div className="text-center py-8 text-slate-600 text-xs">
-                                    Nenhum dado de uso registrado nos últimos 30 dias.
+                                    {t('intelligence.costAnalytics.empty')}
                                 </div>
                             ) : usageData.map((row, i) => (
                                 <div key={i} className="flex items-center justify-between p-4 rounded-xl bg-[#131B31] border border-[#1E293B] group hover:border-indigo-500/30 transition-all">
                                     <div className="font-bold text-sm text-white">{row.tenant_name}</div>
                                     <div className="flex items-center gap-8 text-xs">
                                         <div className="flex flex-col items-end">
-                                            <span className="text-slate-500 uppercase font-black text-[9px]">Uso</span>
+                                            <span className="text-slate-500 uppercase font-black text-[9px]">{t('intelligence.costAnalytics.usage')}</span>
                                             <span className="text-slate-300 font-mono">{row.total_tokens.toLocaleString()} tok</span>
                                         </div>
                                         <div className="flex flex-col items-end">
-                                            <span className="text-slate-500 uppercase font-black text-[9px]">Custo API</span>
+                                            <span className="text-slate-500 uppercase font-black text-[9px]">{t('intelligence.costAnalytics.apiCost')}</span>
                                             <span className="text-slate-300 font-mono">${row.total_cost.toFixed(4)}</span>
                                         </div>
                                         <div className="flex flex-col items-end">
-                                            <span className="text-slate-500 uppercase font-black text-[9px]">Lucro Plataforma</span>
+                                            <span className="text-slate-500 uppercase font-black text-[9px]">{t('intelligence.costAnalytics.platformProfit')}</span>
                                             <span className="text-emerald-400 font-bold">
                                                 {row.profit_margin >= 0 ? '+' : ''}${row.profit_margin.toFixed(2)}
                                             </span>
@@ -406,25 +408,25 @@ export const MasterIntelligence = () => {
                     <div className="bg-gradient-to-br from-indigo-600/20 to-sky-600/20 border border-indigo-500/20 rounded-2xl p-6">
                         <div className="flex items-center gap-3 mb-4">
                             <ShieldCheck className="text-indigo-400" size={20} />
-                            <h4 className="font-black text-white text-xs uppercase tracking-widest">Protocolo de Segurança</h4>
+                            <h4 className="font-black text-white text-xs uppercase tracking-widest">{t('intelligence.sidebar.securityTitle')}</h4>
                         </div>
                         <p className="text-xs text-slate-400 leading-relaxed font-medium">
-                            As chaves de API cadastradas aqui são criptografadas em repouso e acessíveis apenas pelo motor de execução em ambientes isolados (Edge Functions).
+                            {t('intelligence.sidebar.securityText')}
                             <br /><br />
-                            Tenants jamais terão acesso visual ou programático a estes dados.
+                            {t('intelligence.sidebar.securityText2')}
                         </p>
                     </div>
 
                     <div className="bg-[#0F1629] border border-[#1E293B] rounded-2xl p-6">
                         <div className="flex items-center gap-3 mb-4">
                             <AlertCircle className="text-amber-400" size={20} />
-                            <h4 className="font-black text-white text-xs uppercase tracking-widest">Atenção ao Rate Limit</h4>
+                            <h4 className="font-black text-white text-xs uppercase tracking-widest">{t('intelligence.sidebar.rateLimitTitle')}</h4>
                         </div>
                         <p className="text-xs text-slate-400 leading-relaxed font-medium">
-                            O uso do **Gemini 1.5 Flash (Tier Trial)** possui limites de requisições por minuto. Para produção em larga escala, certifique-se de configurar o billing no Google Cloud Console.
+                            {t('intelligence.sidebar.rateLimitText')}
                         </p>
                         <button className="w-full mt-4 py-2 bg-amber-500/10 text-amber-500 rounded-lg text-xs font-black uppercase hover:bg-amber-500/20 transition-all border-none cursor-pointer">
-                            Ver Documentação
+                            {t('intelligence.sidebar.viewDocs')}
                         </button>
                     </div>
                 </div>

@@ -1,0 +1,202 @@
+{
+  "shared": {
+    "backToHome": "Voltar para a Home",
+    "brandTagline": "ODONTO • MARKETING",
+    "footerRights": "© 2026 Traffio Odonto Marketing. Todos os direitos reservados.",
+    "footerHome": "Home"
+  },
+  "privacyPolicy": {
+    "heroBadge": "Privacidade e Segurança",
+    "heroTitle": "Política de Privacidade",
+    "lastUpdatedLabel": "Última atualização:",
+    "heroSubtitle": "Entenda como coletamos, protegemos, utilizamos e garantimos seus direitos sobre as informações em nossa plataforma.",
+    "footerTermsLink": "Termos de Uso",
+    "summaryCards": {
+      "dataProtected": {
+        "title": "Dados Protegidos",
+        "description": "Criptografia de ponta a ponta e segurança rigorosa dos dados da clínica."
+      },
+      "transparentUse": {
+        "title": "Uso Transparente",
+        "description": "Os dados das APIs do Google Ads e Meta Ads são usados apenas para relatórios."
+      },
+      "fullControl": {
+        "title": "Controle Total",
+        "description": "Você pode revogar permissões e apagar dados a qualquer momento."
+      }
+    },
+    "sections": {
+      "whoWeAre": {
+        "title": "Quem Somos e Escopo",
+        "body1": {
+          "prefix": "A",
+          "strong": "Traffio Odonto Marketing",
+          "middle": "(\"Traffio\", \"nós\", \"nosso\"), operada pelo desenvolvedor responsável",
+          "strong2": "fabriciooliveiraofficial@gmail.com",
+          "suffix": ", é uma plataforma de gestão e automação de marketing para clínicas odontológicas e de saúde. Esta Política de Privacidade descreve como tratamos as informações pessoais e operacionais de nossos usuários (\"Clientes\", \"Clínicas\") e dos pacientes das Clínicas que utilizam nossos serviços."
+        },
+        "body2": "Ao utilizar a Traffio, você concorda com a coleta e uso de informações em conformidade com esta política e em estrita consonância com a Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018)."
+      },
+      "dataCollection": {
+        "title": "Informações que Coletamos",
+        "intro": "Coletamos as seguintes categorias de informações necessárias para fornecer nossos serviços:",
+        "items": [
+          "<strong>Informações de Registro e Conta:</strong> Nome completo, e-mail, telefone, CPF/CNPJ, nome da clínica, especialidades, credenciais de acesso e informações de faturamento.",
+          "<strong>Dados Clínicos e de Pacientes (como Operador):</strong> Agenda de consultas, fichas cadastrais de pacientes (nome, e-mail, celular, data de nascimento), históricos de atendimento odontológicos e prontuários que você decide inserir na plataforma.",
+          "<strong>Dados de Integração de Terceiros:</strong> Tokens de acesso e dados analíticos quando você integra sua conta Traffio ao Google Ads, Meta Ads (Facebook/Instagram Ads), WhatsApp API ou gateways de pagamento."
+        ]
+      },
+      "googleAdsIntegration": {
+        "title": "Integração com a API do Google Ads",
+        "intro": {
+          "prefix": "A Traffio oferece suporte a integrações opcionais com a API do Google Ads (usando o escopo",
+          "code": "https://www.googleapis.com/auth/adwords",
+          "suffix": ") para consolidação de métricas."
+        },
+        "purpose": {
+          "heading": "Finalidade do Acesso aos Dados do Google Ads:",
+          "body": {
+            "prefix": "Acessamos de forma estritamente",
+            "strong": "leitura (read-only)",
+            "suffix": "as informações de desempenho de suas campanhas de anúncios, incluindo: valor investido (custo), cliques, impressões e conversões. Esses dados são utilizados exclusivamente para calcular o Retorno sobre Investimento (ROAS), Custo por Lead (CPL) e exibir gráficos consolidados de faturamento e aquisição de pacientes no dashboard da sua conta Traffio."
+          }
+        },
+        "noSharing": {
+          "heading": "Não Compartilhamento de Dados do Google:",
+          "body": "Não compartilhamos, vendemos, alugamos ou transferimos quaisquer dados obtidos por meio da API do Google Ads com terceiros, sob qualquer circunstância. Os dados permanecem exclusivamente visíveis e restritos ao usuário administrador da clínica que realizou a autenticação."
+        },
+        "googleCompliance": {
+          "heading": "Conformidade com a Política do Google (Limited Use):",
+          "body": {
+            "prefix": "A utilização de informações recebidas das APIs do Google pela Traffio está em estrita conformidade com a",
+            "linkText": "Política de Dados do Usuário dos Serviços de API do Google",
+            "suffix": ", incluindo os requisitos de Uso Limitado (Limited Use Requirements)."
+          }
+        }
+      },
+      "dataSharing": {
+        "title": "Como Compartilhamos Dados",
+        "intro": "Nós **não vendemos nem alugamos** dados pessoais de nossos clientes ou de seus pacientes. Compartilhamos informações com terceiros somente nas seguintes circunstâncias:",
+        "items": [
+          "<strong>Provedores de Infraestrutura e Serviços:</strong> Provedores de hospedagem na nuvem (Supabase, AWS), gateways de pagamento (Pagar.me, Asaas, Dr. Cash) e serviços de envio de mensagens (WhatsApp API, e-mail transactional), apenas na extensão estritamente necessária para execução do serviço.",
+          "<strong>Obrigação Legal:</strong> Para cumprir ordens judiciais, leis aplicáveis ou regulamentações de órgãos competentes.",
+          "<strong>Com o seu Consentimento:</strong> Quando você explicitamente autoriza a transferência de dados para outra plataforma através de chaves de API personalizadas."
+        ]
+      },
+      "dataSecurity": {
+        "title": "Segurança e Armazenamento dos Dados",
+        "body1": "Empregamos medidas de segurança técnicas e administrativas padrão da indústria para proteger seus dados, tais como criptografia SSL/TLS em trânsito e em repouso, políticas estritas de Row-Level Security (RLS) em nosso banco de dados no Supabase para garantir isolamento completo de tenants (uma clínica não pode ver dados de outra), além de backups diários e logs de auditoria.",
+        "body2": "Os dados coletados são armazenados enquanto o contrato de serviço estiver ativo ou até que o cliente solicite formalmente a exclusão da sua conta."
+      },
+      "userRights": {
+        "title": "Seus Direitos (LGPD) e Exclusão de Dados",
+        "intro": "Você, como Titular dos Dados, possui plenos direitos previstos no Artigo 18 da LGPD, que incluem:",
+        "items": [
+          "Confirmar a existência do tratamento de dados.",
+          "Acessar seus dados pessoais.",
+          "Corrigir dados incompletos, inexatos ou desatualizados.",
+          "Revogar a autorização de integrações a qualquer momento (como desconectar o Google Ads da plataforma, o que apaga imediatamente as credenciais armazenadas).",
+          "Solicitar a eliminação definitiva de seus dados cadastrados."
+        ],
+        "contact": {
+          "prefix": "Para exercer qualquer um desses direitos ou solicitar a exclusão total da sua conta e de seus dados associados, entre em contato através de:",
+          "strong1": "fabriciooliveiraofficial@gmail.com",
+          "middle": "ou pelo e-mail",
+          "strong2": "contato@traffio.com.br",
+          "suffix": ". Sua solicitação será atendida gratuitamente em até 15 dias."
+        }
+      },
+      "policyChanges": {
+        "title": "Alterações nesta Política de Privacidade",
+        "body": "Reservamo-nos o direito de atualizar esta política de tempos em tempos. Se realizarmos alterações significativas, notificaremos os usuários através de avisos proeminentes dentro do painel do Traffio ou por e-mail antes que a alteração entre em vigor. Recomendamos a leitura periódica desta página."
+      }
+    }
+  },
+  "termsOfService": {
+    "heroBadge": "Termos de Uso",
+    "heroTitle": "Termos de Serviço",
+    "lastUpdatedLabel": "Última atualização:",
+    "heroSubtitle": "Leia atentamente as condições e regras de utilização de nossa plataforma SaaS antes de continuar.",
+    "footerPrivacyLink": "Política de Privacidade",
+    "summaryCards": {
+      "saasLicense": {
+        "title": "Licença SaaS",
+        "description": "Uso sob modalidade de assinatura mensal/anual recorrente para clínicas."
+      },
+      "responsibility": {
+        "title": "Responsabilidade",
+        "description": "Você é o único responsável pelos orçamentos e anúncios do Google/Meta."
+      },
+      "cancellation": {
+        "title": "Cancelamento",
+        "description": "Sem multas ou taxas de saída. Cancele e exporte dados quando desejar."
+      }
+    },
+    "sections": {
+      "acceptance": {
+        "title": "Aceitação dos Termos",
+        "body1": {
+          "prefix": "Ao criar uma conta ou utilizar a plataforma",
+          "strong": "Traffio Odonto Marketing",
+          "suffix": "(\"Serviço\", \"Traffio\"), você concorda em cumprir e estar legalmente vinculado a estes Termos de Serviço (\"Termos\"). Se você não concorda com qualquer parte destes Termos, não deverá acessar ou utilizar a plataforma."
+        },
+        "body2": {
+          "prefix": "O desenvolvedor e operador legal deste Serviço pode ser contactado pelo e-mail oficial de auditoria da conta Google:",
+          "strong1": "fabriciooliveiraofficial@gmail.com",
+          "middle": "ou pelo e-mail geral de contato",
+          "strong2": "contato@traffio.com.br",
+          "suffix": "."
+        }
+      },
+      "serviceDescription": {
+        "title": "Descrição do Serviço e Concessão de Licença",
+        "body1": "A Traffio é uma plataforma baseada em nuvem (SaaS) projetada para auxiliar clínicas odontológicas e profissionais de saúde na gestão de consultas (agenda), prontuários eletrônicos de pacientes, envio de lembretes via API do WhatsApp, CRM de leads e consolidação de métricas financeiras e de campanhas publicitárias.",
+        "body2": "Sujeito ao pagamento pontual das taxas de assinatura, concedemos a você uma licença limitada, revogável, não exclusiva, intransferível e mundial para acessar e utilizar a Traffio de acordo com estes Termos. A plataforma é licenciada, não vendida."
+      },
+      "accountSecurity": {
+        "title": "Contas e Segurança do Usuário",
+        "body1": "Para acessar os recursos da Traffio, você deve criar uma conta de usuário vinculada a um tenant (empresa/clínica). Você declara que as informações cadastrais fornecidas são verídicas, completas e atualizadas.",
+        "body2": "Você é o único responsável por manter a confidencialidade das credenciais de acesso da sua conta e por todas as atividades realizadas sob seu login. É vedado compartilhar suas credenciais com terceiros não autorizados. Notifique-nos imediatamente sobre qualquer uso não autorizado ou suspeita de violação de segurança."
+      },
+      "thirdPartyIntegrations": {
+        "title": "Integração de Serviços de Terceiros e APIs",
+        "intro": {
+          "prefix": "A Traffio disponibiliza conectores com serviços terceiros, incluindo a",
+          "strong1": "Google Ads API",
+          "middle": "e",
+          "strong2": "Meta Ads API",
+          "suffix": ". Ao utilizar essas integrações:"
+        },
+        "items": [
+          "<strong>Autorização de Acesso:</strong> Você autoriza a Traffio a acessar e importar dados analíticos de sua conta publicitária (custos, cliques, exibições, etc.) com a finalidade exclusiva de consolidação no seu painel da Traffio.",
+          "<strong>Responsabilidade do Usuário:</strong> Você reconhece que todas as campanhas de anúncios, orçamentos, cobranças e políticas são de sua exclusiva responsabilidade e são faturadas diretamente pelas respectivas plataformas (Google LLC e Meta Platforms, Inc.). A Traffio não possui gerência sobre faturas ou orçamentos desses provedores.",
+          "<strong>Uso Limitado do Google:</strong> Declaramos que o uso dos dados obtidos a partir de qualquer API do Google está sujeito a restrições estritas de uso e cumpre integralmente a Política de Dados do Usuário dos Serviços de API do Google, não sendo utilizados para quaisquer fins que não sejam o fornecimento dos relatórios internos da Traffio."
+        ]
+      },
+      "billing": {
+        "title": "Assinatura, Cobrança e Reajuste",
+        "intro": "O acesso à plataforma Traffio é faturado periodicamente (mensal ou anualmente, conforme escolha no plano).",
+        "items": [
+          "<strong>Período de Testes (Trial):</strong> Oferecemos 14 dias de acesso de teste gratuito sem fidelidade. Se você não cancelar antes do término deste período, o faturamento automático será iniciado no meio de pagamento cadastrado.",
+          "<strong>Cancelamento:</strong> Você pode cancelar sua assinatura a qualquer momento através da página de faturamento do sistema. Não há multas ou período mínimo de permanência. Ao cancelar, o serviço continuará ativo até o final do período já pago.",
+          "<strong>Inadimplência:</strong> A falta de pagamento suspenderá automaticamente o acesso à plataforma em até 5 dias após o vencimento não liquidado."
+        ]
+      },
+      "liabilityLimitation": {
+        "title": "Limitação de Responsabilidade",
+        "intro": "A Traffio e seus desenvolvedores não se responsabilizam por quaisquer danos indiretos, incidentais, especiais, consequenciais ou punitivos, incluindo, sem limitação, perda de lucros, dados, uso, aviamento ou outras perdas intangíveis decorrentes de:",
+        "items": [
+          "Seu acesso, uso ou incapacidade de acessar ou utilizar o Serviço.",
+          "Instabilidade no tráfego de mensagens do WhatsApp, que depende de APIs externas de terceiros.",
+          "Erros de configuração ou interrupções nos serviços de anúncios do Google Ads ou Facebook Ads.",
+          "Acesso não autorizado, uso ou alteração de suas transmissões ou dados."
+        ]
+      },
+      "termsChangesAndJurisdiction": {
+        "title": "Alterações nos Termos e Jurisdição",
+        "body1": "Reservamo-nos o direito de alterar estes Termos a qualquer momento. Em caso de mudanças materiais, publicaremos um aviso prévio no painel da plataforma. O uso continuado da plataforma após a data de vigência dos novos Termos constitui aceitação dos termos revisados.",
+        "body2": "Estes Termos são regidos e interpretados de acordo com as leis da República Federativa do Brasil, elegendo-se o foro da comarca da sede do desenvolvedor/operador para dirimir quaisquer litígios relativos a estes Termos."
+      }
+    }
+  }
+}

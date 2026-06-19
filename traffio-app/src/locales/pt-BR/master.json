@@ -54,5 +54,311 @@
       "noSlug": "sem-slug",
       "empty": "Nenhum tenant encontrado."
     }
+  },
+  "tenants": {
+    "sectionLabel": "SaaS Management",
+    "headerTitle": "Gestão de Tenants",
+    "headerSubtitle": "{{count}} clínicas cadastradas na plataforma.",
+    "newTenant": "Novo Tenant",
+    "searchPlaceholder": "Buscar por nome, endereço ou ID...",
+    "loading": "Carregando tenants...",
+    "empty": "Nenhum tenant encontrado.",
+    "statusBadge": {
+      "active": "WhatsApp Ativo",
+      "pending": "Pendente"
+    },
+    "tabs": {
+      "general": "Informações Gerais",
+      "widget": "Widget de Agendamento"
+    },
+    "general": {
+      "tenantId": "Tenant ID",
+      "whatsappStatus": "WhatsApp Status",
+      "connected": "Conectado",
+      "disconnected": "Desconectado",
+      "currentPlan": "Plano Atual",
+      "planValue": "Professional",
+      "users": "Usuários",
+      "usersValue": "Total: 3 (1 Admin)",
+      "telnyxSectionTitle": "Comunicações (Telnyx) — apenas Traffio Admin",
+      "softphone": "Softphone",
+      "softphoneActive": "Ativo",
+      "softphoneInactive": "Inativo",
+      "ownApiKey": "API Key própria",
+      "usesMasterKey": "Usa master key",
+      "ownConnectionId": "Connection ID próprio",
+      "usesMaster": "Usa master",
+      "viewDashboard": "Ver Dashboard",
+      "configureZApi": "Configurar Z-API",
+      "suspend": "Suspender",
+      "delete": "Deletar"
+    },
+    "createModal": {
+      "title": "Novo Tenant",
+      "clinicNameLabel": "Nome da Clínica",
+      "clinicNamePlaceholder": "Ex: Clínica Saúde Total",
+      "slugLabel": "Slug (URL)",
+      "slugPlaceholder": "clinica-saude",
+      "adminEmailLabel": "Email Admin",
+      "adminEmailPlaceholder": "admin@clinica.com",
+      "addressLabel": "Endereço",
+      "addressPlaceholder": "Rua das Flores, 123",
+      "cancel": "Cancelar",
+      "submit": "Criar Tenant"
+    },
+    "toasts": {
+      "createSuccess": "Tenant {{name}} criado! ID: {{id}}. Agora convide o admin ({{email}}).",
+      "createError": "Erro ao criar tenant: {{message}}"
+    }
+  },
+  "billing": {
+    "loadingTitle": "Carregando painel financeiro...",
+    "sectionLabel": "Revenue Engine",
+    "headerTitle": "Financeiro & Consumo",
+    "headerSubtitle": "Gestão de assinaturas, lucros de comunicações e saldos de carteiras.",
+    "fixedExchange": "Câmbio Fixo: R$ 5.50",
+    "kpis": {
+      "mrr": "MRR (Software)",
+      "recharged": "Créditos Recarregados",
+      "telnyxCost": "Custo Telnyx (Fornecedor)",
+      "netProfit": "Lucro Líquido (Telecom)"
+    },
+    "status": {
+      "active": "Ativo",
+      "trial": "Trial",
+      "suspended": "Suspenso",
+      "canceled": "Cancelado"
+    },
+    "subscriptionsTable": {
+      "title": "Assinaturas de Software",
+      "columns": {
+        "tenant": "Tenant",
+        "plan": "Plano",
+        "status": "Status",
+        "billing": "Billing",
+        "renewal": "Renovação / Fim Trial"
+      },
+      "cycle": { "annual": "Anual", "monthly": "Mensal" },
+      "empty": "Nenhum tenant cadastrado."
+    },
+    "profitabilityTable": {
+      "title": "Controle de Carteiras & Lucratividade de Comunicações",
+      "columns": {
+        "tenant": "Tenant",
+        "balance": "Saldo Atual",
+        "totalSpent": "Total Consumido",
+        "telnyxCost": "Custo Telnyx",
+        "netProfit": "Lucro Líquido",
+        "margin": "Margem de Lucro"
+      },
+      "empty": "Nenhum consumo registrado ainda."
+    }
+  },
+  "whatsapp": {
+    "sectionLabel": "Connectivity",
+    "headerTitle": "Gestão de Instâncias Z-API",
+    "headerSubtitle": "Monitoramento global de conexões WhatsApp.",
+    "refreshList": "Atualizar Lista",
+    "linkInstance": "Vincular Instância",
+    "searchPlaceholder": "Buscar por tenant ou instance ID...",
+    "loading": "Carregando...",
+    "empty": "Nenhuma instância conectada.",
+    "statusOnline": "Online",
+    "statusOffline": "Offline",
+    "statusUnknown": "...",
+    "marketingName": "Marketing Name",
+    "phone": "Telefone",
+    "lastPing": "Ultimo Ping",
+    "restart": "Reiniciar",
+    "disconnect": "Desconectar",
+    "connectQr": "Conectar (QR)",
+    "linkModal": {
+      "title": "Vincular Instância Z-API",
+      "clinicTenantLabel": "Clinic/Tenant",
+      "selectTenant": "Selecione um tenant...",
+      "updateSuffix": " (atualizar)",
+      "instanceIdLabel": "Instance ID",
+      "instanceIdPlaceholder": "Ex: 3B2D...",
+      "tokenLabel": "Token da Instância",
+      "clientTokenLabel": "Client Token",
+      "save": "Salvar Vínculo"
+    },
+    "qrModal": {
+      "title": "Conectar WhatsApp",
+      "subtitle": "Abra o WhatsApp no seu celular e escaneie o código abaixo.",
+      "qrAlt": "QR Code",
+      "cancel": "Cancelar",
+      "alreadyScanned": "Já Escaneei"
+    },
+    "confirms": {
+      "restart": "Tem certeza que deseja reiniciar esta instância?",
+      "disconnect": "Deseja realmente desconectar? O tenant perderá a conexão imediatamente."
+    },
+    "toasts": {
+      "restartSuccess": "Comando de reinício enviado com sucesso.",
+      "restartError": "Erro ao enviar comando de reinício.",
+      "disconnectError": "Erro ao desconectar.",
+      "qrError": "Não foi possível gerar o QR Code. Verifique as credenciais.",
+      "fetchTenantsError": "Erro ao carregar tenants: {{message}}",
+      "fillAllFields": "Preencha todos os campos!",
+      "linkError": "Erro ao vincular: {{message}}"
+    }
+  },
+  "intelligence": {
+    "sectionLabel": "Platform Core",
+    "headerTitle": "AI Orchestrator",
+    "headerSubtitle": "Gerenciamento centralizado de modelos, chaves e custos de IA.",
+    "stats": {
+      "tokensProcessed": "Tokens Processados (30d)",
+      "avgLatency": "Latência Média",
+      "activeBots": "Robôs Ativos",
+      "apiCost": "Custo API (30d)"
+    },
+    "credentialsSection": {
+      "title": "Configuração de Credenciais",
+      "aiProviderLabel": "IA Provider",
+      "activeModelLabel": "Modelo Ativo",
+      "apiKeyPlaceholder": "Inserir chave de API...",
+      "genericKeyPlaceholder": "Inserir {{key}}...",
+      "telnyxTitle": "Comunicações (Telnyx)",
+      "telnyxWarning": "Valores devem coincidir com Supabase Secrets",
+      "metaTitle": "Meta (Instagram DM + Facebook Messenger)",
+      "toggleActive": "Ativo",
+      "toggleInactive": "Inativo"
+    },
+    "costAnalytics": {
+      "title": "Analítico de ROI por Cliente",
+      "empty": "Nenhum dado de uso registrado nos últimos 30 dias.",
+      "usage": "Uso",
+      "apiCost": "Custo API",
+      "platformProfit": "Lucro Plataforma"
+    },
+    "sidebar": {
+      "securityTitle": "Protocolo de Segurança",
+      "securityText": "As chaves de API cadastradas aqui são criptografadas em repouso e acessíveis apenas pelo motor de execução em ambientes isolados (Edge Functions).",
+      "securityText2": "Tenants jamais terão acesso visual ou programático a estes dados.",
+      "rateLimitTitle": "Atenção ao Rate Limit",
+      "rateLimitText": "O uso do **Gemini 1.5 Flash (Tier Trial)** possui limites de requisições por minuto. Para produção em larga escala, certifique-se de configurar o billing no Google Cloud Console.",
+      "viewDocs": "Ver Documentação"
+    },
+    "toasts": {
+      "saveSuccess": "Configuração salva!",
+      "saveError": "Erro ao salvar: {{message}}"
+    }
+  },
+  "logs": {
+    "sectionLabel": "Observability",
+    "headerTitle": "Logs & Auditoria",
+    "headerSubtitle": "Timeline de eventos, saúde do sistema e rastreamento de acesso PHI.",
+    "types": {
+      "auth": "Auth",
+      "phi": "PHI",
+      "billing": "Billing",
+      "system": "Sistema",
+      "error": "Erro"
+    },
+    "filterAll": "Todos",
+    "health": {
+      "webhookServer": "Servidor Webhook",
+      "online": "● Online",
+      "slow": "● Lento",
+      "offline": "● Offline"
+    },
+    "timeline": {
+      "title": "Timeline de Eventos",
+      "eventsCount": "{{count}} eventos"
+    }
+  },
+  "widgetConfig": {
+    "loading": "Carregando configurações do widget...",
+    "inactiveState": {
+      "title": "Widget de Agendamento Inativo",
+      "description": "Esta clínica ainda não possui uma chave pública ativa para incorporar o agendamento em páginas externas.",
+      "generateButton": "Gerar Chave e Habilitar Widget"
+    },
+    "apiCredentials": {
+      "title": "Credenciais da API Pública",
+      "subtitle": "Identificador único público (Stripe-like) usado na tag HTML do widget.",
+      "rotateKeyTitle": "Rotacionar Chave Pública",
+      "rotateKeyButton": "Rotacionar Chave",
+      "statusLabel": "Status do Widget",
+      "statusActive": "Ativo (Permite agendamentos)",
+      "statusInactive": "Inativo (Bloqueado)",
+      "domainsLabel": "Domínios Autorizados (CORS)",
+      "domainsPlaceholder": "ex: clinica.com, landing.saude.br",
+      "domainsHint": "Separe múltiplos domínios por vírgula. Evita que a chave seja roubada e usada em outros sites.",
+      "privacyUrlLabel": "URL da Política de Privacidade (LGPD)",
+      "privacyUrlPlaceholder": "ex: https://clinica.com/politica-de-privacidade",
+      "privacyUrlHint": "Se preenchida, injeta um checkbox obrigatório de consentimento LGPD no formulário de agendamento do widget."
+    },
+    "localization": {
+      "title": "Localização & Idioma",
+      "localeLabel": "Idioma (Locale)",
+      "localeOptions": { "ptBR": "Português (pt-BR)", "enUS": "English (en-US)", "enNZ": "English (en-NZ)" },
+      "countryLabel": "País",
+      "countryOptions": { "br": "Brasil", "us": "Estados Unidos", "nz": "Nova Zelândia" },
+      "timezoneLabel": "Fuso Horário (Timezone)",
+      "timezoneOptions": {
+        "saoPaulo": "América/São Paulo (-03:00)",
+        "newYork": "América/Nova York (EST/EDT)",
+        "chicago": "América/Chicago (CST/CDT)",
+        "denver": "América/Denver (MST/MDT)",
+        "losAngeles": "América/Los Angeles (PST/PDT)",
+        "auckland": "Pacífico/Auckland (NZST/NZDT)"
+      }
+    },
+    "appearance": {
+      "title": "Aparência & Botão (FAB)",
+      "primaryColorLabel": "Cor Primária (Hex)",
+      "buttonTextLabel": "Texto do Botão",
+      "fabStyleLabel": "Estilo FAB",
+      "fabStyleOptions": { "solid": "Sólido", "soft": "Soft", "outline": "Contorno" },
+      "positionLabel": "Posição",
+      "positionOptions": { "right": "Canto Direito", "left": "Canto Esquerdo" },
+      "delayLabel": "Atraso (MS)"
+    },
+    "tracking": {
+      "title": "Rastreamento de Conversões (Meta & Google)",
+      "metaPixelLabel": "Meta Pixel ID",
+      "googleAdsLabel": "Google Ads ID",
+      "googleConversionLabel": "Google Conversion Label",
+      "successPathLabel": "Caminho da Rota Fantasma de Sucesso",
+      "virtualPageviewTitle": "Usado no Virtual Pageview",
+      "successPathHint": "O widget empurra este caminho fictício via `pushState` e gera um `page_view` no GTM quando a consulta é confirmada, facilitando trackings baseados em URLs."
+    },
+    "installTest": {
+      "title": "Instalação e Teste",
+      "subtitle": "Copie o código abaixo e cole no HTML da landing page (Hostinger/WordPress/WP Bloco).",
+      "removeTestWidget": "Remover Widget de Teste",
+      "testOnPage": "Testar nesta Página",
+      "advancedGenTitle": "Gerador Avançado para Landing Pages (CRO)",
+      "advancedGenSubtitle": "Otimize a conversão de seus anúncios travando o widget em um procedimento ou profissional específico.",
+      "lockSpecialtyLabel": "Travar Especialidade / Procedimento",
+      "noFilterOption": "-- Widget Geral (Sem Filtro) --",
+      "lockDoctorLabel": "Travar Profissional Específico",
+      "anyDoctorOption": "-- Qualquer Profissional da Especialidade --",
+      "copyCode": "Copiar Código",
+      "copied": "Copiado!",
+      "previewTitle": "Pré-visualização do FAB",
+      "previewSubtitle": "Estilo e contraste simulado do botão flutuante."
+    },
+    "saveButton": "Salvar Configurações do Widget",
+    "defaults": {
+      "fabLabel": "Agendar"
+    },
+    "toasts": {
+      "fetchError": "Erro ao carregar dados do widget: {{message}}",
+      "provisionSuccess": "Chave pública gerada e Widget habilitado!",
+      "provisionError": "Erro ao provisionar chave: {{message}}",
+      "rotateConfirm": "CUIDADO: Rotacionar a chave tornará o widget antigo nas landings inoperante até que o snippet seja atualizado. Deseja continuar?",
+      "rotateSuccess": "Nova chave pública gerada com sucesso!",
+      "rotateError": "Erro ao rotacionar chave: {{message}}",
+      "saveSuccess": "Configurações de widget salvas com sucesso!",
+      "saveError": "Erro ao salvar configurações: {{message}}",
+      "testRemoved": "Widget de teste removido.",
+      "testInjected": "Widget de teste injetado! Clique no botão flutuante para interagir.",
+      "keyCopied": "Chave copiada!",
+      "snippetCopied": "Snippet copiado!"
+    }
   }
 }

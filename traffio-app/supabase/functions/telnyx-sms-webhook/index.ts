@@ -14,6 +14,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { upsertChannelPreference } from "../_shared/upsertChannelPreference.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { getSmsPricing } from "../_shared/pricing.ts";
+import { downloadRecording } from "../_shared/telnyxClient.ts";
+import { getTelnyxApiKey } from "../_shared/masterConfig.ts";
 
 console.log("telnyx-sms-webhook v1 — Initialized");
 
@@ -41,15 +43,15 @@ serve(async (req: Request) => {
     const msg  = body.data?.payload;
     const from = msg?.from?.phone_number;
     const to   = msg?.to?.[0]?.phone_number;
-    const text = msg?.text ?? "";
     const msgId = msg?.id;
 
-    if (!from || !to || !text || !msgId) return response200;
+    if (!from || !to || !msgId) return response200;
 
-    console.log(`[telnyx-sms-webhook] SMS from ${from} to ${to}: "${text.substring(0, 50)}"`);
+    const text = msg?.text ?? "";
+    console.log(`[telnyx-sms-webhook] SMS/MMS from ${from} to ${to}: "${text.substring(0, 50)}"`);
 
     // Processar assincronamente
-    processInboundSms(supabase, from, to, text, msgId).catch((err) =>
+    processInboundSms(supabase, from, to, msg, msgId).catch((err) =>
       console.error("[telnyx-sms-webhook] Error:", err.message)
     );
 
@@ -65,9 +67,12 @@ async function processInboundSms(
   supabase: any,
   from: string,
   to: string,
-  text: string,
+  msg: any,
   msgId: string
 ): Promise<void> {
+  const text = msg?.text ?? "";
+  const mediaList = msg?.media ?? [];
+
   // Identificar tenant pelo número destino
   const { data: numRow } = await supabase
     .from("tenant_phone_numbers")
@@ -117,14 +122,95 @@ async function processInboundSms(
     });
   }
 
+  let mediaUrl: string | null = null;
+  let messageType = "text";
+  let content = text;
+
+  // Se houver mídia (MMS)
+  if (mediaList.length > 0) {
+    try {
+      const firstMedia = mediaList[0];
+      const telnyxMediaUrl = firstMedia.url;
+      const contentType = firstMedia.content_type ?? "application/octet-stream";
+
+      // Mapear tipo
+      if (contentType.startsWith("image/")) {
+        messageType = "image";
+      } else if (contentType.startsWith("audio/")) {
+        messageType = "audio";
+      } else if (contentType.startsWith("video/")) {
+        messageType = "video";
+      } else {
+        messageType = "document";
+      }
+
+      // Buscar API Key
+      const { data: tenant } = await supabase
+        .from("tenants")
+        .select("telnyx_api_key")
+        .eq("id", tenantId)
+        .single();
+      const apiKey = await getTelnyxApiKey(supabase, tenant?.telnyx_api_key);
+
+      if (apiKey && telnyxMediaUrl) {
+        console.log(`[telnyx-sms-webhook] Downloading MMS media from ${telnyxMediaUrl}...`);
+        const mediaBuffer = await downloadRecording(apiKey, telnyxMediaUrl);
+
+        // Obter extensão
+        let ext = "bin";
+        if (contentType.includes("/")) {
+          ext = contentType.split("/")[1].split(";")[0];
+        }
+        const filePath = `${tenantId}/messages/${msgId}.${ext}`;
+
+        console.log(`[telnyx-sms-webhook] Uploading MMS media to Supabase Storage: chat-media/${filePath}...`);
+        const { data: uploadData, error: uploadError } = await supabase
+          .storage
+          .from("chat-media")
+          .upload(filePath, mediaBuffer, {
+            contentType,
+            upsert: true
+          });
+
+        if (uploadError) {
+          console.error(`[telnyx-sms-webhook] Storage upload error:`, uploadError.message);
+        } else if (uploadData) {
+          const { data: urlData } = supabase
+            .storage
+            .from("chat-media")
+            .getPublicUrl(filePath);
+
+          mediaUrl = urlData.publicUrl;
+          console.log(`[telnyx-sms-webhook] ✓ MMS media public URL: ${mediaUrl}`);
+        }
+      }
+
+      // Definir conteúdo padrão caso o texto seja vazio
+      if (!content) {
+        const labels: Record<string, string> = {
+          image: "[imagem]",
+          audio: "[áudio]",
+          video: "[vídeo]",
+          document: "[documento]"
+        };
+        content = labels[messageType] ?? "[mídia]";
+      }
+
+    } catch (mediaErr: any) {
+      console.error(`[telnyx-sms-webhook] Failed to process MMS media:`, mediaErr.message);
+    }
+  }
+
   // Inserir na message_inbox (inbox pattern)
   await supabase.from("message_inbox").insert({
-    tenant_id:   tenantId,
-    phone:       from,
-    content:     text,
-    message_id:  msgId,
-    status:      "pending",
-    received_at: new Date().toISOString(),
+    tenant_id:    tenantId,
+    phone:        from,
+    content:      content,
+    message_id:   msgId,
+    status:       "pending",
+    media_url:    mediaUrl,
+    message_type: messageType,
+    received_at:  new Date().toISOString(),
   });
 
   // Rastrear uso: SMS inbound
@@ -141,5 +227,5 @@ async function processInboundSms(
     tenant_phone_number: to,
   }).catch(() => {}); // não bloquear por falha de tracking
 
-  console.log(`[telnyx-sms-webhook] ✓ SMS queued from ${from} | tenant ${tenantId}`);
+  console.log(`[telnyx-sms-webhook] ✓ Message queued from ${from} | tenant ${tenantId}`);
 }

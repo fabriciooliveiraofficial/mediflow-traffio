@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -8,6 +9,7 @@ import { BarChart3, TrendingUp, Users, AlertTriangle, Zap } from 'lucide-react';
 import { clsx } from 'clsx';
 
 export const FlowAnalytics = () => {
+    const { t } = useTranslation('flowBuilder');
     const [data, setData] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -38,7 +40,7 @@ export const FlowAnalytics = () => {
         return (
             <div className="p-20 text-center animate-pulse">
                 <BarChart3 size={48} className="mx-auto text-ice-300 mb-4" />
-                <p className="text-slate-400 font-black uppercase tracking-widest text-xs">Calculando Métricas de IA...</p>
+                <p className="text-slate-400 font-black uppercase tracking-widest text-xs">{t('flowBuilder.analytics.calculatingMetrics')}</p>
             </div>
         );
     }
@@ -47,17 +49,17 @@ export const FlowAnalytics = () => {
         <div className="h-full overflow-y-auto p-8 bg-slate-50/30">
             <div className="mb-10">
                 <h2 className="text-3xl font-black text-graphite-900 tracking-tight flex items-center gap-3">
-                    <BarChart3 className="text-brand-primary" size={32} /> Flow Analytics V2
+                    <BarChart3 className="text-brand-primary" size={32} /> {t('flowBuilder.analytics.title')}
                 </h2>
-                <p className="text-slate-500 font-medium mt-2">Indicadores de performance e engajamento da automação.</p>
+                <p className="text-slate-500 font-medium mt-2">{t('flowBuilder.analytics.subtitle')}</p>
             </div>
 
             <div className="grid grid-cols-4 gap-6 mb-10">
                 {[
-                    { label: 'Total Execuções', value: '1,280', icon: TrendingUp, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-                    { label: 'Sessões Ativas', value: '42', icon: Users, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-                    { label: 'Tempo Médio Resposta', value: '450ms', icon: Zap, color: 'text-amber-600', bg: 'bg-amber-50' },
-                    { label: 'Taxa de Erro', value: '1.2%', icon: AlertTriangle, color: 'text-rose-600', bg: 'bg-rose-50' },
+                    { label: t('flowBuilder.analytics.totalExecutions'), value: '1,280', icon: TrendingUp, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+                    { label: t('flowBuilder.analytics.activeSessions'), value: '42', icon: Users, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+                    { label: t('flowBuilder.analytics.avgResponseTime'), value: '450ms', icon: Zap, color: 'text-amber-600', bg: 'bg-amber-50' },
+                    { label: t('flowBuilder.analytics.errorRate'), value: '1.2%', icon: AlertTriangle, color: 'text-rose-600', bg: 'bg-rose-50' },
                 ].map((stat, i) => (
                     <div key={i} className="bg-white p-6 rounded-[24px] border border-ice-100 shadow-sm hover:shadow-xl transition-all group">
                         <div className="flex items-center gap-4">
@@ -75,7 +77,7 @@ export const FlowAnalytics = () => {
 
             <div className="grid grid-cols-2 gap-8">
                 <div className="bg-white p-8 rounded-[32px] border border-ice-100 shadow-sm h-[400px] flex flex-col">
-                    <h3 className="font-black text-xs uppercase tracking-widest text-slate-400 mb-6">Volume de Execução</h3>
+                    <h3 className="font-black text-xs uppercase tracking-widest text-slate-400 mb-6">{t('flowBuilder.analytics.executionVolume')}</h3>
                     <div className="flex-1 w-full">
                         <ResponsiveContainer width="100%" height="100%">
                             <LineChart data={data}>
@@ -90,7 +92,7 @@ export const FlowAnalytics = () => {
                 </div>
 
                 <div className="bg-white p-8 rounded-[32px] border border-ice-100 shadow-sm h-[400px] flex flex-col">
-                    <h3 className="font-black text-xs uppercase tracking-widest text-slate-400 mb-6">Distribuição por Nó</h3>
+                    <h3 className="font-black text-xs uppercase tracking-widest text-slate-400 mb-6">{t('flowBuilder.analytics.distributionByNode')}</h3>
                     <div className="flex-1 w-full">
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={[{ name: 'Msg', v: 400 }, { name: 'IA', v: 300 }, { name: 'Split', v: 200 }, { name: 'API', v: 278 }]}>

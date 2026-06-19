@@ -70,5 +70,186 @@
     "trendTitle": "Aquisição de Leads",
     "trendSubtitle": "Volume diário de novos leads",
     "trendEmpty": "Aguardando novos leads"
+  },
+  "newPatientModal": {
+    "editTitle": "Editar Paciente",
+    "newTitle": "Novo Paciente",
+    "editSubtitle": "Atualize as informações do paciente.",
+    "newSubtitle": "Preencha os dados do cartão de visitas.",
+    "fullNameLabel": "Nome Completo",
+    "fullNamePlaceholder": "Ex: Ricardo Albeniz",
+    "phoneLabel": "Celular",
+    "birthDateLabel": "Data de Nascimento",
+    "emailLabel": "Email",
+    "emailPlaceholder": "paciente@exemplo.com",
+    "careTypeLabel": "Tipo de Atendimento",
+    "particular": "Particular",
+    "insurance": "Convênio",
+    "insuranceProviderLabel": "Operadora",
+    "insuranceProviderPlaceholder": "Ex: Unimed",
+    "insuranceCardLabel": "Nº Carteirinha",
+    "insuranceCardPlaceholder": "0000...",
+    "cancel": "Cancelar",
+    "saving": "Salvando...",
+    "saveChanges": "Salvar Alterações",
+    "register": "Cadastrar Paciente",
+    "toasts": {
+      "updated": "Paciente atualizado com sucesso!",
+      "created": "Paciente cadastrado com sucesso!"
+    },
+    "errors": {
+      "tenantNotIdentified": "Tenant não identificado.",
+      "createPrefix": "Erro ao cadastrar: {{message}}"
+    }
+  },
+  "receptionDashboard": {
+    "searchPlaceholder": "Buscar paciente...",
+    "callNext": "Chamar Próximo",
+    "newPatient": "Novo Paciente",
+    "totalToday": "Total Hoje",
+    "waiting": "Aguardando",
+    "inConsult": "Em Atendimento",
+    "completed": "Finalizados",
+    "dayAgenda": "Agenda do Dia",
+    "filters": {
+      "all": "Todos",
+      "waiting": "Aguardando",
+      "completed": "Finalizados"
+    },
+    "empty": "Nenhum agendamento encontrado.",
+    "checkinOk": "Checkin OK",
+    "actions": {
+      "arrived": "Chegou",
+      "call": "Chamar",
+      "finish": "Finalizar"
+    },
+    "status": {
+      "scheduled": "Agendado",
+      "waiting": "Aguardando",
+      "inConsult": "Em Atendimento",
+      "completed": "Finalizado",
+      "cancelled": "Cancelado"
+    },
+    "toasts": {
+      "calling": "Chamando: {{name}}",
+      "noPatientInQueue": "Nenhum paciente na fila.",
+      "patientRegistered": "Paciente cadastrado!"
+    }
+  },
+  "sidebarPatientEditView": {
+    "headerTitle": "Editar Perfil",
+    "whatsappIdentity": "Identidade no WhatsApp",
+    "isPatientQuestion": "O contato é o próprio paciente?",
+    "whoIsTalkingLabel": "Quem está falando?",
+    "responsibleNamePlaceholder": "Nome do responsável",
+    "relationshipLabel": "Parentesco/Relação",
+    "selectPlaceholder": "Selecione...",
+    "relationships": {
+      "parent": "Pai/Mãe",
+      "spouse": "Cônjuge",
+      "child": "Filho(a)",
+      "sibling": "Irmão/Irmã",
+      "secretary": "Secretária/Assessor",
+      "other": "Outro"
+    },
+    "patientInfo": "Informações do Paciente",
+    "fullNameLabel": "Nome Completo",
+    "birthLabel": "Nascimento",
+    "birthPlaceholder": "DD/MM/AAAA",
+    "phoneLabel": "Telefone",
+    "emailLabel": "E-mail",
+    "careTypeLabel": "Tipo de Atendimento",
+    "particular": "Particular",
+    "insurance": "Convênio",
+    "stickyNotesLabel": "Notas Sticky (Front Desk)",
+    "stickyNotesPlaceholder": "Ex: Prefere atendimento pela manhã. Necessita de acessibilidade...",
+    "saveChanges": "Salvar Alterações",
+    "toasts": {
+      "updated": "Informações atualizadas!"
+    },
+    "errors": {
+      "updateFailed": "Falha ao atualizar"
+    },
+    "self": "Self"
+  },
+  "sidebarLeadClassifyView": {
+    "headerLabel": "Classificar",
+    "headerTitle": "Lead / Paciente",
+    "funnelStageLabel": "Estágio do Funil",
+    "temperatureLabel": "Temperatura",
+    "temperatures": {
+      "cold": "Frio",
+      "warm": "Morno",
+      "hot": "Quente"
+    },
+    "priorityLabel": "Prioridade",
+    "priorities": {
+      "low": "Baixa",
+      "medium": "Média",
+      "high": "Alta",
+      "urgent": "Urgente"
+    },
+    "tagsLabel": "Tags",
+    "newTagPlaceholder": "Nova tag...",
+    "suggestedTags": {
+      "particular": "Particular",
+      "insurance": "Convênio",
+      "returning": "Retorno",
+      "urgent": "Urgente",
+      "vip": "VIP",
+      "referral": "Indicação",
+      "firstVisit": "1ª Consulta",
+      "postOp": "Pós-Op"
+    },
+    "estimatedRevenueLabel": "Receita Estimada (R$)",
+    "salesNotesLabel": "Notas do Vendedor",
+    "salesNotesPlaceholder": "Anotações sobre o lead...",
+    "saveClassification": "Salvar Classificação",
+    "toasts": {
+      "saved": "Classificação salva!"
+    },
+    "errors": {
+      "saveFailed": "Erro ao salvar"
+    }
+  },
+  "sidebarDirectoryView": {
+    "headerLabel": "Diretório",
+    "headerTitle": "Unidades & Profissionais",
+    "tabs": {
+      "locations": "Unidades",
+      "professionals": "Profissionais"
+    },
+    "searchPlaceholders": {
+      "locations": "Buscar unidade...",
+      "professionals": "Buscar profissional..."
+    },
+    "empty": {
+      "locations": "Nenhuma unidade encontrada",
+      "professionals": "Nenhum profissional encontrado"
+    },
+    "typeLabels": {
+      "consultorio": "Consultório",
+      "clinica": "Clínica",
+      "hospital": "Hospital"
+    },
+    "generalSpecialtyFallback": "Geral"
+  },
+  "sidebarRegisterView": {
+    "headerTitle": "Novo Cadastro",
+    "fullNameLabel": "Nome Completo",
+    "fullNamePlaceholder": "Ex: Ricardo Albeniz",
+    "phoneLabel": "Telefone",
+    "emailLabel": "Email",
+    "emailPlaceholder": "paciente@exemplo.com",
+    "careTypeLabel": "Tipo de Atendimento",
+    "particular": "Particular",
+    "insurance": "Convênio",
+    "register": "Cadastrar Paciente",
+    "toasts": {
+      "created": "Paciente cadastrado com sucesso!"
+    },
+    "errors": {
+      "createFailed": "Falha ao cadastrar"
+    }
   }
 }

@@ -1,1 +1,227 @@
-{}
+{
+  "botConfigWizard": {
+    "roleMap": {
+      "leadCapture": "Especialista em Captação e Agendamento",
+      "agendaManagement": "Especialista em Acolhimento e Agendamento",
+      "hybrid": "Especialista em Atendimento e Agendamento"
+    },
+    "strictRulesSales": {
+      "neverCloseWithoutNextStep": "Nunca encerrar conversa sem propor próximo passo concreto",
+      "alwaysOfferAlternative": "Sempre oferecer alternativa imediata após objeção",
+      "transferAfterQualification": "Transferir para humano após qualificação confirmada",
+      "closeAutonomously": "Fechar o agendamento de forma totalmente autônoma",
+      "neverMentionSlotTypes": "Nunca mencionar que existem tipos de slots (prime/regular)"
+    },
+    "workflowSales": {
+      "respondWithSlot": "Responder imediatamente com oferta direta de horário",
+      "qualify": "Qualificar: entender necessidade, urgência e perfil",
+      "presentBenefits": "Apresentar benefícios e prova social do profissional",
+      "proposeSpecificTime": "Propor horário específico — não perguntar \"quando quer?\"",
+      "transferToHuman": "Transferir para especialista humano no momento ideal",
+      "closeAndConfirm": "Fechar agendamento e enviar confirmação automática"
+    },
+    "strictRulesAgenda": {
+      "neverScheduleWithoutValidating": "Nunca agendar sem validar cadastro do paciente",
+      "verifyIdentity": "Verificar identidade antes de exibir dados sensíveis",
+      "alwaysWelcoming": "Sempre ser acolhedora e empática"
+    },
+    "workflowAgenda": {
+      "greetByName": "Cumprimentar pelo nome e perguntar como pode ajudar",
+      "understandNeed": "Entender a necessidade ou intenção do paciente",
+      "findAvailability": "Buscar disponibilidade e apresentar opções",
+      "confirmAndConclude": "Confirmar dados e concluir o agendamento"
+    },
+    "step1": {
+      "title": "Qual seu objetivo principal?",
+      "subtitle": "Escolha como o Clinical Agent deve atuar na sua clínica.",
+      "hybridTitle": "Os Dois (Híbrido)",
+      "hybridDescription": "Captação para pacientes novos + gestão para pacientes existentes.",
+      "mostUsedBadge": "Mais Usado",
+      "leadCaptureTitle": "Captação de Novos Pacientes",
+      "leadCaptureDescription": "Bot proativo e orientado a conversão de anúncios e leads.",
+      "agendaTitle": "Gestão de Agenda",
+      "agendaDescription": "Gerenciar agendamentos e dúvidas de pacientes existentes."
+    },
+    "step2": {
+      "title": "Quem finaliza o agendamento?",
+      "subtitle": "Defina se o bot trabalha sozinho ou com ajuda humana.",
+      "teamTitle": "Tenho Equipe / Secretária",
+      "teamDescription": "O bot qualifica e passa o bastão para um humano fechar.",
+      "botOnlyTitle": "Não, o Bot faz tudo",
+      "botOnlyDescription": "O bot vai lidar com as objeções e agendar de forma autônoma."
+    },
+    "step3": {
+      "title": "Qual o tom de voz ideal?",
+      "subtitle": "Defina a personalidade da sua assistente virtual.",
+      "welcomingTitle": "Acolhedor e Empático",
+      "welcomingDescription": "Linguagem warm e humanizada. Ideal para clínicas de saúde.",
+      "formalTitle": "Profissional e Direto",
+      "formalDescription": "Claro e objetivo. Ideal para ambientes corporativos.",
+      "efficientTitle": "Dinâmico e Proativo",
+      "efficientDescription": "Foco em agilidade e resultados. Ideal para alta demanda."
+    },
+    "step4": {
+      "title": "Seu Perfil Configurado",
+      "subtitle": "Tudo pronto! Confira o comportamento gerado abaixo.",
+      "objectiveLabel": "Objetivo",
+      "objectiveHybrid": "Captação + Gestão",
+      "objectiveLeadCapture": "Captação de Leads",
+      "objectiveAgenda": "Gestão de Agenda",
+      "serviceLabel": "Atendimento",
+      "serviceHandoff": "Handoff Humano",
+      "serviceAutonomous": "Bot Autônomo",
+      "identityLabel": "Identidade Gerada:",
+      "identityValue": "Amanda · Especialista",
+      "followUpLabel": "Follow-up Automático:",
+      "followUpActive": "Ativado",
+      "followUpOffline": "Offline",
+      "noShowLabel": "Prevenção de No-Show:",
+      "noShowActive": "Ativado",
+      "disclaimer": "As regras estritas e o workflow operacional foram otimizados automaticamente para o seu objetivo. Você poderá editá-los manualmente após ativar o perfil."
+    },
+    "footer": {
+      "back": "Voltar",
+      "next": "Próximo",
+      "save": "Salvar e Ativar Perfil"
+    }
+  },
+  "filaAutomacoes": {
+    "channelBadge": {
+      "whatsapp": "WhatsApp",
+      "instagram": "Instagram",
+      "facebook": "Messenger",
+      "sms": "SMS"
+    },
+    "status": {
+      "pending": "Pendente",
+      "processing": "Processando",
+      "sent": "Enviado",
+      "failed": "Falhou",
+      "cancelled": "Cancelado"
+    },
+    "type": {
+      "followUp": "Follow-up",
+      "bookingConfirmed": "Agendado",
+      "reminder48h": "Confirmação 48h",
+      "reminder24h": "Confirmação 24h",
+      "reminder2h": "Lembrete 2h",
+      "postConsultation": "Pós-Consulta",
+      "nps": "NPS/Feedback",
+      "reactivation": "Reativação"
+    },
+    "toolbar": {
+      "searchPlaceholder": "Buscar paciente...",
+      "allStatuses": "Todos os Status",
+      "pending": "Pendentes",
+      "sent": "Enviados",
+      "failed": "Falhas",
+      "cancelled": "Cancelados",
+      "allTypes": "Todos os Tipos",
+      "followUps": "Follow-ups",
+      "reminder48h": "Confirmação 48h",
+      "reminder24h": "Confirmação 24h",
+      "reminder2h": "Lembrete 2h",
+      "nps": "NPS",
+      "reactivation": "Reativação"
+    },
+    "table": {
+      "status": "Status",
+      "patient": "Paciente",
+      "channel": "Canal",
+      "type": "Tipo",
+      "scheduledFor": "Agendado Para",
+      "actions": "Ações",
+      "noResults": "Nenhuma automação encontrada para os filtros selecionados.",
+      "edited": "Editado",
+      "at": "às"
+    },
+    "actions": {
+      "sendNow": "Enviar Agora",
+      "editText": "Editar Texto",
+      "cancel": "Cancelar",
+      "retry": "Retentar Envio",
+      "viewMessage": "Ver Mensagem"
+    },
+    "pagination": {
+      "summary": "Página {{page}} de {{totalPages}} · Total {{count}} registros"
+    },
+    "defaultPatientName": "paciente",
+    "editModal": {
+      "title": "Editar Mensagem",
+      "subtitle": "Esta mensagem será enviada exatamente como escrita abaixo.",
+      "placeholder": "Escreva a mensagem personalizada...",
+      "discard": "Descartar",
+      "save": "Salvar e Enfileirar"
+    }
+  },
+  "desempenhoAutomacoes": {
+    "kpi": {
+      "followUpsSent": "Follow-ups Enviados",
+      "followUpsUnit": "msg",
+      "conversionRate": "Taxa de Conversão",
+      "noShowsPrevented": "No-Shows Prevenidos",
+      "noShowsUnit": "pacientes",
+      "npsAverage": "NPS Médio",
+      "npsUnit": "/ 10",
+      "trendSuffix": "% vs 30d"
+    },
+    "funnelChart": {
+      "title": "Funil de Conversão",
+      "subtitle": "Eficiência de fechamento por etapa do lead",
+      "last30Days": "Últimos 30 Dias"
+    },
+    "npsDistribution": {
+      "title": "Distribuição NPS",
+      "subtitle": "Distribuição de satisfação dos pacientes",
+      "promoters": "Promotores (9-10)"
+    },
+    "timeSeries": {
+      "title": "Volume de Interações Autônomas",
+      "subtitle": "Quantidade diária de mensagens enviadas por tipo",
+      "followUp": "Follow-up",
+      "reminder": "Lembretes",
+      "postConsultation": "Pós-Consulta"
+    },
+    "topTemplates": {
+      "title": "Eficácia por Template",
+      "subtitle": "Qual mensagem está gerando mais agendamentos?",
+      "template": "Template",
+      "sent": "Enviados",
+      "failed": "Falhas",
+      "pending": "Pendentes",
+      "deliveryRate": "Taxa Entrega",
+      "noResults": "Nenhuma automação enviada no período selecionado."
+    }
+  },
+  "jornadaPaciente": {
+    "timelineTitle": "Linha do Tempo da Jornada",
+    "loading": "Carregando jornada...",
+    "noEvents": "Nenhuma interação registrada.",
+    "openConversation": "Abrir Conversa no Atendimento",
+    "close": "Fechar"
+  },
+  "funilCaptacao": {
+    "columns": {
+      "novoLead": "Novo Lead",
+      "emFollowUp": "Em Follow-up",
+      "qualificado": "Qualificado",
+      "agendado": "Agendado",
+      "perdido": "Perdido"
+    },
+    "metrics": {
+      "totalLeads": "Total Leads",
+      "conversionRate": "Taxa de Conversão",
+      "pendingActions": "Ações Pendentes"
+    },
+    "emptyColumn": "Vazio"
+  },
+  "patientStageCard": {
+    "menu": {
+      "viewFullJourney": "Ver Jornada Completa",
+      "openConversation": "Abrir Conversa",
+      "moveTo": "Mover para...",
+      "cancelFollowUps": "Cancelar Follow-ups"
+    },
+    "lastInteraction": "Última: {{distance}}"
+  }
+}

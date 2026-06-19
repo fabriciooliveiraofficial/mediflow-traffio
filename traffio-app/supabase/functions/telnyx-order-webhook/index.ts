@@ -13,6 +13,12 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { corsHeaders } from "../_shared/cors.ts";
 import { getNumberPricing } from "../_shared/pricing.ts";
+import { updatePhoneNumberConnection } from "../_shared/telnyxClient.ts";
+import {
+  getTelnyxApiKey,
+  getTelnyxConnectionId,
+  getTelnyxMessagingProfileId,
+} from "../_shared/masterConfig.ts";
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -81,6 +87,29 @@ serve(async (req: Request) => {
         await supabase.from("tenant_phone_numbers").update(upsertData).eq("id", existingNum.id);
       } else {
         await supabase.from("tenant_phone_numbers").insert(upsertData);
+      }
+
+      // Configurar roteamento de Voz e SMS na Telnyx
+      if (telnyxNumberId) {
+        try {
+          const { data: tenant } = await supabase
+            .from("tenants")
+            .select("telnyx_api_key, telnyx_app_id, telnyx_messaging_profile_id")
+            .eq("id", order.tenant_id)
+            .maybeSingle();
+
+          const apiKey       = await getTelnyxApiKey(supabase, tenant?.telnyx_api_key);
+          const connectionId = await getTelnyxConnectionId(supabase, tenant?.telnyx_app_id);
+          const profileId    = await getTelnyxMessagingProfileId(supabase, tenant?.telnyx_messaging_profile_id);
+
+          if (apiKey) {
+            console.log(`[telnyx-order-webhook] Configuring routing for number ${telnyxNumberId}...`);
+            await updatePhoneNumberConnection(apiKey, telnyxNumberId, connectionId, profileId);
+            console.log(`[telnyx-order-webhook] ✓ Routing configured for number ${telnyxNumberId}`);
+          }
+        } catch (routeErr: any) {
+          console.error(`[telnyx-order-webhook] Failed to configure routing for ${telnyxNumberId}: ${routeErr.message}`);
+        }
       }
 
       // Registrar uso: aquisição de número (KYC aprovado)

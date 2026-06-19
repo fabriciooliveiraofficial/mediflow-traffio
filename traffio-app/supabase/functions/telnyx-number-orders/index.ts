@@ -21,11 +21,11 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
-import { getTelnyxApiKey, getTelnyxConnectionId } from "../_shared/masterConfig.ts";
+import { getTelnyxApiKey, getTelnyxConnectionId, getTelnyxMessagingProfileId } from "../_shared/masterConfig.ts";
 import {
   purchaseNumber, createNumberOrder, releaseNumber,
   getRequirements, createAddress, uploadDocument, createRequirementGroup, fillRequirementGroup, getAddress,
-  associateRequirementGroupWithSubOrder
+  associateRequirementGroupWithSubOrder, updatePhoneNumberConnection
 } from "../_shared/telnyxClient.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { getNumberPricing } from "../_shared/pricing.ts";
@@ -61,7 +61,7 @@ serve(async (req: Request) => {
 
     const { data: tenant } = await supabase
       .from("tenants")
-      .select("telnyx_api_key, telnyx_app_id")
+      .select("telnyx_api_key, telnyx_app_id, telnyx_messaging_profile_id")
       .eq("id", tenantId)
       .maybeSingle();
 
@@ -529,6 +529,16 @@ serve(async (req: Request) => {
             telnyx_order_id: result.numberOrderId,
             submitted_at:    new Date().toISOString(),
           });
+        } else {
+          // Configurar roteamento de Voz e SMS imediatamente para compras instantâneas
+          try {
+            const profileId = await getTelnyxMessagingProfileId(supabase, tenant?.telnyx_messaging_profile_id);
+            console.log(`[telnyx-number-orders] Configuring routing for newly purchased instant number ${result.id}...`);
+            await updatePhoneNumberConnection(apiKey, result.id, connectionId || undefined, profileId);
+            console.log(`[telnyx-number-orders] ✓ Routing configured for newly purchased instant number ${result.id}`);
+          } catch (routeErr: any) {
+            console.error(`[telnyx-number-orders] Failed to configure routing for instant number ${result.id}:`, routeErr.message);
+          }
         }
 
         await logAudit(supabase, tenantId, user.id, "number_purchased_instant", phone_number,

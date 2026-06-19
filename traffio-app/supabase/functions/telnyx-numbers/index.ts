@@ -21,8 +21,13 @@ import {
   releaseNumber,
   getPhoneNumber,
   getPhoneNumberByNumber,
+  updatePhoneNumberConnection,
 } from "../_shared/telnyxClient.ts";
-import { getTelnyxApiKey, getTelnyxConnectionId } from "../_shared/masterConfig.ts";
+import {
+  getTelnyxApiKey,
+  getTelnyxConnectionId,
+  getTelnyxMessagingProfileId,
+} from "../_shared/masterConfig.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 serve(async (req: Request) => {
@@ -59,13 +64,14 @@ serve(async (req: Request) => {
     // Buscar API key do tenant ou usar a master
     const { data: tenant } = await supabase
       .from("tenants")
-      .select("telnyx_api_key, telnyx_app_id")
+      .select("telnyx_api_key, telnyx_app_id, telnyx_messaging_profile_id")
       .eq("id", tenantId)
       .single();
 
     // Prioridade: tenant key → Supabase Secret → master_config (UI)
     const apiKey       = await getTelnyxApiKey(supabase, tenant?.telnyx_api_key);
     const connectionId = await getTelnyxConnectionId(supabase, tenant?.telnyx_app_id);
+    const profileId    = await getTelnyxMessagingProfileId(supabase, tenant?.telnyx_messaging_profile_id);
 
     if (!apiKey) return json({ error: "Telnyx not configured. Set TELNYX_API_KEY in /master/intelligence" }, 400);
 
@@ -234,6 +240,27 @@ serve(async (req: Request) => {
                 .from("tenant_phone_numbers")
                 .update(updatePayload)
                 .eq("id", num.id);
+            }
+
+            // Autorrecuperação (Self-healing): atualizar roteamento de Voz e SMS na Telnyx se estiver incorreto ou ausente
+            if (isTelnyxActive && telnyxNum.id) {
+              const needsVoiceUpdate = connectionId && telnyxNum.connection_id !== connectionId;
+              const needsSmsUpdate = profileId && telnyxNum.messaging_profile_id !== profileId;
+              
+              if (needsVoiceUpdate || needsSmsUpdate) {
+                try {
+                  console.log(`[telnyx-numbers] Sync self-healing: updating routing config for ${telnyxNum.id}...`);
+                  await updatePhoneNumberConnection(
+                    apiKey,
+                    telnyxNum.id,
+                    needsVoiceUpdate ? connectionId : undefined,
+                    needsSmsUpdate ? profileId : undefined
+                  );
+                  console.log(`[telnyx-numbers] ✓ Sync self-healing: routing updated for ${telnyxNum.id}`);
+                } catch (healingErr: any) {
+                  console.error(`[telnyx-numbers] Sync self-healing failed for ${telnyxNum.id}:`, healingErr.message);
+                }
+              }
             }
 
             syncedNumbers.push({

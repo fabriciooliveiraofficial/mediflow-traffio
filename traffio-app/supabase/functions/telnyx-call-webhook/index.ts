@@ -13,7 +13,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
-import { answerCall, startRecording } from "../_shared/telnyxClient.ts";
+import { answerCall, startRecording, downloadRecording } from "../_shared/telnyxClient.ts";
 import { getTelnyxApiKey, getTelnyxPublicKey } from "../_shared/masterConfig.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { getCallPricing } from "../_shared/pricing.ts";
@@ -97,18 +97,19 @@ async function handleEvent(supabase: any, eventType: string, payload: any): Prom
   switch (eventType) {
 
     case "call.initiated": {
-      if (direction !== "incoming") break;
+      const isIncoming = direction === "incoming";
+      const lookupNumber = isIncoming ? to : from;
 
-      // Identificar tenant pelo número destino (isolamento multi-tenant)
+      // Identificar tenant pelo número correto (destino para inbound, origem para outbound)
       const { data: numRow } = await supabase
         .from("tenant_phone_numbers")
         .select("id, tenant_id")
-        .eq("phone_number", to)
+        .eq("phone_number", lookupNumber)
         .eq("is_active", true)
         .maybeSingle();
 
       if (!numRow) {
-        console.warn(`[telnyx-call-webhook] No tenant for number: ${to}`);
+        console.warn(`[telnyx-call-webhook] No tenant for number: ${lookupNumber}`);
         break;
       }
 
@@ -119,7 +120,7 @@ async function handleEvent(supabase: any, eventType: string, payload: any): Prom
         tenant_id:               tenantId,
         telnyx_call_control_id:  callControlId,
         telnyx_call_leg_id:      payload.call_leg_id,
-        direction:               "inbound",
+        direction:               isIncoming ? "inbound" : "outbound",
         from_number:             from,
         to_number:               to,
         tenant_phone_number_id:  numRow.id,
@@ -145,24 +146,31 @@ async function handleEvent(supabase: any, eventType: string, payload: any): Prom
       const apiKey = await getTelnyxApiKey(supabase, tenant?.telnyx_api_key);
       if (!apiKey) break;
 
-      await answerCall(apiKey, callControlId);
+      // Atender somente chamadas recebidas (inbound)
+      if (isIncoming) {
+        await answerCall(apiKey, callControlId);
+      }
 
+      // Gravar se auto_record for verdadeiro (tanto inbound quanto outbound)
       if (routing?.auto_record !== false) {
         await startRecording(apiKey, callControlId);
       }
 
-      // Notificar agentes (Realtime)
-      await supabase.channel(`telnyx:${tenantId}`).send({
-        type:    "broadcast",
-        event:   "incoming_call",
-        payload: { callControlId, from, to, tenantId, numberId: numRow.id },
-      });
+      if (isIncoming) {
+        // Notificar agentes (Realtime) - apenas para inbound
+        await supabase.channel(`telnyx:${tenantId}`).send({
+          type:    "broadcast",
+          event:   "incoming_call",
+          payload: { callControlId, from, to, tenantId, numberId: numRow.id },
+        });
+      }
 
-      // Registrar uso: inbound call iniciado
-      const initPricing = getCallPricing(to, "inbound");
-      await logUsage(supabase, tenantId, "call_inbound", null, 0, initPricing.unitCostUsd, to);
+      // Registrar uso
+      const resourceType = isIncoming ? "call_inbound" : "call_outbound";
+      const initPricing = getCallPricing(lookupNumber, isIncoming ? "inbound" : "outbound");
+      await logUsage(supabase, tenantId, resourceType, null, 0, initPricing.unitCostUsd, lookupNumber);
 
-      console.log(`[telnyx-call-webhook] ✓ Incoming answered | tenant: ${tenantId}`);
+      console.log(`[telnyx-call-webhook] ✓ ${isIncoming ? "Incoming answered" : "Outgoing tracked"} | tenant: ${tenantId}`);
       break;
     }
 
@@ -230,10 +238,61 @@ async function handleEvent(supabase: any, eventType: string, payload: any): Prom
       const recordingUrl = payload.recording_urls?.mp3 ?? payload.recording_urls?.wav;
       if (!recordingUrl) break;
 
+      let finalRecordingUrl = recordingUrl;
+
+      // Buscar tenant_id para podermos usar a API Key correta do tenant e organizar no storage
+      const { data: cdrRecord } = await supabase
+        .from("call_records")
+        .select("tenant_id")
+        .eq("telnyx_call_control_id", callControlId)
+        .maybeSingle();
+
+      if (cdrRecord) {
+        try {
+          const { data: tenant } = await supabase
+            .from("tenants")
+            .select("telnyx_api_key")
+            .eq("id", cdrRecord.tenant_id)
+            .single();
+
+          const apiKey = await getTelnyxApiKey(supabase, tenant?.telnyx_api_key);
+          if (apiKey) {
+            console.log(`[telnyx-call-webhook] Downloading recording from ${recordingUrl}...`);
+            const audioBuffer = await downloadRecording(apiKey, recordingUrl);
+
+            const fileExt = recordingUrl.endsWith(".wav") ? "wav" : "mp3";
+            const filePath = `${cdrRecord.tenant_id}/${callControlId}.${fileExt}`;
+
+            console.log(`[telnyx-call-webhook] Uploading to Supabase Storage: call-recordings/${filePath}...`);
+            const { data: uploadData, error: uploadError } = await supabase
+              .storage
+              .from("call-recordings")
+              .upload(filePath, audioBuffer, {
+                contentType: `audio/${fileExt}`,
+                upsert: true
+              });
+
+            if (uploadError) {
+              console.error(`[telnyx-call-webhook] Supabase Storage upload error:`, uploadError.message);
+            } else if (uploadData) {
+              const { data: urlData } = supabase
+                .storage
+                .from("call-recordings")
+                .getPublicUrl(filePath);
+
+              finalRecordingUrl = urlData.publicUrl;
+              console.log(`[telnyx-call-webhook] ✓ Recording stored in Supabase: ${finalRecordingUrl}`);
+            }
+          }
+        } catch (err: any) {
+          console.error(`[telnyx-call-webhook] Failed to download/upload recording:`, err.message);
+        }
+      }
+
       await supabase
         .from("call_records")
         .update({
-          recording_url:              recordingUrl,
+          recording_url:              finalRecordingUrl,
           recording_duration_seconds: payload.duration_millis
             ? Math.round(payload.duration_millis / 1000)
             : null,

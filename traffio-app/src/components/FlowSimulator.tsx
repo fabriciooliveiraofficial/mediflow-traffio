@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Send, Bot, User, X, RotateCcw, Play } from 'lucide-react';
 import { FlowOrchestrator } from '../services/flowOrchestrator';
 
@@ -17,6 +18,7 @@ interface Message {
 }
 
 export const FlowSimulator = ({ isOpen, onClose, flowDefinition, tenantId }: FlowSimulatorProps) => {
+    const { t } = useTranslation('flowBuilder');
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
@@ -42,7 +44,7 @@ export const FlowSimulator = ({ isOpen, onClose, flowDefinition, tenantId }: Flo
         setMessages([{
             id: 'init',
             role: 'system',
-            content: 'Simulação Iniciada. O bot agirá como se estivesse no WhatsApp.',
+            content: t('flowBuilder.simulator.simulationStarted'),
             type: 'text'
         }]);
 
@@ -107,15 +109,15 @@ export const FlowSimulator = ({ isOpen, onClose, flowDefinition, tenantId }: Flo
                         <Bot size={20} />
                     </div>
                     <div>
-                        <h3 className="font-black text-slate-800 text-sm">Simulador WhatsApp</h3>
-                        <p className="text-[10px] text-slate-500 font-medium">Ambiente de Teste Seguro</p>
+                        <h3 className="font-black text-slate-800 text-sm">{t('flowBuilder.simulator.title')}</h3>
+                        <p className="text-[10px] text-slate-500 font-medium">{t('flowBuilder.simulator.safeTestEnvironment')}</p>
                     </div>
                 </div>
                 <div className="flex gap-1">
                     <button
                         onClick={startSimulation}
                         className="p-2 hover:bg-slate-200 rounded-lg text-slate-500 transition-colors"
-                        title="Reiniciar"
+                        title={t('flowBuilder.simulator.restart')}
                     >
                         <RotateCcw size={18} />
                     </button>
@@ -184,7 +186,7 @@ export const FlowSimulator = ({ isOpen, onClose, flowDefinition, tenantId }: Flo
                         value={inputValue}
                         onChange={(e) => setInputValue(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleSendMessage(inputValue)}
-                        placeholder="Digite sua mensagem..."
+                        placeholder={t('flowBuilder.simulator.typeYourMessage')}
                         className="flex-1 bg-slate-50 border border-ice-200 rounded-xl px-4 text-sm focus:outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/10 transition-all font-medium text-slate-700"
                         autoFocus
                     />

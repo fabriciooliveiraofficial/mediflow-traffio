@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 import ReactFlow, {
     useNodesState,
@@ -35,6 +36,7 @@ export const FlowStudio = ({ flows, activeFlowId, onSelectFlow, onNewFlow, onSav
     onSave: (data: any) => void,
     onSimulate: () => void
 }) => {
+    const { t } = useTranslation('flowBuilder');
     const { showToast } = useToast();
     const reactFlowWrapper = useRef<HTMLDivElement>(null);
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -69,7 +71,7 @@ export const FlowStudio = ({ flows, activeFlowId, onSelectFlow, onNewFlow, onSav
             setAiPrompt('');
         } catch (error) {
             console.error('AI Generation error:', error);
-            showToast('error', 'Falha ao gerar o fluxo com IA.');
+            showToast('error', t('flowBuilder.studio.aiGenerationError'));
         } finally {
             setIsGenerating(false);
         }
@@ -98,7 +100,7 @@ export const FlowStudio = ({ flows, activeFlowId, onSelectFlow, onNewFlow, onSav
                 id: `${type}_${Date.now()}`,
                 type,
                 position,
-                data: { label: `Novo ${type}`, message: '', prompt: '', url: '' },
+                data: { label: t('flowBuilder.studio.newNodeLabel', { type }), message: '', prompt: '', url: '' },
             };
 
             setNodes((nds) => nds.concat(newNode));
@@ -117,14 +119,14 @@ export const FlowStudio = ({ flows, activeFlowId, onSelectFlow, onNewFlow, onSav
             <aside className="w-80 bg-slate-50 border-r border-ice-200 flex flex-col z-10">
                 {/* Flow Selector */}
                 <div className="p-6 border-b border-ice-200 bg-white">
-                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Seu Ecossistema IA</div>
+                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">{t('flowBuilder.studio.yourAiEcosystem')}</div>
                     <div className="flex gap-2 mb-4">
                         <select
                             value={activeFlowId || ''}
                             onChange={(e) => onSelectFlow(e.target.value)}
                             className="flex-1 bg-slate-50 border border-ice-100 rounded-xl px-3 py-2 text-xs font-bold text-graphite-900 outline-none focus:border-brand-primary"
                         >
-                            <option value="">Selecionar Fluxo...</option>
+                            <option value="">{t('flowBuilder.studio.selectFlow')}</option>
                             {flows.map(f => (
                                 <option key={f.id} value={f.id}>{f.name}</option>
                             ))}
@@ -139,7 +141,7 @@ export const FlowStudio = ({ flows, activeFlowId, onSelectFlow, onNewFlow, onSav
 
                     {activeFlow && (
                         <div className="flex items-center justify-between p-3 bg-slate-50 border border-ice-100 rounded-xl">
-                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Status Online</span>
+                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">{t('flowBuilder.studio.onlineStatus')}</span>
                             <button
                                 onClick={async () => {
                                     // Implementation of exclusive activation
@@ -158,7 +160,7 @@ export const FlowStudio = ({ flows, activeFlowId, onSelectFlow, onNewFlow, onSav
 
                                         if (activeError) throw activeError;
                                         onSave({ nodes, edges }); // Force sync
-                                        showToast('success', activeFlow.is_active ? 'Fluxo desativado.' : 'Fluxo ativado com exclusividade!');
+                                        showToast('success', activeFlow.is_active ? t('flowBuilder.studio.flowDeactivated') : t('flowBuilder.studio.flowActivatedExclusive'));
                                     } catch (e) {
                                         console.error(e);
                                     }
@@ -168,7 +170,7 @@ export const FlowStudio = ({ flows, activeFlowId, onSelectFlow, onNewFlow, onSav
                                     activeFlow.is_active ? "bg-emerald-500 text-white shadow-lg shadow-emerald-200" : "bg-slate-200 text-slate-500"
                                 )}
                             >
-                                {activeFlow.is_active ? 'ATIVO' : 'DESATIVADO'}
+                                {activeFlow.is_active ? t('flowBuilder.studio.active') : t('flowBuilder.studio.inactive')}
                             </button>
                         </div>
                     )}
@@ -179,13 +181,13 @@ export const FlowStudio = ({ flows, activeFlowId, onSelectFlow, onNewFlow, onSav
                         <div className="p-2 bg-brand-primary/10 rounded-xl text-brand-primary">
                             <Bot size={18} />
                         </div>
-                        <h3 className="font-black text-xs uppercase tracking-widest text-graphite-900 italic">Arquiteto IA</h3>
+                        <h3 className="font-black text-xs uppercase tracking-widest text-graphite-900 italic">{t('flowBuilder.studio.aiArchitect')}</h3>
                     </div>
                     <div className="relative">
                         <textarea
                             value={aiPrompt}
                             onChange={(e) => setAiPrompt(e.target.value)}
-                            placeholder="Descreva o fluxo desejado em linguagem natural..."
+                            placeholder={t('flowBuilder.studio.aiPromptPlaceholder')}
                             className="w-full h-32 bg-slate-50 border border-ice-200 rounded-2xl p-4 text-sm font-medium focus:ring-4 focus:ring-brand-primary/5 focus:border-brand-primary outline-none resize-none leading-relaxed transition-all"
                         />
                         <button
@@ -199,7 +201,7 @@ export const FlowStudio = ({ flows, activeFlowId, onSelectFlow, onNewFlow, onSav
                     {isGenerating && (
                         <div className="mt-4 p-3 bg-brand-primary/5 border border-brand-primary/10 rounded-xl animate-pulse">
                             <p className="text-[10px] font-black text-brand-primary uppercase tracking-wider text-center">
-                                Arquitetando fluxo estratégico...
+                                {t('flowBuilder.studio.architectingFlow')}
                             </p>
                         </div>
                     )}
@@ -207,13 +209,13 @@ export const FlowStudio = ({ flows, activeFlowId, onSelectFlow, onNewFlow, onSav
 
                 <div className="flex-1 p-6 overflow-y-auto space-y-6">
                     <div>
-                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Node Library</div>
+                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">{t('flowBuilder.studio.nodeLibrary')}</div>
                         <div className="space-y-2">
                             {[
-                                { type: 'message', icon: MessageSquare, label: 'Mensagem', color: 'bg-blue-500' },
-                                { type: 'ai_orchestrator', icon: Bot, label: 'Inteligência IA', color: 'bg-indigo-600' },
-                                { type: 'webhook', icon: Globe, label: 'Webhook API', color: 'bg-emerald-600' },
-                                { type: 'delay', icon: Clock, label: 'Delay Temporal', color: 'bg-slate-700' },
+                                { type: 'message', icon: MessageSquare, label: t('flowBuilder.studio.nodeLabelMessage'), color: 'bg-blue-500' },
+                                { type: 'ai_orchestrator', icon: Bot, label: t('flowBuilder.studio.nodeLabelAi'), color: 'bg-indigo-600' },
+                                { type: 'webhook', icon: Globe, label: t('flowBuilder.studio.nodeLabelWebhook'), color: 'bg-emerald-600' },
+                                { type: 'delay', icon: Clock, label: t('flowBuilder.studio.nodeLabelDelay'), color: 'bg-slate-700' },
                             ].map((cfg) => (
                                 <div
                                     key={cfg.type}
@@ -236,7 +238,7 @@ export const FlowStudio = ({ flows, activeFlowId, onSelectFlow, onNewFlow, onSav
                         onClick={() => onSave({ nodes, edges })}
                         className="w-full bg-emerald-500 text-white py-3.5 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 hover:bg-emerald-600 transition-all shadow-xl shadow-emerald-200"
                     >
-                        <Save size={16} /> Publicar V2
+                        <Save size={16} /> {t('flowBuilder.studio.publishV2')}
                     </button>
                 </div>
             </aside>
@@ -267,7 +269,7 @@ export const FlowStudio = ({ flows, activeFlowId, onSelectFlow, onNewFlow, onSav
                 <aside className="w-80 bg-white border-l border-ice-200 flex flex-col z-20 shadow-2xl animate-in slide-in-from-right overflow-y-auto">
                     <div className="p-6 border-b border-ice-200">
                         <div className="flex justify-between items-center mb-6">
-                            <h3 className="font-black text-xs uppercase tracking-widest text-graphite-900">Configurações</h3>
+                            <h3 className="font-black text-xs uppercase tracking-widest text-graphite-900">{t('flowBuilder.studio.settings')}</h3>
                             <button
                                 onClick={() => setSelectedNodeId(null)}
                                 className="p-1 hover:bg-ice-50 rounded text-slate-400"
@@ -278,7 +280,7 @@ export const FlowStudio = ({ flows, activeFlowId, onSelectFlow, onNewFlow, onSav
 
                         <div className="space-y-6">
                             <div>
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Título do Bloco</label>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">{t('flowBuilder.studio.blockTitle')}</label>
                                 <input
                                     value={selectedNode.data.label || ''}
                                     onChange={(e) => handleUpdateNode({ label: e.target.value })}
@@ -288,7 +290,7 @@ export const FlowStudio = ({ flows, activeFlowId, onSelectFlow, onNewFlow, onSav
 
                             {selectedNode.type === 'message' && (
                                 <div>
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Cópia da Mensagem</label>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">{t('flowBuilder.studio.messageCopy')}</label>
                                     <textarea
                                         value={selectedNode.data.message || ''}
                                         onChange={(e) => handleUpdateNode({ message: e.target.value })}
@@ -299,7 +301,7 @@ export const FlowStudio = ({ flows, activeFlowId, onSelectFlow, onNewFlow, onSav
 
                             {selectedNode.type === 'ai_orchestrator' && (
                                 <div>
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">System Prompt</label>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">{t('flowBuilder.studio.systemPrompt')}</label>
                                     <textarea
                                         value={selectedNode.data.ai_config?.system_prompt || selectedNode.data.prompt || ''}
                                         onChange={(e) => handleUpdateNode({ ai_config: { ...selectedNode.data.ai_config, system_prompt: e.target.value } })}
@@ -311,7 +313,7 @@ export const FlowStudio = ({ flows, activeFlowId, onSelectFlow, onNewFlow, onSav
                             {selectedNode.type === 'interactive' && (
                                 <div className="space-y-4">
                                     <div>
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Texto do Menu</label>
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">{t('flowBuilder.studio.menuText')}</label>
                                         <textarea
                                             value={selectedNode.data.message || ''}
                                             onChange={(e) => handleUpdateNode({ message: e.target.value })}
@@ -319,7 +321,7 @@ export const FlowStudio = ({ flows, activeFlowId, onSelectFlow, onNewFlow, onSav
                                         />
                                     </div>
                                     <div>
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Botões / Opções</label>
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">{t('flowBuilder.studio.buttonsOptions')}</label>
                                         <div className="space-y-2">
                                             {(selectedNode.data.options || []).map((opt: any, idx: number) => (
                                                 <div key={idx} className="flex gap-2">
@@ -345,12 +347,12 @@ export const FlowStudio = ({ flows, activeFlowId, onSelectFlow, onNewFlow, onSav
                                             ))}
                                             <button
                                                 onClick={() => {
-                                                    const newOpts = [...(selectedNode.data.options || []), { id: `opt_${Date.now()}`, label: 'Nova Opção' }];
+                                                    const newOpts = [...(selectedNode.data.options || []), { id: `opt_${Date.now()}`, label: t('flowBuilder.studio.newOption') }];
                                                     handleUpdateNode({ options: newOpts });
                                                 }}
                                                 className="w-full py-2 border-2 border-dashed border-ice-100 rounded-xl text-[10px] font-black text-slate-400 uppercase hover:border-brand-primary hover:text-brand-primary transition-all"
                                             >
-                                                + Adicionar Botão
+                                                {t('flowBuilder.studio.addButton')}
                                             </button>
                                         </div>
                                     </div>
@@ -359,7 +361,7 @@ export const FlowStudio = ({ flows, activeFlowId, onSelectFlow, onNewFlow, onSav
 
                             {selectedNode.type === 'webhook' && (
                                 <div>
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Endpoint URL</label>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">{t('flowBuilder.studio.endpointUrl')}</label>
                                     <input
                                         value={selectedNode.data.url || ''}
                                         onChange={(e) => handleUpdateNode({ url: e.target.value })}
@@ -373,7 +375,7 @@ export const FlowStudio = ({ flows, activeFlowId, onSelectFlow, onNewFlow, onSav
                                     onClick={onSimulate}
                                     className="w-full bg-brand-primary text-white p-3.5 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 hover:bg-brand-primary/90 transition-all shadow-lg"
                                 >
-                                    <Play size={16} fill="currentColor" /> Simular Nó Ativo
+                                    <Play size={16} fill="currentColor" /> {t('flowBuilder.studio.simulateActiveNode')}
                                 </button>
                             </div>
                         </div>

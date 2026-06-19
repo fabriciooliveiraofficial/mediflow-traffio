@@ -527,8 +527,45 @@ export async function sendSms(
   apiKey: string,
   from: string,
   to: string,
-  text: string
+  text: string,
+  mediaUrls?: string[]
 ): Promise<string> {
-  const data = await telnyxRequest(apiKey, "POST", "/messages", { from, to, text });
+  const body: any = { from, to, text };
+  if (mediaUrls && mediaUrls.length > 0) {
+    body.media_urls = mediaUrls;
+  }
+  const data = await telnyxRequest(apiKey, "POST", "/messages", body);
   return data.data.id;
+}
+
+// ─── PHONE NUMBERS CONFIGURATION ─────────────────────────────────────────────
+
+export async function updatePhoneNumberConnection(
+  apiKey: string,
+  phoneId: string,
+  connectionId?: string | null,
+  messagingProfileId?: string | null
+): Promise<any> {
+  const body: any = {};
+  if (connectionId !== undefined) body.connection_id = connectionId || null;
+  if (messagingProfileId !== undefined) body.messaging_profile_id = messagingProfileId || null;
+
+  if (Object.keys(body).length === 0) return null;
+
+  const data = await telnyxRequest(apiKey, "PATCH", `/phone_numbers/${phoneId}`, body);
+  return data.data;
+}
+
+// ─── RECORDINGS ──────────────────────────────────────────────────────────────
+
+export async function downloadRecording(apiKey: string, url: string): Promise<ArrayBuffer> {
+  const res = await fetch(url, {
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+    },
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to download recording from ${url}: ${res.statusText}`);
+  }
+  return await res.arrayBuffer();
 }

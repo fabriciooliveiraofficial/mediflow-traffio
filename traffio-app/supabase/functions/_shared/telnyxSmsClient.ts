@@ -22,14 +22,24 @@ export class TelnyxSmsClient {
    * @param to    Número destinatário no formato E.164 (ex: "+5511999999999")
    * @param text  Texto da mensagem — máx 155 chars para 1 segmento, sem emojis
    */
-  async sendSms(from: string, to: string, text: string): Promise<TelnyxSmsResult> {
+  async sendSms(
+    from: string,
+    to: string,
+    text: string,
+    mediaUrls?: string[]
+  ): Promise<TelnyxSmsResult> {
+    const payload: any = { from, to, text };
+    if (mediaUrls && mediaUrls.length > 0) {
+      payload.media_urls = mediaUrls;
+    }
+
     const res = await fetch(`${TELNYX_API}/messages`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${this.apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ from, to, text }),
+      body: JSON.stringify(payload),
     });
 
     const data = await res.json();

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../contexts/ToastContext';
 import {
@@ -23,6 +24,7 @@ interface MasterTenantWidgetConfigProps {
 }
 
 export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> = ({ tenantId, tenantName }) => {
+    const { t } = useTranslation('master');
     const { showToast } = useToast();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -42,7 +44,7 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
     const [formData, setFormData] = useState({
         allowed_domains: '',
         primary_color: '#0E7C7B',
-        fab_label: 'Agendar',
+        fab_label: t('widgetConfig.defaults.fabLabel'),
         fab_style: 'soft' as 'solid' | 'soft' | 'outline',
         fab_position: 'bottom-right' as 'bottom-right' | 'bottom-left',
         fab_delay_ms: 0,
@@ -112,7 +114,7 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
                 setFormData({
                     allowed_domains: (keysData.allowed_domains || []).join(', '),
                     primary_color: keysData.primary_color || '#0E7C7B',
-                    fab_label: keysData.fab_label || 'Agendar',
+                    fab_label: keysData.fab_label || t('widgetConfig.defaults.fabLabel'),
                     fab_style: keysData.fab_style || 'soft',
                     fab_position: keysData.fab_position || 'bottom-right',
                     fab_delay_ms: keysData.fab_delay_ms || 0,
@@ -126,7 +128,7 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
             }
         } catch (err: any) {
             console.error('Error fetching widget data:', err);
-            showToast('error', 'Erro ao carregar dados do widget: ' + err.message);
+            showToast('error', t('widgetConfig.toasts.fetchError', { message: err.message }));
         } finally {
             setLoading(false);
         }
@@ -138,17 +140,17 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
             const { data, error } = await supabase
                 .rpc('provision_tenant_public_key', { p_tenant_id: tenantId });
             if (error) throw error;
-            showToast('success', 'Chave pública gerada e Widget habilitado!');
+            showToast('success', t('widgetConfig.toasts.provisionSuccess'));
             fetchData();
         } catch (err: any) {
-            showToast('error', 'Erro ao provisionar chave: ' + err.message);
+            showToast('error', t('widgetConfig.toasts.provisionError', { message: err.message }));
         } finally {
             setGeneratingKey(false);
         }
     };
 
     const handleRotateKey = async () => {
-        if (!window.confirm('CUIDADO: Rotacionar a chave tornará o widget antigo nas landings inoperante até que o snippet seja atualizado. Deseja continuar?')) return;
+        if (!window.confirm(t('widgetConfig.toasts.rotateConfirm'))) return;
         try {
             setGeneratingKey(true);
             const newKey = 'pk_live_' + Array.from(crypto.getRandomValues(new Uint8Array(24)), byte => byte.toString(16).padStart(2, '0')).join('');
@@ -157,10 +159,10 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
                 .update({ public_key: newKey })
                 .eq('tenant_id', tenantId);
             if (error) throw error;
-            showToast('success', 'Nova chave pública gerada com sucesso!');
+            showToast('success', t('widgetConfig.toasts.rotateSuccess'));
             fetchData();
         } catch (err: any) {
-            showToast('error', 'Erro ao rotacionar chave: ' + err.message);
+            showToast('error', t('widgetConfig.toasts.rotateError', { message: err.message }));
         } finally {
             setGeneratingKey(false);
         }
@@ -202,10 +204,10 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
                 .eq('tenant_id', tenantId);
             if (keysErr) throw keysErr;
 
-            showToast('success', 'Configurações de widget salvas com sucesso!');
+            showToast('success', t('widgetConfig.toasts.saveSuccess'));
             fetchData();
         } catch (err: any) {
-            showToast('error', 'Erro ao salvar configurações: ' + err.message);
+            showToast('error', t('widgetConfig.toasts.saveError', { message: err.message }));
         } finally {
             setSaving(false);
         }
@@ -218,7 +220,7 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
             const el = document.getElementById('test-booking-widget');
             if (el) el.remove();
             setWidgetInjected(false);
-            showToast('success', 'Widget de teste removido.');
+            showToast('success', t('widgetConfig.toasts.testRemoved'));
         } else {
             // Check script loading
             if (!document.querySelector('script[data-widget-core]')) {
@@ -240,7 +242,7 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
             el.setAttribute('id', 'test-booking-widget');
             document.body.appendChild(el);
             setWidgetInjected(true);
-            showToast('success', 'Widget de teste injetado! Clique no botão flutuante para interagir.');
+            showToast('success', t('widgetConfig.toasts.testInjected'));
         }
     };
 
@@ -263,14 +265,14 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
         navigator.clipboard.writeText(getSnippet());
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
-        showToast('success', 'Snippet copiado!');
+        showToast('success', t('widgetConfig.toasts.snippetCopied'));
     };
 
     if (loading) {
         return (
             <div className="py-8 flex flex-col items-center justify-center gap-3 text-slate-500">
                 <Loader2 className="animate-spin text-emerald-500" size={24} />
-                <p className="text-xs font-semibold">Carregando configurações do widget...</p>
+                <p className="text-xs font-semibold">{t('widgetConfig.loading')}</p>
             </div>
         );
     }
@@ -279,9 +281,9 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
         return (
             <div className="border border-dashed border-[#1E293B] rounded-2xl p-8 text-center space-y-4">
                 <Sliders className="mx-auto text-slate-600" size={32} />
-                <h4 className="font-bold text-white text-sm">Widget de Agendamento Inativo</h4>
+                <h4 className="font-bold text-white text-sm">{t('widgetConfig.inactiveState.title')}</h4>
                 <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                    Esta clínica ainda não possui uma chave pública ativa para incorporar o agendamento em páginas externas.
+                    {t('widgetConfig.inactiveState.description')}
                 </p>
                 <button
                     onClick={handleProvisionKey}
@@ -289,7 +291,7 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
                     className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs px-4 py-2 rounded-xl transition-all inline-flex items-center gap-2 cursor-pointer disabled:opacity-50 border-none"
                 >
                     {generatingKey ? <Loader2 size={14} className="animate-spin" /> : <Key size={14} />}
-                    Gerar Chave e Habilitar Widget
+                    {t('widgetConfig.inactiveState.generateButton')}
                 </button>
             </div>
         );
@@ -302,10 +304,10 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
                 <div className="flex items-center justify-between">
                     <div>
                         <h4 className="font-bold text-sm text-white flex items-center gap-1.5">
-                            <Key className="text-emerald-500" size={16} /> Credenciais da API Pública
+                            <Key className="text-emerald-500" size={16} /> {t('widgetConfig.apiCredentials.title')}
                         </h4>
                         <p className="text-[10px] text-slate-500">
-                            Identificador único público (Stripe-like) usado na tag HTML do widget.
+                            {t('widgetConfig.apiCredentials.subtitle')}
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -313,11 +315,11 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
                             type="button"
                             onClick={handleRotateKey}
                             disabled={generatingKey}
-                            title="Rotacionar Chave Pública"
+                            title={t('widgetConfig.apiCredentials.rotateKeyTitle')}
                             className="bg-[#1E293B] hover:bg-[#2D3B55] text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg border-none cursor-pointer transition-all flex items-center gap-1 text-[11px] font-bold disabled:opacity-50"
                         >
                             {generatingKey ? <Loader2 size={12} className="animate-spin" /> : <RotateCw size={12} />}
-                            Rotacionar Chave
+                            {t('widgetConfig.apiCredentials.rotateKeyButton')}
                         </button>
                     </div>
                 </div>
@@ -328,7 +330,7 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
                         type="button"
                         onClick={() => {
                             navigator.clipboard.writeText(config.public_key);
-                            showToast('success', 'Chave copiada!');
+                            showToast('success', t('widgetConfig.toasts.keyCopied'));
                         }}
                         className="bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white p-1.5 rounded border-none cursor-pointer transition-all shrink-0"
                     >
@@ -339,7 +341,7 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
                         <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
-                            Status do Widget
+                            {t('widgetConfig.apiCredentials.statusLabel')}
                         </label>
                         <div className="flex items-center gap-3">
                             <button
@@ -356,40 +358,40 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
                                 />
                             </button>
                             <span className="text-xs font-bold text-slate-300">
-                                {formData.is_active ? 'Ativo (Permite agendamentos)' : 'Inativo (Bloqueado)'}
+                                {formData.is_active ? t('widgetConfig.apiCredentials.statusActive') : t('widgetConfig.apiCredentials.statusInactive')}
                             </span>
                         </div>
                     </div>
 
                     <div className="space-y-1">
                         <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
-                            Domínios Autorizados (CORS)
+                            {t('widgetConfig.apiCredentials.domainsLabel')}
                         </label>
                         <input
                             type="text"
                             value={formData.allowed_domains}
                             onChange={e => setFormData(prev => ({ ...prev, allowed_domains: e.target.value }))}
-                            placeholder="ex: clinica.com, landing.saude.br"
+                            placeholder={t('widgetConfig.apiCredentials.domainsPlaceholder')}
                             className="w-full bg-[#1A2035] border border-[#2D3B55] rounded-xl px-3.5 py-2 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
                         />
                         <p className="text-[9px] text-slate-500">
-                            Separe múltiplos domínios por vírgula. Evita que a chave seja roubada e usada em outros sites.
+                            {t('widgetConfig.apiCredentials.domainsHint')}
                         </p>
                     </div>
 
                     <div className="space-y-1 md:col-span-2">
                         <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
-                            URL da Política de Privacidade (LGPD)
+                            {t('widgetConfig.apiCredentials.privacyUrlLabel')}
                         </label>
                         <input
                             type="url"
                             value={formData.privacy_policy_url}
                             onChange={e => setFormData(prev => ({ ...prev, privacy_policy_url: e.target.value }))}
-                            placeholder="ex: https://clinica.com/politica-de-privacidade"
+                            placeholder={t('widgetConfig.apiCredentials.privacyUrlPlaceholder')}
                             className="w-full bg-[#1A2035] border border-[#2D3B55] rounded-xl px-3.5 py-2 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
                         />
                         <p className="text-[9px] text-slate-500">
-                            Se preenchida, injeta um checkbox obrigatório de consentimento LGPD no formulário de agendamento do widget.
+                            {t('widgetConfig.apiCredentials.privacyUrlHint')}
                         </p>
                     </div>
                 </div>
@@ -399,47 +401,47 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
                 {/* Localização & i18n */}
                 <div className="bg-[#10172A] border border-[#1E293B] rounded-2xl p-5 space-y-4">
                     <h4 className="font-bold text-sm text-white flex items-center gap-1.5">
-                        <Globe className="text-indigo-400" size={16} /> Localização & Idioma
+                        <Globe className="text-indigo-400" size={16} /> {t('widgetConfig.localization.title')}
                     </h4>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Idioma (Locale)</label>
+                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">{t('widgetConfig.localization.localeLabel')}</label>
                             <select
                                 value={localeData.locale}
                                 onChange={e => setLocaleData(prev => ({ ...prev, locale: e.target.value }))}
                                 className="w-full bg-[#1A2035] border border-[#2D3B55] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
                             >
-                                <option value="pt-BR">Português (pt-BR)</option>
-                                <option value="en-US">English (en-US)</option>
-                                <option value="en-NZ">English (en-NZ)</option>
+                                <option value="pt-BR">{t('widgetConfig.localization.localeOptions.ptBR')}</option>
+                                <option value="en-US">{t('widgetConfig.localization.localeOptions.enUS')}</option>
+                                <option value="en-NZ">{t('widgetConfig.localization.localeOptions.enNZ')}</option>
                             </select>
                         </div>
                         <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">País</label>
+                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">{t('widgetConfig.localization.countryLabel')}</label>
                             <select
                                 value={localeData.country}
                                 onChange={e => setLocaleData(prev => ({ ...prev, country: e.target.value }))}
                                 className="w-full bg-[#1A2035] border border-[#2D3B55] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
                             >
-                                <option value="BR">Brasil</option>
-                                <option value="US">Estados Unidos</option>
-                                <option value="NZ">Nova Zelândia</option>
+                                <option value="BR">{t('widgetConfig.localization.countryOptions.br')}</option>
+                                <option value="US">{t('widgetConfig.localization.countryOptions.us')}</option>
+                                <option value="NZ">{t('widgetConfig.localization.countryOptions.nz')}</option>
                             </select>
                         </div>
                     </div>
                     <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Fuso Horário (Timezone)</label>
+                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">{t('widgetConfig.localization.timezoneLabel')}</label>
                         <select
                             value={localeData.timezone}
                             onChange={e => setLocaleData(prev => ({ ...prev, timezone: e.target.value }))}
                             className="w-full bg-[#1A2035] border border-[#2D3B55] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
                         >
-                            <option value="America/Sao_Paulo">América/São Paulo (-03:00)</option>
-                            <option value="America/New_York">América/Nova York (EST/EDT)</option>
-                            <option value="America/Chicago">América/Chicago (CST/CDT)</option>
-                            <option value="America/Denver">América/Denver (MST/MDT)</option>
-                            <option value="America/Los_Angeles">América/Los Angeles (PST/PDT)</option>
-                            <option value="Pacific/Auckland">Pacífico/Auckland (NZST/NZDT)</option>
+                            <option value="America/Sao_Paulo">{t('widgetConfig.localization.timezoneOptions.saoPaulo')}</option>
+                            <option value="America/New_York">{t('widgetConfig.localization.timezoneOptions.newYork')}</option>
+                            <option value="America/Chicago">{t('widgetConfig.localization.timezoneOptions.chicago')}</option>
+                            <option value="America/Denver">{t('widgetConfig.localization.timezoneOptions.denver')}</option>
+                            <option value="America/Los_Angeles">{t('widgetConfig.localization.timezoneOptions.losAngeles')}</option>
+                            <option value="Pacific/Auckland">{t('widgetConfig.localization.timezoneOptions.auckland')}</option>
                         </select>
                     </div>
                 </div>
@@ -447,11 +449,11 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
                 {/* Tema e Customização do FAB */}
                 <div className="bg-[#10172A] border border-[#1E293B] rounded-2xl p-5 space-y-4">
                     <h4 className="font-bold text-sm text-white flex items-center gap-1.5">
-                        <Palette className="text-amber-400" size={16} /> Aparência & Botão (FAB)
+                        <Palette className="text-amber-400" size={16} /> {t('widgetConfig.appearance.title')}
                     </h4>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Cor Primária (Hex)</label>
+                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">{t('widgetConfig.appearance.primaryColorLabel')}</label>
                             <div className="flex items-center gap-2">
                                 <input
                                     type="color"
@@ -468,42 +470,42 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
                             </div>
                         </div>
                         <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Texto do Botão</label>
+                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">{t('widgetConfig.appearance.buttonTextLabel')}</label>
                             <input
                                 type="text"
                                 value={formData.fab_label}
                                 onChange={e => setFormData(prev => ({ ...prev, fab_label: e.target.value }))}
-                                placeholder="Agendar"
+                                placeholder={t('widgetConfig.defaults.fabLabel')}
                                 className="w-full bg-[#1A2035] border border-[#2D3B55] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
                             />
                         </div>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                         <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Estilo FAB</label>
+                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">{t('widgetConfig.appearance.fabStyleLabel')}</label>
                             <select
                                 value={formData.fab_style}
                                 onChange={e => setFormData(prev => ({ ...prev, fab_style: e.target.value as any }))}
                                 className="w-full bg-[#1A2035] border border-[#2D3B55] rounded-xl px-2.5 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
                             >
-                                <option value="solid">Sólido</option>
-                                <option value="soft">Soft</option>
-                                <option value="outline">Contorno</option>
+                                <option value="solid">{t('widgetConfig.appearance.fabStyleOptions.solid')}</option>
+                                <option value="soft">{t('widgetConfig.appearance.fabStyleOptions.soft')}</option>
+                                <option value="outline">{t('widgetConfig.appearance.fabStyleOptions.outline')}</option>
                             </select>
                         </div>
                         <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Posição</label>
+                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">{t('widgetConfig.appearance.positionLabel')}</label>
                             <select
                                 value={formData.fab_position}
                                 onChange={e => setFormData(prev => ({ ...prev, fab_position: e.target.value as any }))}
                                 className="w-full bg-[#1A2035] border border-[#2D3B55] rounded-xl px-2.5 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
                             >
-                                <option value="bottom-right">Canto Direito</option>
-                                <option value="bottom-left">Canto Esquerdo</option>
+                                <option value="bottom-right">{t('widgetConfig.appearance.positionOptions.right')}</option>
+                                <option value="bottom-left">{t('widgetConfig.appearance.positionOptions.left')}</option>
                             </select>
                         </div>
                         <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Atraso (MS)</label>
+                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">{t('widgetConfig.appearance.delayLabel')}</label>
                             <input
                                 type="number"
                                 value={formData.fab_delay_ms}
@@ -519,11 +521,11 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
             {/* Rastreamento de Marketing */}
             <div className="bg-[#10172A] border border-[#1E293B] rounded-2xl p-5 space-y-4">
                 <h4 className="font-bold text-sm text-white flex items-center gap-1.5">
-                    <Sliders className="text-emerald-400" size={16} /> Rastreamento de Conversões (Meta & Google)
+                    <Sliders className="text-emerald-400" size={16} /> {t('widgetConfig.tracking.title')}
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Meta Pixel ID</label>
+                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">{t('widgetConfig.tracking.metaPixelLabel')}</label>
                         <input
                             type="text"
                             value={formData.meta_pixel_id}
@@ -533,7 +535,7 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
                         />
                     </div>
                     <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Google Ads ID</label>
+                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">{t('widgetConfig.tracking.googleAdsLabel')}</label>
                         <input
                             type="text"
                             value={formData.google_ads_id}
@@ -543,7 +545,7 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
                         />
                     </div>
                     <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Google Conversion Label</label>
+                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">{t('widgetConfig.tracking.googleConversionLabel')}</label>
                         <input
                             type="text"
                             value={formData.google_conversion_label}
@@ -555,7 +557,7 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
                 </div>
                 <div className="space-y-1.5">
                     <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-1">
-                        Caminho da Rota Fantasma de Sucesso <AlertCircle size={10} className="text-slate-500" title="Usado no Virtual Pageview" />
+                        {t('widgetConfig.tracking.successPathLabel')} <AlertCircle size={10} className="text-slate-500" title={t('widgetConfig.tracking.virtualPageviewTitle')} />
                     </label>
                     <input
                         type="text"
@@ -565,7 +567,7 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
                         className="w-full bg-[#1A2035] border border-[#2D3B55] rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none"
                     />
                     <p className="text-[9px] text-slate-500">
-                        O widget empurra este caminho fictício via `pushState` e gera um `page_view` no GTM quando a consulta é confirmada, facilitando trackings baseados em URLs.
+                        {t('widgetConfig.tracking.successPathHint')}
                     </p>
                 </div>
             </div>
@@ -575,10 +577,10 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
                 <div className="flex items-center justify-between">
                     <div>
                         <h4 className="font-bold text-sm text-white flex items-center gap-1.5">
-                            <Eye className="text-sky-400" size={16} /> Instalação e Teste
+                            <Eye className="text-sky-400" size={16} /> {t('widgetConfig.installTest.title')}
                         </h4>
                         <p className="text-[10px] text-slate-500">
-                            Copie o código abaixo e cole no HTML da landing page (Hostinger/WordPress/WP Bloco).
+                            {t('widgetConfig.installTest.subtitle')}
                         </p>
                     </div>
                     <div>
@@ -592,7 +594,7 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
                             }`}
                         >
                             {widgetInjected ? <EyeOff size={14} /> : <Eye size={14} />}
-                            {widgetInjected ? 'Remover Widget de Teste' : 'Testar nesta Página'}
+                            {widgetInjected ? t('widgetConfig.installTest.removeTestWidget') : t('widgetConfig.installTest.testOnPage')}
                         </button>
                     </div>
                 </div>
@@ -600,15 +602,15 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
                 {/* Advanced Snippet Generator (CRO Route) */}
                 <div className="bg-[#0A0F1D] border border-[#1E293B] rounded-xl p-4 space-y-3">
                     <div>
-                        <h5 className="font-bold text-xs text-white">Gerador Avançado para Landing Pages (CRO)</h5>
+                        <h5 className="font-bold text-xs text-white">{t('widgetConfig.installTest.advancedGenTitle')}</h5>
                         <p className="text-[10px] text-slate-500 mt-0.5">
-                            Otimize a conversão de seus anúncios travando o widget em um procedimento ou profissional específico.
+                            {t('widgetConfig.installTest.advancedGenSubtitle')}
                         </p>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div className="space-y-1">
                             <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider">
-                                Travar Especialidade / Procedimento
+                                {t('widgetConfig.installTest.lockSpecialtyLabel')}
                             </label>
                             <select
                                 value={selectedSpecialtyFilter}
@@ -618,7 +620,7 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
                                 }}
                                 className="w-full bg-[#1A2035] border border-[#2D3B55] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-sky-500"
                             >
-                                <option value="">-- Widget Geral (Sem Filtro) --</option>
+                                <option value="">{t('widgetConfig.installTest.noFilterOption')}</option>
                                 {specialties.map(spec => (
                                     <option key={spec} value={spec}>{spec}</option>
                                 ))}
@@ -626,14 +628,14 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
                         </div>
                         <div className="space-y-1">
                             <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider">
-                                Travar Profissional Específico
+                                {t('widgetConfig.installTest.lockDoctorLabel')}
                             </label>
                             <select
                                 value={selectedDoctorFilter}
                                 onChange={e => setSelectedDoctorFilter(e.target.value)}
                                 className="w-full bg-[#1A2035] border border-[#2D3B55] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-sky-500"
                             >
-                                <option value="">-- Qualquer Profissional da Especialidade --</option>
+                                <option value="">{t('widgetConfig.installTest.anyDoctorOption')}</option>
                                 {doctors
                                     .filter(d => !selectedSpecialtyFilter || d.specialty === selectedSpecialtyFilter)
                                     .map(d => (
@@ -656,15 +658,15 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
                         className="absolute right-4 top-4 bg-[#1E293B] hover:bg-[#2D3B55] text-slate-400 hover:text-white px-3 py-2 rounded-lg border-none cursor-pointer transition-all flex items-center gap-1 text-[10px] font-bold"
                     >
                         {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
-                        {copied ? 'Copiado!' : 'Copiar Código'}
+                        {copied ? t('widgetConfig.installTest.copied') : t('widgetConfig.installTest.copyCode')}
                     </button>
                 </div>
 
                 {/* Mock Visual Preview of FAB */}
                 <div className="border border-[#1E293B] rounded-xl p-4 bg-[#0A0F1D] flex items-center justify-between">
                     <div>
-                        <p className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Pré-visualização do FAB</p>
-                        <p className="text-[9px] text-slate-500 mt-0.5">Estilo e contraste simulado do botão flutuante.</p>
+                        <p className="text-[10px] font-black uppercase text-slate-500 tracking-wider">{t('widgetConfig.installTest.previewTitle')}</p>
+                        <p className="text-[9px] text-slate-500 mt-0.5">{t('widgetConfig.installTest.previewSubtitle')}</p>
                     </div>
                     <div
                         className="h-14 w-40 rounded-xl flex items-center justify-center relative cursor-not-allowed shadow-inner"
@@ -698,7 +700,7 @@ export const MasterTenantWidgetConfig: React.FC<MasterTenantWidgetConfigProps> =
                     className="flex items-center gap-2 bg-emerald-500 text-white px-6 py-3 rounded-xl font-bold hover:bg-emerald-600 transition-all border-none cursor-pointer disabled:opacity-50 text-sm shadow-lg shadow-emerald-500/10"
                 >
                     {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                    Salvar Configurações do Widget
+                    {t('widgetConfig.saveButton')}
                 </button>
             </div>
         </form>
