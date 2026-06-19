@@ -184,17 +184,31 @@ export function FloatingCommunicationsButton({ enabled, activeNumber: activeNumb
       });
   }, [activeNumberProp, tenantId]);
 
-  const handleCall = () => {
+  const handleCall = useCallback(() => {
     if (dialInput.length < 5) return;
 
     let numberToDial = dialInput.trim();
+    const cleanDialInput = numberToDial.replace(/\D/g, '');
 
     // Se o número não começa com '+', tentamos inferir o código do país pelo activeNumber
     if (!numberToDial.startsWith('+') && activeNumber) {
       const parsedActive = parsePhoneNumberFromString(activeNumber);
       const defaultCountry = parsedActive?.country; // e.g. 'BR'
       
-      const parsedDial = parsePhoneNumberFromString(numberToDial, defaultCountry);
+      let processedNumber = numberToDial;
+      if (parsedActive && defaultCountry) {
+        if (defaultCountry === 'BR' && (cleanDialInput.length === 8 || cleanDialInput.length === 9)) {
+          // Extrai o DDD de 2 dígitos do número ativo
+          const areaCode = parsedActive.nationalNumber.slice(0, 2);
+          processedNumber = areaCode + cleanDialInput;
+        } else if ((defaultCountry === 'US' || defaultCountry === 'CA') && cleanDialInput.length === 7) {
+          // Extrai o Area Code de 3 dígitos do número ativo
+          const areaCode = parsedActive.nationalNumber.slice(0, 3);
+          processedNumber = areaCode + cleanDialInput;
+        }
+      }
+
+      const parsedDial = parsePhoneNumberFromString(processedNumber, defaultCountry);
       
       if (parsedDial && parsedDial.isValid()) {
         numberToDial = parsedDial.number;
@@ -202,7 +216,7 @@ export function FloatingCommunicationsButton({ enabled, activeNumber: activeNumb
         // Fallback se libphonenumber-js achar inválido ou incompleto (ex: 5541997759569 sem +)
         const ddi = parsedActive?.countryCallingCode;
         if (ddi) {
-          const cleanNumber = numberToDial.replace(/\D/g, '');
+          const cleanNumber = processedNumber.replace(/\D/g, '');
           // Se o número limpo já começa com o DDI correspondente do activeNumber e tem comprimento razoável,
           // assumimos que o usuário digitou o DDI mas esqueceu o '+'
           if (cleanNumber.startsWith(ddi) && cleanNumber.length > ddi.length + 6) {
@@ -211,7 +225,7 @@ export function FloatingCommunicationsButton({ enabled, activeNumber: activeNumb
             numberToDial = `+${ddi}${cleanNumber}`;
           }
         } else {
-          numberToDial = numberToDial.replace(/[^\d+]/g, '');
+          numberToDial = processedNumber.replace(/[^\d+]/g, '');
         }
       }
     } else {
@@ -221,7 +235,67 @@ export function FloatingCommunicationsButton({ enabled, activeNumber: activeNumb
     dial(numberToDial, activeNumber);
     setExpanded(false);
     setDialInput('');
-  };
+  }, [dialInput, activeNumber, dial]);
+
+  // ── Suporte a teclado físico global quando expandido ────────────────────────
+  useEffect(() => {
+    if (!expanded) return;
+
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setExpanded(false);
+        return;
+      }
+
+      // Ignorar se o usuário estiver digitando em outros campos editáveis (ex: inputs do SMS)
+      if (
+        document.activeElement?.tagName === 'TEXTAREA' ||
+        (document.activeElement?.tagName === 'INPUT' && document.activeElement !== dialInputRef.current)
+      ) {
+        return;
+      }
+
+      if (mode === 'dial' && callState === 'idle') {
+        // Se o foco já estiver no input de telefone, deixa o comportamento nativo (exceto Enter)
+        if (document.activeElement === dialInputRef.current) {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            handleCall();
+          }
+          return;
+        }
+
+        // Se o foco NÃO estiver no input, redireciona a digitação
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          handleCall();
+          return;
+        }
+
+        if (e.key === 'Backspace') {
+          e.preventDefault();
+          setDialInput((p) => p.slice(0, -1));
+          dialInputRef.current?.focus();
+          return;
+        }
+
+        if (/^[0-9*#+]$/.test(e.key)) {
+          e.preventDefault();
+          setDialInput((p) => p + e.key);
+          dialInputRef.current?.focus();
+          // Mover cursor para o final
+          setTimeout(() => {
+            if (dialInputRef.current) {
+              dialInputRef.current.selectionStart = dialInputRef.current.selectionEnd = dialInputRef.current.value.length;
+            }
+          }, 0);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [expanded, mode, callState, handleCall]);
 
   // ── Identificar paciente na chamada recebida ──────────────────────────────
   useEffect(() => {
@@ -440,7 +514,9 @@ export function FloatingCommunicationsButton({ enabled, activeNumber: activeNumb
               {[['1','2','3'],['4','5','6'],['7','8','9'],['*','0','#']].map((row, ri) => (
                 <div key={ri} className="grid grid-cols-3 gap-2">
                   {row.map((k) => (
-                    <button key={k} onClick={() => setDialInput((p) => p + k)}
+                    <button key={k}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => setDialInput((p) => p + k)}
                       className="py-3 rounded-2xl bg-ice-50 text-graphite-700 font-black text-lg hover:bg-ice-100 active:scale-95 transition-all border-none cursor-pointer">
                       {k}
                     </button>
@@ -450,18 +526,21 @@ export function FloatingCommunicationsButton({ enabled, activeNumber: activeNumb
               {/* Botões de +, backspace e limpar */}
               <div className="grid grid-cols-3 gap-2">
                 <button
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => setDialInput((p) => p + '+')}
                   className="py-3 rounded-2xl bg-ice-50 text-graphite-700 font-black text-lg hover:bg-ice-100 active:scale-95 transition-all border-none cursor-pointer"
                 >
                   +
                 </button>
                 <button
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => setDialInput((p) => p.slice(0, -1))}
                   className="py-3 rounded-2xl bg-ice-50 text-graphite-400 font-bold text-sm hover:bg-ice-100 transition-all border-none cursor-pointer"
                 >
                   ⌫
                 </button>
                 <button
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => setDialInput('')}
                   className="py-3 rounded-2xl bg-ice-50 text-graphite-400 font-bold text-sm hover:bg-ice-100 transition-all border-none cursor-pointer"
                 >
