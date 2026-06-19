@@ -74,7 +74,18 @@ serve(async (req: Request) => {
     const connectionId = await getTelnyxConnectionId(supabase, tenant?.telnyx_app_id);
     const profileId    = await getTelnyxMessagingProfileId(supabase, tenant?.telnyx_messaging_profile_id);
 
-    if (!apiKey) return json({ error: "Telnyx not configured. Set TELNYX_API_KEY in /master/intelligence" }, 400);
+    if (!apiKey) {
+      const errMsg = "Telnyx not configured. Set TELNYX_API_KEY in /master/intelligence";
+      await logPlatform(supabase, {
+        tenantId,
+        level: "warn",
+        source: "telnyx-numbers",
+        eventName: "config_missing",
+        message: errMsg,
+        metadata: { tenantId }
+      });
+      return json({ error: errMsg }, 400);
+    }
 
     // ── GET: buscar números disponíveis ──────────────────────────────────────
     if (req.method === "GET") {
@@ -135,6 +146,15 @@ serve(async (req: Request) => {
 
       if (saveErr) throw new Error(`DB save failed: ${saveErr.message}`);
 
+      await logPlatform(supabase, {
+        tenantId,
+        level: "info",
+        source: "telnyx-numbers",
+        eventName: "number_purchased",
+        message: `Successfully purchased phone number ${phone_number}`,
+        metadata: { phoneNumber: phone_number, savedId: saved.id }
+      });
+
       console.log(`[telnyx-numbers] ✓ Purchased ${phone_number} for tenant ${tenantId}`);
       return json({ data: saved });
     }
@@ -159,6 +179,15 @@ serve(async (req: Request) => {
         .from("tenant_phone_numbers")
         .update({ is_active: false, released_at: new Date().toISOString() })
         .eq("id", number_id);
+
+      await logPlatform(supabase, {
+        tenantId,
+        level: "info",
+        source: "telnyx-numbers",
+        eventName: "number_released",
+        message: `Successfully released phone number with ID ${number_id} (${numRow.phone_number})`,
+        metadata: { numberId: number_id, phoneNumber: numRow.phone_number }
+      });
 
       return json({ success: true });
     }
@@ -437,6 +466,21 @@ serve(async (req: Request) => {
         type: "broadcast",
         event: "sync_completed",
         payload: { tenant_id: tenantId },
+      });
+
+      await logPlatform(supabase, {
+        tenantId,
+        level: "info",
+        source: "telnyx-numbers",
+        eventName: "sync_numbers",
+        message: `Completed numbers sync for tenant: ${syncedNumbers.length} active numbers synced. Errors encountered: ${loopErrors.length + orderSyncErrors.length}`,
+        metadata: {
+          numbers: syncedNumbers,
+          loopErrors,
+          orderSyncErrors,
+          localNumbersCount: localNumbers?.length,
+          localOrdersCount: localOrders?.length
+        }
       });
 
       return json({

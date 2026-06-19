@@ -23,6 +23,7 @@ import {
 } from "../_shared/telnyxClient.ts";
 import { getTelnyxApiKey, getTelnyxConnectionId } from "../_shared/masterConfig.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { logPlatform } from "../_shared/logger.ts";
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -59,7 +60,18 @@ serve(async (req: Request) => {
     const apiKey       = await getTelnyxApiKey(supabase, tenant?.telnyx_api_key);
     const connectionId = await getTelnyxConnectionId(supabase, tenant?.telnyx_app_id);
 
-    if (!apiKey) return json({ error: "Telnyx not configured. Set TELNYX_API_KEY in /master/intelligence" }, 400);
+    if (!apiKey) {
+      const errMsg = "Telnyx not configured. Set TELNYX_API_KEY in /master/intelligence";
+      await logPlatform(supabase, {
+        tenantId,
+        level: "warn",
+        source: "telnyx-agent-credentials",
+        eventName: "config_missing",
+        message: errMsg,
+        metadata: { tenantId }
+      });
+      return json({ error: errMsg }, 400);
+    }
 
     // ── GET: Retornar login_token para WebRTC SDK ────────────────────────────
     if (req.method === "GET") {
@@ -84,6 +96,15 @@ serve(async (req: Request) => {
         .update({ last_registered_at: new Date().toISOString() })
         .eq("id", cred.id);
 
+      await logPlatform(supabase, {
+        tenantId,
+        level: "info",
+        source: "telnyx-agent-credentials",
+        eventName: "token_retrieved",
+        message: `Successfully retrieved login token for SIP username ${cred.telnyx_sip_username}`,
+        metadata: { sipUsername: cred.telnyx_sip_username }
+      });
+
       return json({
         loginToken,
         sipUsername: cred.telnyx_sip_username,
@@ -99,7 +120,7 @@ serve(async (req: Request) => {
       // Verificar se já existe credencial ativa
       const { data: existing } = await supabase
         .from("agent_telnyx_credentials")
-        .select("id, telnyx_credential_id")
+        .select("id, telnyx_credential_id, telnyx_sip_username")
         .eq("tenant_id", tenantId)
         .eq("user_id", user.id)
         .eq("is_active", true)
@@ -108,7 +129,17 @@ serve(async (req: Request) => {
       if (existing) {
         // Já existe — retornar token direto
         const loginToken = await getLoginToken(apiKey, existing.telnyx_credential_id);
-        return json({ loginToken, expiresIn: 3600, created: false });
+        
+        await logPlatform(supabase, {
+          tenantId,
+          level: "info",
+          source: "telnyx-agent-credentials",
+          eventName: "token_retrieved_existing",
+          message: `Successfully retrieved login token for existing SIP username ${existing.telnyx_sip_username}`,
+          metadata: { sipUsername: existing.telnyx_sip_username }
+        });
+
+        return json({ loginToken, sipUsername: existing.telnyx_sip_username, expiresIn: 3600, created: false });
       }
 
       // Criar nova credencial SIP na Telnyx
@@ -128,6 +159,15 @@ serve(async (req: Request) => {
 
       // Gerar token inicial
       const loginToken = await getLoginToken(apiKey, sip.id);
+
+      await logPlatform(supabase, {
+        tenantId,
+        level: "info",
+        source: "telnyx-agent-credentials",
+        eventName: "credential_created",
+        message: `Successfully created SIP credential for user ${user.id} (${sip.sipUsername})`,
+        metadata: { credentialId: sip.id }
+      });
 
       console.log(`[telnyx-agent-credentials] ✓ Created credential for user ${user.id}`);
       return json({ loginToken, sipUsername: sip.sipUsername, expiresIn: 3600, created: true });
@@ -158,6 +198,13 @@ serve(async (req: Request) => {
 
   } catch (err: any) {
     console.error("[telnyx-agent-credentials] Error:", err.message);
+    await logPlatform(supabase, {
+      level: "fatal",
+      source: "telnyx-agent-credentials",
+      eventName: "fatal_error",
+      message: err.message,
+      metadata: { stack: err.stack }
+    });
     return json({ error: err.message }, 500);
   }
 });

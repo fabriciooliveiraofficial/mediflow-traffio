@@ -10,6 +10,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { TelnyxRTC } from '@telnyx/webrtc';
 import { supabase } from '../lib/supabase';
+import { logPlatformClient } from '../lib/logger';
 
 export type CallState =
   | 'idle'       // sem chamada
@@ -57,8 +58,23 @@ export function useTelnyxWebRTC(enabled: boolean): UseTelnyxWebRTCReturn {
   // ── Buscar loginToken da Edge Function ──────────────────────────────────────
   const fetchLoginToken = useCallback(async (): Promise<string | null> => {
     try {
+      logPlatformClient({
+        level: 'info',
+        source: 'useTelnyxWebRTC',
+        eventName: 'fetch_token_started',
+        message: 'Starting request to fetch Telnyx login token'
+      });
+
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return null;
+      if (!session) {
+        logPlatformClient({
+          level: 'warn',
+          source: 'useTelnyxWebRTC',
+          eventName: 'fetch_token_no_session',
+          message: 'No active session found when fetching login token'
+        });
+        return null;
+      }
 
       const res = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/telnyx-agent-credentials`,
@@ -71,10 +87,43 @@ export function useTelnyxWebRTC(enabled: boolean): UseTelnyxWebRTCReturn {
           body: JSON.stringify({ action: 'create' }),
         }
       );
-      if (!res.ok) return null;
+      if (!res.ok) {
+        const text = await res.text();
+        logPlatformClient({
+          level: 'error',
+          source: 'useTelnyxWebRTC',
+          eventName: 'fetch_token_failed',
+          message: `Failed to fetch login token from API. Status: ${res.status}`,
+          metadata: { status: res.status, responseText: text }
+        });
+        return null;
+      }
       const data = await res.json();
+      if (!data.loginToken) {
+        logPlatformClient({
+          level: 'error',
+          source: 'useTelnyxWebRTC',
+          eventName: 'fetch_token_missing_token',
+          message: 'API response did not contain loginToken',
+          metadata: { data }
+        });
+      } else {
+        logPlatformClient({
+          level: 'info',
+          source: 'useTelnyxWebRTC',
+          eventName: 'fetch_token_success',
+          message: 'Successfully retrieved Telnyx login token from API'
+        });
+      }
       return data.loginToken ?? null;
-    } catch {
+    } catch (err: any) {
+      logPlatformClient({
+        level: 'error',
+        source: 'useTelnyxWebRTC',
+        eventName: 'fetch_token_exception',
+        message: `Exception while fetching login token: ${err.message}`,
+        metadata: { stack: err.stack }
+      });
       return null;
     }
   }, []);
@@ -102,12 +151,25 @@ export function useTelnyxWebRTC(enabled: boolean): UseTelnyxWebRTCReturn {
       setStatus('connecting');
       setError(null);
 
+      logPlatformClient({
+        level: 'info',
+        source: 'useTelnyxWebRTC',
+        eventName: 'webrtc_connect_initiated',
+        message: 'Initializing Telnyx WebRTC connection'
+      });
+
       const token = await fetchLoginToken();
       if (!token) {
         if (mounted) {
           setStatus('error');
           setError('Softphone não configurado. Contate o administrador.');
         }
+        logPlatformClient({
+          level: 'error',
+          source: 'useTelnyxWebRTC',
+          eventName: 'webrtc_connect_no_token',
+          message: 'WebRTC connection aborted: Failed to retrieve login token'
+        });
         return;
       }
 
@@ -118,17 +180,36 @@ export function useTelnyxWebRTC(enabled: boolean): UseTelnyxWebRTCReturn {
         if (!mounted) return;
         setStatus('ready');
         scheduleTokenRefresh(client);
+        logPlatformClient({
+          level: 'info',
+          source: 'useTelnyxWebRTC',
+          eventName: 'webrtc_ready',
+          message: 'Telnyx WebRTC client connected and ready'
+        });
       });
 
       client.on('telnyx.error', (err: any) => {
         if (!mounted) return;
         setStatus('error');
         setError(err?.message ?? 'Erro de conexão WebRTC');
+        logPlatformClient({
+          level: 'error',
+          source: 'useTelnyxWebRTC',
+          eventName: 'webrtc_error',
+          message: `Telnyx WebRTC client error: ${err?.message ?? 'Unknown WebRTC error'}`,
+          metadata: { error: err }
+        });
       });
 
       client.on('telnyx.socket.close', () => {
         if (!mounted) return;
         setStatus('disconnected');
+        logPlatformClient({
+          level: 'info',
+          source: 'useTelnyxWebRTC',
+          eventName: 'webrtc_socket_closed',
+          message: 'Telnyx WebRTC socket connection closed'
+        });
       });
 
       client.on('telnyx.notification', (notification: any) => {
@@ -190,8 +271,24 @@ export function useTelnyxWebRTC(enabled: boolean): UseTelnyxWebRTCReturn {
   // ── Controles ────────────────────────────────────────────────────────────────
 
   const dial = useCallback((number: string, callerNumber?: string) => {
-    if (!clientRef.current || status !== 'ready') return;
+    if (!clientRef.current || status !== 'ready') {
+      logPlatformClient({
+        level: 'warn',
+        source: 'useTelnyxWebRTC',
+        eventName: 'dial_aborted',
+        message: 'Cannot place call: WebRTC client not ready',
+        metadata: { status, destinationNumber: number, callerNumber }
+      });
+      return;
+    }
     setCallState('calling');
+    logPlatformClient({
+      level: 'info',
+      source: 'useTelnyxWebRTC',
+      eventName: 'dial_initiated',
+      message: `Placing call to ${number}`,
+      metadata: { destinationNumber: number, callerNumber }
+    });
     clientRef.current.newCall({
       destinationNumber: number,
       callerName:        'Traffio',

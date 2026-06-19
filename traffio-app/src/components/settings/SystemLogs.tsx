@@ -48,9 +48,9 @@ export function SystemLogs({ tenantId }: SystemLogsProps) {
         .order('created_at', { ascending: false })
         .limit(100);
 
-      // Se for tenantId específico, filtrar por ele. Caso contrário, buscar todos ou logs sem tenant (globais)
+      // Se for tenantId específico, buscar logs do tenant ou logs globais (sem tenant) para diagnósticos
       if (tenantId) {
-        query = query.eq('tenant_id', tenantId);
+        query = query.or(`tenant_id.eq.${tenantId},tenant_id.is.null`);
       }
 
       if (filterLevel !== 'all') {
