@@ -45,9 +45,9 @@ serve(async (req: Request) => {
         const msgBytes = new TextEncoder().encode(signedPayload);
 
         const cryptoKey = await crypto.subtle.importKey(
-          "raw", keyBytes, { name: "Ed25519" }, false, ["verify"]
+          "raw", keyBytes as any, { name: "Ed25519" }, false, ["verify"]
         );
-        const valid = await crypto.subtle.verify("Ed25519", cryptoKey, sigBytes, msgBytes);
+        const valid = await crypto.subtle.verify("Ed25519", cryptoKey, sigBytes as any, msgBytes as any);
 
         if (!valid) {
           console.error("[telnyx-call-webhook] Invalid signature — rejecting");
@@ -237,28 +237,6 @@ async function handleEvent(supabase: any, eventType: string, payload: any): Prom
         }
       }
 
-      // Gravar se auto_record for verdadeiro (tanto inbound quanto outbound)
-      if (routing?.auto_record !== false) {
-        try {
-          await startRecording(apiKey, callControlId);
-          await logPlatform(supabase, {
-            tenantId,
-            level: "info",
-            source: "telnyx-call-webhook",
-            eventName: "start_recording_success",
-            message: `Successfully sent record_start command to Telnyx for call ${callControlId}`
-          });
-        } catch (err: any) {
-          await logPlatform(supabase, {
-            tenantId,
-            level: "warn",
-            source: "telnyx-call-webhook",
-            eventName: "start_recording_failed",
-            message: err.message,
-            metadata: { callControlId }
-          });
-        }
-      }
 
       if (isIncoming) {
         // Notificar agentes (Realtime) - apenas para inbound
@@ -279,6 +257,47 @@ async function handleEvent(supabase: any, eventType: string, payload: any): Prom
     }
 
     case "call.answered": {
+      // Buscar tenant para verificar config de gravação automática
+      const { data: cdr } = await supabase
+        .from("call_records")
+        .select("tenant_id")
+        .eq("telnyx_call_control_id", callControlId)
+        .maybeSingle();
+
+      if (cdr) {
+        const { data: tenant } = await supabase
+          .from("tenants")
+          .select("telnyx_api_key, telnyx_auto_record")
+          .eq("id", cdr.tenant_id)
+          .single();
+
+        // Se a configuração de gravar chamadas não foi desativada explicitamente
+        if (tenant?.telnyx_auto_record !== false) {
+          const apiKey = await getTelnyxApiKey(supabase, tenant?.telnyx_api_key);
+          if (apiKey) {
+            try {
+              await startRecording(apiKey, callControlId);
+              await logPlatform(supabase, {
+                tenantId: cdr.tenant_id,
+                level: "info",
+                source: "telnyx-call-webhook",
+                eventName: "start_recording_success",
+                message: `Successfully sent record_start command to Telnyx for call ${callControlId} on answer`
+              });
+            } catch (err: any) {
+              await logPlatform(supabase, {
+                tenantId: cdr.tenant_id,
+                level: "warn",
+                source: "telnyx-call-webhook",
+                eventName: "start_recording_failed",
+                message: err.message,
+                metadata: { callControlId }
+              });
+            }
+          }
+        }
+      }
+
       // FIX C1: Escopo de tenant via JOIN — evita cross-tenant write
       await supabase
         .from("call_records")
