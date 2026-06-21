@@ -36,6 +36,7 @@
       "inbound": "Recebida",
       "outbound": "Realizada",
       "callBack": "Retornar",
+      "sendSms": "Enviar SMS",
       "duration": "Duração",
       "status": "Status",
       "answered": "Atendida",

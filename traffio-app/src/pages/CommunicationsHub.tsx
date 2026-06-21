@@ -333,12 +333,32 @@ export function CommunicationsHub() {
               <p className="font-black text-graphite-900 text-lg">{formatPhone(num)}</p>
               <p className="text-xs text-graphite-400">{selected.direction === 'inbound' ? t('communicationsHub.detail.inbound') : t('communicationsHub.detail.outbound')} · {fmtTime(selected.started_at)}</p>
             </div>
-            <button
-              onClick={() => window.dispatchEvent(new CustomEvent('softphone:dial', { detail: { number: num } }))}
-              className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-bold rounded-xl border-none cursor-pointer"
-            >
-              <PhoneCall size={15} /> {t('communicationsHub.detail.callBack')}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => window.dispatchEvent(new CustomEvent('softphone:dial', { detail: { number: num } }))}
+                className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-bold rounded-xl border-none cursor-pointer"
+              >
+                <PhoneCall size={15} /> {t('communicationsHub.detail.callBack')}
+              </button>
+              <button
+                onClick={() => {
+                  setSection('sms');
+                  setSmsMessages([]);
+                  const existingSession = smsSessions.find(s => s.patient_phone === num);
+                  if (existingSession) {
+                    setSelected(existingSession);
+                  } else {
+                    setSelected({
+                      patient_phone: num,
+                      updated_at: new Date().toISOString()
+                    });
+                  }
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-brand-primary hover:bg-brand-primary/90 text-white text-sm font-bold rounded-xl border-none cursor-pointer"
+              >
+                <MessageSquare size={15} /> {t('communicationsHub.detail.sendSms')}
+              </button>
+            </div>
           </div>
 
           {/* Info cards */}
