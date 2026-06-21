@@ -170,19 +170,13 @@ export function useAutomacaoMetrics({ tenantId, dateRange }: MetricsOptions) {
     return { metrics, isLoading, refetch: fetchMetrics };
 }
 
-function formatTemplateName(key: string): string {
-    const labels: Record<string, string> = {
-        follow_up: 'Follow-up',
-        follow_up_1: 'Follow-up Passo 1',
-        follow_up_2: 'Follow-up Passo 2',
-        follow_up_3: 'Follow-up Passo 3',
-        reminder_48h: 'Lembrete 48h',
-        reminder_2h: 'Lembrete 2h',
-        post_consultation: 'Pós-Consulta',
-        nps: 'NPS / Feedback',
-        reactivation: 'Reativação',
-    };
-    return labels[key] ?? key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+function formatTemplateName(key: string, t: (key: string) => string): string {
+    const templateNameKeys = [
+        'follow_up', 'follow_up_1', 'follow_up_2', 'follow_up_3',
+        'reminder_48h', 'reminder_2h', 'post_consultation', 'nps', 'reactivation',
+    ];
+    if (templateNameKeys.includes(key)) return t(`desempenhoAutomacoes.templateNames.${key}`);
+    return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
 function computeTimeSeries(rows: any[]) {
