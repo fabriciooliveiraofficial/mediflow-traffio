@@ -199,6 +199,53 @@ export function CommunicationsHub() {
     smsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [smsMessages]);
 
+  useEffect(() => {
+    if (!tenantId) return;
+
+    // Realtime subscription for call_records
+    const callsChannel = supabase
+      .channel('public:call_records')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'call_records', filter: `tenant_id=eq.${tenantId}` },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setCalls(prev => [payload.new, ...prev]);
+          } else if (payload.eventType === 'UPDATE') {
+            setCalls(prev => prev.map(c => c.id === payload.new.id ? payload.new : c));
+            setSelected(prev => prev?.id === payload.new.id ? payload.new : prev);
+          } else if (payload.eventType === 'DELETE') {
+            setCalls(prev => prev.filter(c => c.id !== payload.old.id));
+            setSelected(prev => prev?.id === payload.old.id ? null : prev);
+          }
+        }
+      )
+      .subscribe();
+
+    // Realtime subscription for voicemails
+    const vmChannel = supabase
+      .channel('public:voicemails')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'voicemails', filter: `tenant_id=eq.${tenantId}` },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setVoicemails(prev => [payload.new, ...prev]);
+          } else if (payload.eventType === 'UPDATE') {
+            setVoicemails(prev => prev.map(v => v.id === payload.new.id ? payload.new : v));
+          } else if (payload.eventType === 'DELETE') {
+            setVoicemails(prev => prev.filter(v => v.id !== payload.old.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(callsChannel);
+      supabase.removeChannel(vmChannel);
+    };
+  }, [tenantId]);
+
   async function fetchAll() {
     setLoading(true);
     const [callsRes, smsRes, vmRes, numRes, usageRes] = await Promise.all([
