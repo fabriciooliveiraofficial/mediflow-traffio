@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabase';
 
 interface MetricsOptions {
@@ -7,6 +8,7 @@ interface MetricsOptions {
 }
 
 export function useAutomacaoMetrics({ tenantId, dateRange }: MetricsOptions) {
+    const { t } = useTranslation('automations');
     const [metrics, setMetrics] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
     const dateRangeRef = useRef(dateRange);
@@ -129,7 +131,7 @@ export function useAutomacaoMetrics({ tenantId, dateRange }: MetricsOptions) {
                 .map(([key, stats]) => {
                     const total = stats.sent + stats.failed;
                     const rate = total > 0 ? parseFloat(((stats.sent / total) * 100).toFixed(1)) : null;
-                    return { key: formatTemplateName(key), sent: stats.sent, failed: stats.failed, pending: stats.pending, rate };
+                    return { key: formatTemplateName(key, t), sent: stats.sent, failed: stats.failed, pending: stats.pending, rate };
                 })
                 .filter(t => t.sent > 0)
                 .sort((a, b) => b.sent - a.sent)

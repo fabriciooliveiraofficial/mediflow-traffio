@@ -191,6 +191,17 @@
       "pending": "Pendentes",
       "deliveryRate": "Taxa Entrega",
       "noResults": "Nenhuma automação enviada no período selecionado."
+    },
+    "templateNames": {
+      "follow_up": "Follow-up",
+      "follow_up_1": "Follow-up Passo 1",
+      "follow_up_2": "Follow-up Passo 2",
+      "follow_up_3": "Follow-up Passo 3",
+      "reminder_48h": "Lembrete 48h",
+      "reminder_2h": "Lembrete 2h",
+      "post_consultation": "Pós-Consulta",
+      "nps": "NPS / Feedback",
+      "reactivation": "Reativação"
     }
   },
   "jornadaPaciente": {

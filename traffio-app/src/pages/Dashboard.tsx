@@ -604,7 +604,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
     // ── Exportação PDF ───────────────────────────────────────────────────────
     const handleExportPDF = () => {
         const doc = new jsPDF();
-        const clinicName = tenant?.name || 'Clínica';
+        const clinicName = tenant?.name || t('pdfReport.clinicNameFallback');
         const periodLabel = period === 'custom' && customRange
             ? `${formatDate(customRange.from)} a ${formatDate(customRange.to)}`
             : PERIOD_LABELS[period];

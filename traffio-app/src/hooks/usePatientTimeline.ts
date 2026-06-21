@@ -1,8 +1,10 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabase';
 import type { MedicalRecord, Prescription, TimelineEvent } from '../types/patient';
 
 export function usePatientTimeline(patientId: string) {
+    const { t } = useTranslation('medical');
     const [events, setEvents] = useState<TimelineEvent[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -37,7 +39,7 @@ export function usePatientTimeline(patientId: string) {
                     id: record.id,
                     type: 'consultation',
                     date: record.created_at,
-                    title: (record as any).title || record.soap_notes?.a || 'Evolução Clínica',
+                    title: (record as any).title || record.soap_notes?.a || t('patientTimeline.consultationFallback'),
                     subtitle: (record as any).description || record.soap_notes?.s || null,
                     data: record,
                 });
@@ -50,7 +52,7 @@ export function usePatientTimeline(patientId: string) {
                             type: 'exam_result',
                             date: attachment.uploaded_at || record.created_at,
                             title: attachment.name,
-                            subtitle: attachment.type === 'lab_result' ? 'Resultado de Laboratório' : 'Anexo',
+                            subtitle: attachment.type === 'lab_result' ? t('patientTimeline.labResultSubtitle') : t('patientTimeline.attachmentSubtitle'),
                             data: attachment,
                         });
                     }
@@ -58,13 +60,13 @@ export function usePatientTimeline(patientId: string) {
             }
 
             for (const rx of prescriptions) {
-                const medications = rx.content_json?.map(m => m.medication).join(', ') || 'Prescrição';
+                const medications = rx.content_json?.map(m => m.medication).join(', ') || t('patientTimeline.prescriptionFallback');
                 timeline.push({
                     id: rx.id,
                     type: 'prescription',
                     date: rx.created_at,
                     title: medications,
-                    subtitle: `${rx.content_json?.length || 0} medicamento(s)`,
+                    subtitle: t('patientTimeline.medicationsCount', { count: rx.content_json?.length || 0 }),
                     data: rx,
                 });
             }
@@ -77,7 +79,7 @@ export function usePatientTimeline(patientId: string) {
         } finally {
             setLoading(false);
         }
-    }, [patientId]);
+    }, [patientId, t]);
 
     useEffect(() => {
         if (patientId) fetchTimeline();

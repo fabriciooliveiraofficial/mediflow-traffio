@@ -577,5 +577,12 @@
     "consultingAi": "Consultando IA...",
     "explanationLabel": "Explicação",
     "footerNote": "Gerado por IA • Não substitui orientação médica"
+  },
+  "patientTimeline": {
+    "consultationFallback": "Evolução Clínica",
+    "labResultSubtitle": "Resultado de Laboratório",
+    "attachmentSubtitle": "Anexo",
+    "prescriptionFallback": "Prescrição",
+    "medicationsCount": "{{count}} medicamento(s)"
   }
 }

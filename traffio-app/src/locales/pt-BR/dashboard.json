@@ -147,6 +147,7 @@
   },
   "pdfReport": {
     "documentTitle": "Relatório de Performance — Analytics Pro",
+    "clinicNameFallback": "Clínica",
     "clinicLabel": "Clínica: {{clinicName}}",
     "periodLabel": "Período: {{periodLabel}}",
     "generatedAtLabel": "Gerado em: {{generatedAt}}",

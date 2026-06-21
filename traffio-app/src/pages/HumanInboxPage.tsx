@@ -747,8 +747,8 @@ export const ChatInput = memo(({
 
   const handleSelectScript = (script: any) => {
     let content = script.content;
-    const patientName = patient?.full_name || patient?.name || 'Paciente';
-    const effectiveClinicName = clinicName || 'Nossa Clínica';
+    const patientName = patient?.full_name || patient?.name || t('humanInbox.fallbackNames.patient');
+    const effectiveClinicName = clinicName || t('humanInbox.fallbackNames.clinicName');
 
     // Auto Variables - Multi-format support
     const autoVars = [
