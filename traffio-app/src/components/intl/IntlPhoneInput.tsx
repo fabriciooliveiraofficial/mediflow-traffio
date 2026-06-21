@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { CountryFieldSelector } from './CountryFieldSelector';
 import { getCountry, type CountryCode } from '../../lib/i18n/countryFormats';
 import { formatAsYouType, formatNational, isValidPhone, phoneCountry, toE164 } from '../../lib/i18n/phone';
@@ -39,6 +40,7 @@ export function IntlPhoneInput({
     placeholder,
     className = '',
 }: IntlPhoneInputProps) {
+    const { t } = useTranslation('common');
     const [selectedCountry, setSelectedCountry] = useState<CountryCode>(
         () => phoneCountry(resolveInitialE164(value, country)) || country
     );
@@ -96,7 +98,7 @@ export function IntlPhoneInput({
                     className="flex-1 min-w-0 bg-transparent border-none py-2.5 pr-3 text-sm font-medium focus:outline-none"
                 />
             </div>
-            {!isValid && <p className="text-[11px] text-red-500 mt-1">Número inválido para {countryDef.name}</p>}
+            {!isValid && <p className="text-[11px] text-red-500 mt-1">{t('intlPhoneInput.invalidPrefix')}{countryDef.name}</p>}
         </div>
     );
 }

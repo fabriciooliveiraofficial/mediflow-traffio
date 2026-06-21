@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ChevronDown } from 'lucide-react';
 import { COUNTRIES, listCountries, type CountryCode } from '../../lib/i18n/countryFormats';
 
@@ -17,8 +18,9 @@ export function CountryFieldSelector({
     value,
     onChange,
     className = '',
-    title = 'País deste campo',
+    title,
 }: CountryFieldSelectorProps) {
+    const { t } = useTranslation('common');
     const [isOpen, setIsOpen] = useState(false);
     const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -38,7 +40,7 @@ export function CountryFieldSelector({
         <div ref={wrapperRef} className={`relative shrink-0 ${className}`}>
             <button
                 type="button"
-                title={title}
+                title={title ?? t('countryFieldSelector.title')}
                 onClick={() => setIsOpen((v) => !v)}
                 className="h-full flex items-center gap-1 pl-3 pr-1.5 border-none bg-transparent cursor-pointer text-graphite-600 hover:text-brand-primary transition-colors"
             >

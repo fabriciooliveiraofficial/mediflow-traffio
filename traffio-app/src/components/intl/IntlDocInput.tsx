@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { CountryFieldSelector } from './CountryFieldSelector';
 import { type CountryCode } from '../../lib/i18n/countryFormats';
 import { docLabel, docPlaceholder, formatDoc, validateDoc } from '../../lib/i18n/doc';
@@ -28,6 +29,7 @@ export function IntlDocInput({
     label,
     className = '',
 }: IntlDocInputProps) {
+    const { t } = useTranslation('common');
     const [selectedCountry, setSelectedCountry] = useState<CountryCode>(country);
     const [touched, setTouched] = useState(false);
 
@@ -64,7 +66,7 @@ export function IntlDocInput({
                     className="flex-1 min-w-0 bg-transparent border-none py-2.5 pr-3 text-sm font-medium focus:outline-none"
                 />
             </div>
-            {!isValid && <p className="text-[11px] text-red-500 mt-1">{docLabel(selectedCountry)} inválido</p>}
+            {!isValid && <p className="text-[11px] text-red-500 mt-1">{docLabel(selectedCountry)}{t('intlDocInput.invalidSuffix')}</p>}
         </div>
     );
 }

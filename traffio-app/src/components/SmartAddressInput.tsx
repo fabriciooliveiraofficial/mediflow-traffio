@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { MapPin, Navigation, Loader2, Search, X } from 'lucide-react';
 import { addressService, type AddressSuggestion } from '../services/addressService';
 import { DEFAULT_COUNTRY, type CountryCode } from '../lib/i18n/countryFormats';
@@ -23,11 +24,13 @@ export function SmartAddressInput({
     onSelect,
     onBlur,
     country = DEFAULT_COUNTRY,
-    placeholder = `Digite o endereço ou ${postalLabel(country)}...`,
+    placeholder,
     className = '',
     showCepLookup = true,
     showMyLocation = true,
 }: SmartAddressInputProps) {
+    const { t } = useTranslation('common');
+    const resolvedPlaceholder = placeholder ?? t('smartAddressInput.placeholder', { postalLabel: postalLabel(country) });
     const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -193,7 +196,7 @@ export function SmartAddressInput({
                     onFocus={() => suggestions.length > 0 && setIsOpen(true)}
                     onBlur={onBlur}
                     onKeyDown={handleKeyDown}
-                    placeholder={placeholder}
+                    placeholder={resolvedPlaceholder}
                     autoComplete="off"
                     className="w-full bg-white border border-ice-200 rounded-xl pl-9 pr-20 py-2.5 text-sm font-medium focus:outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/10 transition-all"
                 />
@@ -209,7 +212,7 @@ export function SmartAddressInput({
                             type="button"
                             onClick={() => { onChange(''); setSuggestions([]); setIsOpen(false); }}
                             className="p-1 text-graphite-400 hover:text-graphite-600 transition-colors border-none bg-transparent cursor-pointer"
-                            title="Limpar"
+                            title={t('smartAddressInput.clear')}
                         >
                             <X size={14} />
                         </button>
@@ -221,7 +224,7 @@ export function SmartAddressInput({
                             onClick={handleUseMyLocation}
                             disabled={isLocating}
                             className="p-1.5 text-brand-primary hover:bg-brand-primary/10 rounded-lg transition-colors border-none bg-transparent cursor-pointer disabled:opacity-50"
-                            title="Usar minha localização"
+                            title={t('smartAddressInput.useMyLocation')}
                         >
                             {isLocating
                                 ? <Loader2 size={14} className="animate-spin" />

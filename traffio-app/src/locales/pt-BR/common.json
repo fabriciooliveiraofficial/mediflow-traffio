@@ -66,5 +66,26 @@
   },
   "calendar": {
     "weekdaysShort": ["D", "S", "T", "Q", "Q", "S", "S"]
+  },
+  "countryFieldSelector": {
+    "title": "País deste campo"
+  },
+  "intlDocInput": {
+    "invalidSuffix": " inválido"
+  },
+  "intlPhoneInput": {
+    "invalidPrefix": "Número inválido para "
+  },
+  "smartAddressInput": {
+    "placeholder": "Digite o endereço ou {{postalLabel}}...",
+    "clear": "Limpar",
+    "useMyLocation": "Usar minha localização"
+  },
+  "tenantAddressForm": {
+    "title": "Endereço e Contato",
+    "streetPlaceholder": "Endereço (Rua, Av...)",
+    "numberPlaceholder": "Nº",
+    "complementPlaceholder": "Complemento",
+    "neighborhoodPlaceholder": "Bairro"
   }
 }

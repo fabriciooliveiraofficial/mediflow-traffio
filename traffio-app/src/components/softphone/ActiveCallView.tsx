@@ -26,6 +26,33 @@ export function ActiveCallView({ call, isMuted, isOnHold, onHangup, onToggleMute
     return () => clearInterval(interval);
   }, [call.startedAt]);
 
+  useEffect(() => {
+    const stream = call.callRef?.remoteStream;
+    if (!stream) {
+      console.log('[ActiveCallView] No remote stream found on callRef yet');
+      return;
+    }
+
+    const audioElement = document.getElementById('telnyx-remote-audio') as HTMLAudioElement;
+    if (audioElement) {
+      if (audioElement.srcObject !== stream) {
+        console.log('[ActiveCallView] Attaching remote stream to audio element');
+        audioElement.srcObject = stream;
+        audioElement.play().catch((err) => {
+          console.error('[ActiveCallView] Error playing remote audio stream:', err);
+        });
+      }
+    } else {
+      console.warn('[ActiveCallView] HTMLAudioElement with ID "telnyx-remote-audio" not found');
+    }
+
+    return () => {
+      if (audioElement) {
+        audioElement.srcObject = null;
+      }
+    };
+  }, [call.callRef, call.callRef?.remoteStream]);
+
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60);
     const sec = s % 60;

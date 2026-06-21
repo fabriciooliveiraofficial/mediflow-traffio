@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { SmartAddressInput } from '../components/SmartAddressInput';
 import { IntlPostalInput } from './intl/IntlPostalInput';
 import { IntlPhoneInput } from './intl/IntlPhoneInput';
@@ -16,6 +17,7 @@ interface TenantAddressFormProps {
 }
 
 export function TenantAddressForm({ initialData, onSave, country = DEFAULT_COUNTRY, className = '' }: TenantAddressFormProps) {
+    const { t } = useTranslation('common');
     const [cep, setCep] = useState(initialData.address_zip_code || '');
     const [address, setAddress] = useState(initialData.address || '');
     const [number, setNumber] = useState(initialData.address_number || '');
@@ -76,7 +78,7 @@ export function TenantAddressForm({ initialData, onSave, country = DEFAULT_COUNT
     return (
         <div className={`space-y-3 ${className}`}>
             <label className="text-xs font-black text-graphite-400 uppercase flex items-center gap-1">
-                <MapPin size={12} /> Endereço e Contato
+                <MapPin size={12} /> {t('tenantAddressForm.title')}
             </label>
 
             {/* Line 1: Postal + Address */}
@@ -97,7 +99,7 @@ export function TenantAddressForm({ initialData, onSave, country = DEFAULT_COUNT
                         onSelect={handleAddressSelect}
                         onBlur={() => triggerSave({ address })}
                         country={country}
-                        placeholder="Endereço (Rua, Av...)"
+                        placeholder={t('tenantAddressForm.streetPlaceholder')}
                         showCepLookup={false} // We have a dedicated field now
                     />
                 </div>
@@ -107,7 +109,7 @@ export function TenantAddressForm({ initialData, onSave, country = DEFAULT_COUNT
             <div className="grid grid-cols-2 md:grid-cols-12 gap-3">
                 <div className="col-span-1 md:col-span-2">
                     <input
-                        placeholder="Nº"
+                        placeholder={t('tenantAddressForm.numberPlaceholder')}
                         value={number}
                         onChange={(e) => setNumber(e.target.value)}
                         onBlur={() => triggerSave({ address_number: number })}
@@ -116,7 +118,7 @@ export function TenantAddressForm({ initialData, onSave, country = DEFAULT_COUNT
                 </div>
                 <div className="col-span-1 md:col-span-3">
                     <input
-                        placeholder="Complemento"
+                        placeholder={t('tenantAddressForm.complementPlaceholder')}
                         value={complement}
                         onChange={(e) => setComplement(e.target.value)}
                         onBlur={() => triggerSave({ address_complement: complement })}
@@ -125,7 +127,7 @@ export function TenantAddressForm({ initialData, onSave, country = DEFAULT_COUNT
                 </div>
                 <div className="col-span-2 md:col-span-3">
                     <input
-                        placeholder="Bairro"
+                        placeholder={t('tenantAddressForm.neighborhoodPlaceholder')}
                         value={neighborhood}
                         onChange={(e) => setNeighborhood(e.target.value)}
                         onBlur={() => triggerSave({ address_neighborhood: neighborhood })}
