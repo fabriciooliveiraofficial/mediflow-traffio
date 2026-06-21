@@ -305,13 +305,19 @@ export function CommunicationsHub() {
           </div>
 
           {/* Gravação */}
-          {selected.recording_url && (
-            <div className="mx-6 bg-white border border-ice-100 rounded-2xl p-4 mb-4">
-              <p className="text-xs font-black text-graphite-400 uppercase mb-3 flex items-center gap-1.5"><Mic size={12} /> {t('communicationsHub.detail.recording')}</p>
-              <audio controls src={selected.recording_url} className="w-full" style={{ borderRadius: 10 }} />
-              <a href={selected.recording_url} download className="flex items-center gap-1.5 mt-2 text-xs font-bold text-brand-primary hover:underline"><Download size={11} /> {t('communicationsHub.detail.download')}</a>
-            </div>
-          )}
+          <div className="mx-6 bg-white border border-ice-100 rounded-2xl p-4 mb-4">
+            <p className="text-xs font-black text-graphite-400 uppercase mb-3 flex items-center gap-1.5"><Mic size={12} /> {t('communicationsHub.detail.recording')}</p>
+            {selected.recording_url ? (
+              <>
+                <audio controls src={selected.recording_url} className="w-full" style={{ borderRadius: 10 }} />
+                <a href={selected.recording_url} download target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 mt-2 text-xs font-bold text-brand-primary hover:underline">
+                  <Download size={11} /> {t('communicationsHub.detail.download')}
+                </a>
+              </>
+            ) : (
+              <p className="text-sm text-graphite-400 italic">Nenhuma gravação disponível para esta chamada.</p>
+            )}
+          </div>
 
           {/* Notas */}
           <div className="mx-6 bg-white border border-ice-100 rounded-2xl p-4">
