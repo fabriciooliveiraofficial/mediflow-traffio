@@ -216,6 +216,13 @@
     "emptyColumn": "Vazio"
   },
   "patientStageCard": {
+    "stages": {
+      "novoLead": "Novo Lead",
+      "emFollowUp": "Em Follow-up",
+      "qualificado": "Qualificado",
+      "agendado": "Agendado",
+      "perdido": "Perdido"
+    },
     "menu": {
       "viewFullJourney": "Ver Jornada Completa",
       "openConversation": "Abrir Conversa",

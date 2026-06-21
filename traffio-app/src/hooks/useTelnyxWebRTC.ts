@@ -173,10 +173,7 @@ export function useTelnyxWebRTC(enabled: boolean): UseTelnyxWebRTCReturn {
         return;
       }
 
-      const client = new TelnyxRTC({
-        login_token: token,
-        remoteElement: 'telnyx-remote-audio',
-      });
+      const client = new TelnyxRTC({ login_token: token });
       clientRef.current = client;
 
       client.on('telnyx.ready', () => {
@@ -318,11 +315,14 @@ export function useTelnyxWebRTC(enabled: boolean): UseTelnyxWebRTCReturn {
       callerName:        'Traffio',
       callerNumber:      callerNumber ?? '',
       audio:             true,
+      remoteElement:     'telnyx-remote-audio',
     });
   }, [status]);
 
   const answer = useCallback(() => {
-    callRef.current?.answer();
+    callRef.current?.answer({
+      remoteElement: 'telnyx-remote-audio',
+    });
   }, []);
 
   const hangup = useCallback(() => {

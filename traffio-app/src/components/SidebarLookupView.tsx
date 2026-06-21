@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Search, ChevronLeft, User, Loader2, Link } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useTenant } from '../contexts/TenantContext';
@@ -9,6 +10,7 @@ interface SidebarLookupViewProps {
 }
 
 export function SidebarLookupView({ onBack, onSelect }: SidebarLookupViewProps) {
+  const { t } = useTranslation('crm');
   const { tenant } = useTenant();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<any[]>([]);
@@ -39,7 +41,7 @@ export function SidebarLookupView({ onBack, onSelect }: SidebarLookupViewProps) 
         <button onClick={onBack} className="p-1.5 rounded-lg hover:bg-white text-gray-500 transition-colors shadow-sm">
           <ChevronLeft className="w-4 h-4" />
         </button>
-        <span className="text-sm font-bold text-gray-700">Vincular Paciente</span>
+        <span className="text-sm font-bold text-gray-700">{t('sidebarLookupView.headerTitle')}</span>
       </div>
 
       <div className="p-4 border-b border-gray-100">
@@ -48,7 +50,7 @@ export function SidebarLookupView({ onBack, onSelect }: SidebarLookupViewProps) 
           <input
             autoFocus
             className="w-full pl-9 pr-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-            placeholder="Nome, CPF ou Telefone..."
+            placeholder={t('sidebarLookupView.searchPlaceholder')}
             value={query}
             onChange={e => {
                 setQuery(e.target.value);
@@ -56,22 +58,22 @@ export function SidebarLookupView({ onBack, onSelect }: SidebarLookupViewProps) 
             }}
           />
         </form>
-        <p className="text-[10px] text-gray-400 mt-2 ml-1">Digite pelo menos 3 caracteres para buscar.</p>
+        <p className="text-[10px] text-gray-400 mt-2 ml-1">{t('sidebarLookupView.minCharsHint')}</p>
       </div>
 
       <div className="flex-1 overflow-y-auto">
         {searching && (
           <div className="p-8 flex flex-col items-center justify-center text-gray-400 gap-2">
             <Loader2 className="w-6 h-6 animate-spin" />
-            <span className="text-xs">Buscando na base...</span>
+            <span className="text-xs">{t('sidebarLookupView.searching')}</span>
           </div>
         )}
 
         {!searching && results.length === 0 && query.length >= 3 && (
           <div className="p-8 text-center">
             <User className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-            <p className="text-xs text-gray-500 font-medium">Nenhum paciente encontrado.</p>
-            <p className="text-[10px] text-gray-400 mt-1">Verifique os dados ou cadastre um novo.</p>
+            <p className="text-xs text-gray-500 font-medium">{t('sidebarLookupView.empty.title')}</p>
+            <p className="text-[10px] text-gray-400 mt-1">{t('sidebarLookupView.empty.subtitle')}</p>
           </div>
         )}
 
@@ -87,9 +89,9 @@ export function SidebarLookupView({ onBack, onSelect }: SidebarLookupViewProps) 
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-bold text-gray-900 truncate">{p.full_name}</p>
-                <p className="text-[10px] text-gray-400 mt-0.5">{p.cpf || 'Sem CPF'}</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">{p.cpf || t('sidebarLookupView.noCpfFallback')}</p>
                 <div className="mt-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-[10px] text-blue-600 font-bold uppercase tracking-wider">
-                  <Link size={10} /> Vincular Agora
+                  <Link size={10} /> {t('sidebarLookupView.linkNow')}
                 </div>
               </div>
             </button>

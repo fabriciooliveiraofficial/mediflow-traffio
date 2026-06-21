@@ -9,6 +9,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { MessageCircle, Instagram, Facebook, Phone, CheckCircle2, Loader2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
@@ -25,43 +26,6 @@ interface ChannelOption {
   idPlaceholder?: string;
 }
 
-const CHANNELS: ChannelOption[] = [
-  {
-    id:          'whatsapp',
-    label:       'WhatsApp',
-    icon:        MessageCircle,
-    color:       'text-green-600',
-    bgColor:     'bg-green-50 border-green-200',
-    requiresId:  false,
-  },
-  {
-    id:          'instagram',
-    label:       'Instagram DM',
-    icon:        Instagram,
-    color:       'text-pink-500',
-    bgColor:     'bg-pink-50 border-pink-200',
-    requiresId:  false,  // auto-detectado do webhook
-  },
-  {
-    id:          'facebook',
-    label:       'Facebook Messenger',
-    icon:        Facebook,
-    color:       'text-blue-600',
-    bgColor:     'bg-blue-50 border-blue-200',
-    requiresId:  false,  // auto-detectado do webhook
-  },
-  {
-    id:          'sms',
-    label:       'SMS',
-    icon:        Phone,
-    color:       'text-graphite-600',
-    bgColor:     'bg-ice-50 border-ice-200',
-    requiresId:  true,
-    idLabel:     'Número para SMS',
-    idPlaceholder: '+55 11 99999-9999',
-  },
-];
-
 interface Props {
   tenantId:     string;
   patientPhone: string;
@@ -69,6 +33,45 @@ interface Props {
 }
 
 export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = false }: Props) {
+  const { t } = useTranslation('communications');
+
+  const CHANNELS: ChannelOption[] = [
+    {
+      id:          'whatsapp',
+      label:       'WhatsApp',
+      icon:        MessageCircle,
+      color:       'text-green-600',
+      bgColor:     'bg-green-50 border-green-200',
+      requiresId:  false,
+    },
+    {
+      id:          'instagram',
+      label:       'Instagram DM',
+      icon:        Instagram,
+      color:       'text-pink-500',
+      bgColor:     'bg-pink-50 border-pink-200',
+      requiresId:  false,  // auto-detectado do webhook
+    },
+    {
+      id:          'facebook',
+      label:       'Facebook Messenger',
+      icon:        Facebook,
+      color:       'text-blue-600',
+      bgColor:     'bg-blue-50 border-blue-200',
+      requiresId:  false,  // auto-detectado do webhook
+    },
+    {
+      id:          'sms',
+      label:       'SMS',
+      icon:        Phone,
+      color:       'text-graphite-600',
+      bgColor:     'bg-ice-50 border-ice-200',
+      requiresId:  true,
+      idLabel:     t('channelPreferenceSelector.smsIdLabel'),
+      idPlaceholder: t('channelPreferenceSelector.smsPlaceholder'),
+    },
+  ];
+
   const [pref,        setPref]        = useState<Channel>('whatsapp');
   const [smsPhone,    setSmsPhone]    = useState('');
   const [updatedBy,   setUpdatedBy]   = useState<'auto' | 'manual'>('auto');
@@ -129,7 +132,7 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
     return (
       <div className="flex items-center gap-2 text-graphite-300 py-2">
         <Loader2 size={14} className="animate-spin" />
-        <span className="text-xs">Carregando...</span>
+        <span className="text-xs">{t('channelPreferenceSelector.loading')}</span>
       </div>
     );
   }
@@ -142,16 +145,16 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <p className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">
-            Canal de Notificação
+            {t('channelPreferenceSelector.compactHeading')}
           </p>
           {updatedBy === 'manual' && (
             <span className="text-[9px] bg-amber-50 text-amber-600 font-bold px-1.5 py-0.5 rounded-full border border-amber-100">
-              Manual
+              {t('channelPreferenceSelector.manual')}
             </span>
           )}
           {updatedBy === 'auto' && (
             <span className="text-[9px] bg-ice-50 text-graphite-400 font-bold px-1.5 py-0.5 rounded-full border border-ice-100">
-              Auto
+              {t('channelPreferenceSelector.auto')}
             </span>
           )}
         </div>
@@ -184,7 +187,7 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
               type="tel"
               value={smsPhone}
               onChange={(e) => setSmsPhone(e.target.value)}
-              placeholder="+55 11 99999-9999"
+              placeholder={t('channelPreferenceSelector.smsPlaceholder')}
               className="flex-1 text-xs bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 focus:outline-none focus:border-brand-primary"
             />
             <button
@@ -192,7 +195,7 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
               disabled={!smsPhone || saving}
               className="px-3 py-2 bg-brand-primary text-white text-xs font-bold rounded-xl disabled:opacity-40 border-none cursor-pointer"
             >
-              {saving ? <Loader2 size={12} className="animate-spin" /> : saved ? '✓' : 'OK'}
+              {saving ? <Loader2 size={12} className="animate-spin" /> : saved ? '✓' : t('channelPreferenceSelector.confirm')}
             </button>
           </div>
         )}
@@ -204,13 +207,13 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
             className="w-full flex items-center gap-1.5 px-2.5 py-2 rounded-xl border border-ice-100 text-xs font-bold text-graphite-400 hover:border-ice-200 transition-all cursor-pointer bg-white"
           >
             <Phone size={12} />
-            SMS
+            {t('channelPreferenceSelector.selectSms')}
           </button>
         )}
 
         {saved && (
           <p className="text-[10px] text-green-600 font-bold flex items-center gap-1">
-            <CheckCircle2 size={10} /> Canal salvo com sucesso
+            <CheckCircle2 size={10} /> {t('channelPreferenceSelector.savedSuccess')}
           </p>
         )}
       </div>
@@ -221,13 +224,13 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-black text-graphite-700">Canal preferido de notificação</h4>
+        <h4 className="text-sm font-black text-graphite-700">{t('channelPreferenceSelector.expandedHeading')}</h4>
         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
           updatedBy === 'manual'
             ? 'bg-amber-50 text-amber-600 border border-amber-100'
             : 'bg-ice-50 text-graphite-400 border border-ice-100'
         }`}>
-          {updatedBy === 'manual' ? 'Definido manualmente' : 'Auto-detectado'}
+          {updatedBy === 'manual' ? t('channelPreferenceSelector.manuallySet') : t('channelPreferenceSelector.autoDetected')}
         </span>
       </div>
 
@@ -258,7 +261,7 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
             type="tel"
             value={smsPhone}
             onChange={(e) => setSmsPhone(e.target.value)}
-            placeholder="+55 11 99999-9999"
+            placeholder={t('channelPreferenceSelector.smsPlaceholder')}
             className="flex-1 text-sm bg-ice-50 border border-ice-200 rounded-2xl px-4 py-2.5 focus:outline-none focus:border-brand-primary"
           />
           <button
@@ -266,7 +269,7 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
             disabled={!smsPhone || saving}
             className="px-4 py-2.5 bg-brand-primary text-white font-bold rounded-2xl disabled:opacity-40 border-none cursor-pointer"
           >
-            {saving ? <Loader2 size={16} className="animate-spin" /> : saved ? '✓' : 'Salvar'}
+            {saving ? <Loader2 size={16} className="animate-spin" /> : saved ? '✓' : t('channelPreferenceSelector.save')}
           </button>
         </div>
       )}

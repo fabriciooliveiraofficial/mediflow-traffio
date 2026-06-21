@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Save, Stethoscope, FileText, Activity, Brain, ClipboardList, Upload, History, ExternalLink } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 import { useLocaleFormat } from '../hooks/useLocaleFormat';
@@ -19,6 +20,7 @@ export const NewMedicalRecordModal: React.FC<NewMedicalRecordModalProps> = ({
     patientId,
     patientCpf
 }) => {
+    const { t } = useTranslation('medical');
     const { showToast } = useToast();
     const { formatDate } = useLocaleFormat();
     const [loading, setLoading] = useState(false);
@@ -51,7 +53,7 @@ export const NewMedicalRecordModal: React.FC<NewMedicalRecordModalProps> = ({
             // 1. Get current user and tenant
             const { data: { user } } = await supabase.auth.getUser();
             
-            if (!user) throw new Error("No active session found.");
+            if (!user) throw new Error(t('newMedicalRecordModal.errors.noSession'));
 
             const { data: memberData } = await supabase
                 .from('members')
@@ -59,7 +61,7 @@ export const NewMedicalRecordModal: React.FC<NewMedicalRecordModalProps> = ({
                 .eq('user_id', user.id)
                 .single();
 
-            if (!memberData) throw new Error("User is not associated with any clinic.");
+            if (!memberData) throw new Error(t('newMedicalRecordModal.errors.noClinic'));
 
             // 2. Resolve doctor_id (must be a record in the 'doctors' table)
             // If the user is an admin or staff (not a doctor), doctor_id stays null (which is allowed)
@@ -84,20 +86,20 @@ export const NewMedicalRecordModal: React.FC<NewMedicalRecordModalProps> = ({
                     doctor_id: resolvedDoctorId,
                     tenant_id: memberData.tenant_id,
                     soap_notes: soap,
-                    content: `Evolução SOAP - ${formatDate(new Date())}`
+                    content: t('newMedicalRecordModal.contentPrefix', { date: formatDate(new Date()) })
                 }]);
 
             if (error) throw error;
 
 
-            showToast('success', 'Evolução registrada com sucesso!');
+            showToast('success', t('newMedicalRecordModal.toasts.saved'));
             onSuccess();
             onClose();
             setSoap({ s: '', o: '', a: '', p: '' });
 
         } catch (error: any) {
             console.error('Error adding record:', error);
-            showToast('error', 'Erro ao registrar evolução: ' + error.message);
+            showToast('error', t('newMedicalRecordModal.toasts.saveErrorPrefix') + error.message);
         } finally {
             setLoading(false);
         }
@@ -123,23 +125,23 @@ export const NewMedicalRecordModal: React.FC<NewMedicalRecordModalProps> = ({
                                 <div>
                                     <h3 className="text-xl font-black text-graphite-900 tracking-tight flex items-center gap-2">
                                         <Stethoscope className="text-brand-primary" size={24} />
-                                        Nova Evolução Clínica
+                                        {t('newMedicalRecordModal.title')}
                                     </h3>
-                                    <p className="text-sm text-graphite-400 font-medium">Método SOAP (Subjetivo, Objetivo, Avaliação, Plano)</p>
+                                    <p className="text-sm text-graphite-400 font-medium">{t('newMedicalRecordModal.subtitle')}</p>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <button 
+                                    <button
                                         onClick={() => {
                                             if (!patientCpf) {
-                                                showToast('warning', 'CPF do paciente é necessário para consulta no iDocs.');
+                                                showToast('warning', t('newMedicalRecordModal.toasts.idocsCpfRequired'));
                                                 return;
                                             }
                                             window.open('https://s3.radiomemory.com.br/', '_blank');
-                                            showToast('info', 'Abrindo exames no iDoc (Radio Memory)...');
+                                            showToast('info', t('newMedicalRecordModal.toasts.idocsOpening'));
                                         }}
                                         className="px-4 py-2 bg-indigo-50 border border-indigo-100 text-indigo-600 rounded-xl font-black text-xs flex items-center gap-2 hover:bg-indigo-100 transition-all cursor-pointer shadow-sm"
                                     >
-                                        <ExternalLink size={16} /> iDocs
+                                        <ExternalLink size={16} /> {t('newMedicalRecordModal.idocs')}
                                     </button>
                                     <button
                                         onClick={onClose}
@@ -159,13 +161,13 @@ export const NewMedicalRecordModal: React.FC<NewMedicalRecordModalProps> = ({
                                     <div className="space-y-1">
                                         <label className="flex items-center gap-2 text-xs font-black text-brand-primary uppercase tracking-wider">
                                             <FileText size={14} />
-                                            (S) Subjetivo
+                                            {t('newMedicalRecordModal.subjective.label')}
                                         </label>
                                         <textarea
                                             required
                                             value={soap.s}
                                             onChange={e => setSoap({ ...soap, s: e.target.value })}
-                                            placeholder="Queixa principal, história..."
+                                            placeholder={t('newMedicalRecordModal.subjective.placeholder')}
                                             className="w-full bg-ice-50 border border-ice-200 rounded-xl p-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary/50 focus:ring-4 focus:ring-brand-primary/10 transition-all placeholder:text-graphite-300 min-h-[80px] resize-none"
                                         />
                                     </div>
@@ -174,13 +176,13 @@ export const NewMedicalRecordModal: React.FC<NewMedicalRecordModalProps> = ({
                                     <div className="space-y-1">
                                         <label className="flex items-center gap-2 text-xs font-black text-brand-primary uppercase tracking-wider">
                                             <Activity size={14} />
-                                            (O) Objetivo
+                                            {t('newMedicalRecordModal.objective.label')}
                                         </label>
                                         <textarea
                                             required
                                             value={soap.o}
                                             onChange={e => setSoap({ ...soap, o: e.target.value })}
-                                            placeholder="Exame físico, sinais vitais..."
+                                            placeholder={t('newMedicalRecordModal.objective.placeholder')}
                                             className="w-full bg-ice-50 border border-ice-200 rounded-xl p-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary/50 focus:ring-4 focus:ring-brand-primary/10 transition-all placeholder:text-graphite-300 min-h-[80px] resize-none"
                                         />
                                     </div>
@@ -189,13 +191,13 @@ export const NewMedicalRecordModal: React.FC<NewMedicalRecordModalProps> = ({
                                     <div className="space-y-1">
                                         <label className="flex items-center gap-2 text-xs font-black text-brand-primary uppercase tracking-wider">
                                             <Brain size={14} />
-                                            (A) Avaliação
+                                            {t('newMedicalRecordModal.assessment.label')}
                                         </label>
                                         <textarea
                                             required
                                             value={soap.a}
                                             onChange={e => setSoap({ ...soap, a: e.target.value })}
-                                            placeholder="Hipóteses diagnósticas..."
+                                            placeholder={t('newMedicalRecordModal.assessment.placeholder')}
                                             className="w-full bg-ice-50 border border-ice-200 rounded-xl p-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary/50 focus:ring-4 focus:ring-brand-primary/10 transition-all placeholder:text-graphite-300 min-h-[60px] resize-none"
                                         />
                                     </div>
@@ -204,13 +206,13 @@ export const NewMedicalRecordModal: React.FC<NewMedicalRecordModalProps> = ({
                                     <div className="space-y-1">
                                         <label className="flex items-center gap-2 text-xs font-black text-brand-primary uppercase tracking-wider">
                                             <ClipboardList size={14} />
-                                            (P) Plano
+                                            {t('newMedicalRecordModal.plan.label')}
                                         </label>
                                         <textarea
                                             required
                                             value={soap.p}
                                             onChange={e => setSoap({ ...soap, p: e.target.value })}
-                                            placeholder="Conduta, prescrição..."
+                                            placeholder={t('newMedicalRecordModal.plan.placeholder')}
                                             className="w-full bg-ice-50 border border-ice-200 rounded-xl p-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary/50 focus:ring-4 focus:ring-brand-primary/10 transition-all placeholder:text-graphite-300 min-h-[60px] resize-none"
                                         />
                                     </div>
@@ -219,11 +221,11 @@ export const NewMedicalRecordModal: React.FC<NewMedicalRecordModalProps> = ({
                                     <div className="space-y-1">
                                         <label className="flex items-center gap-2 text-xs font-black text-graphite-400 uppercase tracking-wider">
                                             <Upload size={14} />
-                                            Anexar Exame / Documento
+                                            {t('newMedicalRecordModal.attachLabel')}
                                         </label>
                                         <label className="flex items-center justify-center gap-2 w-full py-3 border-2 border-dashed border-ice-200 rounded-xl text-sm font-medium text-graphite-400 hover:border-brand-primary/40 hover:text-brand-primary transition-all cursor-pointer">
                                             <Upload size={16} />
-                                            {file ? file.name : 'Clique para selecionar arquivo'}
+                                            {file ? file.name : t('newMedicalRecordModal.attachPlaceholder')}
                                             <input
                                                 type="file"
                                                 accept=".pdf,.jpg,.jpeg,.png,.dicom"
@@ -239,14 +241,14 @@ export const NewMedicalRecordModal: React.FC<NewMedicalRecordModalProps> = ({
                                             onClick={onClose}
                                             className="flex-1 py-3.5 rounded-2xl font-bold text-graphite-700 hover:bg-ice-50 border border-ice-200 transition-all cursor-pointer"
                                         >
-                                            Cancelar
+                                            {t('newMedicalRecordModal.cancel')}
                                         </button>
                                         <button
                                             type="submit"
                                             disabled={loading}
                                             className="flex-[2] bg-brand-primary text-white py-3.5 rounded-2xl font-bold shadow-xl shadow-brand-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed border-none cursor-pointer"
                                         >
-                                            {loading ? 'Salvando...' : (<><Save size={18} /><span>Salvar Evolução</span></>)}
+                                            {loading ? t('newMedicalRecordModal.saving') : (<><Save size={18} /><span>{t('newMedicalRecordModal.save')}</span></>)}
                                         </button>
                                     </div>
                                 </form>
@@ -254,10 +256,10 @@ export const NewMedicalRecordModal: React.FC<NewMedicalRecordModalProps> = ({
                                 {/* History Sidebar */}
                                 <div className="hidden md:flex w-72 border-l border-ice-100 bg-ice-50/30 flex-col p-5 overflow-y-auto">
                                     <h4 className="text-xs font-black text-graphite-400 uppercase tracking-wider flex items-center gap-1.5 mb-4">
-                                        <History size={14} /> Histórico
+                                        <History size={14} /> {t('newMedicalRecordModal.history.title')}
                                     </h4>
                                     {history.length === 0 ? (
-                                        <p className="text-xs text-graphite-300 font-medium">Nenhuma evolução anterior.</p>
+                                        <p className="text-xs text-graphite-300 font-medium">{t('newMedicalRecordModal.history.empty')}</p>
                                     ) : (
                                         <div className="space-y-3">
                                             {history.map((rec) => (

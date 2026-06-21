@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { PhoneOff, Mic, MicOff, PauseCircle, PlayCircle, PhoneForwarded } from 'lucide-react';
 import type { ActiveCall } from '../../hooks/useTelnyxWebRTC';
 
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export function ActiveCallView({ call, isMuted, isOnHold, onHangup, onToggleMute, onToggleHold, onTransfer }: Props) {
+  const { t } = useTranslation('communications');
   const [elapsed, setElapsed]         = useState(0);
   const [showTransfer, setShowTransfer] = useState(false);
   const [transferNum, setTransferNum]   = useState('');
@@ -30,7 +32,7 @@ export function ActiveCallView({ call, isMuted, isOnHold, onHangup, onToggleMute
     return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
   };
 
-  const displayName = call.remoteName ?? call.remoteNumber ?? 'Em chamada';
+  const displayName = call.remoteName ?? call.remoteNumber ?? t('activeCallView.inCallFallback');
 
   return (
     <div className="bg-white rounded-3xl border border-ice-100 shadow-lg overflow-hidden w-72">
@@ -38,7 +40,7 @@ export function ActiveCallView({ call, isMuted, isOnHold, onHangup, onToggleMute
       <div className={`px-4 py-3 ${isOnHold ? 'bg-amber-500' : 'bg-green-500'}`}>
         <div className="flex items-center justify-between">
           <p className="text-xs font-bold text-white/80 uppercase tracking-wide">
-            {isOnHold ? 'Em Espera' : 'Em Chamada'}
+            {isOnHold ? t('activeCallView.onHold') : t('activeCallView.inCall')}
           </p>
           <p className="text-sm font-black text-white font-mono">{formatTime(elapsed)}</p>
         </div>
@@ -57,7 +59,7 @@ export function ActiveCallView({ call, isMuted, isOnHold, onHangup, onToggleMute
             }`}
           >
             {isMuted ? <MicOff size={18} /> : <Mic size={18} />}
-            {isMuted ? 'Mudo' : 'Microfone'}
+            {isMuted ? t('activeCallView.muted') : t('activeCallView.microphone')}
           </button>
 
           <button
@@ -69,7 +71,7 @@ export function ActiveCallView({ call, isMuted, isOnHold, onHangup, onToggleMute
             }`}
           >
             {isOnHold ? <PlayCircle size={18} /> : <PauseCircle size={18} />}
-            {isOnHold ? 'Retomar' : 'Espera'}
+            {isOnHold ? t('activeCallView.resume') : t('activeCallView.hold')}
           </button>
 
           <button
@@ -77,7 +79,7 @@ export function ActiveCallView({ call, isMuted, isOnHold, onHangup, onToggleMute
             className="flex flex-col items-center gap-1 py-2.5 rounded-xl text-xs font-bold bg-ice-50 text-graphite-500 hover:bg-ice-100 transition-colors border-none cursor-pointer"
           >
             <PhoneForwarded size={18} />
-            Transferir
+            {t('activeCallView.transfer')}
           </button>
         </div>
 
@@ -86,7 +88,7 @@ export function ActiveCallView({ call, isMuted, isOnHold, onHangup, onToggleMute
           <div className="flex gap-2">
             <input
               type="tel"
-              placeholder="Número destino"
+              placeholder={t('activeCallView.transferTargetPlaceholder')}
               value={transferNum}
               onChange={(e) => setTransferNum(e.target.value)}
               className="flex-1 bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm text-graphite-700 focus:outline-none focus:border-brand-primary"
@@ -96,7 +98,7 @@ export function ActiveCallView({ call, isMuted, isOnHold, onHangup, onToggleMute
               disabled={!transferNum}
               className="px-3 py-2 bg-brand-primary text-white rounded-xl text-xs font-bold disabled:opacity-40 border-none cursor-pointer"
             >
-              OK
+              {t('activeCallView.confirm')}
             </button>
           </div>
         )}
@@ -107,7 +109,7 @@ export function ActiveCallView({ call, isMuted, isOnHold, onHangup, onToggleMute
           className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-red-500 text-white font-black text-sm hover:bg-red-600 transition-colors border-none cursor-pointer"
         >
           <PhoneOff size={18} />
-          Desligar
+          {t('activeCallView.hangup')}
         </button>
       </div>
     </div>

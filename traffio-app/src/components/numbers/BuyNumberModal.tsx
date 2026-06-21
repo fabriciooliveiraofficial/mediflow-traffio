@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   X, Search, RefreshCw, ChevronRight, ChevronLeft,
   Phone, FileText, User, Building2, CheckCheck, Info,
@@ -186,13 +187,15 @@ const COUNTRY_FLAGS: Record<string, string> = {
   CO: '🇨🇴', PT: '🇵🇹', ES: '🇪🇸',
 };
 
-const SEARCH_BY_CONFIG: Record<SearchBy, { label: string; placeholder: string }> = {
-  area_code: { label: 'Código de área / DDD', placeholder: 'Ex: 11, 415, 21...' },
-  city:      { label: 'Cidade / Região',       placeholder: 'Ex: São Paulo, Auckland...' },
-  state:     { label: 'Estado / Província',    placeholder: 'Ex: SP, CA, ON...' },
-};
-
 export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resubmitOrderId }: Props) {
+  const { t } = useTranslation('communications');
+
+  const SEARCH_BY_CONFIG: Record<SearchBy, { label: string; placeholder: string }> = {
+    area_code: { label: t('buyNumberModal.step1.searchByConfig.area_code.label'), placeholder: t('buyNumberModal.step1.searchByConfig.area_code.placeholder') },
+    city:      { label: t('buyNumberModal.step1.searchByConfig.city.label'), placeholder: t('buyNumberModal.step1.searchByConfig.city.placeholder') },
+    state:     { label: t('buyNumberModal.step1.searchByConfig.state.label'), placeholder: t('buyNumberModal.step1.searchByConfig.state.placeholder') },
+  };
+
   const [step, setStep]               = useState<Step>(1);
   const [country, setCountry]         = useState('BR');
   const [phoneType, setPhoneType]     = useState<PhoneType>('all');
@@ -313,7 +316,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
           setStep(5); // Pula direto para a etapa do formulário de exigências
         }
       } catch (err: any) {
-        showToast('error', `Falha ao carregar detalhes do pedido: ${err.message}`);
+        showToast('error', t('buyNumberModal.toasts.loadResubmitFailedPrefix') + err.message);
         onClose();
       } finally {
         setLoadingResubmit(false);
@@ -376,7 +379,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
       } catch {
         log('error', 'Resposta não é JSON válido', rawText.slice(0, 500));
         setDiagOpen(true);
-        showToast('error', 'Resposta inválida do servidor');
+        showToast('error', t('buyNumberModal.toasts.invalidServerResponse'));
         return;
       }
 
@@ -386,7 +389,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
       if (!res.ok) {
         log('error', `Servidor retornou ${res.status}: ${json.error ?? rawText.slice(0, 200)}`);
         setDiagOpen(true);
-        showToast('error', json.error ?? `Erro ${res.status}`);
+        showToast('error', json.error ?? t('buyNumberModal.toasts.errorStatusPrefix', { status: res.status }));
         return;
       }
 
@@ -431,13 +434,13 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
 
       if (deduped.length === 0 && masked.length > 0) {
         log('error', 'Todos os números retornados são placeholders mascarados. A Telnyx não tem números compráveis para esta combinação de filtros.');
-        showToast('error', `Nenhum número disponível para compra (${describeFilters()}). Tente outros filtros.`);
+        showToast('error', t('buyNumberModal.toasts.noNumbersAvailablePrefix') + describeFilters() + t('buyNumberModal.toasts.noNumbersAvailableSuffix'));
       }
 
     } catch (err: any) {
       log('error', `Exceção não tratada: ${err.message}`, err.stack);
       setDiagOpen(true);
-      showToast('error', `Erro inesperado: ${err.message}`);
+      showToast('error', t('buyNumberModal.toasts.unexpectedErrorPrefix') + err.message);
     } finally {
       setSearching(false);
     }
@@ -644,25 +647,25 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
         if (isContactInfo) {
           const { contact, phone } = parseContactInfo(text);
           if (!contact.trim() || !phone.trim()) {
-            errors[r.id] = 'Nome do contato e telefone de contato são obrigatórios';
+            errors[r.id] = t('buyNumberModal.errors.contactRequired');
           }
         } else {
           if (!text) {
-            errors[r.id] = 'Campo obrigatório';
+            errors[r.id] = t('buyNumberModal.errors.fieldRequired');
           } else if (r.acceptanceCriteria.minLength && text.length < r.acceptanceCriteria.minLength) {
-            errors[r.id] = `Mínimo de ${r.acceptanceCriteria.minLength} caracteres`;
+            errors[r.id] = t('buyNumberModal.errors.minLength', { count: r.acceptanceCriteria.minLength });
           } else if (r.acceptanceCriteria.maxLength && text.length > r.acceptanceCriteria.maxLength) {
-            errors[r.id] = `Máximo de ${r.acceptanceCriteria.maxLength} caracteres`;
+            errors[r.id] = t('buyNumberModal.errors.maxLength', { count: r.acceptanceCriteria.maxLength });
           }
         }
       } else if (r.type === 'address') {
         const addr = val?.type === 'address' ? val.address : null;
         if (!addr?.streetAddress || !addr?.locality || !addr?.postalCode) {
-          errors[r.id] = 'Preencha o endereço completo (Rua, Cidade e CEP)';
+          errors[r.id] = t('buyNumberModal.errors.addressIncomplete');
         }
       } else if (r.type === 'document') {
         const doc = val?.type === 'document' ? val : null;
-        if (!doc?.documentId) errors[r.id] = 'Envie o documento';
+        if (!doc?.documentId) errors[r.id] = t('buyNumberModal.errors.documentRequired');
       }
     }
     setRegulatoryErrors(errors);
@@ -731,7 +734,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
       
       if (resubmitOrderId) {
         setDone(true);
-        showToast('success', 'Exigências enviadas com sucesso!');
+        showToast('success', t('buyNumberModal.toasts.regulatoryInfoSent'));
         onPurchased(selected!.phoneNumber);
       } else {
         setStep(4);
@@ -743,20 +746,20 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
 
   const validateHolder = (): boolean => {
     const errors: Record<string, string> = {};
-    if (!holderInfo.full_name && holderType === 'individual') errors.full_name = 'Nome obrigatório';
-    if (!holderInfo.company_name && holderType === 'business') errors.company_name = 'Razão social obrigatória';
+    if (!holderInfo.full_name && holderType === 'individual') errors.full_name = t('buyNumberModal.errors.nameRequired');
+    if (!holderInfo.company_name && holderType === 'business') errors.company_name = t('buyNumberModal.errors.companyNameRequired');
 
     if (holderType === 'individual') {
-      if (!holderInfo.cpf) errors.cpf = 'CPF obrigatório';
-      else if (!validateCPF(holderInfo.cpf)) errors.cpf = 'CPF inválido';
+      if (!holderInfo.cpf) errors.cpf = t('buyNumberModal.errors.cpfRequired');
+      else if (!validateCPF(holderInfo.cpf)) errors.cpf = t('buyNumberModal.errors.cpfInvalid');
     } else {
-      if (!holderInfo.cnpj) errors.cnpj = 'CNPJ obrigatório';
-      else if (!validateCNPJ(holderInfo.cnpj)) errors.cnpj = 'CNPJ inválido';
+      if (!holderInfo.cnpj) errors.cnpj = t('buyNumberModal.errors.cnpjRequired');
+      else if (!validateCNPJ(holderInfo.cnpj)) errors.cnpj = t('buyNumberModal.errors.cnpjInvalid');
     }
 
-    if (!holderInfo.address_street)  errors.address_street  = 'Endereço obrigatório';
-    if (!holderInfo.address_city)    errors.address_city    = 'Cidade obrigatória';
-    if (!holderInfo.address_zip)     errors.address_zip     = 'CEP obrigatório';
+    if (!holderInfo.address_street)  errors.address_street  = t('buyNumberModal.errors.addressRequired');
+    if (!holderInfo.address_city)    errors.address_city    = t('buyNumberModal.errors.cityRequired');
+    if (!holderInfo.address_zip)     errors.address_zip     = t('buyNumberModal.errors.zipRequired');
 
     setHolderErrors(errors);
     return Object.keys(errors).length === 0;
@@ -784,14 +787,14 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
         const json = await res.json();
         if (json.error) { showToast('error', json.error); return; }
         if (json.data?.instant) {
-          showToast('success', `Número ${selected!.phoneNumber} adquirido com sucesso!`);
+          showToast('success', t('buyNumberModal.toasts.numberAcquiredSuccess', { number: selected!.phoneNumber }));
           onPurchased(selected!.phoneNumber);
           onClose();
           return;
         }
         setOrderId(json.data.order_id);
       } catch (err: any) {
-        showToast('error', `Erro ao criar pedido: ${err.message}`);
+        showToast('error', t('buyNumberModal.toasts.createOrderErrorPrefix') + err.message);
         return;
       } finally {
         setSubmitting(false);
@@ -839,7 +842,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
       if (json.error) {
         if (json.error === 'DOCUMENT_UPLOAD_REQUIRED') {
           log('info', 'Upload de documento é obrigatório para este país/número. Redirecionando para o formulário regulatório.', json);
-          showToast('info', 'Por favor, envie o documento regulatório exigido pelas operadoras.');
+          showToast('info', t('buyNumberModal.toasts.documentRegulatoryRequired'));
 
           const requirements = json.requirements || [];
           const initial: Record<string, RegulatoryFieldValue> = {};
@@ -860,9 +863,9 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
         return;
       }
       if (json.data?.pending_review) {
-        showToast('success', `Número ${selected!.phoneNumber} adquirido! Aguardando revisão da Telnyx.`);
+        showToast('success', t('buyNumberModal.toasts.numberAcquiredPendingReview', { number: selected!.phoneNumber }));
       } else {
-        showToast('success', `Número ${selected!.phoneNumber} adquirido com sucesso!`);
+        showToast('success', t('buyNumberModal.toasts.numberAcquiredSuccess', { number: selected!.phoneNumber }));
       }
       onPurchased(selected!.phoneNumber);
       onClose();
@@ -920,10 +923,10 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
   };
 
   const STEPS = req.needsDocs
-    ? ['Buscar', 'Titular', 'Documentos', 'Confirmar']
+    ? [t('buyNumberModal.steps.search'), t('buyNumberModal.steps.holder'), t('buyNumberModal.steps.documents'), t('buyNumberModal.steps.confirm')]
     : hasRegulatoryStep
-      ? ['Buscar', 'Dados', 'Confirmar']
-      : ['Buscar', 'Confirmar'];
+      ? [t('buyNumberModal.steps.search'), t('buyNumberModal.steps.data'), t('buyNumberModal.steps.confirm')]
+      : [t('buyNumberModal.steps.search'), t('buyNumberModal.steps.confirm')];
 
   const displayStep = req.needsDocs
     ? step
@@ -949,7 +952,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
         <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-ice-100 shrink-0">
           <div>
             <h2 className="text-base font-black text-graphite-800">
-              {resubmitOrderId ? 'Completar Cadastro' : 'Comprar Número'}
+              {resubmitOrderId ? t('buyNumberModal.title.resubmit') : t('buyNumberModal.title.default')}
             </h2>
             {selected && (
               <p className="text-xs text-graphite-400 mt-0.5 font-mono">{selected.phoneNumber}</p>
@@ -987,7 +990,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
           {loadingResubmit && (
             <div className="flex flex-col items-center justify-center py-12 gap-3 text-graphite-400">
               <RefreshCw size={24} className="animate-spin text-brand-primary" />
-              <span className="text-sm font-medium">Carregando exigências pendentes...</span>
+              <span className="text-sm font-medium">{t('buyNumberModal.loadingResubmit')}</span>
             </div>
           )}
 
@@ -995,18 +998,18 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
           {!loadingResubmit && step === 1 && (
             <>
               <div>
-                <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">Nome amigável (opcional)</label>
+                <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">{t('buyNumberModal.step1.friendlyNameLabel')}</label>
                 <input
                   value={friendlyName}
                   onChange={(e) => setFriendlyName(e.target.value)}
-                  placeholder="Ex: Recepção, WhatsApp, Suporte..."
+                  placeholder={t('buyNumberModal.step1.friendlyNamePlaceholder')}
                   className="w-full mt-1 bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm text-graphite-700 focus:outline-none focus:border-brand-primary"
                 />
               </div>
 
               <div className="flex gap-2">
                 <div className="flex-1">
-                  <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">País</label>
+                  <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">{t('buyNumberModal.step1.countryLabel')}</label>
                   <select
                     value={country}
                     onChange={(e) => {
@@ -1025,31 +1028,31 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
                   </select>
                 </div>
                 <div className="flex-1">
-                  <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">Tipo</label>
+                  <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">{t('buyNumberModal.step1.typeLabel')}</label>
                   <select
                     value={phoneType}
                     onChange={(e) => setPhoneType(e.target.value as PhoneType)}
                     className="w-full mt-1 bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm text-graphite-700 focus:outline-none focus:border-brand-primary"
                   >
-                    <option value="all">Todos os tipos</option>
-                    <option value="local">Local</option>
-                    <option value="toll_free">Toll-Free (0800)</option>
+                    <option value="all">{t('buyNumberModal.step1.typeAll')}</option>
+                    <option value="local">{t('buyNumberModal.step1.typeLocal')}</option>
+                    <option value="toll_free">{t('buyNumberModal.step1.typeTollFree')}</option>
                   </select>
                 </div>
               </div>
 
               <div className="flex gap-2">
                 <div style={{ width: 160 }}>
-                  <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">Buscar por</label>
+                  <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">{t('buyNumberModal.step1.searchByLabel')}</label>
                   <select
                     value={searchBy}
                     onChange={(e) => { setSearchBy(e.target.value as SearchBy); setSearchValue(''); }}
                     className="w-full mt-1 bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm text-graphite-700 focus:outline-none focus:border-brand-primary"
                   >
-                    <option value="area_code">Código de área</option>
-                    <option value="city">Cidade/Região</option>
+                    <option value="area_code">{t('buyNumberModal.step1.searchByAreaCode')}</option>
+                    <option value="city">{t('buyNumberModal.step1.searchByCity')}</option>
                     {(country === 'US' || country === 'CA') && (
-                      <option value="state">Estado/Província</option>
+                      <option value="state">{t('buyNumberModal.step1.searchByState')}</option>
                     )}
                   </select>
                 </div>
@@ -1071,7 +1074,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
                     className="px-4 py-2 bg-brand-primary text-white text-sm font-bold rounded-xl hover:bg-brand-primary/90 disabled:opacity-50 border-none cursor-pointer flex items-center gap-2"
                   >
                     {searching ? <RefreshCw size={14} className="animate-spin" /> : <Search size={14} />}
-                    Buscar
+                    {t('buyNumberModal.step1.searchButton')}
                   </button>
                 </div>
               </div>
@@ -1080,7 +1083,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
                 <div className="flex items-start gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
                   <Info size={14} className="text-yellow-500 mt-0.5 shrink-0" />
                   <p className="text-xs text-yellow-700">
-                    <strong>Validação necessária:</strong> {req.notes} Você precisará enviar documentos antes da ativação.
+                    <strong>{t('buyNumberModal.step1.validationRequired')}</strong> {req.notes} {t('buyNumberModal.step1.validationDocsNeeded')}
                   </p>
                 </div>
               )}
@@ -1088,14 +1091,14 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
               {searching && (
                 <div className="flex flex-col items-center py-8 gap-2">
                   <RefreshCw size={22} className="animate-spin text-brand-primary" />
-                  <p className="text-sm text-graphite-400">Buscando números disponíveis...</p>
+                  <p className="text-sm text-graphite-400">{t('buyNumberModal.step1.searchingNumbers')}</p>
                 </div>
               )}
 
               {!searching && !searched && (
                 <div className="text-center py-8 text-graphite-300">
                   <Search size={30} className="mx-auto mb-2 opacity-40" />
-                  <p className="text-sm font-bold">Selecione um país e clique em Buscar</p>
+                  <p className="text-sm font-bold">{t('buyNumberModal.step1.selectCountryPrompt')}</p>
                 </div>
               )}
 
@@ -1103,10 +1106,9 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
                 <div className="text-center py-10 px-4 bg-ice-50 border border-ice-100 rounded-3xl space-y-2">
                   <Info size={32} className="mx-auto text-graphite-400" />
                   <div>
-                    <p className="text-sm font-black text-graphite-800">Nenhum número disponível</p>
+                    <p className="text-sm font-black text-graphite-800">{t('buyNumberModal.step1.noNumbersTitle')}</p>
                     <p className="text-xs text-graphite-500 mt-1 max-w-sm mx-auto leading-relaxed">
-                      Não encontramos números para os filtros selecionados.
-                      Tente buscar usando apenas o Código de Área (DDD) ou utilize outra Cidade/Região.
+                      {t('buyNumberModal.step1.noNumbersSubtitle')}
                     </p>
                   </div>
                 </div>
@@ -1130,12 +1132,12 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
                         </p>
                         <div className="flex gap-1 mt-1">
                           {hasVoice && (
-                            <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-full">Voz</span>
+                            <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-full">{t('buyNumberModal.step1.voiceBadge')}</span>
                           )}
                           {hasSms ? (
-                            <span className="px-1.5 py-0.5 bg-green-50 text-green-600 text-[10px] font-bold rounded-full">SMS</span>
+                            <span className="px-1.5 py-0.5 bg-green-50 text-green-600 text-[10px] font-bold rounded-full">{t('buyNumberModal.step1.smsBadge')}</span>
                           ) : (
-                            <span className="px-1.5 py-0.5 bg-yellow-50 text-yellow-600 text-[10px] font-bold rounded-full">Sem SMS</span>
+                            <span className="px-1.5 py-0.5 bg-yellow-50 text-yellow-600 text-[10px] font-bold rounded-full">{t('buyNumberModal.step1.noSmsBadge')}</span>
                           )}
                         </div>
                       </div>
@@ -1156,46 +1158,46 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
           {step === 2 && (
             <>
               <div className="flex gap-2">
-                {(['individual', 'business'] as HolderType[]).map((t) => (
+                {(['individual', 'business'] as HolderType[]).map((holderOpt) => (
                   <button
-                    key={t}
-                    onClick={() => setHolderType(t)}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold border-2 transition-all cursor-pointer ${holderType === t ? 'border-brand-primary bg-brand-primary/5 text-brand-primary' : 'border-ice-200 bg-ice-50 text-graphite-500'}`}
+                    key={holderOpt}
+                    onClick={() => setHolderType(holderOpt)}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold border-2 transition-all cursor-pointer ${holderType === holderOpt ? 'border-brand-primary bg-brand-primary/5 text-brand-primary' : 'border-ice-200 bg-ice-50 text-graphite-500'}`}
                   >
-                    {t === 'individual' ? <User size={15} /> : <Building2 size={15} />}
-                    {t === 'individual' ? 'Pessoa Física' : 'Pessoa Jurídica'}
+                    {holderOpt === 'individual' ? <User size={15} /> : <Building2 size={15} />}
+                    {holderOpt === 'individual' ? t('buyNumberModal.step2.individual') : t('buyNumberModal.step2.business')}
                   </button>
                 ))}
               </div>
 
               {holderType === 'individual' ? (
                 <div className="space-y-3">
-                  {field('full_name', 'Nome completo', 'João da Silva')}
-                  {field('cpf', 'CPF', '000.000.000-00', formatCPF)}
-                  {field('email', 'E-mail', 'joao@email.com', undefined, 'email')}
-                  {field('phone', 'Telefone pessoal', '+55 (41) 99999-9999')}
+                  {field('full_name', t('buyNumberModal.step2.fullNameLabel'), t('buyNumberModal.step2.fullNamePlaceholder'))}
+                  {field('cpf', t('buyNumberModal.step2.cpfLabel'), t('buyNumberModal.step2.cpfPlaceholder'), formatCPF)}
+                  {field('email', t('buyNumberModal.step2.emailLabel'), t('buyNumberModal.step2.emailPlaceholder'), undefined, 'email')}
+                  {field('phone', t('buyNumberModal.step2.personalPhoneLabel'), t('buyNumberModal.step2.personalPhonePlaceholder'))}
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {field('company_name', 'Razão social', 'Empresa LTDA')}
-                  {field('cnpj', 'CNPJ', '00.000.000/0001-00', formatCNPJ)}
-                  {field('full_name', 'Nome do responsável', 'João da Silva')}
-                  {field('email', 'E-mail corporativo', 'contato@empresa.com', undefined, 'email')}
-                  {field('phone', 'Telefone corporativo', '+55 (41) 3333-3333')}
+                  {field('company_name', t('buyNumberModal.step2.companyNameLabel'), t('buyNumberModal.step2.companyNamePlaceholder'))}
+                  {field('cnpj', t('buyNumberModal.step2.cnpjLabel'), t('buyNumberModal.step2.cnpjPlaceholder'), formatCNPJ)}
+                  {field('full_name', t('buyNumberModal.step2.responsibleNameLabel'), t('buyNumberModal.step2.responsibleNamePlaceholder'))}
+                  {field('email', t('buyNumberModal.step2.corporateEmailLabel'), t('buyNumberModal.step2.corporateEmailPlaceholder'), undefined, 'email')}
+                  {field('phone', t('buyNumberModal.step2.corporatePhoneLabel'), t('buyNumberModal.step2.corporatePhonePlaceholder'))}
                 </div>
               )}
 
               <div className="border-t border-ice-100 pt-3 space-y-3">
-                <p className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">Endereço</p>
+                <p className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">{t('buyNumberModal.step2.addressLabel')}</p>
                 <div className="flex gap-2">
-                  <div className="flex-1">{field('address_street', 'Rua', 'Av. Paulista')}</div>
-                  <div style={{ width: 80 }}>{field('address_number', 'Número', '100')}</div>
+                  <div className="flex-1">{field('address_street', t('buyNumberModal.step2.streetLabel'), t('buyNumberModal.step2.streetPlaceholder'))}</div>
+                  <div style={{ width: 80 }}>{field('address_number', t('buyNumberModal.step2.numberLabel'), t('buyNumberModal.step2.numberPlaceholder'))}</div>
                 </div>
                 <div className="flex gap-2">
-                  <div className="flex-1">{field('address_city', 'Cidade', 'São Paulo')}</div>
-                  <div style={{ width: 60 }}>{field('address_state', 'Estado', 'SP')}</div>
+                  <div className="flex-1">{field('address_city', t('buyNumberModal.step2.cityLabel'), t('buyNumberModal.step2.cityPlaceholder'))}</div>
+                  <div style={{ width: 60 }}>{field('address_state', t('buyNumberModal.step2.stateLabel'), t('buyNumberModal.step2.statePlaceholder'))}</div>
                 </div>
-                {field('address_zip', 'CEP', '01310-100', formatZip)}
+                {field('address_zip', t('buyNumberModal.step2.zipLabel'), t('buyNumberModal.step2.zipPlaceholder'), formatZip)}
               </div>
             </>
           )}
@@ -1204,7 +1206,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
           {step === 3 && orderId && (
             <div className="space-y-4">
               <p className="text-xs text-graphite-500">
-                Envie os documentos abaixo para validar o pedido. Máx. 10 MB por arquivo (PDF, JPG ou PNG).
+                {t('buyNumberModal.step3.intro')}
               </p>
               {requiredDocs.map((docType) => (
                 <DocumentUploadField
@@ -1224,13 +1226,13 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
           {step === 4 && !done && (
             <div className="space-y-4">
               <div className="p-4 bg-ice-50 border border-ice-200 rounded-2xl space-y-2">
-                <p className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">Número selecionado</p>
+                <p className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">{t('buyNumberModal.step4.selectedNumberLabel')}</p>
                 <p className="text-lg font-black text-graphite-800 font-mono">{selected?.phoneNumber}</p>
                 <p className="text-xs text-graphite-400">
                   {COUNTRY_FLAGS[country]} {country}
                   {selected?.city && ` · ${selected.city}`}
-                  {selected?.features.includes('voice') && ' · Voz'}
-                  {selected?.features.includes('sms') && ' · SMS'}
+                  {selected?.features.includes('voice') && t('buyNumberModal.step4.voiceSuffix')}
+                  {selected?.features.includes('sms') && t('buyNumberModal.step4.smsSuffix')}
                 </p>
               </div>
 
@@ -1238,22 +1240,21 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
                 <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-xl">
                   <Info size={14} className="text-blue-500 mt-0.5 shrink-0" />
                   <p className="text-xs text-blue-700">
-                    Seus documentos serão analisados em até <strong>{req.processingDays} dias úteis</strong>.
-                    Você receberá uma notificação quando o número for ativado.
+                    {t('buyNumberModal.step4.needsDocsNotice', { days: req.processingDays })}
                   </p>
                 </div>
               ) : requiresReview ? (
                 <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-xl">
                   <Info size={14} className="text-blue-500 mt-0.5 shrink-0" />
                   <p className="text-xs text-blue-700">
-                    Este número requer aprovação regulatória local. Os dados preenchidos na etapa anterior serão enviados, mas a ativação depende da aprovação pelas operadoras locais (geralmente concluída em poucas horas).
+                    {t('buyNumberModal.step4.requiresReviewNotice')}
                   </p>
                 </div>
               ) : (
                 <div className="flex items-start gap-2 p-3 bg-green-50 border border-green-200 rounded-xl">
                   <CheckCheck size={14} className="text-green-500 mt-0.5 shrink-0" />
                   <p className="text-xs text-green-700">
-                    Nenhuma documentação necessária. O número será ativado em instantes.
+                    {t('buyNumberModal.step4.noDocsNeededNotice')}
                   </p>
                 </div>
               )}
@@ -1266,8 +1267,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
               <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-xl">
                 <Info size={14} className="text-blue-500 mt-0.5 shrink-0" />
                 <p className="text-xs text-blue-700">
-                  A Telnyx exige algumas informações adicionais para números de {COUNTRY_FLAGS[country]} {country}.
-                  Esses dados ficam salvos e serão reutilizados automaticamente nas próximas compras deste país.
+                  {t('buyNumberModal.step5.intro', { flag: COUNTRY_FLAGS[country], country })}
                 </p>
               </div>
 
@@ -1288,7 +1288,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
                         <div className="space-y-3 p-3 bg-ice-50 border border-ice-200 rounded-xl">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                             <div>
-                              <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">Nome do Contato</label>
+                              <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">{t('buyNumberModal.step5.contactNameLabel')}</label>
                               <input
                                 type="text"
                                 value={parseContactInfo(textVal).contact}
@@ -1296,12 +1296,12 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
                                   const { business, phone } = parseContactInfo(textVal);
                                   updateRegulatoryTextual(r.id, formatContactInfo(e.target.value, business, phone));
                                 }}
-                                placeholder="Nome e Sobrenome"
+                                placeholder={t('buyNumberModal.step5.contactNamePlaceholder')}
                                 className="w-full mt-1 bg-white border border-ice-100 rounded-xl px-3 py-2 text-sm text-graphite-700 focus:outline-none focus:border-brand-primary"
                               />
                             </div>
                             <div>
-                              <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">Telefone de Contato</label>
+                              <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">{t('buyNumberModal.step5.contactPhoneLabel')}</label>
                               <input
                                 type="text"
                                 value={parseContactInfo(textVal).phone}
@@ -1309,13 +1309,13 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
                                   const { contact, business } = parseContactInfo(textVal);
                                   updateRegulatoryTextual(r.id, formatContactInfo(contact, business, e.target.value));
                                 }}
-                                placeholder="Ex: +6498890000"
+                                placeholder={t('buyNumberModal.step5.contactPhonePlaceholder')}
                                 className="w-full mt-1 bg-white border border-ice-100 rounded-xl px-3 py-2 text-sm text-graphite-700 focus:outline-none focus:border-brand-primary"
                               />
                             </div>
                           </div>
                           <div>
-                            <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">Nome da Empresa (opcional)</label>
+                            <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">{t('buyNumberModal.step5.companyNameOptionalLabel')}</label>
                             <input
                               type="text"
                               value={parseContactInfo(textVal).business}
@@ -1323,7 +1323,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
                                 const { contact, phone } = parseContactInfo(textVal);
                                 updateRegulatoryTextual(r.id, formatContactInfo(contact, e.target.value, phone));
                               }}
-                              placeholder="Razão Social ou N/A se Pessoa Física"
+                              placeholder={t('buyNumberModal.step5.companyNamePlaceholder')}
                               className="w-full mt-1 bg-white border border-ice-100 rounded-xl px-3 py-2 text-sm text-graphite-700 focus:outline-none focus:border-brand-primary"
                             />
                           </div>
@@ -1334,7 +1334,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
                           onChange={(e) => updateRegulatoryTextual(r.id, e.target.value)}
                           className={`w-full bg-ice-50 border rounded-xl px-3 py-2 text-sm text-graphite-700 focus:outline-none focus:border-brand-primary ${regulatoryErrors[r.id] ? 'border-red-300' : 'border-ice-200'}`}
                         >
-                          <option value="">Selecione...</option>
+                          <option value="">{t('buyNumberModal.step5.selectPlaceholder')}</option>
                           {r.acceptanceCriteria.acceptableValues.map((v) => <option key={v} value={v}>{v}</option>)}
                         </select>
                       ) : (
@@ -1351,11 +1351,11 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
 
                     {r.type === 'address' && (
                       <div className="space-y-2 p-3 bg-ice-50 border border-ice-200 rounded-xl">
-                        {regAddressField(r.id, 'streetAddress', 'Endereço', 'Rua / Av., número')}
+                        {regAddressField(r.id, 'streetAddress', t('buyNumberModal.step5.addressFieldLabel'), t('buyNumberModal.step5.addressFieldPlaceholder'))}
                         <div className="flex gap-2 flex-wrap sm:flex-nowrap">
-                          <div className="flex-1 min-w-[120px]">{regAddressField(r.id, 'locality', 'Cidade', 'Auckland')}</div>
-                          <div className="flex-1 min-w-[100px]">{regAddressField(r.id, 'administrativeArea', 'Estado/Região', '')}</div>
-                          <div className="w-full sm:w-[100px]">{regAddressField(r.id, 'postalCode', 'CEP', '')}</div>
+                          <div className="flex-1 min-w-[120px]">{regAddressField(r.id, 'locality', t('buyNumberModal.step5.cityLabel'), 'Auckland')}</div>
+                          <div className="flex-1 min-w-[100px]">{regAddressField(r.id, 'administrativeArea', t('buyNumberModal.step5.stateRegionLabel'), '')}</div>
+                          <div className="w-full sm:w-[100px]">{regAddressField(r.id, 'postalCode', t('buyNumberModal.step5.zipLabel'), '')}</div>
                         </div>
                       </div>
                     )}
@@ -1366,7 +1366,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
                           <FileText size={14} />
                           {docFileName
                             ? docFileName
-                            : 'Selecionar arquivo (PDF, JPG ou PNG)'}
+                            : t('buyNumberModal.step5.selectFileLabel')}
                           <input
                             type="file"
                             accept="image/jpeg,image/png,application/pdf"
@@ -1375,7 +1375,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
                           />
                         </label>
                         {docFileName && (
-                          <p className="text-[10px] text-green-600 mt-1">✓ Documento enviado</p>
+                          <p className="text-[10px] text-green-600 mt-1">{t('buyNumberModal.step5.documentSent')}</p>
                         )}
                       </div>
                     )}
@@ -1394,10 +1394,10 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
                 <CheckCheck size={28} className="text-green-500" />
               </div>
               <div>
-                <p className="font-black text-graphite-800">Pedido enviado!</p>
+                <p className="font-black text-graphite-800">{t('buyNumberModal.done.title')}</p>
                 <p className="text-sm text-graphite-400 mt-1">
-                  Análise em até <strong>{req.processingDays} dias úteis</strong>.<br />
-                  Você será notificado quando o número for ativado.
+                  {t('buyNumberModal.done.analysisPrefix')}<strong>{req.processingDays}</strong>{t('buyNumberModal.done.analysisSuffix')}<br />
+                  {t('buyNumberModal.done.notifyNotice')}
                 </p>
               </div>
             </div>
@@ -1413,9 +1413,9 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
                 >
                   <span className={`flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wide ${hasErrors ? 'text-red-500' : hasWarns ? 'text-yellow-600' : 'text-graphite-400'}`}>
                     <Bug size={12} />
-                    Diagnóstico
-                    {hasErrors && <span className="bg-red-100 text-red-500 rounded-full px-1.5">erro</span>}
-                    {!hasErrors && hasWarns && <span className="bg-yellow-100 text-yellow-600 rounded-full px-1.5">aviso</span>}
+                    {t('buyNumberModal.diagnostics.label')}
+                    {hasErrors && <span className="bg-red-100 text-red-500 rounded-full px-1.5">{t('buyNumberModal.diagnostics.errorBadge')}</span>}
+                    {!hasErrors && hasWarns && <span className="bg-yellow-100 text-yellow-600 rounded-full px-1.5">{t('buyNumberModal.diagnostics.warningBadge')}</span>}
                   </span>
                   {diagOpen ? <ChevronUp size={14} className="text-graphite-400 ml-1" /> : <ChevronDown size={14} className="text-graphite-400 ml-1" />}
                 </button>
@@ -1427,11 +1427,11 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
                     setCopied(true);
                     setTimeout(() => setCopied(false), 2000);
                   }}
-                  title="Copiar log"
+                  title={t('buyNumberModal.diagnostics.copyLogTitle')}
                   className={`flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg border-none cursor-pointer transition-colors ${copied ? 'bg-green-100 text-green-600' : 'bg-white/60 text-graphite-400 hover:text-graphite-600'}`}
                 >
                   {copied ? <Check size={11} /> : <Copy size={11} />}
-                  {copied ? 'Copiado!' : 'Copiar'}
+                  {copied ? t('buyNumberModal.diagnostics.copied') : t('buyNumberModal.diagnostics.copy')}
                 </button>
               </div>
 
@@ -1453,7 +1453,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
                   {/* Raw response */}
                   {diagRaw !== null && (
                     <div>
-                      <p className="text-[10px] font-black text-graphite-400 uppercase tracking-wide mb-1">Raw Response</p>
+                      <p className="text-[10px] font-black text-graphite-400 uppercase tracking-wide mb-1">{t('buyNumberModal.diagnostics.rawResponseLabel')}</p>
                       <pre className="bg-graphite-900 text-green-300 rounded-xl p-3 text-[10px] overflow-x-auto max-h-48 overflow-y-auto whitespace-pre-wrap break-all">
                         {JSON.stringify(diagRaw, null, 2)}
                       </pre>
@@ -1473,7 +1473,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
               className="flex items-center gap-1.5 text-sm text-graphite-400 hover:text-graphite-600 transition-colors border-none cursor-pointer bg-transparent"
             >
               <ChevronLeft size={16} />
-              {resubmitOrderId ? 'Voltar' : step === 1 ? 'Cancelar' : 'Voltar'}
+              {resubmitOrderId ? t('buyNumberModal.footer.back') : step === 1 ? t('buyNumberModal.footer.cancel') : t('buyNumberModal.footer.back')}
             </button>
 
             {step === 1 && selected && (
@@ -1481,7 +1481,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
                 onClick={() => req.needsDocs ? setStep(2) : hasRegulatoryStep ? setStep(5) : setStep(4)}
                 className="flex items-center gap-2 px-5 py-2 bg-brand-primary text-white text-sm font-bold rounded-xl hover:bg-brand-primary/90 transition-colors border-none cursor-pointer"
               >
-                Continuar <ChevronRight size={16} />
+                {t('buyNumberModal.footer.continue')} <ChevronRight size={16} />
               </button>
             )}
 
@@ -1492,7 +1492,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
                 className="flex items-center gap-2 px-5 py-2 bg-brand-primary text-white text-sm font-bold rounded-xl hover:bg-brand-primary/90 disabled:opacity-50 transition-colors border-none cursor-pointer"
               >
                 {submitting ? <RefreshCw size={14} className="animate-spin" /> : null}
-                Próximo: Documentos <ChevronRight size={16} />
+                {t('buyNumberModal.footer.nextDocuments')} <ChevronRight size={16} />
               </button>
             )}
 
@@ -1502,7 +1502,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
                 disabled={!allDocsUploaded}
                 className="flex items-center gap-2 px-5 py-2 bg-brand-primary text-white text-sm font-bold rounded-xl hover:bg-brand-primary/90 disabled:opacity-50 transition-colors border-none cursor-pointer"
               >
-                Revisar pedido <ChevronRight size={16} />
+                {t('buyNumberModal.footer.reviewOrder')} <ChevronRight size={16} />
               </button>
             )}
 
@@ -1513,7 +1513,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
                 className="flex items-center gap-2 px-5 py-2 bg-brand-primary text-white text-sm font-bold rounded-xl hover:bg-brand-primary/90 disabled:opacity-50 transition-colors border-none cursor-pointer"
               >
                 {submitting ? <RefreshCw size={14} className="animate-spin" /> : <Phone size={14} />}
-                Comprar número
+                {t('buyNumberModal.footer.buyNumber')}
               </button>
             )}
 
@@ -1524,7 +1524,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
                 className="flex items-center gap-2 px-5 py-2 bg-brand-primary text-white text-sm font-bold rounded-xl hover:bg-brand-primary/90 disabled:opacity-50 transition-colors border-none cursor-pointer"
               >
                 {submitting ? <RefreshCw size={14} className="animate-spin" /> : <FileText size={14} />}
-                Enviar para análise
+                {t('buyNumberModal.footer.submitForReview')}
               </button>
             )}
 
@@ -1535,7 +1535,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
                 className="flex items-center gap-2 px-5 py-2 bg-brand-primary text-white text-sm font-bold rounded-xl hover:bg-brand-primary/90 disabled:opacity-50 transition-colors border-none cursor-pointer"
               >
                 {submitting ? <RefreshCw size={14} className="animate-spin" /> : null}
-                {resubmitOrderId ? 'Reenviar Informações' : 'Continuar'} <ChevronRight size={16} />
+                {resubmitOrderId ? t('buyNumberModal.footer.resendInfo') : t('buyNumberModal.footer.continue')} <ChevronRight size={16} />
               </button>
             )}
           </div>
@@ -1547,7 +1547,7 @@ export function BuyNumberModal({ tenantId, onClose, onPurchased, showToast, resu
               onClick={onClose}
               className="px-5 py-2 bg-graphite-100 text-graphite-700 text-sm font-bold rounded-xl hover:bg-graphite-200 transition-colors border-none cursor-pointer"
             >
-              Fechar
+              {t('buyNumberModal.footer.close')}
             </button>
           </div>
         )}

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useOutboundQueue } from '../../hooks/useOutboundQueue';
 import type { OutboundQueueRow } from '../../hooks/useOutboundQueue';
 import {
@@ -22,11 +23,12 @@ import {
 
 // Badge de canal de notificação
 function ChannelBadge({ channel }: { channel?: string }) {
+    const { t } = useTranslation('automations');
     const map: Record<string, { icon: React.ElementType; label: string; className: string }> = {
-        whatsapp: { icon: MessageCircle, label: 'WhatsApp', className: 'text-green-600 bg-green-50 border-green-100' },
-        instagram: { icon: Instagram,    label: 'Instagram', className: 'text-pink-500 bg-pink-50 border-pink-100' },
-        facebook:  { icon: Facebook,     label: 'Messenger', className: 'text-blue-600 bg-blue-50 border-blue-100' },
-        sms:       { icon: Phone,        label: 'SMS',       className: 'text-graphite-600 bg-ice-50 border-ice-100' },
+        whatsapp: { icon: MessageCircle, label: t('filaAutomacoes.channelBadge.whatsapp'), className: 'text-green-600 bg-green-50 border-green-100' },
+        instagram: { icon: Instagram,    label: t('filaAutomacoes.channelBadge.instagram'), className: 'text-pink-500 bg-pink-50 border-pink-100' },
+        facebook:  { icon: Facebook,     label: t('filaAutomacoes.channelBadge.facebook'), className: 'text-blue-600 bg-blue-50 border-blue-100' },
+        sms:       { icon: Phone,        label: t('filaAutomacoes.channelBadge.sms'),       className: 'text-graphite-600 bg-ice-50 border-ice-100' },
     };
     const ch = map[channel ?? 'whatsapp'] ?? map['whatsapp'];
     return (
@@ -48,6 +50,7 @@ interface FilaAutomacoesProps {
 }
 
 export const FilaAutomacoes: React.FC<FilaAutomacoesProps> = ({ tenantId, dateRange, onViewJourney }) => {
+    const { t } = useTranslation('automations');
     const [page, setPage] = useState(1);
     const [filters, setFilters] = useState<any>({
         status: 'all',
@@ -73,25 +76,25 @@ export const FilaAutomacoes: React.FC<FilaAutomacoesProps> = ({ tenantId, dateRa
 
     const statusBadge = (status: string) => {
         switch (status) {
-            case 'pending': return <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-wider"><Clock size={12} /> Pendente</span>;
-            case 'processing': return <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-50 text-orange-600 text-[10px] font-black uppercase tracking-wider animate-pulse"><RefreshCcw size={12} className="animate-spin" /> Processando</span>;
-            case 'sent': return <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-wider"><CheckCircle size={12} /> Enviado</span>;
-            case 'failed': return <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-50 text-rose-600 text-[10px] font-black uppercase tracking-wider"><AlertCircle size={12} /> Falhou</span>;
-            case 'cancelled': return <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-ice-100 text-graphite-300 text-[10px] font-black uppercase tracking-wider"><Ban size={12} /> Cancelado</span>;
+            case 'pending': return <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-wider"><Clock size={12} /> {t('filaAutomacoes.status.pending')}</span>;
+            case 'processing': return <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-50 text-orange-600 text-[10px] font-black uppercase tracking-wider animate-pulse"><RefreshCcw size={12} className="animate-spin" /> {t('filaAutomacoes.status.processing')}</span>;
+            case 'sent': return <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-wider"><CheckCircle size={12} /> {t('filaAutomacoes.status.sent')}</span>;
+            case 'failed': return <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-50 text-rose-600 text-[10px] font-black uppercase tracking-wider"><AlertCircle size={12} /> {t('filaAutomacoes.status.failed')}</span>;
+            case 'cancelled': return <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-ice-100 text-graphite-300 text-[10px] font-black uppercase tracking-wider"><Ban size={12} /> {t('filaAutomacoes.status.cancelled')}</span>;
             default: return null;
         }
     };
 
     const typeBadge = (type: string) => {
         const labels: any = {
-            follow_up: { label: 'Follow-up', color: 'bg-brand-primary/10 text-brand-primary' },
-            booking_confirmed: { label: 'Agendado', color: 'bg-emerald-50 text-emerald-600' },
-            reminder_48h: { label: 'Confirmação 48h', color: 'bg-amber-50 text-amber-600' },
-            reminder_24h: { label: 'Confirmação 24h', color: 'bg-yellow-50 text-yellow-600' },
-            reminder_2h: { label: 'Lembrete 2h', color: 'bg-orange-50 text-orange-600' },
-            post_consultation: { label: 'Pós-Consulta', color: 'bg-purple-50 text-purple-600' },
-            nps: { label: 'NPS/Feedback', color: 'bg-blue-50 text-blue-600' },
-            reactivation: { label: 'Reativação', color: 'bg-pink-50 text-pink-600' }
+            follow_up: { label: t('filaAutomacoes.type.followUp'), color: 'bg-brand-primary/10 text-brand-primary' },
+            booking_confirmed: { label: t('filaAutomacoes.type.bookingConfirmed'), color: 'bg-emerald-50 text-emerald-600' },
+            reminder_48h: { label: t('filaAutomacoes.type.reminder48h'), color: 'bg-amber-50 text-amber-600' },
+            reminder_24h: { label: t('filaAutomacoes.type.reminder24h'), color: 'bg-yellow-50 text-yellow-600' },
+            reminder_2h: { label: t('filaAutomacoes.type.reminder2h'), color: 'bg-orange-50 text-orange-600' },
+            post_consultation: { label: t('filaAutomacoes.type.postConsultation'), color: 'bg-purple-50 text-purple-600' },
+            nps: { label: t('filaAutomacoes.type.nps'), color: 'bg-blue-50 text-blue-600' },
+            reactivation: { label: t('filaAutomacoes.type.reactivation'), color: 'bg-pink-50 text-pink-600' }
         };
         const config = labels[type] || { label: type, color: 'bg-ice-50 text-graphite-400' };
         return <span className={clsx("px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-tight", config.color)}>{config.label}</span>;
@@ -110,9 +113,9 @@ export const FilaAutomacoes: React.FC<FilaAutomacoesProps> = ({ tenantId, dateRa
                 <div className="flex items-center gap-3">
                     <div className="relative">
                         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-graphite-300" />
-                        <input 
-                            type="text" 
-                            placeholder="Buscar paciente..."
+                        <input
+                            type="text"
+                            placeholder={t('filaAutomacoes.toolbar.searchPlaceholder')}
                             className="pl-10 pr-4 py-2 bg-white border border-ice-100 rounded-2xl text-xs font-bold w-64 outline-none focus:border-brand-primary/30 transition-all placeholder:text-graphite-200"
                             value={filters.search}
                             onChange={(e) => setFiltersAndReset({...filters, search: e.target.value})}
@@ -126,26 +129,26 @@ export const FilaAutomacoes: React.FC<FilaAutomacoesProps> = ({ tenantId, dateRa
                         value={filters.status}
                         onChange={(e) => setFiltersAndReset({...filters, status: e.target.value})}
                     >
-                        <option value="all">Todos os Status</option>
-                        <option value="pending">Pendentes</option>
-                        <option value="sent">Enviados</option>
-                        <option value="failed">Falhas</option>
-                        <option value="cancelled">Cancelados</option>
+                        <option value="all">{t('filaAutomacoes.toolbar.allStatuses')}</option>
+                        <option value="pending">{t('filaAutomacoes.toolbar.pending')}</option>
+                        <option value="sent">{t('filaAutomacoes.toolbar.sent')}</option>
+                        <option value="failed">{t('filaAutomacoes.toolbar.failed')}</option>
+                        <option value="cancelled">{t('filaAutomacoes.toolbar.cancelled')}</option>
                     </select>
 
-                    <select 
+                    <select
                         className="bg-white border border-ice-100 rounded-2xl px-4 py-2 text-xs font-bold outline-none cursor-pointer hover:bg-ice-50"
                         value={filters.message_type}
                         onChange={(e) => setFiltersAndReset({...filters, message_type: e.target.value})}
                     >
-                        <option value="all">Todos os Tipos</option>
-                        <option value="follow_up">Follow-ups</option>
+                        <option value="all">{t('filaAutomacoes.toolbar.allTypes')}</option>
+                        <option value="follow_up">{t('filaAutomacoes.toolbar.followUps')}</option>
 
-                        <option value="reminder_48h">Confirmação 48h</option>
-                        <option value="reminder_24h">Confirmação 24h</option>
-                        <option value="reminder_2h">Lembrete 2h</option>
-                        <option value="nps">NPS</option>
-                        <option value="reactivation">Reativação</option>
+                        <option value="reminder_48h">{t('filaAutomacoes.toolbar.reminder48h')}</option>
+                        <option value="reminder_24h">{t('filaAutomacoes.toolbar.reminder24h')}</option>
+                        <option value="reminder_2h">{t('filaAutomacoes.toolbar.reminder2h')}</option>
+                        <option value="nps">{t('filaAutomacoes.toolbar.nps')}</option>
+                        <option value="reactivation">{t('filaAutomacoes.toolbar.reactivation')}</option>
                     </select>
                 </div>
             </div>
@@ -155,12 +158,12 @@ export const FilaAutomacoes: React.FC<FilaAutomacoesProps> = ({ tenantId, dateRa
                 <table className="w-full text-left border-collapse">
                     <thead>
                         <tr className="bg-ice-25/50 border-b border-ice-100">
-                            <th className="px-6 py-4 text-[10px] font-black uppercase text-graphite-300 tracking-widest leading-none">Status</th>
-                            <th className="px-6 py-4 text-[10px] font-black uppercase text-graphite-300 tracking-widest leading-none">Paciente</th>
-                            <th className="px-6 py-4 text-[10px] font-black uppercase text-graphite-300 tracking-widest leading-none">Canal</th>
-                            <th className="px-6 py-4 text-[10px] font-black uppercase text-graphite-300 tracking-widest leading-none">Tipo</th>
-                            <th className="px-6 py-4 text-[10px] font-black uppercase text-graphite-300 tracking-widest leading-none">Agendado Para</th>
-                            <th className="px-6 py-4 text-[10px] font-black uppercase text-graphite-300 tracking-widest leading-none text-right">Ações</th>
+                            <th className="px-6 py-4 text-[10px] font-black uppercase text-graphite-300 tracking-widest leading-none">{t('filaAutomacoes.table.status')}</th>
+                            <th className="px-6 py-4 text-[10px] font-black uppercase text-graphite-300 tracking-widest leading-none">{t('filaAutomacoes.table.patient')}</th>
+                            <th className="px-6 py-4 text-[10px] font-black uppercase text-graphite-300 tracking-widest leading-none">{t('filaAutomacoes.table.channel')}</th>
+                            <th className="px-6 py-4 text-[10px] font-black uppercase text-graphite-300 tracking-widest leading-none">{t('filaAutomacoes.table.type')}</th>
+                            <th className="px-6 py-4 text-[10px] font-black uppercase text-graphite-300 tracking-widest leading-none">{t('filaAutomacoes.table.scheduledFor')}</th>
+                            <th className="px-6 py-4 text-[10px] font-black uppercase text-graphite-300 tracking-widest leading-none text-right">{t('filaAutomacoes.table.actions')}</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-ice-50">
@@ -173,14 +176,14 @@ export const FilaAutomacoes: React.FC<FilaAutomacoesProps> = ({ tenantId, dateRa
                         ) : data.length === 0 ? (
                             <tr>
                                 <td colSpan={6} className="py-24 text-center">
-                                    <p className="text-sm font-bold text-graphite-300">Nenhuma automação encontrada para os filtros selecionados.</p>
+                                    <p className="text-sm font-bold text-graphite-300">{t('filaAutomacoes.table.noResults')}</p>
                                 </td>
                             </tr>
                         ) : data.map((msg) => (
                             <tr key={msg.id} className="hover:bg-ice-25/50 transition-all group">
                                 <td className="px-6 py-4">{statusBadge(msg.status)}</td>
                                 <td className="px-6 py-4">
-                                    <div className="flex flex-col cursor-pointer" onClick={() => onViewJourney(msg.patient_phone, msg.patient_name || 'paciente')}>
+                                    <div className="flex flex-col cursor-pointer" onClick={() => onViewJourney(msg.patient_phone, msg.patient_name || t('filaAutomacoes.defaultPatientName'))}>
                                         <span className="text-xs font-black text-graphite-900 leading-tight group-hover:text-brand-primary transition-colors underline decoration-transparent group-hover:decoration-brand-primary/30 underline-offset-4">
                                             {msg.patient_name || formatPhone(msg.patient_phone)}
                                         </span>
@@ -194,7 +197,7 @@ export const FilaAutomacoes: React.FC<FilaAutomacoesProps> = ({ tenantId, dateRa
                                     <div className="flex flex-col gap-1 items-start">
                                         {typeBadge(msg.message_type)}
                                         {msg.is_edited && (
-                                            <span className="text-[9px] font-black text-amber-500 uppercase tracking-tighter">✎ Editado</span>
+                                            <span className="text-[9px] font-black text-amber-500 uppercase tracking-tighter">✎ {t('filaAutomacoes.table.edited')}</span>
                                         )}
                                     </div>
                                 </td>
@@ -204,7 +207,7 @@ export const FilaAutomacoes: React.FC<FilaAutomacoesProps> = ({ tenantId, dateRa
                                             {format(new Date(msg.scheduled_at), "dd 'de' MMMM", { locale: ptBR })}
                                         </span>
                                         <span className="text-[10px] font-bold text-graphite-400">
-                                            às {format(new Date(msg.scheduled_at), "HH:mm")} ({formatDistanceToNow(new Date(msg.scheduled_at), { addSuffix: true, locale: ptBR })})
+                                            {t('filaAutomacoes.table.at')} {format(new Date(msg.scheduled_at), "HH:mm")} ({formatDistanceToNow(new Date(msg.scheduled_at), { addSuffix: true, locale: ptBR })})
                                         </span>
                                     </div>
                                 </td>
@@ -215,21 +218,21 @@ export const FilaAutomacoes: React.FC<FilaAutomacoesProps> = ({ tenantId, dateRa
                                                 <button 
                                                     onClick={() => sendNow(msg.id)}
                                                     className="p-2 hover:bg-brand-primary/10 text-brand-primary rounded-xl transition-all border-none bg-transparent cursor-pointer"
-                                                    title="Enviar Agora"
+                                                    title={t('filaAutomacoes.actions.sendNow')}
                                                 >
                                                     <Send size={15} />
                                                 </button>
-                                                <button 
+                                                <button
                                                     onClick={() => { setEditingMsg(msg); setEditValue(msg.template_vars?.override_message || ''); }}
                                                     className="p-2 hover:bg-blue-50 text-blue-600 rounded-xl transition-all border-none bg-transparent cursor-pointer"
-                                                    title="Editar Texto"
+                                                    title={t('filaAutomacoes.actions.editText')}
                                                 >
                                                     <Edit size={15} />
                                                 </button>
-                                                <button 
+                                                <button
                                                     onClick={() => cancel(msg.id)}
                                                     className="p-2 hover:bg-rose-50 text-rose-500 rounded-xl transition-all border-none bg-transparent cursor-pointer"
-                                                    title="Cancelar"
+                                                    title={t('filaAutomacoes.actions.cancel')}
                                                 >
                                                     <Ban size={15} />
                                                 </button>
@@ -239,7 +242,7 @@ export const FilaAutomacoes: React.FC<FilaAutomacoesProps> = ({ tenantId, dateRa
                                             <button 
                                                 onClick={() => retry(msg.id)}
                                                 className="p-2 hover:bg-orange-50 text-orange-600 rounded-xl transition-all border-none bg-transparent cursor-pointer"
-                                                title="Retentar Envio"
+                                                title={t('filaAutomacoes.actions.retry')}
                                             >
                                                 <RefreshCcw size={15} />
                                             </button>
@@ -247,7 +250,7 @@ export const FilaAutomacoes: React.FC<FilaAutomacoesProps> = ({ tenantId, dateRa
                                         {msg.status === 'sent' && (
                                             <button 
                                                 className="p-2 hover:bg-ice-100 text-graphite-400 rounded-xl transition-all border-none bg-transparent cursor-pointer"
-                                                title="Ver Mensagem"
+                                                title={t('filaAutomacoes.actions.viewMessage')}
                                             >
                                                 <Eye size={15} />
                                             </button>
@@ -269,7 +272,7 @@ export const FilaAutomacoes: React.FC<FilaAutomacoesProps> = ({ tenantId, dateRa
             {/* Pagination / Footer */}
             <div className="p-6 border-t border-ice-50 flex items-center justify-between bg-ice-25/30">
                 <p className="text-[10px] font-black uppercase text-graphite-300 tracking-widest">
-                    Página {page} de {Math.max(1, Math.ceil(count / 15))} · Total {count} registros
+                    {t('filaAutomacoes.pagination.summary', { page, totalPages: Math.max(1, Math.ceil(count / 15)), count })}
                 </p>
                 
                 <div className="flex items-center gap-2">
@@ -297,29 +300,29 @@ export const FilaAutomacoes: React.FC<FilaAutomacoesProps> = ({ tenantId, dateRa
                         <div className="absolute top-0 left-0 w-full h-2 bg-brand-primary" />
                         
                         <div className="mb-6">
-                            <h3 className="text-xl font-black text-graphite-900 tracking-tighter">Editar Mensagem</h3>
-                            <p className="text-sm font-bold text-graphite-400">Esta mensagem será enviada exatamente como escrita abaixo.</p>
+                            <h3 className="text-xl font-black text-graphite-900 tracking-tighter">{t('filaAutomacoes.editModal.title')}</h3>
+                            <p className="text-sm font-bold text-graphite-400">{t('filaAutomacoes.editModal.subtitle')}</p>
                         </div>
 
-                        <textarea 
+                        <textarea
                             className="w-full h-64 p-6 bg-ice-50 border border-ice-100 rounded-[32px] text-sm font-bold text-graphite-700 outline-none focus:border-brand-primary/30 transition-all resize-none shadow-inner"
                             value={editValue}
                             onChange={(e) => setEditValue(e.target.value)}
-                            placeholder="Escreva a mensagem personalizada..."
+                            placeholder={t('filaAutomacoes.editModal.placeholder')}
                         />
 
                         <div className="mt-8 flex items-center justify-end gap-3">
-                            <button 
+                            <button
                                 onClick={() => setEditingMsg(null)}
                                 className="px-8 py-4 bg-ice-50 text-graphite-600 font-bold rounded-2xl transition-all border-none cursor-pointer hover:bg-ice-100"
                             >
-                                Descartar
+                                {t('filaAutomacoes.editModal.discard')}
                             </button>
-                            <button 
+                            <button
                                 onClick={handleEditSave}
                                 className="px-8 py-4 bg-brand-primary text-white font-black rounded-2xl shadow-lg shadow-brand-primary/20 hover:scale-[1.02] active:scale-95 transition-all border-none cursor-pointer flex items-center gap-2"
                             >
-                                <CheckCircle size={20} /> Salvar e Enfileirar
+                                <CheckCircle size={20} /> {t('filaAutomacoes.editModal.save')}
                             </button>
                         </div>
                     </div>

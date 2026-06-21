@@ -1,5 +1,6 @@
 import React from 'react';
-import { 
+import { useTranslation } from 'react-i18next';
+import {
     BarChart, 
     Bar, 
     XAxis, 
@@ -29,6 +30,7 @@ interface DesempenhoAutomacoesProps {
 }
 
 export const DesempenhoAutomacoes: React.FC<DesempenhoAutomacoesProps> = ({ tenantId, dateRange }) => {
+    const { t } = useTranslation('automations');
     const { metrics, isLoading } = useAutomacaoMetrics({ tenantId, dateRange });
 
     if (isLoading || !metrics) {
@@ -53,7 +55,7 @@ export const DesempenhoAutomacoes: React.FC<DesempenhoAutomacoesProps> = ({ tena
                         trend > 0 ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"
                     )}>
                         {trend > 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
-                        {Math.abs(trend)}% vs 30d
+                        {Math.abs(trend)}{t('desempenhoAutomacoes.kpi.trendSuffix')}
                     </span>
                 )}
             </div>
@@ -70,10 +72,10 @@ export const DesempenhoAutomacoes: React.FC<DesempenhoAutomacoesProps> = ({ tena
         <div className="space-y-8 pb-12">
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 px-1">
-                <KpiCard title="Follow-ups Enviados" value={metrics.followUpsSent} unit="msg" icon={Zap} color="bg-brand-primary" trend={metrics.trends?.followUps} />
-                <KpiCard title="Taxa de Conversão" value={metrics.conversionRate} unit="%" icon={TrendingUp} color="bg-emerald-500" trend={metrics.trends?.conversion} />
-                <KpiCard title="No-Shows Prevenidos" value={metrics.noShowsPrevented} unit="pacientes" icon={Calendar} color="bg-amber-500" trend={metrics.trends?.noShows} />
-                <KpiCard title="NPS Médio" value={metrics.npsAverage} unit="/ 10" icon={Star} color="bg-blue-500" />
+                <KpiCard title={t('desempenhoAutomacoes.kpi.followUpsSent')} value={metrics.followUpsSent} unit={t('desempenhoAutomacoes.kpi.followUpsUnit')} icon={Zap} color="bg-brand-primary" trend={metrics.trends?.followUps} />
+                <KpiCard title={t('desempenhoAutomacoes.kpi.conversionRate')} value={metrics.conversionRate} unit="%" icon={TrendingUp} color="bg-emerald-500" trend={metrics.trends?.conversion} />
+                <KpiCard title={t('desempenhoAutomacoes.kpi.noShowsPrevented')} value={metrics.noShowsPrevented} unit={t('desempenhoAutomacoes.kpi.noShowsUnit')} icon={Calendar} color="bg-amber-500" trend={metrics.trends?.noShows} />
+                <KpiCard title={t('desempenhoAutomacoes.kpi.npsAverage')} value={metrics.npsAverage} unit={t('desempenhoAutomacoes.kpi.npsUnit')} icon={Star} color="bg-blue-500" />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -81,10 +83,10 @@ export const DesempenhoAutomacoes: React.FC<DesempenhoAutomacoesProps> = ({ tena
                 <div className="lg:col-span-2 bg-white rounded-[40px] p-10 border border-ice-100 shadow-sm flex flex-col">
                     <div className="flex items-center justify-between mb-10">
                         <div>
-                            <h4 className="text-lg font-black text-graphite-900 tracking-tighter leading-tight">Funil de Conversão</h4>
-                            <p className="text-xs font-bold text-graphite-400">Eficiência de fechamento por etapa do lead</p>
+                            <h4 className="text-lg font-black text-graphite-900 tracking-tighter leading-tight">{t('desempenhoAutomacoes.funnelChart.title')}</h4>
+                            <p className="text-xs font-bold text-graphite-400">{t('desempenhoAutomacoes.funnelChart.subtitle')}</p>
                         </div>
-                        <div className="px-4 py-2 bg-ice-50 rounded-xl text-[10px] font-black uppercase text-graphite-400 tracking-widest leading-none">Últimos 30 Dias</div>
+                        <div className="px-4 py-2 bg-ice-50 rounded-xl text-[10px] font-black uppercase text-graphite-400 tracking-widest leading-none">{t('desempenhoAutomacoes.funnelChart.last30Days')}</div>
                     </div>
                     
                     <div className="flex-1 min-h-[400px]">
@@ -122,8 +124,8 @@ export const DesempenhoAutomacoes: React.FC<DesempenhoAutomacoesProps> = ({ tena
                 {/* NPS Distribution */}
                 <div className="bg-white rounded-[40px] p-10 border border-ice-100 shadow-sm flex flex-col">
                     <div className="mb-10">
-                        <h4 className="text-lg font-black text-graphite-900 tracking-tighter leading-tight">Distribuição NPS</h4>
-                        <p className="text-xs font-bold text-graphite-400">Distribuição de satisfação dos pacientes</p>
+                        <h4 className="text-lg font-black text-graphite-900 tracking-tighter leading-tight">{t('desempenhoAutomacoes.npsDistribution.title')}</h4>
+                        <p className="text-xs font-bold text-graphite-400">{t('desempenhoAutomacoes.npsDistribution.subtitle')}</p>
                     </div>
 
                     <div className="flex-1 min-h-[300px]">
@@ -141,7 +143,7 @@ export const DesempenhoAutomacoes: React.FC<DesempenhoAutomacoesProps> = ({ tena
 
                     <div className="mt-8 space-y-3 pt-6 border-t border-ice-50">
                         <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-black uppercase text-graphite-300 tracking-widest">Promotores (9-10)</span>
+                            <span className="text-[10px] font-black uppercase text-graphite-300 tracking-widest">{t('desempenhoAutomacoes.npsDistribution.promoters')}</span>
                             <span className="text-sm font-black text-emerald-600">{metrics.promotersPct}%</span>
                         </div>
                         <div className="w-full h-2 bg-ice-50 rounded-full overflow-hidden">
@@ -155,8 +157,8 @@ export const DesempenhoAutomacoes: React.FC<DesempenhoAutomacoesProps> = ({ tena
             <div className="bg-white rounded-[40px] p-10 border border-ice-100 shadow-sm">
                 <div className="flex items-center justify-between mb-12">
                     <div>
-                        <h4 className="text-lg font-black text-graphite-900 tracking-tighter leading-tight">Volume de Interações Autônomas</h4>
-                        <p className="text-xs font-bold text-graphite-400">Quantidade diária de mensagens enviadas por tipo</p>
+                        <h4 className="text-lg font-black text-graphite-900 tracking-tighter leading-tight">{t('desempenhoAutomacoes.timeSeries.title')}</h4>
+                        <p className="text-xs font-bold text-graphite-400">{t('desempenhoAutomacoes.timeSeries.subtitle')}</p>
                     </div>
                 </div>
 
@@ -176,9 +178,9 @@ export const DesempenhoAutomacoes: React.FC<DesempenhoAutomacoesProps> = ({ tena
                                 itemStyle={{ fontWeight: 'black', fontSize: '11px' }}
                             />
                             <Legend iconType="circle" wrapperStyle={{ paddingTop: '32px', fontSize: '10px', fontWeight: 'black', textTransform: 'uppercase', letterSpacing: '0.1em' }} />
-                            <Line type="monotone" dataKey="follow_up" name="Follow-up" stroke="#3B82F6" strokeWidth={4} dot={{ r: 4, fill: '#3B82F6', strokeWidth: 0 }} activeDot={{ r: 8, strokeWidth: 0 }} />
-                            <Line type="monotone" dataKey="reminder" name="Lembretes" stroke="#F59E0B" strokeWidth={4} dot={{ r: 4, fill: '#F59E0B', strokeWidth: 0 }} />
-                            <Line type="monotone" dataKey="post_consultation" name="Pós-Consulta" stroke="#8B5CF6" strokeWidth={4} dot={{ r: 4, fill: '#8B5CF6', strokeWidth: 0 }} />
+                            <Line type="monotone" dataKey="follow_up" name={t('desempenhoAutomacoes.timeSeries.followUp')} stroke="#3B82F6" strokeWidth={4} dot={{ r: 4, fill: '#3B82F6', strokeWidth: 0 }} activeDot={{ r: 8, strokeWidth: 0 }} />
+                            <Line type="monotone" dataKey="reminder" name={t('desempenhoAutomacoes.timeSeries.reminder')} stroke="#F59E0B" strokeWidth={4} dot={{ r: 4, fill: '#F59E0B', strokeWidth: 0 }} />
+                            <Line type="monotone" dataKey="post_consultation" name={t('desempenhoAutomacoes.timeSeries.postConsultation')} stroke="#8B5CF6" strokeWidth={4} dot={{ r: 4, fill: '#8B5CF6', strokeWidth: 0 }} />
                         </LineChart>
                     </ResponsiveContainer>
                 </div>
@@ -187,25 +189,25 @@ export const DesempenhoAutomacoes: React.FC<DesempenhoAutomacoesProps> = ({ tena
             {/* Top Templates Table */}
             <div className="bg-white rounded-[40px] p-10 border border-ice-100 shadow-sm overflow-hidden">
                 <div className="mb-10">
-                    <h4 className="text-lg font-black text-graphite-900 tracking-tighter leading-tight">Eficácia por Template</h4>
-                    <p className="text-xs font-bold text-graphite-400">Qual mensagem está gerando mais agendamentos?</p>
+                    <h4 className="text-lg font-black text-graphite-900 tracking-tighter leading-tight">{t('desempenhoAutomacoes.topTemplates.title')}</h4>
+                    <p className="text-xs font-bold text-graphite-400">{t('desempenhoAutomacoes.topTemplates.subtitle')}</p>
                 </div>
 
                 <table className="w-full text-left">
                     <thead>
                         <tr className="border-b border-ice-50">
-                            <th className="pb-4 text-[10px] font-black uppercase text-graphite-300 tracking-widest leading-none">Template</th>
-                            <th className="pb-4 text-[10px] font-black uppercase text-graphite-300 tracking-widest leading-none">Enviados</th>
-                            <th className="pb-4 text-[10px] font-black uppercase text-graphite-300 tracking-widest leading-none">Falhas</th>
-                            <th className="pb-4 text-[10px] font-black uppercase text-graphite-300 tracking-widest leading-none">Pendentes</th>
-                            <th className="pb-4 text-[10px] font-black uppercase text-graphite-300 tracking-widest leading-none text-right">Taxa Entrega</th>
+                            <th className="pb-4 text-[10px] font-black uppercase text-graphite-300 tracking-widest leading-none">{t('desempenhoAutomacoes.topTemplates.template')}</th>
+                            <th className="pb-4 text-[10px] font-black uppercase text-graphite-300 tracking-widest leading-none">{t('desempenhoAutomacoes.topTemplates.sent')}</th>
+                            <th className="pb-4 text-[10px] font-black uppercase text-graphite-300 tracking-widest leading-none">{t('desempenhoAutomacoes.topTemplates.failed')}</th>
+                            <th className="pb-4 text-[10px] font-black uppercase text-graphite-300 tracking-widest leading-none">{t('desempenhoAutomacoes.topTemplates.pending')}</th>
+                            <th className="pb-4 text-[10px] font-black uppercase text-graphite-300 tracking-widest leading-none text-right">{t('desempenhoAutomacoes.topTemplates.deliveryRate')}</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-ice-50">
                         {metrics.topTemplates.length === 0 ? (
                             <tr>
                                 <td colSpan={5} className="py-12 text-center text-xs font-bold text-graphite-300">
-                                    Nenhuma automação enviada no período selecionado.
+                                    {t('desempenhoAutomacoes.topTemplates.noResults')}
                                 </td>
                             </tr>
                         ) : metrics.topTemplates.map((template: any) => (

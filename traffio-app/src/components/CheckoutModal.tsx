@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { 
+import { useTranslation } from 'react-i18next';
+import {
     X, 
     CreditCard, 
     Building2, 
@@ -33,6 +34,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     initialAmount,
     tenantId
 }) => {
+    const { t } = useTranslation('agenda');
     const { showToast } = useToast();
     const [method, setMethod] = useState<PaymentMethod>('credit_card');
     const [amount, setAmount] = useState(initialAmount);
@@ -63,16 +65,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     { full_name: patientName } // Simplified patient data for demo
                 );
                 
-                showToast('success', 'Proposta de financiamento enviada com sucesso!');
+                showToast('success', t('checkoutModal.toasts.financingSent'));
                 setSuccess(true);
             } else {
                 // Execute Pagar.me Flow (Simulation for now)
                 await new Promise(resolve => setTimeout(resolve, 2000));
-                showToast('success', 'Checkout Pagar.me iniciado!');
+                showToast('success', t('checkoutModal.toasts.checkoutStarted'));
                 setSuccess(true);
             }
         } catch (error: any) {
-            showToast('error', error.message || 'Erro ao processar pagamento.');
+            showToast('error', error.message || t('checkoutModal.errors.paymentFailed'));
         } finally {
             setLoading(false);
         }
@@ -99,8 +101,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 {/* Header */}
                 <div className="p-8 border-b border-ice-50 flex items-center justify-between">
                     <div>
-                        <h3 className="text-2xl font-black text-graphite-900 tracking-tight">Receber Pagamento</h3>
-                        <p className="text-sm text-graphite-400 font-medium">Paciente: <span className="text-graphite-900 font-bold">{patientName}</span></p>
+                        <h3 className="text-2xl font-black text-graphite-900 tracking-tight">{t('checkoutModal.title')}</h3>
+                        <p className="text-sm text-graphite-400 font-medium">{t('checkoutModal.patientLabel')} <span className="text-graphite-900 font-bold">{patientName}</span></p>
                     </div>
                     <button 
                         onClick={onClose}
@@ -122,7 +124,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                             >
                                 {/* Step Indicators if complex, else just amount box */}
                                 <div className="bg-brand-primary/5 p-6 rounded-3xl border border-brand-primary/10 text-center">
-                                    <p className="text-[10px] font-black text-brand-primary uppercase tracking-widest mb-1">Valor a Receber</p>
+                                    <p className="text-[10px] font-black text-brand-primary uppercase tracking-widest mb-1">{t('checkoutModal.amountToReceiveLabel')}</p>
                                     <div className="flex items-center justify-center gap-2">
                                         <span className="text-lg font-bold text-brand-primary mt-2">R$</span>
                                         <input 
@@ -145,8 +147,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                                         <div className={`p-3 w-fit rounded-2xl mb-4 ${method === 'credit_card' ? 'bg-brand-primary text-white' : 'bg-ice-50 text-graphite-400'}`}>
                                             <CreditCard size={24} />
                                         </div>
-                                        <h4 className="font-black text-graphite-900 mb-1">Cartão de Crédito</h4>
-                                        <p className="text-[10px] font-bold text-graphite-400 uppercase tracking-tighter">Até 21x Parcelado</p>
+                                        <h4 className="font-black text-graphite-900 mb-1">{t('checkoutModal.creditCard.title')}</h4>
+                                        <p className="text-[10px] font-bold text-graphite-400 uppercase tracking-tighter">{t('checkoutModal.creditCard.subtitle')}</p>
                                         {method === 'credit_card' && <div className="absolute top-4 right-4 text-brand-primary"><CheckCircle2 size={20} /></div>}
                                     </button>
 
@@ -159,8 +161,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                                         <div className={`p-3 w-fit rounded-2xl mb-4 ${method === 'financing' ? 'bg-emerald-500 text-white' : 'bg-ice-50 text-graphite-400'}`}>
                                             <Building2 size={24} />
                                         </div>
-                                        <h4 className="font-black text-graphite-900 mb-1">Financiamento</h4>
-                                        <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-tighter">Até 24x sem Cartão</p>
+                                        <h4 className="font-black text-graphite-900 mb-1">{t('checkoutModal.financing.title')}</h4>
+                                        <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-tighter">{t('checkoutModal.financing.subtitle')}</p>
                                         {method === 'financing' && <div className="absolute top-4 right-4 text-emerald-500"><CheckCircle2 size={20} /></div>}
                                     </button>
                                 </div>
@@ -168,7 +170,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                                 {/* Simulation Area */}
                                 <div className="space-y-4">
                                     <div className="flex items-center justify-between">
-                                        <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wider">Número de Parcelas</label>
+                                        <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wider">{t('checkoutModal.installmentsLabel')}</label>
                                         <span className="text-xs font-bold text-brand-primary">{installments}x de {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(amount / installments)}</span>
                                     </div>
                                     <input 
@@ -198,7 +200,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                                     {loading ? <Loader2 className="animate-spin" size={24} /> : (
                                         <>
                                             {method === 'credit_card' ? <Plus size={24} /> : <ChevronRight size={24} />}
-                                            <span>{method === 'credit_card' ? 'Gerar Link de Pagamento' : 'Enviar Estudo Dr. Cash'}</span>
+                                            <span>{method === 'credit_card' ? t('checkoutModal.generatePaymentLink') : t('checkoutModal.sendDrCashStudy')}</span>
                                         </>
                                     )}
                                 </button>
@@ -216,18 +218,18 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                                     <Check size={48} />
                                 </div>
                                 <div className="space-y-2">
-                                    <h4 className="text-2xl font-black text-graphite-900">Operação Iniciada!</h4>
+                                    <h4 className="text-2xl font-black text-graphite-900">{t('checkoutModal.operationStarted')}</h4>
                                     <p className="text-sm text-graphite-500 font-medium max-w-xs mx-auto">
-                                        {method === 'credit_card' 
-                                            ? 'Aguardando o paciente processar o pagamento no cartão via link.' 
-                                            : 'O paciente recebeu o link da proposta no celular para análise de crédito.'}
+                                        {method === 'credit_card'
+                                            ? t('checkoutModal.successCreditCard')
+                                            : t('checkoutModal.successFinancing')}
                                     </p>
                                 </div>
-                                <button 
+                                <button
                                     onClick={onClose}
                                     className="px-8 py-3 bg-ice-50 text-graphite-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-ice-100 transition-all border-none cursor-pointer"
                                 >
-                                    Fechar Janela
+                                    {t('checkoutModal.closeWindow')}
                                 </button>
                             </motion.div>
                         )}
@@ -238,9 +240,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 <div className="bg-ice-25 p-6 flex justify-center items-center gap-3">
                     <ShieldCheck size={18} className="text-emerald-500" />
                     <span className="text-[10px] font-black text-graphite-400 uppercase tracking-widest flex items-center gap-2">
-                        Ambiente Seguro PCI-DSS 
+                        {t('checkoutModal.securityBadge.environment')}
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                        Criptografia SSL
+                        {t('checkoutModal.securityBadge.encryption')}
                     </span>
                 </div>
             </motion.div>

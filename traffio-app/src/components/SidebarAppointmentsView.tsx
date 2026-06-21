@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ChevronLeft, Loader2, Calendar, Clock, MapPin, User, MoreVertical, XCircle, Send, Bell, CreditCard, ArrowRightLeft } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useTenant } from '../contexts/TenantContext';
@@ -26,18 +27,19 @@ interface SidebarAppointmentsViewProps {
   onReschedule: (appt: any) => void;
 }
 
-const STATUS_MAP: Record<string, { label: string; color: string }> = {
-  scheduled: { label: 'Agendado', color: 'bg-blue-100 text-blue-700' },
-  confirmed: { label: 'Confirmado', color: 'bg-green-100 text-green-700' },
-  completed: { label: 'Concluído', color: 'bg-gray-100 text-gray-600' },
-  canceled: { label: 'Cancelado', color: 'bg-red-100 text-red-600' },
-  no_show: { label: 'Faltou', color: 'bg-amber-100 text-amber-700' },
-  in_progress: { label: 'Em andamento', color: 'bg-purple-100 text-purple-700' },
-};
-
 export function SidebarAppointmentsView({ onBack, patientId, patientName, patientPhone, onSendMessage, onReschedule }: SidebarAppointmentsViewProps) {
+  const { t } = useTranslation('agenda');
   const { tenant } = useTenant();
   const { showToast } = useToast();
+
+  const STATUS_MAP: Record<string, { label: string; color: string }> = {
+    scheduled: { label: t('sidebarAppointmentsView.status.scheduled'), color: 'bg-blue-100 text-blue-700' },
+    confirmed: { label: t('sidebarAppointmentsView.status.confirmed'), color: 'bg-green-100 text-green-700' },
+    completed: { label: t('sidebarAppointmentsView.status.completed'), color: 'bg-gray-100 text-gray-600' },
+    canceled: { label: t('sidebarAppointmentsView.status.canceled'), color: 'bg-red-100 text-red-600' },
+    no_show: { label: t('sidebarAppointmentsView.status.no_show'), color: 'bg-amber-100 text-amber-700' },
+    in_progress: { label: t('sidebarAppointmentsView.status.in_progress'), color: 'bg-purple-100 text-purple-700' },
+  };
   const { formatDate, formatSlot } = useLocaleFormat();
   const [loading, setLoading] = useState(true);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -96,19 +98,19 @@ export function SidebarAppointmentsView({ onBack, patientId, patientName, patien
   const list = tab === 'upcoming' ? upcoming : history.slice(-10).reverse();
 
   const handleCancel = async (appt: Appointment) => {
-    if (!confirm(`Cancelar consulta de ${formatDate(appt.date)}?`)) return;
+    if (!confirm(t('sidebarAppointmentsView.confirmCancel', { date: formatDate(appt.date) }))) return;
     setCanceling(appt.id);
     try {
       const { error } = await supabase.rpc('rpc_cancel_appointment_by_patient', {
         p_appointment_id: appt.id,
         p_patient_phone: patientPhone,
-        p_reason: 'Cancelado pelo atendente via inbox'
+        p_reason: t('sidebarAppointmentsView.cancelReason')
       });
       if (error) throw error;
-      showToast('success', 'Consulta cancelada');
+      showToast('success', t('sidebarAppointmentsView.toasts.canceled'));
       loadAppointments();
     } catch (err: any) {
-      showToast('error', err.message || 'Erro ao cancelar');
+      showToast('error', err.message || t('sidebarAppointmentsView.errors.cancelFailed'));
     } finally {
       setCanceling(null);
       setActionMenu(null);
@@ -120,8 +122,8 @@ export function SidebarAppointmentsView({ onBack, patientId, patientName, patien
     const link = `${baseUrl}/checkin?apt=${appt.id}`;
     const firstName = patientName.split(' ')[0];
     const dateStr = formatDate(appt.date);
-    await onSendMessage(`Olá ${firstName}! 😊 Aqui está o link para a sua sala de espera virtual da consulta do dia ${dateStr}: ${link}`);
-    showToast('success', 'Link de check-in enviado!');
+    await onSendMessage(t('sidebarAppointmentsView.message.checkin', { name: firstName, date: dateStr, link }));
+    showToast('success', t('sidebarAppointmentsView.toasts.checkinSent'));
     setActionMenu(null);
   };
 
@@ -129,17 +131,17 @@ export function SidebarAppointmentsView({ onBack, patientId, patientName, patien
     const firstName = patientName.split(' ')[0];
     const dateStr = formatDate(appt.date);
     const time = formatSlot(appt.start_time);
-    const doctor = appt.doctors?.full_name || 'seu profissional';
-    await onSendMessage(`Olá ${firstName}! 😊 Lembrando da sua consulta com ${doctor} no dia ${dateStr} às ${time}. Nos vemos lá! 💙`);
-    showToast('success', 'Lembrete enviado!');
+    const doctor = appt.doctors?.full_name || t('sidebarAppointmentsView.yourProfessionalFallback');
+    await onSendMessage(t('sidebarAppointmentsView.message.reminder', { name: firstName, doctor, date: dateStr, time }));
+    showToast('success', t('sidebarAppointmentsView.toasts.reminderSent'));
     setActionMenu(null);
   };
 
   const handleSendPaymentLink = async (appt: Appointment) => {
     const link = `https://checkout.traffio.com/pay/${appt.id}`;
     const firstName = patientName.split(' ')[0];
-    await onSendMessage(`Olá ${firstName}! 😊 Aqui está o seu link para pagamento/confirmação da consulta: ${link}`);
-    showToast('success', 'Link de pagamento enviado!');
+    await onSendMessage(t('sidebarAppointmentsView.message.paymentLink', { name: firstName, link }));
+    showToast('success', t('sidebarAppointmentsView.toasts.paymentLinkSent'));
     setActionMenu(null);
   };
 
@@ -151,7 +153,7 @@ export function SidebarAppointmentsView({ onBack, patientId, patientName, patien
           <ChevronLeft className="w-5 h-5" />
         </button>
         <div className="text-white min-w-0">
-          <p className="text-xs font-bold opacity-80 uppercase tracking-tighter">Consultas</p>
+          <p className="text-xs font-bold opacity-80 uppercase tracking-tighter">{t('sidebarAppointmentsView.headerLabel')}</p>
           <p className="text-sm font-bold truncate max-w-[180px]">{patientName}</p>
         </div>
       </div>
@@ -164,7 +166,7 @@ export function SidebarAppointmentsView({ onBack, patientId, patientName, patien
             tab === 'upcoming' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500'
           )}
         >
-          Próximas ({upcoming.length})
+          {t('sidebarAppointmentsView.tabs.upcoming', { count: upcoming.length })}
         </button>
         <button
           onClick={() => setTab('history')}
@@ -172,7 +174,7 @@ export function SidebarAppointmentsView({ onBack, patientId, patientName, patien
             tab === 'history' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500'
           )}
         >
-          Histórico ({history.length})
+          {t('sidebarAppointmentsView.tabs.history', { count: history.length })}
         </button>
       </div>
 
@@ -183,7 +185,7 @@ export function SidebarAppointmentsView({ onBack, patientId, patientName, patien
         ) : list.length === 0 ? (
           <div className="py-12 text-center">
             <Calendar className="w-10 h-10 mx-auto text-gray-300 mb-2" />
-            <p className="text-xs text-gray-400">{tab === 'upcoming' ? 'Nenhuma consulta agendada' : 'Sem histórico'}</p>
+            <p className="text-xs text-gray-400">{tab === 'upcoming' ? t('sidebarAppointmentsView.empty.upcoming') : t('sidebarAppointmentsView.empty.history')}</p>
           </div>
         ) : (
           list.map(appt => {
@@ -192,10 +194,10 @@ export function SidebarAppointmentsView({ onBack, patientId, patientName, patien
               <div key={appt.id} className="bg-white border border-gray-100 rounded-xl p-3 relative">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold text-gray-900">{appt.appointment_types?.name || 'Consulta'}</p>
+                    <p className="text-xs font-bold text-gray-900">{appt.appointment_types?.name || t('sidebarAppointmentsView.consultationFallback')}</p>
                     <div className="flex items-center gap-1.5 mt-1 text-[11px] text-gray-500">
                       <User size={11} className="shrink-0" />
-                      <span className="truncate">{appt.doctors?.full_name || 'Profissional'}</span>
+                      <span className="truncate">{appt.doctors?.full_name || t('sidebarAppointmentsView.professionalFallback')}</span>
                     </div>
                     {appt.locations?.name && (
                       <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-gray-500">
@@ -205,7 +207,7 @@ export function SidebarAppointmentsView({ onBack, patientId, patientName, patien
                     )}
                     <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-gray-500">
                       <Clock size={11} className="shrink-0" />
-                      <span>{formatDate(appt.date)} às {formatSlot(appt.start_time)}</span>
+                      <span>{t('sidebarAppointmentsView.dateTimeLabel', { date: formatDate(appt.date), time: formatSlot(appt.start_time) })}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
@@ -220,7 +222,7 @@ export function SidebarAppointmentsView({ onBack, patientId, patientName, patien
                         'bg-gray-100 text-gray-600'
                       )}>
                         <CreditCard size={9} />
-                        {appt.billing_records[0].status === 'paid' ? 'Pago' : 'Pendente'}
+                        {appt.billing_records[0].status === 'paid' ? t('sidebarAppointmentsView.billing.paid') : t('sidebarAppointmentsView.billing.pending')}
                       </span>
                     )}
                     {tab === 'upcoming' && (
@@ -237,25 +239,25 @@ export function SidebarAppointmentsView({ onBack, patientId, patientName, patien
                               onClick={() => onReschedule(appt)}
                               className="w-full text-left px-3 py-2 text-xs hover:bg-blue-50 flex items-center gap-2 text-blue-700"
                             >
-                              <ArrowRightLeft size={13} /> Reagendar
+                              <ArrowRightLeft size={13} /> {t('sidebarAppointmentsView.actions.reschedule')}
                             </button>
                             <button
                               onClick={() => handleSendReminder(appt)}
                               className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2 text-gray-700"
                             >
-                              <Bell size={13} /> Enviar Lembrete
+                              <Bell size={13} /> {t('sidebarAppointmentsView.actions.sendReminder')}
                             </button>
                             <button
                               onClick={() => handleSendCheckin(appt)}
                               className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2 text-gray-700"
                             >
-                              <Send size={13} /> Link Sala de Espera
+                              <Send size={13} /> {t('sidebarAppointmentsView.actions.sendCheckinLink')}
                             </button>
                             <button
                               onClick={() => handleSendPaymentLink(appt)}
                               className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2 text-gray-700"
                             >
-                              <CreditCard size={13} /> Link Pagamento
+                              <CreditCard size={13} /> {t('sidebarAppointmentsView.actions.sendPaymentLink')}
                             </button>
                             <hr className="my-1 border-gray-100" />
                             <button
@@ -264,7 +266,7 @@ export function SidebarAppointmentsView({ onBack, patientId, patientName, patien
                               className="w-full text-left px-3 py-2 text-xs hover:bg-red-50 flex items-center gap-2 text-red-600"
                             >
                               {canceling === appt.id ? <Loader2 size={13} className="animate-spin" /> : <XCircle size={13} />}
-                              Cancelar Consulta
+                              {t('sidebarAppointmentsView.actions.cancelAppointment')}
                             </button>
                           </div>
                         )}

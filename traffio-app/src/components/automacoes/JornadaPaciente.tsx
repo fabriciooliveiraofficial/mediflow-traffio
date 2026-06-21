@@ -1,5 +1,6 @@
 import React from 'react';
-import { 
+import { useTranslation } from 'react-i18next';
+import {
     X, 
     MessageCircle, 
     Bot, 
@@ -36,6 +37,7 @@ export const JornadaPaciente: React.FC<JornadaPacienteProps> = ({
     onClose,
     onOpenInbox
 }) => {
+    const { t } = useTranslation('automations');
     const { events, isLoading } = usePatientAutomationJourney(phone, tenantId);
 
     if (!isOpen) return null;
@@ -81,13 +83,13 @@ export const JornadaPaciente: React.FC<JornadaPacienteProps> = ({
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
                     <div className="mb-12">
-                        <h4 className="text-[10px] font-black uppercase text-graphite-300 tracking-[0.2em] mb-8">Linha do Tempo da Jornada</h4>
-                        
+                        <h4 className="text-[10px] font-black uppercase text-graphite-300 tracking-[0.2em] mb-8">{t('jornadaPaciente.timelineTitle')}</h4>
+
                         <div className="space-y-0 relative before:absolute before:left-6 before:top-2 before:bottom-2 before:w-px before:bg-ice-100">
                             {isLoading ? (
-                                <div className="py-12 text-center opacity-40">Carregando jornada...</div>
+                                <div className="py-12 text-center opacity-40">{t('jornadaPaciente.loading')}</div>
                             ) : events.length === 0 ? (
-                                <div className="py-12 text-center text-sm font-bold text-graphite-300">Nenhuma interação registrada.</div>
+                                <div className="py-12 text-center text-sm font-bold text-graphite-300">{t('jornadaPaciente.noEvents')}</div>
                             ) : events.map((event, idx) => (
                                 <TimelineItem key={event.id} event={event} icon={getIcon(event.type)} statusClass={getStatusColor(event.status)} isFirst={idx === 0} />
                             ))}
@@ -101,13 +103,13 @@ export const JornadaPaciente: React.FC<JornadaPacienteProps> = ({
                         onClick={() => onOpenInbox(phone)}
                         className="flex-1 px-8 py-4 bg-brand-primary text-white font-black rounded-2xl shadow-lg shadow-brand-primary/20 hover:scale-[1.02] active:scale-95 transition-all border-none cursor-pointer flex items-center justify-center gap-2"
                     >
-                        <ExternalLink size={18} /> Abrir Conversa no Atendimento
+                        <ExternalLink size={18} /> {t('jornadaPaciente.openConversation')}
                     </button>
-                    <button 
+                    <button
                         onClick={onClose}
                         className="px-8 py-4 bg-white border border-ice-100 text-graphite-600 font-bold rounded-2xl hover:bg-ice-50 transition-all border-none cursor-pointer"
                     >
-                        Fechar
+                        {t('jornadaPaciente.close')}
                     </button>
                 </div>
             </motion.div>

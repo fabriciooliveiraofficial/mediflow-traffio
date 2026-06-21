@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { PatientStageCard } from './PatientStageCard';
 import { usePatientFunnel } from '../../hooks/usePatientFunnel';
 import type { FunnelStage } from '../../hooks/usePatientFunnel';
@@ -37,6 +38,7 @@ interface FunilCaptacaoProps {
 }
 
 export const FunilCaptacao: React.FC<FunilCaptacaoProps> = ({ tenantId, onViewJourney, onStartConversation, dateRange }) => {
+    const { t } = useTranslation('automations');
     const { stages, movePatient, cancelAllPendingForPatient, isLoading } = usePatientFunnel({ tenantId, dateRange });
     const [activeId, setActiveId] = React.useState<string | null>(null);
 
@@ -47,11 +49,11 @@ export const FunilCaptacao: React.FC<FunilCaptacaoProps> = ({ tenantId, onViewJo
     );
 
     const columns: { key: FunnelStage; label: string; icon: any; color: string }[] = [
-        { key: 'novo_lead', label: 'Novo Lead', icon: Target, color: 'bg-ice-50 border-blue-500 text-blue-600' },
-        { key: 'em_follow_up', label: 'Em Follow-up', icon: Zap, color: 'bg-ice-50 border-orange-400 text-orange-500' },
-        { key: 'qualificado', label: 'Qualificado', icon: TrendingUp, color: 'bg-ice-50 border-yellow-400 text-yellow-600' },
-        { key: 'agendado', label: 'Agendado', icon: Calendar, color: 'bg-emerald-50 border-emerald-500 text-emerald-600' },
-        { key: 'perdido', label: 'Perdido', icon: XCircle, color: 'bg-ice-50 border-graphite-300 text-graphite-400' }
+        { key: 'novo_lead', label: t('funilCaptacao.columns.novoLead'), icon: Target, color: 'bg-ice-50 border-blue-500 text-blue-600' },
+        { key: 'em_follow_up', label: t('funilCaptacao.columns.emFollowUp'), icon: Zap, color: 'bg-ice-50 border-orange-400 text-orange-500' },
+        { key: 'qualificado', label: t('funilCaptacao.columns.qualificado'), icon: TrendingUp, color: 'bg-ice-50 border-yellow-400 text-yellow-600' },
+        { key: 'agendado', label: t('funilCaptacao.columns.agendado'), icon: Calendar, color: 'bg-emerald-50 border-emerald-500 text-emerald-600' },
+        { key: 'perdido', label: t('funilCaptacao.columns.perdido'), icon: XCircle, color: 'bg-ice-50 border-graphite-300 text-graphite-400' }
     ];
 
     const handleDragStart = (event: any) => {
@@ -105,7 +107,7 @@ export const FunilCaptacao: React.FC<FunilCaptacaoProps> = ({ tenantId, onViewJo
                         <Users size={28} />
                     </div>
                     <div>
-                        <p className="text-[10px] font-black uppercase text-graphite-300 tracking-[0.15em] mb-1">Total Leads</p>
+                        <p className="text-[10px] font-black uppercase text-graphite-300 tracking-[0.15em] mb-1">{t('funilCaptacao.metrics.totalLeads')}</p>
                         <h3 className="text-2xl font-black text-graphite-900 tracking-tighter leading-none">{totalLeads}</h3>
                     </div>
                 </div>
@@ -115,7 +117,7 @@ export const FunilCaptacao: React.FC<FunilCaptacaoProps> = ({ tenantId, onViewJo
                         <TrendingUp size={28} />
                     </div>
                     <div>
-                        <p className="text-[10px] font-black uppercase text-graphite-300 tracking-[0.15em] mb-1">Taxa de Conversão</p>
+                        <p className="text-[10px] font-black uppercase text-graphite-300 tracking-[0.15em] mb-1">{t('funilCaptacao.metrics.conversionRate')}</p>
                         <h3 className="text-2xl font-black text-graphite-900 tracking-tighter leading-none">{conversionRate.toFixed(1)}%</h3>
                     </div>
                 </div>
@@ -125,7 +127,7 @@ export const FunilCaptacao: React.FC<FunilCaptacaoProps> = ({ tenantId, onViewJo
                         <Zap size={28} />
                     </div>
                     <div>
-                        <p className="text-[10px] font-black uppercase text-graphite-300 tracking-[0.15em] mb-1">Ações Pendentes</p>
+                        <p className="text-[10px] font-black uppercase text-graphite-300 tracking-[0.15em] mb-1">{t('funilCaptacao.metrics.pendingActions')}</p>
                         <h3 className="text-2xl font-black text-graphite-900 tracking-tighter leading-none">{Object.values(stages).reduce((sum, list) => sum + list.filter(p => !!p.next_action_at).length, 0)}</h3>
                     </div>
                 </div>
@@ -180,6 +182,7 @@ export const FunilCaptacao: React.FC<FunilCaptacaoProps> = ({ tenantId, onViewJo
 
 // Internal components for clean organization
 const FunnelColumn = ({ col, patients, onViewJourney, onMove, onCancel, onStartConversation }: any) => {
+    const { t } = useTranslation('automations');
     const { setNodeRef, isOver } = useSortable({
         id: col.key,
         data: { type: 'column' }
@@ -216,7 +219,7 @@ const FunnelColumn = ({ col, patients, onViewJourney, onMove, onCancel, onStartC
                                 className="flex flex-col items-center justify-center py-12 px-4 text-center border-2 border-dashed border-ice-100 rounded-3xl opacity-40 h-32"
                             >
                                 <p className="text-[10px] font-bold text-graphite-300 uppercase tracking-widest">
-                                    Vazio
+                                    {t('funilCaptacao.emptyColumn')}
                                 </p>
                             </motion.div>
                         ) : (

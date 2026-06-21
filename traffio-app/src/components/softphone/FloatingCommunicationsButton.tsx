@@ -14,6 +14,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Phone, PhoneCall, PhoneOff, MessageSquare,
   X, Mic, MicOff, PauseCircle, PlayCircle,
@@ -125,6 +126,7 @@ interface Props {
 }
 
 export function FloatingCommunicationsButton({ enabled, activeNumber: activeNumberProp, tenantId }: Props) {
+  const { t } = useTranslation('communications');
   const { pos, onMouseDown } = useDraggable(
     { x: window.innerWidth - 80, y: window.innerHeight - 80 },
     'traffio_softphone_pos'
@@ -395,9 +397,9 @@ export function FloatingCommunicationsButton({ enabled, activeNumber: activeNumb
                   <PhoneIncoming size={32} className="text-white" />
                 </div>
               </div>
-              <p className="text-white/70 text-xs font-bold uppercase tracking-widest mb-1">Chamada Recebida</p>
+              <p className="text-white/70 text-xs font-bold uppercase tracking-widest mb-1">{t('floatingCommunicationsButton.incomingCallHeader')}</p>
               <p className="text-white text-xl font-black truncate">
-                {callerName ?? activeCall.remoteNumber ?? 'Número desconhecido'}
+                {callerName ?? activeCall.remoteNumber ?? t('floatingCommunicationsButton.unknownNumber')}
               </p>
               {callerName && (
                 <p className="text-white/60 text-sm mt-0.5">{activeCall.remoteNumber}</p>
@@ -411,14 +413,14 @@ export function FloatingCommunicationsButton({ enabled, activeNumber: activeNumb
                 className="flex flex-col items-center gap-2 py-4 rounded-2xl bg-red-50 text-red-500 font-bold text-sm hover:bg-red-100 transition-colors border-none cursor-pointer"
               >
                 <PhoneOff size={22} />
-                Recusar
+                {t('floatingCommunicationsButton.reject')}
               </button>
               <button
                 onClick={() => { answer(); setExpanded(false); }}
                 className="flex flex-col items-center gap-2 py-4 rounded-2xl bg-green-500 text-white font-bold text-sm hover:bg-green-600 transition-colors border-none cursor-pointer"
               >
                 <Phone size={22} />
-                Atender
+                {t('floatingCommunicationsButton.answer')}
               </button>
             </div>
           </div>
@@ -436,35 +438,35 @@ export function FloatingCommunicationsButton({ enabled, activeNumber: activeNumb
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-white font-black text-sm truncate">
-                {callerName ?? activeCall.remoteNumber ?? (callState === 'calling' ? 'Discando' : 'Em chamada')}
+                {callerName ?? activeCall.remoteNumber ?? (callState === 'calling' ? t('floatingCommunicationsButton.dialingFallback') : t('floatingCommunicationsButton.inCallFallback'))}
               </p>
               <p className="text-white/70 text-xs font-mono">
-                {callState === 'calling' ? 'Chamando...' : fmt(callDuration)}
+                {callState === 'calling' ? t('floatingCommunicationsButton.callingStatus') : fmt(callDuration)}
               </p>
             </div>
           </div>
           <div className="px-3 py-3 grid grid-cols-4 gap-1.5">
             <button onClick={toggleMute} className={`flex flex-col items-center gap-1 py-2 rounded-xl text-[10px] font-bold transition-colors border-none cursor-pointer ${isMuted ? 'bg-red-50 text-red-500' : 'bg-ice-50 text-graphite-500'}`}>
               {isMuted ? <MicOff size={14} /> : <Mic size={14} />}
-              {isMuted ? 'Mudo' : 'Mic'}
+              {isMuted ? t('floatingCommunicationsButton.muted') : t('floatingCommunicationsButton.mic')}
             </button>
             <button onClick={toggleHold} className={`flex flex-col items-center gap-1 py-2 rounded-xl text-[10px] font-bold transition-colors border-none cursor-pointer ${isOnHold ? 'bg-amber-50 text-amber-500' : 'bg-ice-50 text-graphite-500'}`}>
               {isOnHold ? <PlayCircle size={14} /> : <PauseCircle size={14} />}
-              {isOnHold ? 'Retomar' : 'Espera'}
+              {isOnHold ? t('floatingCommunicationsButton.resume') : t('floatingCommunicationsButton.hold')}
             </button>
             <button onClick={() => setShowTransfer(!showTransfer)} className="flex flex-col items-center gap-1 py-2 rounded-xl text-[10px] font-bold bg-ice-50 text-graphite-500 transition-colors border-none cursor-pointer">
               <PhoneForwarded size={14} />
-              Transfer
+              {t('floatingCommunicationsButton.transfer')}
             </button>
             <button onClick={hangup} className="flex flex-col items-center gap-1 py-2 rounded-xl text-[10px] font-bold bg-red-500 text-white transition-colors border-none cursor-pointer">
               <PhoneOff size={14} />
-              Desligar
+              {t('floatingCommunicationsButton.hangup')}
             </button>
           </div>
           {showTransfer && (
             <div className="px-3 pb-3 flex gap-1.5">
-              <input value={transferInput} onChange={(e) => setTransferInput(e.target.value)} placeholder="Número destino" className="flex-1 text-xs bg-ice-50 border border-ice-200 rounded-xl px-2 py-1.5 focus:outline-none" />
-              <button onClick={() => { transfer(transferInput); setShowTransfer(false); }} className="px-2 py-1.5 bg-brand-primary text-white text-xs font-bold rounded-xl border-none cursor-pointer">OK</button>
+              <input value={transferInput} onChange={(e) => setTransferInput(e.target.value)} placeholder={t('floatingCommunicationsButton.transferTargetPlaceholder')} className="flex-1 text-xs bg-ice-50 border border-ice-200 rounded-xl px-2 py-1.5 focus:outline-none" />
+              <button onClick={() => { transfer(transferInput); setShowTransfer(false); }} className="px-2 py-1.5 bg-brand-primary text-white text-xs font-bold rounded-xl border-none cursor-pointer">{t('floatingCommunicationsButton.confirm')}</button>
             </div>
           )}
         </div>
@@ -485,10 +487,10 @@ export function FloatingCommunicationsButton({ enabled, activeNumber: activeNumb
           <div className="px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 flex items-center justify-between">
             <div className="flex gap-1 bg-white/20 p-0.5 rounded-xl">
               <button onClick={() => setMode('dial')} className={`px-3 py-1 rounded-xl text-xs font-bold transition-all border-none cursor-pointer ${mode === 'dial' ? 'bg-white text-blue-600' : 'text-white'}`}>
-                <Phone size={12} className="inline mr-1" />Ligar
+                <Phone size={12} className="inline mr-1" />{t('floatingCommunicationsButton.call')}
               </button>
               <button onClick={() => setMode('sms')} className={`px-3 py-1 rounded-xl text-xs font-bold transition-all border-none cursor-pointer ${mode === 'sms' ? 'bg-white text-blue-600' : 'text-white'}`}>
-                <MessageSquare size={12} className="inline mr-1" />SMS
+                <MessageSquare size={12} className="inline mr-1" />{t('floatingCommunicationsButton.sms')}
               </button>
             </div>
             <button onClick={() => setExpanded(false)} className="w-7 h-7 bg-white/20 rounded-full flex items-center justify-center text-white hover:bg-white/30 border-none cursor-pointer">
@@ -509,7 +511,7 @@ export function FloatingCommunicationsButton({ enabled, activeNumber: activeNumb
                     handleCall();
                   }
                 }}
-                placeholder="Digite o número..."
+                placeholder={t('floatingCommunicationsButton.dialPlaceholder')}
                 className="w-full text-center text-xl font-black text-graphite-800 bg-ice-50 border border-ice-200 rounded-2xl px-3 py-2.5 focus:outline-none focus:border-brand-primary font-mono tracking-widest"
               />
               {/* Dialpad */}
@@ -557,7 +559,7 @@ export function FloatingCommunicationsButton({ enabled, activeNumber: activeNumb
                   disabled={dialInput.length < 5 || status !== 'ready'}
                   className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-green-500 text-white font-black text-sm hover:bg-green-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all border-none cursor-pointer"
                 >
-                  <Phone size={18} /> Ligar
+                  <Phone size={18} /> {t('floatingCommunicationsButton.call')}
                 </button>
               </div>
             </div>
@@ -567,14 +569,14 @@ export function FloatingCommunicationsButton({ enabled, activeNumber: activeNumb
           {mode === 'sms' && (
             <div className="p-4 space-y-3">
               <input type="tel" value={smsTo} onChange={(e) => setSmsTo(e.target.value)}
-                placeholder="Número destinatário..." className="w-full text-sm bg-ice-50 border border-ice-200 rounded-2xl px-3 py-2.5 focus:outline-none focus:border-brand-primary" />
+                placeholder={t('floatingCommunicationsButton.smsToPlaceholder')} className="w-full text-sm bg-ice-50 border border-ice-200 rounded-2xl px-3 py-2.5 focus:outline-none focus:border-brand-primary" />
               <textarea
                 value={smsInput} onChange={(e) => setSmsInput(e.target.value)}
-                placeholder="Digite a mensagem SMS..." rows={4}
+                placeholder={t('floatingCommunicationsButton.smsMessagePlaceholder')} rows={4}
                 className="w-full text-sm bg-ice-50 border border-ice-200 rounded-2xl px-3 py-2.5 resize-none focus:outline-none focus:border-brand-primary"
               />
               <div className="flex items-center justify-between">
-                <span className="text-[10px] text-graphite-400">{smsInput.length}/160 chars</span>
+                <span className="text-[10px] text-graphite-400">{t('floatingCommunicationsButton.charCount', { count: smsInput.length })}</span>
                 <button
                   disabled={!smsTo || !smsInput || smsInput.length > 160}
                   onClick={async () => {
@@ -591,7 +593,7 @@ export function FloatingCommunicationsButton({ enabled, activeNumber: activeNumb
                   }}
                   className="px-4 py-2 bg-green-500 text-white text-sm font-bold rounded-2xl disabled:opacity-40 disabled:cursor-not-allowed border-none cursor-pointer"
                 >
-                  <MessageSquare size={14} className="inline mr-1" />Enviar
+                  <MessageSquare size={14} className="inline mr-1" />{t('floatingCommunicationsButton.send')}
                 </button>
               </div>
             </div>
@@ -635,7 +637,7 @@ export function FloatingCommunicationsButton({ enabled, activeNumber: activeNumb
             bg-gradient-to-br ${btnColor}
             ${isRinging ? 'scale-110' : 'hover:scale-105'}
           `}
-          title={isRinging ? 'Chamada recebida' : isActive ? 'Em chamada' : 'Comunicações'}
+          title={isRinging ? t('floatingCommunicationsButton.title.ringing') : isActive ? t('floatingCommunicationsButton.title.active') : t('floatingCommunicationsButton.title.idle')}
         >
           {isRinging   ? <PhoneIncoming size={24} className="text-white" /> :
            isActive    ? <Phone size={22} className="text-white" /> :

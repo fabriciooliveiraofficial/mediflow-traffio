@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Upload, CheckCircle, XCircle, Loader, FileText, X } from 'lucide-react';
 import type { DocumentType } from '../../constants/numberOrderRequirements';
 import { DOCUMENT_LABELS } from '../../constants/numberOrderRequirements';
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export function DocumentUploadField({ documentType, tenantId, orderId, onUploaded, uploadedFile, onRemove }: Props) {
+  const { t } = useTranslation('communications');
   const inputRef               = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [loading,  setLoading]  = useState(false);
@@ -85,13 +87,13 @@ export function DocumentUploadField({ documentType, tenantId, orderId, onUploade
         {loading ? (
           <div className="flex flex-col items-center gap-2">
             <Loader size={20} className="animate-spin text-brand-primary" />
-            <p className="text-xs text-graphite-400">Enviando...</p>
+            <p className="text-xs text-graphite-400">{t('documentUploadField.uploading')}</p>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-1">
             <Upload size={18} className="text-graphite-300" />
-            <p className="text-xs font-bold text-graphite-600">Arraste ou clique para enviar</p>
-            <p className="text-[10px] text-graphite-300">PDF, JPG ou PNG · Máx. 10 MB</p>
+            <p className="text-xs font-bold text-graphite-600">{t('documentUploadField.dragOrClick')}</p>
+            <p className="text-[10px] text-graphite-300">{t('documentUploadField.fileHint')}</p>
           </div>
         )}
       </div>

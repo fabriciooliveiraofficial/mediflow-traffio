@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ChevronLeft, Loader2, X, Plus, Thermometer, Tag, Flag, DollarSign, StickyNote } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
@@ -20,23 +21,33 @@ interface SidebarLeadClassifyViewProps {
 }
 
 
-const TEMPERATURES = [
-  { value: 'cold', label: 'Frio', color: 'bg-blue-100 text-blue-700 border-blue-200', icon: '❄️' },
-  { value: 'warm', label: 'Morno', color: 'bg-amber-100 text-amber-700 border-amber-200', icon: '🌤️' },
-  { value: 'hot', label: 'Quente', color: 'bg-red-100 text-red-700 border-red-200', icon: '🔥' },
-];
-
-const PRIORITIES = [
-  { value: 'low', label: 'Baixa', color: 'bg-gray-100 text-gray-600' },
-  { value: 'medium', label: 'Média', color: 'bg-blue-100 text-blue-600' },
-  { value: 'high', label: 'Alta', color: 'bg-orange-100 text-orange-600' },
-  { value: 'urgent', label: 'Urgente', color: 'bg-red-100 text-red-600' },
-];
-
-const SUGGESTED_TAGS = ['Particular', 'Convênio', 'Retorno', 'Urgente', 'VIP', 'Indicação', '1ª Consulta', 'Pós-Op'];
-
 export function SidebarLeadClassifyView({ onBack, session, onUpdate }: SidebarLeadClassifyViewProps) {
+  const { t } = useTranslation('crm');
   const { showToast } = useToast();
+
+  const TEMPERATURES = [
+    { value: 'cold', label: t('sidebarLeadClassifyView.temperatures.cold'), color: 'bg-blue-100 text-blue-700 border-blue-200', icon: '❄️' },
+    { value: 'warm', label: t('sidebarLeadClassifyView.temperatures.warm'), color: 'bg-amber-100 text-amber-700 border-amber-200', icon: '🌤️' },
+    { value: 'hot', label: t('sidebarLeadClassifyView.temperatures.hot'), color: 'bg-red-100 text-red-700 border-red-200', icon: '🔥' },
+  ];
+
+  const PRIORITIES = [
+    { value: 'low', label: t('sidebarLeadClassifyView.priorities.low'), color: 'bg-gray-100 text-gray-600' },
+    { value: 'medium', label: t('sidebarLeadClassifyView.priorities.medium'), color: 'bg-blue-100 text-blue-600' },
+    { value: 'high', label: t('sidebarLeadClassifyView.priorities.high'), color: 'bg-orange-100 text-orange-600' },
+    { value: 'urgent', label: t('sidebarLeadClassifyView.priorities.urgent'), color: 'bg-red-100 text-red-600' },
+  ];
+
+  const SUGGESTED_TAGS = [
+    t('sidebarLeadClassifyView.suggestedTags.particular'),
+    t('sidebarLeadClassifyView.suggestedTags.insurance'),
+    t('sidebarLeadClassifyView.suggestedTags.returning'),
+    t('sidebarLeadClassifyView.suggestedTags.urgent'),
+    t('sidebarLeadClassifyView.suggestedTags.vip'),
+    t('sidebarLeadClassifyView.suggestedTags.referral'),
+    t('sidebarLeadClassifyView.suggestedTags.firstVisit'),
+    t('sidebarLeadClassifyView.suggestedTags.postOp'),
+  ];
   const [saving, setSaving] = useState(false);
 
   // Form state
@@ -126,10 +137,10 @@ export function SidebarLeadClassifyView({ onBack, session, onUpdate }: SidebarLe
         revenue_estimated: revenueNum ?? undefined,
       });
 
-      showToast('success', 'Classificação salva!');
+      showToast('success', t('sidebarLeadClassifyView.toasts.saved'));
       onBack();
     } catch (err: any) {
-      showToast('error', err.message || 'Erro ao salvar');
+      showToast('error', err.message || t('sidebarLeadClassifyView.errors.saveFailed'));
     } finally {
       setSaving(false);
       // Small delay so the Realtime echo (if any) arrives while savingRef is still true
@@ -145,8 +156,8 @@ export function SidebarLeadClassifyView({ onBack, session, onUpdate }: SidebarLe
           <ChevronLeft className="w-5 h-5" />
         </button>
         <div className="text-white">
-          <p className="text-xs font-bold opacity-80 uppercase tracking-tighter">Classificar</p>
-          <p className="text-sm font-bold">Lead / Paciente</p>
+          <p className="text-xs font-bold opacity-80 uppercase tracking-tighter">{t('sidebarLeadClassifyView.headerLabel')}</p>
+          <p className="text-sm font-bold">{t('sidebarLeadClassifyView.headerTitle')}</p>
         </div>
       </div>
 
@@ -154,7 +165,7 @@ export function SidebarLeadClassifyView({ onBack, session, onUpdate }: SidebarLe
         {/* Kanban Stage */}
         <div className="space-y-1.5">
           <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider ml-1 flex items-center gap-1.5">
-            <Flag size={11} /> Estágio do Funil
+            <Flag size={11} /> {t('sidebarLeadClassifyView.funnelStageLabel')}
           </label>
           <select
             value={kanbanStage}
@@ -170,19 +181,19 @@ export function SidebarLeadClassifyView({ onBack, session, onUpdate }: SidebarLe
         {/* Temperature */}
         <div className="space-y-1.5">
           <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider ml-1 flex items-center gap-1.5">
-            <Thermometer size={11} /> Temperatura
+            <Thermometer size={11} /> {t('sidebarLeadClassifyView.temperatureLabel')}
           </label>
           <div className="flex gap-2">
-            {TEMPERATURES.map(t => (
+            {TEMPERATURES.map(temp => (
               <button
-                key={t.value}
-                onClick={() => setTemperature(temperature === t.value ? '' : t.value)}
+                key={temp.value}
+                onClick={() => setTemperature(temperature === temp.value ? '' : temp.value)}
                 className={clsx(
                   'flex-1 py-2 text-xs font-bold rounded-xl border transition-all',
-                  temperature === t.value ? t.color + ' ring-2 ring-offset-1' : 'bg-gray-50 border-gray-200 text-gray-500'
+                  temperature === temp.value ? temp.color + ' ring-2 ring-offset-1' : 'bg-gray-50 border-gray-200 text-gray-500'
                 )}
               >
-                {t.icon} {t.label}
+                {temp.icon} {temp.label}
               </button>
             ))}
           </div>
@@ -190,7 +201,7 @@ export function SidebarLeadClassifyView({ onBack, session, onUpdate }: SidebarLe
 
         {/* Priority */}
         <div className="space-y-1.5">
-          <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider ml-1">Prioridade</label>
+          <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider ml-1">{t('sidebarLeadClassifyView.priorityLabel')}</label>
           <div className="grid grid-cols-4 gap-1.5">
             {PRIORITIES.map(p => (
               <button
@@ -210,7 +221,7 @@ export function SidebarLeadClassifyView({ onBack, session, onUpdate }: SidebarLe
         {/* Tags */}
         <div className="space-y-1.5">
           <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider ml-1 flex items-center gap-1.5">
-            <Tag size={11} /> Tags
+            <Tag size={11} /> {t('sidebarLeadClassifyView.tagsLabel')}
           </label>
           {/* Current tags */}
           <div className="flex flex-wrap gap-1.5">
@@ -227,7 +238,7 @@ export function SidebarLeadClassifyView({ onBack, session, onUpdate }: SidebarLe
           <div className="flex gap-1.5">
             <input
               type="text"
-              placeholder="Nova tag..."
+              placeholder={t('sidebarLeadClassifyView.newTagPlaceholder')}
               value={newTag}
               onChange={e => setNewTag(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag(newTag); } }}
@@ -243,7 +254,7 @@ export function SidebarLeadClassifyView({ onBack, session, onUpdate }: SidebarLe
           </div>
           {/* Suggested tags */}
           <div className="flex flex-wrap gap-1">
-            {SUGGESTED_TAGS.filter(t => !labels.includes(t)).map(tag => (
+            {SUGGESTED_TAGS.filter(tagOpt => !labels.includes(tagOpt)).map(tag => (
               <button
                 key={tag}
                 onClick={() => addTag(tag)}
@@ -258,7 +269,7 @@ export function SidebarLeadClassifyView({ onBack, session, onUpdate }: SidebarLe
         {/* Revenue */}
         <div className="space-y-1.5">
           <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider ml-1 flex items-center gap-1.5">
-            <DollarSign size={11} /> Receita Estimada (R$)
+            <DollarSign size={11} /> {t('sidebarLeadClassifyView.estimatedRevenueLabel')}
           </label>
           <input
             type="text"
@@ -273,10 +284,10 @@ export function SidebarLeadClassifyView({ onBack, session, onUpdate }: SidebarLe
         {/* Notes */}
         <div className="space-y-1.5">
           <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider ml-1 flex items-center gap-1.5">
-            <StickyNote size={11} /> Notas do Vendedor
+            <StickyNote size={11} /> {t('sidebarLeadClassifyView.salesNotesLabel')}
           </label>
           <textarea
-            placeholder="Anotações sobre o lead..."
+            placeholder={t('sidebarLeadClassifyView.salesNotesPlaceholder')}
             value={notes}
             onChange={e => setNotes(e.target.value)}
             rows={3}
@@ -292,7 +303,7 @@ export function SidebarLeadClassifyView({ onBack, session, onUpdate }: SidebarLe
           disabled={saving}
           className="w-full bg-amber-600 text-white rounded-xl py-3 text-sm font-bold flex items-center justify-center gap-2 hover:bg-amber-700 transition-all shadow-md shadow-amber-500/20 disabled:opacity-50"
         >
-          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Salvar Classificação'}
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : t('sidebarLeadClassifyView.saveClassification')}
         </button>
       </div>
     </div>

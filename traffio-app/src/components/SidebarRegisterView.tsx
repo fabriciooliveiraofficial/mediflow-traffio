@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { User, Mail, ChevronLeft, Loader2, UserPlus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useTenant } from '../contexts/TenantContext';
@@ -15,6 +16,7 @@ interface SidebarRegisterViewProps {
 }
 
 export function SidebarRegisterView({ onBack, onSuccess, initialPhone }: SidebarRegisterViewProps) {
+  const { t } = useTranslation('crm');
   const { tenant } = useTenant();
   const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -51,10 +53,10 @@ export function SidebarRegisterView({ onBack, onSuccess, initialPhone }: Sidebar
         .single();
 
       if (error) throw error;
-      showToast('success', 'Paciente cadastrado com sucesso!');
+      showToast('success', t('sidebarRegisterView.toasts.created'));
       onSuccess(data);
     } catch (err: any) {
-      showToast('error', err.message || 'Falha ao cadastrar');
+      showToast('error', err.message || t('sidebarRegisterView.errors.createFailed'));
     } finally {
       setLoading(false);
     }
@@ -66,18 +68,18 @@ export function SidebarRegisterView({ onBack, onSuccess, initialPhone }: Sidebar
         <button onClick={onBack} className="p-1.5 rounded-lg hover:bg-white text-gray-500 transition-colors shadow-sm">
           <ChevronLeft className="w-4 h-4" />
         </button>
-        <span className="text-sm font-bold text-blue-700">Novo Cadastro</span>
+        <span className="text-sm font-bold text-blue-700">{t('sidebarRegisterView.headerTitle')}</span>
       </div>
 
       <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 space-y-4">
         <div className="space-y-1.5">
-          <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider ml-1">Nome Completo</label>
+          <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider ml-1">{t('sidebarRegisterView.fullNameLabel')}</label>
           <div className="relative">
             <User className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
             <input
               required
               className="w-full pl-9 pr-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-              placeholder="Ex: Ricardo Albeniz"
+              placeholder={t('sidebarRegisterView.fullNamePlaceholder')}
               value={formData.full_name}
               onChange={e => setFormData({ ...formData, full_name: e.target.value })}
             />
@@ -98,18 +100,18 @@ export function SidebarRegisterView({ onBack, onSuccess, initialPhone }: Sidebar
             value={formData.phone}
             onChange={v => setFormData({ ...formData, phone: v })}
             country={formData.country}
-            label="Telefone"
+            label={t('sidebarRegisterView.phoneLabel')}
           />
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider ml-1">Email</label>
+          <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider ml-1">{t('sidebarRegisterView.emailLabel')}</label>
           <div className="relative">
             <Mail className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
             <input
               type="email"
               className="w-full pl-9 pr-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-              placeholder="paciente@exemplo.com"
+              placeholder={t('sidebarRegisterView.emailPlaceholder')}
               value={formData.email}
               onChange={e => setFormData({ ...formData, email: e.target.value })}
             />
@@ -117,7 +119,7 @@ export function SidebarRegisterView({ onBack, onSuccess, initialPhone }: Sidebar
         </div>
 
         <div className="space-y-1.5 pb-4">
-          <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider ml-1">Tipo de Atendimento</label>
+          <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider ml-1">{t('sidebarRegisterView.careTypeLabel')}</label>
           <div className="flex p-1 bg-gray-100 rounded-xl">
             <button
               type="button"
@@ -128,7 +130,7 @@ export function SidebarRegisterView({ onBack, onSuccess, initialPhone }: Sidebar
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
-              Particular
+              {t('sidebarRegisterView.particular')}
             </button>
             <button
               type="button"
@@ -139,7 +141,7 @@ export function SidebarRegisterView({ onBack, onSuccess, initialPhone }: Sidebar
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
-              Convênio
+              {t('sidebarRegisterView.insurance')}
             </button>
           </div>
         </div>
@@ -154,7 +156,7 @@ export function SidebarRegisterView({ onBack, onSuccess, initialPhone }: Sidebar
           {loading ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
-            <><UserPlus size={16} /> Cadastrar Paciente</>
+            <><UserPlus size={16} /> {t('sidebarRegisterView.register')}</>
           )}
         </button>
       </div>

@@ -319,5 +319,286 @@
       "cancel": "Cancelar",
       "save": "Salvar Script"
     }
+  },
+  "documentUploadField": {
+    "uploading": "Enviando...",
+    "dragOrClick": "Arraste ou clique para enviar",
+    "fileHint": "PDF, JPG ou PNG · Máx. 10 MB"
+  },
+  "buyNumberModal": {
+    "title": {
+      "resubmit": "Completar Cadastro",
+      "default": "Comprar Número"
+    },
+    "steps": {
+      "search": "Buscar",
+      "holder": "Titular",
+      "documents": "Documentos",
+      "confirm": "Confirmar",
+      "data": "Dados"
+    },
+    "loadingResubmit": "Carregando exigências pendentes...",
+    "step1": {
+      "friendlyNameLabel": "Nome amigável (opcional)",
+      "friendlyNamePlaceholder": "Ex: Recepção, WhatsApp, Suporte...",
+      "countryLabel": "País",
+      "typeLabel": "Tipo",
+      "typeAll": "Todos os tipos",
+      "typeLocal": "Local",
+      "typeTollFree": "Toll-Free (0800)",
+      "searchByLabel": "Buscar por",
+      "searchByAreaCode": "Código de área",
+      "searchByCity": "Cidade/Região",
+      "searchByState": "Estado/Província",
+      "searchByConfig": {
+        "area_code": { "label": "Código de área / DDD", "placeholder": "Ex: 11, 415, 21..." },
+        "city": { "label": "Cidade / Região", "placeholder": "Ex: São Paulo, Auckland..." },
+        "state": { "label": "Estado / Província", "placeholder": "Ex: SP, CA, ON..." }
+      },
+      "validationRequired": "Validação necessária:",
+      "validationDocsNeeded": "Você precisará enviar documentos antes da ativação.",
+      "searchingNumbers": "Buscando números disponíveis...",
+      "selectCountryPrompt": "Selecione um país e clique em Buscar",
+      "noNumbersTitle": "Nenhum número disponível",
+      "noNumbersSubtitle": "Não encontramos números para os filtros selecionados. Tente buscar usando apenas o Código de Área (DDD) ou utilize outra Cidade/Região.",
+      "searchButton": "Buscar",
+      "voiceBadge": "Voz",
+      "smsBadge": "SMS",
+      "noSmsBadge": "Sem SMS"
+    },
+    "step2": {
+      "individual": "Pessoa Física",
+      "business": "Pessoa Jurídica",
+      "fullNameLabel": "Nome completo",
+      "fullNamePlaceholder": "João da Silva",
+      "cpfLabel": "CPF",
+      "cpfPlaceholder": "000.000.000-00",
+      "emailLabel": "E-mail",
+      "emailPlaceholder": "joao@email.com",
+      "personalPhoneLabel": "Telefone pessoal",
+      "personalPhonePlaceholder": "+55 (41) 99999-9999",
+      "companyNameLabel": "Razão social",
+      "companyNamePlaceholder": "Empresa LTDA",
+      "cnpjLabel": "CNPJ",
+      "cnpjPlaceholder": "00.000.000/0001-00",
+      "responsibleNameLabel": "Nome do responsável",
+      "responsibleNamePlaceholder": "João da Silva",
+      "corporateEmailLabel": "E-mail corporativo",
+      "corporateEmailPlaceholder": "contato@empresa.com",
+      "corporatePhoneLabel": "Telefone corporativo",
+      "corporatePhonePlaceholder": "+55 (41) 3333-3333",
+      "addressLabel": "Endereço",
+      "streetLabel": "Rua",
+      "streetPlaceholder": "Av. Paulista",
+      "numberLabel": "Número",
+      "numberPlaceholder": "100",
+      "cityLabel": "Cidade",
+      "cityPlaceholder": "São Paulo",
+      "stateLabel": "Estado",
+      "statePlaceholder": "SP",
+      "zipLabel": "CEP",
+      "zipPlaceholder": "01310-100"
+    },
+    "step3": {
+      "intro": "Envie os documentos abaixo para validar o pedido. Máx. 10 MB por arquivo (PDF, JPG ou PNG)."
+    },
+    "step4": {
+      "selectedNumberLabel": "Número selecionado",
+      "voiceSuffix": " · Voz",
+      "smsSuffix": " · SMS",
+      "needsDocsNotice": "Seus documentos serão analisados em até {{days}} dias úteis. Você receberá uma notificação quando o número for ativado.",
+      "requiresReviewNotice": "Este número requer aprovação regulatória local. Os dados preenchidos na etapa anterior serão enviados, mas a ativação depende da aprovação pelas operadoras locais (geralmente concluída em poucas horas).",
+      "noDocsNeededNotice": "Nenhuma documentação necessária. O número será ativado em instantes."
+    },
+    "step5": {
+      "intro": "A Telnyx exige algumas informações adicionais para números de {{flag}} {{country}}. Esses dados ficam salvos e serão reutilizados automaticamente nas próximas compras deste país.",
+      "contactNameLabel": "Nome do Contato",
+      "contactNamePlaceholder": "Nome e Sobrenome",
+      "contactPhoneLabel": "Telefone de Contato",
+      "contactPhonePlaceholder": "Ex: +6498890000",
+      "companyNameOptionalLabel": "Nome da Empresa (opcional)",
+      "companyNamePlaceholder": "Razão Social ou N/A se Pessoa Física",
+      "selectPlaceholder": "Selecione...",
+      "addressFieldLabel": "Endereço",
+      "addressFieldPlaceholder": "Rua / Av., número",
+      "cityLabel": "Cidade",
+      "stateRegionLabel": "Estado/Região",
+      "zipLabel": "CEP",
+      "selectFileLabel": "Selecionar arquivo (PDF, JPG ou PNG)",
+      "documentSent": "✓ Documento enviado"
+    },
+    "done": {
+      "title": "Pedido enviado!",
+      "analysisPrefix": "Análise em até ",
+      "analysisSuffix": " dias úteis.",
+      "notifyNotice": "Você será notificado quando o número for ativado."
+    },
+    "diagnostics": {
+      "label": "Diagnóstico",
+      "errorBadge": "erro",
+      "warningBadge": "aviso",
+      "copyLogTitle": "Copiar log",
+      "copy": "Copiar",
+      "copied": "Copiado!",
+      "rawResponseLabel": "Raw Response"
+    },
+    "footer": {
+      "back": "Voltar",
+      "cancel": "Cancelar",
+      "continue": "Continuar",
+      "nextDocuments": "Próximo: Documentos",
+      "reviewOrder": "Revisar pedido",
+      "buyNumber": "Comprar número",
+      "submitForReview": "Enviar para análise",
+      "resendInfo": "Reenviar Informações",
+      "close": "Fechar"
+    },
+    "toasts": {
+      "loadResubmitFailedPrefix": "Falha ao carregar detalhes do pedido: ",
+      "invalidServerResponse": "Resposta inválida do servidor",
+      "errorStatusPrefix": "Erro {{status}}",
+      "noNumbersAvailablePrefix": "Nenhum número disponível para compra (",
+      "noNumbersAvailableSuffix": "). Tente outros filtros.",
+      "unexpectedErrorPrefix": "Erro inesperado: ",
+      "documentRegulatoryRequired": "Por favor, envie o documento regulatório exigido pelas operadoras.",
+      "numberAcquiredSuccess": "Número {{number}} adquirido com sucesso!",
+      "numberAcquiredPendingReview": "Número {{number}} adquirido! Aguardando revisão da Telnyx.",
+      "createOrderErrorPrefix": "Erro ao criar pedido: ",
+      "regulatoryInfoSent": "Exigências enviadas com sucesso!"
+    },
+    "errors": {
+      "contactRequired": "Nome do contato e telefone de contato são obrigatórios",
+      "fieldRequired": "Campo obrigatório",
+      "minLength": "Mínimo de {{count}} caracteres",
+      "maxLength": "Máximo de {{count}} caracteres",
+      "addressIncomplete": "Preencha o endereço completo (Rua, Cidade e CEP)",
+      "documentRequired": "Envie o documento",
+      "nameRequired": "Nome obrigatório",
+      "companyNameRequired": "Razão social obrigatória",
+      "cpfRequired": "CPF obrigatório",
+      "cpfInvalid": "CPF inválido",
+      "cnpjRequired": "CNPJ obrigatório",
+      "cnpjInvalid": "CNPJ inválido",
+      "addressRequired": "Endereço obrigatório",
+      "cityRequired": "Cidade obrigatória",
+      "zipRequired": "CEP obrigatório"
+    }
+  },
+  "scriptManagerDrawer": {
+    "toasts": {
+      "loadErrorPrefix": "Erro ao carregar scripts: ",
+      "deleted": "Script excluído com sucesso!",
+      "deleteErrorPrefix": "Erro ao excluir script: ",
+      "suggestedSavedAsNew": "Modelo sugerido salvo como um novo script da sua clínica!"
+    },
+    "deleteConfirm": "Deseja realmente excluir o script \"{{title}}\"?",
+    "header": "Scripts Inteligentes",
+    "createTitle": "Criar Script",
+    "new": "Novo",
+    "searchPlaceholder": "Pesquisar scripts...",
+    "loading": "Carregando scripts...",
+    "empty": {
+      "title": "Nenhum script encontrado",
+      "subtitle": "Crie seus próprios scripts de vendas dinâmicos para agilizar o atendimento.",
+      "createFirst": "Criar Primeiro"
+    },
+    "suggestedBadge": "Sugerido",
+    "customizeEditTitle": "Customizar / Editar",
+    "editTitle": "Editar",
+    "deleteTitle": "Excluir"
+  },
+  "channelPreferenceSelector": {
+    "smsIdLabel": "Número para SMS",
+    "smsPlaceholder": "+55 11 99999-9999",
+    "loading": "Carregando...",
+    "compactHeading": "Canal de Notificação",
+    "manual": "Manual",
+    "auto": "Auto",
+    "confirm": "OK",
+    "selectSms": "SMS",
+    "savedSuccess": "Canal salvo com sucesso",
+    "expandedHeading": "Canal preferido de notificação",
+    "manuallySet": "Definido manualmente",
+    "autoDetected": "Auto-detectado",
+    "save": "Salvar"
+  },
+  "floatingCommunicationsButton": {
+    "incomingCallHeader": "Chamada Recebida",
+    "unknownNumber": "Número desconhecido",
+    "reject": "Recusar",
+    "answer": "Atender",
+    "dialingFallback": "Discando",
+    "inCallFallback": "Em chamada",
+    "callingStatus": "Chamando...",
+    "muted": "Mudo",
+    "mic": "Mic",
+    "resume": "Retomar",
+    "hold": "Espera",
+    "transfer": "Transfer",
+    "hangup": "Desligar",
+    "transferTargetPlaceholder": "Número destino",
+    "confirm": "OK",
+    "call": "Ligar",
+    "sms": "SMS",
+    "dialPlaceholder": "Digite o número...",
+    "smsToPlaceholder": "Número destinatário...",
+    "smsMessagePlaceholder": "Digite a mensagem SMS...",
+    "charCount": "{{count}}/160 chars",
+    "send": "Enviar",
+    "title": {
+      "ringing": "Chamada recebida",
+      "active": "Em chamada",
+      "idle": "Comunicações"
+    }
+  },
+  "softphoneWidget": {
+    "status": {
+      "ready": "Pronto",
+      "connecting": "Conectando...",
+      "error": "Erro",
+      "disconnected": "Desconectado"
+    },
+    "dialPlaceholder": "Digite o número...",
+    "call": "Ligar",
+    "title": "Softphone"
+  },
+  "activeCallView": {
+    "inCallFallback": "Em chamada",
+    "onHold": "Em Espera",
+    "inCall": "Em Chamada",
+    "muted": "Mudo",
+    "microphone": "Microfone",
+    "resume": "Retomar",
+    "hold": "Espera",
+    "transfer": "Transferir",
+    "transferTargetPlaceholder": "Número destino",
+    "confirm": "OK",
+    "hangup": "Desligar"
+  },
+  "incomingCallNotification": {
+    "unknownNumber": "Número desconhecido",
+    "header": "Chamada Recebida",
+    "externalContactFallback": "Contato externo",
+    "reject": "Recusar",
+    "answer": "Atender"
+  },
+  "pendingOrdersList": {
+    "loading": "Carregando pedidos...",
+    "heading": "Pedidos em andamento",
+    "createdAtPrefix": "{{countryCode}} · Criado em {{date}}",
+    "resubmitDocuments": "Reenviar documentos",
+    "editAndResubmitDocuments": "Editar e reenviar documentos",
+    "completeDocuments": "Completar documentos"
+  },
+  "orderStatusBadge": {
+    "status": {
+      "pending_docs": "Aguardando documentos",
+      "docs_submitted": "Documentos enviados",
+      "under_review": "Em análise",
+      "approved": "Aprovado",
+      "rejected": "Rejeitado",
+      "completed": "Ativo",
+      "cancelled": "Cancelado"
+    }
   }
 }

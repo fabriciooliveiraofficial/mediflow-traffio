@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { MoreVertical, MessageCircle, Clock, Calendar, XCircle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -21,14 +22,15 @@ export const PatientStageCard: React.FC<PatientStageCardProps> = ({
     onCancel, 
     onStartConversation 
 }) => {
+    const { t } = useTranslation('automations');
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     const stages: { key: FunnelStage; label: string }[] = [
-        { key: 'novo_lead', label: 'Novo Lead' },
-        { key: 'em_follow_up', label: 'Em Follow-up' },
-        { key: 'qualificado', label: 'Qualificado' },
-        { key: 'agendado', label: 'Agendado' },
-        { key: 'perdido', label: 'Perdido' }
+        { key: 'novo_lead', label: t('patientStageCard.stages.novoLead') },
+        { key: 'em_follow_up', label: t('patientStageCard.stages.emFollowUp') },
+        { key: 'qualificado', label: t('patientStageCard.stages.qualificado') },
+        { key: 'agendado', label: t('patientStageCard.stages.agendado') },
+        { key: 'perdido', label: t('patientStageCard.stages.perdido') }
     ];
 
     const getNextActionLabel = () => {
@@ -71,18 +73,18 @@ export const PatientStageCard: React.FC<PatientStageCardProps> = ({
                                     onClick={() => { onViewJourney(patient.patient_phone, patient.patient_name); setIsMenuOpen(false); }}
                                     className="w-full text-left px-4 py-2 text-xs font-bold text-graphite-700 hover:bg-ice-50 flex items-center gap-2 border-none bg-transparent cursor-pointer"
                                 >
-                                    <Clock size={14} /> Ver Jornada Completa
+                                    <Clock size={14} /> {t('patientStageCard.menu.viewFullJourney')}
                                 </button>
-                                <button 
+                                <button
                                     onClick={() => { onStartConversation(patient.patient_phone); setIsMenuOpen(false); }}
                                     className="w-full text-left px-4 py-2 text-xs font-bold text-graphite-700 hover:bg-ice-50 flex items-center gap-2 border-none bg-transparent cursor-pointer"
                                 >
-                                    <MessageCircle size={14} /> Abrir Conversa
+                                    <MessageCircle size={14} /> {t('patientStageCard.menu.openConversation')}
                                 </button>
-                                
+
                                 <div className="h-px bg-ice-50 my-1" />
-                                
-                                <span className="block px-4 py-1 text-[9px] font-black uppercase text-graphite-300 tracking-widest">Mover para...</span>
+
+                                <span className="block px-4 py-1 text-[9px] font-black uppercase text-graphite-300 tracking-widest">{t('patientStageCard.menu.moveTo')}</span>
                                 {stages.filter(s => s.key !== patient.current_stage).map(stage => (
                                     <button 
                                         key={stage.key}
@@ -99,7 +101,7 @@ export const PatientStageCard: React.FC<PatientStageCardProps> = ({
                                     onClick={() => { onCancel(patient.patient_phone); setIsMenuOpen(false); }}
                                     className="w-full text-left px-4 py-2 text-xs font-bold text-rose-500 hover:bg-rose-50 flex items-center gap-2 border-none bg-transparent cursor-pointer"
                                 >
-                                    <XCircle size={14} /> Cancelar Follow-ups
+                                    <XCircle size={14} /> {t('patientStageCard.menu.cancelFollowUps')}
                                 </button>
                             </div>
                         </>
@@ -120,7 +122,7 @@ export const PatientStageCard: React.FC<PatientStageCardProps> = ({
                 <div className="flex items-center gap-1.5 text-graphite-400">
                     <MessageCircle size={12} className="shrink-0" />
                     <span className="text-[10px] font-bold truncate">
-                        Última: {formatDistanceToNow(new Date(patient.last_interaction_at || patient.created_at), { addSuffix: true, locale: ptBR })}
+                        {t('patientStageCard.lastInteraction', { distance: formatDistanceToNow(new Date(patient.last_interaction_at || patient.created_at), { addSuffix: true, locale: ptBR }) })}
                     </span>
                 </div>
 

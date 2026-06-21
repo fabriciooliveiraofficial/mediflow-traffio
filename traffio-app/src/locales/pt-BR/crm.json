@@ -214,6 +214,18 @@
       "saveFailed": "Erro ao salvar"
     }
   },
+  "sidebarLookupView": {
+    "headerTitle": "Vincular Paciente",
+    "searchPlaceholder": "Nome, CPF ou Telefone...",
+    "minCharsHint": "Digite pelo menos 3 caracteres para buscar.",
+    "searching": "Buscando na base...",
+    "empty": {
+      "title": "Nenhum paciente encontrado.",
+      "subtitle": "Verifique os dados ou cadastre um novo."
+    },
+    "noCpfFallback": "Sem CPF",
+    "linkNow": "Vincular Agora"
+  },
   "sidebarDirectoryView": {
     "headerLabel": "Diretório",
     "headerTitle": "Unidades & Profissionais",

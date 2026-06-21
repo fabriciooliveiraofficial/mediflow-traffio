@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ChevronLeft, Loader2, MapPin, Phone, Building2, User, Search, Stethoscope, Clock } from 'lucide-react';
 import { useTenant } from '../contexts/TenantContext';
 import { locationService } from '../services/locationService';
@@ -12,16 +13,16 @@ interface SidebarDirectoryViewProps {
   onBack: () => void;
 }
 
-const TYPE_LABELS: Record<string, string> = {
-  consultorio: 'Consultório',
-  clinica: 'Clínica',
-  hospital: 'Hospital',
-};
-
 const DAY_NAMES = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 export function SidebarDirectoryView({ onBack }: SidebarDirectoryViewProps) {
+  const { t } = useTranslation('crm');
   const { tenant } = useTenant();
+  const TYPE_LABELS: Record<string, string> = {
+    consultorio: t('sidebarDirectoryView.typeLabels.consultorio'),
+    clinica: t('sidebarDirectoryView.typeLabels.clinica'),
+    hospital: t('sidebarDirectoryView.typeLabels.hospital'),
+  };
   const [tab, setTab] = useState<'locations' | 'professionals'>('locations');
   const [filter, setFilter] = useState('');
   const [locations, setLocations] = useState<ClinicLocation[]>([]);
@@ -76,7 +77,7 @@ export function SidebarDirectoryView({ onBack }: SidebarDirectoryViewProps) {
 
   // Group professionals by specialty
   const groupedBySpecialty = filteredProfessionals.reduce<Record<string, Professional[]>>((acc, p) => {
-    const spec = p.specialty || 'Geral';
+    const spec = p.specialty || t('sidebarDirectoryView.generalSpecialtyFallback');
     if (!acc[spec]) acc[spec] = [];
     acc[spec].push(p);
     return acc;
@@ -106,8 +107,8 @@ export function SidebarDirectoryView({ onBack }: SidebarDirectoryViewProps) {
           <ChevronLeft className="w-5 h-5" />
         </button>
         <div className="text-white">
-          <p className="text-xs font-bold opacity-80 uppercase tracking-tighter">Diretório</p>
-          <p className="text-sm font-bold">Unidades & Profissionais</p>
+          <p className="text-xs font-bold opacity-80 uppercase tracking-tighter">{t('sidebarDirectoryView.headerLabel')}</p>
+          <p className="text-sm font-bold">{t('sidebarDirectoryView.headerTitle')}</p>
         </div>
       </div>
 
@@ -119,7 +120,7 @@ export function SidebarDirectoryView({ onBack }: SidebarDirectoryViewProps) {
             tab === 'locations' ? 'bg-white text-slate-700 shadow-sm' : 'text-gray-500'
           )}
         >
-          <Building2 size={13} /> Unidades
+          <Building2 size={13} /> {t('sidebarDirectoryView.tabs.locations')}
         </button>
         <button
           onClick={() => setTab('professionals')}
@@ -127,7 +128,7 @@ export function SidebarDirectoryView({ onBack }: SidebarDirectoryViewProps) {
             tab === 'professionals' ? 'bg-white text-slate-700 shadow-sm' : 'text-gray-500'
           )}
         >
-          <Stethoscope size={13} /> Profissionais
+          <Stethoscope size={13} /> {t('sidebarDirectoryView.tabs.professionals')}
         </button>
       </div>
 
@@ -137,7 +138,7 @@ export function SidebarDirectoryView({ onBack }: SidebarDirectoryViewProps) {
           <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-gray-400" />
           <input
             type="text"
-            placeholder={tab === 'locations' ? 'Buscar unidade...' : 'Buscar profissional...'}
+            placeholder={tab === 'locations' ? t('sidebarDirectoryView.searchPlaceholders.locations') : t('sidebarDirectoryView.searchPlaceholders.professionals')}
             value={filter}
             onChange={e => setFilter(e.target.value)}
             className="w-full pl-8 pr-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 transition-all"
@@ -153,7 +154,7 @@ export function SidebarDirectoryView({ onBack }: SidebarDirectoryViewProps) {
           ) : filteredLocations.length === 0 ? (
             <div className="py-12 text-center">
               <Building2 className="w-10 h-10 mx-auto text-gray-300 mb-2" />
-              <p className="text-xs text-gray-400">Nenhuma unidade encontrada</p>
+              <p className="text-xs text-gray-400">{t('sidebarDirectoryView.empty.locations')}</p>
             </div>
           ) : (
             filteredLocations.map(loc => (
@@ -191,7 +192,7 @@ export function SidebarDirectoryView({ onBack }: SidebarDirectoryViewProps) {
           ) : filteredProfessionals.length === 0 ? (
             <div className="py-12 text-center">
               <User className="w-10 h-10 mx-auto text-gray-300 mb-2" />
-              <p className="text-xs text-gray-400">Nenhum profissional encontrado</p>
+              <p className="text-xs text-gray-400">{t('sidebarDirectoryView.empty.professionals')}</p>
             </div>
           ) : (
             Object.entries(groupedBySpecialty).map(([specialty, profs]) => (

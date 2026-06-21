@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { User, Stethoscope, CheckCircle2, ChevronRight, Loader2, Copy, Check, ChevronLeft, MapPin, X, CreditCard, Link2, MessageSquare } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useTenant } from '../contexts/TenantContext';
@@ -19,6 +20,7 @@ interface SidebarBookingViewProps {
 }
 
 export function SidebarBookingView({ onBack, patientId, patientName, onSendMessage, rescheduleFrom, onSuccess }: SidebarBookingViewProps) {
+    const { t } = useTranslation('agenda');
     const { tenant } = useTenant();
     const { showToast } = useToast();
     const { formatSlot } = useLocaleFormat();
@@ -321,9 +323,9 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                 const nextDate = data[0].date;
                 setCurrentMonth(new Date(nextDate + 'T12:00:00'));
                 loadSlotsForDate(nextDate);
-                showToast('info', `Pulando para ${format(new Date(nextDate + 'T12:00:00'), "dd/MM")}`);
+                showToast('info', t('sidebarBookingView.toasts.skippingToDate', { date: format(new Date(nextDate + 'T12:00:00'), "dd/MM") }));
             } else {
-                showToast('warning', 'Nenhum outro horário disponível nos próximos dias.');
+                showToast('warning', t('sidebarBookingView.toasts.noOtherSlotsAvailable'));
             }
         } catch (err) {
             console.error('Erro ao buscar próximo horário:', err);
@@ -445,9 +447,9 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
             // 2. If rescheduling, clear the old slot FIRST to avoid overlap constraint violation
             // Note: Postgres constraint now unified to 'canceled' (American spelling)
             if (rescheduleFrom?.id) {
-                await supabase.from('appointments').update({ 
+                await supabase.from('appointments').update({
                     status: 'canceled',
-                    notes: `Reagendado para ${selectedDate} ${selectedSlot.time}`
+                    notes: t('sidebarBookingView.rescheduleNote', { date: selectedDate, time: selectedSlot.time })
                 }).eq('id', rescheduleFrom.id);
             }
 
@@ -471,13 +473,13 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                 const res = data as { success: boolean; appointment_id?: string; reason?: string };
                 if (!res.success) {
                     if (res.reason === 'slot_taken') {
-                        throw new Error('Este horário já foi preenchido por outro atendente. Por favor, escolha outro horário.');
+                        throw new Error(t('sidebarBookingView.errors.slotTaken'));
                     }
-                    throw new Error(res.reason || 'Erro desconhecido ao agendar.');
+                    throw new Error(res.reason || t('sidebarBookingView.errors.unknown'));
                 }
                 bookingId = res.appointment_id || '';
             } else {
-                throw new Error('Resposta de agendamento inválida.');
+                throw new Error(t('sidebarBookingView.errors.invalidResponse'));
             }
 
             const baseUrl = window.location.origin;
@@ -486,46 +488,46 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
             
             setPaymentLink(payLink);
             setStep(5);
-            showToast('success', rescheduleFrom ? 'Reagendamento concluído!' : 'Agendamento realizado!');
-            
+            showToast('success', rescheduleFrom ? t('sidebarBookingView.toasts.rescheduleCompleted') : t('sidebarBookingView.toasts.bookingCompleted'));
+
             const firstName = patientName.split(' ')[0];
             const dateStr = format(new Date(selectedDate + 'T12:00:00'), "dd/MM/yyyy");
-            const doctorName = doctors.find(d => d.id === selectedDoctor)?.full_name || 'Profissional';
+            const doctorName = doctors.find(d => d.id === selectedDoctor)?.full_name || t('sidebarBookingView.professionalFallback');
             const location = locations.find(l => l.id === selectedLocation);
             const locationName = location?.name || '';
             const mapsUrl = location?.google_maps_url;
-            
+
             const messageParts = [
-                `Olá *${firstName}*! 😊`,
-                rescheduleFrom ? `Seu reagendamento foi realizado com sucesso!` : `Seu agendamento foi realizado com sucesso!`,
+                t('sidebarBookingView.message.greeting', { name: firstName }),
+                rescheduleFrom ? t('sidebarBookingView.message.rescheduled') : t('sidebarBookingView.message.booked'),
                 ``,
-                `📝 *Detalhes da Consulta:*`,
-                `📅 *Data:* ${dateStr}`,
-                `🕒 *Horário:* ${selectedSlot.time}`,
-                `👨‍⚕️ *Profissional:* ${doctorName}`,
-                locationName ? `📍 *Local:* ${locationName}` : ``
+                t('sidebarBookingView.message.detailsTitle'),
+                t('sidebarBookingView.message.dateLine', { date: dateStr }),
+                t('sidebarBookingView.message.timeLine', { time: selectedSlot.time }),
+                t('sidebarBookingView.message.doctorLine', { doctor: doctorName }),
+                locationName ? t('sidebarBookingView.message.locationLine', { location: locationName }) : ``
             ];
 
             if (includeMaps && mapsUrl) {
-                messageParts.push(`🗺️ *Como Chegar:* ${mapsUrl}`);
+                messageParts.push(t('sidebarBookingView.message.mapsLine', { url: mapsUrl }));
             }
 
             if (includeCheckin) {
                 messageParts.push(``);
-                messageParts.push(`🔗 *SALA DE ESPERA VIRTUAL:*`);
-                messageParts.push(`Acesse para fazer seu check-in na hora da consulta:`);
+                messageParts.push(t('sidebarBookingView.message.checkinTitle'));
+                messageParts.push(t('sidebarBookingView.message.checkinInstructions'));
                 messageParts.push(checkinLink);
             }
 
             if (includePayment) {
                 messageParts.push(``);
-                messageParts.push(`💳 *PAGAMENTO / CONFIRMAÇÃO:*`);
-                messageParts.push(`Para garantir sua vaga, realize o pagamento no link:`);
+                messageParts.push(t('sidebarBookingView.message.paymentTitle'));
+                messageParts.push(t('sidebarBookingView.message.paymentInstructions'));
                 messageParts.push(payLink);
             }
 
             messageParts.push(``);
-            messageParts.push(`_Nos vemos em breve!_ 💙`);
+            messageParts.push(t('sidebarBookingView.message.closing'));
 
             const message = messageParts.filter(p => p !== undefined).join('\n');
 
@@ -543,7 +545,7 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
             navigator.clipboard.writeText(paymentLink);
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
-            showToast('success', 'Link copiado para a área de transferência');
+            showToast('success', t('sidebarBookingView.toasts.linkCopied'));
         }
     };
 
@@ -556,7 +558,7 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                         <ChevronLeft className="w-5 h-5" />
                     </button>
                     <div>
-                        <p className="text-xs font-bold opacity-80 uppercase tracking-tighter">Agendamento Expresso</p>
+                        <p className="text-xs font-bold opacity-80 uppercase tracking-tighter">{t('sidebarBookingView.headerLabel')}</p>
                         <p className="text-sm font-bold truncate max-w-[150px]">{patientName}</p>
                     </div>
                 </div>
@@ -578,7 +580,7 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                 {step === 1 && (
                     <div className="p-4 space-y-4">
                         <section className="space-y-4">
-                            <p className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">1. Selecione o Profissional</p>
+                            <p className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">{t('sidebarBookingView.steps.selectProfessional')}</p>
                             <div className="grid grid-cols-1 gap-2">
                                 {doctors.map(doc => (
                                     <button
@@ -594,7 +596,7 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                                         </div>
                                         <div className="min-w-0">
                                             <p className="text-sm font-black text-gray-900 truncate">{doc.full_name}</p>
-                                            <p className="text-[10px] text-gray-400 uppercase font-black">{doc.specialty || 'Geral'}</p>
+                                            <p className="text-[10px] text-gray-400 uppercase font-black">{doc.specialty || t('sidebarBookingView.generalSpecialtyFallback')}</p>
                                         </div>
                                         <ChevronRight className="ml-auto w-4 h-4 text-gray-300 group-hover:text-blue-400 transition-colors" />
                                     </button>
@@ -608,8 +610,8 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                 {step === 2 && (
                     <div className="p-4 space-y-4">
                         <div className="flex items-center justify-between">
-                            <p className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">2. Onde deseja ser atendido?</p>
-                            <button onClick={() => setStep(1)} className="text-[10px] font-black text-blue-600 uppercase border-none bg-transparent cursor-pointer">Trocar Profissional</button>
+                            <p className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">{t('sidebarBookingView.steps.selectLocationQuestion')}</p>
+                            <button onClick={() => setStep(1)} className="text-[10px] font-black text-blue-600 uppercase border-none bg-transparent cursor-pointer">{t('sidebarBookingView.changeProfessional')}</button>
                         </div>
                         <div className="grid grid-cols-1 gap-2">
                             {locations.map(loc => (
@@ -642,8 +644,8 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                 {step === 3 && (
                     <div className="p-4 space-y-4">
                         <div className="flex items-center justify-between">
-                            <p className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">3. Escolha o Procedimento</p>
-                            <button onClick={() => setStep(locations.length > 1 ? 2 : 1)} className="text-[10px] font-black text-blue-600 uppercase border-none bg-transparent cursor-pointer">Trocar {locations.length > 1 ? 'Unidade' : 'Profissional'}</button>
+                            <p className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">{t('sidebarBookingView.steps.selectProcedure')}</p>
+                            <button onClick={() => setStep(locations.length > 1 ? 2 : 1)} className="text-[10px] font-black text-blue-600 uppercase border-none bg-transparent cursor-pointer">{locations.length > 1 ? t('sidebarBookingView.changeUnit') : t('sidebarBookingView.changeProfessional')}</button>
                         </div>
                         {loading ? (
                             <div className="py-12 flex justify-center"><Loader2 className="animate-spin text-blue-600" /></div>
@@ -669,7 +671,7 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                                     </button>
                                 ))}
                                 {services.length === 0 && (
-                                    <p className="text-xs text-gray-400 italic py-8 text-center bg-gray-50 rounded-2xl">Nenhum procedimento encontrado.</p>
+                                    <p className="text-xs text-gray-400 italic py-8 text-center bg-gray-50 rounded-2xl">{t('sidebarBookingView.noProceduresFound')}</p>
                                 )}
                             </div>
                         )}
@@ -680,8 +682,8 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                 {step === 4 && (
                     <div className="p-4 space-y-6">
                         <div className="flex items-center justify-between">
-                            <p className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">4. Selecione a Data e Horário</p>
-                            <button onClick={() => setStep(3)} className="text-[10px] font-black text-blue-600 uppercase border-none bg-transparent cursor-pointer">Trocar Serviço</button>
+                            <p className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">{t('sidebarBookingView.steps.selectDateTime')}</p>
+                            <button onClick={() => setStep(3)} className="text-[10px] font-black text-blue-600 uppercase border-none bg-transparent cursor-pointer">{t('sidebarBookingView.changeService')}</button>
                         </div>
                         
                         <SidebarCalendar 
@@ -696,7 +698,7 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                             <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
                                 <div className="flex items-center justify-between px-1">
                                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                                      Agenda para {format(new Date(selectedDate + 'T12:00:00'), "dd 'de' MMMM", { locale: ptBR })}
+                                      {t('sidebarBookingView.agendaForDate', { date: format(new Date(selectedDate + 'T12:00:00'), "dd 'de' MMMM", { locale: ptBR }) })}
                                   </p>
                                   {selectedSlot && (
                                     <p className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
@@ -709,13 +711,13 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                                     <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-blue-600 w-6 h-6" /></div>
                                 ) : (slots.length === 0 || !slots.some(s => s.available)) ? (
                                     <div className="p-8 text-center bg-ice-50 rounded-2xl border border-ice-100 space-y-4">
-                                        <p className="text-xs text-graphite-400 italic">Nenhum horário disponível para este dia.</p>
-                                        <button 
+                                        <p className="text-xs text-graphite-400 italic">{t('sidebarBookingView.noSlotsForDay')}</p>
+                                        <button
                                             onClick={findNextSlot}
                                             disabled={loading}
                                             className="w-full py-3 bg-white border border-ice-200 rounded-xl text-xs font-black text-brand-primary uppercase hover:bg-brand-primary hover:text-white transition-all cursor-pointer shadow-sm"
                                         >
-                                            Procurar Próximo Dia Disponível
+                                            {t('sidebarBookingView.findNextAvailableDay')}
                                         </button>
                                     </div>
                                 ) : (
@@ -728,7 +730,7 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                                         {/* Time Grid Header */}
                                         <div className="flex border-b border-gray-200 bg-white sticky top-0 z-10 px-4 py-2">
                                           <div className="w-10"></div>
-                                          <div className="flex-1 text-[10px] font-black text-gray-400 uppercase tracking-tighter">Agenda Diária</div>
+                                          <div className="flex-1 text-[10px] font-black text-gray-400 uppercase tracking-tighter">{t('sidebarBookingView.dailyAgenda')}</div>
                                         </div>
 
                                         {/* Scrollable Grid */}
@@ -762,12 +764,12 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                                                     const slot = slots.find(s => s.time === timeStr);
                                                     
                                                     if (!slot) {
-                                                      overlays.push({ time: timeStr, label: 'INDISPONÍVEL', color: 'bg-gray-200/40', border: 'border-gray-200/30' });
+                                                      overlays.push({ time: timeStr, label: t('sidebarBookingView.unavailable'), color: 'bg-gray-200/40', border: 'border-gray-200/30' });
                                                     } else if (!slot.available) {
                                                       if (slot.block_type === 'blocked') {
-                                                        overlays.push({ time: timeStr, label: 'BLOQUEADO', color: 'bg-amber-50/50', border: 'border-amber-100', text: 'text-amber-600' });
+                                                        overlays.push({ time: timeStr, label: t('sidebarBookingView.blocked'), color: 'bg-amber-50/50', border: 'border-amber-100', text: 'text-amber-600' });
                                                       } else {
-                                                        overlays.push({ time: timeStr, label: 'OCUPADO', color: 'bg-gray-100', border: 'border-gray-200', text: 'text-gray-400' });
+                                                        overlays.push({ time: timeStr, label: t('sidebarBookingView.occupied'), color: 'bg-gray-100', border: 'border-gray-200', text: 'text-gray-400' });
                                                       }
                                                     }
                                                   });
@@ -870,7 +872,7 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                                     <div className="bg-blue-50/50 rounded-2xl border border-blue-100 p-4 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
                                         <div className="flex items-center gap-2 mb-1">
                                             <MessageSquare className="w-4 h-4 text-blue-600" />
-                                            <p className="text-[10px] font-black text-blue-800 uppercase tracking-widest">Links na Mensagem de Confirmação</p>
+                                            <p className="text-[10px] font-black text-blue-800 uppercase tracking-widest">{t('sidebarBookingView.messageCustomizationTitle')}</p>
                                         </div>
 
                                         <div className="grid grid-cols-1 gap-2">
@@ -888,8 +890,8 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                                                     <Link2 size={16} />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-[11px] font-bold text-gray-900">Sala de Espera (Check-in)</p>
-                                                    <p className="text-[9px] text-gray-500">Link para espera virtual do paciente</p>
+                                                    <p className="text-[11px] font-bold text-gray-900">{t('sidebarBookingView.checkinOption.title')}</p>
+                                                    <p className="text-[9px] text-gray-500">{t('sidebarBookingView.checkinOption.subtitle')}</p>
                                                 </div>
                                                 <div className={clsx(
                                                     "w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors",
@@ -913,8 +915,8 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                                                     <CreditCard size={16} />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-[11px] font-bold text-gray-900">Link de Pagamento</p>
-                                                    <p className="text-[9px] text-gray-500">Link de checkout para confirmar vaga</p>
+                                                    <p className="text-[11px] font-bold text-gray-900">{t('sidebarBookingView.paymentOption.title')}</p>
+                                                    <p className="text-[9px] text-gray-500">{t('sidebarBookingView.paymentOption.subtitle')}</p>
                                                 </div>
                                                 <div className={clsx(
                                                     "w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors",
@@ -938,8 +940,8 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                                                     <MapPin size={16} />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-[11px] font-bold text-gray-900">Instruções de Acesso (Google Maps)</p>
-                                                    <p className="text-[9px] text-gray-500">Link com o endereço da clínica</p>
+                                                    <p className="text-[11px] font-bold text-gray-900">{t('sidebarBookingView.mapsOption.title')}</p>
+                                                    <p className="text-[9px] text-gray-500">{t('sidebarBookingView.mapsOption.subtitle')}</p>
                                                 </div>
                                                 <div className={clsx(
                                                     "w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors",
@@ -963,12 +965,12 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                             <CheckCircle2 size={40} />
                         </div>
                         <div>
-                            <h3 className="text-lg font-bold text-gray-900">Agendado com Sucesso!</h3>
-                            <p className="text-xs text-gray-500 mt-1">O link de pagamento já está pronto.</p>
+                            <h3 className="text-lg font-bold text-gray-900">{t('sidebarBookingView.successTitle')}</h3>
+                            <p className="text-xs text-gray-500 mt-1">{t('sidebarBookingView.successSubtitle')}</p>
                         </div>
-                        
+
                         <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
-                            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Link de Pagamento (Asaas)</p>
+                            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">{t('sidebarBookingView.paymentLinkLabel')}</p>
                             <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl p-2">
                                 <span className="text-[10px] text-gray-400 truncate flex-1">{paymentLink}</span>
                                 <button 
@@ -984,7 +986,7 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                             onClick={onBack}
                             className="w-full bg-gray-900 text-white rounded-xl py-4 text-sm font-bold hover:bg-black transition-all cursor-pointer shadow-lg border-0"
                         >
-                            Voltar para o Atendimento
+                            {t('sidebarBookingView.backToService')}
                         </button>
                     </div>
                 )}
@@ -997,7 +999,7 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                         disabled={loading || !selectedSlot}
                         className="w-full bg-blue-600 text-white rounded-2xl py-4 text-sm font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/20 disabled:opacity-50 cursor-pointer border-0"
                     >
-                        {loading ? <Loader2 className="animate-spin w-5 h-5" /> : "Confirmar Agendamento"}
+                        {loading ? <Loader2 className="animate-spin w-5 h-5" /> : t('sidebarBookingView.confirmAppointment')}
                     </button>
                 </div>
             )}

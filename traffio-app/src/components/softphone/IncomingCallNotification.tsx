@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Phone, PhoneOff, User } from 'lucide-react';
 import type { ActiveCall } from '../../hooks/useTelnyxWebRTC';
 
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export function IncomingCallNotification({ call, onAnswer, onReject }: Props) {
+  const { t } = useTranslation('communications');
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Tocar som de chamada em loop
@@ -44,13 +46,13 @@ export function IncomingCallNotification({ call, onAnswer, onReject }: Props) {
 
   const displayNumber = call.remoteName
     ? `${call.remoteName} (${call.remoteNumber})`
-    : call.remoteNumber || 'Número desconhecido';
+    : call.remoteNumber || t('incomingCallNotification.unknownNumber');
 
   return (
     <div className="fixed top-4 right-4 z-50 w-80 bg-white rounded-3xl shadow-2xl border border-ice-100 overflow-hidden animate-in slide-in-from-top-4 duration-300">
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-500 px-5 py-4">
-        <p className="text-xs font-bold text-blue-200 uppercase tracking-wide">Chamada Recebida</p>
+        <p className="text-xs font-bold text-blue-200 uppercase tracking-wide">{t('incomingCallNotification.header')}</p>
         <p className="text-lg font-black text-white mt-0.5 truncate">{displayNumber}</p>
       </div>
 
@@ -61,7 +63,7 @@ export function IncomingCallNotification({ call, onAnswer, onReject }: Props) {
         </div>
         <div>
           <p className="text-sm font-bold text-graphite-700">
-            {call.remoteName ?? 'Contato externo'}
+            {call.remoteName ?? t('incomingCallNotification.externalContactFallback')}
           </p>
           <p className="text-xs text-graphite-400">{call.remoteNumber}</p>
         </div>
@@ -74,14 +76,14 @@ export function IncomingCallNotification({ call, onAnswer, onReject }: Props) {
           className="flex items-center justify-center gap-2 py-3 rounded-2xl bg-red-50 text-red-500 font-bold text-sm hover:bg-red-100 transition-colors border-none cursor-pointer"
         >
           <PhoneOff size={18} />
-          Recusar
+          {t('incomingCallNotification.reject')}
         </button>
         <button
           onClick={onAnswer}
           className="flex items-center justify-center gap-2 py-3 rounded-2xl bg-green-500 text-white font-bold text-sm hover:bg-green-600 transition-colors border-none cursor-pointer"
         >
           <Phone size={18} />
-          Atender
+          {t('incomingCallNotification.answer')}
         </button>
       </div>
     </div>

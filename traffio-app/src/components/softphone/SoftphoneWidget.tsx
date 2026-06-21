@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Phone, PhoneCall, ChevronDown, Loader2 } from 'lucide-react';
 import { useTelnyxWebRTC } from '../../hooks/useTelnyxWebRTC';
 import { ActiveCallView } from './ActiveCallView';
@@ -26,6 +27,7 @@ const DIAL_KEYS = [
 ];
 
 export function SoftphoneWidget({ enabled, activeNumber }: Props) {
+  const { t } = useTranslation('communications');
   const [expanded,       setExpanded]       = useState(false);
   const [dialInput,      setDialInput]      = useState('');
   const [callerPatient,  setCallerPatient]  = useState<{ id: string; name: string } | null>(null);
@@ -163,9 +165,9 @@ export function SoftphoneWidget({ enabled, activeNumber }: Props) {
               <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${statusColor}`} />
                 <span className="text-xs font-bold text-graphite-500">
-                  {status === 'ready' ? 'Pronto' :
-                   status === 'connecting' ? 'Conectando...' :
-                   status === 'error' ? 'Erro' : 'Desconectado'}
+                  {status === 'ready' ? t('softphoneWidget.status.ready') :
+                   status === 'connecting' ? t('softphoneWidget.status.connecting') :
+                   status === 'error' ? t('softphoneWidget.status.error') : t('softphoneWidget.status.disconnected')}
                 </span>
               </div>
               <button
@@ -194,7 +196,7 @@ export function SoftphoneWidget({ enabled, activeNumber }: Props) {
                     handleCall();
                   }
                 }}
-                placeholder="Digite o número..."
+                placeholder={t('softphoneWidget.dialPlaceholder')}
                 className="w-full text-center text-xl font-black text-graphite-800 bg-ice-50 border border-ice-200 rounded-2xl px-3 py-2.5 focus:outline-none focus:border-brand-primary font-mono tracking-widest"
               />
             </div>
@@ -245,7 +247,7 @@ export function SoftphoneWidget({ enabled, activeNumber }: Props) {
                   className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-green-500 text-white font-black text-sm hover:bg-green-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all border-none cursor-pointer"
                 >
                   <Phone size={18} />
-                  Ligar
+                  {t('softphoneWidget.call')}
                 </button>
               </div>
             </div>
@@ -258,7 +260,7 @@ export function SoftphoneWidget({ enabled, activeNumber }: Props) {
             onClick={() => setExpanded(!expanded)}
             className="w-14 h-14 rounded-full shadow-xl flex items-center justify-center border-none cursor-pointer transition-all active:scale-95"
             style={{ background: 'linear-gradient(135deg, #1152d4, #0d3fa0)' }}
-            title="Softphone"
+            title={t('softphoneWidget.title')}
           >
             {status === 'connecting' ? (
               <Loader2 size={22} className="text-white animate-spin" />

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { RefreshCw, FileText, AlertCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { OrderStatusBadge } from './OrderStatusBadge';
@@ -22,6 +23,7 @@ interface Props {
 }
 
 export function PendingOrdersList({ tenantId, onResubmit, refreshKey }: Props) {
+  const { t } = useTranslation('communications');
   const { formatDate } = useLocaleFormat();
   const [orders,  setOrders]  = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,7 +61,7 @@ export function PendingOrdersList({ tenantId, onResubmit, refreshKey }: Props) {
     return (
       <div className="flex items-center gap-2 py-4 text-graphite-300">
         <RefreshCw size={14} className="animate-spin" />
-        <span className="text-xs">Carregando pedidos...</span>
+        <span className="text-xs">{t('pendingOrdersList.loading')}</span>
       </div>
     );
   }
@@ -68,14 +70,14 @@ export function PendingOrdersList({ tenantId, onResubmit, refreshKey }: Props) {
 
   return (
     <div className="space-y-2">
-      <p className="text-xs font-black text-graphite-500 uppercase tracking-wide">Pedidos em andamento</p>
+      <p className="text-xs font-black text-graphite-500 uppercase tracking-wide">{t('pendingOrdersList.heading')}</p>
       {orders.map((order) => (
         <div key={order.id} className="p-3 bg-ice-50 border border-ice-200 rounded-2xl space-y-2">
           <div className="flex items-start justify-between gap-2">
             <div>
               <p className="text-sm font-black text-graphite-800 font-mono">{order.phone_number}</p>
               <p className="text-[11px] text-graphite-400 mt-0.5">
-                {order.country_code} · Criado em {formatDate(order.created_at)}
+                {t('pendingOrdersList.createdAtPrefix', { countryCode: order.country_code, date: formatDate(order.created_at) })}
               </p>
             </div>
             <OrderStatusBadge status={order.status} />
@@ -106,10 +108,10 @@ export function PendingOrdersList({ tenantId, onResubmit, refreshKey }: Props) {
             >
               <FileText size={12} />
               {order.status === 'rejected'
-                ? 'Reenviar documentos'
+                ? t('pendingOrdersList.resubmitDocuments')
                 : ['docs_submitted', 'under_review'].includes(order.status)
-                  ? 'Editar e reenviar documentos'
-                  : 'Completar documentos'}
+                  ? t('pendingOrdersList.editAndResubmitDocuments')
+                  : t('pendingOrdersList.completeDocuments')}
             </button>
           )}
         </div>

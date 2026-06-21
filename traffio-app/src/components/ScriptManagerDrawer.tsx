@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { 
+import { useTranslation } from 'react-i18next';
+import {
   Search, Plus, Pencil, Trash2, X, Zap, 
   Globe, FileText, Image as ImageIcon, Music, Loader2
 } from 'lucide-react';
@@ -24,6 +25,7 @@ export function ScriptManagerDrawer({
   onClose, 
   onScriptsUpdated 
 }: ScriptManagerDrawerProps) {
+  const { t } = useTranslation('communications');
   const { showToast, showConfirm } = useToast();
   
   const [scripts, setScripts] = useState<SalesScript[]>([]);
@@ -43,7 +45,7 @@ export function ScriptManagerDrawer({
       onScriptsUpdated(data);
       return data;
     } catch (err: any) {
-      showToast('error', 'Erro ao carregar scripts: ' + err.message);
+      showToast('error', t('scriptManagerDrawer.toasts.loadErrorPrefix') + err.message);
       return [];
     } finally {
       setLoading(false);
@@ -81,15 +83,15 @@ export function ScriptManagerDrawer({
   const handleDelete = async (e: React.MouseEvent, id: string, title: string) => {
     e.stopPropagation();
     
-    const confirm = await showConfirm(`Deseja realmente excluir o script "${title}"?`);
+    const confirm = await showConfirm(t('scriptManagerDrawer.deleteConfirm', { title }));
     if (!confirm) return;
 
     try {
       await salesScriptService.delete(id);
-      showToast('success', 'Script excluído com sucesso!');
+      showToast('success', t('scriptManagerDrawer.toasts.deleted'));
       loadScripts();
     } catch (err: any) {
-      showToast('error', 'Erro ao excluir script: ' + err.message);
+      showToast('error', t('scriptManagerDrawer.toasts.deleteErrorPrefix') + err.message);
     }
   };
 
@@ -103,7 +105,7 @@ export function ScriptManagerDrawer({
           id: undefined, // Let DB generate a new UUID
           tenant_id: tenantId
         });
-        showToast('success', 'Modelo sugerido salvo como um novo script da sua clínica!');
+        showToast('success', t('scriptManagerDrawer.toasts.suggestedSavedAsNew'));
       } else {
         await salesScriptService.update(editingScript.id, scriptData);
       }
@@ -173,7 +175,7 @@ export function ScriptManagerDrawer({
               <div className="w-7 h-7 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-200">
                 <Zap size={14} fill="currentColor" />
               </div>
-              <span className="text-sm font-bold text-gray-800">Scripts Inteligentes</span>
+              <span className="text-sm font-bold text-gray-800">{t('scriptManagerDrawer.header')}</span>
             </div>
             <div className="flex items-center gap-1">
               <button
@@ -182,10 +184,10 @@ export function ScriptManagerDrawer({
                   setCurrentView('create');
                 }}
                 className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 border-none bg-transparent cursor-pointer flex items-center gap-1 text-xs font-black uppercase tracking-wider"
-                title="Criar Script"
+                title={t('scriptManagerDrawer.createTitle')}
               >
                 <Plus className="w-4 h-4" />
-                Novo
+                {t('scriptManagerDrawer.new')}
               </button>
               <button 
                 onClick={onClose} 
@@ -202,7 +204,7 @@ export function ScriptManagerDrawer({
               <Search className="w-4 h-4 text-gray-400 shrink-0 mr-2" />
               <input
                 type="text"
-                placeholder="Pesquisar scripts..."
+                placeholder={t('scriptManagerDrawer.searchPlaceholder')}
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 className="w-full text-xs outline-none bg-transparent placeholder:text-gray-300 font-medium"
@@ -240,13 +242,13 @@ export function ScriptManagerDrawer({
             {loading ? (
               <div className="p-12 flex flex-col items-center justify-center text-gray-400 gap-2">
                 <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
-                <span className="text-xs">Carregando scripts...</span>
+                <span className="text-xs">{t('scriptManagerDrawer.loading')}</span>
               </div>
             ) : filteredScripts.length === 0 ? (
               <div className="p-12 text-center flex flex-col items-center justify-center">
                 <Zap className="w-8 h-8 text-gray-200 mb-2" />
-                <p className="text-xs text-gray-500 font-bold">Nenhum script encontrado</p>
-                <p className="text-[10px] text-gray-400 mt-1 max-w-[200px] leading-relaxed">Crie seus próprios scripts de vendas dinâmicos para agilizar o atendimento.</p>
+                <p className="text-xs text-gray-500 font-bold">{t('scriptManagerDrawer.empty.title')}</p>
+                <p className="text-[10px] text-gray-400 mt-1 max-w-[200px] leading-relaxed">{t('scriptManagerDrawer.empty.subtitle')}</p>
                 <button
                   onClick={() => {
                     setEditingScript(null);
@@ -255,7 +257,7 @@ export function ScriptManagerDrawer({
                   className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-black uppercase tracking-widest border-none cursor-pointer hover:bg-blue-700 shadow-lg shadow-blue-600/10 flex items-center gap-1"
                 >
                   <Plus size={14} />
-                  Criar Primeiro
+                  {t('scriptManagerDrawer.empty.createFirst')}
                 </button>
               </div>
             ) : (
@@ -288,7 +290,7 @@ export function ScriptManagerDrawer({
                         <div className="flex items-center gap-1.5 shrink-0">
                           {isGlobal && (
                             <span className="text-[8px] font-black text-slate-400 bg-slate-200/60 px-1.5 py-0.5 rounded uppercase tracking-wider">
-                              Sugerido
+                              {t('scriptManagerDrawer.suggestedBadge')}
                             </span>
                           )}
                            <div className="flex items-center gap-1.5 bg-transparent shrink-0">
@@ -299,7 +301,7 @@ export function ScriptManagerDrawer({
                                 setCurrentView('edit');
                               }}
                               className="p-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-blue-600 hover:border-blue-200 transition-all cursor-pointer shadow-sm flex items-center justify-center shrink-0"
-                              title={isGlobal ? "Customizar / Editar" : "Editar"}
+                              title={isGlobal ? t('scriptManagerDrawer.customizeEditTitle') : t('scriptManagerDrawer.editTitle')}
                             >
                               <Pencil size={13} />
                             </button>
@@ -307,7 +309,7 @@ export function ScriptManagerDrawer({
                               <button
                                 onClick={(e) => handleDelete(e, script.id, script.title)}
                                 className="p-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-red-50 text-slate-500 hover:text-red-600 hover:border-red-200 transition-all cursor-pointer shadow-sm flex items-center justify-center shrink-0"
-                                title="Excluir"
+                                title={t('scriptManagerDrawer.deleteTitle')}
                               >
                                 <Trash2 size={13} />
                               </button>
