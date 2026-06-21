@@ -33,6 +33,9 @@
     "insurance": "Convênio Médico",
     "cardNumber": "Carteirinha:",
     "cardPending": "Pendente",
+    "language": "Idioma",
+    "languageUpdated": "Idioma atualizado com sucesso!",
+    "languageUpdateError": "Erro ao salvar idioma. A alteração foi aplicada apenas neste dispositivo.",
     "signOut": "Desconectar minha conta"
   },
   "register": {

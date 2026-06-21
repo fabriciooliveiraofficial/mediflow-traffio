@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import type { PlanId, SubscriptionStatus, BillingCycle } from '../config/planConfig';
 import type { CountryCode } from '../lib/i18n/countryFormats';
+import { useApplyDefaultLanguage } from '../hooks/useLang';
 
 interface Tenant {
     id: string;
@@ -45,6 +46,7 @@ export interface UserProfile {
     email: string | null;
     avatar_url: string | null;
     role: string;
+    preferred_locale?: string | null;
 }
 
 interface TenantContextType {
@@ -125,7 +127,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 // Buscar profile
                 const { data: profileData } = await supabase
                     .from('profiles')
-                    .select('id, full_name, email, avatar_url, role')
+                    .select('id, full_name, email, avatar_url, role, preferred_locale')
                     .eq('id', currentUser.id)
                     .maybeSingle();
 
@@ -136,6 +138,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                         email:      profileData.email,
                         avatar_url: profileData.avatar_url,
                         role,
+                        preferred_locale: profileData.preferred_locale,
                     };
                     setUserProfile(profile);
                     localStorage.setItem('traffio_user_profile', JSON.stringify(profile));
@@ -204,6 +207,12 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user?.id, authLoading]);
+
+    // Idioma padrão da equipe: localStorage (já aplicado no boot) > userProfile.preferred_locale > tenant.country
+    useApplyDefaultLanguage({
+        userPreferredLocale: userProfile?.preferred_locale,
+        tenantCountry: tenant?.country,
+    });
 
     // Apply custom brand primary color dynamically to Tailwind v4 variable mapping
     useEffect(() => {

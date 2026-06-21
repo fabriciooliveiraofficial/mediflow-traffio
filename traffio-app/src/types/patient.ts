@@ -19,6 +19,7 @@ export interface Patient {
     insurance_provider: string | null;
     insurance_card: string | null;
     medical_notes: string | null;
+    preferred_locale?: string | null;
     created_at: string;
     updated_at: string;
 }

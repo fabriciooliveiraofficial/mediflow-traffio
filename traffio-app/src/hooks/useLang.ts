@@ -27,23 +27,53 @@ export function useLang() {
 }
 
 /**
- * Applies the default language derived from a clinic/patient country, but
- * ONLY when the user has never made an explicit language choice before
- * (no stored preference). Call once tenant/patient `country` is available
- * (e.g. from TenantContext) — async data can't be read by the boot-time
- * language detector, so this closes that gap.
+ * Resolves the default language once async tenant/user data becomes
+ * available, following the priority documented in src/lib/i18n/index.ts:
+ * localStorage (explicit choice, already applied by the boot-time detector)
+ * > userPreferredLocale (profiles.preferred_locale / patients.preferred_locale)
+ * > tenantCountry (clinic's country, mapped via getLanguageForCountry).
+ *
+ * Never overrides an explicit choice already in localStorage — this only
+ * fills the gap for first-time visits where the detector had nothing to go on.
  */
-export function useApplyDefaultLanguageFromCountry(country: string | null | undefined) {
+export function useApplyDefaultLanguage({
+    userPreferredLocale,
+    tenantCountry,
+}: {
+    userPreferredLocale?: string | null;
+    tenantCountry?: string | null;
+}) {
     const { i18n } = useTranslation();
 
     useEffect(() => {
-        if (!country) return;
         const hasExplicitPreference = !!localStorage.getItem(LANGUAGE_STORAGE_KEY);
         if (hasExplicitPreference) return;
 
-        const targetLanguage = getLanguageForCountry(country);
-        if (i18n.resolvedLanguage !== targetLanguage) {
-            i18n.changeLanguage(targetLanguage);
+        if (userPreferredLocale && (SUPPORTED_LANGUAGES as readonly string[]).includes(userPreferredLocale)) {
+            if (i18n.resolvedLanguage !== userPreferredLocale) {
+                i18n.changeLanguage(userPreferredLocale);
+            }
+            return;
         }
-    }, [country, i18n]);
+
+        if (tenantCountry) {
+            const targetLanguage = getLanguageForCountry(tenantCountry);
+            if (i18n.resolvedLanguage !== targetLanguage) {
+                i18n.changeLanguage(targetLanguage);
+            }
+        }
+    }, [userPreferredLocale, tenantCountry, i18n]);
+}
+
+/**
+ * Keeps <html lang> in sync with the active UI language (no RTL languages
+ * among pt-BR/en/es, so `dir` stays implicitly "ltr"). Mount once near the
+ * app root so it covers every route, public or authenticated.
+ */
+export function useSyncHtmlLang() {
+    const { language } = useLang();
+
+    useEffect(() => {
+        document.documentElement.lang = language;
+    }, [language]);
 }

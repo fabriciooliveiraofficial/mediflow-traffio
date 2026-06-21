@@ -228,6 +228,10 @@
       }
     }
   },
+  "paymentPolling": {
+    "title": "Confirmando pagamento...",
+    "message": "Estamos recebendo a confirmação do Stripe e liberando seu acesso. Isso deve levar apenas alguns segundos."
+  },
   "pagarmeCallback": {
     "connecting": "Conectando sua conta Pagar.me...",
     "authorizationFailed": "A autorização foi cancelada ou falhou.",

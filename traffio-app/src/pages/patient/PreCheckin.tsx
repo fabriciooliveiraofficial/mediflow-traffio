@@ -20,6 +20,7 @@ import type { Patient, Appointment } from '../../types/patient';
 import { docLabel } from '../../lib/i18n/doc';
 import { formatNational } from '../../lib/i18n/phone';
 import { DEFAULT_COUNTRY, type CountryCode } from '../../lib/i18n/countryFormats';
+import { useApplyDefaultLanguage } from '../../hooks/useLang';
 
 type Step = 'loading' | 'geofence_check' | 'verify_data' | 'verify_insurance' | 'complete';
 
@@ -53,6 +54,9 @@ export const PreCheckin: React.FC = () => {
     const [tenantId, setTenantId] = useState<string>('');
 
     const { result: geoResult, loading: geoLoading, error: geoError, check: geoCheck } = useGeofence(tenantId, locIdParam);
+
+    // Idioma padrão do paciente: localStorage (já aplicado no boot) > patient.preferred_locale
+    useApplyDefaultLanguage({ userPreferredLocale: patient?.preferred_locale });
 
     // Fetch appointment data
     useEffect(() => {

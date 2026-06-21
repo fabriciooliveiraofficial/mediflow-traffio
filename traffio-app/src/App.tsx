@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Routes, Route, Navigate, useSearchParams } from 'react-router-dom'
 import { DashboardLayout } from './layouts/DashboardLayout'
 import { Dashboard } from './pages/Dashboard'
@@ -44,6 +45,7 @@ import { Loader2 } from 'lucide-react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { supabase } from './lib/supabase'
 import { useSessionGuard } from './hooks/useSessionGuard'
+import { useSyncHtmlLang } from './hooks/useLang'
 import { SessionKickedModal } from './components/SessionKickedModal'
 import './App.css'
 
@@ -60,6 +62,7 @@ import { PortalProfile } from './pages/portal/PortalProfile'
 
 // --- Tenant Application Wrapper (Legacy State Navigation) ---
 function TenantApp() {
+  const { t } = useTranslation('billing')
   const [activeScreen, setActiveScreen] = useState('dashboard')
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null)
   const [searchParams, setSearchParams] = useSearchParams()
@@ -153,9 +156,9 @@ function TenantApp() {
           <div className="w-20 h-20 bg-brand-primary/10 text-brand-primary rounded-full flex items-center justify-center mx-auto mb-6">
             <Loader2 className="animate-spin text-brand-primary" size={40} />
           </div>
-          <h2 className="text-2xl font-black text-graphite-900 mb-2">Confirmando pagamento...</h2>
+          <h2 className="text-2xl font-black text-graphite-900 mb-2">{t('paymentPolling.title')}</h2>
           <p className="text-sm font-medium text-graphite-500 leading-relaxed">
-            Estamos recebendo a confirmação do Stripe e liberando seu acesso. Isso deve levar apenas alguns segundos.
+            {t('paymentPolling.message')}
           </p>
         </div>
       </div>
@@ -190,6 +193,7 @@ function TenantApp() {
 // Inner router that has access to AuthContext
 function AppRoutes() {
   const { session, loading } = useAuth();
+  useSyncHtmlLang();
 
   if (loading) return null;
 

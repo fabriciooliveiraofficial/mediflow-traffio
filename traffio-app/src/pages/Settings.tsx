@@ -34,6 +34,8 @@ import {
 import { supabase } from '../lib/supabase';
 import { TIMEZONE_OPTIONS, TIMEZONE_REGIONS } from '../lib/timezoneUtils';
 import { useToast } from '../contexts/ToastContext';
+import { useLang } from '../hooks/useLang';
+import type { AppLanguage } from '../lib/i18n';
 import { locationService, type ClinicLocation } from '../services/locationService';
 import { insurancePlanService, type InsurancePlan } from '../services/insurancePlanService';
 import { TenantAddressForm } from '../components/TenantAddressForm';
@@ -165,8 +167,10 @@ const loadStripeScript = () => {
 
 export const Settings = () => {
     const { t } = useTranslation('settings');
+    const { t: tCommon } = useTranslation('common');
     const { tenant: currentTenant, updateTenant: updateTenantContext, userRole } = useTenant();
     const { showToast } = useToast();
+    const { language, setLanguage, supportedLanguages } = useLang();
     const [activeTab, setActiveTab] = useState('clinics');
     const [loading, setLoading] = useState(true);
     const [tenants, setTenants] = useState<any[]>([]);
@@ -496,7 +500,8 @@ export const Settings = () => {
                     role: profileData?.role || 'staff',
                     specialty: doctorData?.specialty || '',
                     crm: doctorData?.crm || '',
-                    doctor_id: doctorData?.id
+                    doctor_id: doctorData?.id,
+                    preferred_locale: profileData?.preferred_locale || null
                 });
             } else {
                 // Fallback for dev/testing if no user is logged in
@@ -506,7 +511,8 @@ export const Settings = () => {
                     email: 'guest@traffio.com.br',
                     role: 'staff',
                     specialty: t('guestProfile.specialty'),
-                    crm: '0000-00'
+                    crm: '0000-00',
+                    preferred_locale: null
                 });
             }
 
@@ -625,6 +631,26 @@ export const Settings = () => {
         } catch (error) {
             console.error('Error saving profile:', error);
             showToast('error', t('toasts.profileUpdateError'));
+        }
+    };
+
+    const handleLanguageChange = async (lng: AppLanguage) => {
+        setLanguage(lng);
+        setProfile((prev: any) => prev ? { ...prev, preferred_locale: lng } : prev);
+
+        if (!profile?.id || profile.id === 'guest') return;
+
+        try {
+            const { error } = await supabase
+                .from('profiles')
+                .update({ preferred_locale: lng })
+                .eq('id', profile.id);
+
+            if (error) throw error;
+            showToast('success', t('toasts.languageUpdated'));
+        } catch (error) {
+            console.error('Error saving language preference:', error);
+            showToast('error', t('toasts.languageUpdateError'));
         }
     };
 
@@ -1934,6 +1960,18 @@ export const Settings = () => {
                                             onChange={(e) => setProfile({ ...profile, crm: e.target.value })}
                                             className="w-full bg-white border border-ice-200 rounded-xl px-4 py-3 font-medium text-graphite-900 focus:outline-none focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10 transition-all"
                                         />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-bold text-graphite-900">{t('profile.languageLabel')}</label>
+                                        <select
+                                            value={language}
+                                            onChange={(e) => handleLanguageChange(e.target.value as AppLanguage)}
+                                            className="w-full bg-white border border-ice-200 rounded-xl px-4 py-3 font-medium text-graphite-900 focus:outline-none focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10 transition-all cursor-pointer"
+                                        >
+                                            {supportedLanguages.map((lng) => (
+                                                <option key={lng} value={lng}>{tCommon(`language.${lng}`)}</option>
+                                            ))}
+                                        </select>
                                     </div>
                                 </div>
                                 <div className="flex justify-end pt-4">

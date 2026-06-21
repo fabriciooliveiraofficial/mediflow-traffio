@@ -1,15 +1,39 @@
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { User, Mail, Phone, Calendar, CreditCard, LogOut, ArrowLeft } from 'lucide-react';
+import { User, Mail, Phone, Calendar, CreditCard, Globe, LogOut, ArrowLeft } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { formatPhone, phoneFlag } from '../../lib/formatPhone';
 import { formatDisplayDate } from '../../lib/dateUtils';
+import { useLang } from '../../hooks/useLang';
+import { useToast } from '../../contexts/ToastContext';
+import type { AppLanguage } from '../../lib/i18n';
 
 export function PortalProfile() {
     const { t } = useTranslation('portal');
+    const { t: tCommon } = useTranslation('common');
     // @ts-ignore
     const { tenant, patient } = useOutletContext<{ tenant: any; patient: any }>();
     const navigate = useNavigate();
+    const { language, setLanguage, supportedLanguages } = useLang();
+    const { showToast } = useToast();
+
+    const handleLanguageChange = async (lng: AppLanguage) => {
+        setLanguage(lng);
+        if (!patient?.id) return;
+
+        try {
+            const { error } = await supabase
+                .from('patients')
+                .update({ preferred_locale: lng })
+                .eq('id', patient.id);
+
+            if (error) throw error;
+            showToast('success', t('profile.languageUpdated'));
+        } catch (error) {
+            console.error('Error saving patient language preference:', error);
+            showToast('error', t('profile.languageUpdateError'));
+        }
+    };
 
     const handleSignOut = async () => {
         await supabase.auth.signOut();
@@ -102,6 +126,23 @@ export function PortalProfile() {
                             </div>
                         </div>
                     )}
+
+                    {/* Language */}
+                    <div>
+                        <h2 className="text-lg font-bold text-gray-900 mb-4">{t('profile.language')}</h2>
+                        <div className="flex items-center gap-4 text-gray-600">
+                            <Globe className="text-gray-400" size={20} />
+                            <select
+                                value={language}
+                                onChange={(e) => handleLanguageChange(e.target.value as AppLanguage)}
+                                className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-900 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all cursor-pointer"
+                            >
+                                {supportedLanguages.map((lng) => (
+                                    <option key={lng} value={lng}>{tCommon(`language.${lng}`)}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
 
                     {/* Actions */}
                     <div className="pt-6 border-t border-gray-100">

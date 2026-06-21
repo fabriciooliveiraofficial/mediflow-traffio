@@ -26,6 +26,8 @@
     "demoModeInfo": "Modo demonstração: alterações não persistidas.",
     "profileUpdated": "Perfil atualizado com sucesso!",
     "profileUpdateError": "Erro ao atualizar perfil.",
+    "languageUpdated": "Idioma atualizado com sucesso!",
+    "languageUpdateError": "Erro ao salvar idioma. A alteração foi aplicada apenas neste dispositivo.",
     "tenantUpdated": "Clínica atualizada com sucesso!",
     "tenantUpdateError": "Erro ao atualizar clínica.",
     "locationUpdated": "Local atualizado!",
@@ -187,6 +189,7 @@
     "roleSuperAdmin": "Gestor da Plataforma (Super Admin)",
     "specialtyLabel": "Especialidade",
     "crmLabel": "CRM/Registro",
+    "languageLabel": "Idioma da Plataforma",
     "saveChanges": "Salvar Alterações"
   },
   "wallet": {

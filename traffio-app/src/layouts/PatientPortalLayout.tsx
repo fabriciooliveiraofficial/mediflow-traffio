@@ -3,6 +3,7 @@ import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabase';
 import { usePortalTenant } from '../hooks/usePortalTenant';
+import { useApplyDefaultLanguage } from '../hooks/useLang';
 import {
     LayoutDashboard,
     Calendar,
@@ -21,6 +22,12 @@ export function PatientPortalLayout() {
     const [patient, setPatient] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+    // Idioma padrão do paciente: localStorage (já aplicado no boot) > patient.preferred_locale > tenant.country
+    useApplyDefaultLanguage({
+        userPreferredLocale: patient?.preferred_locale,
+        tenantCountry: tenant?.country,
+    });
 
     useEffect(() => {
         if (tenantLoading) return;

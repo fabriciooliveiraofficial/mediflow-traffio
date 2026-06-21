@@ -21,8 +21,8 @@ import {
   PhoneForwarded, PhoneIncoming,
 } from 'lucide-react';
 import { useTelnyxWebRTC } from '../../hooks/useTelnyxWebRTC';
-import type { ActiveCall } from '../../hooks/useTelnyxWebRTC';
 import { supabase } from '../../lib/supabase';
+import { logPlatformClient } from '../../lib/logger';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 
 // ─── Sons via Web Audio API (sem arquivos externos) ─────────────────────────
@@ -360,6 +360,87 @@ export function FloatingCommunicationsButton({ enabled, activeNumber: activeNumb
     return () => { supabase.removeChannel(ch); };
   }, [tenantId]);
 
+  // ── Diagnóstico de Áudio Remoto (Injeta o stream na tag <audio>) ───────────
+  useEffect(() => {
+    if (callState !== 'active' && callState !== 'calling' && callState !== 'held') return;
+
+    const callRef = activeCall?.callRef;
+    if (!callRef) return;
+
+    const remoteStream = callRef.remoteStream;
+    const optionsRemoteStream = callRef.options?.remoteStream;
+    const peer = callRef.peer;
+    const pc = peer?.instance || peer?.pc;
+    
+    logPlatformClient({
+      level: 'info',
+      source: 'FloatingCommunicationsButton',
+      eventName: 'audio_diagnostics_check',
+      message: 'Checking callRef...',
+      metadata: {
+        state: callRef.state,
+        id: callRef.id,
+        remoteStream: remoteStream ? 'Present' : 'Missing',
+        optionsRemoteStream: optionsRemoteStream ? 'Present' : 'Missing',
+        peer: peer ? 'Present' : 'Missing',
+        pc: pc ? 'Present' : 'Missing',
+      }
+    });
+
+    let stream = remoteStream || optionsRemoteStream;
+
+    if (!stream && pc) {
+      const receivers = typeof pc.getReceivers === 'function' ? pc.getReceivers() : [];
+      const remoteTracks = receivers.map((r: any) => r.track).filter(Boolean);
+      logPlatformClient({
+        level: 'info',
+        source: 'FloatingCommunicationsButton',
+        eventName: 'audio_diagnostics_receivers',
+        message: 'Receivers tracks found',
+        metadata: { trackCount: remoteTracks.length }
+      });
+      
+      if (remoteTracks.length > 0) {
+        stream = new MediaStream(remoteTracks);
+      }
+    }
+
+    const audioElement = document.getElementById('telnyx-remote-audio') as HTMLAudioElement;
+    if (audioElement) {
+      if (stream) {
+        if (audioElement.srcObject !== stream) {
+          logPlatformClient({
+            level: 'info',
+            source: 'FloatingCommunicationsButton',
+            eventName: 'audio_diagnostics_attach',
+            message: 'Attaching stream to DOM'
+          });
+          audioElement.srcObject = stream;
+          audioElement.muted = false;
+          audioElement.volume = 1.0;
+          audioElement.play().catch((err: any) => {
+            logPlatformClient({ level: 'error', source: 'FloatingButton', eventName: 'audio_play_error', message: err.message });
+          });
+        }
+      }
+    } else {
+      logPlatformClient({
+        level: 'error',
+        source: 'FloatingCommunicationsButton',
+        eventName: 'audio_diagnostics_no_element',
+        message: 'HTMLAudioElement with ID "telnyx-remote-audio" not found in DOM!'
+      });
+    }
+  }, [callState, activeCall?.callRef, callDuration]); // re-avalia baseado no timer também
+
+  // Limpeza final do áudio
+  useEffect(() => {
+    return () => {
+      const audioElement = document.getElementById('telnyx-remote-audio') as HTMLAudioElement;
+      if (audioElement) audioElement.srcObject = null;
+    };
+  }, []);
+
   const fmt = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
   const isRinging  = callState === 'ringing';
@@ -376,6 +457,7 @@ export function FloatingCommunicationsButton({ enabled, activeNumber: activeNumb
 
   return (
     <>
+      <audio id="telnyx-remote-audio" autoPlay playsInline style={{ display: 'none' }} />
       {/* ── Overlay de chamada recebida (prioridade máxima) ─────────────────── */}
       {isRinging && activeCall && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center">
