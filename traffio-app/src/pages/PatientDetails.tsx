@@ -81,7 +81,7 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
         if (!phone) { setCallsLoading(false); return; }
         supabase
             .from('call_records')
-            .select('id, direction, from_number, to_number, status, duration_seconds, recording_url, started_at, answered_at, call_notes')
+            .select('id, direction, from_number, to_number, status, duration_seconds, started_at, answered_at, call_notes')
             .or(`from_number.eq.${phone},to_number.eq.${phone}`)
             .order('started_at', { ascending: false })
             .limit(20)
@@ -438,9 +438,6 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
                                             {call.duration_seconds && ` · ${Math.floor(call.duration_seconds / 60)}m${call.duration_seconds % 60}s`}
                                         </p>
                                     </div>
-                                    {call.recording_url && (
-                                        <audio controls src={call.recording_url} className="h-8 w-40" />
-                                    )}
                                     <button
                                         onClick={() => window.dispatchEvent(new CustomEvent('softphone:dial', { detail: { number: call.direction === 'inbound' ? call.from_number : call.to_number } }))}
                                         className="w-8 h-8 rounded-xl bg-green-50 hover:bg-green-100 text-green-600 flex items-center justify-center border-none cursor-pointer shrink-0"
