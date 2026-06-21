@@ -263,7 +263,7 @@ export const Settings = () => {
                 }
             } catch (err) {
                 console.error('Failed to init embedded checkout:', err);
-                showToast('error', 'Erro ao carregar o faturamento do Stripe');
+                showToast('error', t('wallet.errors.stripeLoadError'));
                 setStripeClientSecret(null);
             }
         }
@@ -327,13 +327,13 @@ export const Settings = () => {
 
     const handleRechargeWallet = async () => {
         if (!currentTenant?.id) {
-            showToast('error', 'Clínica não selecionada');
+            showToast('error', t('wallet.errors.clinicNotSelected'));
             return;
         }
 
         const amount = parseFloat(rechargeAmount);
         if (isNaN(amount) || amount < 10) {
-            showToast('error', 'O valor mínimo de recarga é de R$ 10,00');
+            showToast('error', t('wallet.errors.minRecharge'));
             return;
         }
 
@@ -353,10 +353,10 @@ export const Settings = () => {
                 setShowRechargeModal(false);
                 setStripeClientSecret(data.clientSecret);
             } else {
-                throw new Error('Retorno inválido da API do Stripe');
+                throw new Error(t('wallet.errors.invalidStripeReturn'));
             }
         } catch (err: any) {
-            showToast('error', `Erro ao abrir faturamento Stripe: ${err.message}`);
+            showToast('error', `${t('wallet.errors.stripeOpenErrorPrefix')} ${err.message}`);
         } finally {
             setRecharging(false);
         }
@@ -365,7 +365,7 @@ export const Settings = () => {
     useEffect(() => {
         const queryParams = new URLSearchParams(window.location.search);
         if (queryParams.get('recharge') === 'success') {
-            showToast('success', 'Solicitação de recarga iniciada! Seus créditos serão atualizados em instantes.');
+            showToast('success', t('wallet.rechargeSuccessQueued'));
             queryParams.delete('recharge');
             const newSearch = queryParams.toString();
             const newUrl = window.location.pathname + (newSearch ? `?${newSearch}` : '') + window.location.hash;
@@ -950,7 +950,7 @@ export const Settings = () => {
                                                         initialData={tenant}
                                                         country={tenant.country || DEFAULT_COUNTRY}
                                                         onSave={(updates: any) => {
-                                                            setTenants(prev => prev.map(t => t.id === tenant.id ? { ...t, ...updates } : t));
+                                                            setTenants(prev => prev.map(tn => tn.id === tenant.id ? { ...tn, ...updates } : tn));
                                                             handleSaveTenant(tenant.id, updates, true);
                                                         }}
                                                     />
@@ -969,7 +969,7 @@ export const Settings = () => {
                                                             onChange={(e) => {
                                                                 const country = e.target.value as CountryCode;
                                                                 const locale = getCountry(country).locale;
-                                                                setTenants(prev => prev.map(t => t.id === tenant.id ? { ...t, country, locale } : t));
+                                                                setTenants(prev => prev.map(tn => tn.id === tenant.id ? { ...tn, country, locale } : tn));
                                                                 handleSaveTenant(tenant.id, { country, locale });
                                                                 if (currentTenant?.id === tenant.id) updateTenantContext({ country, locale });
                                                             }}
@@ -1089,7 +1089,7 @@ export const Settings = () => {
                                                             type="color"
                                                             value={tenant.color_primary || '#1152d4'}
                                                             onChange={(e) => {
-                                                                setTenants(prev => prev.map(t => t.id === tenant.id ? { ...t, color_primary: e.target.value } : t));
+                                                                setTenants(prev => prev.map(tn => tn.id === tenant.id ? { ...tn, color_primary: e.target.value } : tn));
                                                                 if (currentTenant?.id === tenant.id) {
                                                                     updateTenantContext({ color_primary: e.target.value });
                                                                 }
@@ -1579,7 +1579,7 @@ export const Settings = () => {
                                     {/* Card de Saldo */}
                                     <div className="md:col-span-1 bg-gradient-to-br from-brand-primary to-indigo-600 rounded-2xl p-6 text-white shadow-lg flex flex-col justify-between">
                                         <div>
-                                            <p className="text-xs font-black uppercase tracking-wider text-white/70">Saldo Disponível</p>
+                                            <p className="text-xs font-black uppercase tracking-wider text-white/70">{t('wallet.availableBalance')}</p>
                                             <h3 className="text-3xl font-black mt-2 font-mono">
                                                 R$ {wallet?.balance_brl ? Number(wallet.balance_brl).toFixed(2) : '0.00'}
                                             </h3>
@@ -1589,7 +1589,7 @@ export const Settings = () => {
                                                 onClick={() => setShowRechargeModal(true)}
                                                 className="w-full bg-white text-indigo-600 hover:bg-ice-50 font-black text-sm px-4 py-2.5 rounded-xl border-none cursor-pointer transition-transform hover:scale-[1.02] active:scale-[0.98] shadow-md flex items-center justify-center gap-1.5"
                                             >
-                                                <Plus size={16} /> Adicionar Créditos
+                                                <Plus size={16} /> {t('wallet.addCredits')}
                                             </button>
                                         </div>
                                     </div>
@@ -1598,14 +1598,14 @@ export const Settings = () => {
                                     <div className="md:col-span-2 bg-white border border-ice-100 rounded-2xl p-6 flex flex-col justify-between">
                                         <div>
                                             <h4 className="text-sm font-black text-graphite-900 mb-4 flex items-center gap-2">
-                                                <Activity size={16} className="text-brand-primary" /> Consumo Acumulado
+                                                <Activity size={16} className="text-brand-primary" /> {t('wallet.accumulatedConsumption')}
                                             </h4>
-                                            
+
                                             <div className="space-y-4">
                                                 {/* Barra Voz */}
                                                 <div>
                                                     <div className="flex justify-between text-xs font-bold text-graphite-600 mb-1">
-                                                        <span>Voz ({consumptionSummary.voiceMin.toFixed(1)} min)</span>
+                                                        <span>{t('wallet.voiceLabel', { minutes: consumptionSummary.voiceMin.toFixed(1) })}</span>
                                                         <span className="font-mono">R$ {consumptionSummary.voiceBrl.toFixed(2)}</span>
                                                     </div>
                                                     <div className="w-full bg-ice-100 h-2.5 rounded-full overflow-hidden">
@@ -1619,7 +1619,7 @@ export const Settings = () => {
                                                 {/* Barra SMS */}
                                                 <div>
                                                     <div className="flex justify-between text-xs font-bold text-graphite-600 mb-1">
-                                                        <span>SMS ({consumptionSummary.smsCount} envios)</span>
+                                                        <span>{t('wallet.smsLabel', { count: consumptionSummary.smsCount })}</span>
                                                         <span className="font-mono">R$ {consumptionSummary.smsBrl.toFixed(2)}</span>
                                                     </div>
                                                     <div className="w-full bg-ice-100 h-2.5 rounded-full overflow-hidden">
@@ -1633,7 +1633,7 @@ export const Settings = () => {
                                                 {/* Barra Números */}
                                                 <div>
                                                     <div className="flex justify-between text-xs font-bold text-graphite-600 mb-1">
-                                                        <span>Números de Telefone</span>
+                                                        <span>{t('wallet.numbersLabel')}</span>
                                                         <span className="font-mono">R$ {consumptionSummary.numbersBrl.toFixed(2)}</span>
                                                     </div>
                                                     <div className="w-full bg-ice-100 h-2.5 rounded-full overflow-hidden">
@@ -1651,18 +1651,18 @@ export const Settings = () => {
                                 {/* LISTA DE TRANSAÇÕES RECENTES */}
                                 <div className="bg-white border border-ice-100 rounded-2xl p-6">
                                     <h4 className="text-sm font-black text-graphite-900 mb-4 flex items-center gap-2">
-                                        <Clock size={16} className="text-brand-primary" /> Histórico Recente de Transações
+                                        <Clock size={16} className="text-brand-primary" /> {t('wallet.recentTransactionsTitle')}
                                     </h4>
-                                    
+
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-left border-collapse">
                                             <thead>
                                                 <tr className="border-b border-ice-50 text-[10px] font-black text-graphite-400 uppercase tracking-wider">
-                                                    <th className="py-2.5">Data</th>
-                                                    <th className="py-2.5">Descrição</th>
-                                                    <th className="py-2.5 text-center">Tipo</th>
-                                                    <th className="py-2.5 text-right">Valor</th>
-                                                    <th className="py-2.5 text-right">Saldo</th>
+                                                    <th className="py-2.5">{t('wallet.colDate')}</th>
+                                                    <th className="py-2.5">{t('wallet.colDescription')}</th>
+                                                    <th className="py-2.5 text-center">{t('wallet.colType')}</th>
+                                                    <th className="py-2.5 text-right">{t('wallet.colValue')}</th>
+                                                    <th className="py-2.5 text-right">{t('wallet.colBalance')}</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-ice-50 text-xs font-medium text-graphite-600">
@@ -1680,7 +1680,7 @@ export const Settings = () => {
                                                                     tx.type === 'deduction' ? 'bg-slate-100 text-slate-600' :
                                                                     'bg-blue-100 text-blue-600'
                                                                 }`}>
-                                                                    {tx.type === 'recharge' ? 'Recarga' : tx.type === 'deduction' ? 'Débito' : tx.type}
+                                                                    {tx.type === 'recharge' ? t('wallet.typeRecharge') : tx.type === 'deduction' ? t('wallet.typeDeduction') : tx.type}
                                                                 </span>
                                                             </td>
                                                             <td className={`py-3 text-right font-bold font-mono ${isCredit ? 'text-emerald-500' : 'text-slate-700'}`}>
@@ -1695,7 +1695,7 @@ export const Settings = () => {
                                                 {transactions.length === 0 && (
                                                     <tr>
                                                         <td colSpan={5} className="py-6 text-center text-graphite-400 font-semibold">
-                                                            Nenhuma transação registrada ainda.
+                                                            {t('wallet.emptyTransactions')}
                                                         </td>
                                                     </tr>
                                                 )}
@@ -2076,9 +2076,9 @@ export const Settings = () => {
                             </div>
                             <div>
                                 <h3 className="text-base font-black text-graphite-900 tracking-tight">
-                                    Adicionar Créditos
+                                    {t('wallet.rechargeModal.title')}
                                 </h3>
-                                <p className="text-[10px] font-bold text-graphite-400">Recarga instantânea para comunicações</p>
+                                <p className="text-[10px] font-bold text-graphite-400">{t('wallet.rechargeModal.subtitle')}</p>
                             </div>
                         </div>
                         <button
@@ -2090,7 +2090,7 @@ export const Settings = () => {
                     </div>
 
                     <div className="space-y-4">
-                        <label className="text-xs font-bold text-graphite-500">Selecione o valor da recarga</label>
+                        <label className="text-xs font-bold text-graphite-500">{t('wallet.rechargeModal.amountLabel')}</label>
                         <div className="grid grid-cols-3 gap-3">
                             {['50', '100', '200'].map(val => (
                                 <button
@@ -2109,14 +2109,14 @@ export const Settings = () => {
                         </div>
 
                         <div className="pt-2">
-                            <label className="text-xs font-bold text-graphite-500">Ou digite outro valor (R$)</label>
+                            <label className="text-xs font-bold text-graphite-500">{t('wallet.rechargeModal.customAmountLabel')}</label>
                             <input
                                 type="number"
                                 min="10"
                                 value={rechargeAmount}
                                 onChange={e => setRechargeAmount(e.target.value)}
                                 className="w-full mt-1 bg-white border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium focus:outline-none focus:border-brand-primary transition-colors font-mono"
-                                placeholder="Min. R$ 10"
+                                placeholder={t('wallet.rechargeModal.customAmountPlaceholder')}
                             />
                         </div>
                     </div>
@@ -2126,7 +2126,7 @@ export const Settings = () => {
                             onClick={() => setShowRechargeModal(false)}
                             className="px-4 py-2.5 rounded-xl font-bold text-graphite-500 hover:bg-ice-100 transition-colors border-none cursor-pointer bg-transparent"
                         >
-                            Cancelar
+                            {t('wallet.rechargeModal.cancel')}
                         </button>
                         <button
                             onClick={handleRechargeWallet}
@@ -2134,7 +2134,7 @@ export const Settings = () => {
                             className="px-6 py-2.5 rounded-xl font-bold bg-brand-primary text-white hover:bg-brand-primary/90 transition-colors border-none cursor-pointer shadow-md flex items-center gap-1.5 disabled:opacity-60"
                         >
                             {recharging && <RefreshCw size={14} className="animate-spin" />}
-                            Confirmar Recarga
+                            {t('wallet.rechargeModal.confirm')}
                         </button>
                     </div>
                 </div>
@@ -2146,7 +2146,7 @@ export const Settings = () => {
             <div className="fixed inset-0 bg-graphite-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                 <div className="bg-white rounded-3xl p-6 w-full max-w-2xl shadow-2xl relative flex flex-col max-h-[90vh]">
                     <div className="flex justify-between items-center pb-4 border-b border-ice-50">
-                        <h3 className="text-lg font-black text-graphite-900">Pagamento Seguro (Stripe)</h3>
+                        <h3 className="text-lg font-black text-graphite-900">{t('wallet.stripeModalTitle')}</h3>
                         <button
                             onClick={() => setStripeClientSecret(null)}
                             className="w-8 h-8 rounded-full border-none cursor-pointer bg-ice-50 hover:bg-ice-100 flex items-center justify-center text-graphite-500 font-bold transition-colors"

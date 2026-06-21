@@ -332,6 +332,8 @@
     },
     "searchPlaceholder": "Buscar tipo de consulta...",
     "emptyState": "Nenhum tipo de consulta encontrado.",
+    "noNameFallback": "Sem nome",
+    "noSpecialtyFallback": "Especialidade não definida",
     "clinicGeneral": {
       "title": "Serviços da Clínica",
       "subtitle": "Gerais / Sem Profissional"

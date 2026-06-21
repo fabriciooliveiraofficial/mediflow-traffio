@@ -260,15 +260,15 @@ export const MasterBilling = () => {
                         </div>
                         <div>
                             <div className="flex items-center gap-2">
-                                <h4 className="font-bold text-white text-base">Conta Central Telnyx (Provedor)</h4>
+                                <h4 className="font-bold text-white text-base">{t('billing.masterAccount.title')}</h4>
                                 {masterBillingDetails?.balance && masterBillingDetails.balance.available_credit < 20 && (
                                     <span className="text-[10px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full border border-amber-500/30 animate-pulse">
-                                        Saldo Crítico (Abaixo de $20 USD)
+                                        {t('billing.masterAccount.criticalBalance')}
                                     </span>
                                 )}
                             </div>
                             <p className="text-slate-500 text-xs mt-1">
-                                Integração e bilhetagem master para chamadas de voz, SMS e MMS em todas as clínicas.
+                                {t('billing.masterAccount.subtitle')}
                             </p>
                         </div>
                     </div>
@@ -283,7 +283,7 @@ export const MasterBilling = () => {
                         ) : (
                             <Clock size={14} />
                         )}
-                        Sincronizar Telnyx
+                        {t('billing.masterAccount.syncButton')}
                     </button>
                 </div>
 
@@ -291,7 +291,7 @@ export const MasterBilling = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-[#1E293B] border-b border-[#1E293B]">
                     {/* Crédito Disponível */}
                     <div className="p-6">
-                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Crédito Disponível</p>
+                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">{t('billing.masterAccount.availableCredit')}</p>
                         <div className="flex items-baseline gap-2 mt-1">
                             <span className="text-3xl font-black text-white font-mono">
                                 {masterBillingDetails?.balance ? `$ ${masterBillingDetails.balance.available_credit.toFixed(2)}` : '$ --.--'}
@@ -307,7 +307,7 @@ export const MasterBilling = () => {
 
                     {/* Saldo Líquido */}
                     <div className="p-6">
-                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Saldo Atual da Conta</p>
+                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">{t('billing.masterAccount.currentBalance')}</p>
                         <div className="flex items-baseline gap-2 mt-1">
                             <span className="text-2xl font-bold text-slate-300 font-mono">
                                 {masterBillingDetails?.balance ? `$ ${masterBillingDetails.balance.balance.toFixed(2)}` : '$ --.--'}
@@ -323,7 +323,7 @@ export const MasterBilling = () => {
 
                     {/* Limite de Crédito */}
                     <div className="p-6">
-                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Limite de Crédito Adicional</p>
+                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">{t('billing.masterAccount.additionalCreditLimit')}</p>
                         <div className="flex items-baseline gap-2 mt-1">
                             <span className="text-2xl font-bold text-slate-300 font-mono">
                                 {masterBillingDetails?.balance ? `$ ${masterBillingDetails.balance.credit_limit.toFixed(2)}` : '$ --.--'}
@@ -344,34 +344,34 @@ export const MasterBilling = () => {
                     <div className="space-y-4">
                         <h5 className="font-black text-slate-400 text-xs uppercase tracking-wider flex items-center gap-2">
                             <ShieldCheck className="text-emerald-400" size={14} />
-                            Conexão SIP e Webhooks
+                            {t('billing.masterAccount.sipConnectionTitle')}
                         </h5>
-                        
+
                         {masterBillingDetails?.connection ? (
                             <div className="space-y-2.5">
                                 <div className="flex justify-between items-center bg-[#0F1629] p-3 rounded-xl border border-[#1E293B]">
-                                    <span className="text-xs text-slate-400">Nome da Conexão:</span>
+                                    <span className="text-xs text-slate-400">{t('billing.masterAccount.connectionNameLabel')}</span>
                                     <span className="font-mono text-xs text-white font-bold">{masterBillingDetails.connection.connection_name}</span>
                                 </div>
                                 <div className="flex justify-between items-center bg-[#0F1629] p-3 rounded-xl border border-[#1E293B]">
-                                    <span className="text-xs text-slate-400">Status no Provedor:</span>
+                                    <span className="text-xs text-slate-400">{t('billing.masterAccount.providerStatusLabel')}</span>
                                     <span className={`inline-flex items-center gap-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-md border ${
                                         masterBillingDetails.connection.active
                                             ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
                                             : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
                                     }`}>
-                                        {masterBillingDetails.connection.active ? 'Ativa / Online' : 'Inativa'}
+                                        {masterBillingDetails.connection.active ? t('billing.masterAccount.connectionActive') : t('billing.masterAccount.connectionInactive')}
                                     </span>
                                 </div>
                                 <div className="flex flex-col gap-1.5 bg-[#0F1629] p-3 rounded-xl border border-[#1E293B]">
                                     <div className="flex justify-between items-center">
-                                        <span className="text-xs text-slate-400">Webhook Eventos:</span>
+                                        <span className="text-xs text-slate-400">{t('billing.masterAccount.webhookEventsLabel')}</span>
                                         <span className={`inline-flex items-center gap-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-md border ${
                                             masterBillingDetails.connection.webhook_event_url
                                                 ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
                                                 : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
                                         }`}>
-                                            {masterBillingDetails.connection.webhook_event_url ? 'Configurado' : 'Desconfigurado'}
+                                            {masterBillingDetails.connection.webhook_event_url ? t('billing.masterAccount.webhookConfigured') : t('billing.masterAccount.webhookUnconfigured')}
                                         </span>
                                     </div>
                                     {masterBillingDetails.connection.webhook_event_url && (
@@ -383,7 +383,7 @@ export const MasterBilling = () => {
                             </div>
                         ) : (
                             <div className="text-slate-500 text-xs italic p-4 bg-[#0F1629] rounded-xl border border-[#1E293B] text-center">
-                                Detalhes de conexão indisponíveis. Sincronize os dados.
+                                {t('billing.masterAccount.connectionUnavailable')}
                             </div>
                         )}
                     </div>
@@ -392,17 +392,17 @@ export const MasterBilling = () => {
                     <div className="space-y-4">
                         <h5 className="font-black text-slate-400 text-xs uppercase tracking-wider flex items-center gap-2">
                             <Globe className="text-sky-400" size={14} />
-                            Rotas de Voz Autorizadas (Outbound)
+                            {t('billing.masterAccount.outboundRoutesTitle')}
                         </h5>
-                        
+
                         {masterBillingDetails?.outbound_profile ? (
                             <div className="space-y-2.5">
                                 <div className="flex justify-between items-center bg-[#0F1629] p-3 rounded-xl border border-[#1E293B]">
-                                    <span className="text-xs text-slate-400">Perfil de Saída:</span>
+                                    <span className="text-xs text-slate-400">{t('billing.masterAccount.outboundProfileLabel')}</span>
                                     <span className="font-mono text-xs text-white font-bold">{masterBillingDetails.outbound_profile.name}</span>
                                 </div>
                                 <div className="flex flex-col gap-2 bg-[#0F1629] p-3 rounded-xl border border-[#1E293B]">
-                                    <span className="text-xs text-slate-400">Países Autorizados na Operadora (Whitelist):</span>
+                                    <span className="text-xs text-slate-400">{t('billing.masterAccount.whitelistedCountriesLabel')}</span>
                                     <div className="flex flex-wrap gap-1.5 mt-1.5">
                                         {masterBillingDetails.outbound_profile.whitelisted_destinations?.map((dest) => (
                                             <span key={dest} className="inline-flex items-center gap-1 text-[10px] font-black uppercase bg-[#1E293B] border border-slate-700 text-slate-300 px-2 py-0.5 rounded">
@@ -413,14 +413,14 @@ export const MasterBilling = () => {
                                                 {dest}
                                             </span>
                                         )) ?? (
-                                            <span className="text-slate-500 text-xs italic">Nenhuma rota configurada</span>
+                                            <span className="text-slate-500 text-xs italic">{t('billing.masterAccount.noRoutesConfigured')}</span>
                                         )}
                                     </div>
                                 </div>
                             </div>
                         ) : (
                             <div className="text-slate-500 text-xs italic p-4 bg-[#0F1629] rounded-xl border border-[#1E293B] text-center">
-                                Detalhes de roteamento indisponíveis. Sincronize os dados.
+                                {t('billing.masterAccount.routingUnavailable')}
                             </div>
                         )}
                     </div>

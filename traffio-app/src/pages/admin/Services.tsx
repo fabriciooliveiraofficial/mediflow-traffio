@@ -108,8 +108,8 @@ export const Services = () => {
                 .filter((p: any) => p.is_active)
                 .map((p: any) => ({
                     id: p.id,
-                    full_name: p.full_name || 'Sem nome',
-                    specialty: p.specialty || 'Especialidade não definida'
+                    full_name: p.full_name || t('services.noNameFallback'),
+                    specialty: p.specialty || t('services.noSpecialtyFallback')
                 }))
                 .sort((a: any, b: any) => a.full_name.localeCompare(b.full_name));
 

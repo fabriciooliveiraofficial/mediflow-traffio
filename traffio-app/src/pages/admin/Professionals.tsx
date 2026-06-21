@@ -154,14 +154,14 @@ export const Professionals = () => {
 
                 // Rule: If the unit has operating_hours defined, but this day is missing or explicitly marked 'Fechado', block the whole day.
                 if (!oh || oh.closed) {
-                    setError(`O local ${loc.name} está FECHADO neste dia.`);
+                    setError(t('professionals.errors.locationClosedOnDay', { locationName: loc.name }));
                     return;
                 } else {
                     const startH = parseInt(oh.start.split(':')[0]);
                     const endH = parseInt(oh.end.split(':')[0]);
 
                     if (hour < startH || hour >= endH) {
-                        setError(`Neste dia, o local ${loc.name} funciona apenas das ${oh.start} às ${oh.end}.`);
+                        setError(t('professionals.errors.locationHoursWindow', { locationName: loc.name, start: oh.start, end: oh.end }));
                         return;
                     }
                 }
@@ -260,10 +260,10 @@ export const Professionals = () => {
             }
 
             await fetchScheduleBlocks(selectedPro.id);
-            setSuccess('Agenda atualizada com sucesso!');
+            setSuccess(t('professionals.success.scheduleUpdated'));
         } catch (err: any) {
             console.error(err);
-            setError('Erro ao salvar agenda.');
+            setError(t('professionals.errors.saveScheduleError'));
         } finally {
             setSaving(false);
         }
@@ -311,7 +311,7 @@ export const Professionals = () => {
             setProfessionals(data);
         } catch (err) {
             console.error(err);
-            setError('Erro ao carregar profissionais.');
+            setError(t('professionals.errors.loadError'));
         } finally {
             setLoading(false);
         }
@@ -403,10 +403,10 @@ export const Professionals = () => {
                 .update({ bot_profile: clean })
                 .eq('id', selectedPro.id);
             if (err) throw err;
-            setSuccess('Skills do Bot salvas!');
+            setSuccess(t('professionals.success.botSkillsSaved'));
             setTimeout(() => setSuccess(null), 3000);
         } catch (e: any) {
-            setError(e.message || 'Erro ao salvar.');
+            setError(e.message || t('professionals.errors.botProfileSaveError'));
         } finally {
             setSavingBot(false);
         }
@@ -424,7 +424,7 @@ export const Professionals = () => {
                 { body: { doctor_id: selectedPro.id } }
             );
 
-            if (fnError) throw new Error(fnError.message || 'Erro na geração');
+            if (fnError) throw new Error(fnError.message || t('professionals.errors.botProfileGenerateFnError'));
 
             const bp = json.bot_profile;
             setBotProfile({
@@ -435,10 +435,10 @@ export const Professionals = () => {
                 faq: bp.faq?.length ? bp.faq : [{ q: '', a: '' }],
                 pre_appointment_tip: bp.pre_appointment_tip || '',
             });
-            setSuccess('Perfil gerado com IA! Revise e salve quando estiver satisfeito.');
+            setSuccess(t('professionals.success.botProfileGenerated'));
             setTimeout(() => setSuccess(null), 5000);
         } catch (e: any) {
-            setError(e.message || 'Erro ao gerar perfil.');
+            setError(e.message || t('professionals.errors.botProfileGenerateError'));
         } finally {
             setGeneratingBot(false);
         }
@@ -473,7 +473,7 @@ export const Professionals = () => {
 
     const handleSaveProfessional = async (nextTab?: 'agenda' | 'convenios') => {
         if (!form.full_name.trim()) {
-            setError('Nome é obrigatório.');
+            setError(t('professionals.errors.nameRequired'));
             return;
         }
         setSaving(true);
@@ -485,7 +485,7 @@ export const Professionals = () => {
                 // If we don't have an ID yet, create. If we do (user went back and forth), update.
                 if (!selectedPro?.id) {
                     const newPro = await professionalService.create({ ...form, tenant_id: tenantId! });
-                    setSuccess('Profissional cadastrado com sucesso!');
+                    setSuccess(t('professionals.success.registered'));
                     setSelectedPro(newPro);
                     if (nextTab) {
                         setDetailTab(nextTab);
@@ -498,7 +498,7 @@ export const Professionals = () => {
                 } else {
                     const success = await professionalService.update({ id: selectedPro!.id, ...form });
                     if (success) {
-                        setSuccess('Dados salvos!');
+                        setSuccess(t('professionals.success.dataSaved'));
                         setSelectedPro({ ...selectedPro, ...form } as Professional);
                         if (nextTab) setDetailTab(nextTab);
                     }
@@ -507,7 +507,7 @@ export const Professionals = () => {
             } else if (selectedPro?.id) {
                 const success = await professionalService.update({ id: selectedPro.id, ...form });
                 if (success) {
-                    setSuccess('Profissional atualizado com sucesso!');
+                    setSuccess(t('professionals.success.updated'));
                     setSelectedPro({ ...selectedPro, ...form } as Professional);
                     setIsEditing(false);
                 }
@@ -515,7 +515,7 @@ export const Professionals = () => {
             }
         } catch (err: any) {
             console.error('Error saving professional:', err);
-            setError(err.message || 'Erro ao salvar as informações.');
+            setError(err.message || t('professionals.errors.saveError'));
         } finally {
             setSaving(false);
         }
@@ -526,7 +526,7 @@ export const Professionals = () => {
             await professionalService.toggleActive(id, currentState);
             fetchProfessionals();
         } catch (err: any) {
-            setError('Erro ao alterar status: ' + err.message);
+            setError(t('professionals.errors.toggleActiveError', { message: err.message }));
         }
     };
 
@@ -537,7 +537,7 @@ export const Professionals = () => {
             if (selectedPro?.id === id) handleCloseDetail();
             fetchProfessionals();
         } catch (err: any) {
-            setError('Erro ao excluir: ' + err.message);
+            setError(t('professionals.errors.deleteError', { message: err.message }));
         }
     };
 
@@ -548,10 +548,10 @@ export const Professionals = () => {
     );
 
     const roleLabel: Record<string, string> = {
-        owner: 'Proprietário',
-        admin: 'Administrador',
-        doctor: 'Médico',
-        staff: 'Recepção',
+        owner: t('professionals.roleLabel.owner'),
+        admin: t('professionals.roleLabel.admin'),
+        doctor: t('professionals.roleLabel.doctor'),
+        staff: t('professionals.roleLabel.staff'),
     };
 
     const roleColor: Record<string, string> = {
@@ -579,17 +579,17 @@ export const Professionals = () => {
                             <Stethoscope size={22} style={{ color: selectedPro.color || '#1152d4' }} />
                         </div>
                         <div>
-                            <h1 className="text-2xl font-black text-graphite-900">{isCreating ? 'Novo Profissional' : selectedPro.full_name}</h1>
+                            <h1 className="text-2xl font-black text-graphite-900">{isCreating ? t('professionals.detail.newProfessional') : selectedPro.full_name}</h1>
                             <p className="text-sm text-graphite-400">
-                                {isCreating ? 'Preencha os dados abaixo' : (selectedPro.specialty || roleLabel[selectedPro.role] || selectedPro.role)}
-                                {selectedPro.crm && ` · CRM ${selectedPro.crm}`}
+                                {isCreating ? t('professionals.detail.fillFieldsBelow') : (selectedPro.specialty || roleLabel[selectedPro.role] || selectedPro.role)}
+                                {selectedPro.crm && ` · ${t('professionals.detail.crmPrefix', { crm: selectedPro.crm })}`}
                             </p>
                         </div>
                     </div>
                     {/* Main Edit Action */}
                     {!isEditing && !isCreating && (
                         <button onClick={handleEditCurrent} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-primary/10 text-brand-primary font-bold hover:bg-brand-primary/20 transition-colors border-none cursor-pointer">
-                            <Pencil size={16} /> Editar
+                            <Pencil size={16} /> {t('professionals.detail.edit')}
                         </button>
                     )}
                 </div>
@@ -597,10 +597,10 @@ export const Professionals = () => {
                 {/* Tabs */}
                 <div className="flex bg-white p-1.5 rounded-2xl border border-ice-100 shadow-sm w-fit">
                     {[
-                        { id: 'dados' as const, label: 'Dados', icon: Stethoscope, disabled: false },
-                        { id: 'agenda' as const, label: 'Agenda Semanal', icon: Clock, disabled: isCreating && !selectedPro?.id },
-                        { id: 'convenios' as const, label: 'Convênios', icon: Shield, disabled: isCreating && !selectedPro?.id },
-                        { id: 'bot' as const, label: 'Skills do Bot', icon: Bot, disabled: isCreating && !selectedPro?.id },
+                        { id: 'dados' as const, label: t('professionals.detail.tabs.data'), icon: Stethoscope, disabled: false },
+                        { id: 'agenda' as const, label: t('professionals.detail.tabs.weeklySchedule'), icon: Clock, disabled: isCreating && !selectedPro?.id },
+                        { id: 'convenios' as const, label: t('professionals.detail.tabs.insurancePlans'), icon: Shield, disabled: isCreating && !selectedPro?.id },
+                        { id: 'bot' as const, label: t('professionals.detail.tabs.botSkills'), icon: Bot, disabled: isCreating && !selectedPro?.id },
                     ].map(tab => (
                         <button
                             key={tab.id}
@@ -612,7 +612,7 @@ export const Professionals = () => {
                                     ? 'text-ice-300 cursor-not-allowed'
                                     : 'text-graphite-400 hover:text-brand-primary hover:bg-ice-50'
                                 }`}
-                            title={tab.disabled ? 'Salve os dados primeiro' : ''}
+                            title={tab.disabled ? t('professionals.detail.saveDataFirst') : ''}
                         >
                             <tab.icon size={16} />
                             {tab.label}
@@ -640,43 +640,43 @@ export const Professionals = () => {
                                 <div className="space-y-6">
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="col-span-2">
-                                            <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">Nome Completo *</label>
-                                            <input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} placeholder="Ex: Dr. João Silva" className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors" />
+                                            <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">{t('professionals.detail.dataTab.fullName')}</label>
+                                            <input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} placeholder={t('professionals.detail.dataTab.fullNamePlaceholder')} className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors" />
                                         </div>
                                         <div>
-                                            <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">E-mail</label>
-                                            <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="email@exemplo.com" className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors" />
+                                            <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">{t('professionals.detail.dataTab.email')}</label>
+                                            <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder={t('professionals.detail.dataTab.emailPlaceholder')} className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors" />
                                         </div>
                                         <div>
-                                            <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">Telefone</label>
-                                            <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="(11) 99999-0000" className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors" />
+                                            <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">{t('professionals.detail.dataTab.phone')}</label>
+                                            <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder={t('professionals.detail.dataTab.phonePlaceholder')} className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors" />
                                         </div>
                                         <div>
-                                            <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">Função</label>
+                                            <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">{t('professionals.detail.dataTab.role')}</label>
                                             <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-bold text-graphite-900 focus:outline-none focus:border-brand-primary cursor-pointer h-[46px]">
-                                                <option value="doctor">Médico</option>
-                                                <option value="staff">Recepção</option>
-                                                <option value="admin">Administrador</option>
+                                                <option value="doctor">{t('professionals.detail.dataTab.roleDoctor')}</option>
+                                                <option value="staff">{t('professionals.detail.dataTab.roleStaff')}</option>
+                                                <option value="admin">{t('professionals.detail.dataTab.roleAdmin')}</option>
                                             </select>
                                         </div>
                                         <div>
-                                            <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">Especialidade</label>
-                                            <input value={form.specialty} onChange={(e) => setForm({ ...form, specialty: e.target.value })} placeholder="Ex: Cardiologia" className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors" />
+                                            <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">{t('professionals.detail.dataTab.specialty')}</label>
+                                            <input value={form.specialty} onChange={(e) => setForm({ ...form, specialty: e.target.value })} placeholder={t('professionals.detail.dataTab.specialtyPlaceholder')} className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors" />
                                         </div>
                                         <div>
-                                            <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">CRM</label>
-                                            <input value={form.crm} onChange={(e) => setForm({ ...form, crm: e.target.value })} placeholder="Ex: 123456/SP" className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors" />
+                                            <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">{t('professionals.detail.dataTab.crm')}</label>
+                                            <input value={form.crm} onChange={(e) => setForm({ ...form, crm: e.target.value })} placeholder={t('professionals.detail.dataTab.crmPlaceholder')} className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors" />
                                         </div>
                                         <div>
-                                            <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">RQE</label>
-                                            <input value={form.rqe || ''} onChange={(e) => setForm({ ...form, rqe: e.target.value })} placeholder="Opcional" className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors" />
+                                            <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">{t('professionals.detail.dataTab.rqe')}</label>
+                                            <input value={form.rqe || ''} onChange={(e) => setForm({ ...form, rqe: e.target.value })} placeholder={t('professionals.detail.dataTab.rqePlaceholder')} className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors" />
                                         </div>
                                         <div className="col-span-2">
-                                            <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">Bio / Observações</label>
-                                            <textarea value={form.bio || ''} onChange={(e) => setForm({ ...form, bio: e.target.value })} placeholder="Informações adicionais..." className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors min-h-[100px] resize-none font-sans" />
+                                            <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">{t('professionals.detail.dataTab.bio')}</label>
+                                            <textarea value={form.bio || ''} onChange={(e) => setForm({ ...form, bio: e.target.value })} placeholder={t('professionals.detail.dataTab.bioPlaceholder')} className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors min-h-[100px] resize-none font-sans" />
                                         </div>
                                         <div>
-                                            <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">Cor do Avatar</label>
+                                            <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">{t('professionals.detail.dataTab.avatarColor')}</label>
                                             <input type="color" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} className="w-full h-[46px] rounded-xl cursor-pointer" />
                                         </div>
                                     </div>
@@ -685,8 +685,8 @@ export const Professionals = () => {
                                     <div className="mt-8 pt-6 border-t border-ice-100">
                                         <div className="flex items-center justify-between mb-4">
                                             <div>
-                                                <h3 className="text-sm font-black text-graphite-900 uppercase">Regras de Cancelamento</h3>
-                                                <p className="text-xs text-graphite-500">Defina se haverá cobrança de multa em caso de cancelamento tardio ou não comparecimento.</p>
+                                                <h3 className="text-sm font-black text-graphite-900 uppercase">{t('professionals.detail.dataTab.cancellationPolicy.title')}</h3>
+                                                <p className="text-xs text-graphite-500">{t('professionals.detail.dataTab.cancellationPolicy.subtitle')}</p>
                                             </div>
                                             <button
                                                 onClick={() => setForm(prev => ({ ...prev, cancellation_policy: { ...prev.cancellation_policy, enabled: !prev.cancellation_policy?.enabled } }))}
@@ -699,7 +699,7 @@ export const Professionals = () => {
                                         {form.cancellation_policy?.enabled && (
                                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-ice-50/50 p-4 rounded-xl border border-ice-100 animate-in fade-in slide-in-from-top-2">
                                                 <div>
-                                                    <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">Grátis até (Horas antes)</label>
+                                                    <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">{t('professionals.detail.dataTab.cancellationPolicy.freeWindowHours')}</label>
                                                     <input
                                                         type="number"
                                                         value={form.cancellation_policy.free_window_hours}
@@ -707,10 +707,10 @@ export const Professionals = () => {
                                                         className="w-full bg-white border border-ice-200 rounded-lg px-3 py-2 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary"
                                                         min="0"
                                                     />
-                                                    <p className="text-[10px] text-graphite-400 mt-1">Ex: 24h ou 48h antes da consulta.</p>
+                                                    <p className="text-[10px] text-graphite-400 mt-1">{t('professionals.detail.dataTab.cancellationPolicy.freeWindowHint')}</p>
                                                 </div>
                                                 <div>
-                                                    <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">Multa Cancel. Tardio (%)</label>
+                                                    <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">{t('professionals.detail.dataTab.cancellationPolicy.latePenaltyPercent')}</label>
                                                     <input
                                                         type="number"
                                                         value={form.cancellation_policy.late_penalty_percent}
@@ -719,10 +719,10 @@ export const Professionals = () => {
                                                         min="0"
                                                         max="100"
                                                     />
-                                                    <p className="text-[10px] text-graphite-400 mt-1">Acaba recaindo sobre o valor do procedimento/consulta.</p>
+                                                    <p className="text-[10px] text-graphite-400 mt-1">{t('professionals.detail.dataTab.cancellationPolicy.latePenaltyHint')}</p>
                                                 </div>
                                                 <div>
-                                                    <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">Multa No-Show (%)</label>
+                                                    <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">{t('professionals.detail.dataTab.cancellationPolicy.noShowPenaltyPercent')}</label>
                                                     <input
                                                         type="number"
                                                         value={form.cancellation_policy.no_show_penalty_percent}
@@ -731,7 +731,7 @@ export const Professionals = () => {
                                                         min="0"
                                                         max="100"
                                                     />
-                                                    <p className="text-[10px] text-graphite-400 mt-1">Multa caso o paciente não desmarque e falte.</p>
+                                                    <p className="text-[10px] text-graphite-400 mt-1">{t('professionals.detail.dataTab.cancellationPolicy.noShowPenaltyHint')}</p>
                                                 </div>
                                             </div>
                                         )}
@@ -739,10 +739,10 @@ export const Professionals = () => {
 
                                     <div className="flex gap-3 pt-6 border-t border-ice-100">
                                         <button onClick={() => { setIsEditing(false); if (isCreating) handleCloseDetail(); }} className="flex-1 py-3 rounded-xl font-bold text-graphite-500 hover:bg-ice-50 transition-colors border-none cursor-pointer">
-                                            Cancelar
+                                            {t('professionals.detail.dataTab.cancel')}
                                         </button>
                                         <button onClick={() => handleSaveProfessional(isCreating ? 'agenda' : undefined)} disabled={saving} className="flex-1 bg-brand-primary text-white py-3 rounded-xl font-bold shadow-lg shadow-brand-primary/20 hover:bg-brand-primary/90 transition-all border-none cursor-pointer disabled:opacity-50 flex justify-center items-center gap-2">
-                                            {saving ? 'Salvando...' : isCreating ? <>Próximo <ArrowRight size={18} /></> : <><Save size={18} /> Salvar</>}
+                                            {saving ? t('professionals.detail.dataTab.saving') : isCreating ? <>{t('professionals.detail.dataTab.next')} <ArrowRight size={18} /></> : <><Save size={18} /> {t('professionals.detail.dataTab.save')}</>}
                                         </button>
                                     </div>
                                 </div>
@@ -750,14 +750,14 @@ export const Professionals = () => {
                                 /* --- READ ONLY VIEW --- */
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     {[
-                                        { label: 'Nome Completo', value: selectedPro.full_name },
-                                        { label: 'E-mail', value: selectedPro.email || '—' },
-                                        { label: 'Telefone', value: selectedPro.phone || '—' },
-                                        { label: 'Função', value: roleLabel[selectedPro.role] || selectedPro.role },
-                                        { label: 'Especialidade', value: selectedPro.specialty || '—' },
-                                        { label: 'CRM', value: selectedPro.crm || '—' },
-                                        { label: 'RQE', value: selectedPro.rqe || '—' },
-                                        { label: 'Auto-Release', value: `${(selectedPro as any).auto_release_hours ?? 24}h antes do slot` },
+                                        { label: t('professionals.detail.dataTab.readOnly.fullName'), value: selectedPro.full_name },
+                                        { label: t('professionals.detail.dataTab.readOnly.email'), value: selectedPro.email || t('professionals.detail.dataTab.readOnly.empty') },
+                                        { label: t('professionals.detail.dataTab.readOnly.phone'), value: selectedPro.phone || t('professionals.detail.dataTab.readOnly.empty') },
+                                        { label: t('professionals.detail.dataTab.readOnly.role'), value: roleLabel[selectedPro.role] || selectedPro.role },
+                                        { label: t('professionals.detail.dataTab.readOnly.specialty'), value: selectedPro.specialty || t('professionals.detail.dataTab.readOnly.empty') },
+                                        { label: t('professionals.detail.dataTab.readOnly.crm'), value: selectedPro.crm || t('professionals.detail.dataTab.readOnly.empty') },
+                                        { label: t('professionals.detail.dataTab.readOnly.rqe'), value: selectedPro.rqe || t('professionals.detail.dataTab.readOnly.empty') },
+                                        { label: t('professionals.detail.dataTab.readOnly.autoRelease'), value: t('professionals.detail.dataTab.readOnly.autoReleaseValue', { hours: (selectedPro as any).auto_release_hours ?? 24 }) },
                                     ].map((f, i) => (
                                         <div key={i} className="space-y-1">
                                             <label className="text-xs font-black text-graphite-400 uppercase">{f.label}</label>
@@ -766,31 +766,31 @@ export const Professionals = () => {
                                     ))}
                                     {selectedPro.bio && (
                                         <div className="col-span-2 space-y-1">
-                                            <label className="text-xs font-black text-graphite-400 uppercase">Bio</label>
+                                            <label className="text-xs font-black text-graphite-400 uppercase">{t('professionals.detail.dataTab.readOnly.bio')}</label>
                                             <p className="text-sm text-graphite-700 whitespace-pre-line">{selectedPro.bio}</p>
                                         </div>
                                     )}
 
                                     {/* Read-only Cancellation Policy */}
                                     <div className="col-span-2 mt-4 pt-4 border-t border-ice-100">
-                                        <label className="text-xs font-black text-graphite-400 uppercase mb-2 block">Regras de Cancelamento</label>
+                                        <label className="text-xs font-black text-graphite-400 uppercase mb-2 block">{t('professionals.detail.dataTab.cancellationPolicy.title')}</label>
                                         {selectedPro.cancellation_policy?.enabled ? (
                                             <div className="bg-ice-50/50 p-3 rounded-xl border border-ice-100 flex gap-4 text-sm">
                                                 <div className="flex items-center gap-2 text-graphite-700">
                                                     <Clock size={16} className="text-brand-primary" />
-                                                    <span>Grátis até <strong>{selectedPro.cancellation_policy.free_window_hours}h</strong></span>
+                                                    <span dangerouslySetInnerHTML={{ __html: t('professionals.detail.dataTab.cancellationPolicy.freeUntil', { hours: selectedPro.cancellation_policy.free_window_hours }) }} />
                                                 </div>
                                                 <div className="flex items-center gap-2 text-graphite-700">
                                                     <AlertCircle size={16} className="text-rose-400" />
-                                                    <span>Multa Atraso: <strong>{selectedPro.cancellation_policy.late_penalty_percent}%</strong></span>
+                                                    <span>{t('professionals.detail.dataTab.cancellationPolicy.latePenaltyLabel')} <strong>{selectedPro.cancellation_policy.late_penalty_percent}%</strong></span>
                                                 </div>
                                                 <div className="flex items-center gap-2 text-graphite-700">
                                                     <AlertCircle size={16} className="text-rose-500" />
-                                                    <span>Multa Falta: <strong>{selectedPro.cancellation_policy.no_show_penalty_percent}%</strong></span>
+                                                    <span>{t('professionals.detail.dataTab.cancellationPolicy.noShowPenaltyLabel')} <strong>{selectedPro.cancellation_policy.no_show_penalty_percent}%</strong></span>
                                                 </div>
                                             </div>
                                         ) : (
-                                            <p className="text-sm text-graphite-500 italic">Nenhuma regra de cancelamento e multa configurada.</p>
+                                            <p className="text-sm text-graphite-500 italic">{t('professionals.detail.dataTab.cancellationPolicy.noneConfigured')}</p>
                                         )}
                                     </div>
                                 </div>
@@ -804,8 +804,8 @@ export const Professionals = () => {
                         <div className="p-8 space-y-6">
                             <div className="flex justify-between items-center">
                                 <div>
-                                    <h3 className="text-lg font-black text-graphite-900">Blocos de Horário</h3>
-                                    <p className="text-sm text-graphite-400">Configure horários particulares e regulares para agenda inteligente.</p>
+                                    <h3 className="text-lg font-black text-graphite-900">{t('professionals.detail.agendaTab.title')}</h3>
+                                    <p className="text-sm text-graphite-400">{t('professionals.detail.agendaTab.subtitle')}</p>
                                 </div>
                             </div>
 
@@ -822,20 +822,20 @@ export const Professionals = () => {
                                                     : 'text-graphite-400 hover:text-brand-primary hover:bg-ice-50'
                                                     }`}
                                             >
-                                                {tool === 'prime' ? 'Prime' : tool === 'regular' ? 'Regular' : tool === 'blocked' ? 'Bloquear' : 'Borracha'}
+                                                {tool === 'prime' ? t('professionals.detail.agendaTab.tools.prime') : tool === 'regular' ? t('professionals.detail.agendaTab.tools.regular') : tool === 'blocked' ? t('professionals.detail.agendaTab.tools.blocked') : t('professionals.detail.agendaTab.tools.eraser')}
                                             </button>
                                         ))}
                                     </div>
                                 </div>
 
                                 <div className="flex items-center gap-3">
-                                    <label className="text-xs font-black text-graphite-400 uppercase">Local Selecionado:</label>
+                                    <label className="text-xs font-black text-graphite-400 uppercase">{t('professionals.detail.agendaTab.selectedLocation')}</label>
                                     <select
                                         value={activeLocationId || ''}
                                         onChange={e => setActiveLocationId(e.target.value)}
                                         className="bg-white border border-ice-200 rounded-xl px-4 py-2 font-bold text-graphite-900 focus:outline-none focus:border-brand-primary min-w-[200px]"
                                     >
-                                        {locations.length === 0 && <option value="" disabled>Carregando locais...</option>}
+                                        {locations.length === 0 && <option value="" disabled>{t('professionals.detail.agendaTab.loadingLocations')}</option>}
                                         {locations.map(loc => (
                                             <option key={loc.id} value={loc.id}>{loc.name}</option>
                                         ))}
@@ -847,14 +847,14 @@ export const Professionals = () => {
                                     disabled={saving}
                                     className="bg-brand-primary text-white px-6 py-2 rounded-xl font-bold hover:bg-brand-primary/90 transition-all flex items-center gap-2 border-none cursor-pointer shadow-lg shadow-brand-primary/20 disabled:opacity-50"
                                 >
-                                    {saving ? 'Salvando...' : 'Salvar Agenda'}
+                                    {saving ? t('professionals.detail.agendaTab.saving') : t('professionals.detail.agendaTab.saveSchedule')}
                                 </button>
                             </div>
 
                             {/* --- HEATMAP GRID --- */}
                             <div className="border border-ice-200 rounded-2xl overflow-hidden bg-white select-none" onMouseLeave={() => setIsMouseDown(false)}>
                                 <div className="grid grid-cols-[60px_repeat(7,1fr)] divide-x divide-ice-100 border-b border-ice-100 bg-ice-50">
-                                    <div className="p-3 text-xs font-black text-graphite-400 text-center flex items-center justify-center">Hora</div>
+                                    <div className="p-3 text-xs font-black text-graphite-400 text-center flex items-center justify-center">{t('professionals.detail.agendaTab.hourLabel')}</div>
                                     {DAYS.map(d => (
                                         <div key={d} className="p-3 text-xs font-black text-graphite-500 uppercase text-center">{d}</div>
                                     ))}
@@ -978,9 +978,9 @@ export const Professionals = () => {
                             </div>
 
                             <div className="flex justify-between items-center text-xs text-graphite-400 px-2 mt-4">
-                                <p>Clique e arraste para definir horários.</p>
+                                <p>{t('professionals.detail.agendaTab.dragHint')}</p>
                                 <button onClick={saveGridToDB} className="text-brand-primary font-bold hover:underline cursor-pointer border-none bg-transparent">
-                                    Salvar Alterações na Grade
+                                    {t('professionals.detail.agendaTab.saveGridChanges')}
                                 </button>
                             </div>
 
@@ -988,10 +988,10 @@ export const Professionals = () => {
                             {isCreating && (
                                 <div className="flex gap-3 pt-4 border-t border-ice-100 justify-between">
                                     <button onClick={() => setDetailTab('dados')} className="px-6 py-3 rounded-xl font-bold text-graphite-500 hover:bg-ice-50 transition-colors border-none cursor-pointer">
-                                        Anterior
+                                        {t('professionals.detail.agendaTab.previous')}
                                     </button>
                                     <button onClick={() => setDetailTab('convenios')} className="px-6 py-3 rounded-xl font-bold bg-brand-primary text-white shadow-lg shadow-brand-primary/20 hover:bg-brand-primary/90 transition-all border-none cursor-pointer flex items-center gap-2">
-                                        Próximo <ArrowRight size={18} />
+                                        {t('professionals.detail.agendaTab.next')} <ArrowRight size={18} />
                                     </button>
                                 </div>
                             )}
@@ -1002,15 +1002,15 @@ export const Professionals = () => {
                     {detailTab === 'convenios' && (
                         <div className="p-8 space-y-6">
                             <div>
-                                <h3 className="text-lg font-black text-graphite-900">Convênios Aceitos</h3>
-                                <p className="text-sm text-graphite-400">Selecione os convênios que este profissional atende.</p>
+                                <h3 className="text-lg font-black text-graphite-900">{t('professionals.detail.insuranceTab.title')}</h3>
+                                <p className="text-sm text-graphite-400">{t('professionals.detail.insuranceTab.subtitle')}</p>
                             </div>
 
                             {allPlans.length === 0 ? (
                                 <div className="text-center py-12 text-graphite-400">
                                     <Shield size={48} className="mx-auto mb-3 text-ice-300" />
-                                    <p className="font-bold">Nenhum convênio cadastrado</p>
-                                    <p className="text-sm">Cadastre convênios em Configurações → Convênios primeiro.</p>
+                                    <p className="font-bold">{t('professionals.detail.insuranceTab.emptyTitle')}</p>
+                                    <p className="text-sm">{t('professionals.detail.insuranceTab.emptySubtitle')}</p>
                                 </div>
                             ) : (
                                 <div className="space-y-2">
@@ -1028,13 +1028,13 @@ export const Professionals = () => {
                                                 </div>
                                                 <div className="flex-1">
                                                     <p className="font-bold text-graphite-900">{plan.name}</p>
-                                                    {plan.code && <p className="text-xs text-graphite-400">ANS: {plan.code}</p>}
+                                                    {plan.code && <p className="text-xs text-graphite-400">{t('professionals.detail.insuranceTab.ansCode', { code: plan.code })}</p>}
                                                 </div>
                                                 <span className={`px-3 py-1 rounded-lg text-xs font-black uppercase ${isLinked
                                                     ? 'bg-emerald-100 text-emerald-700'
                                                     : 'bg-ice-100 text-graphite-400'
                                                     }`}>
-                                                    {isLinked ? 'Vinculado' : 'Vincular'}
+                                                    {isLinked ? t('professionals.detail.insuranceTab.linked') : t('professionals.detail.insuranceTab.link')}
                                                 </span>
                                             </div>
                                         );
@@ -1046,10 +1046,10 @@ export const Professionals = () => {
                             {isCreating && (
                                 <div className="flex gap-3 pt-4 border-t border-ice-100 justify-between">
                                     <button onClick={() => setDetailTab('agenda')} className="px-6 py-3 rounded-xl font-bold text-graphite-500 hover:bg-ice-50 transition-colors border-none cursor-pointer">
-                                        Anterior
+                                        {t('professionals.detail.insuranceTab.previous')}
                                     </button>
                                     <button onClick={handleCloseDetail} className="px-6 py-3 rounded-xl font-bold bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 transition-all border-none cursor-pointer flex items-center gap-2">
-                                        Concluir <Check size={18} />
+                                        {t('professionals.detail.insuranceTab.finish')} <Check size={18} />
                                     </button>
                                 </div>
                             )}
@@ -1066,53 +1066,53 @@ export const Professionals = () => {
                                         <Sparkles size={20} className="text-indigo-500" />
                                     </div>
                                     <div>
-                                        <h3 className="font-black text-graphite-900">Skills do Bot</h3>
-                                        <p className="text-xs text-graphite-400 font-medium">O agente usa essas informações para personalizar o atendimento deste profissional.</p>
+                                        <h3 className="font-black text-graphite-900">{t('professionals.detail.botTab.title')}</h3>
+                                        <p className="text-xs text-graphite-400 font-medium">{t('professionals.detail.botTab.subtitle')}</p>
                                     </div>
                                 </div>
                                 <button
                                     onClick={handleGenerateBotProfile}
                                     disabled={generatingBot}
                                     className="flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-violet-600 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-indigo-500/20 hover:scale-105 active:scale-95 transition-transform border-none cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed text-sm"
-                                    title="Gera automaticamente o perfil do bot com base nos dados do profissional"
+                                    title={t('professionals.detail.botTab.generateTitle')}
                                 >
                                     {generatingBot
-                                        ? <><span className="animate-spin inline-block">⏳</span> Gerando...</>
-                                        : <><Sparkles size={15} /> Gerar com IA</>
+                                        ? <><span className="animate-spin inline-block">⏳</span> {t('professionals.detail.botTab.generating')}</>
+                                        : <><Sparkles size={15} /> {t('professionals.detail.botTab.generateWithAI')}</>
                                     }
                                 </button>
                             </div>
 
                             {/* Pitch */}
                             <div>
-                                <label className="text-xs font-black text-graphite-400 uppercase mb-1.5 block">Apresentação do Profissional</label>
-                                <p className="text-xs text-graphite-400 mb-2">Como o bot deve apresentar este profissional. Ex: "Dr. João é especialista em Ortodontia Invisível com 12 anos de experiência."</p>
+                                <label className="text-xs font-black text-graphite-400 uppercase mb-1.5 block">{t('professionals.detail.botTab.pitch.label')}</label>
+                                <p className="text-xs text-graphite-400 mb-2">{t('professionals.detail.botTab.pitch.hint')}</p>
                                 <textarea
                                     value={botProfile.pitch}
                                     onChange={e => setBotProfile(p => ({ ...p, pitch: e.target.value }))}
                                     rows={3}
-                                    placeholder="Descreva o diferencial e especialização do profissional..."
+                                    placeholder={t('professionals.detail.botTab.pitch.placeholder')}
                                     className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors resize-none"
                                 />
                             </div>
 
                             {/* Consultation Opening */}
                             <div>
-                                <label className="text-xs font-black text-graphite-400 uppercase mb-1.5 block">Abertura da Consulta</label>
-                                <p className="text-xs text-graphite-400 mb-2">O que o paciente pode esperar nesta consulta. Usado quando o bot apresenta o serviço.</p>
+                                <label className="text-xs font-black text-graphite-400 uppercase mb-1.5 block">{t('professionals.detail.botTab.consultationOpening.label')}</label>
+                                <p className="text-xs text-graphite-400 mb-2">{t('professionals.detail.botTab.consultationOpening.hint')}</p>
                                 <textarea
                                     value={botProfile.consultation_opening}
                                     onChange={e => setBotProfile(p => ({ ...p, consultation_opening: e.target.value }))}
                                     rows={2}
-                                    placeholder="Ex: A avaliação ortodôntica inclui análise completa e apresentação de um plano personalizado..."
+                                    placeholder={t('professionals.detail.botTab.consultationOpening.placeholder')}
                                     className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors resize-none"
                                 />
                             </div>
 
                             {/* Selling Points */}
                             <div>
-                                <label className="text-xs font-black text-graphite-400 uppercase mb-1.5 block">Diferenciais / Pontos de Venda</label>
-                                <p className="text-xs text-graphite-400 mb-2">Argumentos que o bot pode usar para convencer o paciente a agendar.</p>
+                                <label className="text-xs font-black text-graphite-400 uppercase mb-1.5 block">{t('professionals.detail.botTab.sellingPoints.label')}</label>
+                                <p className="text-xs text-graphite-400 mb-2">{t('professionals.detail.botTab.sellingPoints.hint')}</p>
                                 <div className="space-y-2">
                                     {botProfile.selling_points.map((sp, i) => (
                                         <div key={i} className="flex gap-2">
@@ -1123,7 +1123,7 @@ export const Professionals = () => {
                                                     arr[i] = e.target.value;
                                                     return { ...p, selling_points: arr };
                                                 })}
-                                                placeholder={`Ex: Parcelamento em até 24x sem juros`}
+                                                placeholder={t('professionals.detail.botTab.sellingPoints.placeholder')}
                                                 className="flex-1 bg-ice-50 border border-ice-200 rounded-xl px-4 py-2.5 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors"
                                             />
                                             <button
@@ -1135,19 +1135,19 @@ export const Professionals = () => {
                                     <button
                                         onClick={() => setBotProfile(p => ({ ...p, selling_points: [...p.selling_points, ''] }))}
                                         className="flex items-center gap-2 text-sm font-bold text-brand-primary hover:text-brand-primary/80 border-none bg-transparent cursor-pointer px-1 py-1"
-                                    ><Plus size={16} /> Adicionar diferencial</button>
+                                    ><Plus size={16} /> {t('professionals.detail.botTab.sellingPoints.add')}</button>
                                 </div>
                             </div>
 
                             {/* Objection Scripts */}
                             <div>
-                                <label className="text-xs font-black text-graphite-400 uppercase mb-1.5 block">Scripts de Objeção</label>
-                                <p className="text-xs text-graphite-400 mb-3">Respostas exatas que o bot deve usar quando o paciente apresentar cada objeção.</p>
+                                <label className="text-xs font-black text-graphite-400 uppercase mb-1.5 block">{t('professionals.detail.botTab.objectionScripts.label')}</label>
+                                <p className="text-xs text-graphite-400 mb-3">{t('professionals.detail.botTab.objectionScripts.hint')}</p>
                                 <div className="space-y-4">
                                     {([
-                                        { key: 'preco', label: 'Objeção de Preço', placeholder: 'Ex: Temos parcelamento em até 24x. Posso confirmar o horário para a avaliação, que é sem compromisso?' },
-                                        { key: 'tempo', label: 'Objeção de Tempo', placeholder: 'Ex: A consulta dura apenas 30 minutos. Tenho um horário às 7h da manhã que pode facilitar...' },
-                                        { key: 'urgencia', label: 'Objeção de Urgência ("não é urgente")', placeholder: 'Ex: Entendo! A agenda costuma fechar 2-3 semanas à frente. Quer garantir agora para não ter essa preocupação depois?' },
+                                        { key: 'preco', label: t('professionals.detail.botTab.objectionScripts.preco.label'), placeholder: t('professionals.detail.botTab.objectionScripts.preco.placeholder') },
+                                        { key: 'tempo', label: t('professionals.detail.botTab.objectionScripts.tempo.label'), placeholder: t('professionals.detail.botTab.objectionScripts.tempo.placeholder') },
+                                        { key: 'urgencia', label: t('professionals.detail.botTab.objectionScripts.urgencia.label'), placeholder: t('professionals.detail.botTab.objectionScripts.urgencia.placeholder') },
                                     ] as const).map(({ key, label, placeholder }) => (
                                         <div key={key}>
                                             <label className="text-xs font-bold text-graphite-500 mb-1 block">{label}</label>
@@ -1165,8 +1165,8 @@ export const Professionals = () => {
 
                             {/* FAQ */}
                             <div>
-                                <label className="text-xs font-black text-graphite-400 uppercase mb-1.5 block">Perguntas Frequentes (FAQ)</label>
-                                <p className="text-xs text-graphite-400 mb-3">O bot responde diretamente com estas respostas quando detectar as perguntas dos pacientes.</p>
+                                <label className="text-xs font-black text-graphite-400 uppercase mb-1.5 block">{t('professionals.detail.botTab.faq.label')}</label>
+                                <p className="text-xs text-graphite-400 mb-3">{t('professionals.detail.botTab.faq.hint')}</p>
                                 <div className="space-y-3">
                                     {botProfile.faq.map((item, i) => (
                                         <div key={i} className="bg-ice-50 border border-ice-200 rounded-xl p-4 space-y-2">
@@ -1179,7 +1179,7 @@ export const Professionals = () => {
                                                             arr[i] = { ...arr[i], q: e.target.value };
                                                             return { ...p, faq: arr };
                                                         })}
-                                                        placeholder="Pergunta do paciente (ex: Quanto custa?)"
+                                                        placeholder={t('professionals.detail.botTab.faq.questionPlaceholder')}
                                                         className="w-full bg-white border border-ice-200 rounded-lg px-3 py-2 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors"
                                                     />
                                                     <textarea
@@ -1190,7 +1190,7 @@ export const Professionals = () => {
                                                             return { ...p, faq: arr };
                                                         })}
                                                         rows={2}
-                                                        placeholder="Resposta do bot..."
+                                                        placeholder={t('professionals.detail.botTab.faq.answerPlaceholder')}
                                                         className="w-full bg-white border border-ice-200 rounded-lg px-3 py-2 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors resize-none"
                                                     />
                                                 </div>
@@ -1204,18 +1204,18 @@ export const Professionals = () => {
                                     <button
                                         onClick={() => setBotProfile(p => ({ ...p, faq: [...p.faq, { q: '', a: '' }] }))}
                                         className="flex items-center gap-2 text-sm font-bold text-brand-primary hover:text-brand-primary/80 border-none bg-transparent cursor-pointer px-1 py-1"
-                                    ><Plus size={16} /> Adicionar pergunta</button>
+                                    ><Plus size={16} /> {t('professionals.detail.botTab.faq.add')}</button>
                                 </div>
                             </div>
 
                             {/* Pre-appointment Tip */}
                             <div>
-                                <label className="text-xs font-black text-graphite-400 uppercase mb-1.5 block">Instrução Pré-Consulta</label>
-                                <p className="text-xs text-graphite-400 mb-2">Enviada ao paciente na confirmação do agendamento. Ex: "Traga radiografias recentes."</p>
+                                <label className="text-xs font-black text-graphite-400 uppercase mb-1.5 block">{t('professionals.detail.botTab.preAppointmentTip.label')}</label>
+                                <p className="text-xs text-graphite-400 mb-2">{t('professionals.detail.botTab.preAppointmentTip.hint')}</p>
                                 <input
                                     value={botProfile.pre_appointment_tip}
                                     onChange={e => setBotProfile(p => ({ ...p, pre_appointment_tip: e.target.value }))}
-                                    placeholder="Ex: Para aproveitar melhor a consulta, traga exames recentes se tiver."
+                                    placeholder={t('professionals.detail.botTab.preAppointmentTip.placeholder')}
                                     className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors"
                                 />
                             </div>
@@ -1227,7 +1227,7 @@ export const Professionals = () => {
                                     disabled={savingBot}
                                     className="flex items-center gap-2 bg-brand-primary text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-brand-primary/20 hover:scale-105 transition-transform border-none cursor-pointer disabled:opacity-50"
                                 >
-                                    {savingBot ? <><span className="animate-spin">⏳</span> Salvando...</> : <><Save size={16} /> Salvar Skills</>}
+                                    {savingBot ? <><span className="animate-spin">⏳</span> {t('professionals.detail.botTab.saving')}</> : <><Save size={16} /> {t('professionals.detail.botTab.save')}</>}
                                 </button>
                             </div>
                         </div>
@@ -1245,15 +1245,15 @@ export const Professionals = () => {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-black text-graphite-900 tracking-tight">Profissionais</h1>
-                    <p className="text-graphite-500 font-medium">Equipe médica e administrativa da clínica.</p>
+                    <h1 className="text-3xl font-black text-graphite-900 tracking-tight">{t('professionals.list.headerTitle')}</h1>
+                    <p className="text-graphite-500 font-medium">{t('professionals.list.headerSubtitle')}</p>
                 </div>
                 <button
                     onClick={handleCreateNew}
                     className="flex items-center gap-2 bg-brand-primary text-white px-5 py-3 rounded-xl font-bold shadow-lg shadow-brand-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-transform border-none cursor-pointer"
                 >
                     <UserPlus size={18} />
-                    Adicionar
+                    {t('professionals.list.add')}
                 </button>
             </div>
 
@@ -1272,7 +1272,7 @@ export const Professionals = () => {
                 <input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Buscar por nome, especialidade ou CRM..."
+                    placeholder={t('professionals.list.searchPlaceholder')}
                     className="w-full bg-white border border-ice-200 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10 transition-all placeholder:text-graphite-300"
                 />
             </div>
@@ -1280,10 +1280,10 @@ export const Professionals = () => {
             {/* List */}
             <div className="bg-white rounded-[32px] border border-ice-200 shadow-sm overflow-hidden">
                 {loading ? (
-                    <div className="p-12 text-center text-graphite-400 font-medium">Carregando equipe...</div>
+                    <div className="p-12 text-center text-graphite-400 font-medium">{t('professionals.list.loading')}</div>
                 ) : filtered.length === 0 ? (
                     <div className="p-12 text-center text-graphite-400 font-medium">
-                        {professionals.length === 0 ? 'Nenhum profissional cadastrado. Clique em "Adicionar" para começar.' : 'Nenhum resultado para a busca.'}
+                        {professionals.length === 0 ? t('professionals.list.emptyAll') : t('professionals.list.emptySearch')}
                     </div>
                 ) : (
                     <div className="divide-y divide-ice-100">
@@ -1305,17 +1305,17 @@ export const Professionals = () => {
                                 {/* Info */}
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 flex-wrap">
-                                        <p className="font-black text-graphite-900 truncate">{p.full_name || 'Sem nome'}</p>
+                                        <p className="font-black text-graphite-900 truncate">{p.full_name || t('professionals.list.noName')}</p>
                                         <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase ${roleColor[p.role] || 'bg-ice-100 text-graphite-500'}`}>
                                             {roleLabel[p.role] || p.role}
                                         </span>
                                         {!p.is_active && (
-                                            <span className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase bg-rose-100 text-rose-600">Inativo</span>
+                                            <span className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase bg-rose-100 text-rose-600">{t('professionals.list.inactive')}</span>
                                         )}
                                     </div>
                                     <div className="flex items-center gap-4 mt-1 flex-wrap">
                                         {p.specialty && <span className="text-xs text-graphite-500 font-medium">{p.specialty}</span>}
-                                        {p.crm && <span className="text-xs text-graphite-300 font-medium">CRM {p.crm}</span>}
+                                        {p.crm && <span className="text-xs text-graphite-300 font-medium">{t('professionals.list.crmPrefix', { crm: p.crm })}</span>}
                                         {p.email && (
                                             <span className="text-xs text-graphite-300 font-medium flex items-center gap-1">
                                                 <Mail size={10} /> {p.email}
@@ -1345,14 +1345,14 @@ export const Professionals = () => {
                                             fetchDoctorPlans(p.id);
                                         }}
                                         className="p-2 text-brand-primary hover:bg-brand-primary/10 rounded-xl transition-all border-none cursor-pointer bg-transparent"
-                                        title="Editar"
+                                        title={t('professionals.list.edit')}
                                     >
                                         <Pencil size={16} />
                                     </button>
                                     <button
                                         onClick={() => handleToggleActive(p.id, p.is_active)}
                                         className="p-2 rounded-xl border-none cursor-pointer transition-colors bg-transparent"
-                                        title={p.is_active ? 'Desativar' : 'Ativar'}
+                                        title={p.is_active ? t('professionals.list.deactivate') : t('professionals.list.activate')}
                                     >
                                         {p.is_active ? (
                                             <ToggleRight size={20} className="text-emerald-500" />
@@ -1363,7 +1363,7 @@ export const Professionals = () => {
                                     <button
                                         onClick={() => setConfirmDelete(p.id)}
                                         className="p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all border-none cursor-pointer bg-transparent"
-                                        title="Excluir"
+                                        title={t('professionals.list.delete')}
                                     >
                                         <Trash2 size={16} />
                                     </button>
@@ -1383,20 +1383,20 @@ export const Professionals = () => {
                             <div className="w-14 h-14 rounded-2xl bg-rose-100 flex items-center justify-center mx-auto mb-4">
                                 <Trash2 size={24} className="text-rose-500" />
                             </div>
-                            <h3 className="text-lg font-black text-graphite-900 mb-2">Remover Profissional?</h3>
-                            <p className="text-sm text-graphite-500 mb-6">Esta ação não pode ser desfeita. O profissional será removido do quadro da clínica.</p>
+                            <h3 className="text-lg font-black text-graphite-900 mb-2">{t('professionals.deleteDialog.title')}</h3>
+                            <p className="text-sm text-graphite-500 mb-6">{t('professionals.deleteDialog.message')}</p>
                             <div className="flex gap-3">
                                 <button
                                     onClick={() => setConfirmDelete(null)}
                                     className="flex-1 py-3 rounded-xl font-bold text-graphite-700 hover:bg-ice-50 border border-ice-200 transition-all cursor-pointer"
                                 >
-                                    Cancelar
+                                    {t('professionals.deleteDialog.cancel')}
                                 </button>
                                 <button
                                     onClick={() => handleDelete(confirmDelete)}
                                     className="flex-1 bg-rose-500 text-white py-3 rounded-xl font-bold hover:bg-rose-600 transition-all border-none cursor-pointer"
                                 >
-                                    Excluir
+                                    {t('professionals.deleteDialog.confirm')}
                                 </button>
                             </div>
                         </div>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
@@ -7,12 +8,13 @@ import { Shield, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export const PagarmeCallback = () => {
+    const { t } = useTranslation('billing');
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const { showToast } = useToast();
     const { tenant } = useTenant();
     const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
-    const [message, setMessage] = useState('Conectando sua conta Pagar.me...');
+    const [message, setMessage] = useState(t('pagarmeCallback.connecting'));
 
     useEffect(() => {
         const handleCallback = async () => {
@@ -21,8 +23,8 @@ export const PagarmeCallback = () => {
 
             if (error || !code) {
                 setStatus('error');
-                setMessage('A autorização foi cancelada ou falhou.');
-                showToast('error', 'Falha na conexão com Pagar.me.');
+                setMessage(t('pagarmeCallback.authorizationFailed'));
+                showToast('error', t('pagarmeCallback.connectionFailedToast'));
                 return;
             }
 
@@ -31,7 +33,7 @@ export const PagarmeCallback = () => {
                 setTimeout(() => {
                     if (!tenant?.id) {
                         setStatus('error');
-                        setMessage('Erro de contexto: Tenant não identificado.');
+                        setMessage(t('pagarmeCallback.tenantNotIdentified'));
                     }
                 }, 2000);
                 return;
@@ -40,8 +42,8 @@ export const PagarmeCallback = () => {
             try {
                 // Call the secure Edge Function for token exchange
                 const { data, error: functionError } = await supabase.functions.invoke('pagarme-oauth', {
-                    body: { 
-                        code, 
+                    body: {
+                        code,
                         tenant_id: tenant.id,
                         is_sandbox: false // Handle environment logic here
                     }
@@ -50,9 +52,9 @@ export const PagarmeCallback = () => {
                 if (functionError) throw functionError;
 
                 setStatus('success');
-                setMessage('Conta conectada com sucesso! Redirecionando...');
-                showToast('success', 'Pagar.me conectado com sucesso!');
-                
+                setMessage(t('pagarmeCallback.successRedirecting'));
+                showToast('success', t('pagarmeCallback.connectedToast'));
+
                 // Redirect back to settings after a visual confirmation
                 setTimeout(() => {
                     navigate('/dashboard/settings');
@@ -61,13 +63,13 @@ export const PagarmeCallback = () => {
             } catch (err) {
                 console.error('OAuth Error:', err);
                 setStatus('error');
-                setMessage('Erro ao trocar token com o Pagar.me. Tente novamente.');
-                showToast('error', 'Erro interno na integração.');
+                setMessage(t('pagarmeCallback.tokenExchangeError'));
+                showToast('error', t('pagarmeCallback.internalErrorToast'));
             }
         };
 
         handleCallback();
-    }, [searchParams, tenant, navigate, showToast]);
+    }, [searchParams, tenant, navigate, showToast, t]);
 
     return (
         <div className="min-h-screen bg-ice-50 flex items-center justify-center p-6">
@@ -90,9 +92,9 @@ export const PagarmeCallback = () => {
 
                 <div className="space-y-4">
                     <h2 className="text-2xl font-black text-graphite-900 tracking-tight">
-                        {status === 'loading' && 'Quase lá...'}
-                        {status === 'success' && 'Tudo Pronto!'}
-                        {status === 'error' && 'Ops! Algo deu errado'}
+                        {status === 'loading' && t('pagarmeCallback.titleLoading')}
+                        {status === 'success' && t('pagarmeCallback.titleSuccess')}
+                        {status === 'error' && t('pagarmeCallback.titleError')}
                     </h2>
                     <p className="text-graphite-500 font-medium leading-relaxed">
                         {message}
@@ -102,15 +104,15 @@ export const PagarmeCallback = () => {
                 <div className="pt-4 flex flex-col items-center gap-4">
                     <div className="flex items-center gap-2 text-[10px] font-black text-graphite-300 uppercase tracking-widest bg-ice-50 px-4 py-2 rounded-full">
                         <Shield size={12} />
-                        Conexão Criptografada SSL
+                        {t('pagarmeCallback.sslEncrypted')}
                     </div>
 
                     {status === 'error' && (
-                        <button 
+                        <button
                             onClick={() => navigate('/dashboard/settings')}
                             className="text-sm font-bold text-brand-primary hover:underline"
                         >
-                            Voltar para Configurações
+                            {t('pagarmeCallback.backToSettings')}
                         </button>
                     )}
                 </div>

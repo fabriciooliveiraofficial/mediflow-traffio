@@ -5,7 +5,8 @@
     "insurance": "Convênios",
     "team": "Equipe",
     "communications": "Comunicações",
-    "profile": "Meu Perfil"
+    "profile": "Meu Perfil",
+    "logs": "Logs"
   },
   "header": {
     "title": "Configurações",
@@ -187,6 +188,42 @@
     "specialtyLabel": "Especialidade",
     "crmLabel": "CRM/Registro",
     "saveChanges": "Salvar Alterações"
+  },
+  "wallet": {
+    "availableBalance": "Saldo Disponível",
+    "addCredits": "Adicionar Créditos",
+    "accumulatedConsumption": "Consumo Acumulado",
+    "voiceLabel": "Voz ({{minutes}} min)",
+    "smsLabel": "SMS ({{count}} envios)",
+    "numbersLabel": "Números de Telefone",
+    "recentTransactionsTitle": "Histórico Recente de Transações",
+    "colDate": "Data",
+    "colDescription": "Descrição",
+    "colType": "Tipo",
+    "colValue": "Valor",
+    "colBalance": "Saldo",
+    "typeRecharge": "Recarga",
+    "typeDeduction": "Débito",
+    "emptyTransactions": "Nenhuma transação registrada ainda.",
+    "rechargeModal": {
+      "title": "Adicionar Créditos",
+      "subtitle": "Recarga instantânea para comunicações",
+      "amountLabel": "Selecione o valor da recarga",
+      "customAmountLabel": "Ou digite outro valor (R$)",
+      "customAmountPlaceholder": "Min. R$ 10",
+      "cancel": "Cancelar",
+      "confirm": "Confirmar Recarga"
+    },
+    "stripeModalTitle": "Pagamento Seguro (Stripe)",
+    "stripeIframeHint": "O iframe do Stripe será renderizado aqui",
+    "errors": {
+      "clinicNotSelected": "Clínica não selecionada",
+      "minRecharge": "O valor mínimo de recarga é de R$ 10,00",
+      "invalidStripeReturn": "Retorno inválido da API do Stripe",
+      "stripeOpenErrorPrefix": "Erro ao abrir faturamento Stripe:",
+      "stripeLoadError": "Erro ao carregar o faturamento do Stripe"
+    },
+    "rechargeSuccessQueued": "Solicitação de recarga iniciada! Seus créditos serão atualizados em instantes."
   },
   "metaConnectModal": {
     "title": "Conectar ao Meta",

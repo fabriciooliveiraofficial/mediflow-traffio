@@ -153,6 +153,29 @@
         "margin": "Margem de Lucro"
       },
       "empty": "Nenhum consumo registrado ainda."
+    },
+    "masterAccount": {
+      "title": "Conta Central Telnyx (Provedor)",
+      "criticalBalance": "Saldo Crítico (Abaixo de $20 USD)",
+      "subtitle": "Integração e bilhetagem master para chamadas de voz, SMS e MMS em todas as clínicas.",
+      "syncButton": "Sincronizar Telnyx",
+      "availableCredit": "Crédito Disponível",
+      "currentBalance": "Saldo Atual da Conta",
+      "additionalCreditLimit": "Limite de Crédito Adicional",
+      "sipConnectionTitle": "Conexão SIP e Webhooks",
+      "connectionNameLabel": "Nome da Conexão:",
+      "providerStatusLabel": "Status no Provedor:",
+      "connectionActive": "Ativa / Online",
+      "connectionInactive": "Inativa",
+      "webhookEventsLabel": "Webhook Eventos:",
+      "webhookConfigured": "Configurado",
+      "webhookUnconfigured": "Desconfigurado",
+      "connectionUnavailable": "Detalhes de conexão indisponíveis. Sincronize os dados.",
+      "outboundRoutesTitle": "Rotas de Voz Autorizadas (Outbound)",
+      "outboundProfileLabel": "Perfil de Saída:",
+      "whitelistedCountriesLabel": "Países Autorizados na Operadora (Whitelist):",
+      "noRoutesConfigured": "Nenhuma rota configurada",
+      "routingUnavailable": "Detalhes de roteamento indisponíveis. Sincronize os dados."
     }
   },
   "whatsapp": {

@@ -27,31 +27,83 @@ export function ActiveCallView({ call, isMuted, isOnHold, onHangup, onToggleMute
   }, [call.startedAt]);
 
   useEffect(() => {
-    const stream = call.callRef?.remoteStream;
-    if (!stream) {
-      console.log('[ActiveCallView] No remote stream found on callRef yet');
-      return;
+    // 1. Diagnóstico do Objeto callRef
+    const callRef = call.callRef;
+    const hasCallRef = !!callRef;
+    const remoteStream = callRef?.remoteStream;
+    const optionsRemoteStream = callRef?.options?.remoteStream;
+    const peer = callRef?.peer;
+    const pc = peer?.instance || peer?.pc;
+    
+    console.log('[AudioDiagnostics] Checking callRef...', {
+      hasCallRef,
+      state: callRef?.state,
+      id: callRef?.id,
+      remoteStream: remoteStream ? 'Present' : 'Missing',
+      optionsRemoteStream: optionsRemoteStream ? 'Present' : 'Missing',
+      peer: peer ? 'Present' : 'Missing',
+      pc: pc ? 'Present' : 'Missing',
+    });
+
+    // 2. Tenta obter o stream do SDK
+    let stream = remoteStream || optionsRemoteStream;
+
+    // 3. Se não achou na propriedade tradicional, tenta extrair do RTCPeerConnection interno
+    if (!stream && pc) {
+      const receivers = typeof pc.getReceivers === 'function' ? pc.getReceivers() : [];
+      const remoteTracks = receivers.map((r: any) => r.track).filter(Boolean);
+      console.log('[AudioDiagnostics] Receivers tracks found:', remoteTracks.length, remoteTracks);
+      
+      if (remoteTracks.length > 0) {
+        console.log('[AudioDiagnostics] Creating a fallback MediaStream from tracks...');
+        stream = new MediaStream(remoteTracks);
+      }
     }
 
+    // 4. Se temos um stream, vinculamos à tag <audio>
     const audioElement = document.getElementById('telnyx-remote-audio') as HTMLAudioElement;
     if (audioElement) {
-      if (audioElement.srcObject !== stream) {
-        console.log('[ActiveCallView] Attaching remote stream to audio element');
-        audioElement.srcObject = stream;
-        audioElement.play().catch((err) => {
-          console.error('[ActiveCallView] Error playing remote audio stream:', err);
-        });
+      if (stream) {
+        if (audioElement.srcObject !== stream) {
+          console.log('[AudioDiagnostics] Attaching stream to DOM. Tracks:', stream.getAudioTracks());
+          audioElement.srcObject = stream;
+          audioElement.muted = false;
+          audioElement.volume = 1.0;
+          
+          audioElement.play()
+            .then(() => {
+              console.log('[AudioDiagnostics] 🔊 Audio play succeeded!');
+            })
+            .catch((err) => {
+              console.error('[AudioDiagnostics] 🔇 play() was blocked or failed:', err);
+            });
+        } else {
+          // Já está associado, mas garante que não está travado em pause se o estado atual for ativo
+          if (audioElement.paused) {
+            console.log('[AudioDiagnostics] Audio is paused. Triggering play...');
+            audioElement.play().catch(err => {
+              console.error('[AudioDiagnostics] play() retry failed:', err);
+            });
+          }
+        }
+      } else {
+        console.log('[AudioDiagnostics] Stream is not available yet.');
       }
     } else {
-      console.warn('[ActiveCallView] HTMLAudioElement with ID "telnyx-remote-audio" not found');
+      console.error('[AudioDiagnostics] ❌ HTMLAudioElement with ID "telnyx-remote-audio" not found in DOM!');
     }
+  }, [call.callRef, elapsed]);
 
+  // Limpeza final do áudio quando o componente desmontar de verdade
+  useEffect(() => {
     return () => {
+      const audioElement = document.getElementById('telnyx-remote-audio') as HTMLAudioElement;
       if (audioElement) {
+        console.log('[AudioDiagnostics] ActiveCallView unmounted. Clearing audio element.');
         audioElement.srcObject = null;
       }
     };
-  }, [call.callRef, call.callRef?.remoteStream]);
+  }, []);
 
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60);

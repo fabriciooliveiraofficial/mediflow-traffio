@@ -227,5 +227,20 @@
         "description": "Cobranças emitidas sempre em nome da clínica. O paciente vê a marca da clínica — nunca a marca Asaas ou Traffio."
       }
     }
+  },
+  "pagarmeCallback": {
+    "connecting": "Conectando sua conta Pagar.me...",
+    "authorizationFailed": "A autorização foi cancelada ou falhou.",
+    "connectionFailedToast": "Falha na conexão com Pagar.me.",
+    "tenantNotIdentified": "Erro de contexto: Tenant não identificado.",
+    "successRedirecting": "Conta conectada com sucesso! Redirecionando...",
+    "connectedToast": "Pagar.me conectado com sucesso!",
+    "tokenExchangeError": "Erro ao trocar token com o Pagar.me. Tente novamente.",
+    "internalErrorToast": "Erro interno na integração.",
+    "titleLoading": "Quase lá...",
+    "titleSuccess": "Tudo Pronto!",
+    "titleError": "Ops! Algo deu errado",
+    "sslEncrypted": "Conexão Criptografada SSL",
+    "backToSettings": "Voltar para Configurações"
   }
 }

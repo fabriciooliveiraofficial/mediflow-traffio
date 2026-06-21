@@ -1,19 +1,21 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2, AlertCircle, ExternalLink, Home } from 'lucide-react';
 import { shortLinkService } from '../services/shortLinkService';
 
 export function LinkRedirectPage() {
+  const { t } = useTranslation('common');
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
-  
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(5);
 
   useEffect(() => {
     if (!code) {
-      setError('Código de link não fornecido.');
+      setError(t('linkRedirectPage.codeMissing'));
       setLoading(false);
       return;
     }
@@ -24,28 +26,28 @@ export function LinkRedirectPage() {
         if (link) {
           // Increment clicks asynchronously
           shortLinkService.incrementClicks(code);
-          
+
           // Verify URL protocol, prepend https:// if missing
           let destination = link.original_url.trim();
           if (!/^https?:\/\//i.test(destination)) {
             destination = 'https://' + destination;
           }
-          
+
           // Perform full page redirect
           window.location.replace(destination);
         } else {
-          setError('Este link encurtado não foi encontrado ou está desativado.');
+          setError(t('linkRedirectPage.notFound'));
           setLoading(false);
         }
       } catch (err: any) {
         console.error('Redirection error:', err);
-        setError('Ocorreu um erro ao processar o redirecionamento. Tente novamente.');
+        setError(t('linkRedirectPage.processingError'));
         setLoading(false);
       }
     };
 
     resolveLink();
-  }, [code]);
+  }, [code, t]);
 
   // Handle countdown redirection to home for 404 errors
   useEffect(() => {
@@ -84,8 +86,8 @@ export function LinkRedirectPage() {
               </span>
             </div>
             <div className="space-y-1">
-              <h2 className="text-lg font-extrabold tracking-tight text-white">Redirecionando...</h2>
-              <p className="text-xs text-slate-400 font-medium">Você está sendo direcionado ao destino seguro.</p>
+              <h2 className="text-lg font-extrabold tracking-tight text-white">{t('linkRedirectPage.redirecting')}</h2>
+              <p className="text-xs text-slate-400 font-medium">{t('linkRedirectPage.beingDirected')}</p>
             </div>
             <span className="text-[10px] font-black tracking-widest text-slate-500 uppercase flex items-center gap-1.5 pt-2">
               ⚡ Mediflow Traffio
@@ -96,9 +98,9 @@ export function LinkRedirectPage() {
             <div className="w-16 h-16 rounded-2xl bg-rose-600/10 border border-rose-500/20 flex items-center justify-center text-rose-500 shadow-lg shadow-rose-500/5">
               <AlertCircle className="w-8 h-8" />
             </div>
-            
+
             <div className="space-y-2">
-              <h2 className="text-lg font-extrabold tracking-tight text-white">Link Não Encontrado</h2>
+              <h2 className="text-lg font-extrabold tracking-tight text-white">{t('linkRedirectPage.linkNotFoundTitle')}</h2>
               <p className="text-xs text-slate-400 leading-relaxed max-w-[280px] mx-auto">
                 {error}
               </p>
@@ -110,12 +112,12 @@ export function LinkRedirectPage() {
                 className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-blue-600/10 flex items-center justify-center gap-2 border-none cursor-pointer"
               >
                 <Home size={14} />
-                Ir para o início
+                {t('linkRedirectPage.goHome')}
               </button>
             </div>
 
             <p className="text-[10px] text-slate-500 font-bold">
-              Redirecionando para a página inicial em {countdown}s...
+              {t('linkRedirectPage.redirectingHomeCountdown', { countdown })}
             </p>
           </div>
         )}

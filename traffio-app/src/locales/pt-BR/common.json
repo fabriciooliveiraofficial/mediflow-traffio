@@ -87,5 +87,15 @@
     "numberPlaceholder": "Nº",
     "complementPlaceholder": "Complemento",
     "neighborhoodPlaceholder": "Bairro"
+  },
+  "linkRedirectPage": {
+    "codeMissing": "Código de link não fornecido.",
+    "notFound": "Este link encurtado não foi encontrado ou está desativado.",
+    "processingError": "Ocorreu um erro ao processar o redirecionamento. Tente novamente.",
+    "redirecting": "Redirecionando...",
+    "beingDirected": "Você está sendo direcionado ao destino seguro.",
+    "linkNotFoundTitle": "Link Não Encontrado",
+    "goHome": "Ir para o início",
+    "redirectingHomeCountdown": "Redirecionando para a página inicial em {{countdown}}s..."
   }
 }
