@@ -173,7 +173,10 @@ export function useTelnyxWebRTC(enabled: boolean): UseTelnyxWebRTCReturn {
         return;
       }
 
-      const client = new TelnyxRTC({ login_token: token });
+      const client = new TelnyxRTC({
+        login_token: token,
+        remoteElement: 'telnyx-remote-audio',
+      });
       clientRef.current = client;
 
       client.on('telnyx.ready', () => {

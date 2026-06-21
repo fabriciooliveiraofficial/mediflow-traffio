@@ -136,6 +136,9 @@ export function SoftphoneWidget({ enabled, activeNumber }: Props) {
         />
       )}
 
+      {/* Elemento de áudio remoto do Telnyx WebRTC */}
+      <audio id="telnyx-remote-audio" autoPlay playsInline style={{ display: 'none' }} />
+
       {/* Widget flutuante */}
       <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-3">
 

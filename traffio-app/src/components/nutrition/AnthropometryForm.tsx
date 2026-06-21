@@ -171,7 +171,7 @@ export const AnthropometryForm = ({ patientId, onSuccess, initialData }: Anthrop
                             </p>
                         </div>
                     ) : (
-                        <p className="text-xs font-bold opacity-70">Preencha peso e altura para calcular</p>
+                        <p className="text-xs font-bold opacity-70">{t('anthropometryForm.bmi.placeholder')}</p>
                     )}
 
                     <div className="pt-2 border-t border-white/10 mt-2">
@@ -186,13 +186,13 @@ export const AnthropometryForm = ({ patientId, onSuccess, initialData }: Anthrop
             </div>
 
             <div className="bg-white p-6 rounded-3xl border border-ice-200 shadow-sm">
-                <label className="text-[10px] font-black text-graphite-400 uppercase mb-2 block">Observações Clínicas</label>
-                <textarea 
+                <label className="text-[10px] font-black text-graphite-400 uppercase mb-2 block">{t('anthropometryForm.notesLabel')}</label>
+                <textarea
                     name="notes"
                     value={formData.notes}
                     onChange={handleChange}
                     className="w-full bg-ice-50 border border-ice-200 rounded-2xl px-4 py-4 text-sm font-medium text-graphite-900 focus:border-indigo-500 outline-none transition-all min-h-[100px]"
-                    placeholder="Evolução do paciente, dificuldades na dieta, etc..."
+                    placeholder={t('anthropometryForm.notesPlaceholder')}
                 />
             </div>
 
@@ -203,7 +203,7 @@ export const AnthropometryForm = ({ patientId, onSuccess, initialData }: Anthrop
                     className="flex items-center gap-2 bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 hover:scale-[1.02] transition-all shadow-lg shadow-indigo-600/25 border-none cursor-pointer disabled:opacity-50"
                 >
                     <Save size={16} />
-                    {loading ? 'Salvando...' : 'Salvar Avaliação'}
+                    {loading ? t('anthropometryForm.saving') : t('anthropometryForm.save')}
                 </button>
             </div>
         </div>
