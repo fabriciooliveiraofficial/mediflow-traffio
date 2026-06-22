@@ -48,9 +48,7 @@ export function TenantAddressForm({ initialData, onSave, country = DEFAULT_COUNT
         triggerSave({
             address_zip_code: cep,
             address: result.label,
-            address_neighborhood: result.neighborhood,
-            latitude: result.latitude,
-            longitude: result.longitude
+            address_neighborhood: result.neighborhood
         });
     };
 

@@ -1,1 +1,90 @@
-{}
+{
+  "waitingRoom": {
+    "invalidLink": "Enlace inválido.",
+    "title": "Sala de Espera Virtual",
+    "realtimeUpdate": "Actualización en tiempo real",
+    "yourPosition": "Tu posición",
+    "ofTotalInQueue": "de {{total}} en la fila",
+    "estimatedTime": "Tiempo Estimado",
+    "minutesEstimate": "~{{minutes}} min",
+    "patientsAhead": "Pacientes adelante",
+    "footer": "Desarrollado por Traffio Medical • Actualizado automáticamente",
+    "status": {
+      "onTime": {
+        "label": "A Tiempo",
+        "description": "Atención fluyendo normalmente"
+      },
+      "slightDelay": {
+        "label": "Retraso Leve",
+        "description": "Retraso estimado de 5-15 min"
+      },
+      "moderateDelay": {
+        "label": "Retraso Moderado",
+        "description": "Retraso superior a 15 min"
+      }
+    }
+  },
+  "preCheckin": {
+    "invalidLink": "Enlace de check-in inválido.",
+    "header": {
+      "title": "Check-in Exprés",
+      "subtitle": "Confirma tus datos y evita filas"
+    },
+    "geofence": {
+      "title": "Verificación de Proximidad",
+      "subtitle": "Confirma que te encuentras en la clínica",
+      "locating": "Localizando...",
+      "locatingDescription": "Verificando tu proximidad a la clínica",
+      "unavailableTitle": "Ubicación no disponible",
+      "retry": "Intentar de Nuevo",
+      "retryHint": "Activa la ubicación en tu navegador o conéctate al WiFi de la clínica",
+      "outOfRangeTitle": "Fuera del área de la clínica",
+      "youAreAt": "Estás a",
+      "distanceFromSuffix": "de:",
+      "allowedRadius": "Radio permitido: {{radius}}",
+      "you": "Tú",
+      "defaultClinicLabel": "Clínica",
+      "defaultLocationName": "Sede Principal",
+      "retryCheck": "Verificar de Nuevo",
+      "getCloserHint": "Acércate a la sede para habilitar el check-in",
+      "gpsPrecise": "GPS Preciso",
+      "ipSource": "IP ({{source}})",
+      "gpsShort": "GPS",
+      "ipShort": "IP",
+      "arrivedAt": "Llegaste a: {{name}}"
+    },
+    "verifyData": {
+      "confirmedProximity": "Proximidad confirmada: {{name}}",
+      "title": "Tus Datos",
+      "subtitle": "Confirma que sean correctos",
+      "name": "Nombre",
+      "mobile": "Celular",
+      "email": "Correo electrónico",
+      "confirmCta": "Datos Correctos, Continuar"
+    },
+    "verifyInsurance": {
+      "title": "Seguro",
+      "subtitle": "Confirma los datos del plan",
+      "provider": "Aseguradora",
+      "cardNumber": "Nº de Tarjeta",
+      "confirmCta": "Seguro Correcto, Finalizar"
+    },
+    "complete": {
+      "title": "¡Check-in Completado!",
+      "subtitle": "Presenta el código QR a continuación en la recepción.",
+      "scheduledTime": "Horario Agendado"
+    },
+    "errors": {
+      "tenantIdMissing": "ID de inquilino no encontrado.",
+      "checkFailed": "Error al verificar la ubicación.",
+      "geoNotSupported": "Tu navegador no admite geolocalización.",
+      "permissionDenied": "Permiso de ubicación denegado. Actívalo en la configuración de tu navegador.",
+      "positionUnavailable": "No fue posible obtener tu ubicación. Intenta en un área abierta.",
+      "timeout": "Tiempo agotado al buscar la ubicación. Intenta de nuevo.",
+      "generic": "Error al obtener la ubicación."
+    }
+  },
+  "qrPass": {
+    "presentHint": "Presenta este código QR en la recepción"
+  }
+}

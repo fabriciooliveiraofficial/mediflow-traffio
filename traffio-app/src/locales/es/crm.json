@@ -1,1 +1,269 @@
-{}
+{
+  "leads": {
+    "title": "Leads del CRM",
+    "subtitle": "Gestiona tu base de pacientes y el embudo de ventas.",
+    "newPatient": "Nuevo Paciente",
+    "searchPlaceholder": "Buscar por nombre, CPF o teléfono...",
+    "filters": "Filtros",
+    "table": {
+      "patient": "Paciente",
+      "contact": "Contacto",
+      "lastVisit": "Última Visita",
+      "status": "Estado",
+      "actions": "Acciones"
+    },
+    "loading": "Cargando pacientes...",
+    "empty": "No se encontró ningún paciente.",
+    "noVisits": "Sin visitas",
+    "activeBadge": "Activo",
+    "editTitle": "Editar",
+    "deleteTitle": "Eliminar",
+    "detailsTitle": "Detalles",
+    "confirmDelete": "¿Estás seguro de que deseas eliminar a este paciente? Esta acción no se puede deshacer.",
+    "toasts": {
+      "deleted": "¡Paciente eliminado con éxito!",
+      "deleteError": "Error al eliminar paciente."
+    }
+  },
+  "followUp": {
+    "title": "Centro de Desempeño",
+    "subtitle": "Gestión comercial y embudo de conversión en tiempo real.",
+    "daysFilter": "{{count}} días",
+    "dashboardToggle": "Panel",
+    "emptyColumn": "Vacío",
+    "activityLabel": "Actividad",
+    "directFallback": "Directo",
+    "channelFallback": {
+      "instagram": "Usuario de Instagram",
+      "facebook": "Usuario de Messenger",
+      "web": "Visitante Web"
+    },
+    "channelLabel": {
+      "instagram": "Instagram: @{{username}}",
+      "facebook": "Facebook Messenger",
+      "livechat": "Chat en Vivo"
+    },
+    "saleModal": {
+      "title": "Confirmar Venta",
+      "subtitle": "Indica los detalles del cierre.",
+      "procedureLabel": "Procedimiento",
+      "procedurePlaceholder": "Ej: Invisalign, Implante...",
+      "valueLabel": "Valor del Cierre ($)",
+      "valuePlaceholder": "0.00",
+      "cancel": "Cancelar",
+      "save": "Guardar Venta"
+    }
+  },
+  "performanceStats": {
+    "kpis": {
+      "totalLeads": "Total de Leads",
+      "conversionRate": "Tasa de Conversión",
+      "sales": "Ventas (Cerradas)",
+      "appointments": "Citas",
+      "noShow": "Ausencias (No-show)"
+    },
+    "evaluationsSuffix": "{{count}} Evaluaciones",
+    "noShowRateSuffix": "{{rate}}% de tasa",
+    "funnelTitle": "Embudo de Ventas",
+    "funnelSubtitle": "Distribución por etapa del CRM",
+    "funnelEmpty": "Sin datos en el período",
+    "trendTitle": "Adquisición de Leads",
+    "trendSubtitle": "Volumen diario de nuevos leads",
+    "trendEmpty": "Esperando nuevos leads"
+  },
+  "newPatientModal": {
+    "editTitle": "Editar Paciente",
+    "newTitle": "Nuevo Paciente",
+    "editSubtitle": "Actualiza la información del paciente.",
+    "newSubtitle": "Completa los datos de la tarjeta de contacto.",
+    "fullNameLabel": "Nombre Completo",
+    "fullNamePlaceholder": "Ej: Ricardo Albeniz",
+    "phoneLabel": "Celular",
+    "birthDateLabel": "Fecha de Nacimiento",
+    "emailLabel": "Correo Electrónico",
+    "emailPlaceholder": "paciente@ejemplo.com",
+    "careTypeLabel": "Tipo de Atención",
+    "particular": "Particular",
+    "insurance": "Seguro",
+    "insuranceProviderLabel": "Aseguradora",
+    "insuranceProviderPlaceholder": "Ej: Unimed",
+    "insuranceCardLabel": "Nº de Tarjeta",
+    "insuranceCardPlaceholder": "0000...",
+    "cancel": "Cancelar",
+    "saving": "Guardando...",
+    "saveChanges": "Guardar Cambios",
+    "register": "Registrar Paciente",
+    "toasts": {
+      "updated": "¡Paciente actualizado con éxito!",
+      "created": "¡Paciente registrado con éxito!"
+    },
+    "errors": {
+      "tenantNotIdentified": "Cliente no identificado.",
+      "createPrefix": "Error al registrar: {{message}}"
+    }
+  },
+  "receptionDashboard": {
+    "patientFallback": "Paciente",
+    "consultationFallback": "Consulta",
+    "searchPlaceholder": "Buscar paciente...",
+    "callNext": "Llamar al Siguiente",
+    "newPatient": "Nuevo Paciente",
+    "totalToday": "Total de Hoy",
+    "waiting": "En Espera",
+    "inConsult": "En Atención",
+    "completed": "Finalizados",
+    "dayAgenda": "Agenda del Día",
+    "filters": {
+      "all": "Todos",
+      "waiting": "En Espera",
+      "completed": "Finalizados"
+    },
+    "empty": "No se encontró ninguna cita.",
+    "checkinOk": "Check-in OK",
+    "actions": {
+      "arrived": "Llegó",
+      "call": "Llamar",
+      "finish": "Finalizar"
+    },
+    "status": {
+      "scheduled": "Agendado",
+      "waiting": "En Espera",
+      "inConsult": "En Atención",
+      "completed": "Finalizado",
+      "cancelled": "Cancelado"
+    },
+    "toasts": {
+      "calling": "Llamando: {{name}}",
+      "noPatientInQueue": "No hay pacientes en la fila.",
+      "patientRegistered": "¡Paciente registrado!"
+    }
+  },
+  "sidebarPatientEditView": {
+    "headerTitle": "Editar Perfil",
+    "whatsappIdentity": "Identidad en WhatsApp",
+    "isPatientQuestion": "¿El contacto es el propio paciente?",
+    "whoIsTalkingLabel": "¿Quién está hablando?",
+    "responsibleNamePlaceholder": "Nombre del responsable",
+    "relationshipLabel": "Parentesco/Relación",
+    "selectPlaceholder": "Selecciona...",
+    "relationships": {
+      "parent": "Padre/Madre",
+      "spouse": "Cónyuge",
+      "child": "Hijo(a)",
+      "sibling": "Hermano/Hermana",
+      "secretary": "Secretaria/Asistente",
+      "other": "Otro"
+    },
+    "patientInfo": "Información del Paciente",
+    "fullNameLabel": "Nombre Completo",
+    "birthLabel": "Nacimiento",
+    "birthPlaceholder": "DD/MM/AAAA",
+    "phoneLabel": "Teléfono",
+    "emailLabel": "Correo Electrónico",
+    "careTypeLabel": "Tipo de Atención",
+    "particular": "Particular",
+    "insurance": "Seguro",
+    "stickyNotesLabel": "Notas Rápidas (Recepción)",
+    "stickyNotesPlaceholder": "Ej: Prefiere atención por la mañana. Necesita accesibilidad...",
+    "saveChanges": "Guardar Cambios",
+    "toasts": {
+      "updated": "¡Información actualizada!"
+    },
+    "errors": {
+      "updateFailed": "Error al actualizar"
+    },
+    "self": "Self"
+  },
+  "sidebarLeadClassifyView": {
+    "headerLabel": "Clasificar",
+    "headerTitle": "Lead / Paciente",
+    "funnelStageLabel": "Etapa del Embudo",
+    "temperatureLabel": "Temperatura",
+    "temperatures": {
+      "cold": "Frío",
+      "warm": "Tibio",
+      "hot": "Caliente"
+    },
+    "priorityLabel": "Prioridad",
+    "priorities": {
+      "low": "Baja",
+      "medium": "Media",
+      "high": "Alta",
+      "urgent": "Urgente"
+    },
+    "tagsLabel": "Etiquetas",
+    "newTagPlaceholder": "Nueva etiqueta...",
+    "suggestedTags": {
+      "particular": "Particular",
+      "insurance": "Seguro",
+      "returning": "Retorno",
+      "urgent": "Urgente",
+      "vip": "VIP",
+      "referral": "Referido",
+      "firstVisit": "1ª Consulta",
+      "postOp": "Postoperatorio"
+    },
+    "estimatedRevenueLabel": "Ingreso Estimado ($)",
+    "salesNotesLabel": "Notas del Vendedor",
+    "salesNotesPlaceholder": "Anotaciones sobre el lead...",
+    "saveClassification": "Guardar Clasificación",
+    "toasts": {
+      "saved": "¡Clasificación guardada!"
+    },
+    "errors": {
+      "saveFailed": "Error al guardar"
+    }
+  },
+  "sidebarLookupView": {
+    "headerTitle": "Vincular Paciente",
+    "searchPlaceholder": "Nombre, CPF o Teléfono...",
+    "minCharsHint": "Escribe al menos 3 caracteres para buscar.",
+    "searching": "Buscando en la base de datos...",
+    "empty": {
+      "title": "No se encontró ningún paciente.",
+      "subtitle": "Verifica los datos o registra uno nuevo."
+    },
+    "noCpfFallback": "Sin CPF",
+    "linkNow": "Vincular Ahora"
+  },
+  "sidebarDirectoryView": {
+    "headerLabel": "Directorio",
+    "headerTitle": "Sedes y Profesionales",
+    "tabs": {
+      "locations": "Sedes",
+      "professionals": "Profesionales"
+    },
+    "searchPlaceholders": {
+      "locations": "Buscar sede...",
+      "professionals": "Buscar profesional..."
+    },
+    "empty": {
+      "locations": "No se encontró ninguna sede",
+      "professionals": "No se encontró ningún profesional"
+    },
+    "typeLabels": {
+      "consultorio": "Consultorio",
+      "clinica": "Clínica",
+      "hospital": "Hospital"
+    },
+    "generalSpecialtyFallback": "General"
+  },
+  "sidebarRegisterView": {
+    "headerTitle": "Nuevo Registro",
+    "fullNameLabel": "Nombre Completo",
+    "fullNamePlaceholder": "Ej: Ricardo Albeniz",
+    "phoneLabel": "Teléfono",
+    "emailLabel": "Correo Electrónico",
+    "emailPlaceholder": "paciente@ejemplo.com",
+    "careTypeLabel": "Tipo de Atención",
+    "particular": "Particular",
+    "insurance": "Seguro",
+    "register": "Registrar Paciente",
+    "toasts": {
+      "created": "¡Paciente registrado con éxito!"
+    },
+    "errors": {
+      "createFailed": "Error al registrar"
+    }
+  }
+}

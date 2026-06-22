@@ -1,1 +1,90 @@
-{}
+{
+  "waitingRoom": {
+    "invalidLink": "Invalid link.",
+    "title": "Virtual Waiting Room",
+    "realtimeUpdate": "Real-time update",
+    "yourPosition": "Your position",
+    "ofTotalInQueue": "of {{total}} in queue",
+    "estimatedTime": "Estimated Time",
+    "minutesEstimate": "~{{minutes}} min",
+    "patientsAhead": "Patients ahead",
+    "footer": "Powered by Traffio Medical • Updated automatically",
+    "status": {
+      "onTime": {
+        "label": "On Time",
+        "description": "Service running normally"
+      },
+      "slightDelay": {
+        "label": "Slight Delay",
+        "description": "Estimated 5-15 min delay"
+      },
+      "moderateDelay": {
+        "label": "Moderate Delay",
+        "description": "Delay over 15 min"
+      }
+    }
+  },
+  "preCheckin": {
+    "invalidLink": "Invalid check-in link.",
+    "header": {
+      "title": "Express Check-in",
+      "subtitle": "Confirm your details and skip the line"
+    },
+    "geofence": {
+      "title": "Proximity Verification",
+      "subtitle": "Confirm that you are at the clinic",
+      "locating": "Locating...",
+      "locatingDescription": "Checking your proximity to the clinic",
+      "unavailableTitle": "Location unavailable",
+      "retry": "Try Again",
+      "retryHint": "Enable location in your browser or connect to the clinic's WiFi",
+      "outOfRangeTitle": "Outside the clinic area",
+      "youAreAt": "You are",
+      "distanceFromSuffix": "from:",
+      "allowedRadius": "Allowed radius: {{radius}}",
+      "you": "You",
+      "defaultClinicLabel": "Clinic",
+      "defaultLocationName": "Main Unit",
+      "retryCheck": "Check Again",
+      "getCloserHint": "Get closer to the unit to enable check-in",
+      "gpsPrecise": "Precise GPS",
+      "ipSource": "IP ({{source}})",
+      "gpsShort": "GPS",
+      "ipShort": "IP",
+      "arrivedAt": "Arrived at: {{name}}"
+    },
+    "verifyData": {
+      "confirmedProximity": "Proximity confirmed: {{name}}",
+      "title": "Your Information",
+      "subtitle": "Confirm that it's correct",
+      "name": "Name",
+      "mobile": "Mobile",
+      "email": "Email",
+      "confirmCta": "Information Correct, Continue"
+    },
+    "verifyInsurance": {
+      "title": "Insurance",
+      "subtitle": "Confirm the plan details",
+      "provider": "Provider",
+      "cardNumber": "Card Number",
+      "confirmCta": "Insurance Correct, Finish"
+    },
+    "complete": {
+      "title": "Check-in Complete!",
+      "subtitle": "Show the QR Code below at the front desk.",
+      "scheduledTime": "Scheduled Time"
+    },
+    "errors": {
+      "tenantIdMissing": "Tenant ID not found.",
+      "checkFailed": "Error verifying location.",
+      "geoNotSupported": "Your browser does not support geolocation.",
+      "permissionDenied": "Location permission denied. Enable it in your browser settings.",
+      "positionUnavailable": "Unable to get your location. Try in an open area.",
+      "timeout": "Timed out while getting location. Please try again.",
+      "generic": "Error getting location."
+    }
+  },
+  "qrPass": {
+    "presentHint": "Show this QR code at the front desk"
+  }
+}

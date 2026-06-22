@@ -1,1 +1,588 @@
-{}
+{
+  "recordsHub": {
+    "toasts": {
+      "idocsCpfRequired": "The patient's CPF is required to search on iDoc.",
+      "idocsOpening": "Opening iDoc Exam Portal...",
+      "prescriptionsLoadError": "Could not load prescription history.",
+      "documentUploaded": "Document attached successfully!",
+      "documentUploadError": "Error uploading the file.",
+      "documentDeleteConfirm": "Are you sure you want to delete this document?",
+      "documentDeleted": "Document removed.",
+      "documentDeleteError": "Error deleting document.",
+      "documentDownloadError": "Error downloading file.",
+      "previewError": "Could not generate the preview.",
+      "notAuthenticated": "User not authenticated",
+      "noteSaved": "Clinical note saved successfully!",
+      "noteSaveErrorPrefix": "Error saving note: ",
+      "unknownError": "Unknown error",
+      "printContentRequired": "Enter the prescription content before printing.",
+      "prescriptionSaved": "Prescription saved and ready for printing!",
+      "prescriptionSaveError": "Error saving the prescription to history.",
+      "editComingSoon": "The edit feature will be available soon.",
+      "clearContentConfirm": "Do you want to clear all the prescription content?",
+      "generatingHighResPdf": "Generating high-resolution PDF..."
+    },
+    "print": {
+      "tagline": "Solutions for your health",
+      "title": "Medical Prescription",
+      "patientLabel": "Patient:",
+      "dateLabel": "Date:",
+      "empty": "No prescription provided.",
+      "signature": "Professional's Signature",
+      "footer": "Document digitally issued via Traffio App"
+    },
+    "patientList": {
+      "title": "Medical Record",
+      "searchPlaceholder": "Search patient..."
+    },
+    "emptyState": {
+      "title": "Select a Patient",
+      "subtitle": "Use the list on the side to access the full clinical history and prescription tools."
+    },
+    "header": {
+      "activePatient": "Active Patient",
+      "newEvolution": "New Note",
+      "prescribe": "Prescribe",
+      "idocsTitle": "Access exams on iDoc (Radio Memory)"
+    },
+    "tabs": {
+      "timeline": "Timeline",
+      "details": "Clinical Chart",
+      "prescriptions": "Prescriptions",
+      "files": "Exams & Docs"
+    },
+    "timeline": {
+      "empty": "No clinical records found."
+    },
+    "details": {
+      "identification": "Identification",
+      "fullName": "Full Name",
+      "notInformed": "Not informed",
+      "birthDate": "Date of Birth",
+      "gender": "Gender",
+      "contacts": "Contacts",
+      "email": "Email",
+      "phone": "Phone / WhatsApp",
+      "location": "Location",
+      "address": "Address",
+      "neighborhood": "Neighborhood",
+      "zipCode": "ZIP Code",
+      "addressNotRegistered": "Address not registered.",
+      "cityState": "City / State",
+      "insurance": "Insurance",
+      "insurancePlan": "Health Plan",
+      "private": "Private",
+      "insuranceProvider": "Insurance Provider",
+      "insuranceCardNumber": "Card No.",
+      "noInsurance": "Care without an associated insurance provider.",
+      "notes": "Notes and Observations",
+      "notesEmpty": "No additional clinical notes for this patient.",
+      "deletePatient": "Delete Patient",
+      "editRegistration": "Edit Registration"
+    },
+    "form": {
+      "title": "New Clinical Note",
+      "eventType": "Event Type",
+      "eventOptions": {
+        "consulta": "Consultation",
+        "exame": "Exam Review",
+        "procedimento": "Procedure",
+        "nota": "Administrative Note"
+      },
+      "dateLabel": "Date",
+      "todayPrefix": "Today, {{date}}",
+      "titleLabel": "Title/Chief Complaint",
+      "titlePlaceholder": "E.g.: Follow-up visit, Acute pain...",
+      "descriptionLabel": "Description/Notes",
+      "descriptionPlaceholder": "Describe the patient's progress in detail...",
+      "save": "Save to Medical Record"
+    },
+    "prescriptionEditor": {
+      "title": "Digital Prescription",
+      "medicationsLabel": "Medications and Dosage",
+      "medicationsPlaceholder": "1. Amoxicillin 500mg - Take 1 tablet every 8 hours for 7 days...",
+      "savePdf": "Save PDF",
+      "clearTitle": "Clear Content",
+      "previewVisualLabel": "Visual Preview",
+      "previewBrand": "Traffio Med",
+      "previewCrm": "CRM/CRO 12345",
+      "previewTitle": "MEDICAL PRESCRIPTION",
+      "previewPatientLabel": "Patient:",
+      "previewPlaceholder": "Type the content on the side...",
+      "previewSignature": "Professional's Signature"
+    },
+    "prescriptionsList": {
+      "loading": "Loading history...",
+      "emptyTitle": "No prescriptions found",
+      "emptySubtitle": "Start a new prescription for this patient in the \"Prescribe\" tab.",
+      "newPrescription": "New Prescription",
+      "digitalPrescription": "Digital Prescription - {{time}}",
+      "persisted": "Saved"
+    },
+    "prescriptionViewer": {
+      "title": "Prescription Review",
+      "fullScreenView": "Full screen view • #{{id}}",
+      "brand": "Traffio Medical",
+      "brandTagline": "Medical Management Technology",
+      "doctorPrefix": "Dr. {{name}}",
+      "doctorFallback": "Attending Physician",
+      "doctorCrm": "CRM/CRO: 123.456-SP",
+      "heading": "Prescription",
+      "patientLabel": "Patient",
+      "issueDate": "Issue Date",
+      "signatureLabel": "Digital Signature",
+      "authenticatedVia": "Authenticated via Traffio Security Hub",
+      "reprint": "Reprint Prescription",
+      "downloadPdf": "Download PDF"
+    },
+    "files": {
+      "addDocument": "Add New Document",
+      "dragHint": "Drag PDF files, images, or reports here.",
+      "uploading": "Uploading...",
+      "selectFile": "Select File",
+      "empty": "No documents attached.",
+      "quickView": "Quick View"
+    },
+    "documentPreview": {
+      "downloadOriginal": "Download Original",
+      "loading": "Generating secure preview...",
+      "unsupportedTitle": "Preview not supported",
+      "unsupportedSubtitle": "This file format ({{type}}) must be downloaded for external viewing.",
+      "downloadNow": "Download File Now",
+      "loadError": "Error loading the file."
+    }
+  },
+  "odontologyHub": {
+    "loading": "Loading Dental Hub...",
+    "title": "Dental Hub",
+    "subtitle": "Clinical management, diagnostics, and treatment plans.",
+    "dicomViewerButton": "DICOM Viewer",
+    "idocsTitle": "Access exams on iDoc (Radio Memory)",
+    "newBudget": "New Estimate",
+    "stats": {
+      "recallsThisMonth": "Recalls This Month",
+      "openBudgets": "Open Estimates",
+      "dicomExams": "DICOM Exams",
+      "clinicalMap": "Clinical Chart",
+      "clinicalMapValue": "32 Teeth"
+    },
+    "recallsTitle": "Prevention Schedule (Recalls)",
+    "exportList": "Export List",
+    "overdue": "Overdue",
+    "recentBudgets": "Recent Estimates",
+    "total": "Total",
+    "searchModal": {
+      "budgetTitle": "Create Estimate for...",
+      "odontogramTitle": "View Dental Chart for..."
+    },
+    "toasts": {
+      "loadError": "Error loading hub data: ",
+      "cpfRequired": "The patient's CPF is required to query iDocs.",
+      "opening": "Opening exams on iDoc (Radio Memory)...",
+      "budgetCreated": "Estimate created successfully!"
+    }
+  },
+  "nutritionHub": {
+    "loading": "Syncing Nutrition Intelligence...",
+    "titlePrefix": "Super-Nutrition ",
+    "titleHighlight": "Hub",
+    "subtitle": "High-precision metabolic management and progress timeline.",
+    "mealPlannerButton": "Meal Planner",
+    "newEvaluation": "New Evaluation",
+    "stats": {
+      "aiPlanner": "AI Planner",
+      "aiPlannerValue": "Operational",
+      "weightLoss": "Weight Loss",
+      "avgBmi": "Avg. BMI"
+    },
+    "patientCard": {
+      "selectPatient": "Select a Patient",
+      "idPrefix": "ID: #{{id}}",
+      "waitingSelection": "Awaiting selection",
+      "changePatient": "Change Patient"
+    },
+    "weightEvolution": {
+      "title": "Weight Progress",
+      "subtitle": "Tracking over the last 7 months"
+    },
+    "timeline": {
+      "title": "Metabolic Timeline",
+      "syncing": "Syncing history...",
+      "evaluationType": "Anthropometric Evaluation",
+      "mealPlanType": "Meal Plan",
+      "checkinPrefix": "Check-in: {{weight}}kg",
+      "dietAiPrefix": "Diet: AI Generated",
+      "dietManualPrefix": "Diet: Manual Prescription",
+      "evaluationSummary": "BMI: {{bmi}} • Body Fat: {{fat}}% • Waist: {{waist}}cm",
+      "mealsCount": "{{count}} structured meals",
+      "emptyTitle": "No metabolic history",
+      "emptySubtitle": "Start an evaluation to begin the timeline.",
+      "emptyAction": "New Evaluation"
+    },
+    "aiEngine": {
+      "titlePrefix": "Intelligence ",
+      "titleHighlight": "Nutri",
+      "cardTitleLine1": "AI Prescription",
+      "cardTitleLine2": "Synced.",
+      "startGenerator": "Start Generator"
+    },
+    "quickTools": {
+      "title": "Pro Tools",
+      "exportPdf": "Export Medical Record PDF",
+      "supplementation": "Prescribe Supplementation",
+      "whatsappSummary": "WhatsApp Summary"
+    },
+    "searchModal": {
+      "evalTitle": "New Evaluation for...",
+      "mealTitle": "Meal Planning for..."
+    },
+    "toasts": {
+      "loadError": "Error loading hub data: ",
+      "timelineLoadError": "Error loading timeline: "
+    }
+  },
+  "dentalModals": {
+    "newBudget": {
+      "autoProcedureName": "Procedure on Tooth {{tooth}} ({{plane}})",
+      "title": "New Dental Estimate",
+      "subtitle": "Turn the diagnosis into a treatment plan.",
+      "itemsTitle": "Estimate Items",
+      "table": {
+        "toothFace": "Tooth/Surface",
+        "procedure": "Procedure",
+        "unitValue": "Unit Price",
+        "qty": "Qty",
+        "total": "Total"
+      },
+      "toothPlaceholder": "Tooth",
+      "facePlaceholder": "Surface",
+      "procedureNamePlaceholder": "Procedure name...",
+      "addItem": "+ Add another procedure",
+      "notesLabel": "Plan Notes",
+      "notesPlaceholder": "Describe payment terms, deadlines, or technical notes...",
+      "validUntilLabel": "Estimate Validity",
+      "subtotal": "Procedures Subtotal",
+      "totalValue": "Total Amount",
+      "cancel": "Cancel",
+      "saving": "Saving...",
+      "submit": "Generate Estimate",
+      "toasts": {
+        "created": "Estimate created successfully!",
+        "createErrorPrefix": "Error creating estimate: "
+      }
+    },
+    "dicomViewer": {
+      "title": "DICOM Image Analysis",
+      "subtitle": "High-Definition Viewer"
+    },
+    "odontogramModal": {
+      "title": "Clinical Dental Chart",
+      "patientPrefix": "Patient: {{name}}",
+      "selectFallback": "Select",
+      "idocsTitle": "Access exams on iDoc (Radio Memory)",
+      "toasts": {
+        "cpfRequired": "The patient's CPF is required to query iDocs.",
+        "opening": "Opening exams on iDoc (Radio Memory)..."
+      }
+    },
+    "odontogram": {
+      "title": "Clinical Exam",
+      "conditions": {
+        "caries": "Cavity",
+        "restored": "Restored",
+        "missing": "Missing"
+      },
+      "clearTitle": "Clear selection",
+      "saving": "Saving...",
+      "save": "Save Chart",
+      "legend": {
+        "cariesIdentified": "CAVITY IDENTIFIED",
+        "existingRestoration": "EXISTING RESTORATION",
+        "healthyNormal": "HEALTHY / NORMAL",
+        "clickHint": "CLICK ON THE SURFACES TO MARK THE PROCEDURE"
+      },
+      "toasts": {
+        "missingContext": "Patient or clinic not identified.",
+        "selectAtLeastOne": "Select at least one surface to save.",
+        "saved": "Dental chart saved successfully!",
+        "saveErrorPrefix": "Error saving chart: "
+      }
+    }
+  },
+  "nutritionModals": {
+    "newEvaluation": {
+      "title": "New Anthropometric Evaluation",
+      "patientPrefix": "Patient: {{name}}",
+      "selectFallback": "Select"
+    },
+    "mealPlanner": {
+      "defaultPeriods": {
+        "breakfast": "Breakfast",
+        "lunch": "Lunch",
+        "dinner": "Dinner",
+        "newMeal": "New Meal"
+      },
+      "back": "Back",
+      "configureAi": "Configure AI",
+      "modeManual": "Manual Mode",
+      "modeAi": "Generative AI",
+      "headerTitle": "Diet Planner",
+      "settings": {
+        "title": "Intelligence Settings",
+        "disclaimer": "Your API key is stored only in this browser (LocalStorage) for security and is never sent to our database.",
+        "apiKeyLabel": "OpenAI / Anthropic API Key",
+        "save": "Save Settings"
+      },
+      "menu": {
+        "selectedPatient": "Selected Patient",
+        "noPatientSelected": "No patient selected",
+        "generateAi": "Generate with AI",
+        "generateAiSubtitle": "AI-assisted prescription",
+        "manualFlow": "Manual Flow",
+        "manualFlowSubtitle": "Free-form prescription",
+        "engineHint": "The engine will process the patient's BMI, Basal Metabolic Rate, and body type to suggest the best meals."
+      },
+      "ai": {
+        "title": "AI-Assisted Creation",
+        "description": "The AI will cross-reference the patient's anthropometric data (Weight: 82kg, Height: 1.78m) to generate a balanced 7-day nutrition plan.",
+        "processing": "The algorithm is processing...",
+        "submit": "Confirm and Generate Plan"
+      },
+      "manual": {
+        "title": "Nutrition Prescription",
+        "addMealTitle": "Add Meal",
+        "foodsPlaceholder": "Describe the foods, portions, and recommendations...",
+        "saving": "Saving...",
+        "save": "Save Manual Plan"
+      },
+      "toasts": {
+        "apiKeySaved": "API key saved locally for your security.",
+        "patientIdMissing": "Internal error: Patient ID not found. Try selecting the patient again.",
+        "apiKeyRequired": "Please enter your OpenAI or Anthropic key first.",
+        "aiPlanSaved": "Meal plan generated and saved successfully!",
+        "aiPlanError": "Error generating plan: ",
+        "manualPlanSaved": "Manual meal plan saved to the medical record!",
+        "manualPlanError": "Error saving plan: "
+      }
+    }
+  },
+  "patientDetails": {
+    "loading": "Loading medical record...",
+    "notFound": "Patient not found.",
+    "backToList": "Back to List",
+    "newFinancingProposal": "New Financing Proposal",
+    "newEvolution": "New Note",
+    "active": "Active",
+    "recallPrefix": "Recall: {{date}}",
+    "insuranceFallback": "Insurance",
+    "private": "Private",
+    "docNotInformed": "Not informed",
+    "birthDatePrefix": "DOB: {{date}}",
+    "cardPrefix": "Card: {{card}}",
+    "mobileLabel": "Mobile",
+    "mobileNotRegistered": "Not registered",
+    "callTitle": "Call {{number}}",
+    "emailLabel": "Email",
+    "emailNotRegistered": "Not registered",
+    "tabs": {
+      "timeline": "TIMELINE",
+      "calls": "CALLS",
+      "medicalRecord": "MEDICAL RECORD",
+      "dental": "DENTAL",
+      "exams": "EXAMS",
+      "nutrition": "NUTRITION"
+    },
+    "timeline": {
+      "heading": "Clinical Timeline",
+      "emptyTitle": "No clinical records found.",
+      "emptySubtitle": "Start a new note to record the visit."
+    },
+    "calls": {
+      "emptyTitle": "No calls recorded",
+      "emptySubtitle": "Calls made or received from this patient will appear here.",
+      "inbound": "Incoming",
+      "outbound": "Outgoing",
+      "missedSuffix": " (Missed)",
+      "callBackTitle": "Call back"
+    },
+    "medicalRecord": {
+      "title": "Medical Record History",
+      "subtitle": "View all clinical notes as a continuous document."
+    },
+    "dental": {
+      "title": "Dental Chart",
+      "subtitle": "Click on the tooth surfaces to record diagnoses or generate estimates.",
+      "idocsTitle": "Access exams on iDoc (Radio Memory)",
+      "generateTreatmentPlan": "Generate Treatment Plan"
+    },
+    "nutrition": {
+      "title": "Nutrition Module",
+      "subtitle": "Anthropometric Evaluation and Body Composition",
+      "evolution": "Progress"
+    },
+    "sidebar": {
+      "prescriptionsTitle": "Prescription History",
+      "prescriptionsEmpty": "No prescriptions issued recently.",
+      "prescriptionName": "Medical Prescription",
+      "financingTitle": "Credit & Installments",
+      "financingEmpty": "No active proposals",
+      "financingViewOptions": "VIEW CREDIT OPTIONS",
+      "resendSignatureLink": "RESEND SIGNATURE LINK",
+      "examsTitle": "Exam Results",
+      "examsEmpty": "Awaiting lab attachments.",
+      "dentalBudgetsTitle": "Treatment Plans",
+      "dentalBudgetsEmpty": "No estimates generated.",
+      "dentalBudgetFallbackName": "Treatment Plan"
+    },
+    "toasts": {
+      "historyLoadErrorPrefix": "Error loading history: ",
+      "idocsCpfRequired": "The patient's CPF is required to query iDocs.",
+      "idocsOpening": "Opening exams on iDoc (Radio Memory)..."
+    }
+  },
+  "dicomViewer": {
+    "emptyState": "No DICOM exam selected",
+    "seriesImages": "Image Series"
+  },
+  "anthropometryForm": {
+    "toasts": {
+      "patientRequired": "No patient selected",
+      "saved": "Evaluation saved successfully!",
+      "saveErrorPrefix": "Error saving: "
+    },
+    "title": "New Evaluation",
+    "subtitle": "Record the patient's current measurements",
+    "bmiCategories": {
+      "underweight": "Underweight",
+      "normal": "Normal weight",
+      "overweight": "Overweight",
+      "obesity": "Obesity"
+    },
+    "weightHeight": {
+      "title": "Weight & Height",
+      "weightLabel": "Weight (kg)",
+      "heightLabel": "Height (cm)"
+    },
+    "composition": {
+      "title": "Composition",
+      "bodyFatLabel": "Body Fat (%)",
+      "waistLabel": "Waist (cm)"
+    },
+    "bmi": {
+      "title": "BMI Calculation",
+      "placeholder": "Fill in weight and height to calculate"
+    },
+    "notesLabel": "Clinical Notes",
+    "notesPlaceholder": "Patient's progress, diet difficulties, etc...",
+    "saving": "Saving...",
+    "save": "Save Evaluation"
+  },
+  "newMedicalRecordModal": {
+    "errors": {
+      "noSession": "No active session found.",
+      "noClinic": "User is not associated with any clinic."
+    },
+    "contentPrefix": "SOAP Note - {{date}}",
+    "toasts": {
+      "saved": "Note recorded successfully!",
+      "saveErrorPrefix": "Error recording note: ",
+      "idocsCpfRequired": "The patient's CPF is required to query iDocs.",
+      "idocsOpening": "Opening exams on iDoc (Radio Memory)..."
+    },
+    "title": "New Clinical Note",
+    "subtitle": "SOAP Method (Subjective, Objective, Assessment, Plan)",
+    "idocs": "iDocs",
+    "subjective": {
+      "label": "(S) Subjective",
+      "placeholder": "Chief complaint, history..."
+    },
+    "objective": {
+      "label": "(O) Objective",
+      "placeholder": "Physical exam, vital signs..."
+    },
+    "assessment": {
+      "label": "(A) Assessment",
+      "placeholder": "Diagnostic hypotheses..."
+    },
+    "plan": {
+      "label": "(P) Plan",
+      "placeholder": "Course of action, prescription..."
+    },
+    "attachLabel": "Attach Exam / Document",
+    "attachPlaceholder": "Click to select file",
+    "cancel": "Cancel",
+    "saving": "Saving...",
+    "save": "Save Note",
+    "history": {
+      "title": "History",
+      "empty": "No previous notes."
+    }
+  },
+  "newPrescriptionModal": {
+    "toasts": {
+      "minOneMedication": "Add at least one medication.",
+      "noSession": "Session not found.",
+      "saved": "Prescription issued successfully!",
+      "saveErrorPrefix": "Error issuing prescription: "
+    },
+    "title": "New Medical Prescription",
+    "subtitle": "Prescribe medications and instructions",
+    "medicationNameLabel": "Medication Name",
+    "medicationNamePlaceholder": "E.g.: Amoxicillin 500mg",
+    "dosageLabel": "Dosage",
+    "dosagePlaceholder": "E.g.: 1 tablet",
+    "instructionsLabel": "Frequency / Instructions",
+    "instructionsPlaceholder": "E.g.: every 8 hours for 7 days",
+    "addMedication": "ADD ANOTHER MEDICATION",
+    "cancel": "Cancel",
+    "issuing": "Issuing...",
+    "issue": "ISSUE PRESCRIPTION"
+  },
+  "viewPrescriptionModal": {
+    "title": "Prescription Details",
+    "idPrefix": "ID: {{id}}",
+    "prescriptionHeading": "Medication Prescription",
+    "noMedications": "No medications listed.",
+    "signatureLabel": "Professional's Signature",
+    "digitalDocument": "Digital Document",
+    "close": "Close",
+    "printPdf": "PRINT PDF"
+  },
+  "uploadDocumentModal": {
+    "toasts": {
+      "fileRequired": "Select a file to upload.",
+      "noSession": "Session not found.",
+      "saved": "Exam attached successfully! (Simulation Mode)",
+      "saveErrorPrefix": "Error attaching exam: "
+    },
+    "title": "Attach Exam",
+    "subtitle": "Upload lab results or images",
+    "descriptionLabel": "Exam Description",
+    "descriptionPlaceholder": "E.g.: Complete Blood Count",
+    "fileLabel": "File",
+    "fileSelectPlaceholder": "Click to select",
+    "fileHint": "PDF, JPG, PNG, or DICOM (max 10MB)",
+    "cancel": "Cancel",
+    "save": "SAVE EXAM"
+  },
+  "aiExplainButton": {
+    "trigger": "Explain with AI",
+    "fallbackExplanation": "\"{{term}}\" is a medical term used by your healthcare professional. Consult your doctor for a detailed personalized explanation.",
+    "systemPrompt": "You are a medical assistant who explains clinical terms in simple English for lay patients. Be brief (maximum 2 sentences), kind, and accessible. Do not give diagnoses.",
+    "userPromptPrefix": "Explain in simple terms what this means: \"{{term}}\"",
+    "noExplanationGenerated": "Could not generate an explanation at this time.",
+    "errorFallback": "\"{{term}}\" is a term recorded by your doctor. For more details, speak directly with the professional who saw you.",
+    "modalTitle": "AI Explain",
+    "termLabel": "Term",
+    "consultingAi": "Consulting AI...",
+    "explanationLabel": "Explanation",
+    "footerNote": "Generated by AI • Does not replace medical advice"
+  },
+  "patientTimeline": {
+    "consultationFallback": "Clinical Note",
+    "labResultSubtitle": "Lab Result",
+    "attachmentSubtitle": "Attachment",
+    "prescriptionFallback": "Prescription",
+    "medicationsCount": "{{count}} medication(s)"
+  }
+}

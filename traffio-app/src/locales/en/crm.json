@@ -1,1 +1,269 @@
-{}
+{
+  "leads": {
+    "title": "CRM Leads",
+    "subtitle": "Manage your patient base and sales funnel.",
+    "newPatient": "New Patient",
+    "searchPlaceholder": "Search by name, CPF or phone...",
+    "filters": "Filters",
+    "table": {
+      "patient": "Patient",
+      "contact": "Contact",
+      "lastVisit": "Last Visit",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "loading": "Loading patients...",
+    "empty": "No patient found.",
+    "noVisits": "No visits",
+    "activeBadge": "Active",
+    "editTitle": "Edit",
+    "deleteTitle": "Delete",
+    "detailsTitle": "Details",
+    "confirmDelete": "Are you sure you want to delete this patient? This action cannot be undone.",
+    "toasts": {
+      "deleted": "Patient deleted successfully!",
+      "deleteError": "Error deleting patient."
+    }
+  },
+  "followUp": {
+    "title": "Performance Center",
+    "subtitle": "Sales management and conversion funnel in real time.",
+    "daysFilter": "{{count}} days",
+    "dashboardToggle": "Dashboard",
+    "emptyColumn": "Empty",
+    "activityLabel": "Activity",
+    "directFallback": "Direct",
+    "channelFallback": {
+      "instagram": "Instagram User",
+      "facebook": "Messenger User",
+      "web": "Web Visitor"
+    },
+    "channelLabel": {
+      "instagram": "Instagram: @{{username}}",
+      "facebook": "Facebook Messenger",
+      "livechat": "Live Chat"
+    },
+    "saleModal": {
+      "title": "Confirm Sale",
+      "subtitle": "Enter the details of the closed deal.",
+      "procedureLabel": "Procedure",
+      "procedurePlaceholder": "Ex: Invisalign, Implant...",
+      "valueLabel": "Deal Value ($)",
+      "valuePlaceholder": "0.00",
+      "cancel": "Cancel",
+      "save": "Save Sale"
+    }
+  },
+  "performanceStats": {
+    "kpis": {
+      "totalLeads": "Total Leads",
+      "conversionRate": "Conversion Rate",
+      "sales": "Sales (Closed)",
+      "appointments": "Appointments",
+      "noShow": "No-shows"
+    },
+    "evaluationsSuffix": "{{count}} Evaluations",
+    "noShowRateSuffix": "{{rate}}% rate",
+    "funnelTitle": "Sales Funnel",
+    "funnelSubtitle": "Distribution by CRM stage",
+    "funnelEmpty": "No data for this period",
+    "trendTitle": "Lead Acquisition",
+    "trendSubtitle": "Daily volume of new leads",
+    "trendEmpty": "Awaiting new leads"
+  },
+  "newPatientModal": {
+    "editTitle": "Edit Patient",
+    "newTitle": "New Patient",
+    "editSubtitle": "Update the patient's information.",
+    "newSubtitle": "Fill in the contact card details.",
+    "fullNameLabel": "Full Name",
+    "fullNamePlaceholder": "Ex: Ricardo Albeniz",
+    "phoneLabel": "Mobile Phone",
+    "birthDateLabel": "Date of Birth",
+    "emailLabel": "Email",
+    "emailPlaceholder": "patient@example.com",
+    "careTypeLabel": "Care Type",
+    "particular": "Self-pay",
+    "insurance": "Insurance",
+    "insuranceProviderLabel": "Insurance Provider",
+    "insuranceProviderPlaceholder": "Ex: Unimed",
+    "insuranceCardLabel": "Card Number",
+    "insuranceCardPlaceholder": "0000...",
+    "cancel": "Cancel",
+    "saving": "Saving...",
+    "saveChanges": "Save Changes",
+    "register": "Register Patient",
+    "toasts": {
+      "updated": "Patient updated successfully!",
+      "created": "Patient registered successfully!"
+    },
+    "errors": {
+      "tenantNotIdentified": "Tenant not identified.",
+      "createPrefix": "Error registering: {{message}}"
+    }
+  },
+  "receptionDashboard": {
+    "patientFallback": "Patient",
+    "consultationFallback": "Consultation",
+    "searchPlaceholder": "Search patient...",
+    "callNext": "Call Next",
+    "newPatient": "New Patient",
+    "totalToday": "Total Today",
+    "waiting": "Waiting",
+    "inConsult": "In Consultation",
+    "completed": "Completed",
+    "dayAgenda": "Day's Schedule",
+    "filters": {
+      "all": "All",
+      "waiting": "Waiting",
+      "completed": "Completed"
+    },
+    "empty": "No appointment found.",
+    "checkinOk": "Check-in OK",
+    "actions": {
+      "arrived": "Arrived",
+      "call": "Call",
+      "finish": "Finish"
+    },
+    "status": {
+      "scheduled": "Scheduled",
+      "waiting": "Waiting",
+      "inConsult": "In Consultation",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    },
+    "toasts": {
+      "calling": "Calling: {{name}}",
+      "noPatientInQueue": "No patient in the queue.",
+      "patientRegistered": "Patient registered!"
+    }
+  },
+  "sidebarPatientEditView": {
+    "headerTitle": "Edit Profile",
+    "whatsappIdentity": "WhatsApp Identity",
+    "isPatientQuestion": "Is the contact the patient themselves?",
+    "whoIsTalkingLabel": "Who is talking?",
+    "responsibleNamePlaceholder": "Name of the responsible party",
+    "relationshipLabel": "Relationship",
+    "selectPlaceholder": "Select...",
+    "relationships": {
+      "parent": "Parent",
+      "spouse": "Spouse",
+      "child": "Child",
+      "sibling": "Sibling",
+      "secretary": "Secretary/Assistant",
+      "other": "Other"
+    },
+    "patientInfo": "Patient Information",
+    "fullNameLabel": "Full Name",
+    "birthLabel": "Date of Birth",
+    "birthPlaceholder": "MM/DD/YYYY",
+    "phoneLabel": "Phone",
+    "emailLabel": "Email",
+    "careTypeLabel": "Care Type",
+    "particular": "Self-pay",
+    "insurance": "Insurance",
+    "stickyNotesLabel": "Sticky Notes (Front Desk)",
+    "stickyNotesPlaceholder": "Ex: Prefers morning appointments. Requires accessibility...",
+    "saveChanges": "Save Changes",
+    "toasts": {
+      "updated": "Information updated!"
+    },
+    "errors": {
+      "updateFailed": "Failed to update"
+    },
+    "self": "Self"
+  },
+  "sidebarLeadClassifyView": {
+    "headerLabel": "Classify",
+    "headerTitle": "Lead / Patient",
+    "funnelStageLabel": "Funnel Stage",
+    "temperatureLabel": "Temperature",
+    "temperatures": {
+      "cold": "Cold",
+      "warm": "Warm",
+      "hot": "Hot"
+    },
+    "priorityLabel": "Priority",
+    "priorities": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "urgent": "Urgent"
+    },
+    "tagsLabel": "Tags",
+    "newTagPlaceholder": "New tag...",
+    "suggestedTags": {
+      "particular": "Self-pay",
+      "insurance": "Insurance",
+      "returning": "Returning",
+      "urgent": "Urgent",
+      "vip": "VIP",
+      "referral": "Referral",
+      "firstVisit": "1st Visit",
+      "postOp": "Post-Op"
+    },
+    "estimatedRevenueLabel": "Estimated Revenue ($)",
+    "salesNotesLabel": "Sales Notes",
+    "salesNotesPlaceholder": "Notes about the lead...",
+    "saveClassification": "Save Classification",
+    "toasts": {
+      "saved": "Classification saved!"
+    },
+    "errors": {
+      "saveFailed": "Error saving"
+    }
+  },
+  "sidebarLookupView": {
+    "headerTitle": "Link Patient",
+    "searchPlaceholder": "Name, CPF or Phone...",
+    "minCharsHint": "Type at least 3 characters to search.",
+    "searching": "Searching the database...",
+    "empty": {
+      "title": "No patient found.",
+      "subtitle": "Check the details or register a new patient."
+    },
+    "noCpfFallback": "No CPF",
+    "linkNow": "Link Now"
+  },
+  "sidebarDirectoryView": {
+    "headerLabel": "Directory",
+    "headerTitle": "Locations & Providers",
+    "tabs": {
+      "locations": "Locations",
+      "professionals": "Providers"
+    },
+    "searchPlaceholders": {
+      "locations": "Search location...",
+      "professionals": "Search provider..."
+    },
+    "empty": {
+      "locations": "No location found",
+      "professionals": "No provider found"
+    },
+    "typeLabels": {
+      "consultorio": "Office",
+      "clinica": "Clinic",
+      "hospital": "Hospital"
+    },
+    "generalSpecialtyFallback": "General"
+  },
+  "sidebarRegisterView": {
+    "headerTitle": "New Registration",
+    "fullNameLabel": "Full Name",
+    "fullNamePlaceholder": "Ex: Ricardo Albeniz",
+    "phoneLabel": "Phone",
+    "emailLabel": "Email",
+    "emailPlaceholder": "patient@example.com",
+    "careTypeLabel": "Care Type",
+    "particular": "Self-pay",
+    "insurance": "Insurance",
+    "register": "Register Patient",
+    "toasts": {
+      "created": "Patient registered successfully!"
+    },
+    "errors": {
+      "createFailed": "Failed to register"
+    }
+  }
+}

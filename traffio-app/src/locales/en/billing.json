@@ -1,1 +1,250 @@
-{}
+{
+  "paymentRequiredModal": {
+    "title": "Just one more step!",
+    "subtitle": "Add a payment method to unlock your 14-day free trial.",
+    "cycleAnnual": "Annual",
+    "cycleMonthly": "Monthly",
+    "billedFromPrefix": "billed from ",
+    "perMonth": "/month",
+    "guarantees": {
+      "freeTrial": "14 days free to try — nothing will be charged today",
+      "cancelAnytime": "Cancel anytime on the Subscription page → Manage Billing, at no cost",
+      "billedAfterTrial": "Your subscription is only charged after the 14-day trial ends"
+    },
+    "addPaymentMethod": "Add payment method",
+    "securityFooter": "Payment securely processed by Stripe",
+    "errors": {
+      "sessionExpired": "Session expired. Please log in again.",
+      "checkoutStartError": "Unable to start checkout. Please try again.",
+      "genericCheckoutError": "Error starting checkout. Please try again."
+    }
+  },
+  "subscriptionGuard": {
+    "canceled": {
+      "title": "Subscription canceled",
+      "message": "Your subscription has been canceled. Reactivate it to keep using the platform — your data remains safely stored.",
+      "cta": "Reactivate subscription"
+    },
+    "suspended": {
+      "title": "Payment pending",
+      "message": "We couldn't process your subscription charge. Update your payment method to restore access.",
+      "cta": "Update payment"
+    },
+    "trialExpired": {
+      "title": "Your trial has ended",
+      "message": "Your 14-day free trial has come to an end. Subscribe to a plan to keep using the platform — your data is safely stored.",
+      "cta": "Subscribe now"
+    },
+    "goToSettings": "Go to Settings"
+  },
+  "billingPage": {
+    "pageTitle": "Subscription",
+    "pageSubtitle": "Manage your Traffio platform plan and billing.",
+    "trialExpiredAlert": {
+      "title": "Your trial has expired",
+      "message": "Choose a plan below to keep using Traffio without interruptions."
+    },
+    "trialActiveAlert": {
+      "prefix": "You are in the trial period.",
+      "daysLeft_one": "{{count}} day remaining",
+      "daysLeft_other": "{{count}} days remaining",
+      "expiresToday": "Expires today",
+      "endsAtSuffix": "Ends on {{date}}."
+    },
+    "activePlanBanner": {
+      "label": "Active Plan",
+      "renewsAt": "Renews on {{date}} · {{price}}/month",
+      "trialUntil": "Trial until {{date}}",
+      "manageBillingTitle": "Update card, view invoices, and cancel subscription",
+      "manageBilling": "Manage Billing"
+    },
+    "status": {
+      "trial": "Trial",
+      "trialExpired": "Trial expired",
+      "active": "Active",
+      "suspended": "Suspended",
+      "canceled": "Canceled"
+    },
+    "scheduledChangeBanner": {
+      "prefix": "Scheduled change: your plan will become",
+      "middle": "on",
+      "suffix": "Until then, you keep all the features of your current plan, already paid for. To undo this, simply choose another plan."
+    },
+    "cycleToggle": {
+      "monthly": "Monthly",
+      "annual": "Annual",
+      "discountBadge": "-20%"
+    },
+    "planCard": {
+      "currentBadge": "Your Plan",
+      "perMonth": "/month",
+      "billedAnnually": "billed {{price}}/year",
+      "extraWhatsappNumber": "+{{price}}/month per additional WhatsApp number"
+    },
+    "cta": {
+      "currentPlan": "Current plan",
+      "talkToSales": "Talk to sales",
+      "switchToAnnual": "Switch to annual",
+      "switchToMonthly": "Switch to monthly",
+      "upgrade": "Upgrade",
+      "changePlan": "Change plan"
+    },
+    "securityNote": "All payments are processed securely. You can cancel or change your plan at any time with no penalties.",
+    "confirm": {
+      "upgradeMessage": "Upgrade to the {{plan}} plan ({{cycle}})? The prorated difference for the period is charged now and the unused time on your current plan becomes credit.",
+      "downgradeMessage": "Switch to the {{plan}} plan ({{cycle}})? You keep your current plan until {{renewsAt}} (already paid for) and the change takes effect at renewal.",
+      "nextRenewalFallback": "the next renewal",
+      "cycleAnnual": "annual",
+      "cycleMonthly": "monthly"
+    },
+    "toasts": {
+      "portalOpenError": "Unable to open the portal",
+      "manageBillingError": "Error opening the billing portal: {{message}}",
+      "planChangedImmediateTrial": "Plan changed to {{plan}}! Nothing is charged during the trial.",
+      "planChangedImmediate": "Plan changed to {{plan}}! The prorated difference was adjusted on the invoice.",
+      "planChangeScheduled": "Scheduled change: {{plan}} plan starting {{date}}.",
+      "changePlanError": "Error changing the plan: {{message}}"
+    }
+  },
+  "sidebarPaymentView": {
+    "headerLabel": "Payment",
+    "methods": {
+      "pix": "PIX",
+      "creditCard": "Card",
+      "boleto": "Boleto"
+    },
+    "toasts": {
+      "invalidAmount": "Invalid amount",
+      "chargeCreated": "Charge created!",
+      "chargeError": "Error generating charge",
+      "linkCopied": "Link copied!",
+      "linkSentInChat": "Link sent in chat!"
+    },
+    "resultView": {
+      "chargeGenerated": "Charge Generated!",
+      "sendInChat": "Send in Chat",
+      "newCharge": "New Charge"
+    },
+    "form": {
+      "amountLabel": "Amount (R$)",
+      "amountPlaceholder": "150.00",
+      "descriptionLabel": "Description (optional)",
+      "descriptionPlaceholder": "Ex: Evaluation appointment",
+      "methodLabel": "Method"
+    },
+    "recentBillings": {
+      "title": "Recent Charges"
+    },
+    "status": {
+      "pending": "Pending",
+      "paid": "Paid",
+      "overdue": "Overdue",
+      "canceled": "Canceled"
+    },
+    "generateButton": "Generate Payment Link",
+    "defaultNote": "Charge - {{patientName}}",
+    "chatMessage": "Hello {{firstName}}! 😊 Here's the payment link for {{amount}}: {{link}}\n\nYou can pay by PIX, card, or boleto. I'm here if you have any questions! 💙"
+  },
+  "paymentsPage": {
+    "header": {
+      "title": "Payments Hub",
+      "subtitle": "Configure how your clinic receives payments and offers financing.",
+      "secureBadge": "PCI-DSS Secure Environment"
+    },
+    "toasts": {
+      "asaasSaved": "Asaas key saved successfully!",
+      "asaasError": "Error saving Asaas settings.",
+      "drcashSaved": "Dr. Cash settings saved!",
+      "drcashError": "Error saving financing settings."
+    },
+    "connectionStatus": {
+      "active": "Active",
+      "notConnected": "Not connected"
+    },
+    "asaasCard": {
+      "badge": "Credit Card",
+      "title": "Asaas",
+      "description": {
+        "prefix": "Complete digital account for clinics. Accept cards with installments of",
+        "strong": "up to 21x",
+        "suffix": "(Visa/Mastercard) with independent sub-accounts per clinic via API."
+      },
+      "features": ["21x Visa/Mastercard", "API Sub-accounts", "White Label", "Native Pix", "Boleto"],
+      "apiKeyLabel": "Asaas API Key",
+      "saving": "Saving...",
+      "updateKey": "Update Key",
+      "activate": "Activate Asaas",
+      "createFreeAccount": "Create a free Asaas account"
+    },
+    "drcashCard": {
+      "badge": "Installment Boleto",
+      "title": "Dr. Cash / Dr. Parcela",
+      "description": {
+        "prefix": "Healthcare specialist. Offer financing in",
+        "strong": "up to 24 boleto installments",
+        "suffix": "without affecting the patient's card limit."
+      },
+      "features": ["24x on boleto", "Healthcare specialist", "Doesn't affect card limit", "Easier approval"],
+      "apiKeyLabel": "API Key / Identifier",
+      "apiKeyPlaceholder": "Enter your Dr. Cash Key",
+      "saving": "Saving...",
+      "updateKey": "Update Key",
+      "activate": "Activate Financing",
+      "approvalNote": "You'll need an approved Dr. Cash account to activate this."
+    },
+    "asaasInfoNote": {
+      "strong": "How the Asaas integration works:",
+      "prefix": "when you save your API key, Traffio automatically creates a",
+      "subaccount": "Asaas sub-account",
+      "middle": "for each registered clinic. Charges are issued under the clinic's name (white label), without exposing the Asaas brand to the patient. Get your key at",
+      "menuPath": "My Account → Settings → API Keys",
+      "suffix": "in the Asaas dashboard."
+    },
+    "proposalsHistory": {
+      "title": "Proposal History",
+      "subtitle": "Latest financing requests via Dr. Cash.",
+      "viewAll": "View All",
+      "table": {
+        "patient": "Patient",
+        "amount": "Amount",
+        "installments": "Installments",
+        "status": "Status",
+        "date": "Date"
+      },
+      "externalPatient": "External Patient"
+    },
+    "infoCards": {
+      "autoSubaccounts": {
+        "title": "Automatic Sub-accounts",
+        "description": "Every clinic registered on Traffio gets its own Asaas sub-account created via API — no manual paperwork."
+      },
+      "installments21x": {
+        "title": "Installments up to 21x",
+        "description": "Visa and Mastercard cards accept up to 21 installments. Combine with Dr. Cash to offer 24 boleto installments without relying on the card limit."
+      },
+      "whiteLabel": {
+        "title": "Native White Label",
+        "description": "Charges are always issued under the clinic's name. The patient sees the clinic's brand — never the Asaas or Traffio brand."
+      }
+    }
+  },
+  "paymentPolling": {
+    "title": "Confirming payment...",
+    "message": "We're receiving confirmation from Stripe and unlocking your access. This should only take a few seconds."
+  },
+  "pagarmeCallback": {
+    "connecting": "Connecting your Pagar.me account...",
+    "authorizationFailed": "Authorization was canceled or failed.",
+    "connectionFailedToast": "Failed to connect with Pagar.me.",
+    "tenantNotIdentified": "Context error: Tenant not identified.",
+    "successRedirecting": "Account connected successfully! Redirecting...",
+    "connectedToast": "Pagar.me connected successfully!",
+    "tokenExchangeError": "Error exchanging token with Pagar.me. Please try again.",
+    "internalErrorToast": "Internal integration error.",
+    "titleLoading": "Almost there...",
+    "titleSuccess": "All Set!",
+    "titleError": "Oops! Something went wrong",
+    "sslEncrypted": "SSL Encrypted Connection",
+    "backToSettings": "Back to Settings"
+  }
+}

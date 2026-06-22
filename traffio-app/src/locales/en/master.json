@@ -1,1 +1,388 @@
-{}
+{
+  "adminLayout": {
+    "nav": {
+      "dashboard": "Command Center",
+      "tenants": "Tenants",
+      "tenantsBadge": "SaaS",
+      "whatsapp": "Z-API Instances",
+      "billing": "Billing",
+      "logs": "Logs & Audit"
+    },
+    "platformControl": "Platform Control",
+    "collapse": "Collapse",
+    "signOut": "Sign Out"
+  },
+  "app": {
+    "nav": {
+      "dashboard": "Command Center",
+      "tenants": "Tenants & SaaS",
+      "whatsapp": "Z-API Instances",
+      "whatsappBadge": "Status",
+      "intelligence": "AI Orchestrator",
+      "intelligenceBadge": "New",
+      "logs": "System Logs",
+      "billing": "Billing",
+      "settings": "Platform Config"
+    },
+    "signOut": "Sign Out",
+    "menu": "MENU",
+    "logsPlaceholder": "System Logs under construction",
+    "settingsPlaceholder": "Platform Settings under construction"
+  },
+  "dashboard": {
+    "headerTitle": "Master Command Center",
+    "headerSubtitle": "Global view of the Traffio platform.",
+    "kpis": {
+      "totalTenants": "Total Tenants",
+      "totalTenantsTrend": "+12% this month",
+      "instances": "Z-API Instances",
+      "instancesTrend": "98.5% Uptime",
+      "totalUsers": "Total Users",
+      "totalUsersTrend": "Doctors and Staff",
+      "mrr": "Estimated MRR",
+      "mrrTrend": "Based on R$297/mo"
+    },
+    "networkActivity": {
+      "title": "Network Activity",
+      "last7Days": "Last 7 days",
+      "last30Days": "Last 30 days",
+      "comingSoon": "Activity Logs coming soon"
+    },
+    "recentTenants": {
+      "title": "Recent Tenants",
+      "viewAll": "View all",
+      "loading": "Loading...",
+      "noSlug": "no-slug",
+      "empty": "No tenant found."
+    }
+  },
+  "tenants": {
+    "sectionLabel": "SaaS Management",
+    "headerTitle": "Tenant Management",
+    "headerSubtitle": "{{count}} clinics registered on the platform.",
+    "newTenant": "New Tenant",
+    "searchPlaceholder": "Search by name, address or ID...",
+    "loading": "Loading tenants...",
+    "empty": "No tenant found.",
+    "statusBadge": {
+      "active": "WhatsApp Active",
+      "pending": "Pending"
+    },
+    "tabs": {
+      "general": "General Information",
+      "widget": "Booking Widget"
+    },
+    "general": {
+      "tenantId": "Tenant ID",
+      "whatsappStatus": "WhatsApp Status",
+      "connected": "Connected",
+      "disconnected": "Disconnected",
+      "currentPlan": "Current Plan",
+      "planValue": "Professional",
+      "users": "Users",
+      "usersValue": "Total: 3 (1 Admin)",
+      "telnyxSectionTitle": "Communications (Telnyx) — Traffio Admin only",
+      "softphone": "Softphone",
+      "softphoneActive": "Active",
+      "softphoneInactive": "Inactive",
+      "ownApiKey": "Own API Key",
+      "usesMasterKey": "Uses master key",
+      "ownConnectionId": "Own Connection ID",
+      "usesMaster": "Uses master",
+      "viewDashboard": "View Dashboard",
+      "configureZApi": "Configure Z-API",
+      "suspend": "Suspend",
+      "delete": "Delete"
+    },
+    "createModal": {
+      "title": "New Tenant",
+      "clinicNameLabel": "Clinic Name",
+      "clinicNamePlaceholder": "Ex: Total Health Clinic",
+      "slugLabel": "Slug (URL)",
+      "slugPlaceholder": "health-clinic",
+      "adminEmailLabel": "Admin Email",
+      "adminEmailPlaceholder": "admin@clinic.com",
+      "addressLabel": "Address",
+      "addressPlaceholder": "123 Flower Street",
+      "cancel": "Cancel",
+      "submit": "Create Tenant"
+    },
+    "toasts": {
+      "createSuccess": "Tenant {{name}} created! ID: {{id}}. Now invite the admin ({{email}}).",
+      "createError": "Error creating tenant: {{message}}"
+    }
+  },
+  "billing": {
+    "loadingTitle": "Loading billing dashboard...",
+    "sectionLabel": "Revenue Engine",
+    "headerTitle": "Billing & Usage",
+    "headerSubtitle": "Manage subscriptions, communication profits and wallet balances.",
+    "fixedExchange": "Fixed Exchange Rate: R$ 5.50",
+    "kpis": {
+      "mrr": "MRR (Software)",
+      "recharged": "Recharged Credits",
+      "telnyxCost": "Telnyx Cost (Provider)",
+      "netProfit": "Net Profit (Telecom)"
+    },
+    "status": {
+      "active": "Active",
+      "trial": "Trial",
+      "suspended": "Suspended",
+      "canceled": "Canceled"
+    },
+    "subscriptionsTable": {
+      "title": "Software Subscriptions",
+      "columns": {
+        "tenant": "Tenant",
+        "plan": "Plan",
+        "status": "Status",
+        "billing": "Billing",
+        "renewal": "Renewal / Trial End"
+      },
+      "cycle": { "annual": "Annual", "monthly": "Monthly" },
+      "empty": "No tenants registered."
+    },
+    "profitabilityTable": {
+      "title": "Wallet Control & Communication Profitability",
+      "columns": {
+        "tenant": "Tenant",
+        "balance": "Current Balance",
+        "totalSpent": "Total Spent",
+        "telnyxCost": "Telnyx Cost",
+        "netProfit": "Net Profit",
+        "margin": "Profit Margin"
+      },
+      "empty": "No usage recorded yet."
+    },
+    "masterAccount": {
+      "title": "Central Telnyx Account (Provider)",
+      "criticalBalance": "Critical Balance (Below $20 USD)",
+      "subtitle": "Master integration and billing for voice calls, SMS and MMS across all clinics.",
+      "syncButton": "Sync Telnyx",
+      "availableCredit": "Available Credit",
+      "currentBalance": "Current Account Balance",
+      "additionalCreditLimit": "Additional Credit Limit",
+      "sipConnectionTitle": "SIP Connection and Webhooks",
+      "connectionNameLabel": "Connection Name:",
+      "providerStatusLabel": "Provider Status:",
+      "connectionActive": "Active / Online",
+      "connectionInactive": "Inactive",
+      "webhookEventsLabel": "Webhook Events:",
+      "webhookConfigured": "Configured",
+      "webhookUnconfigured": "Not configured",
+      "connectionUnavailable": "Connection details unavailable. Sync the data.",
+      "outboundRoutesTitle": "Authorized Voice Routes (Outbound)",
+      "outboundProfileLabel": "Outbound Profile:",
+      "whitelistedCountriesLabel": "Carrier-Authorized Countries (Whitelist):",
+      "noRoutesConfigured": "No routes configured",
+      "routingUnavailable": "Routing details unavailable. Sync the data."
+    }
+  },
+  "whatsapp": {
+    "sectionLabel": "Connectivity",
+    "headerTitle": "Z-API Instance Management",
+    "headerSubtitle": "Global monitoring of WhatsApp connections.",
+    "refreshList": "Refresh List",
+    "linkInstance": "Link Instance",
+    "searchPlaceholder": "Search by tenant or instance ID...",
+    "loading": "Loading...",
+    "empty": "No instance connected.",
+    "statusOnline": "Online",
+    "statusOffline": "Offline",
+    "statusUnknown": "...",
+    "marketingName": "Marketing Name",
+    "phone": "Phone",
+    "lastPing": "Last Ping",
+    "restart": "Restart",
+    "disconnect": "Disconnect",
+    "connectQr": "Connect (QR)",
+    "linkModal": {
+      "title": "Link Z-API Instance",
+      "clinicTenantLabel": "Clinic/Tenant",
+      "selectTenant": "Select a tenant...",
+      "updateSuffix": " (update)",
+      "instanceIdLabel": "Instance ID",
+      "instanceIdPlaceholder": "Ex: 3B2D...",
+      "tokenLabel": "Instance Token",
+      "clientTokenLabel": "Client Token",
+      "save": "Save Link"
+    },
+    "qrModal": {
+      "title": "Connect WhatsApp",
+      "subtitle": "Open WhatsApp on your phone and scan the code below.",
+      "qrAlt": "QR Code",
+      "cancel": "Cancel",
+      "alreadyScanned": "Already Scanned"
+    },
+    "confirms": {
+      "restart": "Are you sure you want to restart this instance?",
+      "disconnect": "Do you really want to disconnect? The tenant will lose the connection immediately."
+    },
+    "toasts": {
+      "restartSuccess": "Restart command sent successfully.",
+      "restartError": "Error sending restart command.",
+      "disconnectError": "Error disconnecting.",
+      "qrError": "Could not generate the QR Code. Check the credentials.",
+      "fetchTenantsError": "Error loading tenants: {{message}}",
+      "fillAllFields": "Fill in all fields!",
+      "linkError": "Error linking: {{message}}"
+    }
+  },
+  "intelligence": {
+    "sectionLabel": "Platform Core",
+    "headerTitle": "AI Orchestrator",
+    "headerSubtitle": "Centralized management of AI models, keys and costs.",
+    "stats": {
+      "tokensProcessed": "Tokens Processed (30d)",
+      "avgLatency": "Average Latency",
+      "activeBots": "Active Bots",
+      "apiCost": "API Cost (30d)"
+    },
+    "credentialsSection": {
+      "title": "Credentials Configuration",
+      "aiProviderLabel": "AI Provider",
+      "activeModelLabel": "Active Model",
+      "apiKeyPlaceholder": "Enter API key...",
+      "genericKeyPlaceholder": "Enter {{key}}...",
+      "telnyxTitle": "Communications (Telnyx)",
+      "telnyxWarning": "Values must match Supabase Secrets",
+      "metaTitle": "Meta (Instagram DM + Facebook Messenger)",
+      "toggleActive": "Active",
+      "toggleInactive": "Inactive"
+    },
+    "costAnalytics": {
+      "title": "ROI Analytics by Client",
+      "empty": "No usage data recorded in the last 30 days.",
+      "usage": "Usage",
+      "apiCost": "API Cost",
+      "platformProfit": "Platform Profit"
+    },
+    "sidebar": {
+      "securityTitle": "Security Protocol",
+      "securityText": "API keys registered here are encrypted at rest and accessible only by the execution engine in isolated environments (Edge Functions).",
+      "securityText2": "Tenants will never have visual or programmatic access to this data.",
+      "rateLimitTitle": "Rate Limit Notice",
+      "rateLimitText": "Using **Gemini 1.5 Flash (Trial Tier)** has limits on requests per minute. For large-scale production, make sure to configure billing in Google Cloud Console.",
+      "viewDocs": "View Documentation"
+    },
+    "toasts": {
+      "saveSuccess": "Settings saved!",
+      "saveError": "Error saving: {{message}}"
+    }
+  },
+  "logs": {
+    "sectionLabel": "Observability",
+    "headerTitle": "Logs & Audit",
+    "headerSubtitle": "Event timeline, system health and PHI access tracking.",
+    "types": {
+      "auth": "Auth",
+      "phi": "PHI",
+      "billing": "Billing",
+      "system": "System",
+      "error": "Error"
+    },
+    "filterAll": "All",
+    "health": {
+      "webhookServer": "Webhook Server",
+      "online": "● Online",
+      "slow": "● Slow",
+      "offline": "● Offline"
+    },
+    "timeline": {
+      "title": "Event Timeline",
+      "eventsCount": "{{count}} events"
+    }
+  },
+  "widgetConfig": {
+    "loading": "Loading widget settings...",
+    "inactiveState": {
+      "title": "Booking Widget Inactive",
+      "description": "This clinic does not yet have an active public key to embed booking on external pages.",
+      "generateButton": "Generate Key and Enable Widget"
+    },
+    "apiCredentials": {
+      "title": "Public API Credentials",
+      "subtitle": "Unique public identifier (Stripe-like) used in the widget's HTML tag.",
+      "rotateKeyTitle": "Rotate Public Key",
+      "rotateKeyButton": "Rotate Key",
+      "statusLabel": "Widget Status",
+      "statusActive": "Active (Allows bookings)",
+      "statusInactive": "Inactive (Blocked)",
+      "domainsLabel": "Authorized Domains (CORS)",
+      "domainsPlaceholder": "e.g.: clinic.com, landing.health.com",
+      "domainsHint": "Separate multiple domains with a comma. Prevents the key from being stolen and used on other sites.",
+      "privacyUrlLabel": "Privacy Policy URL (LGPD)",
+      "privacyUrlPlaceholder": "e.g.: https://clinic.com/privacy-policy",
+      "privacyUrlHint": "If filled in, injects a mandatory LGPD consent checkbox into the widget's booking form."
+    },
+    "localization": {
+      "title": "Localization & Language",
+      "localeLabel": "Language (Locale)",
+      "localeOptions": { "ptBR": "Português (pt-BR)", "enUS": "English (en-US)", "enNZ": "English (en-NZ)" },
+      "countryLabel": "Country",
+      "countryOptions": { "br": "Brazil", "us": "United States", "nz": "New Zealand" },
+      "timezoneLabel": "Time Zone (Timezone)",
+      "timezoneOptions": {
+        "saoPaulo": "America/São Paulo (-03:00)",
+        "newYork": "America/New York (EST/EDT)",
+        "chicago": "America/Chicago (CST/CDT)",
+        "denver": "America/Denver (MST/MDT)",
+        "losAngeles": "America/Los Angeles (PST/PDT)",
+        "auckland": "Pacific/Auckland (NZST/NZDT)"
+      }
+    },
+    "appearance": {
+      "title": "Appearance & Button (FAB)",
+      "primaryColorLabel": "Primary Color (Hex)",
+      "buttonTextLabel": "Button Text",
+      "fabStyleLabel": "FAB Style",
+      "fabStyleOptions": { "solid": "Solid", "soft": "Soft", "outline": "Outline" },
+      "positionLabel": "Position",
+      "positionOptions": { "right": "Right Corner", "left": "Left Corner" },
+      "delayLabel": "Delay (MS)"
+    },
+    "tracking": {
+      "title": "Conversion Tracking (Meta & Google)",
+      "metaPixelLabel": "Meta Pixel ID",
+      "googleAdsLabel": "Google Ads ID",
+      "googleConversionLabel": "Google Conversion Label",
+      "successPathLabel": "Success Ghost Route Path",
+      "virtualPageviewTitle": "Used in Virtual Pageview",
+      "successPathHint": "The widget pushes this fictitious path via `pushState` and generates a `page_view` in GTM when the appointment is confirmed, making URL-based tracking easier."
+    },
+    "installTest": {
+      "title": "Installation and Test",
+      "subtitle": "Copy the code below and paste it into the landing page HTML (Hostinger/WordPress/WP Block).",
+      "removeTestWidget": "Remove Test Widget",
+      "testOnPage": "Test on this Page",
+      "advancedGenTitle": "Advanced Generator for Landing Pages (CRO)",
+      "advancedGenSubtitle": "Optimize the conversion of your ads by locking the widget to a specific procedure or professional.",
+      "lockSpecialtyLabel": "Lock Specialty / Procedure",
+      "noFilterOption": "-- General Widget (No Filter) --",
+      "lockDoctorLabel": "Lock Specific Professional",
+      "anyDoctorOption": "-- Any Professional in the Specialty --",
+      "copyCode": "Copy Code",
+      "copied": "Copied!",
+      "previewTitle": "FAB Preview",
+      "previewSubtitle": "Simulated style and contrast of the floating button."
+    },
+    "saveButton": "Save Widget Settings",
+    "defaults": {
+      "fabLabel": "Book Now"
+    },
+    "toasts": {
+      "fetchError": "Error loading widget data: {{message}}",
+      "provisionSuccess": "Public key generated and Widget enabled!",
+      "provisionError": "Error provisioning key: {{message}}",
+      "rotateConfirm": "WARNING: Rotating the key will make the old widget on landing pages inoperative until the snippet is updated. Do you want to continue?",
+      "rotateSuccess": "New public key generated successfully!",
+      "rotateError": "Error rotating key: {{message}}",
+      "saveSuccess": "Widget settings saved successfully!",
+      "saveError": "Error saving settings: {{message}}",
+      "testRemoved": "Test widget removed.",
+      "testInjected": "Test widget injected! Click the floating button to interact.",
+      "keyCopied": "Key copied!",
+      "snippetCopied": "Snippet copied!"
+    }
+  }
+}

@@ -1,1 +1,258 @@
-{}
+{
+  "mestra": {
+    "today": "Hoy",
+    "selectProfessional": "Selecciona al menos un profesional",
+    "appointmentsCount_one": "{{count}} agendada",
+    "appointmentsCount_other": "{{count}} agendadas",
+    "freeSlotsCount_one": "{{count}} libre",
+    "freeSlotsCount_other": "{{count}} libres",
+    "patientFallback": "Paciente",
+    "consultaFallback": "Cita",
+    "slotBadge": {
+      "released": "Liberado",
+      "prime": "Premium",
+      "regular": "Regular"
+    },
+    "bookingModal": {
+      "title": "Nueva Cita",
+      "patientLabel": "Paciente *",
+      "patientSearchPlaceholder": "Buscar por nombre...",
+      "patientTypeLabel": "Tipo de Paciente",
+      "private": "Particular",
+      "insurance": "Seguro",
+      "noInsurancePlans": "Este profesional no tiene seguros vinculados",
+      "selectInsurancePlaceholder": "Selecciona el seguro",
+      "appointmentTypeLabel": "Tipo de Cita",
+      "selectTypePlaceholder": "Selecciona el tipo",
+      "notesLabel": "Notas",
+      "notesPlaceholder": "Notas opcionales...",
+      "cancel": "Cancelar",
+      "confirm": "Confirmar"
+    },
+    "editModal": {
+      "statusLabel": "Estado",
+      "statusConfirmed": "Confirmado",
+      "statusCheckin": "Check-in",
+      "statusCancel": "Cancelar",
+      "statusNoshow": "No Asistió",
+      "slotColonLabel": "Horario:",
+      "notesLabel": "Notas",
+      "notesPlaceholder": "Notas...",
+      "close": "Cerrar",
+      "save": "Guardar",
+      "receivePayment": "Recibir Pago",
+      "deleteAppointment": "Eliminar Cita"
+    },
+    "confirmDelete": {
+      "title": "¿Eliminar Cita?",
+      "text": "Esta acción no se puede deshacer.",
+      "cancel": "Cancelar",
+      "confirm": "Eliminar"
+    },
+    "toasts": {
+      "bookedFor": "¡Cita creada para {{name}}!",
+      "bookError": "Error al agendar: {{message}}",
+      "statusUpdated": "¡Estado actualizado!",
+      "genericError": "Error: {{message}}",
+      "notesSaved": "¡Notas guardadas!",
+      "appointmentRemoved": "¡Cita eliminada!",
+      "appointmentMoved": "¡Cita movida!",
+      "moveError": "Error al mover: {{message}}",
+      "durationUpdated": "¡Duración actualizada!",
+      "resizeError": "Error al redimensionar: {{message}}"
+    }
+  },
+  "quickBooking": {
+    "title": "Agendamiento Exprés",
+    "patientPrefix": "Paciente:",
+    "professionalLabel": "Profesional",
+    "unitLabel": "Unidad",
+    "generalFallback": "General",
+    "nextStep": "Siguiente Paso",
+    "procedureLabel": "Procedimiento / Categoría",
+    "loadingServices": "Cargando servicios...",
+    "back": "Volver",
+    "seeAvailability": "Ver Disponibilidad",
+    "availableSlotsLabel": "Horarios Disponibles",
+    "syncingAgendas": "Sincronizando agendas...",
+    "confirmAppointment": "Confirmar Cita",
+    "successTitle": "¡Agendado con Éxito!",
+    "successText": "El horario ha sido reservado. Ahora puedes enviar el enlace de pago para que el paciente confirme.",
+    "paymentLinkLabel": "Enlace de Pago Generado",
+    "copyMessage": "Copiar Mensaje",
+    "close": "Cerrar",
+    "clipboardMessage": "Hola {{name}}, aquí está tu enlace para confirmar la cita: {{link}}",
+    "errors": {
+      "slotTaken": "Este horario ya fue ocupado por otro agente. Por favor, elige otro horario.",
+      "unknown": "Error desconocido al realizar la cita.",
+      "invalidResponse": "Respuesta de agendamiento inválida.",
+      "bookError": "Error al agendar: {{message}}"
+    },
+    "toasts": {
+      "success": "¡Cita agendada con éxito!"
+    }
+  },
+  "sidebarAvailability": {
+    "headerLabel": "Disponibilidad",
+    "headerTitle": "Consultar Horarios",
+    "professionalLabel": "Profesional",
+    "selectPlaceholder": "Selecciona...",
+    "dateLabel": "Fecha",
+    "slotsLabel": "Horarios",
+    "noSlotsAvailable": "No hay horarios disponibles en esta fecha",
+    "legendRegular": "Regular",
+    "legendPrime": "Premium",
+    "legendReleased": "Liberado"
+  },
+  "sidebarBookingView": {
+    "headerLabel": "Agendamiento Exprés",
+    "steps": {
+      "selectProfessional": "1. Selecciona el Profesional",
+      "selectLocationQuestion": "2. ¿Dónde deseas ser atendido?",
+      "selectProcedure": "3. Elige el Procedimiento",
+      "selectDateTime": "4. Selecciona la Fecha y Horario"
+    },
+    "generalSpecialtyFallback": "General",
+    "changeProfessional": "Cambiar Profesional",
+    "changeUnit": "Cambiar Unidad",
+    "changeService": "Cambiar Servicio",
+    "changeLabel": "Cambiar {{target}}",
+    "noProceduresFound": "No se encontraron procedimientos.",
+    "agendaForDate": "Agenda para {{date}}",
+    "noSlotsForDay": "No hay horarios disponibles para este día.",
+    "findNextAvailableDay": "Buscar Próximo Día Disponible",
+    "dailyAgenda": "Agenda Diaria",
+    "unavailable": "NO DISPONIBLE",
+    "blocked": "BLOQUEADO",
+    "occupied": "OCUPADO",
+    "messageCustomizationTitle": "Enlaces en el Mensaje de Confirmación",
+    "checkinOption": {
+      "title": "Sala de Espera (Check-in)",
+      "subtitle": "Enlace para la sala de espera virtual del paciente"
+    },
+    "paymentOption": {
+      "title": "Enlace de Pago",
+      "subtitle": "Enlace de pago para confirmar el lugar"
+    },
+    "mapsOption": {
+      "title": "Indicaciones de Acceso (Google Maps)",
+      "subtitle": "Enlace con la dirección de la clínica"
+    },
+    "successTitle": "¡Agendado con Éxito!",
+    "successSubtitle": "El enlace de pago ya está listo.",
+    "paymentLinkLabel": "Enlace de Pago (Asaas)",
+    "backToService": "Volver a la Atención",
+    "confirmAppointment": "Confirmar Cita",
+    "professionalFallback": "Profesional",
+    "toasts": {
+      "skippingToDate": "Saltando a {{date}}",
+      "noOtherSlotsAvailable": "No hay otros horarios disponibles en los próximos días.",
+      "linkCopied": "Enlace copiado al portapapeles",
+      "rescheduleCompleted": "¡Reprogramación completada!",
+      "bookingCompleted": "¡Cita agendada!"
+    },
+    "errors": {
+      "slotTaken": "Este horario ya fue ocupado por otro agente. Por favor, elige otro horario.",
+      "unknown": "Error desconocido al agendar.",
+      "invalidResponse": "Respuesta de agendamiento inválida."
+    },
+    "rescheduleNote": "Reprogramado para {{date}} {{time}}",
+    "message": {
+      "greeting": "¡Hola *{{name}}*! 😊",
+      "rescheduled": "¡Tu reprogramación se realizó con éxito!",
+      "booked": "¡Tu cita se realizó con éxito!",
+      "detailsTitle": "📝 *Detalles de la Cita:*",
+      "dateLine": "📅 *Fecha:* {{date}}",
+      "timeLine": "🕒 *Horario:* {{time}}",
+      "doctorLine": "👨‍⚕️ *Profesional:* {{doctor}}",
+      "locationLine": "📍 *Lugar:* {{location}}",
+      "mapsLine": "🗺️ *Cómo Llegar:* {{url}}",
+      "checkinTitle": "🔗 *SALA DE ESPERA VIRTUAL:*",
+      "checkinInstructions": "Accede para hacer tu check-in al momento de la cita:",
+      "paymentTitle": "💳 *PAGO / CONFIRMACIÓN:*",
+      "paymentInstructions": "Para asegurar tu lugar, realiza el pago en el enlace:",
+      "closing": "_¡Nos vemos pronto!_ 💙"
+    }
+  },
+  "sidebarAppointmentsView": {
+    "headerLabel": "Citas",
+    "tabs": {
+      "upcoming": "Próximas ({{count}})",
+      "history": "Historial ({{count}})"
+    },
+    "empty": {
+      "upcoming": "Ninguna cita agendada",
+      "history": "Sin historial"
+    },
+    "consultationFallback": "Cita",
+    "professionalFallback": "Profesional",
+    "yourProfessionalFallback": "tu profesional",
+    "dateTimeLabel": "{{date}} a las {{time}}",
+    "status": {
+      "scheduled": "Agendada",
+      "confirmed": "Confirmada",
+      "completed": "Completada",
+      "canceled": "Cancelada",
+      "no_show": "No asistió",
+      "in_progress": "En curso"
+    },
+    "billing": {
+      "paid": "Pagado",
+      "pending": "Pendiente"
+    },
+    "actions": {
+      "reschedule": "Reprogramar",
+      "sendReminder": "Enviar Recordatorio",
+      "sendCheckinLink": "Enlace Sala de Espera",
+      "sendPaymentLink": "Enlace de Pago",
+      "cancelAppointment": "Cancelar Cita"
+    },
+    "confirmCancel": "¿Cancelar cita del {{date}}?",
+    "cancelReason": "Cancelado por el agente vía bandeja de entrada",
+    "toasts": {
+      "canceled": "Cita cancelada",
+      "checkinSent": "¡Enlace de check-in enviado!",
+      "reminderSent": "¡Recordatorio enviado!",
+      "paymentLinkSent": "¡Enlace de pago enviado!"
+    },
+    "errors": {
+      "cancelFailed": "Error al cancelar"
+    },
+    "message": {
+      "checkin": "¡Hola {{name}}! 😊 Aquí está el enlace a tu sala de espera virtual para la cita del {{date}}: {{link}}",
+      "reminder": "¡Hola {{name}}! 😊 Te recordamos tu cita con {{doctor}} el {{date}} a las {{time}}. ¡Nos vemos ahí! 💙",
+      "paymentLink": "¡Hola {{name}}! 😊 Aquí está tu enlace para el pago/confirmación de la cita: {{link}}"
+    }
+  },
+  "checkoutModal": {
+    "title": "Recibir Pago",
+    "patientLabel": "Paciente:",
+    "amountToReceiveLabel": "Monto a Recibir",
+    "creditCard": {
+      "title": "Tarjeta de Crédito",
+      "subtitle": "Hasta 21 Cuotas"
+    },
+    "financing": {
+      "title": "Financiamiento",
+      "subtitle": "Hasta 24 Cuotas sin Tarjeta"
+    },
+    "installmentsLabel": "Número de Cuotas",
+    "generatePaymentLink": "Generar Enlace de Pago",
+    "sendDrCashStudy": "Enviar Estudio Dr. Cash",
+    "operationStarted": "¡Operación Iniciada!",
+    "successCreditCard": "Esperando que el paciente procese el pago con tarjeta a través del enlace.",
+    "successFinancing": "El paciente recibió el enlace de la propuesta en su celular para análisis de crédito.",
+    "closeWindow": "Cerrar Ventana",
+    "securityBadge": {
+      "environment": "Entorno Seguro PCI-DSS",
+      "encryption": "Cifrado SSL"
+    },
+    "toasts": {
+      "financingSent": "¡Propuesta de financiamiento enviada con éxito!",
+      "checkoutStarted": "¡Checkout de Pagar.me iniciado!"
+    },
+    "errors": {
+      "paymentFailed": "Error al procesar el pago."
+    }
+  }
+}

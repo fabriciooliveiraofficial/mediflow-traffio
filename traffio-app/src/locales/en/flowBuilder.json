@@ -1,1 +1,66 @@
-{}
+{
+  "analytics": {
+    "calculatingMetrics": "Calculating AI Metrics...",
+    "title": "Flow Analytics V2",
+    "subtitle": "Performance and engagement indicators for the automation.",
+    "totalExecutions": "Total Executions",
+    "activeSessions": "Active Sessions",
+    "avgResponseTime": "Avg. Response Time",
+    "errorRate": "Error Rate",
+    "executionVolume": "Execution Volume",
+    "distributionByNode": "Distribution by Node"
+  },
+  "logs": {
+    "loadingAudit": "Loading Audit Log...",
+    "title": "Audit Logs",
+    "subtitle": "Real-time observability of the v2 execution engine.",
+    "searchSessionId": "Search Session ID...",
+    "session": "Session",
+    "noLogsFound": "No execution logs found."
+  },
+  "studio": {
+    "aiGenerationError": "Failed to generate the flow with AI.",
+    "newNodeLabel": "New {{type}}",
+    "yourAiEcosystem": "Your AI Ecosystem",
+    "selectFlow": "Select Flow...",
+    "onlineStatus": "Online Status",
+    "flowDeactivated": "Flow deactivated.",
+    "flowActivatedExclusive": "Flow activated exclusively!",
+    "active": "ACTIVE",
+    "inactive": "DEACTIVATED",
+    "aiArchitect": "AI Architect",
+    "aiPromptPlaceholder": "Describe the desired flow in natural language...",
+    "architectingFlow": "Architecting strategic flow...",
+    "nodeLibrary": "Node Library",
+    "nodeLabelMessage": "Message",
+    "nodeLabelAi": "AI Intelligence",
+    "nodeLabelWebhook": "Webhook API",
+    "nodeLabelDelay": "Time Delay",
+    "publishV2": "Publish V2",
+    "settings": "Settings",
+    "blockTitle": "Block Title",
+    "messageCopy": "Message Copy",
+    "systemPrompt": "System Prompt",
+    "menuText": "Menu Text",
+    "buttonsOptions": "Buttons / Options",
+    "addButton": "+ Add Button",
+    "newOption": "New Option",
+    "endpointUrl": "Endpoint URL",
+    "simulateActiveNode": "Simulate Active Node"
+  },
+  "nodes": {
+    "message": "Message",
+    "aiOrchestrator": "Smart Orchestrator",
+    "aiConfigPlaceholder": "Intelligence configuration...",
+    "webhookApi": "Webhook / API",
+    "urlNotConfigured": "URL not configured",
+    "wait": "Wait"
+  },
+  "simulator": {
+    "simulationStarted": "Simulation Started. The bot will act as if it were on WhatsApp.",
+    "title": "WhatsApp Simulator",
+    "safeTestEnvironment": "Safe Test Environment",
+    "restart": "Restart",
+    "typeYourMessage": "Type your message..."
+  }
+}

@@ -1,1 +1,494 @@
-{}
+{
+  "professionals": {
+    "days": {
+      "sunday": "Domingo",
+      "monday": "Lunes",
+      "tuesday": "Martes",
+      "wednesday": "Miércoles",
+      "thursday": "Jueves",
+      "friday": "Viernes",
+      "saturday": "Sábado"
+    },
+    "roleLabel": {
+      "owner": "Propietario",
+      "admin": "Administrador",
+      "doctor": "Médico",
+      "staff": "Recepción"
+    },
+    "errors": {
+      "locationClosedOnDay": "La sucursal {{locationName}} está CERRADA este día.",
+      "locationHoursWindow": "Este día, la sucursal {{locationName}} solo atiende de {{start}} a {{end}}.",
+      "saveScheduleError": "Error al guardar la agenda.",
+      "loadError": "Error al cargar los profesionales.",
+      "nameRequired": "El nombre es obligatorio.",
+      "saveError": "Error al guardar la información.",
+      "toggleActiveError": "Error al cambiar el estado: {{message}}",
+      "deleteError": "Error al eliminar: {{message}}",
+      "botProfileSaveError": "Error al guardar.",
+      "botProfileGenerateError": "Error al generar el perfil.",
+      "botProfileGenerateFnError": "Error en la generación"
+    },
+    "success": {
+      "scheduleUpdated": "¡Agenda actualizada con éxito!",
+      "registered": "¡Profesional registrado con éxito!",
+      "dataSaved": "¡Datos guardados!",
+      "updated": "¡Profesional actualizado con éxito!",
+      "botSkillsSaved": "¡Habilidades del Bot guardadas!",
+      "botProfileGenerated": "¡Perfil generado con IA! Revisa y guarda cuando estés conforme."
+    },
+    "detail": {
+      "newProfessional": "Nuevo Profesional",
+      "fillFieldsBelow": "Completa los datos a continuación",
+      "crmPrefix": "CRM {{crm}}",
+      "edit": "Editar",
+      "tabs": {
+        "data": "Datos",
+        "weeklySchedule": "Agenda Semanal",
+        "insurancePlans": "Seguros Médicos",
+        "botSkills": "Habilidades del Bot"
+      },
+      "saveDataFirst": "Guarda los datos primero",
+      "dataTab": {
+        "fullName": "Nombre Completo *",
+        "fullNamePlaceholder": "Ej: Dr. Juan Pérez",
+        "email": "Correo electrónico",
+        "emailPlaceholder": "correo@ejemplo.com",
+        "phone": "Teléfono",
+        "phonePlaceholder": "(11) 99999-0000",
+        "role": "Función",
+        "roleDoctor": "Médico",
+        "roleStaff": "Recepción",
+        "roleAdmin": "Administrador",
+        "specialty": "Especialidad",
+        "specialtyPlaceholder": "Ej: Cardiología",
+        "crm": "CRM",
+        "crmPlaceholder": "Ej: 123456/SP",
+        "rqe": "RQE",
+        "rqePlaceholder": "Opcional",
+        "bio": "Biografía / Notas",
+        "bioPlaceholder": "Información adicional...",
+        "avatarColor": "Color del Avatar",
+        "cancellationPolicy": {
+          "title": "Reglas de Cancelación",
+          "subtitle": "Define si se aplicará un cargo en caso de cancelación tardía o inasistencia.",
+          "freeWindowHours": "Gratis hasta (horas antes)",
+          "freeWindowHint": "Ej: 24h o 48h antes de la cita.",
+          "latePenaltyPercent": "Cargo por Cancelación Tardía (%)",
+          "latePenaltyHint": "Se aplica sobre el valor del procedimiento/consulta.",
+          "noShowPenaltyPercent": "Cargo por Inasistencia (%)",
+          "noShowPenaltyHint": "Cargo aplicado si el paciente no cancela y no asiste.",
+          "noneConfigured": "No hay reglas de cancelación ni cargos configurados.",
+          "freeUntil": "Gratis hasta <strong>{{hours}}h</strong>",
+          "latePenaltyLabel": "Cargo por demora:",
+          "noShowPenaltyLabel": "Cargo por inasistencia:"
+        },
+        "cancel": "Cancelar",
+        "saving": "Guardando...",
+        "next": "Siguiente",
+        "save": "Guardar",
+        "readOnly": {
+          "fullName": "Nombre Completo",
+          "email": "Correo electrónico",
+          "phone": "Teléfono",
+          "role": "Función",
+          "specialty": "Especialidad",
+          "crm": "CRM",
+          "rqe": "RQE",
+          "autoRelease": "Liberación automática",
+          "autoReleaseValue": "{{hours}}h antes del horario",
+          "bio": "Biografía",
+          "empty": "—"
+        }
+      },
+      "agendaTab": {
+        "title": "Bloques de Horario",
+        "subtitle": "Configura horarios privados y regulares para la agenda inteligente.",
+        "tools": {
+          "prime": "Prime",
+          "regular": "Regular",
+          "blocked": "Bloquear",
+          "eraser": "Borrador"
+        },
+        "selectedLocation": "Sucursal Seleccionada:",
+        "loadingLocations": "Cargando sucursales...",
+        "saveSchedule": "Guardar Agenda",
+        "saving": "Guardando...",
+        "hourLabel": "Hora",
+        "dragHint": "Haz clic y arrastra para definir horarios.",
+        "saveGridChanges": "Guardar Cambios en la Cuadrícula",
+        "previous": "Anterior",
+        "next": "Siguiente"
+      },
+      "insuranceTab": {
+        "title": "Seguros Médicos Aceptados",
+        "subtitle": "Selecciona los seguros médicos que este profesional acepta.",
+        "emptyTitle": "No hay seguros médicos registrados",
+        "emptySubtitle": "Registra seguros médicos en Configuración → Seguros Médicos primero.",
+        "ansCode": "ANS: {{code}}",
+        "linked": "Vinculado",
+        "link": "Vincular",
+        "previous": "Anterior",
+        "finish": "Finalizar"
+      },
+      "botTab": {
+        "title": "Habilidades del Bot",
+        "subtitle": "El agente usa esta información para personalizar la atención de este profesional.",
+        "generateWithAI": "Generar con IA",
+        "generating": "Generando...",
+        "generateTitle": "Genera automáticamente el perfil del bot a partir de los datos del profesional",
+        "pitch": {
+          "label": "Presentación del Profesional",
+          "hint": "Cómo debe presentar el bot a este profesional. Ej: \"El Dr. Juan es especialista en Ortodoncia Invisible con 12 años de experiencia.\"",
+          "placeholder": "Describe el diferencial y la especialización del profesional..."
+        },
+        "consultationOpening": {
+          "label": "Apertura de la Consulta",
+          "hint": "Qué puede esperar el paciente de esta consulta. Se usa cuando el bot presenta el servicio.",
+          "placeholder": "Ej: La evaluación ortodóntica incluye un análisis completo y la presentación de un plan personalizado..."
+        },
+        "sellingPoints": {
+          "label": "Diferenciales / Puntos de Venta",
+          "hint": "Argumentos que el bot puede usar para convencer al paciente de agendar.",
+          "placeholder": "Ej: Hasta 24 cuotas sin intereses",
+          "add": "Agregar diferencial"
+        },
+        "objectionScripts": {
+          "label": "Guiones de Objeción",
+          "hint": "Respuestas exactas que el bot debe usar cuando el paciente presente cada objeción.",
+          "preco": {
+            "label": "Objeción de Precio",
+            "placeholder": "Ej: Ofrecemos hasta 24 cuotas. ¿Puedo confirmar el horario para la evaluación, que no tiene compromiso?"
+          },
+          "tempo": {
+            "label": "Objeción de Tiempo",
+            "placeholder": "Ej: La consulta dura solo 30 minutos. Tengo un horario a las 7 a.m. que podría facilitar las cosas..."
+          },
+          "urgencia": {
+            "label": "Objeción de Urgencia (\"no es urgente\")",
+            "placeholder": "Ej: ¡Entiendo! La agenda suele llenarse 2-3 semanas antes. ¿Quieres reservar ahora para no preocuparte después?"
+          }
+        },
+        "faq": {
+          "label": "Preguntas Frecuentes (FAQ)",
+          "hint": "El bot responde directamente con estas respuestas cuando detecta las preguntas de los pacientes.",
+          "questionPlaceholder": "Pregunta del paciente (ej: ¿Cuánto cuesta?)",
+          "answerPlaceholder": "Respuesta del bot...",
+          "add": "Agregar pregunta"
+        },
+        "preAppointmentTip": {
+          "label": "Instrucción Previa a la Consulta",
+          "hint": "Se envía al paciente al confirmar la cita. Ej: \"Trae radiografías recientes.\"",
+          "placeholder": "Ej: Para aprovechar mejor la consulta, trae resultados de exámenes recientes si los tienes."
+        },
+        "saving": "Guardando...",
+        "save": "Guardar Habilidades"
+      }
+    },
+    "list": {
+      "headerTitle": "Profesionales",
+      "headerSubtitle": "Equipo médico y administrativo de la clínica.",
+      "add": "Agregar",
+      "searchPlaceholder": "Buscar por nombre, especialidad o CRM...",
+      "loading": "Cargando equipo...",
+      "emptyAll": "No hay profesionales registrados. Haz clic en \"Agregar\" para comenzar.",
+      "emptySearch": "No hay resultados para la búsqueda.",
+      "noName": "Sin nombre",
+      "inactive": "Inactivo",
+      "crmPrefix": "CRM {{crm}}",
+      "edit": "Editar",
+      "activate": "Activar",
+      "deactivate": "Desactivar",
+      "delete": "Eliminar"
+    },
+    "deleteDialog": {
+      "title": "¿Eliminar Profesional?",
+      "message": "Esta acción no se puede deshacer. El profesional será eliminado del equipo de la clínica.",
+      "cancel": "Cancelar",
+      "confirm": "Eliminar"
+    }
+  },
+  "notificationsPage": {
+    "header": {
+      "title": "Notificaciones",
+      "subtitle": "Elige cómo deseas ser avisado sobre nuevos mensajes y eventos."
+    },
+    "cards": {
+      "soundAlert": {
+        "title": "Alerta Sonora",
+        "description": "Reproducir un sonido de máxima prioridad con cada nuevo mensaje recibido (Recomendado)."
+      },
+      "toastNotification": {
+        "title": "Aviso Flotante",
+        "description": "Mostrar una burbuja de notificación en la esquina de la pantalla mientras navegas por la plataforma."
+      },
+      "webPush": {
+        "title": "Web Push Nativo",
+        "description": "Recibir avisos del sistema incluso con la pestaña cerrada o en segundo plano."
+      }
+    },
+    "toasts": {
+      "pushDenied": "Permiso de notificación denegado en el navegador.",
+      "smtpSaved": "¡Configuración de SMTP guardada con éxito!",
+      "smtpSaveErrorPrefix": "Error al guardar SMTP: {{message}}"
+    },
+    "smtp": {
+      "title": "Servidor de Correo (SMTP propio)",
+      "subtitle": "Configura las credenciales para enviar correos de confirmación con tu propio dominio.",
+      "hostLabel": "Servidor SMTP (Host)",
+      "hostPlaceholder": "ej: smtp.dominio.com",
+      "portLabel": "Puerto",
+      "userLabel": "Usuario SMTP",
+      "userPlaceholder": "ej: citas@dominio.com",
+      "passLabel": "Contraseña SMTP",
+      "fromLabel": "Correo del Remitente (From)",
+      "fromPlaceholder": "ej: citas@dominio.com",
+      "fromHint": "Déjalo en blanco para usar el mismo correo del Usuario SMTP.",
+      "saveButton": "Guardar Configuración SMTP"
+    },
+    "infoBanner": {
+      "title": "Importante: Disponibilidad de las Alertas",
+      "body": {
+        "prefix": "Para garantizar que nunca pierdas el contacto de un paciente, recomendamos mantener activos la",
+        "strong1": "Alerta Sonora",
+        "middle": "y el",
+        "strong2": "Web Push",
+        "suffix": "Nuestro sistema de sonido está optimizado para superar los silenciamientos automáticos de los navegadores en pestañas inactivas."
+      }
+    }
+  },
+  "financialDashboard": {
+    "header": {
+      "title": "Finanzas",
+      "subtitle": "Vista consolidada de todas tus sucursales y conversión del hub.",
+      "filterAll": "Todos",
+      "filterPaid": "Pagados",
+      "filterPending": "Pendientes",
+      "filterCanceled": "Cancelados",
+      "newBillingButton": "Nuevo Cobro"
+    },
+    "confirmCancel": "¿Cancelar este cobro?",
+    "kpis": {
+      "totalRevenue": "Ingresos Totales",
+      "received": "Recibido",
+      "toReceive": "Por Recibir",
+      "billings": "Cobros"
+    },
+    "analytics": {
+      "sectionTitle": "Conversión de Procedimientos",
+      "sectionSubtitle": "Rendimiento Dr. Cash y Pagar.me",
+      "highApproval": "Alta Aprobación",
+      "approvalRateLabel": "Tasa de Aprobación Dr. Cash",
+      "financingVolumeLabel": "Volumen de Crédito Firmado",
+      "avgTicketLabel": "Ticket Promedio (Hub Híbrido)",
+      "mixChartTitle": "Mezcla de Cobro",
+      "mixPix": "Pix",
+      "mixCard": "Tarjeta (Pagar.me)",
+      "mixFinancing": "Financiamiento (Dr. Cash)",
+      "mixOthers": "Otros",
+      "pipelineTitle": "Estado del Pipeline Dr. Cash",
+      "activeProposalsLabel": "Propuestas en Análisis",
+      "conversionOptimizedTitle": "Conversión Optimizada",
+      "conversionOptimizedDescription": "El uso del Hub Híbrido aumentó el ticket promedio en comparación con los pagos tradicionales presenciales."
+    },
+    "transactions": {
+      "title": "Cobros",
+      "exportButton": "Exportar",
+      "loading": "Cargando...",
+      "empty": "No se encontraron cobros.",
+      "patientFallback": "Paciente",
+      "methodFallback": "No definido",
+      "payButton": "Pagar",
+      "cancelButton": "Cancelar",
+      "statusLabels": {
+        "paid": "Pagado",
+        "pending": "Pendiente",
+        "overdue": "Vencido",
+        "canceled": "Cancelado",
+        "refunded": "Reembolsado"
+      }
+    },
+    "newBillingModal": {
+      "title": "Nuevo Cobro",
+      "patientLabel": "Paciente",
+      "selectPlaceholder": "Seleccionar...",
+      "amountLabel": "Monto (R$)",
+      "dueDateLabel": "Vencimiento",
+      "methodLabel": "Método",
+      "methodPix": "Pix",
+      "methodCreditCard": "Tarjeta de Crédito",
+      "methodBoleto": "Boleto",
+      "methodCash": "Efectivo",
+      "cancelButton": "Cancelar",
+      "createButton": "Crear Cobro",
+      "creating": "Creando...",
+      "createError": "Error al crear el cobro."
+    }
+  },
+  "services": {
+    "header": {
+      "title": "Tipos de Consulta",
+      "subtitle": "Servicios, precios y duraciones.",
+      "newButton": "Nuevo Tipo"
+    },
+    "searchPlaceholder": "Buscar tipo de consulta...",
+    "emptyState": "No se encontraron tipos de consulta.",
+    "noNameFallback": "Sin nombre",
+    "noSpecialtyFallback": "Especialidad no definida",
+    "clinicGeneral": {
+      "title": "Servicios de la Clínica",
+      "subtitle": "Generales / Sin Profesional"
+    },
+    "card": {
+      "activate": "Activar",
+      "deactivate": "Desactivar",
+      "inactiveBadge": "Inactivo"
+    },
+    "toasts": {
+      "tenantNotIdentified": "Error: No fue posible identificar tu clínica. Verifica que hayas iniciado sesión correctamente.",
+      "saveSuccess": "¡Procedimiento guardado con éxito!",
+      "saveErrorPrefix": "No se pudo guardar: {{message}}",
+      "linksWithoutDoctorWarning": "Aviso: Agregaste sucursales pero no seleccionaste al médico en ninguna de ellas. Las sucursales no se guardarán."
+    },
+    "deleteConfirm": "¿Eliminar este tipo de consulta?",
+    "modal": {
+      "titleNew": "Nuevo Tipo de Consulta",
+      "titleEdit": "Editar Tipo",
+      "nameLabel": "Nombre del Procedimiento",
+      "namePlaceholder": "Ej: Consulta Inicial",
+      "activeLabel": "Activo",
+      "inactiveLabel": "Inactivo",
+      "durationLabel": "Duración (min)",
+      "priceLabel": "Precio (R$)",
+      "colorLabel": "Color en el Calendario",
+      "instructionsLabel": "Instrucciones de Preparación (Bot)",
+      "instructionsPlaceholder": "Ej: Ayuno de 8h, traer exámenes anteriores...",
+      "assignmentsLabel": "Asignación de Sucursales",
+      "addLocationButton": "+ Agregar Sucursal",
+      "noLocationsSelected": "No se seleccionó ninguna sucursal.",
+      "selectDoctorPlaceholder": "Selecciona el Médico",
+      "anyLocationPlaceholder": "Cualquier Sucursal",
+      "cancelButton": "Cancelar",
+      "saveButton": "Guardar",
+      "saving": "Guardando..."
+    }
+  },
+  "adminWhatsApp": {
+    "loadingClinic": "Cargando datos de la clínica...",
+    "header": {
+      "title": "WhatsApp",
+      "subtitle": "Conecta el WhatsApp de tu clínica para activar el agente de IA."
+    },
+    "providerTabs": {
+      "zapi": "WhatsApp Web (Z-API)",
+      "cloudApi": "Oficial (Cloud API)"
+    },
+    "statusConfig": {
+      "loading": "Verificando...",
+      "noInstance": "Esperando Configuración",
+      "configured": "Listo para Conectar",
+      "connecting": "Esperando Escaneo del QR...",
+      "connected": "WhatsApp Conectado",
+      "cloudApiActive": "Cloud API Activo"
+    },
+    "toasts": {
+      "connectedSuccess": "¡WhatsApp conectado con éxito!",
+      "credentialsMissing": "Las credenciales de Z-API no están configuradas para esta clínica.",
+      "qrGenerateError": "Error al generar el Código QR. Verifica el estado de la instancia en el panel Master.",
+      "connectionError": "Error de conexión con el servidor de WhatsApp.",
+      "disconnectedSuccess": "WhatsApp desconectado.",
+      "disconnectError": "Error al desconectar. Inténtalo de nuevo o usa el panel Master.",
+      "disconnectProcessError": "Error al procesar la desconexión.",
+      "cloudSettingsSaved": "¡Configuración del Cloud API guardada!",
+      "cloudSettingsSaveError": "Error al guardar la configuración.",
+      "cloudRequestError": "No se pudo procesar la solicitud.",
+      "cloudFillFieldsError": "Completa el ID y el Token para probar."
+    },
+    "disconnectConfirm": "¿Realmente deseas desconectar el WhatsApp de la clínica?",
+    "cloudApi": {
+      "title": "WhatsApp Cloud API",
+      "subtitle": "Conexión oficial y de alto rendimiento a través de Meta.",
+      "phoneNumberIdLabel": "Phone Number ID",
+      "accessTokenLabel": "Access Token (Usuario del Sistema)",
+      "businessAccountIdLabel": "Business Account ID",
+      "techConfigTitle": "Configuración Técnica",
+      "techConfigBody": "Para usar la API Oficial, tu cuenta en Meta Business Suite debe estar verificada.",
+      "metaDevelopersLink": "Meta Developers",
+      "activateButton": "Activar Cloud API",
+      "testConnectionButton": "Probar conexión"
+    },
+    "zapiContent": {
+      "syncingMessage": "Sincronizando con WhatsApp en tiempo real...",
+      "noInstance": {
+        "title": "En preparación",
+        "description": "El equipo de soporte de Traffio está configurando tu instancia técnica.",
+        "nextStepTitle": "Próximo paso",
+        "nextStepDescription": "Se te avisará cuando puedas generar el Código QR.",
+        "checkAgainButton": "Verificar de nuevo"
+      },
+      "configured": {
+        "title": "¡Todo listo!",
+        "description": "Haz clic en el botón para generar el Código QR y conectar el número de la clínica.",
+        "step1": "Haz clic en \"Generar Código QR\"",
+        "step2": "Abre WhatsApp en el celular de la clínica",
+        "step3": "Ve a Dispositivos Vinculados → Vincular un Dispositivo",
+        "step4": "Escanea el código que aparece en la pantalla",
+        "generateQrButton": "Generar Código QR"
+      },
+      "connecting": {
+        "title": "Escanea el Código QR",
+        "description": "La conexión se reconocerá automáticamente.",
+        "waitingScan": "Esperando que el celular escanee...",
+        "generatingCode": "Generando código...",
+        "connectedDevicesHint": "Ve a Dispositivos Vinculados en tu WhatsApp"
+      },
+      "connected": {
+        "title": "¡WhatsApp Activo!",
+        "description": "El agente de IA está listo para responder a tus pacientes.",
+        "statusLabel": "Estado",
+        "online": "En línea",
+        "numberLabel": "Número",
+        "clinicLabel": "Clínica",
+        "disconnectButton": "Desconectar WhatsApp"
+      }
+    }
+  },
+  "intelligence": {
+    "header": {
+      "title": "Centro de Automatizaciones",
+      "subtitle": "Gestión de Recordatorios, NPS y Confirmaciones Audiovisuales."
+    },
+    "toasts": {
+      "loadConfigError": "Error al cargar la configuración: {{message}}",
+      "tenantNotFound": "Tenant no encontrado",
+      "saveSuccess": "¡Configuración de automatización guardada con éxito!",
+      "saveError": "Error al guardar: {{message}}",
+      "saveErrorUnknown": "Error desconocido",
+      "videoTooLarge": "El video debe tener menos de 16MB.",
+      "videoUploaded": "¡Video cargado!",
+      "videoUploadError": "Error al cargar el video."
+    },
+    "activationSection": {
+      "title": "Configuración de Activación",
+      "noShowTitle": "Prevención de Inasistencias",
+      "noShowDescription": "Confirmación 48h/24h + recordatorio 2h",
+      "npsTitle": "Encuesta NPS",
+      "npsDescription": "Encuesta automática a las 19h posconsulta"
+    },
+    "videoSection": {
+      "title": "Videos de Confirmación",
+      "subtitle": "Aumenta la asistencia con mensajes personalizados",
+      "infoBanner": "El video se enviará como medio principal y el mensaje de texto predeterminado será el \"caption\" (leyenda). Usa una proporción 9:16 (vertical).",
+      "label48h": "48 Horas Antes",
+      "label24h": "24 Horas Antes",
+      "label2h": "2 Horas Antes",
+      "labelTest": "🧪 Prueba (5 Min)",
+      "uploadLabel": "VIDEO",
+      "captionLabel": "Leyenda del Video",
+      "captionPlaceholder": "Escribe el mensaje que acompañará al video...",
+      "charCountLabel": "Aprox. {{count}} caracteres",
+      "syncedLabel": "Sincronizado"
+    },
+    "testModeLabel": "Modo de Prueba (5m)",
+    "saveButton": "GUARDAR CAMBIOS"
+  }
+}

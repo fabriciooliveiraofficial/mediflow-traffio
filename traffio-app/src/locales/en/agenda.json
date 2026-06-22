@@ -1,1 +1,258 @@
-{}
+{
+  "mestra": {
+    "today": "Today",
+    "selectProfessional": "Select at least one professional",
+    "appointmentsCount_one": "{{count}} scheduled",
+    "appointmentsCount_other": "{{count}} scheduled",
+    "freeSlotsCount_one": "{{count}} free",
+    "freeSlotsCount_other": "{{count}} free",
+    "patientFallback": "Patient",
+    "consultaFallback": "Appointment",
+    "slotBadge": {
+      "released": "Released",
+      "prime": "Prime",
+      "regular": "Regular"
+    },
+    "bookingModal": {
+      "title": "New Appointment",
+      "patientLabel": "Patient *",
+      "patientSearchPlaceholder": "Search by name...",
+      "patientTypeLabel": "Patient Type",
+      "private": "Private",
+      "insurance": "Insurance",
+      "noInsurancePlans": "This professional has no linked insurance plans",
+      "selectInsurancePlaceholder": "Select the insurance plan",
+      "appointmentTypeLabel": "Appointment Type",
+      "selectTypePlaceholder": "Select the type",
+      "notesLabel": "Notes",
+      "notesPlaceholder": "Optional notes...",
+      "cancel": "Cancel",
+      "confirm": "Confirm"
+    },
+    "editModal": {
+      "statusLabel": "Status",
+      "statusConfirmed": "Confirmed",
+      "statusCheckin": "Check-in",
+      "statusCancel": "Cancel",
+      "statusNoshow": "No-Show",
+      "slotColonLabel": "Slot:",
+      "notesLabel": "Notes",
+      "notesPlaceholder": "Notes...",
+      "close": "Close",
+      "save": "Save",
+      "receivePayment": "Receive Payment",
+      "deleteAppointment": "Delete Appointment"
+    },
+    "confirmDelete": {
+      "title": "Delete Appointment?",
+      "text": "This action cannot be undone.",
+      "cancel": "Cancel",
+      "confirm": "Delete"
+    },
+    "toasts": {
+      "bookedFor": "Appointment created for {{name}}!",
+      "bookError": "Error scheduling: {{message}}",
+      "statusUpdated": "Status updated!",
+      "genericError": "Error: {{message}}",
+      "notesSaved": "Notes saved!",
+      "appointmentRemoved": "Appointment removed!",
+      "appointmentMoved": "Appointment moved!",
+      "moveError": "Error moving: {{message}}",
+      "durationUpdated": "Duration updated!",
+      "resizeError": "Error resizing: {{message}}"
+    }
+  },
+  "quickBooking": {
+    "title": "Quick Booking",
+    "patientPrefix": "Patient:",
+    "professionalLabel": "Professional",
+    "unitLabel": "Unit",
+    "generalFallback": "General",
+    "nextStep": "Next Step",
+    "procedureLabel": "Procedure / Category",
+    "loadingServices": "Loading services...",
+    "back": "Back",
+    "seeAvailability": "See Availability",
+    "availableSlotsLabel": "Available Times",
+    "syncingAgendas": "Syncing schedules...",
+    "confirmAppointment": "Confirm Appointment",
+    "successTitle": "Booked Successfully!",
+    "successText": "The time slot has been reserved. You can now send the payment link for the patient to confirm.",
+    "paymentLinkLabel": "Payment Link Generated",
+    "copyMessage": "Copy Message",
+    "close": "Close",
+    "clipboardMessage": "Hello {{name}}, here is your link to confirm your appointment: {{link}}",
+    "errors": {
+      "slotTaken": "This time slot has already been taken by another staff member. Please choose another time.",
+      "unknown": "Unknown error while booking the appointment.",
+      "invalidResponse": "Invalid booking response.",
+      "bookError": "Error scheduling: {{message}}"
+    },
+    "toasts": {
+      "success": "Appointment booked successfully!"
+    }
+  },
+  "sidebarAvailability": {
+    "headerLabel": "Availability",
+    "headerTitle": "Check Times",
+    "professionalLabel": "Professional",
+    "selectPlaceholder": "Select...",
+    "dateLabel": "Date",
+    "slotsLabel": "Time Slots",
+    "noSlotsAvailable": "No time slots available on this date",
+    "legendRegular": "Regular",
+    "legendPrime": "Prime",
+    "legendReleased": "Released"
+  },
+  "sidebarBookingView": {
+    "headerLabel": "Quick Booking",
+    "steps": {
+      "selectProfessional": "1. Select the Professional",
+      "selectLocationQuestion": "2. Where would you like to be seen?",
+      "selectProcedure": "3. Choose the Procedure",
+      "selectDateTime": "4. Select the Date and Time"
+    },
+    "generalSpecialtyFallback": "General",
+    "changeProfessional": "Change Professional",
+    "changeUnit": "Change Unit",
+    "changeService": "Change Service",
+    "changeLabel": "Change {{target}}",
+    "noProceduresFound": "No procedures found.",
+    "agendaForDate": "Schedule for {{date}}",
+    "noSlotsForDay": "No time slots available for this day.",
+    "findNextAvailableDay": "Find Next Available Day",
+    "dailyAgenda": "Daily Schedule",
+    "unavailable": "UNAVAILABLE",
+    "blocked": "BLOCKED",
+    "occupied": "OCCUPIED",
+    "messageCustomizationTitle": "Links in Confirmation Message",
+    "checkinOption": {
+      "title": "Waiting Room (Check-in)",
+      "subtitle": "Link for the patient's virtual waiting room"
+    },
+    "paymentOption": {
+      "title": "Payment Link",
+      "subtitle": "Checkout link to confirm the slot"
+    },
+    "mapsOption": {
+      "title": "Directions (Google Maps)",
+      "subtitle": "Link with the clinic's address"
+    },
+    "successTitle": "Booked Successfully!",
+    "successSubtitle": "The payment link is now ready.",
+    "paymentLinkLabel": "Payment Link (Asaas)",
+    "backToService": "Back to Service",
+    "confirmAppointment": "Confirm Appointment",
+    "professionalFallback": "Professional",
+    "toasts": {
+      "skippingToDate": "Skipping to {{date}}",
+      "noOtherSlotsAvailable": "No other time slots available in the coming days.",
+      "linkCopied": "Link copied to clipboard",
+      "rescheduleCompleted": "Rescheduling completed!",
+      "bookingCompleted": "Appointment booked!"
+    },
+    "errors": {
+      "slotTaken": "This time slot has already been taken by another staff member. Please choose another time.",
+      "unknown": "Unknown error while booking.",
+      "invalidResponse": "Invalid booking response."
+    },
+    "rescheduleNote": "Rescheduled to {{date}} {{time}}",
+    "message": {
+      "greeting": "Hello *{{name}}*! 😊",
+      "rescheduled": "Your rescheduling was completed successfully!",
+      "booked": "Your appointment was booked successfully!",
+      "detailsTitle": "📝 *Appointment Details:*",
+      "dateLine": "📅 *Date:* {{date}}",
+      "timeLine": "🕒 *Time:* {{time}}",
+      "doctorLine": "👨‍⚕️ *Professional:* {{doctor}}",
+      "locationLine": "📍 *Location:* {{location}}",
+      "mapsLine": "🗺️ *Directions:* {{url}}",
+      "checkinTitle": "🔗 *VIRTUAL WAITING ROOM:*",
+      "checkinInstructions": "Access this to check in at the time of your appointment:",
+      "paymentTitle": "💳 *PAYMENT / CONFIRMATION:*",
+      "paymentInstructions": "To secure your spot, complete the payment at the link:",
+      "closing": "_See you soon!_ 💙"
+    }
+  },
+  "sidebarAppointmentsView": {
+    "headerLabel": "Appointments",
+    "tabs": {
+      "upcoming": "Upcoming ({{count}})",
+      "history": "History ({{count}})"
+    },
+    "empty": {
+      "upcoming": "No appointments scheduled",
+      "history": "No history"
+    },
+    "consultationFallback": "Appointment",
+    "professionalFallback": "Professional",
+    "yourProfessionalFallback": "your professional",
+    "dateTimeLabel": "{{date}} at {{time}}",
+    "status": {
+      "scheduled": "Scheduled",
+      "confirmed": "Confirmed",
+      "completed": "Completed",
+      "canceled": "Canceled",
+      "no_show": "No-show",
+      "in_progress": "In progress"
+    },
+    "billing": {
+      "paid": "Paid",
+      "pending": "Pending"
+    },
+    "actions": {
+      "reschedule": "Reschedule",
+      "sendReminder": "Send Reminder",
+      "sendCheckinLink": "Waiting Room Link",
+      "sendPaymentLink": "Payment Link",
+      "cancelAppointment": "Cancel Appointment"
+    },
+    "confirmCancel": "Cancel appointment on {{date}}?",
+    "cancelReason": "Canceled by agent via inbox",
+    "toasts": {
+      "canceled": "Appointment canceled",
+      "checkinSent": "Check-in link sent!",
+      "reminderSent": "Reminder sent!",
+      "paymentLinkSent": "Payment link sent!"
+    },
+    "errors": {
+      "cancelFailed": "Error canceling"
+    },
+    "message": {
+      "checkin": "Hello {{name}}! 😊 Here is the link to your virtual waiting room for your appointment on {{date}}: {{link}}",
+      "reminder": "Hello {{name}}! 😊 Just a reminder about your appointment with {{doctor}} on {{date}} at {{time}}. See you there! 💙",
+      "paymentLink": "Hello {{name}}! 😊 Here is your link for payment/confirmation of the appointment: {{link}}"
+    }
+  },
+  "checkoutModal": {
+    "title": "Receive Payment",
+    "patientLabel": "Patient:",
+    "amountToReceiveLabel": "Amount to Receive",
+    "creditCard": {
+      "title": "Credit Card",
+      "subtitle": "Up to 21 Installments"
+    },
+    "financing": {
+      "title": "Financing",
+      "subtitle": "Up to 24 Installments without a Card"
+    },
+    "installmentsLabel": "Number of Installments",
+    "generatePaymentLink": "Generate Payment Link",
+    "sendDrCashStudy": "Send Dr. Cash Study",
+    "operationStarted": "Operation Started!",
+    "successCreditCard": "Waiting for the patient to process the card payment via the link.",
+    "successFinancing": "The patient received the proposal link on their phone for credit analysis.",
+    "closeWindow": "Close Window",
+    "securityBadge": {
+      "environment": "PCI-DSS Secure Environment",
+      "encryption": "SSL Encryption"
+    },
+    "toasts": {
+      "financingSent": "Financing proposal sent successfully!",
+      "checkoutStarted": "Pagar.me Checkout started!"
+    },
+    "errors": {
+      "paymentFailed": "Error processing payment."
+    }
+  }
+}

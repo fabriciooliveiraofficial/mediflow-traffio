@@ -16,5 +16,86 @@
     "pt-BR": "Portugués (Brasil)",
     "en": "Inglés",
     "es": "Español"
+  },
+  "nav": {
+    "agenda": "Agenda",
+    "reception": "Recepción",
+    "inbox": "Bandeja de Entrada",
+    "followup": "Seguimiento (CRM)",
+    "leads": "Pacientes",
+    "analytics": "Finanzas",
+    "professionals": "Personal Clínico",
+    "services": "Procedimientos",
+    "whatsapp": "WhatsApp",
+    "communications": "Comunicaciones",
+    "intelligence": "Inteligencia",
+    "dashboard": "Analytics Pro",
+    "notifications": "Notificaciones",
+    "payments": "Pagos",
+    "billing": "Suscripción",
+    "settings": "Configuración",
+    "odontology": "Odontología",
+    "odontogram": "Odontograma",
+    "medicalRecords": "Expediente Clínico",
+    "nutrition": "Nutrición",
+    "nutritionPlan": "Plan Nutricional",
+    "signOut": "Cerrar Sesión",
+    "signOutAccount": "Cerrar Sesión de la Cuenta"
+  },
+  "layout": {
+    "userFallback": "Usuario",
+    "globalSearchPlaceholder": "Búsqueda global integrada...",
+    "handoff": {
+      "title": "Atención Humana",
+      "patientWaitingPrefix": "Paciente",
+      "patientWaitingSuffix": "esperando",
+      "justArrived": "Acaba de entrar a la fila",
+      "waitingMinutes": "Esperando hace {{minutes}} min",
+      "dismiss": "Descartar",
+      "attendNow": "Atender ahora",
+      "later": "Después"
+    }
+  },
+  "patientSearch": {
+    "procedureLabel": "Procedimiento: {{specialty}}",
+    "searchPlaceholder": "Buscar paciente por nombre...",
+    "searching": "Buscando...",
+    "noResults": "Ningún paciente encontrado.",
+    "typeToSearch": "Escribe para buscar pacientes.",
+    "idLabel": "ID: #{{id}}"
+  },
+  "calendar": {
+    "weekdaysShort": ["D", "L", "M", "X", "J", "V", "S"]
+  },
+  "countryFieldSelector": {
+    "title": "País de este campo"
+  },
+  "intlDocInput": {
+    "invalidSuffix": " inválido"
+  },
+  "intlPhoneInput": {
+    "invalidPrefix": "Número inválido para "
+  },
+  "smartAddressInput": {
+    "placeholder": "Escribe la dirección o {{postalLabel}}...",
+    "clear": "Limpiar",
+    "useMyLocation": "Usar mi ubicación"
+  },
+  "tenantAddressForm": {
+    "title": "Dirección y Contacto",
+    "streetPlaceholder": "Dirección (Calle, Av...)",
+    "numberPlaceholder": "Nº",
+    "complementPlaceholder": "Complemento",
+    "neighborhoodPlaceholder": "Colonia"
+  },
+  "linkRedirectPage": {
+    "codeMissing": "Código de enlace no proporcionado.",
+    "notFound": "Este enlace corto no fue encontrado o está desactivado.",
+    "processingError": "Ocurrió un error al procesar la redirección. Intenta de nuevo.",
+    "redirecting": "Redirigiendo...",
+    "beingDirected": "Estás siendo dirigido al destino seguro.",
+    "linkNotFoundTitle": "Enlace No Encontrado",
+    "goHome": "Ir al inicio",
+    "redirectingHomeCountdown": "Redirigiendo a la página de inicio en {{countdown}}s..."
   }
 }

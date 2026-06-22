@@ -241,29 +241,65 @@ export const addressService = {
 
         try {
             const res = await fetch(`${ZIPPOPOTAM_BASE}/${country.toLowerCase()}/${encodeURIComponent(cleanZip)}`);
-            if (!res.ok) return null;
-            const data: ZippopotamResponse = await res.json();
-            const place = data.places?.[0];
-            if (!place) return null;
+            if (res.ok) {
+                const data: ZippopotamResponse = await res.json();
+                const place = data.places?.[0];
+                if (place) {
+                    const state = place['state abbreviation'] || place.state;
+                    const label = [place['place name'], state, data['post code']].filter(Boolean).join(' — ');
 
-            const state = place['state abbreviation'] || place.state;
-            const label = [place['place name'], state, data['post code']].filter(Boolean).join(' — ');
-
-            return {
-                label,
-                city: place['place name'],
-                state,
-                country: data.country,
-                countryCode: data['country abbreviation'],
-                postcode: data['post code'],
-                latitude: parseFloat(place.latitude) || 0,
-                longitude: parseFloat(place.longitude) || 0,
-                source: 'zippopotam',
-            };
+                    return {
+                        label,
+                        city: place['place name'],
+                        state,
+                        country: data.country,
+                        countryCode: data['country abbreviation'],
+                        postcode: data['post code'],
+                        latitude: parseFloat(place.latitude) || 0,
+                        longitude: parseFloat(place.longitude) || 0,
+                        source: 'zippopotam',
+                    };
+                }
+            }
         } catch (err) {
-            console.warn('[addressService] Zippopotam lookup failed:', err);
-            return null;
+            console.warn('[addressService] Zippopotam lookup failed, trying fallback:', err);
         }
+
+        // Fallback to Photon API
+        try {
+            const params = new URLSearchParams({
+                q: `${cleanZip} ${country}`,
+                limit: '1',
+            });
+            const bbox = COUNTRY_BBOX[country];
+            if (bbox) params.set('bbox', bbox.join(','));
+
+            const photonRes = await fetch(`${PHOTON_BASE}/api?${params}`);
+            if (photonRes.ok) {
+                const photonData = await photonRes.json();
+                const f: PhotonFeature | undefined = photonData.features?.[0];
+                if (f) {
+                    const city = f.properties.city || f.properties.district || f.properties.name || '';
+                    const state = f.properties.state || '';
+                    const label = [city, state, cleanZip].filter(Boolean).join(' — ');
+                    return {
+                        label,
+                        city,
+                        state,
+                        country: f.properties.country || '',
+                        countryCode: country,
+                        postcode: cleanZip,
+                        latitude: f.geometry.coordinates[1],
+                        longitude: f.geometry.coordinates[0],
+                        source: 'photon',
+                    };
+                }
+            }
+        } catch (err) {
+            console.warn('[addressService] Photon fallback lookup failed:', err);
+        }
+
+        return null;
     },
 
     /**

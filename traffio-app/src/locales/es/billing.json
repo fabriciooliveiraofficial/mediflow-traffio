@@ -1,1 +1,250 @@
-{}
+{
+  "paymentRequiredModal": {
+    "title": "¡Falta solo un paso!",
+    "subtitle": "Agrega una forma de pago para desbloquear tus 14 días de prueba gratis.",
+    "cycleAnnual": "Anual",
+    "cycleMonthly": "Mensual",
+    "billedFromPrefix": "facturado desde ",
+    "perMonth": "/mes",
+    "guarantees": {
+      "freeTrial": "14 días gratis para probar — no se te cobrará nada hoy",
+      "cancelAnytime": "Cancela en cualquier momento en la página Suscripción → Gestionar Facturación, sin costo",
+      "billedAfterTrial": "Tu suscripción solo se cobra después de finalizar los 14 días de prueba"
+    },
+    "addPaymentMethod": "Agregar forma de pago",
+    "securityFooter": "Pago procesado de forma segura por Stripe",
+    "errors": {
+      "sessionExpired": "Sesión expirada. Inicia sesión de nuevo.",
+      "checkoutStartError": "No fue posible iniciar el checkout. Inténtalo de nuevo.",
+      "genericCheckoutError": "Error al iniciar el checkout. Inténtalo de nuevo."
+    }
+  },
+  "subscriptionGuard": {
+    "canceled": {
+      "title": "Suscripción cancelada",
+      "message": "Tu suscripción fue cancelada. Reactívala para volver a usar la plataforma — tus datos siguen almacenados de forma segura.",
+      "cta": "Reactivar suscripción"
+    },
+    "suspended": {
+      "title": "Pago pendiente",
+      "message": "No pudimos procesar el cobro de tu suscripción. Actualiza tu forma de pago para reactivar el acceso.",
+      "cta": "Actualizar pago"
+    },
+    "trialExpired": {
+      "title": "Tu período de prueba terminó",
+      "message": "Los 14 días de prueba gratis llegaron a su fin. Suscríbete a un plan para seguir usando la plataforma — tus datos están guardados.",
+      "cta": "Suscribirme ahora"
+    },
+    "goToSettings": "Ir a Configuración"
+  },
+  "billingPage": {
+    "pageTitle": "Suscripción",
+    "pageSubtitle": "Gestiona tu plan y facturación de la plataforma Traffio.",
+    "trialExpiredAlert": {
+      "title": "Tu período de prueba expiró",
+      "message": "Elige un plan a continuación para seguir usando Traffio sin interrupciones."
+    },
+    "trialActiveAlert": {
+      "prefix": "Estás en el período de prueba.",
+      "daysLeft_one": "{{count}} día restante",
+      "daysLeft_other": "{{count}} días restantes",
+      "expiresToday": "Vence hoy",
+      "endsAtSuffix": "Termina el {{date}}."
+    },
+    "activePlanBanner": {
+      "label": "Plan Activo",
+      "renewsAt": "Se renueva el {{date}} · {{price}}/mes",
+      "trialUntil": "Prueba hasta {{date}}",
+      "manageBillingTitle": "Actualizar tarjeta, ver facturas y cancelar la suscripción",
+      "manageBilling": "Gestionar Facturación"
+    },
+    "status": {
+      "trial": "Prueba",
+      "trialExpired": "Prueba expirada",
+      "active": "Activo",
+      "suspended": "Suspendido",
+      "canceled": "Cancelado"
+    },
+    "scheduledChangeBanner": {
+      "prefix": "Cambio programado: tu plan pasará a ser",
+      "middle": "el",
+      "suffix": "Hasta entonces, mantienes todos los beneficios de tu plan actual, ya pagados. Para deshacerlo, simplemente elige otro plan."
+    },
+    "cycleToggle": {
+      "monthly": "Mensual",
+      "annual": "Anual",
+      "discountBadge": "-20%"
+    },
+    "planCard": {
+      "currentBadge": "Tu Plan",
+      "perMonth": "/mes",
+      "billedAnnually": "facturado {{price}}/año",
+      "extraWhatsappNumber": "+{{price}}/mes por número de WhatsApp adicional"
+    },
+    "cta": {
+      "currentPlan": "Plan actual",
+      "talkToSales": "Hablar con ventas",
+      "switchToAnnual": "Cambiar a anual",
+      "switchToMonthly": "Cambiar a mensual",
+      "upgrade": "Mejorar plan",
+      "changePlan": "Cambiar de plan"
+    },
+    "securityNote": "Todos los pagos se procesan de forma segura. Puedes cancelar o cambiar tu plan en cualquier momento sin penalizaciones.",
+    "confirm": {
+      "upgradeMessage": "¿Mejorar al plan {{plan}} ({{cycle}})? La diferencia proporcional del período se cobra ahora y el tiempo no usado del plan actual se convierte en crédito.",
+      "downgradeMessage": "¿Cambiar al plan {{plan}} ({{cycle}})? Mantienes el plan actual hasta el {{renewsAt}} (ya pagado) y el cambio se aplica en la renovación.",
+      "nextRenewalFallback": "la próxima renovación",
+      "cycleAnnual": "anual",
+      "cycleMonthly": "mensual"
+    },
+    "toasts": {
+      "portalOpenError": "No fue posible abrir el portal",
+      "manageBillingError": "Error al abrir el portal de facturación: {{message}}",
+      "planChangedImmediateTrial": "¡Plan cambiado a {{plan}}! No se cobra nada durante el período de prueba.",
+      "planChangedImmediate": "¡Plan cambiado a {{plan}}! La diferencia proporcional se ajustó en la factura.",
+      "planChangeScheduled": "Cambio programado: plan {{plan}} a partir del {{date}}.",
+      "changePlanError": "Error al cambiar el plan: {{message}}"
+    }
+  },
+  "sidebarPaymentView": {
+    "headerLabel": "Pago",
+    "methods": {
+      "pix": "PIX",
+      "creditCard": "Tarjeta",
+      "boleto": "Boleto"
+    },
+    "toasts": {
+      "invalidAmount": "Monto inválido",
+      "chargeCreated": "¡Cobro creado!",
+      "chargeError": "Error al generar el cobro",
+      "linkCopied": "¡Enlace copiado!",
+      "linkSentInChat": "¡Enlace enviado en el chat!"
+    },
+    "resultView": {
+      "chargeGenerated": "¡Cobro Generado!",
+      "sendInChat": "Enviar en el Chat",
+      "newCharge": "Nuevo Cobro"
+    },
+    "form": {
+      "amountLabel": "Monto (R$)",
+      "amountPlaceholder": "150,00",
+      "descriptionLabel": "Descripción (opcional)",
+      "descriptionPlaceholder": "Ej: Consulta de evaluación",
+      "methodLabel": "Método"
+    },
+    "recentBillings": {
+      "title": "Cobros Recientes"
+    },
+    "status": {
+      "pending": "Pendiente",
+      "paid": "Pagado",
+      "overdue": "Vencido",
+      "canceled": "Cancelado"
+    },
+    "generateButton": "Generar Enlace de Pago",
+    "defaultNote": "Cobro - {{patientName}}",
+    "chatMessage": "¡Hola {{firstName}}! 😊 Aquí tienes el enlace de pago por un monto de {{amount}}: {{link}}\n\nPuedes pagar por PIX, tarjeta o boleto. ¡Cualquier duda, aquí estoy! 💙"
+  },
+  "paymentsPage": {
+    "header": {
+      "title": "Centro de Pagos",
+      "subtitle": "Configura cómo tu clínica recibe pagos y ofrece financiamiento.",
+      "secureBadge": "Entorno Seguro PCI-DSS"
+    },
+    "toasts": {
+      "asaasSaved": "¡Clave de Asaas guardada con éxito!",
+      "asaasError": "Error al guardar la configuración de Asaas.",
+      "drcashSaved": "¡Configuración de Dr. Cash guardada!",
+      "drcashError": "Error al guardar la configuración de financiamiento."
+    },
+    "connectionStatus": {
+      "active": "Activo",
+      "notConnected": "No conectado"
+    },
+    "asaasCard": {
+      "badge": "Tarjeta de Crédito",
+      "title": "Asaas",
+      "description": {
+        "prefix": "Cuenta digital completa para clínicas. Acepta tarjetas con cuotas de",
+        "strong": "hasta 21x",
+        "suffix": "(Visa/Mastercard) con subcuentas independientes por clínica vía API."
+      },
+      "features": ["21x Visa/Mastercard", "Subcuentas API", "White Label", "Pix nativo", "Boleto"],
+      "apiKeyLabel": "Clave de API de Asaas",
+      "saving": "Guardando...",
+      "updateKey": "Actualizar Clave",
+      "activate": "Activar Asaas",
+      "createFreeAccount": "Crear cuenta gratuita en Asaas"
+    },
+    "drcashCard": {
+      "badge": "Boleto en Cuotas",
+      "title": "Dr. Cash / Dr. Parcela",
+      "description": {
+        "prefix": "Especialista en salud. Ofrece financiamiento en",
+        "strong": "hasta 24 cuotas en boleto",
+        "suffix": "sin afectar el límite de la tarjeta del paciente."
+      },
+      "features": ["24x en boleto", "Especializado en salud", "No afecta la tarjeta", "Aprobación facilitada"],
+      "apiKeyLabel": "Clave API / Identificador",
+      "apiKeyPlaceholder": "Ingresa tu Clave de Dr. Cash",
+      "saving": "Guardando...",
+      "updateKey": "Actualizar Clave",
+      "activate": "Activar Financiamiento",
+      "approvalNote": "Necesitarás una cuenta aprobada con Dr. Cash para activarlo."
+    },
+    "asaasInfoNote": {
+      "strong": "Cómo funciona la integración con Asaas:",
+      "prefix": "al guardar tu clave de API, Traffio crea automáticamente una",
+      "subaccount": "subcuenta de Asaas",
+      "middle": "para cada clínica registrada. Los cobros se emiten a nombre de la clínica (white label), sin exponer la marca Asaas al paciente. Obtén tu clave en",
+      "menuPath": "Mi Cuenta → Configuración → Claves de API",
+      "suffix": "en el panel de Asaas."
+    },
+    "proposalsHistory": {
+      "title": "Historial de Propuestas",
+      "subtitle": "Últimas solicitudes de financiamiento vía Dr. Cash.",
+      "viewAll": "Ver Todo",
+      "table": {
+        "patient": "Paciente",
+        "amount": "Monto",
+        "installments": "Cuotas",
+        "status": "Estado",
+        "date": "Fecha"
+      },
+      "externalPatient": "Paciente Externo"
+    },
+    "infoCards": {
+      "autoSubaccounts": {
+        "title": "Subcuentas Automáticas",
+        "description": "Cada clínica registrada en Traffio recibe su propia subcuenta de Asaas creada vía API — sin trámites manuales."
+      },
+      "installments21x": {
+        "title": "Cuotas de hasta 21x",
+        "description": "Las tarjetas Visa y Mastercard aceptan hasta 21 cuotas. Combínalo con Dr. Cash para ofrecer 24 cuotas en boleto sin depender del límite de la tarjeta."
+      },
+      "whiteLabel": {
+        "title": "White Label Nativo",
+        "description": "Los cobros se emiten siempre a nombre de la clínica. El paciente ve la marca de la clínica — nunca la marca de Asaas ni de Traffio."
+      }
+    }
+  },
+  "paymentPolling": {
+    "title": "Confirmando pago...",
+    "message": "Estamos recibiendo la confirmación de Stripe y habilitando tu acceso. Esto debería tardar solo unos segundos."
+  },
+  "pagarmeCallback": {
+    "connecting": "Conectando tu cuenta de Pagar.me...",
+    "authorizationFailed": "La autorización fue cancelada o falló.",
+    "connectionFailedToast": "Falló la conexión con Pagar.me.",
+    "tenantNotIdentified": "Error de contexto: Tenant no identificado.",
+    "successRedirecting": "¡Cuenta conectada con éxito! Redirigiendo...",
+    "connectedToast": "¡Pagar.me conectado con éxito!",
+    "tokenExchangeError": "Error al intercambiar el token con Pagar.me. Inténtalo de nuevo.",
+    "internalErrorToast": "Error interno en la integración.",
+    "titleLoading": "Casi listo...",
+    "titleSuccess": "¡Todo Listo!",
+    "titleError": "¡Ups! Algo salió mal",
+    "sslEncrypted": "Conexión Cifrada SSL",
+    "backToSettings": "Volver a Configuración"
+  }
+}

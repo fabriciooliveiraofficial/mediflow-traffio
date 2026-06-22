@@ -16,5 +16,86 @@
     "pt-BR": "Portuguese (Brazil)",
     "en": "English",
     "es": "Spanish"
+  },
+  "nav": {
+    "agenda": "Schedule",
+    "reception": "Reception",
+    "inbox": "Inbox",
+    "followup": "Follow-up (CRM)",
+    "leads": "Patients",
+    "analytics": "Finance",
+    "professionals": "Clinical Staff",
+    "services": "Procedures",
+    "whatsapp": "WhatsApp",
+    "communications": "Communications",
+    "intelligence": "Intelligence",
+    "dashboard": "Analytics Pro",
+    "notifications": "Notifications",
+    "payments": "Payments",
+    "billing": "Subscription",
+    "settings": "Settings",
+    "odontology": "Dentistry",
+    "odontogram": "Odontogram",
+    "medicalRecords": "Medical Records",
+    "nutrition": "Nutrition",
+    "nutritionPlan": "Nutrition Plan",
+    "signOut": "Sign Out",
+    "signOutAccount": "Sign Out of Account"
+  },
+  "layout": {
+    "userFallback": "User",
+    "globalSearchPlaceholder": "Integrated global search...",
+    "handoff": {
+      "title": "Human Support",
+      "patientWaitingPrefix": "Patient",
+      "patientWaitingSuffix": "waiting",
+      "justArrived": "Just joined the queue",
+      "waitingMinutes": "Waiting for {{minutes}} min",
+      "dismiss": "Dismiss",
+      "attendNow": "Attend now",
+      "later": "Later"
+    }
+  },
+  "patientSearch": {
+    "procedureLabel": "Procedure: {{specialty}}",
+    "searchPlaceholder": "Search patient by name...",
+    "searching": "Searching...",
+    "noResults": "No patients found.",
+    "typeToSearch": "Type to search patients.",
+    "idLabel": "ID: #{{id}}"
+  },
+  "calendar": {
+    "weekdaysShort": ["S", "M", "T", "W", "T", "F", "S"]
+  },
+  "countryFieldSelector": {
+    "title": "Country for this field"
+  },
+  "intlDocInput": {
+    "invalidSuffix": " invalid"
+  },
+  "intlPhoneInput": {
+    "invalidPrefix": "Invalid number for "
+  },
+  "smartAddressInput": {
+    "placeholder": "Enter the address or {{postalLabel}}...",
+    "clear": "Clear",
+    "useMyLocation": "Use my location"
+  },
+  "tenantAddressForm": {
+    "title": "Address and Contact",
+    "streetPlaceholder": "Address (Street, Ave...)",
+    "numberPlaceholder": "No.",
+    "complementPlaceholder": "Apt/Suite",
+    "neighborhoodPlaceholder": "Neighborhood"
+  },
+  "linkRedirectPage": {
+    "codeMissing": "Link code not provided.",
+    "notFound": "This shortened link was not found or has been deactivated.",
+    "processingError": "An error occurred while processing the redirect. Please try again.",
+    "redirecting": "Redirecting...",
+    "beingDirected": "You are being directed to the secure destination.",
+    "linkNotFoundTitle": "Link Not Found",
+    "goHome": "Go to home",
+    "redirectingHomeCountdown": "Redirecting to the home page in {{countdown}}s..."
   }
 }

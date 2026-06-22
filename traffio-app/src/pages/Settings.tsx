@@ -48,6 +48,7 @@ import { clsx } from 'clsx';
 import { BuyNumberModal } from '../components/numbers/BuyNumberModal';
 import { PendingOrdersList } from '../components/numbers/PendingOrdersList';
 import { SystemLogs } from '../components/settings/SystemLogs';
+import { decimalToDMS, parseDMSToDecimal } from '../lib/geoUtils';
 
 
 
@@ -1020,24 +1021,30 @@ export const Settings = () => {
                                                         <div>
                                                             <label className="text-[10px] font-bold text-graphite-400">{t('clinics.latitudeLabel')}</label>
                                                             <input
-                                                                type="number"
-                                                                step="0.000001"
-                                                                key={`lat-${tenant.address}-${tenant.address_number}-${tenant.address_zip_code}`}
-                                                                defaultValue={tenant.latitude || ''}
+                                                                type="text"
+                                                                key={`lat-${tenant.address}-${tenant.address_number}-${tenant.address_zip_code}-${tenant.latitude}`}
+                                                                defaultValue={decimalToDMS(tenant.latitude, true)}
                                                                 placeholder="-23.550520"
-                                                                onBlur={(e) => handleSaveTenant(tenant.id, { latitude: parseFloat(e.target.value) || null })}
+                                                                onBlur={(e) => {
+                                                                    const val = parseDMSToDecimal(e.target.value);
+                                                                    handleSaveTenant(tenant.id, { latitude: val });
+                                                                    e.target.value = decimalToDMS(val, true);
+                                                                }}
                                                                 className="w-full bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm font-medium text-graphite-700 focus:outline-none focus:border-brand-primary transition-colors"
                                                             />
                                                         </div>
                                                         <div>
                                                             <label className="text-[10px] font-bold text-graphite-400">{t('clinics.longitudeLabel')}</label>
                                                             <input
-                                                                type="number"
-                                                                step="0.000001"
-                                                                key={`lng-${tenant.address}-${tenant.address_number}-${tenant.address_zip_code}`}
-                                                                defaultValue={tenant.longitude || ''}
+                                                                type="text"
+                                                                key={`lng-${tenant.address}-${tenant.address_number}-${tenant.address_zip_code}-${tenant.longitude}`}
+                                                                defaultValue={decimalToDMS(tenant.longitude, false)}
                                                                 placeholder="-46.633308"
-                                                                onBlur={(e) => handleSaveTenant(tenant.id, { longitude: parseFloat(e.target.value) || null })}
+                                                                onBlur={(e) => {
+                                                                    const val = parseDMSToDecimal(e.target.value);
+                                                                    handleSaveTenant(tenant.id, { longitude: val });
+                                                                    e.target.value = decimalToDMS(val, false);
+                                                                }}
                                                                 className="w-full bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm font-medium text-graphite-700 focus:outline-none focus:border-brand-primary transition-colors"
                                                             />
                                                         </div>
@@ -1338,24 +1345,30 @@ export const Settings = () => {
                                                 <div>
                                                     <label className="text-[10px] font-bold text-graphite-400 uppercase">{t('locations.latitudeLabel')}</label>
                                                     <input
-                                                        type="number"
-                                                        step="0.000001"
-                                                        key={`lat-${locForm.address}-${locForm.address_number}-${locForm.address_zip_code}`}
-                                                        defaultValue={locForm.latitude || ''}
+                                                        type="text"
+                                                        key={`lat-${locForm.address}-${locForm.address_number}-${locForm.address_zip_code}-${locForm.latitude}`}
+                                                        defaultValue={decimalToDMS(locForm.latitude, true)}
                                                         placeholder="-23.550520"
-                                                        onBlur={(e) => setLocForm({ ...locForm, latitude: parseFloat(e.target.value) || null })}
+                                                        onBlur={(e) => {
+                                                            const val = parseDMSToDecimal(e.target.value);
+                                                            setLocForm({ ...locForm, latitude: val });
+                                                            e.target.value = decimalToDMS(val, true);
+                                                        }}
                                                         className="w-full bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm font-medium text-graphite-700 focus:outline-none focus:border-brand-primary transition-colors"
                                                     />
                                                 </div>
                                                 <div>
                                                     <label className="text-[10px] font-bold text-graphite-400 uppercase">{t('locations.longitudeLabel')}</label>
                                                     <input
-                                                        type="number"
-                                                        step="0.000001"
-                                                        key={`lng-${locForm.address}-${locForm.address_number}-${locForm.address_zip_code}`}
-                                                        defaultValue={locForm.longitude || ''}
+                                                        type="text"
+                                                        key={`lng-${locForm.address}-${locForm.address_number}-${locForm.address_zip_code}-${locForm.longitude}`}
+                                                        defaultValue={decimalToDMS(locForm.longitude, false)}
                                                         placeholder="-46.633308"
-                                                        onBlur={(e) => setLocForm({ ...locForm, longitude: parseFloat(e.target.value) || null })}
+                                                        onBlur={(e) => {
+                                                            const val = parseDMSToDecimal(e.target.value);
+                                                            setLocForm({ ...locForm, longitude: val });
+                                                            e.target.value = decimalToDMS(val, false);
+                                                        }}
                                                         className="w-full bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm font-medium text-graphite-700 focus:outline-none focus:border-brand-primary transition-colors"
                                                     />
                                                 </div>

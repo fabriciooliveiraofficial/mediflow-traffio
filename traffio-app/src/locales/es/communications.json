@@ -1,1 +1,605 @@
-{}
+{
+  "communicationsHub": {
+    "nav": {
+      "dashboard": "Panel",
+      "sms": "SMS",
+      "calls": "Llamadas",
+      "voicemail": "Buzón de voz",
+      "numbers": "Números"
+    },
+    "notEnabled": {
+      "title": "Comunicaciones no habilitadas",
+      "messagePrefix": "Activa el Softphone en",
+      "settingsPath": "Configuración → Comunicaciones"
+    },
+    "kpis": {
+      "received": "Recibidas",
+      "made": "Realizadas",
+      "missed": "Perdidas",
+      "minutes": "Minutos",
+      "currentMonth": "mes actual",
+      "smsSent": "SMS Enviados",
+      "smsReceived": "SMS Recibidos",
+      "answerRate": "Tasa de Respuesta",
+      "today": "Hoy",
+      "calls": "llamadas"
+    },
+    "chart": {
+      "last7DaysTitle": "Llamadas — últimos 7 días",
+      "monthDistributionTitle": "Distribución del mes"
+    },
+    "detail": {
+      "selectCall": "Selecciona una llamada",
+      "selectConversation": "Selecciona una conversación",
+      "selectVoicemail": "Selecciona un mensaje de voz",
+      "selectNumber": "Selecciona un número",
+      "inbound": "Entrante",
+      "outbound": "Saliente",
+      "callBack": "Devolver llamada",
+      "sendSms": "Enviar SMS",
+      "duration": "Duración",
+      "status": "Estado",
+      "answered": "Atendida",
+      "recording": "Grabación",
+      "download": "Descargar",
+      "notes": "Notas",
+      "notesPlaceholder": "Notas de esta llamada...",
+      "callTitle": "Llamar",
+      "noMessagesYet": "Aún no hay mensajes",
+      "smsPlaceholder": "Escribe el SMS... (máx 160 caracteres)",
+      "audio": "Audio",
+      "transcript": "Transcripción"
+    },
+    "list": {
+      "searchPlaceholder": "Buscar...",
+      "refresh": "Actualizar",
+      "noCalls": "Sin llamadas",
+      "noSmsConversations": "Sin conversaciones de SMS",
+      "noVoicemails": "Sin mensajes de voz",
+      "noNumbers": "Sin números",
+      "voiceSuffix": "Voz",
+      "smsSuffix": "SMS"
+    }
+  },
+  "humanInbox": {
+    "sla": { "now": "ahora" },
+    "statusBadge": {
+      "botActive": "Bot Activo",
+      "queued": "En espera",
+      "humanActive": "En Atención",
+      "closed": "Cerrado"
+    },
+    "temperature": { "cold": "Frío", "warm": "Tibio", "hot": "Caliente" },
+    "priority": { "low": "Baja", "medium": "Media", "high": "Alta", "urgent": "Urgente" },
+    "channels": {
+      "liveChat": "Chat en Vivo",
+      "instagram": "Instagram",
+      "messenger": "Messenger",
+      "whatsapp": "WhatsApp",
+      "instagramDirect": "Instagram Direct",
+      "facebookMessenger": "Facebook Messenger"
+    },
+    "fallbackNames": {
+      "instagramUser": "Usuario de Instagram",
+      "messengerUser": "Usuario de Messenger",
+      "webVisitor": "Visitante Web",
+      "unregisteredPatient": "Paciente no registrado",
+      "patient": "Paciente",
+      "doctor": "Médico",
+      "appointment": "Cita",
+      "clinicName": "Nuestra Clínica",
+      "member": "Miembro"
+    },
+    "conversationRow": {
+      "stageTitlePrefix": "Etapa:",
+      "noMessages": "Sin mensajes",
+      "waiting": "en espera"
+    },
+    "audioPlayer": { "label": "Audio de WhatsApp" },
+    "messageBubble": {
+      "mediaAlt": "Medio",
+      "gifAlt": "GIF",
+      "documentFallback": "Documento",
+      "mimeFallback": "PDF",
+      "sizeFallback": "Archivo",
+      "internalNote": "Nota interna",
+      "copy": "Copiar",
+      "reply": "Responder",
+      "edit": "Editar",
+      "forward": "Reenviar",
+      "deleteForEveryone": "Eliminar para todos",
+      "mediaPlaceholder": "[medio]",
+      "typePlaceholder": "[{{type}}]",
+      "edited": "editado"
+    },
+    "chatInput": {
+      "gateClaimToReply": "Toma la conversación para responder",
+      "gateClosed": "Conversación cerrada",
+      "gateReadOnly": "En atención por otro agente. Solo lectura permitida.",
+      "toasts": {
+        "audioSendError": "Error al enviar audio: {{message}}",
+        "micPermissionDenied": "Permiso de micrófono denegado. Verifica la configuración de tu navegador.",
+        "micAccessError": "Error al acceder al micrófono: {{message}}",
+        "fileSendError": "Error al enviar archivo: {{message}}"
+      },
+      "scripts": {
+        "title": "Scripts Inteligentes",
+        "manageTitle": "Administrar Scripts",
+        "navigateHint": "↑↓ Navegar",
+        "noneFound": "No se encontraron scripts",
+        "create": "Crear Script",
+        "deleteConfirm": "¿Deseas eliminar el script \"{{title}}\"?",
+        "customizeEdit": "Personalizar (Editar)",
+        "editScript": "Editar script",
+        "deleteScript": "Eliminar script"
+      },
+      "promptModal": {
+        "title": "Personalizar Script",
+        "subtitle": "Completa los campos para un envío perfecto",
+        "hint": "Los campos a continuación ayudan a hacer la atención más personalizada. ¡Cada detalle importa!",
+        "placeholderExample": "Ej: Martes a las 14h...",
+        "cancel": "Cancelar",
+        "useScript": "Usar Script"
+      },
+      "gifPicker": {
+        "title": "GIFs de Tenor",
+        "comingSoon": "Búsqueda de GIFs próximamente..."
+      },
+      "recording": {
+        "cancel": "Cancelar",
+        "inProgress": "Grabando audio..."
+      },
+      "mediaPreview": {
+        "sendImage": "Enviar Imagen",
+        "sendVideo": "Enviar Video",
+        "captionLabel": "Leyenda del medio",
+        "captionPlaceholder": "Agrega una leyenda..."
+      },
+      "replyBar": {
+        "editing": "Editando mensaje",
+        "replying": "Respondiendo"
+      },
+      "modeTabs": {
+        "broadcast": "Transmitir",
+        "internalNote": "Nota Interna"
+      },
+      "sendingMedia": "Enviando Medio...",
+      "titles": {
+        "emojis": "Emojis",
+        "attachFile": "Adjuntar Archivo",
+        "camera": "Cámara",
+        "recordAudio": "Grabar Audio"
+      },
+      "placeholder": {
+        "note": "Escribe una nota interna privada...",
+        "message": "Haz clic para escribir... (Enter envía)"
+      },
+      "noteHiddenHint": "Nota oculta para el paciente"
+    },
+    "patientPanel": {
+      "title": "Info del Paciente",
+      "editProfileTitle": "Editar Perfil",
+      "talkingTo": "Hablando con:",
+      "frontDeskNotes": "Notas de Recepción",
+      "birthDatePrefix": "Nac.:",
+      "upcomingAppointments": "Próximas Citas",
+      "noAppointments": "Sin citas programadas",
+      "atTimePrefix": "a las",
+      "quickActions": "Acciones Rápidas",
+      "actions": {
+        "register": "Registrar",
+        "link": "Vincular",
+        "schedule": "Agendar",
+        "appointments": "Citas",
+        "payment": "Pago",
+        "availability": "Disponib.",
+        "directory": "Directorio",
+        "classify": "Clasificar",
+        "waitlist": "Espera"
+      },
+      "kanbanClassification": "Clasificación Kanban",
+      "kanbanHint": "Cambia la etapa del embudo aquí para reflejarlo en el Panel de Seguimiento (Kanban).",
+      "transferAction": "Transferir Conversación"
+    },
+    "main": {
+      "headerTitle": "Atención Humana",
+      "searchPlaceholder": "Buscar paciente...",
+      "tabs": { "all": "Todos", "queue": "Cola", "mine": "Mías" },
+      "list": { "noResults": "Sin resultados", "queueEmpty": "Cola vacía", "noActiveConversations": "Sin conversaciones activas" },
+      "backToList": "Volver a la lista",
+      "claim": "Tomar",
+      "close": "Cerrar",
+      "patientPanelTitle": "Panel del paciente",
+      "noPreviousMessages": "Sin mensajes anteriores",
+      "selectConversation": "Selecciona una conversación",
+      "queueWaiting_one": "{{count}} conversación esperando atención",
+      "queueWaiting_other": "{{count}} conversaciones esperando atención",
+      "queueEmptyLong": "Ninguna conversación en la cola",
+      "attendanceNeeded": "Atención necesaria",
+      "channelsLabel": "Canales:",
+      "stageLabel": "Etapa:",
+      "selectStage": "Seleccionar Etapa",
+      "all": "Todos",
+      "toasts": {
+        "alreadyClaimed": "Otro agente está tomando esta conversación.",
+        "genericError": "Error: {{reason}}",
+        "editError": "Error al editar: {{message}}",
+        "linkPatientFirst": "Vincula al paciente primero para guardar notas en el Perfil.",
+        "saveNoteError": "Error al guardar nota: {{message}}",
+        "sendError": "Error al enviar: {{message}}",
+        "sendMediaError": "Error al enviar medio: {{message}}",
+        "sendLinkError": "Error al enviar enlace: {{message}}",
+        "deleteMessageConfirm": "¿Realmente deseas eliminar este mensaje para todos?",
+        "deleteMessageSuccess": "Mensaje eliminado con éxito",
+        "deleteMessageError": "Error al eliminar mensaje: {{message}}",
+        "transferSuccess": "¡Conversación transferida con éxito!",
+        "transferError": "Error al transferir: {{reason}}",
+        "waitlistError": "Error al agregar a la lista de espera: {{message}}",
+        "waitlistSuccess": "¡Paciente agregado a la lista de espera con éxito! ✅"
+      },
+      "forwardModal": {
+        "title": "Reenviar Mensaje",
+        "forwardTo": "Reenviar a conversación",
+        "noOtherConversations": "No hay otras conversaciones activas.",
+        "mediaFallback": "[Medio]"
+      },
+      "transferModal": {
+        "selectMember": "Selecciona el miembro del equipo",
+        "noOtherUsers": "No hay otros usuarios disponibles.",
+        "cancel": "Cancelar",
+        "confirm": "Confirmar"
+      }
+    }
+  },
+  "scriptEditorForm": {
+    "icons": {
+      "chat": "Chat",
+      "agenda": "Agenda",
+      "festa": "Fiesta",
+      "aviso": "Aviso",
+      "preco": "Precio",
+      "local": "Lugar",
+      "brinde": "Regalo",
+      "urgente": "Urgente",
+      "nota": "Nota",
+      "acordo": "Acuerdo"
+    },
+    "toasts": {
+      "fileUploadSuccess": "¡Archivo subido con éxito!",
+      "fileUploadError": "Error al subir archivo: {{message}}",
+      "linkShortenSuccess": "¡Enlace corto creado con éxito!",
+      "linkAddError": "Error al acortar/agregar enlace: {{message}}",
+      "shortcutRequired": "El atajo del script es obligatorio.",
+      "titleRequired": "El título del script es obligatorio.",
+      "contentRequired": "El contenido del script es obligatorio.",
+      "scriptUpdated": "¡Script actualizado!",
+      "scriptCreated": "¡Script creado con éxito!",
+      "saveError": "Error al guardar script: {{message}}"
+    },
+    "header": {
+      "editTitle": "Editar Script",
+      "newTitle": "Nuevo Script"
+    },
+    "suggestedBanner": {
+      "label": "Plantilla Sugerida de la Plataforma:",
+      "text": "Este script es una plantilla sugerida. Al guardarlo, se creará una copia personalizada exclusivamente para tu clínica, manteniendo la plantilla original intacta."
+    },
+    "fields": {
+      "shortcutLabel": "Atajo (sin espacios)",
+      "shortcutPlaceholder": "ej: bienvenida",
+      "categoryLabel": "Categoría",
+      "categoryPlaceholder": "ej: Atención, Ventas",
+      "titleLabel": "Título del Script",
+      "titlePlaceholder": "ej: Presentación inicial de la clínica",
+      "iconLabel": "Ícono",
+      "contentLabel": "Contenido del Mensaje",
+      "contentPlaceholder": "Escribe tu mensaje de venta aquí. Usa [[Variable]] para los campos que deseas completar al momento de enviar."
+    },
+    "variables": {
+      "insertLabel": "Insertar Variable Automática",
+      "patient": "👤 Paciente",
+      "clinic": "🏥 Clínica",
+      "agent": "💼 Agente",
+      "manualVariable": "Variable Manual"
+    },
+    "attachments": {
+      "sectionLabel": "Medios y Adjuntos ({{count}})",
+      "fileButton": "Archivo",
+      "linkButton": "Enlace",
+      "linkTitlePlaceholder": "Título del Enlace",
+      "linkUrlPlaceholder": "URL (ej: google.com)",
+      "shortenCheckboxLabel": "Acortar enlace con dominio Traffio",
+      "customAliasLabel": "Sufijo Personalizado (Opcional)",
+      "customAliasPlaceholder": "ej: promocion-junio",
+      "previewLabel": "Vista previa:",
+      "previewRandomPlaceholder": "[aleatorio]",
+      "cancel": "Cancelar",
+      "add": "Agregar"
+    },
+    "footer": {
+      "cancel": "Cancelar",
+      "save": "Guardar Script"
+    }
+  },
+  "documentUploadField": {
+    "uploading": "Subiendo...",
+    "dragOrClick": "Arrastra o haz clic para subir",
+    "fileHint": "PDF, JPG o PNG · Máx. 10 MB"
+  },
+  "buyNumberModal": {
+    "title": {
+      "resubmit": "Completar Registro",
+      "default": "Comprar Número"
+    },
+    "steps": {
+      "search": "Buscar",
+      "holder": "Titular",
+      "documents": "Documentos",
+      "confirm": "Confirmar",
+      "data": "Datos"
+    },
+    "loadingResubmit": "Cargando requisitos pendientes...",
+    "step1": {
+      "friendlyNameLabel": "Nombre amigable (opcional)",
+      "friendlyNamePlaceholder": "Ej: Recepción, WhatsApp, Soporte...",
+      "countryLabel": "País",
+      "typeLabel": "Tipo",
+      "typeAll": "Todos los tipos",
+      "typeLocal": "Local",
+      "typeTollFree": "Gratuito (0800)",
+      "searchByLabel": "Buscar por",
+      "searchByAreaCode": "Código de área",
+      "searchByCity": "Ciudad/Región",
+      "searchByState": "Estado/Provincia",
+      "searchByConfig": {
+        "area_code": { "label": "Código de área", "placeholder": "Ej: 11, 415, 21..." },
+        "city": { "label": "Ciudad / Región", "placeholder": "Ej: São Paulo, Auckland..." },
+        "state": { "label": "Estado / Provincia", "placeholder": "Ej: SP, CA, ON..." }
+      },
+      "validationRequired": "Validación requerida:",
+      "validationDocsNeeded": "Deberás enviar documentos antes de la activación.",
+      "searchingNumbers": "Buscando números disponibles...",
+      "selectCountryPrompt": "Selecciona un país y haz clic en Buscar",
+      "noNumbersTitle": "No hay números disponibles",
+      "noNumbersSubtitle": "No encontramos números para los filtros seleccionados. Intenta buscar usando solo el Código de Área o usa otra Ciudad/Región.",
+      "searchButton": "Buscar",
+      "voiceBadge": "Voz",
+      "smsBadge": "SMS",
+      "noSmsBadge": "Sin SMS"
+    },
+    "step2": {
+      "individual": "Persona Física",
+      "business": "Persona Jurídica",
+      "fullNameLabel": "Nombre completo",
+      "fullNamePlaceholder": "Juan Pérez",
+      "cpfLabel": "CPF",
+      "cpfPlaceholder": "000.000.000-00",
+      "emailLabel": "Correo electrónico",
+      "emailPlaceholder": "juan@correo.com",
+      "personalPhoneLabel": "Teléfono personal",
+      "personalPhonePlaceholder": "+55 (41) 99999-9999",
+      "companyNameLabel": "Razón social",
+      "companyNamePlaceholder": "Empresa S.A.",
+      "cnpjLabel": "CNPJ",
+      "cnpjPlaceholder": "00.000.000/0001-00",
+      "responsibleNameLabel": "Nombre del responsable",
+      "responsibleNamePlaceholder": "Juan Pérez",
+      "corporateEmailLabel": "Correo corporativo",
+      "corporateEmailPlaceholder": "contacto@empresa.com",
+      "corporatePhoneLabel": "Teléfono corporativo",
+      "corporatePhonePlaceholder": "+55 (41) 3333-3333",
+      "addressLabel": "Dirección",
+      "streetLabel": "Calle",
+      "streetPlaceholder": "Av. Paulista",
+      "numberLabel": "Número",
+      "numberPlaceholder": "100",
+      "cityLabel": "Ciudad",
+      "cityPlaceholder": "São Paulo",
+      "stateLabel": "Estado",
+      "statePlaceholder": "SP",
+      "zipLabel": "Código Postal",
+      "zipPlaceholder": "01310-100"
+    },
+    "step3": {
+      "intro": "Envía los documentos a continuación para validar el pedido. Máx. 10 MB por archivo (PDF, JPG o PNG)."
+    },
+    "step4": {
+      "selectedNumberLabel": "Número seleccionado",
+      "voiceSuffix": " · Voz",
+      "smsSuffix": " · SMS",
+      "needsDocsNotice": "Tus documentos serán revisados en un plazo de {{days}} días hábiles. Recibirás una notificación cuando el número sea activado.",
+      "requiresReviewNotice": "Este número requiere aprobación regulatoria local. Los datos completados en el paso anterior serán enviados, pero la activación depende de la aprobación de los operadores locales (generalmente se completa en pocas horas).",
+      "noDocsNeededNotice": "No se requiere documentación. El número será activado al instante."
+    },
+    "step5": {
+      "intro": "Telnyx requiere información adicional para números de {{flag}} {{country}}. Estos datos se guardan y se reutilizarán automáticamente en futuras compras de este país.",
+      "contactNameLabel": "Nombre de Contacto",
+      "contactNamePlaceholder": "Nombre y Apellido",
+      "contactPhoneLabel": "Teléfono de Contacto",
+      "contactPhonePlaceholder": "Ej: +6498890000",
+      "companyNameOptionalLabel": "Nombre de la Empresa (opcional)",
+      "companyNamePlaceholder": "Razón Social o N/A si es Persona Física",
+      "selectPlaceholder": "Selecciona...",
+      "addressFieldLabel": "Dirección",
+      "addressFieldPlaceholder": "Calle/Av., número",
+      "cityLabel": "Ciudad",
+      "stateRegionLabel": "Estado/Región",
+      "zipLabel": "Código Postal",
+      "selectFileLabel": "Seleccionar archivo (PDF, JPG o PNG)",
+      "documentSent": "✓ Documento enviado"
+    },
+    "done": {
+      "title": "¡Pedido enviado!",
+      "analysisPrefix": "Revisión en hasta ",
+      "analysisSuffix": " días hábiles.",
+      "notifyNotice": "Serás notificado cuando el número sea activado."
+    },
+    "diagnostics": {
+      "label": "Diagnóstico",
+      "errorBadge": "error",
+      "warningBadge": "advertencia",
+      "copyLogTitle": "Copiar registro",
+      "copy": "Copiar",
+      "copied": "¡Copiado!",
+      "rawResponseLabel": "Respuesta Sin Procesar"
+    },
+    "footer": {
+      "back": "Volver",
+      "cancel": "Cancelar",
+      "continue": "Continuar",
+      "nextDocuments": "Siguiente: Documentos",
+      "reviewOrder": "Revisar pedido",
+      "buyNumber": "Comprar número",
+      "submitForReview": "Enviar para revisión",
+      "resendInfo": "Reenviar Información",
+      "close": "Cerrar"
+    },
+    "toasts": {
+      "loadResubmitFailedPrefix": "Error al cargar detalles del pedido: ",
+      "invalidServerResponse": "Respuesta inválida del servidor",
+      "errorStatusPrefix": "Error {{status}}",
+      "noNumbersAvailablePrefix": "No hay números disponibles para comprar (",
+      "noNumbersAvailableSuffix": "). Intenta otros filtros.",
+      "unexpectedErrorPrefix": "Error inesperado: ",
+      "documentRegulatoryRequired": "Por favor, envía el documento regulatorio exigido por los operadores.",
+      "numberAcquiredSuccess": "¡Número {{number}} adquirido con éxito!",
+      "numberAcquiredPendingReview": "¡Número {{number}} adquirido! Esperando revisión de Telnyx.",
+      "createOrderErrorPrefix": "Error al crear pedido: ",
+      "regulatoryInfoSent": "¡Requisitos enviados con éxito!"
+    },
+    "errors": {
+      "contactRequired": "El nombre de contacto y el teléfono de contacto son obligatorios",
+      "fieldRequired": "Campo obligatorio",
+      "minLength": "Mínimo de {{count}} caracteres",
+      "maxLength": "Máximo de {{count}} caracteres",
+      "addressIncomplete": "Completa la dirección completa (Calle, Ciudad y Código Postal)",
+      "documentRequired": "Envía el documento",
+      "nameRequired": "Nombre obligatorio",
+      "companyNameRequired": "Razón social obligatoria",
+      "cpfRequired": "CPF obligatorio",
+      "cpfInvalid": "CPF inválido",
+      "cnpjRequired": "CNPJ obligatorio",
+      "cnpjInvalid": "CNPJ inválido",
+      "addressRequired": "Dirección obligatoria",
+      "cityRequired": "Ciudad obligatoria",
+      "zipRequired": "Código Postal obligatorio"
+    }
+  },
+  "scriptManagerDrawer": {
+    "toasts": {
+      "loadErrorPrefix": "Error al cargar scripts: ",
+      "deleted": "¡Script eliminado con éxito!",
+      "deleteErrorPrefix": "Error al eliminar script: ",
+      "suggestedSavedAsNew": "¡Plantilla sugerida guardada como un nuevo script de tu clínica!"
+    },
+    "deleteConfirm": "¿Realmente deseas eliminar el script \"{{title}}\"?",
+    "header": "Scripts Inteligentes",
+    "createTitle": "Crear Script",
+    "new": "Nuevo",
+    "searchPlaceholder": "Buscar scripts...",
+    "loading": "Cargando scripts...",
+    "empty": {
+      "title": "No se encontraron scripts",
+      "subtitle": "Crea tus propios scripts de ventas dinámicos para agilizar la atención.",
+      "createFirst": "Crear Primero"
+    },
+    "suggestedBadge": "Sugerido",
+    "customizeEditTitle": "Personalizar / Editar",
+    "editTitle": "Editar",
+    "deleteTitle": "Eliminar"
+  },
+  "channelPreferenceSelector": {
+    "smsIdLabel": "Número para SMS",
+    "smsPlaceholder": "+52 1 55 1234-5678",
+    "loading": "Cargando...",
+    "compactHeading": "Canal de Notificación",
+    "manual": "Manual",
+    "auto": "Auto",
+    "confirm": "OK",
+    "selectSms": "SMS",
+    "savedSuccess": "Canal guardado con éxito",
+    "expandedHeading": "Canal preferido de notificación",
+    "manuallySet": "Definido manualmente",
+    "autoDetected": "Detectado automáticamente",
+    "save": "Guardar"
+  },
+  "floatingCommunicationsButton": {
+    "incomingCallHeader": "Llamada Entrante",
+    "unknownNumber": "Número desconocido",
+    "reject": "Rechazar",
+    "answer": "Responder",
+    "dialingFallback": "Marcando",
+    "inCallFallback": "En llamada",
+    "callingStatus": "Llamando...",
+    "muted": "Silenciado",
+    "mic": "Mic",
+    "resume": "Reanudar",
+    "hold": "Espera",
+    "transfer": "Transferir",
+    "hangup": "Colgar",
+    "transferTargetPlaceholder": "Número destino",
+    "confirm": "OK",
+    "call": "Llamar",
+    "sms": "SMS",
+    "dialPlaceholder": "Ingresa el número...",
+    "smsToPlaceholder": "Número destinatario...",
+    "smsMessagePlaceholder": "Escribe el mensaje SMS...",
+    "charCount": "{{count}}/160 caracteres",
+    "send": "Enviar",
+    "title": {
+      "ringing": "Llamada entrante",
+      "active": "En llamada",
+      "idle": "Comunicaciones"
+    }
+  },
+  "softphoneWidget": {
+    "status": {
+      "ready": "Listo",
+      "connecting": "Conectando...",
+      "error": "Error",
+      "disconnected": "Desconectado"
+    },
+    "dialPlaceholder": "Ingresa el número...",
+    "call": "Llamar",
+    "title": "Softphone"
+  },
+  "activeCallView": {
+    "inCallFallback": "En llamada",
+    "onHold": "En Espera",
+    "inCall": "En Llamada",
+    "muted": "Silenciado",
+    "microphone": "Micrófono",
+    "resume": "Reanudar",
+    "hold": "Espera",
+    "transfer": "Transferir",
+    "transferTargetPlaceholder": "Número destino",
+    "confirm": "OK",
+    "hangup": "Colgar"
+  },
+  "incomingCallNotification": {
+    "unknownNumber": "Número desconocido",
+    "header": "Llamada Entrante",
+    "externalContactFallback": "Contacto externo",
+    "reject": "Rechazar",
+    "answer": "Responder"
+  },
+  "pendingOrdersList": {
+    "loading": "Cargando pedidos...",
+    "heading": "Pedidos en curso",
+    "createdAtPrefix": "{{countryCode}} · Creado el {{date}}",
+    "resubmitDocuments": "Reenviar documentos",
+    "editAndResubmitDocuments": "Editar y reenviar documentos",
+    "completeDocuments": "Completar documentos"
+  },
+  "orderStatusBadge": {
+    "status": {
+      "pending_docs": "Esperando documentos",
+      "docs_submitted": "Documentos enviados",
+      "under_review": "En revisión",
+      "approved": "Aprobado",
+      "rejected": "Rechazado",
+      "completed": "Activo",
+      "cancelled": "Cancelado"
+    }
+  }
+}

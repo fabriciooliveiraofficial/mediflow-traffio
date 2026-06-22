@@ -1,1 +1,605 @@
-{}
+{
+  "communicationsHub": {
+    "nav": {
+      "dashboard": "Dashboard",
+      "sms": "SMS",
+      "calls": "Calls",
+      "voicemail": "Voicemail",
+      "numbers": "Numbers"
+    },
+    "notEnabled": {
+      "title": "Communications not enabled",
+      "messagePrefix": "Enable the Softphone in",
+      "settingsPath": "Settings → Communications"
+    },
+    "kpis": {
+      "received": "Received",
+      "made": "Made",
+      "missed": "Missed",
+      "minutes": "Minutes",
+      "currentMonth": "current month",
+      "smsSent": "SMS Sent",
+      "smsReceived": "SMS Received",
+      "answerRate": "Answer Rate",
+      "today": "Today",
+      "calls": "calls"
+    },
+    "chart": {
+      "last7DaysTitle": "Calls — last 7 days",
+      "monthDistributionTitle": "Month distribution"
+    },
+    "detail": {
+      "selectCall": "Select a call",
+      "selectConversation": "Select a conversation",
+      "selectVoicemail": "Select a voicemail",
+      "selectNumber": "Select a number",
+      "inbound": "Inbound",
+      "outbound": "Outbound",
+      "callBack": "Call back",
+      "sendSms": "Send SMS",
+      "duration": "Duration",
+      "status": "Status",
+      "answered": "Answered",
+      "recording": "Recording",
+      "download": "Download",
+      "notes": "Notes",
+      "notesPlaceholder": "Notes for this call...",
+      "callTitle": "Call",
+      "noMessagesYet": "No messages yet",
+      "smsPlaceholder": "Type the SMS... (max 160 chars)",
+      "audio": "Audio",
+      "transcript": "Transcript"
+    },
+    "list": {
+      "searchPlaceholder": "Search...",
+      "refresh": "Refresh",
+      "noCalls": "No calls",
+      "noSmsConversations": "No SMS conversations",
+      "noVoicemails": "No voicemails",
+      "noNumbers": "No numbers",
+      "voiceSuffix": "Voice",
+      "smsSuffix": "SMS"
+    }
+  },
+  "humanInbox": {
+    "sla": { "now": "now" },
+    "statusBadge": {
+      "botActive": "Bot Active",
+      "queued": "Waiting",
+      "humanActive": "In Progress",
+      "closed": "Closed"
+    },
+    "temperature": { "cold": "Cold", "warm": "Warm", "hot": "Hot" },
+    "priority": { "low": "Low", "medium": "Medium", "high": "High", "urgent": "Urgent" },
+    "channels": {
+      "liveChat": "Live Chat",
+      "instagram": "Instagram",
+      "messenger": "Messenger",
+      "whatsapp": "WhatsApp",
+      "instagramDirect": "Instagram Direct",
+      "facebookMessenger": "Facebook Messenger"
+    },
+    "fallbackNames": {
+      "instagramUser": "Instagram User",
+      "messengerUser": "Messenger User",
+      "webVisitor": "Web Visitor",
+      "unregisteredPatient": "Unregistered patient",
+      "patient": "Patient",
+      "doctor": "Doctor",
+      "appointment": "Appointment",
+      "clinicName": "Our Clinic",
+      "member": "Member"
+    },
+    "conversationRow": {
+      "stageTitlePrefix": "Stage:",
+      "noMessages": "No messages",
+      "waiting": "waiting"
+    },
+    "audioPlayer": { "label": "WhatsApp Audio" },
+    "messageBubble": {
+      "mediaAlt": "Media",
+      "gifAlt": "GIF",
+      "documentFallback": "Document",
+      "mimeFallback": "PDF",
+      "sizeFallback": "File",
+      "internalNote": "Internal note",
+      "copy": "Copy",
+      "reply": "Reply",
+      "edit": "Edit",
+      "forward": "Forward",
+      "deleteForEveryone": "Delete for everyone",
+      "mediaPlaceholder": "[media]",
+      "typePlaceholder": "[{{type}}]",
+      "edited": "edited"
+    },
+    "chatInput": {
+      "gateClaimToReply": "Claim this conversation to reply",
+      "gateClosed": "Conversation closed",
+      "gateReadOnly": "Being handled by another agent. Read-only access only.",
+      "toasts": {
+        "audioSendError": "Error sending audio: {{message}}",
+        "micPermissionDenied": "Microphone permission denied. Check your browser settings.",
+        "micAccessError": "Error accessing microphone: {{message}}",
+        "fileSendError": "Error sending file: {{message}}"
+      },
+      "scripts": {
+        "title": "Smart Scripts",
+        "manageTitle": "Manage Scripts",
+        "navigateHint": "↑↓ Navigate",
+        "noneFound": "No scripts found",
+        "create": "Create Script",
+        "deleteConfirm": "Delete the script \"{{title}}\"?",
+        "customizeEdit": "Customize (Edit)",
+        "editScript": "Edit script",
+        "deleteScript": "Delete script"
+      },
+      "promptModal": {
+        "title": "Customize Script",
+        "subtitle": "Fill in the fields for a perfect send",
+        "hint": "The fields below help make the service more personal. Every detail matters!",
+        "placeholderExample": "Ex: Tuesday at 2pm...",
+        "cancel": "Cancel",
+        "useScript": "Use Script"
+      },
+      "gifPicker": {
+        "title": "Tenor GIFs",
+        "comingSoon": "GIF search coming soon..."
+      },
+      "recording": {
+        "cancel": "Cancel",
+        "inProgress": "Recording audio..."
+      },
+      "mediaPreview": {
+        "sendImage": "Send Image",
+        "sendVideo": "Send Video",
+        "captionLabel": "Media caption",
+        "captionPlaceholder": "Add a caption..."
+      },
+      "replyBar": {
+        "editing": "Editing message",
+        "replying": "Replying"
+      },
+      "modeTabs": {
+        "broadcast": "Broadcast",
+        "internalNote": "Internal Note"
+      },
+      "sendingMedia": "Sending Media...",
+      "titles": {
+        "emojis": "Emojis",
+        "attachFile": "Attach File",
+        "camera": "Camera",
+        "recordAudio": "Record Audio"
+      },
+      "placeholder": {
+        "note": "Write a private internal note...",
+        "message": "Click to type... (Enter sends)"
+      },
+      "noteHiddenHint": "Note hidden from the patient"
+    },
+    "patientPanel": {
+      "title": "Patient Info",
+      "editProfileTitle": "Edit Profile",
+      "talkingTo": "Talking to:",
+      "frontDeskNotes": "Front Desk Notes",
+      "birthDatePrefix": "DOB:",
+      "upcomingAppointments": "Upcoming Appointments",
+      "noAppointments": "No appointments scheduled",
+      "atTimePrefix": "at",
+      "quickActions": "Quick Actions",
+      "actions": {
+        "register": "Register",
+        "link": "Link",
+        "schedule": "Schedule",
+        "appointments": "Appointments",
+        "payment": "Payment",
+        "availability": "Availability",
+        "directory": "Directory",
+        "classify": "Classify",
+        "waitlist": "Waitlist"
+      },
+      "kanbanClassification": "Kanban Classification",
+      "kanbanHint": "Change the funnel stage here to reflect it on the Follow-up Board (Kanban).",
+      "transferAction": "Transfer Conversation"
+    },
+    "main": {
+      "headerTitle": "Human Support",
+      "searchPlaceholder": "Search patient...",
+      "tabs": { "all": "All", "queue": "Queue", "mine": "Mine" },
+      "list": { "noResults": "No results", "queueEmpty": "Queue empty", "noActiveConversations": "No active conversations" },
+      "backToList": "Back to list",
+      "claim": "Claim",
+      "close": "Close",
+      "patientPanelTitle": "Patient panel",
+      "noPreviousMessages": "No previous messages",
+      "selectConversation": "Select a conversation",
+      "queueWaiting_one": "{{count}} conversation waiting for attention",
+      "queueWaiting_other": "{{count}} conversations waiting for attention",
+      "queueEmptyLong": "No conversations in the queue",
+      "attendanceNeeded": "Attention needed",
+      "channelsLabel": "Channels:",
+      "stageLabel": "Stage:",
+      "selectStage": "Select Stage",
+      "all": "All",
+      "toasts": {
+        "alreadyClaimed": "Another agent is already claiming this conversation.",
+        "genericError": "Error: {{reason}}",
+        "editError": "Error editing: {{message}}",
+        "linkPatientFirst": "Link the patient first to save notes to the Profile.",
+        "saveNoteError": "Error saving note: {{message}}",
+        "sendError": "Error sending: {{message}}",
+        "sendMediaError": "Error sending media: {{message}}",
+        "sendLinkError": "Error sending link: {{message}}",
+        "deleteMessageConfirm": "Are you sure you want to delete this message for everyone?",
+        "deleteMessageSuccess": "Message deleted successfully",
+        "deleteMessageError": "Error deleting message: {{message}}",
+        "transferSuccess": "Conversation transferred successfully!",
+        "transferError": "Error transferring: {{reason}}",
+        "waitlistError": "Error adding to waitlist: {{message}}",
+        "waitlistSuccess": "Patient added to the waitlist successfully! ✅"
+      },
+      "forwardModal": {
+        "title": "Forward Message",
+        "forwardTo": "Forward to conversation",
+        "noOtherConversations": "No other active conversations.",
+        "mediaFallback": "[Media]"
+      },
+      "transferModal": {
+        "selectMember": "Select team member",
+        "noOtherUsers": "No other users available.",
+        "cancel": "Cancel",
+        "confirm": "Confirm"
+      }
+    }
+  },
+  "scriptEditorForm": {
+    "icons": {
+      "chat": "Chat",
+      "agenda": "Schedule",
+      "festa": "Party",
+      "aviso": "Notice",
+      "preco": "Price",
+      "local": "Location",
+      "brinde": "Gift",
+      "urgente": "Urgent",
+      "nota": "Note",
+      "acordo": "Agreement"
+    },
+    "toasts": {
+      "fileUploadSuccess": "File uploaded successfully!",
+      "fileUploadError": "Error uploading file: {{message}}",
+      "linkShortenSuccess": "Shortened link created successfully!",
+      "linkAddError": "Error shortening/adding link: {{message}}",
+      "shortcutRequired": "The script shortcut is required.",
+      "titleRequired": "The script title is required.",
+      "contentRequired": "The script content is required.",
+      "scriptUpdated": "Script updated!",
+      "scriptCreated": "Script created successfully!",
+      "saveError": "Error saving script: {{message}}"
+    },
+    "header": {
+      "editTitle": "Edit Script",
+      "newTitle": "New Script"
+    },
+    "suggestedBanner": {
+      "label": "Suggested Platform Template:",
+      "text": "This script is a suggested template. When you save it, a personalized copy will be created exclusively for your clinic, keeping the original template intact."
+    },
+    "fields": {
+      "shortcutLabel": "Shortcut (no spaces)",
+      "shortcutPlaceholder": "ex: welcome",
+      "categoryLabel": "Category",
+      "categoryPlaceholder": "ex: Support, Sales",
+      "titleLabel": "Script Title",
+      "titlePlaceholder": "ex: Initial clinic introduction",
+      "iconLabel": "Icon",
+      "contentLabel": "Message Content",
+      "contentPlaceholder": "Type your sales message here. Use [[Variable]] for fields you want to fill in when sending."
+    },
+    "variables": {
+      "insertLabel": "Insert Automatic Variable",
+      "patient": "👤 Patient",
+      "clinic": "🏥 Clinic",
+      "agent": "💼 Agent",
+      "manualVariable": "Manual Variable"
+    },
+    "attachments": {
+      "sectionLabel": "Media & Attachments ({{count}})",
+      "fileButton": "File",
+      "linkButton": "Link",
+      "linkTitlePlaceholder": "Link Title",
+      "linkUrlPlaceholder": "URL (ex: google.com)",
+      "shortenCheckboxLabel": "Shorten link with Traffio domain",
+      "customAliasLabel": "Custom Suffix (Optional)",
+      "customAliasPlaceholder": "ex: june-promo",
+      "previewLabel": "Preview:",
+      "previewRandomPlaceholder": "[random]",
+      "cancel": "Cancel",
+      "add": "Add"
+    },
+    "footer": {
+      "cancel": "Cancel",
+      "save": "Save Script"
+    }
+  },
+  "documentUploadField": {
+    "uploading": "Uploading...",
+    "dragOrClick": "Drag or click to upload",
+    "fileHint": "PDF, JPG or PNG · Max. 10 MB"
+  },
+  "buyNumberModal": {
+    "title": {
+      "resubmit": "Complete Registration",
+      "default": "Buy Number"
+    },
+    "steps": {
+      "search": "Search",
+      "holder": "Holder",
+      "documents": "Documents",
+      "confirm": "Confirm",
+      "data": "Data"
+    },
+    "loadingResubmit": "Loading pending requirements...",
+    "step1": {
+      "friendlyNameLabel": "Friendly name (optional)",
+      "friendlyNamePlaceholder": "Ex: Reception, WhatsApp, Support...",
+      "countryLabel": "Country",
+      "typeLabel": "Type",
+      "typeAll": "All types",
+      "typeLocal": "Local",
+      "typeTollFree": "Toll-Free (0800)",
+      "searchByLabel": "Search by",
+      "searchByAreaCode": "Area code",
+      "searchByCity": "City/Region",
+      "searchByState": "State/Province",
+      "searchByConfig": {
+        "area_code": { "label": "Area code", "placeholder": "Ex: 11, 415, 21..." },
+        "city": { "label": "City / Region", "placeholder": "Ex: São Paulo, Auckland..." },
+        "state": { "label": "State / Province", "placeholder": "Ex: SP, CA, ON..." }
+      },
+      "validationRequired": "Validation required:",
+      "validationDocsNeeded": "You will need to submit documents before activation.",
+      "searchingNumbers": "Searching for available numbers...",
+      "selectCountryPrompt": "Select a country and click Search",
+      "noNumbersTitle": "No numbers available",
+      "noNumbersSubtitle": "We couldn't find numbers for the selected filters. Try searching using only the Area Code or use a different City/Region.",
+      "searchButton": "Search",
+      "voiceBadge": "Voice",
+      "smsBadge": "SMS",
+      "noSmsBadge": "No SMS"
+    },
+    "step2": {
+      "individual": "Individual",
+      "business": "Business",
+      "fullNameLabel": "Full name",
+      "fullNamePlaceholder": "John Smith",
+      "cpfLabel": "CPF",
+      "cpfPlaceholder": "000.000.000-00",
+      "emailLabel": "Email",
+      "emailPlaceholder": "john@email.com",
+      "personalPhoneLabel": "Personal phone",
+      "personalPhonePlaceholder": "+55 (41) 99999-9999",
+      "companyNameLabel": "Legal company name",
+      "companyNamePlaceholder": "Company LLC",
+      "cnpjLabel": "CNPJ",
+      "cnpjPlaceholder": "00.000.000/0001-00",
+      "responsibleNameLabel": "Responsible person's name",
+      "responsibleNamePlaceholder": "John Smith",
+      "corporateEmailLabel": "Corporate email",
+      "corporateEmailPlaceholder": "contact@company.com",
+      "corporatePhoneLabel": "Corporate phone",
+      "corporatePhonePlaceholder": "+55 (41) 3333-3333",
+      "addressLabel": "Address",
+      "streetLabel": "Street",
+      "streetPlaceholder": "Av. Paulista",
+      "numberLabel": "Number",
+      "numberPlaceholder": "100",
+      "cityLabel": "City",
+      "cityPlaceholder": "São Paulo",
+      "stateLabel": "State",
+      "statePlaceholder": "SP",
+      "zipLabel": "ZIP Code",
+      "zipPlaceholder": "01310-100"
+    },
+    "step3": {
+      "intro": "Upload the documents below to validate the request. Max. 10 MB per file (PDF, JPG or PNG)."
+    },
+    "step4": {
+      "selectedNumberLabel": "Selected number",
+      "voiceSuffix": " · Voice",
+      "smsSuffix": " · SMS",
+      "needsDocsNotice": "Your documents will be reviewed within {{days}} business days. You'll receive a notification when the number is activated.",
+      "requiresReviewNotice": "This number requires local regulatory approval. The data filled in the previous step will be submitted, but activation depends on approval by local carriers (usually completed within a few hours).",
+      "noDocsNeededNotice": "No documentation required. The number will be activated instantly."
+    },
+    "step5": {
+      "intro": "Telnyx requires some additional information for {{flag}} {{country}} numbers. This data is saved and will be reused automatically on future purchases for this country.",
+      "contactNameLabel": "Contact Name",
+      "contactNamePlaceholder": "First and Last Name",
+      "contactPhoneLabel": "Contact Phone",
+      "contactPhonePlaceholder": "Ex: +6498890000",
+      "companyNameOptionalLabel": "Company Name (optional)",
+      "companyNamePlaceholder": "Legal name or N/A if Individual",
+      "selectPlaceholder": "Select...",
+      "addressFieldLabel": "Address",
+      "addressFieldPlaceholder": "Street/Ave., number",
+      "cityLabel": "City",
+      "stateRegionLabel": "State/Region",
+      "zipLabel": "ZIP Code",
+      "selectFileLabel": "Select file (PDF, JPG or PNG)",
+      "documentSent": "✓ Document sent"
+    },
+    "done": {
+      "title": "Order submitted!",
+      "analysisPrefix": "Review within ",
+      "analysisSuffix": " business days.",
+      "notifyNotice": "You will be notified when the number is activated."
+    },
+    "diagnostics": {
+      "label": "Diagnostics",
+      "errorBadge": "error",
+      "warningBadge": "warning",
+      "copyLogTitle": "Copy log",
+      "copy": "Copy",
+      "copied": "Copied!",
+      "rawResponseLabel": "Raw Response"
+    },
+    "footer": {
+      "back": "Back",
+      "cancel": "Cancel",
+      "continue": "Continue",
+      "nextDocuments": "Next: Documents",
+      "reviewOrder": "Review order",
+      "buyNumber": "Buy number",
+      "submitForReview": "Submit for review",
+      "resendInfo": "Resend Information",
+      "close": "Close"
+    },
+    "toasts": {
+      "loadResubmitFailedPrefix": "Failed to load order details: ",
+      "invalidServerResponse": "Invalid server response",
+      "errorStatusPrefix": "Error {{status}}",
+      "noNumbersAvailablePrefix": "No numbers available for purchase (",
+      "noNumbersAvailableSuffix": "). Try other filters.",
+      "unexpectedErrorPrefix": "Unexpected error: ",
+      "documentRegulatoryRequired": "Please submit the regulatory document required by carriers.",
+      "numberAcquiredSuccess": "Number {{number}} acquired successfully!",
+      "numberAcquiredPendingReview": "Number {{number}} acquired! Awaiting Telnyx review.",
+      "createOrderErrorPrefix": "Error creating order: ",
+      "regulatoryInfoSent": "Requirements submitted successfully!"
+    },
+    "errors": {
+      "contactRequired": "Contact name and contact phone are required",
+      "fieldRequired": "Required field",
+      "minLength": "Minimum {{count}} characters",
+      "maxLength": "Maximum {{count}} characters",
+      "addressIncomplete": "Fill in the complete address (Street, City and ZIP Code)",
+      "documentRequired": "Submit the document",
+      "nameRequired": "Name required",
+      "companyNameRequired": "Legal company name required",
+      "cpfRequired": "CPF required",
+      "cpfInvalid": "Invalid CPF",
+      "cnpjRequired": "CNPJ required",
+      "cnpjInvalid": "Invalid CNPJ",
+      "addressRequired": "Address required",
+      "cityRequired": "City required",
+      "zipRequired": "ZIP Code required"
+    }
+  },
+  "scriptManagerDrawer": {
+    "toasts": {
+      "loadErrorPrefix": "Error loading scripts: ",
+      "deleted": "Script deleted successfully!",
+      "deleteErrorPrefix": "Error deleting script: ",
+      "suggestedSavedAsNew": "Suggested template saved as a new script for your clinic!"
+    },
+    "deleteConfirm": "Are you sure you want to delete the script \"{{title}}\"?",
+    "header": "Smart Scripts",
+    "createTitle": "Create Script",
+    "new": "New",
+    "searchPlaceholder": "Search scripts...",
+    "loading": "Loading scripts...",
+    "empty": {
+      "title": "No scripts found",
+      "subtitle": "Create your own dynamic sales scripts to speed up service.",
+      "createFirst": "Create First"
+    },
+    "suggestedBadge": "Suggested",
+    "customizeEditTitle": "Customize / Edit",
+    "editTitle": "Edit",
+    "deleteTitle": "Delete"
+  },
+  "channelPreferenceSelector": {
+    "smsIdLabel": "SMS number",
+    "smsPlaceholder": "+1 555 123-4567",
+    "loading": "Loading...",
+    "compactHeading": "Notification Channel",
+    "manual": "Manual",
+    "auto": "Auto",
+    "confirm": "OK",
+    "selectSms": "SMS",
+    "savedSuccess": "Channel saved successfully",
+    "expandedHeading": "Preferred notification channel",
+    "manuallySet": "Manually set",
+    "autoDetected": "Auto-detected",
+    "save": "Save"
+  },
+  "floatingCommunicationsButton": {
+    "incomingCallHeader": "Incoming Call",
+    "unknownNumber": "Unknown number",
+    "reject": "Decline",
+    "answer": "Answer",
+    "dialingFallback": "Dialing",
+    "inCallFallback": "In call",
+    "callingStatus": "Calling...",
+    "muted": "Muted",
+    "mic": "Mic",
+    "resume": "Resume",
+    "hold": "Hold",
+    "transfer": "Transfer",
+    "hangup": "Hang up",
+    "transferTargetPlaceholder": "Destination number",
+    "confirm": "OK",
+    "call": "Call",
+    "sms": "SMS",
+    "dialPlaceholder": "Enter the number...",
+    "smsToPlaceholder": "Recipient number...",
+    "smsMessagePlaceholder": "Type the SMS message...",
+    "charCount": "{{count}}/160 chars",
+    "send": "Send",
+    "title": {
+      "ringing": "Incoming call",
+      "active": "In call",
+      "idle": "Communications"
+    }
+  },
+  "softphoneWidget": {
+    "status": {
+      "ready": "Ready",
+      "connecting": "Connecting...",
+      "error": "Error",
+      "disconnected": "Disconnected"
+    },
+    "dialPlaceholder": "Enter the number...",
+    "call": "Call",
+    "title": "Softphone"
+  },
+  "activeCallView": {
+    "inCallFallback": "In call",
+    "onHold": "On Hold",
+    "inCall": "In Call",
+    "muted": "Muted",
+    "microphone": "Microphone",
+    "resume": "Resume",
+    "hold": "Hold",
+    "transfer": "Transfer",
+    "transferTargetPlaceholder": "Destination number",
+    "confirm": "OK",
+    "hangup": "Hang up"
+  },
+  "incomingCallNotification": {
+    "unknownNumber": "Unknown number",
+    "header": "Incoming Call",
+    "externalContactFallback": "External contact",
+    "reject": "Decline",
+    "answer": "Answer"
+  },
+  "pendingOrdersList": {
+    "loading": "Loading orders...",
+    "heading": "Orders in progress",
+    "createdAtPrefix": "{{countryCode}} · Created on {{date}}",
+    "resubmitDocuments": "Resubmit documents",
+    "editAndResubmitDocuments": "Edit and resubmit documents",
+    "completeDocuments": "Complete documents"
+  },
+  "orderStatusBadge": {
+    "status": {
+      "pending_docs": "Awaiting documents",
+      "docs_submitted": "Documents submitted",
+      "under_review": "Under review",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "completed": "Active",
+      "cancelled": "Cancelled"
+    }
+  }
+}

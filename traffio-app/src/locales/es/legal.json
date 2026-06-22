@@ -1,1 +1,202 @@
-{}
+{
+  "shared": {
+    "backToHome": "Volver al Inicio",
+    "brandTagline": "ODONTOLOGÍA • MARKETING",
+    "footerRights": "© 2026 Traffio Odonto Marketing. Todos los derechos reservados.",
+    "footerHome": "Inicio"
+  },
+  "privacyPolicy": {
+    "heroBadge": "Privacidad y Seguridad",
+    "heroTitle": "Política de Privacidad",
+    "lastUpdatedLabel": "Última actualización:",
+    "heroSubtitle": "Conozca cómo recopilamos, protegemos, utilizamos y garantizamos sus derechos sobre la información en nuestra plataforma.",
+    "footerTermsLink": "Términos de Servicio",
+    "summaryCards": {
+      "dataProtected": {
+        "title": "Datos Protegidos",
+        "description": "Cifrado de extremo a extremo y seguridad rigurosa de los datos de la clínica."
+      },
+      "transparentUse": {
+        "title": "Uso Transparente",
+        "description": "Los datos de las APIs de Google Ads y Meta Ads se usan únicamente para reportes."
+      },
+      "fullControl": {
+        "title": "Control Total",
+        "description": "Puede revocar permisos y eliminar datos en cualquier momento."
+      }
+    },
+    "sections": {
+      "whoWeAre": {
+        "title": "Quiénes Somos y Alcance",
+        "body1": {
+          "prefix": "",
+          "strong": "Traffio Odonto Marketing",
+          "middle": "(\"Traffio\", \"nosotros\", \"nuestro\"), operada por el desarrollador responsable",
+          "strong2": "fabriciooliveiraofficial@gmail.com",
+          "suffix": ", es una plataforma de gestión y automatización de marketing para clínicas dentales y de salud. Esta Política de Privacidad describe cómo tratamos la información personal y operativa de nuestros usuarios (\"Clientes\", \"Clínicas\") y de los pacientes de las Clínicas que utilizan nuestros servicios."
+        },
+        "body2": "Al utilizar Traffio, usted acepta la recopilación y el uso de información de acuerdo con esta política y en estricto cumplimiento de la LGPD (Ley General de Protección de Datos de Brasil - Lei nº 13.709/2018)."
+      },
+      "dataCollection": {
+        "title": "Información que Recopilamos",
+        "intro": "Recopilamos las siguientes categorías de información necesarias para brindar nuestros servicios:",
+        "items": [
+          { "label": "Información de Registro y Cuenta:", "text": "Nombre completo, correo electrónico, teléfono, CPF/CNPJ (identificación fiscal brasileña), nombre de la clínica, especialidades, credenciales de acceso e información de facturación." },
+          { "label": "Datos Clínicos y de Pacientes (como Operador):", "text": "Agenda de citas, fichas de registro de pacientes (nombre, correo electrónico, celular, fecha de nacimiento), historiales de atención dental y expedientes clínicos que usted decida ingresar en la plataforma." },
+          { "label": "Datos de Integración con Terceros:", "text": "Tokens de acceso y datos analíticos cuando integra su cuenta de Traffio con Google Ads, Meta Ads (Facebook/Instagram Ads), la API de WhatsApp o pasarelas de pago." }
+        ]
+      },
+      "googleAdsIntegration": {
+        "title": "Integración con la API de Google Ads",
+        "intro": {
+          "prefix": "Traffio ofrece soporte para integraciones opcionales con la API de Google Ads (usando el alcance",
+          "code": "https://www.googleapis.com/auth/adwords",
+          "suffix": ") para la consolidación de métricas."
+        },
+        "purpose": {
+          "heading": "Finalidad del Acceso a los Datos de Google Ads:",
+          "body": {
+            "prefix": "Accedemos de forma estrictamente de",
+            "strong": "solo lectura (read-only)",
+            "suffix": "a la información de desempeño de sus campañas publicitarias, incluyendo: monto invertido (costo), clics, impresiones y conversiones. Estos datos se utilizan exclusivamente para calcular el Retorno sobre la Inversión Publicitaria (ROAS), el Costo por Lead (CPL) y para mostrar gráficos consolidados de facturación y adquisición de pacientes en el panel de su cuenta de Traffio."
+          }
+        },
+        "noSharing": {
+          "heading": "No Compartimos los Datos de Google:",
+          "body": "No compartimos, vendemos, alquilamos ni transferimos a terceros ningún dato obtenido a través de la API de Google Ads, bajo ninguna circunstancia. Los datos permanecen exclusivamente visibles y restringidos al usuario administrador de la clínica que realizó la autenticación."
+        },
+        "googleCompliance": {
+          "heading": "Cumplimiento de la Política de Google (Uso Limitado):",
+          "body": {
+            "prefix": "El uso de información recibida de las APIs de Google por parte de Traffio cumple estrictamente con la",
+            "linkText": "Política de Datos del Usuario de los Servicios de API de Google",
+            "suffix": ", incluyendo los Requisitos de Uso Limitado (Limited Use Requirements)."
+          }
+        }
+      },
+      "dataSharing": {
+        "title": "Cómo Compartimos los Datos",
+        "intro": "**No vendemos ni alquilamos** datos personales de nuestros clientes ni de sus pacientes. Compartimos información con terceros únicamente en las siguientes circunstancias:",
+        "items": [
+          { "label": "Proveedores de Infraestructura y Servicios:", "text": "Proveedores de hospedaje en la nube (Supabase, AWS), pasarelas de pago (Pagar.me, Asaas, Dr. Cash) y servicios de envío de mensajes (API de WhatsApp, correo electrónico transaccional), únicamente en la medida estrictamente necesaria para la ejecución del servicio." },
+          { "label": "Obligación Legal:", "text": "Para cumplir con órdenes judiciales, leyes aplicables o regulaciones de autoridades competentes." },
+          { "label": "Con su Consentimiento:", "text": "Cuando usted autoriza explícitamente la transferencia de datos a otra plataforma mediante claves de API personalizadas." }
+        ]
+      },
+      "dataSecurity": {
+        "title": "Seguridad y Almacenamiento de los Datos",
+        "body1": "Empleamos medidas de seguridad técnicas y administrativas estándar de la industria para proteger sus datos, como el cifrado SSL/TLS en tránsito y en reposo, políticas estrictas de Seguridad a Nivel de Fila (RLS) en nuestra base de datos de Supabase para garantizar el aislamiento completo entre clientes (una clínica no puede ver los datos de otra), además de copias de seguridad diarias y registros de auditoría.",
+        "body2": "Los datos recopilados se almacenan mientras el contrato de servicio esté activo o hasta que el cliente solicite formalmente la eliminación de su cuenta."
+      },
+      "userRights": {
+        "title": "Sus Derechos (LGPD) y Eliminación de Datos",
+        "intro": "Usted, como Titular de los Datos, posee todos los derechos previstos en el Artículo 18 de la LGPD, que incluyen:",
+        "items": [
+          "Confirmar la existencia del tratamiento de datos.",
+          "Acceder a sus datos personales.",
+          "Corregir datos incompletos, inexactos o desactualizados.",
+          "Revocar la autorización de integraciones en cualquier momento (como desconectar Google Ads de la plataforma, lo que elimina de inmediato las credenciales almacenadas).",
+          "Solicitar la eliminación definitiva de sus datos registrados."
+        ],
+        "contact": {
+          "prefix": "Para ejercer cualquiera de estos derechos o solicitar la eliminación total de su cuenta y de sus datos asociados, contáctenos a través de:",
+          "strong1": "fabriciooliveiraofficial@gmail.com",
+          "middle": "o por el correo electrónico",
+          "strong2": "contato@traffio.com.br",
+          "suffix": ". Su solicitud será atendida de forma gratuita en un plazo de hasta 15 días."
+        }
+      },
+      "policyChanges": {
+        "title": "Cambios en esta Política de Privacidad",
+        "body": "Nos reservamos el derecho de actualizar esta política periódicamente. Si realizamos cambios significativos, notificaremos a los usuarios mediante avisos visibles dentro del panel de Traffio o por correo electrónico antes de que el cambio entre en vigor. Recomendamos revisar esta página periódicamente."
+      }
+    }
+  },
+  "termsOfService": {
+    "heroBadge": "Términos de Servicio",
+    "heroTitle": "Términos de Servicio",
+    "lastUpdatedLabel": "Última actualización:",
+    "heroSubtitle": "Lea atentamente las condiciones y reglas de uso de nuestra plataforma SaaS antes de continuar.",
+    "footerPrivacyLink": "Política de Privacidad",
+    "summaryCards": {
+      "saasLicense": {
+        "title": "Licencia SaaS",
+        "description": "Uso bajo el modelo de suscripción mensual/anual recurrente para clínicas."
+      },
+      "responsibility": {
+        "title": "Responsabilidad",
+        "description": "Usted es el único responsable de los presupuestos y anuncios de Google/Meta."
+      },
+      "cancellation": {
+        "title": "Cancelación",
+        "description": "Sin multas ni tarifas de salida. Cancele y exporte sus datos cuando lo desee."
+      }
+    },
+    "sections": {
+      "acceptance": {
+        "title": "Aceptación de los Términos",
+        "body1": {
+          "prefix": "Al crear una cuenta o utilizar la plataforma",
+          "strong": "Traffio Odonto Marketing",
+          "suffix": "(\"Servicio\", \"Traffio\"), usted acepta cumplir y quedar legalmente vinculado a estos Términos de Servicio (\"Términos\"). Si no está de acuerdo con alguna parte de estos Términos, no debe acceder ni utilizar la plataforma."
+        },
+        "body2": {
+          "prefix": "El desarrollador y operador legal de este Servicio puede ser contactado a través del correo electrónico oficial de auditoría de la cuenta de Google:",
+          "strong1": "fabriciooliveiraofficial@gmail.com",
+          "middle": "o por el correo electrónico general de contacto",
+          "strong2": "contato@traffio.com.br",
+          "suffix": "."
+        }
+      },
+      "serviceDescription": {
+        "title": "Descripción del Servicio y Concesión de Licencia",
+        "body1": "Traffio es una plataforma basada en la nube (SaaS) diseñada para ayudar a clínicas dentales y profesionales de la salud en la gestión de citas (agenda), expedientes electrónicos de pacientes, envío de recordatorios mediante la API de WhatsApp, CRM de leads y consolidación de métricas financieras y de campañas publicitarias.",
+        "body2": "Sujeto al pago puntual de las tarifas de suscripción, le otorgamos una licencia limitada, revocable, no exclusiva, intransferible y mundial para acceder y utilizar Traffio de acuerdo con estos Términos. La plataforma se licencia, no se vende."
+      },
+      "accountSecurity": {
+        "title": "Cuentas y Seguridad del Usuario",
+        "body1": "Para acceder a las funciones de Traffio, debe crear una cuenta de usuario vinculada a un tenant (empresa/clínica). Usted declara que la información de registro proporcionada es verídica, completa y está actualizada.",
+        "body2": "Usted es el único responsable de mantener la confidencialidad de las credenciales de acceso de su cuenta y de todas las actividades realizadas bajo su inicio de sesión. Está prohibido compartir sus credenciales con terceros no autorizados. Notifíquenos inmediatamente sobre cualquier uso no autorizado o sospecha de violación de seguridad."
+      },
+      "thirdPartyIntegrations": {
+        "title": "Integración de Servicios de Terceros y APIs",
+        "intro": {
+          "prefix": "Traffio ofrece conectores con servicios de terceros, incluyendo la",
+          "strong1": "API de Google Ads",
+          "middle": "y la",
+          "strong2": "API de Meta Ads",
+          "suffix": ". Al utilizar estas integraciones:"
+        },
+        "items": [
+          { "label": "Autorización de Acceso:", "text": "Usted autoriza a Traffio a acceder e importar datos analíticos de su cuenta publicitaria (costos, clics, impresiones, etc.) con la finalidad exclusiva de consolidarlos en su panel de Traffio." },
+          { "label": "Responsabilidad del Usuario:", "text": "Usted reconoce que todas las campañas publicitarias, presupuestos, cargos y políticas son de su exclusiva responsabilidad y son facturados directamente por las respectivas plataformas (Google LLC y Meta Platforms, Inc.). Traffio no tiene control sobre las facturas o presupuestos de estos proveedores." },
+          { "label": "Uso Limitado de Google:", "text": "Declaramos que el uso de los datos obtenidos de cualquier API de Google está sujeto a restricciones estrictas de uso y cumple íntegramente con la Política de Datos del Usuario de los Servicios de API de Google, y no se utiliza para ningún fin que no sea la elaboración de los reportes internos de Traffio." }
+        ]
+      },
+      "billing": {
+        "title": "Suscripción, Facturación y Ajustes de Precio",
+        "intro": "El acceso a la plataforma Traffio se factura periódicamente (mensual o anualmente, según el plan elegido).",
+        "items": [
+          { "label": "Período de Prueba:", "text": "Ofrecemos 14 días de acceso de prueba gratuito sin compromiso. Si no cancela antes de que finalice este período, la facturación automática se iniciará en el método de pago registrado." },
+          { "label": "Cancelación:", "text": "Puede cancelar su suscripción en cualquier momento a través de la página de facturación del sistema. No hay multas ni período mínimo de permanencia. Al cancelar, el servicio seguirá activo hasta el final del período ya pagado." },
+          { "label": "Falta de Pago:", "text": "La falta de pago suspenderá automáticamente el acceso a la plataforma dentro de los 5 días posteriores al vencimiento no liquidado." }
+        ]
+      },
+      "liabilityLimitation": {
+        "title": "Limitación de Responsabilidad",
+        "intro": "Traffio y sus desarrolladores no se responsabilizan por daños indirectos, incidentales, especiales, consecuentes o punitivos, incluyendo, sin limitación, la pérdida de ganancias, datos, uso, prestigio comercial u otras pérdidas intangibles derivadas de:",
+        "items": [
+          "Su acceso, uso o incapacidad de acceder o utilizar el Servicio.",
+          "Inestabilidad en el tráfico de mensajes de WhatsApp, que depende de APIs externas de terceros.",
+          "Errores de configuración o interrupciones en los servicios publicitarios de Google Ads o Facebook Ads.",
+          "Acceso no autorizado, uso o alteración de sus transmisiones o datos."
+        ]
+      },
+      "termsChangesAndJurisdiction": {
+        "title": "Cambios en los Términos y Jurisdicción",
+        "body1": "Nos reservamos el derecho de modificar estos Términos en cualquier momento. En caso de cambios sustanciales, publicaremos un aviso previo en el panel de la plataforma. El uso continuado de la plataforma después de la fecha de vigencia de los nuevos Términos constituye la aceptación de los términos revisados.",
+        "body2": "Estos Términos se rigen e interpretan de acuerdo con las leyes de la República Federativa de Brasil, eligiéndose el fuero de la jurisdicción donde se encuentra la sede del desarrollador/operador para resolver cualquier disputa relacionada con estos Términos."
+      }
+    }
+  }
+}

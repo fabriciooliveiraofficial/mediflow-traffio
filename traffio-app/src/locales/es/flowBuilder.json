@@ -1,1 +1,66 @@
-{}
+{
+  "analytics": {
+    "calculatingMetrics": "Calculando Métricas de IA...",
+    "title": "Flow Analytics V2",
+    "subtitle": "Indicadores de rendimiento y participación de la automatización.",
+    "totalExecutions": "Total de Ejecuciones",
+    "activeSessions": "Sesiones Activas",
+    "avgResponseTime": "Tiempo Promedio de Respuesta",
+    "errorRate": "Tasa de Error",
+    "executionVolume": "Volumen de Ejecución",
+    "distributionByNode": "Distribución por Nodo"
+  },
+  "logs": {
+    "loadingAudit": "Cargando Auditoría...",
+    "title": "Registros de Auditoría",
+    "subtitle": "Observabilidad en tiempo real del motor de ejecución v2.",
+    "searchSessionId": "Buscar Session ID...",
+    "session": "Sesión",
+    "noLogsFound": "No se encontraron registros de ejecución."
+  },
+  "studio": {
+    "aiGenerationError": "Error al generar el flujo con IA.",
+    "newNodeLabel": "Nuevo {{type}}",
+    "yourAiEcosystem": "Tu Ecosistema de IA",
+    "selectFlow": "Seleccionar Flujo...",
+    "onlineStatus": "Estado En Línea",
+    "flowDeactivated": "Flujo desactivado.",
+    "flowActivatedExclusive": "¡Flujo activado de forma exclusiva!",
+    "active": "ACTIVO",
+    "inactive": "DESACTIVADO",
+    "aiArchitect": "Arquitecto de IA",
+    "aiPromptPlaceholder": "Describe el flujo deseado en lenguaje natural...",
+    "architectingFlow": "Diseñando flujo estratégico...",
+    "nodeLibrary": "Biblioteca de Nodos",
+    "nodeLabelMessage": "Mensaje",
+    "nodeLabelAi": "Inteligencia IA",
+    "nodeLabelWebhook": "Webhook API",
+    "nodeLabelDelay": "Retraso Temporal",
+    "publishV2": "Publicar V2",
+    "settings": "Configuración",
+    "blockTitle": "Título del Bloque",
+    "messageCopy": "Copia del Mensaje",
+    "systemPrompt": "System Prompt",
+    "menuText": "Texto del Menú",
+    "buttonsOptions": "Botones / Opciones",
+    "addButton": "+ Agregar Botón",
+    "newOption": "Nueva Opción",
+    "endpointUrl": "Endpoint URL",
+    "simulateActiveNode": "Simular Nodo Activo"
+  },
+  "nodes": {
+    "message": "Mensaje",
+    "aiOrchestrator": "Orquestador Inteligente",
+    "aiConfigPlaceholder": "Configuración de inteligencia...",
+    "webhookApi": "Webhook / API",
+    "urlNotConfigured": "URL no configurada",
+    "wait": "Esperar"
+  },
+  "simulator": {
+    "simulationStarted": "Simulación Iniciada. El bot actuará como si estuviera en WhatsApp.",
+    "title": "Simulador de WhatsApp",
+    "safeTestEnvironment": "Entorno de Prueba Seguro",
+    "restart": "Reiniciar",
+    "typeYourMessage": "Escribe tu mensaje..."
+  }
+}

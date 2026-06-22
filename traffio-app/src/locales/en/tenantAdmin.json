@@ -1,1 +1,494 @@
-{}
+{
+  "professionals": {
+    "days": {
+      "sunday": "Sunday",
+      "monday": "Monday",
+      "tuesday": "Tuesday",
+      "wednesday": "Wednesday",
+      "thursday": "Thursday",
+      "friday": "Friday",
+      "saturday": "Saturday"
+    },
+    "roleLabel": {
+      "owner": "Owner",
+      "admin": "Administrator",
+      "doctor": "Doctor",
+      "staff": "Front Desk"
+    },
+    "errors": {
+      "locationClosedOnDay": "The {{locationName}} location is CLOSED on this day.",
+      "locationHoursWindow": "On this day, the {{locationName}} location is only open from {{start}} to {{end}}.",
+      "saveScheduleError": "Error saving schedule.",
+      "loadError": "Error loading professionals.",
+      "nameRequired": "Name is required.",
+      "saveError": "Error saving information.",
+      "toggleActiveError": "Error changing status: {{message}}",
+      "deleteError": "Error deleting: {{message}}",
+      "botProfileSaveError": "Error saving.",
+      "botProfileGenerateError": "Error generating profile.",
+      "botProfileGenerateFnError": "Error during generation"
+    },
+    "success": {
+      "scheduleUpdated": "Schedule updated successfully!",
+      "registered": "Professional registered successfully!",
+      "dataSaved": "Data saved!",
+      "updated": "Professional updated successfully!",
+      "botSkillsSaved": "Bot Skills saved!",
+      "botProfileGenerated": "Profile generated with AI! Review and save when you're satisfied."
+    },
+    "detail": {
+      "newProfessional": "New Professional",
+      "fillFieldsBelow": "Fill in the fields below",
+      "crmPrefix": "CRM {{crm}}",
+      "edit": "Edit",
+      "tabs": {
+        "data": "Data",
+        "weeklySchedule": "Weekly Schedule",
+        "insurancePlans": "Insurance Plans",
+        "botSkills": "Bot Skills"
+      },
+      "saveDataFirst": "Save the data first",
+      "dataTab": {
+        "fullName": "Full Name *",
+        "fullNamePlaceholder": "Ex: Dr. John Smith",
+        "email": "Email",
+        "emailPlaceholder": "email@example.com",
+        "phone": "Phone",
+        "phonePlaceholder": "(11) 99999-0000",
+        "role": "Role",
+        "roleDoctor": "Doctor",
+        "roleStaff": "Front Desk",
+        "roleAdmin": "Administrator",
+        "specialty": "Specialty",
+        "specialtyPlaceholder": "Ex: Cardiology",
+        "crm": "CRM",
+        "crmPlaceholder": "Ex: 123456/SP",
+        "rqe": "RQE",
+        "rqePlaceholder": "Optional",
+        "bio": "Bio / Notes",
+        "bioPlaceholder": "Additional information...",
+        "avatarColor": "Avatar Color",
+        "cancellationPolicy": {
+          "title": "Cancellation Rules",
+          "subtitle": "Define whether a fee will be charged for late cancellation or no-show.",
+          "freeWindowHours": "Free until (Hours before)",
+          "freeWindowHint": "Ex: 24h or 48h before the appointment.",
+          "latePenaltyPercent": "Late Cancellation Fee (%)",
+          "latePenaltyHint": "Ends up being applied to the value of the procedure/appointment.",
+          "noShowPenaltyPercent": "No-Show Fee (%)",
+          "noShowPenaltyHint": "Fee applied if the patient doesn't cancel and misses the appointment.",
+          "noneConfigured": "No cancellation or fee rules configured.",
+          "freeUntil": "Free until <strong>{{hours}}h</strong>",
+          "latePenaltyLabel": "Late Fee:",
+          "noShowPenaltyLabel": "No-Show Fee:"
+        },
+        "cancel": "Cancel",
+        "saving": "Saving...",
+        "next": "Next",
+        "save": "Save",
+        "readOnly": {
+          "fullName": "Full Name",
+          "email": "Email",
+          "phone": "Phone",
+          "role": "Role",
+          "specialty": "Specialty",
+          "crm": "CRM",
+          "rqe": "RQE",
+          "autoRelease": "Auto-Release",
+          "autoReleaseValue": "{{hours}}h before the slot",
+          "bio": "Bio",
+          "empty": "—"
+        }
+      },
+      "agendaTab": {
+        "title": "Time Blocks",
+        "subtitle": "Configure private and regular schedules for smart scheduling.",
+        "tools": {
+          "prime": "Prime",
+          "regular": "Regular",
+          "blocked": "Block",
+          "eraser": "Eraser"
+        },
+        "selectedLocation": "Selected Location:",
+        "loadingLocations": "Loading locations...",
+        "saveSchedule": "Save Schedule",
+        "saving": "Saving...",
+        "hourLabel": "Hour",
+        "dragHint": "Click and drag to set time slots.",
+        "saveGridChanges": "Save Grid Changes",
+        "previous": "Previous",
+        "next": "Next"
+      },
+      "insuranceTab": {
+        "title": "Accepted Insurance Plans",
+        "subtitle": "Select the insurance plans this professional accepts.",
+        "emptyTitle": "No insurance plans registered",
+        "emptySubtitle": "Register insurance plans in Settings → Insurance Plans first.",
+        "ansCode": "ANS: {{code}}",
+        "linked": "Linked",
+        "link": "Link",
+        "previous": "Previous",
+        "finish": "Finish"
+      },
+      "botTab": {
+        "title": "Bot Skills",
+        "subtitle": "The agent uses this information to personalize this professional's service.",
+        "generateWithAI": "Generate with AI",
+        "generating": "Generating...",
+        "generateTitle": "Automatically generates the bot profile based on the professional's data",
+        "pitch": {
+          "label": "Professional Introduction",
+          "hint": "How the bot should introduce this professional. Ex: \"Dr. John specializes in Invisible Orthodontics with 12 years of experience.\"",
+          "placeholder": "Describe the professional's strengths and specialization..."
+        },
+        "consultationOpening": {
+          "label": "Appointment Opening",
+          "hint": "What the patient can expect from this appointment. Used when the bot presents the service.",
+          "placeholder": "Ex: The orthodontic evaluation includes a full analysis and presentation of a personalized plan..."
+        },
+        "sellingPoints": {
+          "label": "Highlights / Selling Points",
+          "hint": "Arguments the bot can use to convince the patient to book.",
+          "placeholder": "Ex: Installments of up to 24x with no interest",
+          "add": "Add highlight"
+        },
+        "objectionScripts": {
+          "label": "Objection Scripts",
+          "hint": "Exact responses the bot should use when the patient raises each objection.",
+          "preco": {
+            "label": "Price Objection",
+            "placeholder": "Ex: We offer installments of up to 24x. Can I confirm a time for the evaluation, which is no-obligation?"
+          },
+          "tempo": {
+            "label": "Time Objection",
+            "placeholder": "Ex: The appointment lasts only 30 minutes. I have an opening at 7am that might be convenient..."
+          },
+          "urgencia": {
+            "label": "Urgency Objection (\"it's not urgent\")",
+            "placeholder": "Ex: I understand! The schedule usually fills up 2-3 weeks ahead. Would you like to lock in a spot now so you don't have to worry about it later?"
+          }
+        },
+        "faq": {
+          "label": "Frequently Asked Questions (FAQ)",
+          "hint": "The bot responds directly with these answers when it detects the patient's questions.",
+          "questionPlaceholder": "Patient's question (ex: How much does it cost?)",
+          "answerPlaceholder": "Bot's answer...",
+          "add": "Add question"
+        },
+        "preAppointmentTip": {
+          "label": "Pre-Appointment Instruction",
+          "hint": "Sent to the patient upon booking confirmation. Ex: \"Bring recent X-rays.\"",
+          "placeholder": "Ex: To get the most out of your appointment, bring recent test results if you have them."
+        },
+        "saving": "Saving...",
+        "save": "Save Skills"
+      }
+    },
+    "list": {
+      "headerTitle": "Professionals",
+      "headerSubtitle": "Clinic's medical and administrative staff.",
+      "add": "Add",
+      "searchPlaceholder": "Search by name, specialty, or CRM...",
+      "loading": "Loading staff...",
+      "emptyAll": "No professionals registered. Click \"Add\" to get started.",
+      "emptySearch": "No results found.",
+      "noName": "No name",
+      "inactive": "Inactive",
+      "crmPrefix": "CRM {{crm}}",
+      "edit": "Edit",
+      "activate": "Activate",
+      "deactivate": "Deactivate",
+      "delete": "Delete"
+    },
+    "deleteDialog": {
+      "title": "Remove Professional?",
+      "message": "This action cannot be undone. The professional will be removed from the clinic's staff.",
+      "cancel": "Cancel",
+      "confirm": "Delete"
+    }
+  },
+  "notificationsPage": {
+    "header": {
+      "title": "Notifications",
+      "subtitle": "Choose how you want to be notified about new messages and events."
+    },
+    "cards": {
+      "soundAlert": {
+        "title": "Sound Alert",
+        "description": "Play a top-priority sound for every new message received (Recommended)."
+      },
+      "toastNotification": {
+        "title": "Pop-up Alert",
+        "description": "Show a notification bubble in the corner of the screen while you navigate the platform."
+      },
+      "webPush": {
+        "title": "Native Web Push",
+        "description": "Receive system alerts even with the tab closed or in the background."
+      }
+    },
+    "toasts": {
+      "pushDenied": "Notification permission denied in the browser.",
+      "smtpSaved": "SMTP settings saved successfully!",
+      "smtpSaveErrorPrefix": "Error saving SMTP: {{message}}"
+    },
+    "smtp": {
+      "title": "Email Server (custom SMTP)",
+      "subtitle": "Configure the credentials to send confirmation emails from your own domain.",
+      "hostLabel": "SMTP Server (Host)",
+      "hostPlaceholder": "ex: smtp.domain.com",
+      "portLabel": "Port",
+      "userLabel": "SMTP User",
+      "userPlaceholder": "ex: appointments@domain.com",
+      "passLabel": "SMTP Password",
+      "fromLabel": "Sender Email (From)",
+      "fromPlaceholder": "ex: appointments@domain.com",
+      "fromHint": "Leave blank to use the same email as the SMTP User.",
+      "saveButton": "Save SMTP Settings"
+    },
+    "infoBanner": {
+      "title": "Important: Alert Availability",
+      "body": {
+        "prefix": "To make sure you never miss a patient contact, we recommend keeping",
+        "strong1": "Sound Alert",
+        "middle": "and",
+        "strong2": "Web Push",
+        "suffix": "active. Our sound system is optimized to overcome automatic browser muting on inactive tabs."
+      }
+    }
+  },
+  "financialDashboard": {
+    "header": {
+      "title": "Financial",
+      "subtitle": "Consolidated view of all your locations and hub conversion.",
+      "filterAll": "All",
+      "filterPaid": "Paid",
+      "filterPending": "Pending",
+      "filterCanceled": "Canceled",
+      "newBillingButton": "New Charge"
+    },
+    "confirmCancel": "Cancel this charge?",
+    "kpis": {
+      "totalRevenue": "Total Revenue",
+      "received": "Received",
+      "toReceive": "To Receive",
+      "billings": "Charges"
+    },
+    "analytics": {
+      "sectionTitle": "Procedure Conversion",
+      "sectionSubtitle": "Dr. Cash & Pagar.me Performance",
+      "highApproval": "High Approval",
+      "approvalRateLabel": "Dr. Cash Approval Rate",
+      "financingVolumeLabel": "Signed Credit Volume",
+      "avgTicketLabel": "Average Ticket (Hybrid Hub)",
+      "mixChartTitle": "Payment Mix",
+      "mixPix": "Pix",
+      "mixCard": "Card (Pagar.me)",
+      "mixFinancing": "Financing (Dr. Cash)",
+      "mixOthers": "Other",
+      "pipelineTitle": "Dr. Cash Pipeline Status",
+      "activeProposalsLabel": "Proposals Under Review",
+      "conversionOptimizedTitle": "Optimized Conversion",
+      "conversionOptimizedDescription": "Using the Hybrid Hub increased the average ticket compared to traditional in-person payments."
+    },
+    "transactions": {
+      "title": "Charges",
+      "exportButton": "Export",
+      "loading": "Loading...",
+      "empty": "No charges found.",
+      "patientFallback": "Patient",
+      "methodFallback": "Not set",
+      "payButton": "Pay",
+      "cancelButton": "Cancel",
+      "statusLabels": {
+        "paid": "Paid",
+        "pending": "Pending",
+        "overdue": "Overdue",
+        "canceled": "Canceled",
+        "refunded": "Refunded"
+      }
+    },
+    "newBillingModal": {
+      "title": "New Charge",
+      "patientLabel": "Patient",
+      "selectPlaceholder": "Select...",
+      "amountLabel": "Amount (R$)",
+      "dueDateLabel": "Due Date",
+      "methodLabel": "Method",
+      "methodPix": "Pix",
+      "methodCreditCard": "Credit Card",
+      "methodBoleto": "Boleto",
+      "methodCash": "Cash",
+      "cancelButton": "Cancel",
+      "createButton": "Create Charge",
+      "creating": "Creating...",
+      "createError": "Error creating charge."
+    }
+  },
+  "services": {
+    "header": {
+      "title": "Appointment Types",
+      "subtitle": "Services, prices, and durations.",
+      "newButton": "New Type"
+    },
+    "searchPlaceholder": "Search appointment type...",
+    "emptyState": "No appointment types found.",
+    "noNameFallback": "No name",
+    "noSpecialtyFallback": "Specialty not set",
+    "clinicGeneral": {
+      "title": "Clinic Services",
+      "subtitle": "General / No Professional"
+    },
+    "card": {
+      "activate": "Activate",
+      "deactivate": "Deactivate",
+      "inactiveBadge": "Inactive"
+    },
+    "toasts": {
+      "tenantNotIdentified": "Error: Unable to identify your clinic. Make sure you are logged in correctly.",
+      "saveSuccess": "Procedure saved successfully!",
+      "saveErrorPrefix": "Failed to save: {{message}}",
+      "linksWithoutDoctorWarning": "Warning: You added locations but didn't select a doctor for any of them. The locations will not be saved."
+    },
+    "deleteConfirm": "Remove this appointment type?",
+    "modal": {
+      "titleNew": "New Appointment Type",
+      "titleEdit": "Edit Type",
+      "nameLabel": "Procedure Name",
+      "namePlaceholder": "Ex: Initial Consultation",
+      "activeLabel": "Active",
+      "inactiveLabel": "Inactive",
+      "durationLabel": "Duration (min)",
+      "priceLabel": "Price (R$)",
+      "colorLabel": "Calendar Color",
+      "instructionsLabel": "Preparation Instructions (Bot)",
+      "instructionsPlaceholder": "Ex: 8h fasting, bring previous test results...",
+      "assignmentsLabel": "Location Assignment",
+      "addLocationButton": "+ Add Location",
+      "noLocationsSelected": "No locations selected.",
+      "selectDoctorPlaceholder": "Select Doctor",
+      "anyLocationPlaceholder": "Any Location",
+      "cancelButton": "Cancel",
+      "saveButton": "Save",
+      "saving": "Saving..."
+    }
+  },
+  "adminWhatsApp": {
+    "loadingClinic": "Loading clinic data...",
+    "header": {
+      "title": "WhatsApp",
+      "subtitle": "Connect your clinic's WhatsApp to activate the AI agent."
+    },
+    "providerTabs": {
+      "zapi": "WhatsApp Web (Z-API)",
+      "cloudApi": "Official (Cloud API)"
+    },
+    "statusConfig": {
+      "loading": "Checking...",
+      "noInstance": "Waiting for Configuration",
+      "configured": "Ready to Connect",
+      "connecting": "Waiting for QR Code Scan...",
+      "connected": "WhatsApp Connected",
+      "cloudApiActive": "Cloud API Active"
+    },
+    "toasts": {
+      "connectedSuccess": "WhatsApp connected successfully!",
+      "credentialsMissing": "Z-API credentials not configured for this clinic.",
+      "qrGenerateError": "Error generating QR Code. Check the instance status in the Master panel.",
+      "connectionError": "Error connecting to the WhatsApp server.",
+      "disconnectedSuccess": "WhatsApp disconnected.",
+      "disconnectError": "Error disconnecting. Try again or use the Master panel.",
+      "disconnectProcessError": "Error processing disconnection.",
+      "cloudSettingsSaved": "Cloud API settings saved!",
+      "cloudSettingsSaveError": "Error saving settings.",
+      "cloudRequestError": "Failed to process request.",
+      "cloudFillFieldsError": "Fill in the ID and Token to test."
+    },
+    "disconnectConfirm": "Are you sure you want to disconnect the clinic's WhatsApp?",
+    "cloudApi": {
+      "title": "WhatsApp Cloud API",
+      "subtitle": "Official, high-performance connection via Meta.",
+      "phoneNumberIdLabel": "Phone Number ID",
+      "accessTokenLabel": "Access Token (System User)",
+      "businessAccountIdLabel": "Business Account ID",
+      "techConfigTitle": "Technical Configuration",
+      "techConfigBody": "To use the Official API, your Meta Business Suite account must be verified.",
+      "metaDevelopersLink": "Meta Developers",
+      "activateButton": "Activate Cloud API",
+      "testConnectionButton": "Test connection"
+    },
+    "zapiContent": {
+      "syncingMessage": "Syncing with WhatsApp in real time...",
+      "noInstance": {
+        "title": "In preparation",
+        "description": "The Traffio support team is setting up your technical instance.",
+        "nextStepTitle": "Next step",
+        "nextStepDescription": "You'll be notified when you can generate the QR Code.",
+        "checkAgainButton": "Check again"
+      },
+      "configured": {
+        "title": "All set!",
+        "description": "Click the button to generate the QR Code and connect the clinic's number.",
+        "step1": "Click \"Generate QR Code\"",
+        "step2": "Open WhatsApp on the clinic's phone",
+        "step3": "Go to Linked Devices → Link a Device",
+        "step4": "Scan the code that appears on the screen",
+        "generateQrButton": "Generate QR Code"
+      },
+      "connecting": {
+        "title": "Scan the QR Code",
+        "description": "The connection will be recognized automatically.",
+        "waitingScan": "Waiting for the phone to scan...",
+        "generatingCode": "Generating code...",
+        "connectedDevicesHint": "Go to Linked Devices on your WhatsApp"
+      },
+      "connected": {
+        "title": "WhatsApp Active!",
+        "description": "The AI agent is ready to respond to your patients.",
+        "statusLabel": "Status",
+        "online": "Online",
+        "numberLabel": "Number",
+        "clinicLabel": "Clinic",
+        "disconnectButton": "Disconnect WhatsApp"
+      }
+    }
+  },
+  "intelligence": {
+    "header": {
+      "title": "Automation Hub",
+      "subtitle": "Manage Reminders, NPS, and Audiovisual Confirmations."
+    },
+    "toasts": {
+      "loadConfigError": "Error loading configuration: {{message}}",
+      "tenantNotFound": "Tenant not found",
+      "saveSuccess": "Automation settings saved successfully!",
+      "saveError": "Error saving: {{message}}",
+      "saveErrorUnknown": "Unknown error",
+      "videoTooLarge": "The video must be smaller than 16MB.",
+      "videoUploaded": "Video uploaded!",
+      "videoUploadError": "Error uploading video."
+    },
+    "activationSection": {
+      "title": "Activation Settings",
+      "noShowTitle": "No-Show Prevention",
+      "noShowDescription": "48h/24h confirmation + 2h reminder",
+      "npsTitle": "NPS Survey",
+      "npsDescription": "Automatic survey at 7pm post-appointment"
+    },
+    "videoSection": {
+      "title": "Confirmation Videos",
+      "subtitle": "Boost attendance with personalized messages",
+      "infoBanner": "The video will be sent as the main media and the default text message will be the \"caption.\" Use a 9:16 (vertical) ratio.",
+      "label48h": "48 Hours Before",
+      "label24h": "24 Hours Before",
+      "label2h": "2 Hours Before",
+      "labelTest": "🧪 Test (5 Min)",
+      "uploadLabel": "VIDEO",
+      "captionLabel": "Video Caption",
+      "captionPlaceholder": "Type the message that will accompany the video...",
+      "charCountLabel": "Approx. {{count}} characters",
+      "syncedLabel": "Synced"
+    },
+    "testModeLabel": "Test Mode (5m)",
+    "saveButton": "SAVE CHANGES"
+  }
+}

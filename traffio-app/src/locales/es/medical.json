@@ -1,1 +1,588 @@
-{}
+{
+  "recordsHub": {
+    "toasts": {
+      "idocsCpfRequired": "El CPF del paciente es necesario para buscar en iDoc.",
+      "idocsOpening": "Abriendo Portal de Exámenes iDoc...",
+      "prescriptionsLoadError": "No se pudo cargar el historial de recetas.",
+      "documentUploaded": "¡Documento adjuntado con éxito!",
+      "documentUploadError": "Error al subir el archivo.",
+      "documentDeleteConfirm": "¿Realmente deseas eliminar este documento?",
+      "documentDeleted": "Documento eliminado.",
+      "documentDeleteError": "Error al eliminar documento.",
+      "documentDownloadError": "Error al descargar archivo.",
+      "previewError": "No se pudo generar la vista previa.",
+      "notAuthenticated": "Usuario no autenticado",
+      "noteSaved": "¡Evolución clínica guardada con éxito!",
+      "noteSaveErrorPrefix": "Error al guardar evolución: ",
+      "unknownError": "Error desconocido",
+      "printContentRequired": "Ingresa el contenido de la receta antes de imprimir.",
+      "prescriptionSaved": "¡Receta guardada y preparada para impresión!",
+      "prescriptionSaveError": "Error al guardar la receta en el historial.",
+      "editComingSoon": "La función de edición estará disponible próximamente.",
+      "clearContentConfirm": "¿Deseas borrar todo el contenido de la receta?",
+      "generatingHighResPdf": "Generando PDF de alta resolución..."
+    },
+    "print": {
+      "tagline": "Soluciones para tu salud",
+      "title": "Receta Médica",
+      "patientLabel": "Paciente:",
+      "dateLabel": "Fecha:",
+      "empty": "No se indicó ninguna prescripción.",
+      "signature": "Firma del Profesional",
+      "footer": "Documento emitido digitalmente vía Traffio App"
+    },
+    "patientList": {
+      "title": "Historial Médico",
+      "searchPlaceholder": "Buscar paciente..."
+    },
+    "emptyState": {
+      "title": "Selecciona un Paciente",
+      "subtitle": "Usa la lista al lado para acceder al historial clínico completo y herramientas de prescripción."
+    },
+    "header": {
+      "activePatient": "Paciente Activo",
+      "newEvolution": "Nueva Evolución",
+      "prescribe": "Prescribir",
+      "idocsTitle": "Acceder a exámenes en iDoc (Radio Memory)"
+    },
+    "tabs": {
+      "timeline": "Línea de Tiempo",
+      "details": "Ficha Clínica",
+      "prescriptions": "Recetas",
+      "files": "Exámenes y Documentos"
+    },
+    "timeline": {
+      "empty": "No se encontraron registros clínicos."
+    },
+    "details": {
+      "identification": "Identificación",
+      "fullName": "Nombre Completo",
+      "notInformed": "No informado",
+      "birthDate": "Fecha de Nac.",
+      "gender": "Género",
+      "contacts": "Contactos",
+      "email": "Correo electrónico",
+      "phone": "Teléfono / WhatsApp",
+      "location": "Ubicación",
+      "address": "Dirección",
+      "neighborhood": "Colonia",
+      "zipCode": "Código Postal",
+      "addressNotRegistered": "Dirección no registrada.",
+      "cityState": "Ciudad / Estado",
+      "insurance": "Asistencial",
+      "insurancePlan": "Plan de Salud",
+      "private": "Particular",
+      "insuranceProvider": "Aseguradora",
+      "insuranceCardNumber": "N.º de Tarjeta",
+      "noInsurance": "Atención sin aseguradora vinculada.",
+      "notes": "Notas y Observaciones",
+      "notesEmpty": "Sin observaciones clínicas adicionales para este paciente.",
+      "deletePatient": "Eliminar Paciente",
+      "editRegistration": "Editar Registro"
+    },
+    "form": {
+      "title": "Nueva Evolución Clínica",
+      "eventType": "Tipo de Evento",
+      "eventOptions": {
+        "consulta": "Consulta",
+        "exame": "Evaluación de Examen",
+        "procedimento": "Procedimiento",
+        "nota": "Nota Administrativa"
+      },
+      "dateLabel": "Fecha",
+      "todayPrefix": "Hoy, {{date}}",
+      "titleLabel": "Título/Motivo Principal",
+      "titlePlaceholder": "Ej: Visita de seguimiento, Dolor agudo...",
+      "descriptionLabel": "Descripción/Evolución",
+      "descriptionPlaceholder": "Describe en detalle la evolución del paciente...",
+      "save": "Guardar en el Historial"
+    },
+    "prescriptionEditor": {
+      "title": "Receta Digital",
+      "medicationsLabel": "Medicamentos y Posología",
+      "medicationsPlaceholder": "1. Amoxicilina 500mg - Tomar 1 comprimido cada 8 horas durante 7 días...",
+      "savePdf": "Guardar PDF",
+      "clearTitle": "Borrar Contenido",
+      "previewVisualLabel": "Vista Previa Visual",
+      "previewBrand": "Traffio Med",
+      "previewCrm": "CRM/CRO 12345",
+      "previewTitle": "RECETA MÉDICA",
+      "previewPatientLabel": "Paciente:",
+      "previewPlaceholder": "Escribe el contenido al lado...",
+      "previewSignature": "Firma del Profesional"
+    },
+    "prescriptionsList": {
+      "loading": "Cargando historial...",
+      "emptyTitle": "No se encontraron recetas",
+      "emptySubtitle": "Inicia una nueva prescripción para este paciente en la pestaña \"Prescribir\".",
+      "newPrescription": "Nueva Receta",
+      "digitalPrescription": "Receta Digital - {{time}}",
+      "persisted": "Guardado"
+    },
+    "prescriptionViewer": {
+      "title": "Revisión de Receta",
+      "fullScreenView": "Vista de pantalla completa • #{{id}}",
+      "brand": "Traffio Medical",
+      "brandTagline": "Tecnología en Gestión Médica",
+      "doctorPrefix": "Dr. {{name}}",
+      "doctorFallback": "Médico Responsable",
+      "doctorCrm": "CRM/CRO: 123.456-SP",
+      "heading": "Receta",
+      "patientLabel": "Paciente",
+      "issueDate": "Fecha de Emisión",
+      "signatureLabel": "Firma Digital",
+      "authenticatedVia": "Autenticado vía Traffio Security Hub",
+      "reprint": "Reimprimir Receta",
+      "downloadPdf": "Descargar PDF"
+    },
+    "files": {
+      "addDocument": "Agregar Nuevo Documento",
+      "dragHint": "Arrastra archivos PDF, imágenes o informes aquí.",
+      "uploading": "Subiendo...",
+      "selectFile": "Seleccionar Archivo",
+      "empty": "No hay documentos adjuntos.",
+      "quickView": "Vista Rápida"
+    },
+    "documentPreview": {
+      "downloadOriginal": "Descargar Original",
+      "loading": "Generando vista previa segura...",
+      "unsupportedTitle": "Vista previa no compatible",
+      "unsupportedSubtitle": "Este formato de archivo ({{type}}) debe descargarse para visualización externa.",
+      "downloadNow": "Descargar Archivo Ahora",
+      "loadError": "Error al cargar el archivo."
+    }
+  },
+  "odontologyHub": {
+    "loading": "Cargando Hub de Odontología...",
+    "title": "Hub de Odontología",
+    "subtitle": "Gestión clínica, diagnósticos y planes de tratamiento.",
+    "dicomViewerButton": "Visor DICOM",
+    "idocsTitle": "Acceder a exámenes en iDoc (Radio Memory)",
+    "newBudget": "Nuevo Presupuesto",
+    "stats": {
+      "recallsThisMonth": "Recalls Este Mes",
+      "openBudgets": "Presupuestos Abiertos",
+      "dicomExams": "Exámenes DICOM",
+      "clinicalMap": "Mapa Clínico",
+      "clinicalMapValue": "32 Dientes"
+    },
+    "recallsTitle": "Agenda de Prevención (Recalls)",
+    "exportList": "Exportar Lista",
+    "overdue": "Vencido",
+    "recentBudgets": "Últimos Presupuestos",
+    "total": "Total",
+    "searchModal": {
+      "budgetTitle": "Crear Presupuesto para...",
+      "odontogramTitle": "Ver Odontograma de..."
+    },
+    "toasts": {
+      "loadError": "Error al cargar datos del hub: ",
+      "cpfRequired": "El CPF del paciente es necesario para consultar en iDocs.",
+      "opening": "Abriendo exámenes en iDoc (Radio Memory)...",
+      "budgetCreated": "¡Presupuesto creado con éxito!"
+    }
+  },
+  "nutritionHub": {
+    "loading": "Sincronizando Inteligencia Nutricional...",
+    "titlePrefix": "Super-Nutrición ",
+    "titleHighlight": "Hub",
+    "subtitle": "Gestión metabólica de alta precisión y línea de tiempo evolutiva.",
+    "mealPlannerButton": "Planificador de Comidas",
+    "newEvaluation": "Nueva Evaluación",
+    "stats": {
+      "aiPlanner": "Planificador IA",
+      "aiPlannerValue": "Operativo",
+      "weightLoss": "Pérdida de Peso",
+      "avgBmi": "IMC Prom."
+    },
+    "patientCard": {
+      "selectPatient": "Selecciona un Paciente",
+      "idPrefix": "ID: #{{id}}",
+      "waitingSelection": "Esperando selección",
+      "changePatient": "Cambiar Paciente"
+    },
+    "weightEvolution": {
+      "title": "Evolución de Peso",
+      "subtitle": "Seguimiento de los últimos 7 meses"
+    },
+    "timeline": {
+      "title": "Línea de Tiempo Metabólica",
+      "syncing": "Sincronizando historial...",
+      "evaluationType": "Evaluación Antropométrica",
+      "mealPlanType": "Plan Alimentario",
+      "checkinPrefix": "Check-in: {{weight}}kg",
+      "dietAiPrefix": "Dieta: Generada por IA",
+      "dietManualPrefix": "Dieta: Prescripción Manual",
+      "evaluationSummary": "IMC: {{bmi}} • Grasa: {{fat}}% • Cintura: {{waist}}cm",
+      "mealsCount": "{{count}} comidas estructuradas",
+      "emptyTitle": "Sin historial metabólico",
+      "emptySubtitle": "Inicia una evaluación para comenzar la línea de tiempo.",
+      "emptyAction": "Nueva Evaluación"
+    },
+    "aiEngine": {
+      "titlePrefix": "Inteligencia ",
+      "titleHighlight": "Nutri",
+      "cardTitleLine1": "Prescripción IA",
+      "cardTitleLine2": "Sincronizada.",
+      "startGenerator": "Iniciar Generador"
+    },
+    "quickTools": {
+      "title": "Herramientas Pro",
+      "exportPdf": "Exportar PDF del Historial",
+      "supplementation": "Prescribir Suplementación",
+      "whatsappSummary": "Resumen para WhatsApp"
+    },
+    "searchModal": {
+      "evalTitle": "Nueva Evaluación para...",
+      "mealTitle": "Planificación Alimentaria para..."
+    },
+    "toasts": {
+      "loadError": "Error al cargar datos del hub: ",
+      "timelineLoadError": "Error al cargar línea de tiempo: "
+    }
+  },
+  "dentalModals": {
+    "newBudget": {
+      "autoProcedureName": "Procedimiento en el Diente {{tooth}} ({{plane}})",
+      "title": "Nuevo Presupuesto Odontológico",
+      "subtitle": "Transforma el diagnóstico en un plan de tratamiento.",
+      "itemsTitle": "Ítems del Presupuesto",
+      "table": {
+        "toothFace": "Diente/Superficie",
+        "procedure": "Procedimiento",
+        "unitValue": "Precio Unit.",
+        "qty": "Cant.",
+        "total": "Total"
+      },
+      "toothPlaceholder": "Diente",
+      "facePlaceholder": "Superficie",
+      "procedureNamePlaceholder": "Nombre del procedimiento...",
+      "addItem": "+ Agregar otro procedimiento",
+      "notesLabel": "Observaciones del Plan",
+      "notesPlaceholder": "Describe condiciones de pago, plazos u observaciones técnicas...",
+      "validUntilLabel": "Vigencia del Presupuesto",
+      "subtotal": "Subtotal de Procedimientos",
+      "totalValue": "Valor Total",
+      "cancel": "Cancelar",
+      "saving": "Guardando...",
+      "submit": "Generar Presupuesto",
+      "toasts": {
+        "created": "¡Presupuesto creado con éxito!",
+        "createErrorPrefix": "Error al crear presupuesto: "
+      }
+    },
+    "dicomViewer": {
+      "title": "Análisis de Imagen DICOM",
+      "subtitle": "Visor de Alta Definición"
+    },
+    "odontogramModal": {
+      "title": "Odontograma Clínico",
+      "patientPrefix": "Paciente: {{name}}",
+      "selectFallback": "Seleccionar",
+      "idocsTitle": "Acceder a exámenes en iDoc (Radio Memory)",
+      "toasts": {
+        "cpfRequired": "El CPF del paciente es necesario para consultar en iDocs.",
+        "opening": "Abriendo exámenes en iDoc (Radio Memory)..."
+      }
+    },
+    "odontogram": {
+      "title": "Examen Clínico",
+      "conditions": {
+        "caries": "Caries",
+        "restored": "Restaurado",
+        "missing": "Ausente"
+      },
+      "clearTitle": "Limpiar selección",
+      "saving": "Guardando...",
+      "save": "Guardar Mapa",
+      "legend": {
+        "cariesIdentified": "CARIES IDENTIFICADA",
+        "existingRestoration": "RESTAURACIÓN EXISTENTE",
+        "healthyNormal": "SALUDABLE / NORMAL",
+        "clickHint": "HAZ CLIC EN LAS SUPERFICIES PARA MARCAR EL PROCEDIMIENTO"
+      },
+      "toasts": {
+        "missingContext": "Paciente o clínica no identificados.",
+        "selectAtLeastOne": "Selecciona al menos una superficie para guardar.",
+        "saved": "¡Mapa odontológico guardado con éxito!",
+        "saveErrorPrefix": "Error al guardar mapa: "
+      }
+    }
+  },
+  "nutritionModals": {
+    "newEvaluation": {
+      "title": "Nueva Evaluación Antropométrica",
+      "patientPrefix": "Paciente: {{name}}",
+      "selectFallback": "Seleccionar"
+    },
+    "mealPlanner": {
+      "defaultPeriods": {
+        "breakfast": "Desayuno",
+        "lunch": "Almuerzo",
+        "dinner": "Cena",
+        "newMeal": "Nueva Comida"
+      },
+      "back": "Volver",
+      "configureAi": "Configurar IA",
+      "modeManual": "Modo Manual",
+      "modeAi": "IA Generativa",
+      "headerTitle": "Planificador de Dieta",
+      "settings": {
+        "title": "Configuración de Inteligencia",
+        "disclaimer": "Tu clave API se almacena solo en este navegador (LocalStorage) por seguridad y nunca se envía a nuestra base de datos.",
+        "apiKeyLabel": "Clave API de OpenAI / Anthropic",
+        "save": "Guardar Configuración"
+      },
+      "menu": {
+        "selectedPatient": "Paciente Seleccionado",
+        "noPatientSelected": "Ningún paciente seleccionado",
+        "generateAi": "Generar con IA",
+        "generateAiSubtitle": "Prescripción asistida",
+        "manualFlow": "Flujo Manual",
+        "manualFlowSubtitle": "Prescripción libre",
+        "engineHint": "El motor procesará el IMC, la Tasa Metabólica Basal y el biotipo del paciente para sugerir las mejores comidas."
+      },
+      "ai": {
+        "title": "Creación Asistida por IA",
+        "description": "La IA cruzará los datos antropométricos del paciente (Peso: 82kg, Altura: 1.78m) para generar un plan nutricional equilibrado de 7 días.",
+        "processing": "El algoritmo está procesando...",
+        "submit": "Confirmar y Generar Plan"
+      },
+      "manual": {
+        "title": "Prescripción Nutricional",
+        "addMealTitle": "Agregar Comida",
+        "foodsPlaceholder": "Describe los alimentos, porciones y recomendaciones...",
+        "saving": "Guardando...",
+        "save": "Guardar Plan Manual"
+      },
+      "toasts": {
+        "apiKeySaved": "Clave API guardada localmente por tu seguridad.",
+        "patientIdMissing": "Error interno: ID del paciente no encontrado. Intenta seleccionar el paciente nuevamente.",
+        "apiKeyRequired": "Por favor, ingresa tu clave de OpenAI o Anthropic primero.",
+        "aiPlanSaved": "¡Plan alimentario generado y guardado con éxito!",
+        "aiPlanError": "Error al generar plan: ",
+        "manualPlanSaved": "¡Plan alimentario manual guardado en el historial!",
+        "manualPlanError": "Error al guardar plan: "
+      }
+    }
+  },
+  "patientDetails": {
+    "loading": "Cargando historial médico...",
+    "notFound": "Paciente no encontrado.",
+    "backToList": "Volver a la Lista",
+    "newFinancingProposal": "Nueva Propuesta de Financiamiento",
+    "newEvolution": "Nueva Evolución",
+    "active": "Activo",
+    "recallPrefix": "Recall: {{date}}",
+    "insuranceFallback": "Aseguradora",
+    "private": "Particular",
+    "docNotInformed": "No informado",
+    "birthDatePrefix": "Nac: {{date}}",
+    "cardPrefix": "Tarjeta: {{card}}",
+    "mobileLabel": "Celular",
+    "mobileNotRegistered": "No registrado",
+    "callTitle": "Llamar a {{number}}",
+    "emailLabel": "Correo electrónico",
+    "emailNotRegistered": "No registrado",
+    "tabs": {
+      "timeline": "LÍNEA DE TIEMPO",
+      "calls": "LLAMADAS",
+      "medicalRecord": "HISTORIAL MÉDICO",
+      "dental": "ODONTOLOGÍA",
+      "exams": "EXÁMENES",
+      "nutrition": "NUTRICIÓN"
+    },
+    "timeline": {
+      "heading": "Línea de Tiempo Clínica",
+      "emptyTitle": "No se encontraron registros clínicos.",
+      "emptySubtitle": "Inicia una nueva evolución para registrar la atención."
+    },
+    "calls": {
+      "emptyTitle": "No hay llamadas registradas",
+      "emptySubtitle": "Las llamadas realizadas o recibidas de este paciente aparecerán aquí.",
+      "inbound": "Recibida",
+      "outbound": "Realizada",
+      "missedSuffix": " (Perdida)",
+      "callBackTitle": "Devolver llamada"
+    },
+    "medicalRecord": {
+      "title": "Historial Médico",
+      "subtitle": "Visualiza todas las evoluciones clínicas en formato de documento continuo."
+    },
+    "dental": {
+      "title": "Mapa Odontológico",
+      "subtitle": "Haz clic en las superficies de los dientes para registrar diagnósticos o generar presupuestos.",
+      "idocsTitle": "Acceder a exámenes en iDoc (Radio Memory)",
+      "generateTreatmentPlan": "Generar Plan de Tratamiento"
+    },
+    "nutrition": {
+      "title": "Módulo Nutricional",
+      "subtitle": "Evaluación Antropométrica y Composición Corporal",
+      "evolution": "Evolución"
+    },
+    "sidebar": {
+      "prescriptionsTitle": "Historial de Recetas",
+      "prescriptionsEmpty": "No se han emitido recetas recientemente.",
+      "prescriptionName": "Receta Médica",
+      "financingTitle": "Crédito y Financiamiento",
+      "financingEmpty": "Sin propuestas activas",
+      "financingViewOptions": "VER OPCIONES DE CRÉDITO",
+      "resendSignatureLink": "REENVIAR ENLACE DE FIRMA",
+      "examsTitle": "Resultados de Exámenes",
+      "examsEmpty": "Esperando archivos de laboratorio.",
+      "dentalBudgetsTitle": "Planes de Tratamiento",
+      "dentalBudgetsEmpty": "No se generaron presupuestos.",
+      "dentalBudgetFallbackName": "Plan de Tratamiento"
+    },
+    "toasts": {
+      "historyLoadErrorPrefix": "Error al cargar historial: ",
+      "idocsCpfRequired": "El CPF del paciente es necesario para consultar en iDocs.",
+      "idocsOpening": "Abriendo exámenes en iDoc (Radio Memory)..."
+    }
+  },
+  "dicomViewer": {
+    "emptyState": "Ningún examen DICOM seleccionado",
+    "seriesImages": "Serie de Imágenes"
+  },
+  "anthropometryForm": {
+    "toasts": {
+      "patientRequired": "Ningún paciente seleccionado",
+      "saved": "¡Evaluación guardada con éxito!",
+      "saveErrorPrefix": "Error al guardar: "
+    },
+    "title": "Nueva Evaluación",
+    "subtitle": "Registra las medidas actuales del paciente",
+    "bmiCategories": {
+      "underweight": "Bajo peso",
+      "normal": "Peso normal",
+      "overweight": "Sobrepeso",
+      "obesity": "Obesidad"
+    },
+    "weightHeight": {
+      "title": "Peso y Altura",
+      "weightLabel": "Peso (kg)",
+      "heightLabel": "Altura (cm)"
+    },
+    "composition": {
+      "title": "Composición",
+      "bodyFatLabel": "Grasa Corporal (%)",
+      "waistLabel": "Cintura (cm)"
+    },
+    "bmi": {
+      "title": "Cálculo de IMC",
+      "placeholder": "Completa peso y altura para calcular"
+    },
+    "notesLabel": "Observaciones Clínicas",
+    "notesPlaceholder": "Evolución del paciente, dificultades en la dieta, etc...",
+    "saving": "Guardando...",
+    "save": "Guardar Evaluación"
+  },
+  "newMedicalRecordModal": {
+    "errors": {
+      "noSession": "No active session found.",
+      "noClinic": "User is not associated with any clinic."
+    },
+    "contentPrefix": "Evolución SOAP - {{date}}",
+    "toasts": {
+      "saved": "¡Evolución registrada con éxito!",
+      "saveErrorPrefix": "Error al registrar evolución: ",
+      "idocsCpfRequired": "El CPF del paciente es necesario para consultar en iDocs.",
+      "idocsOpening": "Abriendo exámenes en iDoc (Radio Memory)..."
+    },
+    "title": "Nueva Evolución Clínica",
+    "subtitle": "Método SOAP (Subjetivo, Objetivo, Evaluación, Plan)",
+    "idocs": "iDocs",
+    "subjective": {
+      "label": "(S) Subjetivo",
+      "placeholder": "Motivo principal, historia..."
+    },
+    "objective": {
+      "label": "(O) Objetivo",
+      "placeholder": "Examen físico, signos vitales..."
+    },
+    "assessment": {
+      "label": "(A) Evaluación",
+      "placeholder": "Hipótesis diagnósticas..."
+    },
+    "plan": {
+      "label": "(P) Plan",
+      "placeholder": "Conducta, prescripción..."
+    },
+    "attachLabel": "Adjuntar Examen / Documento",
+    "attachPlaceholder": "Haz clic para seleccionar archivo",
+    "cancel": "Cancelar",
+    "saving": "Guardando...",
+    "save": "Guardar Evolución",
+    "history": {
+      "title": "Historial",
+      "empty": "No hay evoluciones anteriores."
+    }
+  },
+  "newPrescriptionModal": {
+    "toasts": {
+      "minOneMedication": "Agrega al menos un medicamento.",
+      "noSession": "Sesión no encontrada.",
+      "saved": "¡Receta emitida con éxito!",
+      "saveErrorPrefix": "Error al emitir receta: "
+    },
+    "title": "Nueva Receta Médica",
+    "subtitle": "Prescribe medicamentos e indicaciones",
+    "medicationNameLabel": "Nombre del Medicamento",
+    "medicationNamePlaceholder": "Ej: Amoxicilina 500mg",
+    "dosageLabel": "Posología / Dosis",
+    "dosagePlaceholder": "Ej: 1 comprimido",
+    "instructionsLabel": "Frecuencia / Indicaciones",
+    "instructionsPlaceholder": "Ej: cada 8 horas durante 7 días",
+    "addMedication": "AGREGAR OTRO MEDICAMENTO",
+    "cancel": "Cancelar",
+    "issuing": "Emitiendo...",
+    "issue": "EMITIR RECETA"
+  },
+  "viewPrescriptionModal": {
+    "title": "Detalles de la Receta",
+    "idPrefix": "ID: {{id}}",
+    "prescriptionHeading": "Prescripción de Medicamentos",
+    "noMedications": "No hay medicamentos listados.",
+    "signatureLabel": "Firma del Profesional",
+    "digitalDocument": "Documento Digital",
+    "close": "Cerrar",
+    "printPdf": "IMPRIMIR PDF"
+  },
+  "uploadDocumentModal": {
+    "toasts": {
+      "fileRequired": "Selecciona un archivo para subir.",
+      "noSession": "Sesión no encontrada.",
+      "saved": "¡Examen adjuntado con éxito! (Modo Simulación)",
+      "saveErrorPrefix": "Error al adjuntar examen: "
+    },
+    "title": "Adjuntar Examen",
+    "subtitle": "Envía resultados de laboratorio o imágenes",
+    "descriptionLabel": "Descripción del Examen",
+    "descriptionPlaceholder": "Ej: Hemograma Completo",
+    "fileLabel": "Archivo",
+    "fileSelectPlaceholder": "Haz clic para seleccionar",
+    "fileHint": "PDF, JPG, PNG o DICOM (máx 10MB)",
+    "cancel": "Cancelar",
+    "save": "GUARDAR EXAMEN"
+  },
+  "aiExplainButton": {
+    "trigger": "Explicar con IA",
+    "fallbackExplanation": "\"{{term}}\" es un término médico utilizado por tu profesional de salud. Consulta a tu médico para una explicación detallada y personalizada.",
+    "systemPrompt": "Eres un asistente médico que explica términos clínicos en español simple para pacientes sin formación médica. Sé breve (máximo 2 frases), amable y accesible. No das diagnósticos.",
+    "userPromptPrefix": "Explica de forma simple qué significa: \"{{term}}\"",
+    "noExplanationGenerated": "No se pudo generar una explicación en este momento.",
+    "errorFallback": "\"{{term}}\" es un término registrado por tu médico. Para más detalles, habla directamente con el profesional que te atendió.",
+    "modalTitle": "IA Explica",
+    "termLabel": "Término",
+    "consultingAi": "Consultando IA...",
+    "explanationLabel": "Explicación",
+    "footerNote": "Generado por IA • No sustituye la orientación médica"
+  },
+  "patientTimeline": {
+    "consultationFallback": "Evolución Clínica",
+    "labResultSubtitle": "Resultado de Laboratorio",
+    "attachmentSubtitle": "Adjunto",
+    "prescriptionFallback": "Receta",
+    "medicationsCount": "{{count}} medicamento(s)"
+  }
+}

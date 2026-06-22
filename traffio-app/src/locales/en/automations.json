@@ -1,1 +1,245 @@
-{}
+{
+  "botConfigWizard": {
+    "roleMap": {
+      "leadCapture": "Lead Capture and Scheduling Specialist",
+      "agendaManagement": "Patient Care and Scheduling Specialist",
+      "hybrid": "Patient Care and Scheduling Specialist"
+    },
+    "strictRulesSales": {
+      "neverCloseWithoutNextStep": "Never end a conversation without proposing a concrete next step",
+      "alwaysOfferAlternative": "Always offer an immediate alternative after an objection",
+      "transferAfterQualification": "Transfer to a human after qualification is confirmed",
+      "closeAutonomously": "Close the booking fully autonomously",
+      "neverMentionSlotTypes": "Never mention that there are slot types (prime/regular)"
+    },
+    "workflowSales": {
+      "respondWithSlot": "Respond immediately with a direct time offer",
+      "qualify": "Qualify: understand need, urgency, and profile",
+      "presentBenefits": "Present the professional's benefits and social proof",
+      "proposeSpecificTime": "Propose a specific time — don't ask \"when would you like?\"",
+      "transferToHuman": "Transfer to a human specialist at the ideal moment",
+      "closeAndConfirm": "Close the booking and send automatic confirmation"
+    },
+    "strictRulesAgenda": {
+      "neverScheduleWithoutValidating": "Never schedule without validating the patient's record",
+      "verifyIdentity": "Verify identity before displaying sensitive data",
+      "alwaysWelcoming": "Always be warm and empathetic"
+    },
+    "workflowAgenda": {
+      "greetByName": "Greet by name and ask how you can help",
+      "understandNeed": "Understand the patient's need or intent",
+      "findAvailability": "Find availability and present options",
+      "confirmAndConclude": "Confirm details and complete the booking"
+    },
+    "step1": {
+      "title": "What's your main goal?",
+      "subtitle": "Choose how the Clinical Agent should act in your clinic.",
+      "hybridTitle": "Both (Hybrid)",
+      "hybridDescription": "Capture new patients + manage existing patients.",
+      "mostUsedBadge": "Most Used",
+      "leadCaptureTitle": "New Patient Capture",
+      "leadCaptureDescription": "Proactive bot focused on converting ads and leads.",
+      "agendaTitle": "Schedule Management",
+      "agendaDescription": "Manage appointments and questions from existing patients."
+    },
+    "step2": {
+      "title": "Who finalizes the booking?",
+      "subtitle": "Define whether the bot works alone or with human help.",
+      "teamTitle": "I Have a Team / Secretary",
+      "teamDescription": "The bot qualifies and hands off to a human to close.",
+      "botOnlyTitle": "No, the Bot Does Everything",
+      "botOnlyDescription": "The bot will handle objections and book autonomously."
+    },
+    "step3": {
+      "title": "What's the ideal tone of voice?",
+      "subtitle": "Define your virtual assistant's personality.",
+      "welcomingTitle": "Warm and Empathetic",
+      "welcomingDescription": "Warm, humanized language. Ideal for healthcare clinics.",
+      "formalTitle": "Professional and Direct",
+      "formalDescription": "Clear and objective. Ideal for corporate environments.",
+      "efficientTitle": "Dynamic and Proactive",
+      "efficientDescription": "Focused on speed and results. Ideal for high demand."
+    },
+    "step4": {
+      "title": "Your Profile Is Set Up",
+      "subtitle": "All set! Review the generated behavior below.",
+      "objectiveLabel": "Objective",
+      "objectiveHybrid": "Capture + Management",
+      "objectiveLeadCapture": "Lead Capture",
+      "objectiveAgenda": "Schedule Management",
+      "serviceLabel": "Service",
+      "serviceHandoff": "Human Handoff",
+      "serviceAutonomous": "Autonomous Bot",
+      "identityLabel": "Generated Identity:",
+      "identityValue": "Amanda · Specialist",
+      "followUpLabel": "Automatic Follow-up:",
+      "followUpActive": "Enabled",
+      "followUpOffline": "Offline",
+      "noShowLabel": "No-Show Prevention:",
+      "noShowActive": "Enabled",
+      "disclaimer": "The strict rules and operational workflow were automatically optimized for your objective. You can edit them manually after activating the profile."
+    },
+    "footer": {
+      "back": "Back",
+      "next": "Next",
+      "save": "Save and Activate Profile"
+    }
+  },
+  "filaAutomacoes": {
+    "channelBadge": {
+      "whatsapp": "WhatsApp",
+      "instagram": "Instagram",
+      "facebook": "Messenger",
+      "sms": "SMS"
+    },
+    "status": {
+      "pending": "Pending",
+      "processing": "Processing",
+      "sent": "Sent",
+      "failed": "Failed",
+      "cancelled": "Cancelled"
+    },
+    "type": {
+      "followUp": "Follow-up",
+      "bookingConfirmed": "Booked",
+      "reminder48h": "48h Confirmation",
+      "reminder24h": "24h Confirmation",
+      "reminder2h": "2h Reminder",
+      "postConsultation": "Post-Consultation",
+      "nps": "NPS/Feedback",
+      "reactivation": "Reactivation"
+    },
+    "toolbar": {
+      "searchPlaceholder": "Search patient...",
+      "allStatuses": "All Statuses",
+      "pending": "Pending",
+      "sent": "Sent",
+      "failed": "Failed",
+      "cancelled": "Cancelled",
+      "allTypes": "All Types",
+      "followUps": "Follow-ups",
+      "reminder48h": "48h Confirmation",
+      "reminder24h": "24h Confirmation",
+      "reminder2h": "2h Reminder",
+      "nps": "NPS",
+      "reactivation": "Reactivation"
+    },
+    "table": {
+      "status": "Status",
+      "patient": "Patient",
+      "channel": "Channel",
+      "type": "Type",
+      "scheduledFor": "Scheduled For",
+      "actions": "Actions",
+      "noResults": "No automations found for the selected filters.",
+      "edited": "Edited",
+      "at": "at"
+    },
+    "actions": {
+      "sendNow": "Send Now",
+      "editText": "Edit Text",
+      "cancel": "Cancel",
+      "retry": "Retry Send",
+      "viewMessage": "View Message"
+    },
+    "pagination": {
+      "summary": "Page {{page}} of {{totalPages}} · Total {{count}} records"
+    },
+    "defaultPatientName": "patient",
+    "editModal": {
+      "title": "Edit Message",
+      "subtitle": "This message will be sent exactly as written below.",
+      "placeholder": "Write the custom message...",
+      "discard": "Discard",
+      "save": "Save and Queue"
+    }
+  },
+  "desempenhoAutomacoes": {
+    "kpi": {
+      "followUpsSent": "Follow-ups Sent",
+      "followUpsUnit": "msg",
+      "conversionRate": "Conversion Rate",
+      "noShowsPrevented": "No-Shows Prevented",
+      "noShowsUnit": "patients",
+      "npsAverage": "Average NPS",
+      "npsUnit": "/ 10",
+      "trendSuffix": "% vs 30d"
+    },
+    "funnelChart": {
+      "title": "Conversion Funnel",
+      "subtitle": "Closing efficiency by lead stage",
+      "last30Days": "Last 30 Days"
+    },
+    "npsDistribution": {
+      "title": "NPS Distribution",
+      "subtitle": "Patient satisfaction distribution",
+      "promoters": "Promoters (9-10)"
+    },
+    "timeSeries": {
+      "title": "Autonomous Interaction Volume",
+      "subtitle": "Daily number of messages sent by type",
+      "followUp": "Follow-up",
+      "reminder": "Reminders",
+      "postConsultation": "Post-Consultation"
+    },
+    "topTemplates": {
+      "title": "Effectiveness by Template",
+      "subtitle": "Which message is generating the most bookings?",
+      "template": "Template",
+      "sent": "Sent",
+      "failed": "Failed",
+      "pending": "Pending",
+      "deliveryRate": "Delivery Rate",
+      "noResults": "No automations sent in the selected period."
+    },
+    "templateNames": {
+      "follow_up": "Follow-up",
+      "follow_up_1": "Follow-up Step 1",
+      "follow_up_2": "Follow-up Step 2",
+      "follow_up_3": "Follow-up Step 3",
+      "reminder_48h": "48h Reminder",
+      "reminder_2h": "2h Reminder",
+      "post_consultation": "Post-Consultation",
+      "nps": "NPS / Feedback",
+      "reactivation": "Reactivation"
+    }
+  },
+  "jornadaPaciente": {
+    "timelineTitle": "Journey Timeline",
+    "loading": "Loading journey...",
+    "noEvents": "No interactions recorded.",
+    "openConversation": "Open Conversation in Support",
+    "close": "Close"
+  },
+  "funilCaptacao": {
+    "columns": {
+      "novoLead": "New Lead",
+      "emFollowUp": "In Follow-up",
+      "qualificado": "Qualified",
+      "agendado": "Booked",
+      "perdido": "Lost"
+    },
+    "metrics": {
+      "totalLeads": "Total Leads",
+      "conversionRate": "Conversion Rate",
+      "pendingActions": "Pending Actions"
+    },
+    "emptyColumn": "Empty"
+  },
+  "patientStageCard": {
+    "stages": {
+      "novoLead": "New Lead",
+      "emFollowUp": "In Follow-up",
+      "qualificado": "Qualified",
+      "agendado": "Booked",
+      "perdido": "Lost"
+    },
+    "menu": {
+      "viewFullJourney": "View Full Journey",
+      "openConversation": "Open Conversation",
+      "moveTo": "Move to...",
+      "cancelFollowUps": "Cancel Follow-ups"
+    },
+    "lastInteraction": "Last: {{distance}}"
+  }
+}
