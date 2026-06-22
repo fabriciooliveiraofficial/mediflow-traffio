@@ -14,6 +14,7 @@ interface Tenant {
     timezone: string;
     country?: CountryCode;
     locale?: string;
+    time_format?: '12h' | '24h' | null;
     whatsapp_provider?: 'zapi' | 'cloud_api';
     zapi_instance_id?: string;
     zapi_token?: string;

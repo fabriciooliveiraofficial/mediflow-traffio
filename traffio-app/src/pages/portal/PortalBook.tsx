@@ -19,6 +19,7 @@ import { appointmentService } from '../../services/appointmentService';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatDate, formatSlot } from '../../lib/i18n/formatDateTime';
 import { getCountry, DEFAULT_COUNTRY } from '../../lib/i18n/countryFormats';
+import { getTenantTodayString } from '../../lib/timezoneUtils';
 
 type Step = 'specialty' | 'location' | 'doctor' | 'datetime' | 'confirm';
 
@@ -46,6 +47,10 @@ export function PortalBook() {
     const [error, setError] = useState<string | null>(null);
     const [tenant, setTenant] = useState<any>(contextTenant);
     const slotLocale = tenant?.locale || getCountry(tenant?.country || DEFAULT_COUNTRY).locale;
+    const hour12 = tenant?.time_format === '12h' ? true
+                 : tenant?.time_format === '24h' ? false
+                 : tenant ? getCountry(tenant.country || DEFAULT_COUNTRY).hour12
+                 : undefined;
 
     // Selection State
     const [specialties, setSpecialties] = useState<Specialty[]>([]);
@@ -54,8 +59,14 @@ export function PortalBook() {
     const [selectedLocation, setSelectedLocation] = useState<any | null>(null);
     const [doctors, setDoctors] = useState<Doctor[]>([]);
     const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
-    const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+    const [selectedDate, setSelectedDate] = useState<string>(() => getTenantTodayString(contextTenant?.timezone));
     const [availableSlots, setAvailableSlots] = useState<SmartSlot[]>([]);
+
+    useEffect(() => {
+        if (tenant?.timezone) {
+            setSelectedDate(getTenantTodayString(tenant.timezone));
+        }
+    }, [tenant?.timezone]);
     const [selectedSlot, setSelectedSlot] = useState<SmartSlot | null>(null);
     const [bookingLoading, setBookingLoading] = useState(false);
 
@@ -283,6 +294,7 @@ export function PortalBook() {
                 tenant_id: tenant.id,
                 doctor_id: selectedDoctor.id,
                 patient_id: patient.id,
+                location_id: selectedSlot.location_id || selectedLocation?.id || '',
                 date: selectedDate,
                 start_time: selectedSlot.slot_time,
                 end_time: selectedSlot.slot_end,
@@ -512,7 +524,7 @@ export function PortalBook() {
                                         <input
                                             type="date"
                                             value={selectedDate}
-                                            min={new Date().toISOString().split('T')[0]}
+                                            min={getTenantTodayString(tenant?.timezone)}
                                             onChange={(e) => handleDateChange(e.target.value)}
                                             className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all"
                                         />
@@ -542,7 +554,7 @@ export function PortalBook() {
                                                         onClick={() => handleSlotLock(slot)}
                                                         className="p-3 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-900 hover:border-brand-primary hover:text-brand-primary hover:bg-brand-primary/5 transition-all text-center"
                                                     >
-                                                        {formatSlot(slot.slot_time, { locale: slotLocale })}
+                                                        {formatSlot(slot.slot_time, { locale: slotLocale, hour12 })}
                                                     </button>
                                                 ))}
                                             </div>
@@ -596,9 +608,12 @@ export function PortalBook() {
                                         <div>
                                             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{t('book.steps.datetime')}</p>
                                             <p className="text-sm font-bold text-gray-900">
-                                                {new Date(selectedDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                                                {(() => {
+                                                    const [y, m, d] = selectedDate.split('-').map(Number);
+                                                    return new Date(y, m - 1, d).toLocaleDateString(slotLocale || 'pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+                                                })()}
                                             </p>
-                                            <p className="text-xs text-gray-500 font-medium">{t('book.atTime', { time: formatSlot(selectedSlot?.slot_time, { locale: slotLocale }) })}</p>
+                                            <p className="text-xs text-gray-500 font-medium">{t('book.atTime', { time: formatSlot(selectedSlot?.slot_time, { locale: slotLocale, hour12 }) })}</p>
                                         </div>
                                     </div>
 
@@ -622,7 +637,7 @@ export function PortalBook() {
                                             <div>
                                                 <p className="font-bold text-orange-700 text-sm mb-1">{t('book.rescheduleWarningTitle')}</p>
                                                 <p className="text-orange-600 text-sm leading-relaxed">
-                                                    {t('book.rescheduleWarningTextPart1')} <strong>{formatDate(rescheduleApt.date, { locale: slotLocale })}</strong> {t('book.rescheduleWarningTextPart2')} <strong>{formatSlot(rescheduleApt.start_time, { locale: slotLocale })}</strong> {t('book.rescheduleWarningTextPart3')}
+                                                    {t('book.rescheduleWarningTextPart1')} <strong>{formatDate(rescheduleApt.date, { locale: slotLocale })}</strong> {t('book.rescheduleWarningTextPart2')} <strong>{formatSlot(rescheduleApt.start_time, { locale: slotLocale, hour12 })}</strong> {t('book.rescheduleWarningTextPart3')}
                                                 </p>
                                                 {appointmentService.checkPenalty(rescheduleApt.doctor?.cancellation_policy, rescheduleApt.date, rescheduleApt.start_time).applies && (
                                                     <div className="mt-3 p-3 bg-rose-50 border border-rose-100 rounded-xl">

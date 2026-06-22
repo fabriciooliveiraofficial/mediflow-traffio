@@ -32,6 +32,7 @@ import { CheckoutModal } from '../components/CheckoutModal';
 import type { SmartSlot, BookAppointmentPayload } from '../services/smartSchedulingService';
 import { formatSlot as formatSlotI18n } from '../lib/i18n/formatDateTime';
 import { getCountry, DEFAULT_COUNTRY } from '../lib/i18n/countryFormats';
+import { getTenantTodayString, getTenantNow, addDaysToDateString } from '../lib/timezoneUtils';
 
 function cn(...inputs: any[]) {
     return twMerge(clsx(inputs));
@@ -114,7 +115,7 @@ export const AgendaMestra: React.FC = () => {
     const { showToast } = useToast();
     const [selectedTenant, setSelectedTenant] = useState<string | null>(null);
     const [tenants, setTenants] = useState<any[]>([]);
-    const [selectedDate, setSelectedDate] = useState(new Date());
+    const [selectedDateStr, setSelectedDateStr] = useState(() => getTenantTodayString());
 
     const [doctors, setDoctors] = useState<Doctor[]>([]);
     const [selectedDoctors, setSelectedDoctors] = useState<string[]>([]);
@@ -159,34 +160,49 @@ export const AgendaMestra: React.FC = () => {
     const [ghost, setGhost] = useState<GhostState | null>(null);
     const [isDragging, setIsDragging] = useState(false);
 
+    // Locale must follow the tenant being VIEWED (selectedTenant), not the
+    // super-admin's own tenant — this view has no TenantProvider/useTenant().
+    const timeFormatOpts = useMemo(() => {
+        const t = tenants.find(t => t.id === selectedTenant);
+        const locale = t?.locale || getCountry(t?.country || DEFAULT_COUNTRY).locale;
+        const hour12 = t?.time_format === '12h' ? true
+                     : t?.time_format === '24h' ? false
+                     : t ? getCountry(t.country || DEFAULT_COUNTRY).hour12
+                     : undefined;
+        return { locale, hour12, timezone: t?.timezone };
+    }, [tenants, selectedTenant]);
+
     // Current time indicator
-    const [now, setNow] = useState(new Date());
+    const [now, setNow] = useState(() => getTenantNow(timeFormatOpts.timezone));
     useEffect(() => {
-        const iv = setInterval(() => setNow(new Date()), 60_000);
+        setNow(getTenantNow(timeFormatOpts.timezone));
+        const iv = setInterval(() => setNow(getTenantNow(timeFormatOpts.timezone)), 60_000);
         return () => clearInterval(iv);
-    }, []);
+    }, [timeFormatOpts.timezone]);
     const nowMin = now.getHours() * 60 + now.getMinutes();
 
-    const formatDateLabel = (date: Date) =>
-        date.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' });
-    const changeDate = (days: number) => {
-        const next = new Date(selectedDate);
-        next.setDate(next.getDate() + days);
-        setSelectedDate(next);
+    // Sync selected date with tenant timezone on load or tenant change
+    useEffect(() => {
+        if (timeFormatOpts.timezone) {
+            setSelectedDateStr(getTenantTodayString(timeFormatOpts.timezone));
+        }
+    }, [timeFormatOpts.timezone]);
+
+    const formatDateLabel = (dateStr: string) => {
+        const [y, m, d] = dateStr.split('-').map(Number);
+        const date = new Date(y, m - 1, d);
+        return date.toLocaleDateString(timeFormatOpts.locale || 'pt-BR', { weekday: 'short', day: '2-digit', month: 'short' });
     };
-    const goToToday = () => setSelectedDate(new Date());
-    const isToday = selectedDate.toDateString() === new Date().toDateString();
-    const dateStr = selectedDate.toISOString().split('T')[0];
+    const changeDate = (days: number) => {
+        setSelectedDateStr(prev => addDaysToDateString(prev, days));
+    };
+    const goToToday = () => setSelectedDateStr(getTenantTodayString(timeFormatOpts.timezone));
+    const isToday = selectedDateStr === getTenantTodayString(timeFormatOpts.timezone);
+    const dateStr = selectedDateStr;
 
     const visibleDoctors = useMemo(() => doctors.filter(d => selectedDoctors.includes(d.id)), [doctors, selectedDoctors]);
 
-    // Locale must follow the tenant being VIEWED (selectedTenant), not the
-    // super-admin's own tenant — this view has no TenantProvider/useTenant().
-    const slotLocale = useMemo(() => {
-        const t = tenants.find(t => t.id === selectedTenant);
-        return t?.locale || getCountry(t?.country || DEFAULT_COUNTRY).locale;
-    }, [tenants, selectedTenant]);
-    const formatSlot = useCallback((timeStr: string | null | undefined) => formatSlotI18n(timeStr, { locale: slotLocale }), [slotLocale]);
+    const formatSlot = useCallback((timeStr: string | null | undefined) => formatSlotI18n(timeStr, timeFormatOpts), [timeFormatOpts]);
 
     // ── Data fetching ──────────────────────
     useEffect(() => {
@@ -611,7 +627,7 @@ export const AgendaMestra: React.FC = () => {
                     <button onClick={goToToday} className="px-3 py-1.5 flex items-center gap-1.5 border-none bg-transparent cursor-pointer hover:bg-white rounded-lg transition-colors">
                         <CalendarIcon size={14} className="text-brand-primary" />
                         <span className={cn("text-sm font-black whitespace-nowrap", isToday && "text-brand-primary")}>
-                            {isToday ? t('mestra.today') : formatDateLabel(selectedDate)}
+                            {isToday ? t('mestra.today') : formatDateLabel(selectedDateStr)}
                         </span>
                     </button>
                     <button onClick={() => changeDate(1)} className="p-1.5 hover:bg-white rounded-lg transition-colors border-none bg-transparent cursor-pointer text-graphite-700"><ChevronRight size={16} /></button>
@@ -991,7 +1007,7 @@ export const AgendaMestra: React.FC = () => {
                                 <div>
                                     <h3 className="text-lg font-black text-graphite-900">{editingAppt.patients?.full_name || t('mestra.patientFallback')}</h3>
                                     <p className="text-xs text-graphite-400 font-medium">
-                                        {formatSlot(editingAppt.start_time)} – {formatSlot(editingAppt.end_time)} · {formatDateLabel(selectedDate)}
+                                        {formatSlot(editingAppt.start_time)} – {formatSlot(editingAppt.end_time)} · {formatDateLabel(selectedDateStr)}
                                     </p>
                                 </div>
                                 <button onClick={() => setEditingAppt(null)} className="w-10 h-10 rounded-xl bg-white border border-ice-200 flex items-center justify-center text-graphite-400 hover:text-brand-primary transition-all cursor-pointer"><X size={20} /></button>

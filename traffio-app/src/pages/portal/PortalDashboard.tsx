@@ -7,12 +7,17 @@ import { usePushNotifications } from '../../hooks/usePushNotifications';
 import { appointmentService } from '../../services/appointmentService';
 import { formatDate, formatSlot } from '../../lib/i18n/formatDateTime';
 import { getCountry, DEFAULT_COUNTRY } from '../../lib/i18n/countryFormats';
+import { getTenantTodayString } from '../../lib/timezoneUtils';
 
 export function PortalDashboard() {
     const { t } = useTranslation('portal');
     // @ts-ignore
     const { tenant, patient } = useOutletContext<{ tenant: any; patient: any }>();
     const slotLocale = tenant?.locale || getCountry(tenant?.country || DEFAULT_COUNTRY).locale;
+    const hour12 = tenant?.time_format === '12h' ? true
+                 : tenant?.time_format === '24h' ? false
+                 : tenant ? getCountry(tenant.country || DEFAULT_COUNTRY).hour12
+                 : undefined;
 
     const [appointments, setAppointments] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -29,7 +34,7 @@ export function PortalDashboard() {
 
         async function fetchAppointments() {
             try {
-                const today = new Date().toISOString().split('T')[0];
+                const today = getTenantTodayString(tenant?.timezone);
 
                 const { data, error } = await supabase
                     .from('appointments')
@@ -59,7 +64,7 @@ export function PortalDashboard() {
     const fetchAppointments = async () => {
         setLoading(true);
         try {
-            const today = new Date().toISOString().split('T')[0];
+            const today = getTenantTodayString(tenant?.timezone);
 
             const { data, error } = await supabase
                 .from('appointments')
@@ -157,7 +162,7 @@ export function PortalDashboard() {
                     </div>
                 ) : appointments.length > 0 ? (
                     appointments.map((apt) => {
-                        const isToday = apt.date === new Date().toISOString().split('T')[0];
+                        const isToday = apt.date === getTenantTodayString(tenant?.timezone);
                         return (
                             <div key={apt.id} className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 relative h-fit">
                                 <h3 className="font-bold text-gray-400 text-xs uppercase tracking-widest mb-4">{t('dashboard.appointmentLabel')}</h3>
@@ -176,7 +181,7 @@ export function PortalDashboard() {
                                     <div className="space-y-2 mt-4 text-sm text-gray-600">
                                         <div className="flex items-center gap-2">
                                             <Calendar size={16} className="text-gray-400" />
-                                            <span>{t('dashboard.dateAtTime', { date: formatDate(apt.date, { locale: slotLocale }), time: formatSlot(apt.start_time, { locale: slotLocale }) })}</span>
+                                            <span>{t('dashboard.dateAtTime', { date: formatDate(apt.date, { locale: slotLocale }), time: formatSlot(apt.start_time, { locale: slotLocale, hour12 }) })}</span>
                                         </div>
                                         {apt.location && (
                                             <div className="flex items-center gap-2">
@@ -324,7 +329,7 @@ export function PortalDashboard() {
 
                         <div className="mb-6 space-y-4">
                             <p className="text-gray-600">
-                                {t('dashboard.cancelModal.confirmQuestionPart1')} <strong>{cancellingApt.doctor?.name || t('dashboard.cancelModal.doctorFallback')}</strong> {t('dashboard.cancelModal.confirmQuestionPart2')} <strong>{formatDate(cancellingApt.date, { locale: slotLocale })}</strong> {t('dashboard.cancelModal.confirmQuestionPart3')} <strong>{formatSlot(cancellingApt.start_time, { locale: slotLocale })}</strong>{t('dashboard.cancelModal.confirmQuestionSuffix')}
+                                {t('dashboard.cancelModal.confirmQuestionPart1')} <strong>{cancellingApt.doctor?.name || t('dashboard.cancelModal.doctorFallback')}</strong> {t('dashboard.cancelModal.confirmQuestionPart2')} <strong>{formatDate(cancellingApt.date, { locale: slotLocale })}</strong> {t('dashboard.cancelModal.confirmQuestionPart3')} <strong>{formatSlot(cancellingApt.start_time, { locale: slotLocale, hour12 })}</strong>{t('dashboard.cancelModal.confirmQuestionSuffix')}
                             </p>
 
                             {/* Penalty Warning Box */}

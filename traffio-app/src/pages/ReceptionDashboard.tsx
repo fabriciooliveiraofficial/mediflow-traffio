@@ -15,21 +15,25 @@ import { NewPatientModal } from '../components/NewPatientModal';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
 import { useLocaleFormat } from '../hooks/useLocaleFormat';
+import { useTenant } from '../contexts/TenantContext';
+import { getTenantTodayString, localDateTimeToUTC } from '../lib/timezoneUtils';
 
 export const ReceptionDashboard = () => {
     const { t } = useTranslation('crm');
     const { showToast } = useToast();
-    const { formatTime } = useLocaleFormat();
+    const { tenant } = useTenant();
+    const { formatTime, timezone, locale } = useLocaleFormat();
     const [appointments, setAppointments] = useState<any[]>([]);
     const [filter, setFilter] = useState('all');
     const [isNewPatientModalOpen, setIsNewPatientModalOpen] = useState(false);
-    const [currentTime, setCurrentTime] = useState(new Date());
+    const [currentTime, setCurrentTime] = useState(() => new Date());
     const [search, setSearch] = useState('');
 
     const fetchAppointments = useCallback(async () => {
-        const today = new Date();
-        const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
-        const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString();
+        const tz = timezone || 'America/Sao_Paulo';
+        const todayStr = getTenantTodayString(tz);
+        const startOfDay = localDateTimeToUTC(todayStr, '00:00', tz).toISOString();
+        const endOfDay = new Date(localDateTimeToUTC(todayStr, '23:59', tz).getTime() + 59999).toISOString();
 
         const { data } = await supabase
             .from('appointments')
@@ -48,8 +52,10 @@ export const ReceptionDashboard = () => {
                 type: a.notes || t('receptionDashboard.consultationFallback'),
                 checkin_at: a.checkin_at,
             })));
+        } else {
+            setAppointments([]);
         }
-    }, [formatTime]);
+    }, [formatTime, timezone, t]);
 
     useEffect(() => { fetchAppointments(); }, [fetchAppointments]);
 
@@ -110,11 +116,11 @@ export const ReceptionDashboard = () => {
                 <div>
                     <div className="flex items-center gap-3 mb-1">
                         <MapPin className="text-brand-primary" size={20} />
-                        <h2 className="text-xl font-black text-graphite-900 tracking-tight">Clínica Downtown</h2>
+                        <h2 className="text-xl font-black text-graphite-900 tracking-tight">{tenant?.name || 'Clínica'}</h2>
                     </div>
                     <p className="text-graphite-500 font-medium flex items-center gap-2">
                         <Calendar size={14} />
-                        {currentTime.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                        {new Intl.DateTimeFormat(locale, { timeZone: timezone || 'America/Sao_Paulo', weekday: 'long', day: 'numeric', month: 'long' }).format(currentTime)}
                         <span className="w-1 h-1 bg-graphite-300 rounded-full" />
                         <Clock size={14} />
                         {formatTime(currentTime)}

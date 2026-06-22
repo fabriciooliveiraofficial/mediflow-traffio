@@ -21,6 +21,8 @@ export interface Professional {
     is_active: boolean;
     tenant_id?: string;
     cancellation_policy?: CancellationPolicy;
+    role_id?: string;
+    professional_roles?: { name: string } | null;
 }
 
 export interface CreateProfessionalDTO {
@@ -28,6 +30,7 @@ export interface CreateProfessionalDTO {
     email?: string;
     phone?: string;
     role: string;
+    role_id?: string;
     specialty?: string;
     crm?: string;
     bio?: string;
@@ -46,7 +49,7 @@ export const professionalService = {
     async getAll(tenantId: string): Promise<Professional[]> {
         const { data: doctors, error } = await supabase
             .from('doctors')
-            .select('*')
+            .select('*, professional_roles(name)')
             .eq('tenant_id', tenantId)
             .order('full_name', { ascending: true });
 
@@ -68,6 +71,7 @@ export const professionalService = {
                 email: dto.email || null,
                 phone: dto.phone || null,
                 role: dto.role,
+                role_id: dto.role_id || null,
                 specialty: dto.specialty || null,
                 crm: dto.crm || null,
                 bio: dto.bio || null,
@@ -109,6 +113,7 @@ export const professionalService = {
         if (dto.email !== undefined) updateData.email = dto.email;
         if (dto.phone !== undefined) updateData.phone = dto.phone;
         if (dto.role !== undefined) updateData.role = dto.role;
+        if (dto.role_id !== undefined) updateData.role_id = dto.role_id;
         if (dto.specialty !== undefined) updateData.specialty = dto.specialty;
         if (dto.crm !== undefined) updateData.crm = dto.crm;
         if (dto.bio !== undefined) updateData.bio = dto.bio;

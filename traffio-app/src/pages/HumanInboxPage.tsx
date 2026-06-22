@@ -205,7 +205,7 @@ function ConversationRow({
       <button
         onClick={onClick}
         className={clsx(
-          'w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors flex items-start gap-3 relative',
+          'w-full text-left px-4 py-3 border-b border-ice-100 hover:bg-ice-50 transition-colors flex items-start gap-3 relative',
           selected && 'bg-blue-50 border-l-[3px] border-l-blue-500',
           isQueued && !selected && 'border-l-[3px] border-l-amber-400',
         )}
@@ -263,7 +263,7 @@ function ConversationRow({
                 </span>
               )}
               {session.kanban_stage && (
-                <span className="px-1.5 py-0.5 rounded-md bg-gray-100 border border-gray-200 text-gray-500 text-[9px] font-bold uppercase truncate max-w-[100px]" title={`${t('humanInbox.conversationRow.stageTitlePrefix')} ${session.kanban_stage}`}>
+                <span className="px-1.5 py-0.5 rounded-md bg-ice-50 border border-ice-100 text-graphite-500 text-[9px] font-bold uppercase truncate max-w-[100px]" title={`${t('humanInbox.conversationRow.stageTitlePrefix')} ${session.kanban_stage}`}>
                   {session.kanban_stage}
                 </span>
               )}
@@ -1126,9 +1126,9 @@ export const ChatInput = memo(({
                 initial={{ scale: 0.95, opacity: 0, y: 20 }} 
                 animate={{ scale: 1, opacity: 1, y: 0 }} 
                 exit={{ scale: 0.95, opacity: 0, y: 20 }}
-                className="bg-white rounded-3xl shadow-2xl border border-white/20 w-full max-w-md relative z-10 flex flex-col overflow-hidden"
+                className="bg-white rounded-3xl shadow-2xl border border-ice-100 w-full max-w-md relative z-10 flex flex-col overflow-hidden"
               >
-                <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-blue-50 to-white">
+                <div className="p-6 border-b border-ice-100 flex items-center justify-between bg-gradient-to-r from-blue-50 to-white">
                   <div className="flex flex-col gap-0.5">
                     <h3 className="font-black text-gray-900 flex items-center gap-2 text-lg">
                       <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-200">
@@ -1443,7 +1443,7 @@ function PatientPanel({
     const isWhatsApp = !['instagram', 'facebook', 'livechat'].includes(session.channel || '');
     const isValidPhone = isWhatsApp && !/[a-zA-Z]/.test(session.patient_phone || '');
     return (
-      <div className="w-full flex flex-col h-full border-l border-gray-200">
+      <div className="w-full flex flex-col h-full border-l border-ice-100">
         <SidebarRegisterView 
           onBack={() => onViewChange('profile')} 
           onSuccess={(p: any) => {
@@ -1458,7 +1458,7 @@ function PatientPanel({
 
   if (view === 'lookup') {
     return (
-      <div className="w-full flex flex-col h-full border-l border-gray-100">
+      <div className="w-full flex flex-col h-full border-l border-ice-100">
         <SidebarLookupView 
           onBack={() => onViewChange('profile')}
           onSelect={async (p: any) => {
@@ -1472,7 +1472,7 @@ function PatientPanel({
 
   if (view === 'booking' && patient) {
     return (
-      <div className="w-full flex flex-col h-full border-l border-gray-200">
+      <div className="w-full flex flex-col h-full border-l border-ice-100">
         <SidebarBookingView 
           onBack={() => {
             onResetReschedule();
@@ -1493,7 +1493,7 @@ function PatientPanel({
 
   if (view === 'appointments' && patient) {
     return (
-      <div className="w-full flex flex-col h-full border-l border-gray-200">
+      <div className="w-full flex flex-col h-full border-l border-ice-100">
         <SidebarAppointmentsView 
           onBack={() => onViewChange('profile')}
           patientId={patient.id}
@@ -1508,7 +1508,7 @@ function PatientPanel({
 
   if (view === 'edit' && patient) {
     return (
-      <div className="w-full flex flex-col h-full border-l border-gray-200">
+      <div className="w-full flex flex-col h-full border-l border-ice-100">
         <SidebarPatientEditView
           onBack={() => onViewChange('profile')}
           patient={patient}
@@ -1527,7 +1527,7 @@ function PatientPanel({
 
   if (view === 'availability') {
     return (
-      <div className="w-full flex flex-col h-full border-l border-gray-200">
+      <div className="w-full flex flex-col h-full border-l border-ice-100">
         <SidebarAvailabilityView
           onBack={() => onViewChange('profile')}
           onBookSlot={() => onViewChange('booking')}
@@ -1538,7 +1538,7 @@ function PatientPanel({
 
   if (view === 'payment' && patient) {
     return (
-      <div className="w-full flex flex-col h-full border-l border-gray-200">
+      <div className="w-full flex flex-col h-full border-l border-ice-100">
         <SidebarPaymentView
           onBack={() => onViewChange('profile')}
           patientId={patient.id}
@@ -1551,7 +1551,7 @@ function PatientPanel({
 
   if (view === 'directory') {
     return (
-      <div className="w-full flex flex-col h-full border-l border-gray-200">
+      <div className="w-full flex flex-col h-full border-l border-ice-100">
         <SidebarDirectoryView onBack={() => onViewChange('profile')} />
       </div>
     );
@@ -1559,7 +1559,7 @@ function PatientPanel({
 
   if (view === 'classify') {
     return (
-      <div className="w-full flex flex-col h-full border-l border-gray-200">
+      <div className="w-full flex flex-col h-full border-l border-ice-100">
         <SidebarLeadClassifyView
           onBack={() => onViewChange('profile')}
           session={session}
@@ -1572,15 +1572,15 @@ function PatientPanel({
   }
 
   return (
-    <div className="w-full h-full flex flex-col bg-white border-l border-gray-200 overflow-y-auto">
-      <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+    <div className="w-full h-full flex flex-col bg-white border-l border-ice-100 overflow-y-auto">
+      <div className="px-4 py-3 border-b border-ice-100 flex items-center justify-between">
         <span className="text-sm font-semibold text-gray-700">{t('humanInbox.patientPanel.title')}</span>
         <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
           <X className="w-4 h-4" />
         </button>
       </div>
 
-      <div className="p-4 border-b border-gray-100 flex items-center justify-between group">
+      <div className="p-4 border-b border-ice-100 flex items-center justify-between group">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-11 h-11 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
             <User className="w-5 h-5 text-blue-600" />
@@ -2531,19 +2531,19 @@ export function HumanInboxPage() {
   // Render
   // ─────────────────────────────────────────────
   return (
-    <div className="flex h-[calc(100vh-120px)] bg-white rounded-2xl overflow-hidden border border-gray-200 shadow-sm">
+    <div className="flex h-full w-full bg-white rounded-3xl overflow-hidden border border-ice-100 shadow-sm">
       {headerSlot && createPortal(
         <div className="flex items-center justify-between w-full h-full px-1 lg:px-2 gap-2 lg:gap-4">
           {/* Left: Channels segmented control */}
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar flex-1 min-w-0">
             <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 select-none hidden lg:block shrink-0">{t('humanInbox.main.channelsLabel')}</span>
-            <div className="flex bg-slate-100/90 border border-slate-200/60 p-0.5 rounded-xl shrink-0 gap-0.5">
+            <div className="flex bg-ice-100 border border-ice-200/60 p-0.5 rounded-xl shrink-0 gap-0.5">
                <button
                   onClick={() => setChannelFilter('all')}
                   className={clsx(
                     "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer",
                     channelFilter === 'all'
-                      ? "bg-white text-slate-900 shadow-sm border border-slate-200/50"
+                      ? "bg-white text-slate-900 shadow-sm border border-ice-100"
                       : "text-slate-500 hover:text-slate-900 hover:bg-slate-200/50"
                   )}
                 >
@@ -2693,12 +2693,12 @@ export function HumanInboxPage() {
           LEFT — Queue / Session list
       ══════════════════════════════════════════ */}
       <div className={clsx(
-        "w-full lg:w-[280px] shrink-0 flex flex-col bg-white border-r border-gray-200 h-full",
+        "w-full lg:w-[280px] shrink-0 flex flex-col bg-white border-r border-ice-100 h-full",
         selected ? "hidden lg:flex" : "flex"
       )}>
 
         {/* Header */}
-        <div className="px-4 py-4 border-b border-gray-100 space-y-3">
+        <div className="px-4 py-4 border-b border-ice-100 space-y-3">
           <div className="flex items-center gap-2">
             <Inbox className="w-4 h-4 text-blue-600" />
             <h1 className="text-sm font-bold text-gray-900">{t('humanInbox.main.headerTitle')}</h1>
@@ -2706,7 +2706,7 @@ export function HumanInboxPage() {
 
           {/* Search */}
           <div className="space-y-2">
-            <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5">
+            <div className="flex items-center gap-2 bg-ice-50 border border-ice-100 rounded-xl px-3 py-1.5">
               <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
               <input
                 value={search}
@@ -2719,7 +2719,7 @@ export function HumanInboxPage() {
           </div>
 
           {/* Tabs */}
-          <div className="flex rounded-xl overflow-hidden border border-gray-200 text-[11px]">
+          <div className="flex rounded-xl overflow-hidden border border-ice-100 text-[11px]">
             <button
               onClick={() => setTab('all')}
               className={clsx(
@@ -2740,7 +2740,7 @@ export function HumanInboxPage() {
             <button
               onClick={() => setTab('queued')}
               className={clsx(
-                'flex-1 py-1.5 font-semibold transition-colors flex items-center justify-center gap-1.5 border-l border-r border-gray-200',
+                'flex-1 py-1.5 font-semibold transition-colors flex items-center justify-center gap-1.5 border-l border-r border-ice-100',
                 tab === 'queued' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50',
               )}
             >
@@ -2810,7 +2810,7 @@ export function HumanInboxPage() {
         <div className="flex-1 flex flex-col min-w-0">
 
           {/* Chat header */}
-          <div className="flex items-center justify-between px-5 py-3 bg-white border-b border-gray-200 shrink-0">
+          <div className="flex items-center justify-between px-5 py-3 bg-white border-b border-ice-100 shrink-0">
             <div className="flex items-center gap-3">
               {/* Mobile Back Button */}
               <button
@@ -2982,7 +2982,7 @@ export function HumanInboxPage() {
             }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ duration: 0.25, ease: 'easeInOut' }}
-            className="shrink-0 overflow-hidden bg-white border-l border-gray-200 shadow-xl relative z-20"
+            className="shrink-0 overflow-hidden bg-white border-l border-ice-100 shadow-xl relative z-20"
           >
             <PatientPanel
               session={selected}
@@ -3049,9 +3049,9 @@ export function HumanInboxPage() {
             />
             <motion.div
               initial={{ scale: 0.95, opacity: 0, y: 10 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 10 }}
-              className="bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-sm relative z-10 overflow-hidden"
+              className="bg-white rounded-3xl shadow-2xl border border-ice-100 w-full max-w-sm relative z-10 overflow-hidden"
             >
-              <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+              <div className="p-4 border-b border-ice-100 flex items-center justify-between">
                 <h3 className="font-bold text-gray-900 flex items-center gap-2">
                   <Forward className="w-4 h-4 text-green-600" />
                   {t('humanInbox.main.forwardModal.title')}
@@ -3125,9 +3125,9 @@ export function HumanInboxPage() {
             
             <motion.div
               initial={{ scale: 0.95, opacity: 0, y: 10 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 10 }}
-              className="bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-sm relative z-10 overflow-hidden"
+              className="bg-white rounded-3xl shadow-2xl border border-ice-100 w-full max-w-sm relative z-10 overflow-hidden"
             >
-              <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+              <div className="p-4 border-b border-ice-100 flex items-center justify-between">
                 <h3 className="font-bold text-gray-900 flex items-center gap-2">
                   <ArrowRightLeft className="w-4 h-4 text-indigo-600" />
                   {t('humanInbox.patientPanel.transferAction')}

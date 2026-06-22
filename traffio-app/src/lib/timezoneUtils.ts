@@ -166,3 +166,73 @@ export function localDateTimeToUTC(dateStr: string, timeStr: string, timezone: s
     const offset = getUTCOffsetString(timezone, new Date(`${dateStr}T${timeStr}:00Z`));
     return new Date(`${dateStr}T${timeStr}:00${offset}`);
 }
+
+/**
+ * Returns the current date as a YYYY-MM-DD string in the given tenant's timezone.
+ */
+export function getTenantTodayString(timezone?: string): string {
+    const tz = timezone || 'America/Sao_Paulo';
+    try {
+        const parts = new Intl.DateTimeFormat('en-CA', {
+            timeZone: tz,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+        }).formatToParts(new Date());
+
+        const year = parts.find(p => p.type === 'year')?.value;
+        const month = parts.find(p => p.type === 'month')?.value;
+        const day = parts.find(p => p.type === 'day')?.value;
+        if (year && month && day) {
+            return `${year}-${month}-${day}`;
+        }
+    } catch (e) {
+        console.error('Failed to get tenant today string', e);
+    }
+    return new Date().toISOString().split('T')[0];
+}
+
+/**
+ * Returns a Date object representing the current local time in the tenant's timezone.
+ * Note: This date object is structurally relative to browser time, meaning it's "shifted"
+ * so that getHours(), getMinutes(), etc. match the tenant's clock. Use with care.
+ */
+export function getTenantNow(timezone?: string): Date {
+    const tz = timezone || 'America/Sao_Paulo';
+    try {
+        const str = new Intl.DateTimeFormat('en-US', {
+            timeZone: tz,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false,
+        }).format(new Date());
+        
+        const match = str.match(/(\d+)\/(\d+)\/(\d+),\s+(\d+):(\d+):(\d+)/);
+        if (match) {
+            const [, month, day, year, hour, minute, second] = match.map(Number);
+            return new Date(year, month - 1, day, hour, minute, second);
+        }
+    } catch (e) {
+        console.error('Failed to get tenant now date', e);
+    }
+    return new Date();
+}
+
+/**
+ * Adds or subtracts days to a YYYY-MM-DD date string safely, returning a YYYY-MM-DD string.
+ */
+export function addDaysToDateString(dateStr: string, days: number): string {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    date.setDate(date.getDate() + days);
+    
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+

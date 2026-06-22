@@ -103,7 +103,7 @@ export const FinancialDashboard = () => {
                     <select
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value)}
-                        className="px-4 py-2 bg-white border border-ice-200 rounded-xl text-sm font-bold text-graphite-600 cursor-pointer focus:outline-none focus:border-brand-primary"
+                        className="px-4 py-2 bg-white border border-ice-100 rounded-xl text-sm font-bold text-graphite-600 cursor-pointer focus:outline-none focus:border-brand-primary"
                     >
                         <option value="">{t('financialDashboard.header.filterAll')}</option>
                         <option value="paid">{t('financialDashboard.header.filterPaid')}</option>
@@ -166,7 +166,7 @@ export const FinancialDashboard = () => {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="bg-white p-6 rounded-[32px] border border-ice-100 shadow-sm">
+                        <div className="bg-white p-6 rounded-3xl border border-ice-100 shadow-sm">
                             <div className="flex items-center justify-between mb-4">
                                 <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
                                     <CheckCircle2 size={20} />
@@ -180,7 +180,7 @@ export const FinancialDashboard = () => {
                             <h4 className="text-3xl font-black text-graphite-900">{analytics.approvalRate.toFixed(1)}%</h4>
                         </div>
 
-                        <div className="bg-white p-6 rounded-[32px] border border-ice-100 shadow-sm">
+                        <div className="bg-white p-6 rounded-3xl border border-ice-100 shadow-sm">
                             <div className="flex items-center justify-between mb-4">
                                 <div className="w-10 h-10 rounded-xl bg-brand-primary/10 text-brand-primary flex items-center justify-center">
                                     <Shield size={20} />
@@ -190,7 +190,7 @@ export const FinancialDashboard = () => {
                             <h4 className="text-3xl font-black text-graphite-900">{formatCurrency(analytics.totalFinancingVolume)}</h4>
                         </div>
 
-                        <div className="bg-white p-6 rounded-[32px] border border-brand-primary/20 bg-brand-primary/[0.02] shadow-sm relative overflow-hidden">
+                        <div className="bg-white p-6 rounded-3xl border border-brand-primary/20 bg-brand-primary/[0.02] shadow-sm relative overflow-hidden">
                             <div className="absolute top-0 right-0 p-4 opacity-10">
                                 <PieChart size={80} />
                             </div>
@@ -211,7 +211,7 @@ export const FinancialDashboard = () => {
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {/* Mix Distribution Chart */}
-                        <div className="bg-white p-8 rounded-[32px] border border-ice-100 shadow-sm">
+                        <div className="bg-white p-8 rounded-3xl border border-ice-100 shadow-sm">
                             <h4 className="text-sm font-black text-graphite-900 uppercase tracking-widest mb-8">{t('financialDashboard.analytics.mixChartTitle')}</h4>
                             <div className="h-[300px]">
                                 <ResponsiveContainer width="100%" height="100%">
@@ -246,7 +246,7 @@ export const FinancialDashboard = () => {
                         </div>
 
                         {/* Conversion Context */}
-                        <div className="bg-graphite-900 p-8 rounded-[32px] shadow-2xl relative overflow-hidden text-white">
+                        <div className="bg-graphite-900 p-8 rounded-3xl shadow-2xl relative overflow-hidden text-white">
                             <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-brand-primary/10 rounded-full blur-3xl"></div>
                             <h4 className="text-sm font-black uppercase tracking-widest mb-6 opacity-60">{t('financialDashboard.analytics.pipelineTitle')}</h4>
 
@@ -285,7 +285,7 @@ export const FinancialDashboard = () => {
             )}
 
             {/* Transactions List */}
-            <div className="bg-white rounded-[32px] border border-ice-200 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-3xl border border-ice-100 shadow-sm overflow-hidden">
                 <div className="px-8 py-5 border-b border-ice-100 flex justify-between items-center">
                     <h3 className="text-lg font-black text-graphite-900">{t('financialDashboard.transactions.title')}</h3>
                     <button className="flex items-center gap-2 text-xs font-bold text-graphite-400 hover:text-brand-primary transition-colors cursor-pointer border-none bg-transparent">
@@ -354,7 +354,7 @@ export const FinancialDashboard = () => {
 
 // ---- KPI Card ----
 const KPICard = ({ title, value, icon: Icon, color, bg }: any) => (
-    <div className="bg-white p-6 rounded-[24px] border border-ice-100 shadow-sm hover:shadow-md transition-shadow">
+    <div className="bg-white p-6 rounded-3xl border border-ice-100 shadow-sm hover:shadow-md transition-shadow">
         <div className="flex items-start justify-between mb-4">
             <div className={`w-12 h-12 rounded-2xl ${bg} ${color} flex items-center justify-center`}>
                 <Icon size={24} />
@@ -406,20 +406,20 @@ const NewBillingModal = ({ tenantId, onClose, onSuccess }: { tenantId: string; o
         <>
             <div className="fixed inset-0 bg-graphite-900/40 backdrop-blur-sm z-[100]" onClick={onClose} />
             <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 pointer-events-none">
-                <div className="bg-white pointer-events-auto w-full max-w-md rounded-[32px] shadow-2xl overflow-hidden border border-white/20">
+                <div className="bg-white pointer-events-auto w-full max-w-md rounded-3xl shadow-2xl overflow-hidden border border-ice-100">
                     <div className="px-8 py-6 border-b border-ice-100 flex justify-between items-center bg-ice-50/50">
                         <h3 className="text-xl font-black text-graphite-900 flex items-center gap-2">
                             <DollarSign className="text-brand-primary" size={24} />
                             {t('financialDashboard.newBillingModal.title')}
                         </h3>
-                        <button onClick={onClose} className="w-10 h-10 rounded-xl bg-white border border-ice-200 flex items-center justify-center text-graphite-400 hover:text-brand-primary transition-all cursor-pointer">
+                        <button onClick={onClose} className="w-10 h-10 rounded-xl bg-white border border-ice-100 flex items-center justify-center text-graphite-400 hover:text-brand-primary transition-all cursor-pointer">
                             <X size={20} />
                         </button>
                     </div>
                     <div className="p-8 space-y-5">
                         <div>
                             <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">{t('financialDashboard.newBillingModal.patientLabel')}</label>
-                            <select value={form.patient_id} onChange={(e) => setForm({ ...form, patient_id: e.target.value })} className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-bold text-graphite-900 cursor-pointer focus:outline-none focus:border-brand-primary">
+                            <select value={form.patient_id} onChange={(e) => setForm({ ...form, patient_id: e.target.value })} className="w-full bg-ice-50 border border-ice-100 rounded-xl px-4 py-3 text-sm font-bold text-graphite-900 cursor-pointer focus:outline-none focus:border-brand-primary">
                                 <option value="">{t('financialDashboard.newBillingModal.selectPlaceholder')}</option>
                                 {patients.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
                             </select>
@@ -427,16 +427,16 @@ const NewBillingModal = ({ tenantId, onClose, onSuccess }: { tenantId: string; o
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">{t('financialDashboard.newBillingModal.amountLabel')}</label>
-                                <input type="number" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="150.00" className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary" />
+                                <input type="number" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="150.00" className="w-full bg-ice-50 border border-ice-100 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary" />
                             </div>
                             <div>
                                 <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">{t('financialDashboard.newBillingModal.dueDateLabel')}</label>
-                                <input type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary" />
+                                <input type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} className="w-full bg-ice-50 border border-ice-100 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary" />
                             </div>
                         </div>
                         <div>
                             <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">{t('financialDashboard.newBillingModal.methodLabel')}</label>
-                            <select value={form.method} onChange={(e) => setForm({ ...form, method: e.target.value })} className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-bold text-graphite-900 cursor-pointer focus:outline-none focus:border-brand-primary">
+                            <select value={form.method} onChange={(e) => setForm({ ...form, method: e.target.value })} className="w-full bg-ice-50 border border-ice-100 rounded-xl px-4 py-3 text-sm font-bold text-graphite-900 cursor-pointer focus:outline-none focus:border-brand-primary">
                                 <option value="pix">{t('financialDashboard.newBillingModal.methodPix')}</option>
                                 <option value="credit_card">{t('financialDashboard.newBillingModal.methodCreditCard')}</option>
                                 <option value="boleto">{t('financialDashboard.newBillingModal.methodBoleto')}</option>
@@ -444,7 +444,7 @@ const NewBillingModal = ({ tenantId, onClose, onSuccess }: { tenantId: string; o
                             </select>
                         </div>
                         <div className="flex gap-3 pt-2">
-                            <button onClick={onClose} className="flex-1 py-3.5 rounded-2xl font-bold text-graphite-700 hover:bg-ice-50 border border-ice-200 transition-all cursor-pointer">{t('financialDashboard.newBillingModal.cancelButton')}</button>
+                            <button onClick={onClose} className="flex-1 py-3.5 rounded-2xl font-bold text-graphite-700 hover:bg-ice-50 border border-ice-100 transition-all cursor-pointer">{t('financialDashboard.newBillingModal.cancelButton')}</button>
                             <button onClick={handleSubmit} disabled={saving || !form.patient_id || !form.amount} className="flex-[2] bg-brand-primary text-white py-3.5 rounded-2xl font-bold shadow-lg shadow-brand-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 border-none cursor-pointer">
                                 <Save size={18} />
                                 {saving ? t('financialDashboard.newBillingModal.creating') : t('financialDashboard.newBillingModal.createButton')}

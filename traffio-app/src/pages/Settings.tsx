@@ -30,6 +30,11 @@ import {
     MessageSquare,
     Voicemail,
     Facebook,
+    Terminal,
+    Activity,
+    Stethoscope,
+    Apple,
+    Briefcase,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { TIMEZONE_OPTIONS, TIMEZONE_REGIONS } from '../lib/timezoneUtils';
@@ -43,12 +48,13 @@ import { TeamManagement } from '../components/settings/TeamManagement';
 import { useTenant } from '../contexts/TenantContext';
 import { listCountries, getCountry, DEFAULT_COUNTRY, type CountryCode } from '../lib/i18n/countryFormats';
 import { formatPhone, phoneFlag } from '../lib/formatPhone';
-import { Activity, Stethoscope, Apple, Terminal } from 'lucide-react';
 import { clsx } from 'clsx';
 import { BuyNumberModal } from '../components/numbers/BuyNumberModal';
 import { PendingOrdersList } from '../components/numbers/PendingOrdersList';
 import { SystemLogs } from '../components/settings/SystemLogs';
+import { RoleManagement } from '../components/settings/RoleManagement';
 import { decimalToDMS, parseDMSToDecimal } from '../lib/geoUtils';
+import { TimeInput } from '../components/shared/TimeInput';
 
 
 
@@ -835,6 +841,7 @@ export const Settings = () => {
                     { id: 'locations', label: t('tabs.locations'), icon: MapPin },
                     { id: 'insurance', label: t('tabs.insurance'), icon: Shield },
                     { id: 'team', label: t('tabs.team'), icon: Users },
+                    { id: 'roles', label: t('tabs.roles', 'Cargos'), icon: Briefcase },
                     { id: 'communications', label: t('tabs.communications'), icon: Phone },
                     { id: 'profile', label: t('tabs.profile'), icon: User },
                     { id: 'logs', label: t('tabs.logs', 'Logs'), icon: Terminal },
@@ -1065,28 +1072,51 @@ export const Settings = () => {
                                                     <h4 className="text-xs font-black text-graphite-400 uppercase flex items-center gap-1.5 mb-3">
                                                         <Globe size={12} /> {t('clinics.timezoneSectionTitle')}
                                                     </h4>
-                                                    <div>
-                                                        <label className="text-[10px] font-bold text-graphite-400 block mb-1">{t('clinics.timezoneLabel')}</label>
-                                                        <select
-                                                            key={`tz-${tenant.id}`}
-                                                            defaultValue={tenant.timezone || 'America/Sao_Paulo'}
-                                                            onChange={(e) => {
-                                                                handleSaveTenant(tenant.id, { timezone: e.target.value });
-                                                                if (currentTenant?.id === tenant.id) updateTenantContext({ timezone: e.target.value });
-                                                            }}
-                                                            className="w-full bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm font-medium text-graphite-700 focus:outline-none focus:border-brand-primary transition-colors"
-                                                        >
-                                                            {TIMEZONE_REGIONS.map(region => (
-                                                                <optgroup key={region} label={region}>
-                                                                    {TIMEZONE_OPTIONS.filter(tz => tz.region === region).map(tz => (
-                                                                        <option key={tz.value} value={tz.value}>{tz.label}</option>
-                                                                    ))}
-                                                                </optgroup>
-                                                            ))}
-                                                        </select>
-                                                        <p className="text-[10px] text-graphite-400 mt-1">
-                                                            {t('clinics.timezoneHint')}
-                                                        </p>
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                        <div>
+                                                            <label className="text-[10px] font-bold text-graphite-400 block mb-1">{t('clinics.timezoneLabel')}</label>
+                                                            <select
+                                                                key={`tz-${tenant.id}`}
+                                                                defaultValue={tenant.timezone || 'America/Sao_Paulo'}
+                                                                onChange={(e) => {
+                                                                    handleSaveTenant(tenant.id, { timezone: e.target.value });
+                                                                    if (currentTenant?.id === tenant.id) updateTenantContext({ timezone: e.target.value });
+                                                                }}
+                                                                className="w-full bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm font-medium text-graphite-700 focus:outline-none focus:border-brand-primary transition-colors"
+                                                            >
+                                                                {TIMEZONE_REGIONS.map(region => (
+                                                                    <optgroup key={region} label={region}>
+                                                                        {TIMEZONE_OPTIONS.filter(tz => tz.region === region).map(tz => (
+                                                                            <option key={tz.value} value={tz.value}>{tz.label}</option>
+                                                                        ))}
+                                                                    </optgroup>
+                                                                ))}
+                                                            </select>
+                                                            <p className="text-[10px] text-graphite-400 mt-1">
+                                                                {t('clinics.timezoneHint')}
+                                                            </p>
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-[10px] font-bold text-graphite-400 block mb-1">{t('clinics.timeFormatLabel', 'Formato de Horário')}</label>
+                                                            <select
+                                                                key={`tf-${tenant.id}`}
+                                                                defaultValue={tenant.time_format || ''}
+                                                                onChange={(e) => {
+                                                                    const val = e.target.value as '12h' | '24h' | '';
+                                                                    const time_format = val ? val : null;
+                                                                    handleSaveTenant(tenant.id, { time_format });
+                                                                    if (currentTenant?.id === tenant.id) updateTenantContext({ time_format });
+                                                                }}
+                                                                className="w-full bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm font-medium text-graphite-700 focus:outline-none focus:border-brand-primary transition-colors"
+                                                            >
+                                                                <option value="">{t('clinics.timeFormatAuto', 'Automático (Baseado no País)')}</option>
+                                                                <option value="12h">12h (AM/PM)</option>
+                                                                <option value="24h">24h</option>
+                                                            </select>
+                                                            <p className="text-[10px] text-graphite-400 mt-1">
+                                                                {t('clinics.timeFormatHint', 'Determina como os horários serão exibidos por toda a plataforma')}
+                                                            </p>
+                                                        </div>
                                                     </div>
                                                 </div>
 
@@ -1389,8 +1419,7 @@ export const Settings = () => {
                                                         <div key={day} className="flex items-center gap-3 bg-white p-2 rounded-lg border border-ice-100">
                                                             <span className="text-[10px] font-black w-8 text-graphite-400 uppercase">{dayName}</span>
                                                             <div className="flex-1 flex gap-2 items-center">
-                                                                <input
-                                                                    type="time"
+                                                                <TimeInput
                                                                     disabled={hours.closed}
                                                                     value={hours.start}
                                                                     onChange={(e) => setLocForm({
@@ -1400,11 +1429,10 @@ export const Settings = () => {
                                                                             [day]: { ...hours, start: e.target.value }
                                                                         }
                                                                     })}
-                                                                    className="bg-ice-50 border border-ice-100 rounded px-1.5 py-0.5 text-[11px] font-bold focus:outline-none focus:border-brand-primary disabled:opacity-30"
+                                                                    className="bg-ice-50 border border-ice-100 rounded px-1.5 py-0.5 text-[11px] font-bold focus-within:border-brand-primary disabled:opacity-30"
                                                                 />
                                                                 <span className="text-[10px] text-graphite-300">{t('locations.until')}</span>
-                                                                <input
-                                                                    type="time"
+                                                                <TimeInput
                                                                     disabled={hours.closed}
                                                                     value={hours.end}
                                                                     onChange={(e) => setLocForm({
@@ -1414,7 +1442,7 @@ export const Settings = () => {
                                                                             [day]: { ...hours, end: e.target.value }
                                                                         }
                                                                     })}
-                                                                    className="bg-ice-50 border border-ice-100 rounded px-1.5 py-0.5 text-[11px] font-bold focus:outline-none focus:border-brand-primary disabled:opacity-30"
+                                                                    className="bg-ice-50 border border-ice-100 rounded px-1.5 py-0.5 text-[11px] font-bold focus-within:border-brand-primary disabled:opacity-30"
                                                                 />
                                                             </div>
                                                             <button
@@ -1999,6 +2027,11 @@ export const Settings = () => {
                             </div>
                         </div>
                     </div>
+                )}
+
+                {/* Roles Tab */}
+                {activeTab === 'roles' && currentTenant && (
+                    <RoleManagement tenantId={currentTenant.id} />
                 )}
 
                 {/* Logs Tab */}

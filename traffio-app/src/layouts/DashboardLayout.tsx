@@ -511,7 +511,11 @@ export const DashboardLayout = ({ children, activeScreen, onNavigate }: {
                 </header>
 
                 {/* Page Content */}
-                {activeScreen === 'inbox' || activeScreen === 'communications' ? (
+                {activeScreen === 'inbox' ? (
+                    <div className="flex-1 overflow-hidden px-6 lg:px-12 pb-8">
+                        {children}
+                    </div>
+                ) : activeScreen === 'communications' ? (
                     // Tela cheia sem padding — ocupa todo o espaço restante após o header
                     <div className="flex-1 overflow-hidden">
                         {children}

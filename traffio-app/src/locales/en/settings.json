@@ -6,7 +6,8 @@
     "team": "Team",
     "communications": "Communications",
     "profile": "My Profile",
-    "logs": "Logs"
+    "logs": "Logs",
+    "roles": "Roles & Functions"
   },
   "header": {
     "title": "Settings",
@@ -89,6 +90,11 @@
     "timezoneSectionTitle": "Time Zone",
     "timezoneLabel": "Clinic Timezone",
     "timezoneHint": "Applies to appointments, reminders, WhatsApp, Messenger, Instagram, and all cron jobs.",
+    "timeFormatSectionTitle": "Time Format",
+    "timeFormatLabel": "Display Format",
+    "timeFormat12h": "12-Hour",
+    "timeFormat24h": "24-Hour",
+    "timeFormatHint": "Determines how times are displayed across the entire platform and the patient app (e.g., 1:00 PM vs 13:00).",
     "widgetSectionTitle": "Online Booking (Widget)",
     "minLeadLabel": "Minimum lead time (minutes)",
     "minLeadHint": "Minimum time, in minutes, between the current moment and the appointment time in the online widget. Slots closer than this are hidden from the patient.",
@@ -188,7 +194,7 @@
     "roleDoctor": "Healthcare Professional",
     "roleSuperAdmin": "Platform Manager (Super Admin)",
     "specialtyLabel": "Specialty",
-    "crmLabel": "License/Registration Number",
+    "crmLabel": "CRM / License Number",
     "languageLabel": "Platform Language",
     "saveChanges": "Save Changes"
   },
@@ -291,5 +297,24 @@
       "submit": "Send Invite",
       "toastSent": "Invite sent to {{email}}"
     }
+  },
+  "roles": {
+    "title": "Roles & Functions",
+    "subtitle": "Manage clinic custom roles and their base permissions.",
+    "addRole": "Add Role",
+    "editRole": "Edit Role",
+    "loading": "Loading roles...",
+    "empty": "No custom roles registered.",
+    "roleNameLabel": "Role Name",
+    "roleNamePlaceholder": "e.g. Clinical Dentist, Secretary",
+    "baseRoleLabel": "System Access Level",
+    "baseRoleDoctor": "Doctor / Practitioner (Agenda & CRM)",
+    "baseRoleStaff": "Reception / Staff (Dashboard access)",
+    "baseRoleAdmin": "Administrator (Full access)",
+    "confirmDelete": "Are you sure you want to delete the role \"{{name}}\"? Professionals assigned to this role will have no role assigned.",
+    "toastCreated": "Role created successfully!",
+    "toastUpdated": "Role updated successfully!",
+    "toastDeleted": "Role deleted successfully!",
+    "toastSaveError": "Error saving role."
   }
 }

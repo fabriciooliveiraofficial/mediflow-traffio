@@ -6,7 +6,8 @@
     "team": "Equipo",
     "communications": "Comunicaciones",
     "profile": "Mi Perfil",
-    "logs": "Registros"
+    "logs": "Registros",
+    "roles": "Cargos y Funciones"
   },
   "header": {
     "title": "Configuración",
@@ -89,6 +90,11 @@
     "timezoneSectionTitle": "Zona Horaria",
     "timezoneLabel": "Zona Horaria de la Clínica",
     "timezoneHint": "Se aplica a citas, recordatorios, WhatsApp, Messenger, Instagram y todas las tareas programadas (cron jobs).",
+    "timeFormatSectionTitle": "Formato de Hora",
+    "timeFormatLabel": "Formato de Visualización",
+    "timeFormat12h": "12 Horas",
+    "timeFormat24h": "24 Horas",
+    "timeFormatHint": "Determina cómo se mostrarán las horas en toda la plataforma y en la aplicación del paciente (por ejemplo, 1:00 PM frente a 13:00).",
     "widgetSectionTitle": "Agendamiento en Línea (Widget)",
     "minLeadLabel": "Anticipación mínima (minutos)",
     "minLeadHint": "Tiempo mínimo, en minutos, entre el momento actual y la hora de la cita en el widget en línea. Los horarios más próximos que esto quedan ocultos para el paciente.",
@@ -188,7 +194,7 @@
     "roleDoctor": "Profesional de la Salud",
     "roleSuperAdmin": "Gestor de la Plataforma (Super Admin)",
     "specialtyLabel": "Especialidad",
-    "crmLabel": "Número de Cédula/Registro Profesional",
+    "crmLabel": "CRM / Número de Registro",
     "languageLabel": "Idioma de la Plataforma",
     "saveChanges": "Guardar Cambios"
   },
@@ -291,5 +297,24 @@
       "submit": "Enviar Invitación",
       "toastSent": "Invitación enviada a {{email}}"
     }
+  },
+  "roles": {
+    "title": "Cargos y Funciones",
+    "subtitle": "Gestione los cargos personalizados de la clínica y sus permisos base.",
+    "addRole": "Agregar Cargo",
+    "editRole": "Editar Cargo",
+    "loading": "Cargando cargos...",
+    "empty": "No hay cargos personalizados registrados.",
+    "roleNameLabel": "Nombre del Cargo",
+    "roleNamePlaceholder": "Ej: Dentista Clínico, Secretaria",
+    "baseRoleLabel": "Nivel de Acceso en el Sistema",
+    "baseRoleDoctor": "Médico / Prestador (Agenda y CRM)",
+    "baseRoleStaff": "Recepción / Auxiliar (Acceso al panel)",
+    "baseRoleAdmin": "Administrador (Acceso total)",
+    "confirmDelete": "¿Realmente desea eliminar el cargo \"{{name}}\"? Los profesionales asociados a este cargo se quedarán sin cargo asignado.",
+    "toastCreated": "¡Cargo creado con éxito!",
+    "toastUpdated": "¡Cargo actualizado con éxito!",
+    "toastDeleted": "¡Cargo eliminado con éxito!",
+    "toastSaveError": "Error al guardar el cargo."
   }
 }

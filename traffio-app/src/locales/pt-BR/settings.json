@@ -6,7 +6,8 @@
     "team": "Equipe",
     "communications": "Comunicações",
     "profile": "Meu Perfil",
-    "logs": "Logs"
+    "logs": "Logs",
+    "roles": "Cargos e Funções"
   },
   "header": {
     "title": "Configurações",
@@ -89,6 +90,11 @@
     "timezoneSectionTitle": "Fuso Horário",
     "timezoneLabel": "Timezone da Clínica",
     "timezoneHint": "Aplica-se a agendamentos, lembretes, WhatsApp, Messenger, Instagram e todos os cron jobs.",
+    "timeFormatSectionTitle": "Formato de Hora",
+    "timeFormatLabel": "Formato de Exibição",
+    "timeFormat12h": "12 Horas",
+    "timeFormat24h": "24 Horas",
+    "timeFormatHint": "Determina como os horários serão exibidos por toda a plataforma e no aplicativo do paciente (ex: 1:00 PM vs 13:00).",
     "widgetSectionTitle": "Agendamento Online (Widget)",
     "minLeadLabel": "Antecedência mínima (minutos)",
     "minLeadHint": "Tempo mínimo, em minutos, entre o momento atual e o horário do agendamento no widget online. Horários mais próximos que isso ficam ocultos para o paciente.",
@@ -291,5 +297,24 @@
       "submit": "Enviar Convite",
       "toastSent": "Convite enviado para {{email}}"
     }
+  },
+  "roles": {
+    "title": "Cargos e Funções",
+    "subtitle": "Gerencie os cargos personalizados da clínica e suas permissões base.",
+    "addRole": "Adicionar Cargo",
+    "editRole": "Editar Cargo",
+    "loading": "Carregando cargos...",
+    "empty": "Nenhum cargo personalizado cadastrado.",
+    "roleNameLabel": "Nome do Cargo",
+    "roleNamePlaceholder": "Ex: Dentista Clínico, Secretária",
+    "baseRoleLabel": "Nível de Acesso no Sistema",
+    "baseRoleDoctor": "Médico / Prestador (Agenda e CRM)",
+    "baseRoleStaff": "Recepção / Auxiliar (Acesso ao painel)",
+    "baseRoleAdmin": "Administrador (Acesso total)",
+    "confirmDelete": "Deseja realmente excluir o cargo \"{{name}}\"? Profissionais associados a ele ficarão sem cargo atribuído.",
+    "toastCreated": "Cargo criado com sucesso!",
+    "toastUpdated": "Cargo atualizado com sucesso!",
+    "toastDeleted": "Cargo excluído com sucesso!",
+    "toastSaveError": "Erro ao salvar cargo."
   }
 }

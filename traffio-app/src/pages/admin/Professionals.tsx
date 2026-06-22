@@ -27,8 +27,10 @@ import {
     Sparkles,
 } from 'lucide-react';
 import { professionalService, type Professional } from '../../services/professionalService';
+import { roleService, type ProfessionalRole } from '../../services/roleService';
 import { locationService, type ClinicLocation as Location } from '../../services/locationService';
 import { insurancePlanService, type InsurancePlan, type DoctorInsurancePlan } from '../../services/insurancePlanService';
+import { useLocaleFormat } from '../../hooks/useLocaleFormat';
 
 export interface BotProfile {
     pitch: string;
@@ -53,6 +55,7 @@ const EMPTY_FORM = {
     email: '',
     phone: '',
     role: 'doctor',
+    role_id: '',
     specialty: '',
     crm: '',
     bio: '',
@@ -67,7 +70,37 @@ const EMPTY_FORM = {
 };
 
 // --- GRID CONSTANTS ---
-const HOURS = Array.from({ length: 13 }, (_, i) => i + 7); // 07 to 19
+const generateSlots = () => {
+    const slots: string[] = [];
+    for (let h = 7; h <= 19; h++) {
+        const hourStr = h.toString().padStart(2, '0');
+        slots.push(`${hourStr}:00`);
+        slots.push(`${hourStr}:15`);
+        slots.push(`${hourStr}:30`);
+        slots.push(`${hourStr}:45`);
+    }
+    return slots;
+};
+const SLOTS = generateSlots();
+
+const timeToMinutes = (timeStr: string): number => {
+    if (!timeStr) return 0;
+    const parts = timeStr.split(':');
+    const h = parseInt(parts[0] || '0', 10);
+    const m = parseInt(parts[1] || '0', 10);
+    return h * 60 + m;
+};
+
+const minutesToTime = (mins: number): string => {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+};
+
+const add15Minutes = (timeStr: string): string => {
+    return minutesToTime(timeToMinutes(timeStr) + 15);
+};
+
 type CellType = { type: 'prime' | 'regular' | 'blocked'; location_id: string | null } | null;
 type ToolType = 'prime' | 'regular' | 'blocked' | 'eraser';
 
@@ -94,10 +127,12 @@ export const Professionals = () => {
         t('professionals.days.saturday'),
     ];
     const [professionals, setProfessionals] = useState<Professional[]>([]);
+    const [roles, setRoles] = useState<ProfessionalRole[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const { formatSlot } = useLocaleFormat();
     const [success, setSuccess] = useState<string | null>(null);
     const [tenantId, setTenantId] = useState<string | null>(null);
     const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
@@ -122,20 +157,21 @@ export const Professionals = () => {
     const [doctorPlans, setDoctorPlans] = useState<DoctorInsurancePlan[]>([]);
 
     // Grid state
-    const [gridState, setGridState] = useState<Record<number, Record<number, CellType>>>({}); // day -> hour -> {type, locId}
+    const [gridState, setGridState] = useState<Record<number, Record<string, CellType>>>({}); // day -> slotString -> {type, locId}
     const [selectedTool, setSelectedTool] = useState<ToolType>('prime');
     const [isMouseDown, setIsMouseDown] = useState(false);
 
     // Load blocks into grid when blocks change
     useEffect(() => {
         if (scheduleBlocks.length > 0) {
-            const newGrid: Record<number, Record<number, CellType>> = {};
+            const newGrid: Record<number, Record<string, CellType>> = {};
             scheduleBlocks.forEach((b: any) => {
-                const startH = parseInt(b.start_time.split(':')[0]);
-                const endH = parseInt(b.end_time.split(':')[0]);
-                for (let h = startH; h < endH; h++) {
+                const startM = timeToMinutes(b.start_time);
+                const endM = timeToMinutes(b.end_time);
+                for (let m = startM; m < endM; m += 15) {
+                    const slotStr = minutesToTime(m);
                     if (!newGrid[b.day_of_week]) newGrid[b.day_of_week] = {};
-                    newGrid[b.day_of_week][h] = { type: b.block_type, location_id: b.location_id };
+                    newGrid[b.day_of_week][slotStr] = { type: b.block_type, location_id: b.location_id };
                 }
             });
             setGridState(newGrid);
@@ -144,7 +180,7 @@ export const Professionals = () => {
         }
     }, [scheduleBlocks]);
 
-    const handlePaint = (day: number, hour: number) => {
+    const handlePaint = (day: number, slot: string) => {
         // Validation: If a location is selected, check its operating hours
         if (activeLocationId && selectedTool !== 'eraser') {
             const loc = locations.find(l => l.id === activeLocationId);
@@ -157,10 +193,11 @@ export const Professionals = () => {
                     setError(t('professionals.errors.locationClosedOnDay', { locationName: loc.name }));
                     return;
                 } else {
-                    const startH = parseInt(oh.start.split(':')[0]);
-                    const endH = parseInt(oh.end.split(':')[0]);
+                    const startM = timeToMinutes(oh.start);
+                    const endM = timeToMinutes(oh.end);
+                    const slotM = timeToMinutes(slot);
 
-                    if (hour < startH || hour >= endH) {
+                    if (slotM < startM || (slotM + 15) > endM) {
                         setError(t('professionals.errors.locationHoursWindow', { locationName: loc.name, start: oh.start, end: oh.end }));
                         return;
                     }
@@ -173,9 +210,9 @@ export const Professionals = () => {
             newState[day] = { ...(prev[day] || {}) }; // Deep clone to avoid mutation
 
             if (selectedTool === 'eraser') {
-                delete newState[day][hour];
+                delete newState[day][slot];
             } else {
-                newState[day][hour] = { type: selectedTool as any, location_id: activeLocationId };
+                newState[day][slot] = { type: selectedTool as any, location_id: activeLocationId };
             }
             return newState;
         });
@@ -190,37 +227,38 @@ export const Professionals = () => {
         // Iterate days 0 (Dom) to 6 (Sab)
         for (let d = 0; d <= 6; d++) {
             const dayOfWeek = d;
-            const dayHours = gridState[dayOfWeek] || {};
+            const daySlots = gridState[dayOfWeek] || {};
 
-            let currentBlock: { start: number, end: number, type: 'prime' | 'regular' | 'blocked', locId: string | null } | null = null;
+            let currentBlock: { start: string, end: string, type: 'prime' | 'regular' | 'blocked', locId: string | null } | null = null;
 
-            for (let h = 7; h <= 19; h++) {
-                const cell = dayHours[h];
+            for (let i = 0; i < SLOTS.length; i++) {
+                const slot = SLOTS[i];
+                const cell = daySlots[slot];
 
                 if (currentBlock) {
                     if (cell && cell.type === currentBlock.type && cell.location_id === currentBlock.locId) {
                         // Extend current
-                        currentBlock.end = h + 1;
+                        currentBlock.end = add15Minutes(slot);
                     } else {
                         // Close current, push
                         newBlocks.push({
                             doctor_id: selectedPro.id,
                             tenant_id: tenantId,
                             day_of_week: dayOfWeek,
-                            start_time: `${currentBlock.start.toString().padStart(2, '0')}:00`,
-                            end_time: `${currentBlock.end.toString().padStart(2, '0')}:00`,
+                            start_time: currentBlock.start,
+                            end_time: currentBlock.end,
                             block_type: currentBlock.type,
                             location_id: currentBlock.locId
                         });
                         currentBlock = null;
                         // Start new if valid
                         if (cell) {
-                            currentBlock = { start: h, end: h + 1, type: cell.type, locId: cell.location_id };
+                            currentBlock = { start: slot, end: add15Minutes(slot), type: cell.type, locId: cell.location_id };
                         }
                     }
                 } else {
                     if (cell) {
-                        currentBlock = { start: h, end: h + 1, type: cell.type, locId: cell.location_id };
+                        currentBlock = { start: slot, end: add15Minutes(slot), type: cell.type, locId: cell.location_id };
                     }
                 }
             }
@@ -230,8 +268,8 @@ export const Professionals = () => {
                     doctor_id: selectedPro.id,
                     tenant_id: tenantId,
                     day_of_week: dayOfWeek,
-                    start_time: `${currentBlock.start.toString().padStart(2, '0')}:00`,
-                    end_time: `${currentBlock.end.toString().padStart(2, '0')}:00`,
+                    start_time: currentBlock.start,
+                    end_time: currentBlock.end,
                     block_type: currentBlock.type,
                     location_id: currentBlock.locId
                 });
@@ -293,6 +331,7 @@ export const Professionals = () => {
                 }
             }).catch(console.error);
             insurancePlanService.getAll(tenantId).then(setAllPlans).catch(console.error);
+            roleService.getAll(tenantId).then(setRoles).catch(console.error);
         }
     }, [tenantId]);
 
@@ -365,6 +404,7 @@ export const Professionals = () => {
             email: p.email || '',
             phone: p.phone || '',
             role: p.role || 'doctor',
+            role_id: p.role_id || '',
             specialty: p.specialty || '',
             crm: p.crm || '',
             bio: p.bio || '',
@@ -461,6 +501,7 @@ export const Professionals = () => {
             email: selectedPro.email || '',
             phone: selectedPro.phone || '',
             role: selectedPro.role || 'doctor',
+            role_id: selectedPro.role_id || '',
             specialty: selectedPro.specialty || '',
             crm: selectedPro.crm || '',
             bio: selectedPro.bio || '',
@@ -581,7 +622,7 @@ export const Professionals = () => {
                         <div>
                             <h1 className="text-2xl font-black text-graphite-900">{isCreating ? t('professionals.detail.newProfessional') : selectedPro.full_name}</h1>
                             <p className="text-sm text-graphite-400">
-                                {isCreating ? t('professionals.detail.fillFieldsBelow') : (selectedPro.specialty || roleLabel[selectedPro.role] || selectedPro.role)}
+                                {isCreating ? t('professionals.detail.fillFieldsBelow') : (selectedPro.specialty || selectedPro.professional_roles?.name || roleLabel[selectedPro.role] || selectedPro.role)}
                                 {selectedPro.crm && ` · ${t('professionals.detail.crmPrefix', { crm: selectedPro.crm })}`}
                             </p>
                         </div>
@@ -653,10 +694,23 @@ export const Professionals = () => {
                                         </div>
                                         <div>
                                             <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">{t('professionals.detail.dataTab.role')}</label>
-                                            <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-bold text-graphite-900 focus:outline-none focus:border-brand-primary cursor-pointer h-[46px]">
-                                                <option value="doctor">{t('professionals.detail.dataTab.roleDoctor')}</option>
-                                                <option value="staff">{t('professionals.detail.dataTab.roleStaff')}</option>
-                                                <option value="admin">{t('professionals.detail.dataTab.roleAdmin')}</option>
+                                            <select 
+                                                value={form.role_id} 
+                                                onChange={(e) => {
+                                                    const selectedId = e.target.value;
+                                                    const matchedRole = roles.find(r => r.id === selectedId);
+                                                    setForm({ 
+                                                        ...form, 
+                                                        role_id: selectedId,
+                                                        role: matchedRole ? matchedRole.base_role : form.role 
+                                                    });
+                                                }} 
+                                                className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-bold text-graphite-900 focus:outline-none focus:border-brand-primary cursor-pointer h-[46px]"
+                                            >
+                                                <option value="" disabled>Selecione uma função</option>
+                                                {roles.map(r => (
+                                                    <option key={r.id} value={r.id}>{r.name}</option>
+                                                ))}
                                             </select>
                                         </div>
                                         <div>
@@ -753,7 +807,7 @@ export const Professionals = () => {
                                         { label: t('professionals.detail.dataTab.readOnly.fullName'), value: selectedPro.full_name },
                                         { label: t('professionals.detail.dataTab.readOnly.email'), value: selectedPro.email || t('professionals.detail.dataTab.readOnly.empty') },
                                         { label: t('professionals.detail.dataTab.readOnly.phone'), value: selectedPro.phone || t('professionals.detail.dataTab.readOnly.empty') },
-                                        { label: t('professionals.detail.dataTab.readOnly.role'), value: roleLabel[selectedPro.role] || selectedPro.role },
+                                        { label: t('professionals.detail.dataTab.readOnly.role'), value: selectedPro.professional_roles?.name || roleLabel[selectedPro.role] || selectedPro.role },
                                         { label: t('professionals.detail.dataTab.readOnly.specialty'), value: selectedPro.specialty || t('professionals.detail.dataTab.readOnly.empty') },
                                         { label: t('professionals.detail.dataTab.readOnly.crm'), value: selectedPro.crm || t('professionals.detail.dataTab.readOnly.empty') },
                                         { label: t('professionals.detail.dataTab.readOnly.rqe'), value: selectedPro.rqe || t('professionals.detail.dataTab.readOnly.empty') },
@@ -860,16 +914,15 @@ export const Professionals = () => {
                                     ))}
                                 </div>
 
-                                <div className="divide-y divide-ice-100" onMouseDown={() => setIsMouseDown(true)} onMouseUp={() => setIsMouseDown(false)}>
-                                    {HOURS.map(h => (
-                                        <div key={h} className="grid grid-cols-[60px_repeat(7,1fr)] divide-x divide-ice-100 h-10">
-                                            <div className="text-xs font-bold text-graphite-400 flex items-center justify-center bg-ice-50/50">
-                                                {h.toString().padStart(2, '0')}:00
+                                <div className="divide-y divide-ice-100 max-h-[600px] overflow-y-auto" onMouseDown={() => setIsMouseDown(true)} onMouseUp={() => setIsMouseDown(false)}>
+                                    {SLOTS.map(slot => (
+                                        <div key={slot} className="grid grid-cols-[60px_repeat(7,1fr)] divide-x divide-ice-100 h-8">
+                                            <div className="text-[10px] font-bold text-graphite-400 flex items-center justify-center bg-ice-50/50 uppercase">
+                                                {slot.endsWith(':00') || slot.endsWith(':30') ? formatSlot(slot) : ''}
                                             </div>
                                             {DAYS.map((_, i) => {
                                                 const day = i; // 0=Dom, 1=Seg...
-                                                const hour = h;
-                                                const cell = gridState[day]?.[hour];
+                                                const cell = gridState[day]?.[slot];
                                                 const isActive = !!cell;
                                                 const isMine = isActive && (!activeLocationId || cell?.location_id === activeLocationId);
                                                 const isOtherLocation = !!(isActive && activeLocationId && cell?.location_id !== activeLocationId);
@@ -886,9 +939,10 @@ export const Professionals = () => {
                                                         if (!oh || oh.closed) {
                                                             isOperatingBlocked = true;
                                                         } else {
-                                                            const startH = parseInt(oh.start.split(':')[0]);
-                                                            const endH = parseInt(oh.end.split(':')[0]);
-                                                            if (hour < startH || hour >= endH) isOperatingBlocked = true;
+                                                            const startM = timeToMinutes(oh.start);
+                                                            const endM = timeToMinutes(oh.end);
+                                                            const slotM = timeToMinutes(slot);
+                                                            if (slotM < startM || (slotM + 15) > endM) isOperatingBlocked = true;
                                                         }
                                                     }
                                                 }
@@ -900,7 +954,7 @@ export const Professionals = () => {
                                                     <button
                                                         key={day}
                                                         disabled={isBlocked && selectedTool !== 'eraser'}
-                                                        className={`w-full h-8 rounded-md transition-all border-none relative overflow-hidden ${isOperatingBlocked
+                                                        className={`w-full h-7 rounded-sm transition-all border-none relative overflow-hidden ${isOperatingBlocked
                                                             ? 'bg-graphite-200/40 cursor-not-allowed border border-graphite-300/20'
                                                             : isOtherLocation
                                                                 ? 'bg-slate-100 cursor-not-allowed border border-slate-200 shadow-inner'
@@ -925,11 +979,11 @@ export const Professionals = () => {
                                                         onMouseDown={() => {
                                                             if (isBlocked && selectedTool !== 'eraser') return;
                                                             setIsMouseDown(true);
-                                                            handlePaint(day, hour);
+                                                            handlePaint(day, slot);
                                                         }}
                                                         onMouseEnter={() => {
                                                             if (isMouseDown && (!isOperatingBlocked || selectedTool === 'eraser')) {
-                                                                handlePaint(day, hour);
+                                                                handlePaint(day, slot);
                                                             }
                                                         }}
                                                     >
@@ -1307,7 +1361,7 @@ export const Professionals = () => {
                                     <div className="flex items-center gap-2 flex-wrap">
                                         <p className="font-black text-graphite-900 truncate">{p.full_name || t('professionals.list.noName')}</p>
                                         <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase ${roleColor[p.role] || 'bg-ice-100 text-graphite-500'}`}>
-                                            {roleLabel[p.role] || p.role}
+                                            {p.professional_roles?.name || roleLabel[p.role] || p.role}
                                         </span>
                                         {!p.is_active && (
                                             <span className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase bg-rose-100 text-rose-600">{t('professionals.list.inactive')}</span>
@@ -1333,11 +1387,20 @@ export const Professionals = () => {
                                 <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
                                     <button
                                         onClick={() => {
-                                            handleViewDetail(p);
-                                            // Slight timeout to let render happen, then switch to edit (optional, or just pass a flag)
-                                            // Actually helper above does setEditing(false). Let's do it manually:
                                             setSelectedPro(p);
-                                            setForm(p as any);
+                                            setForm({
+                                                full_name: p.full_name || '',
+                                                email: p.email || '',
+                                                phone: p.phone || '',
+                                                role: p.role || 'doctor',
+                                                role_id: p.role_id || '',
+                                                specialty: p.specialty || '',
+                                                crm: p.crm || '',
+                                                bio: p.bio || '',
+                                                rqe: p.rqe || '',
+                                                color: p.color || '#1152d4',
+                                                cancellation_policy: p.cancellation_policy || { enabled: false, free_window_hours: 24, late_penalty_percent: 0, no_show_penalty_percent: 100 }
+                                            });
                                             setIsEditing(true);
                                             setIsCreating(false);
                                             setDetailTab('dados');
