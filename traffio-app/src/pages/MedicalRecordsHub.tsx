@@ -38,6 +38,7 @@ import { formatDisplayDate } from '../lib/dateUtils';
 import { formatDoc, docLabel } from '../lib/i18n/doc';
 import { formatNational } from '../lib/i18n/phone';
 import { DEFAULT_COUNTRY, type CountryCode } from '../lib/i18n/countryFormats';
+import { formatInTimezone } from '../lib/timezoneUtils';
 
 interface Patient {
     id: string;
@@ -421,7 +422,7 @@ export const MedicalRecordsHub = () => {
                         </div>
                         <div className="flex items-end gap-2">
                              <span className="text-xs font-black text-graphite-300 uppercase shrink-0">{t('recordsHub.print.dateLabel')}</span>
-                             <div className="flex-1 border-b border-ice-200 pb-1 font-bold text-graphite-900">{new Date().toLocaleDateString('pt-BR')}</div>
+                             <div className="flex-1 border-b border-ice-200 pb-1 font-bold text-graphite-900">{formatInTimezone(new Date(), tenant?.timezone || 'America/Sao_Paulo', { dateStyle: 'short' }, 'pt-BR')}</div>
                         </div>
                     </div>
 
@@ -792,7 +793,7 @@ export const MedicalRecordsHub = () => {
                                                     </div>
                                                     <div>
                                                         <label className="block text-[10px] font-black uppercase tracking-widest text-graphite-400 mb-2 ml-1">{t('recordsHub.form.dateLabel')}</label>
-                                                        <div className="p-4 bg-ice-50 border-none rounded-2xl font-bold text-sm text-graphite-400">{t('recordsHub.form.todayPrefix', { date: new Date().toLocaleDateString('pt-BR') })}</div>
+                                                        <div className="p-4 bg-ice-50 border-none rounded-2xl font-bold text-sm text-graphite-400">{t('recordsHub.form.todayPrefix', { date: formatInTimezone(new Date(), tenant?.timezone || 'America/Sao_Paulo', { dateStyle: 'short' }, 'pt-BR') })}</div>
                                                     </div>
                                                 </div>
 

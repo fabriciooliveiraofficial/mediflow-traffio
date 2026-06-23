@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { getTenantNow, getTenantTodayString } from '../lib/timezoneUtils';
 
 export interface SmartSlot {
     slot_time: string;
@@ -31,7 +32,8 @@ export const smartSchedulingService = {
         date: string,
         _tenantId: string,
         durationMinutes: number = 30,
-        locationId?: string
+        locationId?: string,
+        timezone?: string
     ): Promise<SmartSlot[]> {
         const { data, error } = await supabase.rpc('find_next_available_dates', {
             p_doctor_id: doctorId,
@@ -45,8 +47,26 @@ export const smartSchedulingService = {
         const dayData = (data || []).find((d: any) => d.date === date);
         if (!dayData) return [];
 
-        return (dayData.slots || [])
+        const tz = timezone || 'America/Sao_Paulo';
+        const todayStr = getTenantTodayString(tz);
+        const now = getTenantNow(tz);
+        const currentHours = now.getHours();
+        const currentMinutes = now.getMinutes();
+
+        const filtered = (dayData.slots || [])
             .filter((slot: any) => slot.available)
+            .filter((slot: any) => {
+                if (date < todayStr) return false;
+                if (date === todayStr) {
+                    const [h, m] = slot.time.split(':').map(Number);
+                    if (h > currentHours) return true;
+                    if (h === currentHours && m > currentMinutes) return true;
+                    return false;
+                }
+                return true;
+            });
+
+        return filtered
             .map((slot: any) => {
                 const [h, m] = slot.time.split(':').map(Number);
                 const total = h * 60 + m + durationMinutes;

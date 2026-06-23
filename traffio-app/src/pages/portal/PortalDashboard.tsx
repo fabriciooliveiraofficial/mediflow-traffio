@@ -93,7 +93,8 @@ export function PortalDashboard() {
         const penaltyInfo = appointmentService.checkPenalty(
             apt.doctor?.cancellation_policy,
             apt.date,
-            apt.start_time
+            apt.start_time,
+            tenant?.timezone
         );
         setCancelPenalty(penaltyInfo);
         setCancellingApt(apt);
@@ -112,7 +113,8 @@ export function PortalDashboard() {
                 patient.phone, // Requires patient phone for RPC validation
                 cancellingApt.doctor?.cancellation_policy,
                 cancellingApt.date,
-                cancellingApt.start_time
+                cancellingApt.start_time,
+                tenant?.timezone
             );
 
             // Refresh list

@@ -16,7 +16,7 @@ import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
 import { useLocaleFormat } from '../hooks/useLocaleFormat';
 import { useTenant } from '../contexts/TenantContext';
-import { getTenantTodayString, localDateTimeToUTC } from '../lib/timezoneUtils';
+import { getTenantTodayString, localDateTimeToUTC, getTenantNow } from '../lib/timezoneUtils';
 
 export const ReceptionDashboard = () => {
     const { t } = useTranslation('crm');
@@ -26,7 +26,7 @@ export const ReceptionDashboard = () => {
     const [appointments, setAppointments] = useState<any[]>([]);
     const [filter, setFilter] = useState('all');
     const [isNewPatientModalOpen, setIsNewPatientModalOpen] = useState(false);
-    const [currentTime, setCurrentTime] = useState(() => new Date());
+    const [currentTime, setCurrentTime] = useState(() => getTenantNow(timezone));
     const [search, setSearch] = useState('');
 
     const fetchAppointments = useCallback(async () => {
@@ -60,9 +60,10 @@ export const ReceptionDashboard = () => {
     useEffect(() => { fetchAppointments(); }, [fetchAppointments]);
 
     useEffect(() => {
-        const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+        setCurrentTime(getTenantNow(timezone));
+        const timer = setInterval(() => setCurrentTime(getTenantNow(timezone)), 60000);
         return () => clearInterval(timer);
-    }, []);
+    }, [timezone]);
 
     const handleStatusChange = async (id: string, newStatus: string) => {
         const updates: any = { status: newStatus };

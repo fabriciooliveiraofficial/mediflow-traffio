@@ -233,7 +233,7 @@ export const AgendaMestra: React.FC = () => {
     const fetchData = useCallback(async () => {
         if (!selectedTenant || selectedDoctors.length === 0) return;
         setLoading(true);
-        const defaultDur = appointmentTypes[0]?.duration_minutes || 30;
+        const defaultDur = SNAP_MIN; // Agenda Mestra precisa de granularidade de 15min para exibir todos os slots
         try {
             const [slotsResults, appts] = await Promise.all([
                 Promise.all(selectedDoctors.map(async (docId) => {
@@ -751,16 +751,27 @@ export const AgendaMestra: React.FC = () => {
                                                     <div
                                                         key={i}
                                                         data-slot
-                                                        className={cn("absolute left-1 right-1 rounded-lg border border-dashed cursor-pointer transition-all hover:opacity-90 group/slot", slotBg(slot))}
+                                                        className={cn("absolute left-1 right-1 rounded-lg border border-dashed cursor-pointer transition-all hover:opacity-90 group/slot overflow-hidden", slotBg(slot))}
                                                         style={{ top, height: h }}
                                                         onClick={(e) => { e.stopPropagation(); openBookingModal(doc.id, slot); }}
+                                                        title={slot.location_name ? `${slot.block_type === 'prime' ? t('mestra.slotBadge.prime') : slot.is_auto_released ? t('mestra.slotBadge.released') : t('mestra.slotBadge.regular')} · ${slot.location_name}` : undefined}
                                                     >
-                                                        <div className="flex items-center justify-between px-2 py-1">
-                                                            <SlotBadge slot={slot} />
-                                                            <Plus size={12} className="text-brand-primary opacity-0 group-hover/slot:opacity-100 transition-opacity" />
+                                                        <div className={cn("flex items-center justify-between px-2", h < 36 ? "py-0.5" : "py-1")}>
+                                                            <div className="flex items-center gap-1 min-w-0">
+                                                                <SlotBadge slot={slot} />
+                                                                {h < 48 && h >= 36 && slot.location_name && (
+                                                                    <span className="text-[8px] text-graphite-400 truncate font-medium shrink min-w-0">
+                                                                        · {slot.location_name}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <Plus size={h < 36 ? 10 : 12} className="text-brand-primary opacity-0 group-hover/slot:opacity-100 transition-opacity shrink-0" />
                                                         </div>
-                                                        {slot.location_name && (
-                                                            <div className="flex items-center gap-0.5 px-2 text-[8px] text-graphite-400"><MapPin size={7} />{slot.location_name}</div>
+                                                        {h >= 48 && slot.location_name && (
+                                                            <div className="flex items-center gap-0.5 px-2 text-[8px] text-graphite-400 truncate">
+                                                                <MapPin size={7} className="shrink-0" />
+                                                                <span className="truncate">{slot.location_name}</span>
+                                                            </div>
                                                         )}
                                                     </div>
                                                 );

@@ -17,6 +17,7 @@ import {
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { clsx } from 'clsx';
+import { getTenantTodayString } from '../../lib/timezoneUtils';
 
 interface SidebarCalendarProps {
   selectedDate: string;
@@ -24,6 +25,7 @@ interface SidebarCalendarProps {
   availableDates: string[]; // ['2026-04-08', '2026-04-09', ...]
   currentMonth: Date;
   onMonthChange: (month: Date) => void;
+  timezone?: string;
 }
 
 export const SidebarCalendar: React.FC<SidebarCalendarProps> = ({
@@ -32,6 +34,7 @@ export const SidebarCalendar: React.FC<SidebarCalendarProps> = ({
   availableDates,
   currentMonth,
   onMonthChange,
+  timezone,
 }) => {
   const { t } = useTranslation('common');
   const handlePrevMonth = () => onMonthChange(subMonths(currentMonth, 1));
@@ -45,7 +48,10 @@ export const SidebarCalendar: React.FC<SidebarCalendarProps> = ({
   const calendarRows = [];
   let days = [];
   let day = startDate;
-  const today = startOfDay(new Date());
+  const tz = timezone || 'America/Sao_Paulo';
+  const todayStr = getTenantTodayString(tz);
+  const [ty, tm, td] = todayStr.split('-').map(Number);
+  const today = new Date(ty, tm - 1, td);
 
   while (day <= endDate) {
     for (let i = 0; i < 7; i++) {
@@ -69,7 +75,7 @@ export const SidebarCalendar: React.FC<SidebarCalendarProps> = ({
           )}
         >
           <span>{format(day, 'd')}</span>
-          {isAvailable && !isSelected && (
+          {isAvailable && !isSelected && !isPast && (
             <span className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-emerald-500 rounded-full shadow-[0_0_4px_rgba(16,185,129,0.5)]" />
           )}
         </button>

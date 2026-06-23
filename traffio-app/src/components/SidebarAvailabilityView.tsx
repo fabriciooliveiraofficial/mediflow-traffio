@@ -19,6 +19,7 @@ import { useLocaleFormat } from '../hooks/useLocaleFormat';
 import { useTranslation } from 'react-i18next';
 import { SidebarCalendar } from './shared/SidebarCalendar';
 import { format, startOfMonth } from 'date-fns';
+import { getTenantNow, getTenantTodayString } from '../lib/timezoneUtils';
 
 interface SidebarAvailabilityViewProps {
   onBack: () => void;
@@ -65,7 +66,7 @@ export function SidebarAvailabilityView({ onBack, onBookSlot }: SidebarAvailabil
   // Calendar
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [availableDates, setAvailableDates] = useState<string[]>([]);
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [currentMonth, setCurrentMonth] = useState(() => getTenantNow(tenant?.timezone));
   const [slots, setSlots] = useState<SmartSlot[]>([]);
 
   // Helper setters for selections
@@ -331,7 +332,11 @@ export function SidebarAvailabilityView({ onBack, onBookSlot }: SidebarAvailabil
         p_from_date: format(startOfMonth(currentMonth), 'yyyy-MM-dd')
       });
       if (error) throw error;
-      const dates = (data || []).map((d: any) => d.date);
+      const tz = tenant?.timezone || 'America/Sao_Paulo';
+      const todayStr = getTenantTodayString(tz);
+      const dates = (data || [])
+        .map((d: any) => d.date)
+        .filter((d: string) => d >= todayStr);
       setAvailableDates(dates);
     } catch (err) {
       console.error('Error loading calendar markers:', err);
@@ -355,7 +360,8 @@ export function SidebarAvailabilityView({ onBack, onBookSlot }: SidebarAvailabil
         date,
         tenant.id,
         selectedProcedure.duration_minutes || 30,
-        selectedLocation.id
+        selectedLocation.id,
+        tenant.timezone
       );
       setSlots(data);
     } catch (err) {
@@ -781,6 +787,7 @@ export function SidebarAvailabilityView({ onBack, onBookSlot }: SidebarAvailabil
           availableDates={availableDates}
           currentMonth={currentMonth}
           onMonthChange={setCurrentMonth}
+          timezone={tenant?.timezone}
         />
 
         {/* Slots list */}

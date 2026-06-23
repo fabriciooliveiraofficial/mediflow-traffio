@@ -310,7 +310,8 @@ export function PortalBook() {
                     phone,
                     rescheduleApt.doctor?.cancellation_policy,
                     rescheduleApt.date,
-                    rescheduleApt.start_time
+                    rescheduleApt.start_time,
+                    tenant?.timezone
                 );
             }
 
@@ -639,7 +640,7 @@ export function PortalBook() {
                                                 <p className="text-orange-600 text-sm leading-relaxed">
                                                     {t('book.rescheduleWarningTextPart1')} <strong>{formatDate(rescheduleApt.date, { locale: slotLocale })}</strong> {t('book.rescheduleWarningTextPart2')} <strong>{formatSlot(rescheduleApt.start_time, { locale: slotLocale, hour12 })}</strong> {t('book.rescheduleWarningTextPart3')}
                                                 </p>
-                                                {appointmentService.checkPenalty(rescheduleApt.doctor?.cancellation_policy, rescheduleApt.date, rescheduleApt.start_time).applies && (
+                                                {appointmentService.checkPenalty(rescheduleApt.doctor?.cancellation_policy, rescheduleApt.date, rescheduleApt.start_time, tenant?.timezone).applies && (
                                                     <div className="mt-3 p-3 bg-rose-50 border border-rose-100 rounded-xl">
                                                         <p className="text-rose-700 font-bold text-sm mb-1">{t('book.latePenaltyTitle')}</p>
                                                         <p className="text-rose-600 font-medium text-xs leading-relaxed">

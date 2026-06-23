@@ -6,6 +6,7 @@ import { useTenant } from '../contexts/TenantContext';
 import { useToast } from '../contexts/ToastContext';
 import { SidebarCalendar } from './shared/SidebarCalendar';
 import { format, startOfMonth } from 'date-fns';
+import { getTenantNow, getTenantTodayString } from '../lib/timezoneUtils';
 import { ptBR } from 'date-fns/locale';
 import { clsx } from 'clsx';
 import { useLocaleFormat } from '../hooks/useLocaleFormat';
@@ -245,7 +246,11 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
             });
             console.log('[DEBUG] loadAvailableDatesMarkers result:', { data, error });
             if (error) throw error;
-            const dates = (data || []).map((d: any) => d.date);
+            const tz = tenant?.timezone || 'America/Sao_Paulo';
+            const todayStr = getTenantTodayString(tz);
+            const dates = (data || [])
+                .map((d: any) => d.date)
+                .filter((d: string) => d >= todayStr);
             setAvailableDates(dates);
         } catch (err) {
             console.error('Erro ao buscar marcadores:', err);
@@ -284,8 +289,25 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
             const dayData = (data || []).find((d: any) => d.date === date);
             console.log('[DEBUG] loadSlotsForDate dayData:', dayData);
             if (dayData) {
+                const tz = tenant?.timezone || 'America/Sao_Paulo';
+                const todayStr = getTenantTodayString(tz);
+                const now = getTenantNow(tz);
+                const currentHours = now.getHours();
+                const currentMinutes = now.getMinutes();
+
+                const filteredSlots = (dayData.slots || []).filter((slot: any) => {
+                    if (date < todayStr) return false;
+                    if (date === todayStr) {
+                        const [h, m] = slot.time.split(':').map(Number);
+                        if (h > currentHours) return true;
+                        if (h === currentHours && m > currentMinutes) return true;
+                        return false;
+                    }
+                    return true;
+                });
+
                 // The updated RPC returns a unified 'slots' array including blocked/occupied status
-                setSlots(dayData.slots || []);
+                setSlots(filteredSlots);
                 
                 // Use bounds directly from RPC to ensure grid sync
                 if (dayData.start_hour !== undefined && dayData.end_hour !== undefined) {
@@ -692,6 +714,7 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                             availableDates={availableDates}
                             currentMonth={currentMonth}
                             onMonthChange={setCurrentMonth}
+                            timezone={tenant?.timezone}
                         />
 
                         {selectedDate && (

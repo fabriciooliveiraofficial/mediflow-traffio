@@ -30,6 +30,7 @@ import { BillingService } from '../services/billingService';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
 import { useLocaleFormat } from '../hooks/useLocaleFormat';
+import { getTenantTodayString } from '../lib/timezoneUtils';
 
 export const FinancialDashboard = () => {
     const { t } = useTranslation('tenantAdmin');
@@ -39,13 +40,22 @@ export const FinancialDashboard = () => {
     const [analytics, setAnalytics] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [tenantId, setTenantId] = useState<string | null>(null);
+    const [tenant, setTenant] = useState<any>(null);
     const [showNewModal, setShowNewModal] = useState(false);
     const [statusFilter, setStatusFilter] = useState<string>('');
 
     // Get tenant
     useEffect(() => {
         supabase.from('members').select('tenant_id').limit(1).single()
-            .then(({ data }) => { if (data) setTenantId(data.tenant_id); });
+            .then(({ data }) => { 
+                if (data) {
+                    setTenantId(data.tenant_id);
+                    supabase.from('tenants').select('*').eq('id', data.tenant_id).single()
+                        .then(({ data: tData }) => {
+                            if (tData) setTenant(tData);
+                        });
+                }
+            });
     }, []);
 
     const fetchData = useCallback(async () => {
@@ -344,6 +354,7 @@ export const FinancialDashboard = () => {
             {showNewModal && tenantId && (
                 <NewBillingModal
                     tenantId={tenantId}
+                    timezone={tenant?.timezone}
                     onClose={() => setShowNewModal(false)}
                     onSuccess={() => { setShowNewModal(false); fetchData(); }}
                 />
@@ -368,7 +379,7 @@ const KPICard = ({ title, value, icon: Icon, color, bg }: any) => (
 );
 
 // ---- New Billing Modal ----
-const NewBillingModal = ({ tenantId, onClose, onSuccess }: { tenantId: string; onClose: () => void; onSuccess: () => void }) => {
+const NewBillingModal = ({ tenantId, timezone, onClose, onSuccess }: { tenantId: string; timezone?: string; onClose: () => void; onSuccess: () => void }) => {
     const { t } = useTranslation('tenantAdmin');
     const { showToast } = useToast();
     const [patients, setPatients] = useState<any[]>([]);
@@ -389,7 +400,7 @@ const NewBillingModal = ({ tenantId, onClose, onSuccess }: { tenantId: string; o
                 tenant_id: tenantId,
                 patient_id: form.patient_id,
                 amount_cents: Math.round(parseFloat(form.amount) * 100),
-                due_date: form.due_date || new Date().toISOString().split('T')[0],
+                due_date: form.due_date || getTenantTodayString(timezone),
                 method: form.method,
                 notes: form.notes,
             });

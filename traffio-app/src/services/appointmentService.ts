@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import type { CancellationPolicy } from './professionalService';
+import { localDateTimeToUTC } from '../lib/timezoneUtils';
 
 export interface CancelAppointmentResult {
     success: boolean;
@@ -14,7 +15,8 @@ export const appointmentService = {
         patientPhone: string,
         cancellationPolicy?: CancellationPolicy,
         appointmentDate?: string, // YYYY-MM-DD
-        appointmentTime?: string  // HH:mm format
+        appointmentTime?: string,  // HH:mm format
+        timezone?: string
     ): Promise<CancelAppointmentResult> {
 
         let penaltyApplied = false;
@@ -22,9 +24,8 @@ export const appointmentService = {
 
         // 1. Calculate penalty if a policy exists and is enabled
         if (cancellationPolicy?.enabled && appointmentDate && appointmentTime) {
-            // Reconstruct the appointment datetime
-            const apptDateTimeStr = `${appointmentDate}T${appointmentTime}`;
-            const apptDateObj = new Date(apptDateTimeStr);
+            // Reconstruct the appointment datetime in the tenant's timezone
+            const apptDateObj = localDateTimeToUTC(appointmentDate, appointmentTime, timezone || 'America/Sao_Paulo');
             const now = new Date();
 
             const diffMs = apptDateObj.getTime() - now.getTime();
@@ -83,14 +84,14 @@ export const appointmentService = {
     checkPenalty(
         cancellationPolicy?: CancellationPolicy,
         appointmentDate?: string, // YYYY-MM-DD
-        appointmentTime?: string  // HH:mm format
+        appointmentTime?: string,  // HH:mm format
+        timezone?: string
     ): { applies: boolean, percent: number } {
         if (!cancellationPolicy?.enabled || !appointmentDate || !appointmentTime) {
             return { applies: false, percent: 0 };
         }
 
-        const apptDateTimeStr = `${appointmentDate}T${appointmentTime}`;
-        const apptDateObj = new Date(apptDateTimeStr);
+        const apptDateObj = localDateTimeToUTC(appointmentDate, appointmentTime, timezone || 'America/Sao_Paulo');
         const now = new Date();
 
         const diffMs = apptDateObj.getTime() - now.getTime();

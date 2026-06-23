@@ -41,6 +41,7 @@ import { supabase } from '../lib/supabase';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import { getTenantTodayString } from '../lib/timezoneUtils';
 import {
     AreaChart,
     Area,
@@ -666,7 +667,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
             styles: { fontSize: 8 },
         });
 
-        doc.save(`analytics-pro-${new Date().toISOString().split('T')[0]}.pdf`);
+        doc.save(`analytics-pro-${getTenantTodayString(tenant?.timezone)}.pdf`);
     };
 
     // ── Exportação Excel ─────────────────────────────────────────────────────
@@ -701,7 +702,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, summarySheet, t('excelReport.summarySheetName'));
         XLSX.utils.book_append_sheet(wb, campaignSheet, t('excelReport.campaignSheetName'));
-        XLSX.writeFile(wb, `analytics-pro-${new Date().toISOString().split('T')[0]}.xlsx`);
+        XLSX.writeFile(wb, `analytics-pro-${getTenantTodayString(tenant?.timezone)}.xlsx`);
     };
 
     const isLiveWithoutData = rawPerformanceData.length === 0;
