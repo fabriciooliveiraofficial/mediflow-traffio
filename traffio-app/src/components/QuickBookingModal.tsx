@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { clsx } from 'clsx';
 import { useLocaleFormat } from '../hooks/useLocaleFormat';
 import { useTranslation } from 'react-i18next';
+import { getIntlLocale } from '../lib/i18n';
 
 interface QuickBookingModalProps {
     isOpen: boolean;
@@ -19,7 +20,7 @@ export const QuickBookingModal: React.FC<QuickBookingModalProps> = ({ isOpen, on
     const { tenant } = useTenant();
     const { showToast } = useToast();
     const { formatSlot } = useLocaleFormat();
-    const { t } = useTranslation('agenda');
+    const { t, i18n } = useTranslation('agenda');
 
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
@@ -299,7 +300,7 @@ export const QuickBookingModal: React.FC<QuickBookingModalProps> = ({ isOpen, on
                                                 <div className="space-y-6">
                                                     {availableDates.map(day => (
                                                         <div key={day.date} className="space-y-2">
-                                                            <p className="text-[11px] font-black text-graphite-400 uppercase tracking-widest px-2">{new Date(day.date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+                                                            <p className="text-[11px] font-black text-graphite-400 uppercase tracking-widest px-2">{new Date(day.date + 'T12:00:00').toLocaleDateString(getIntlLocale(i18n.language), { weekday: 'long', day: 'numeric', month: 'long' })}</p>
                                                             <div className="flex flex-wrap gap-2">
                                                                 {(day.slots || [])
                                                                     .filter((s: any) => s.available)

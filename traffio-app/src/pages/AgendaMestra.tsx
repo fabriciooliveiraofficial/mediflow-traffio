@@ -23,11 +23,14 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
+import { getIntlLocale } from '../lib/i18n';
 import { supabase } from '../lib/supabase';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useToast } from '../contexts/ToastContext';
+import { useTenant } from '../contexts/TenantContext';
 import { smartSchedulingService } from '../services/smartSchedulingService';
+import { locationService } from '../services/locationService';
 import { CheckoutModal } from '../components/CheckoutModal';
 import type { SmartSlot, BookAppointmentPayload } from '../services/smartSchedulingService';
 import { formatSlot as formatSlotI18n } from '../lib/i18n/formatDateTime';
@@ -111,10 +114,13 @@ const HOURS = Array.from({ length: TOTAL_HOURS + 1 }, (_, i) => DAY_START + i);
 
 // ─────────────────────────────────────────────
 export const AgendaMestra: React.FC = () => {
-    const { t } = useTranslation('agenda');
+    const { t, i18n } = useTranslation('agenda');
     const { showToast } = useToast();
+    const { tenant, userRole } = useTenant();
     const [selectedTenant, setSelectedTenant] = useState<string | null>(null);
     const [tenants, setTenants] = useState<any[]>([]);
+    const [locations, setLocations] = useState<any[]>([]);
+    const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
     const [selectedDateStr, setSelectedDateStr] = useState(() => getTenantTodayString());
 
     const [doctors, setDoctors] = useState<Doctor[]>([]);
@@ -191,7 +197,7 @@ export const AgendaMestra: React.FC = () => {
     const formatDateLabel = (dateStr: string) => {
         const [y, m, d] = dateStr.split('-').map(Number);
         const date = new Date(y, m - 1, d);
-        return date.toLocaleDateString(timeFormatOpts.locale || 'pt-BR', { weekday: 'short', day: '2-digit', month: 'short' });
+        return date.toLocaleDateString(getIntlLocale(i18n.language), { weekday: 'short', day: '2-digit', month: 'short' });
     };
     const changeDate = (days: number) => {
         setSelectedDateStr(prev => addDaysToDateString(prev, days));
@@ -206,26 +212,42 @@ export const AgendaMestra: React.FC = () => {
 
     // ── Data fetching ──────────────────────
     useEffect(() => {
+        if (tenant?.id) {
+            setSelectedTenant(tenant.id);
+        }
+    }, [tenant?.id]);
+
+    useEffect(() => {
         (async () => {
-            const { data } = await supabase.from('tenants').select('*');
-            if (data?.length) {
-                setTenants(data);
-                if (!selectedTenant) setSelectedTenant(data[0].id);
+            if (userRole === 'super_admin') {
+                const { data } = await supabase.from('tenants').select('*');
+                if (data?.length) {
+                    setTenants(data);
+                }
+            } else if (tenant) {
+                // For regular users, populate tenants with their own tenant
+                // so timeFormatOpts can resolve timezone, locale, etc.
+                setTenants([tenant]);
             }
         })();
-    }, []);
+    }, [userRole, tenant]);
 
     useEffect(() => {
         if (!selectedTenant) return;
         (async () => {
-            const [docs, types] = await Promise.all([
+            const [docs, types, locs] = await Promise.all([
                 smartSchedulingService.getActiveDoctors(selectedTenant),
                 smartSchedulingService.getAppointmentTypes(selectedTenant),
+                locationService.getAll(selectedTenant),
             ]);
             setDoctors(docs as Doctor[]);
             setAppointmentTypes(types as AppointmentType[]);
-            if (docs.length > 0 && selectedDoctors.length === 0) {
-                setSelectedDoctors(docs.map((d: any) => d.id));
+            setSelectedDoctors(docs.map((d: any) => d.id));
+            setLocations(locs);
+            if (locs.length > 0) {
+                setSelectedLocation(locs[0].id);
+            } else {
+                setSelectedLocation(null);
             }
         })();
     }, [selectedTenant]);
@@ -238,7 +260,7 @@ export const AgendaMestra: React.FC = () => {
             const [slotsResults, appts] = await Promise.all([
                 Promise.all(selectedDoctors.map(async (docId) => {
                     try {
-                        return { docId, slots: await smartSchedulingService.getAvailableSlots(docId, dateStr, selectedTenant, defaultDur) };
+                        return { docId, slots: await smartSchedulingService.getAvailableSlots(docId, dateStr, selectedTenant, defaultDur, selectedLocation || undefined) };
                     } catch { return { docId, slots: [] }; }
                 })),
                 smartSchedulingService.getAppointmentsForDate(selectedTenant, dateStr, selectedDoctors),
@@ -249,11 +271,17 @@ export const AgendaMestra: React.FC = () => {
 
             const am: Record<string, any[]> = {};
             selectedDoctors.forEach(id => { am[id] = []; });
-            (appts || []).forEach((a: any) => { if (a.doctor_id && am[a.doctor_id]) am[a.doctor_id].push(a); });
+            (appts || []).forEach((a: any) => {
+                if (a.doctor_id && am[a.doctor_id]) {
+                    if (!selectedLocation || a.location_id === selectedLocation) {
+                        am[a.doctor_id].push(a);
+                    }
+                }
+            });
             setAppointmentsByDoctor(am);
         } catch (err) { console.error(err); }
         setLoading(false);
-    }, [selectedTenant, selectedDoctors, dateStr, appointmentTypes]);
+    }, [selectedTenant, selectedDoctors, dateStr, appointmentTypes, selectedLocation]);
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -656,13 +684,27 @@ export const AgendaMestra: React.FC = () => {
 
                 <div className="w-px h-6 bg-ice-200" />
 
-                {tenants.length > 1 && (
+                {userRole === 'super_admin' && tenants.length > 1 && (
+                    <>
+                        <div className="flex bg-ice-50 p-0.5 rounded-xl shrink-0">
+                            {tenants.map(t => (
+                                <button key={t.id} onClick={() => setSelectedTenant(t.id)}
+                                    className={cn("px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all border-none cursor-pointer",
+                                        selectedTenant === t.id ? "bg-white text-brand-primary shadow-sm" : "text-graphite-400 bg-transparent"
+                                    )}>{t.name?.split(' ').slice(0, 2).join(' ')}</button>
+                            ))}
+                        </div>
+                        {locations.length > 0 && <div className="w-px h-6 bg-ice-200" />}
+                    </>
+                )}
+
+                {locations.length > 0 && (
                     <div className="flex bg-ice-50 p-0.5 rounded-xl shrink-0">
-                        {tenants.map(t => (
-                            <button key={t.id} onClick={() => setSelectedTenant(t.id)}
+                        {locations.map(loc => (
+                            <button key={loc.id} onClick={() => setSelectedLocation(loc.id)}
                                 className={cn("px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all border-none cursor-pointer",
-                                    selectedTenant === t.id ? "bg-white text-brand-primary shadow-sm" : "text-graphite-400 bg-transparent"
-                                )}>{t.name?.split(' ').slice(0, 2).join(' ')}</button>
+                                    selectedLocation === loc.id ? "bg-white text-brand-primary shadow-sm" : "text-graphite-400 bg-transparent"
+                                )}>{loc.name}</button>
                         ))}
                     </div>
                 )}

@@ -33,3 +33,20 @@ export const STAGE_ICONS: Record<KanbanStage, React.ComponentType<any>> = {
   'Vendido/Procedimento':     DollarSign,
   'Perdido':                  FileArchive,
 };
+
+/**
+ * Chave de tradução (`crm.kanbanStages.*`) para cada estágio.
+ * O valor de `KANBAN_STAGES` continua sendo o dado real (coluna `kanban_stage`
+ * no banco) — este mapa serve apenas para exibição traduzida na UI.
+ */
+export const STAGE_LABEL_KEYS: Record<KanbanStage, string> = {
+  'Novos Leads':              'novosLeads',
+  'Em Contato':               'emContato',
+  'Avaliação':                'avaliacao',
+  'Faltou Avaliação':         'faltouAvaliacao',
+  'Reagendamento Avaliação':  'reagendamentoAvaliacao',
+  'Consulta':                 'consulta',
+  'Faltou Consulta':          'faltouConsulta',
+  'Vendido/Procedimento':     'vendidoProcedimento',
+  'Perdido':                  'perdido',
+};

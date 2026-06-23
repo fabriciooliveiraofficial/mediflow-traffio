@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import {
   Search, Plus, Pencil, Trash2, X, Zap, 
@@ -165,8 +166,8 @@ export function ScriptManagerDrawer({
 
   if (!isOpen) return null;
 
-  return (
-    <div className="absolute inset-y-0 right-0 z-30 w-96 bg-white border-l border-gray-200 shadow-2xl flex flex-col h-full animate-in slide-in-from-right duration-250">
+  return createPortal(
+    <div className="fixed inset-y-0 right-0 z-[100] w-96 bg-white border-l border-gray-200 shadow-2xl flex flex-col h-full animate-in slide-in-from-right duration-250">
       {currentView === 'list' ? (
         <div className="flex flex-col h-full bg-white">
           {/* Header */}
@@ -347,6 +348,7 @@ export function ScriptManagerDrawer({
           }}
         />
       )}
-    </div>
+    </div>,
+    document.body
   );
 }

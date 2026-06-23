@@ -1,4 +1,15 @@
 {
+  "kanbanStages": {
+    "novosLeads": "Nuevos Leads",
+    "emContato": "En Contacto",
+    "avaliacao": "Evaluación",
+    "faltouAvaliacao": "Faltó a la Evaluación",
+    "reagendamentoAvaliacao": "Reprogramación de Evaluación",
+    "consulta": "Consulta",
+    "faltouConsulta": "Faltó a la Consulta",
+    "vendidoProcedimento": "Vendido/Procedimiento",
+    "perdido": "Perdido"
+  },
   "leads": {
     "title": "Leads del CRM",
     "subtitle": "Gestiona tu base de pacientes y el embudo de ventas.",

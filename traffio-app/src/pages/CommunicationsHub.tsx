@@ -21,7 +21,8 @@ import { supabase } from '../lib/supabase';
 import { useTenant } from '../contexts/TenantContext';
 import { formatPhone } from '../lib/formatPhone';
 import { format, subDays, startOfDay, endOfDay, startOfMonth } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { getIntlLocale } from '../lib/i18n';
+import { getDateFnsLocale } from '../lib/i18n/dateFnsLocale';
 
 type Section = 'dashboard' | 'sms' | 'calls' | 'voicemail' | 'numbers';
 
@@ -32,11 +33,12 @@ function fmtDur(s: number | null) {
   const m = Math.floor(s / 60), sec = s % 60;
   return `${m}m ${String(sec).padStart(2, '0')}s`;
 }
-function fmtTime(iso: string) {
+function fmtTime(iso: string, language: string) {
   const d = new Date(iso), now = new Date();
+  const intlLocale = getIntlLocale(language);
   if (d.toDateString() === now.toDateString())
-    return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+    return d.toLocaleTimeString(intlLocale, { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleDateString(intlLocale, { day: '2-digit', month: 'short' });
 }
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
 
@@ -65,7 +67,7 @@ function KpiCard({ label, value, sub, icon: Icon, color, trend }: any) {
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 function DashboardView({ calls, smsIn, smsOut }: { calls: any[]; smsIn: number; smsOut: number }) {
-  const { t } = useTranslation('communications');
+  const { t, i18n } = useTranslation('communications');
   const thisMonth = calls.filter(c => new Date(c.started_at) >= startOfMonth(new Date()));
   const inbound   = thisMonth.filter(c => c.direction === 'inbound' && c.status === 'completed');
   const outbound  = thisMonth.filter(c => c.direction === 'outbound' && c.status === 'completed');
@@ -79,7 +81,7 @@ function DashboardView({ calls, smsIn, smsOut }: { calls: any[]; smsIn: number; 
       return d >= startOfDay(day) && d <= endOfDay(day);
     });
     return {
-      dia:       format(day, 'EEE', { locale: ptBR }),
+      dia:       format(day, 'EEE', { locale: getDateFnsLocale(i18n.language) }),
       recebidas: dc.filter(c => c.direction === 'inbound').length,
       realizadas: dc.filter(c => c.direction === 'outbound').length,
       perdidas:  dc.filter(c => c.status === 'missed').length,
@@ -164,7 +166,7 @@ function DashboardView({ calls, smsIn, smsOut }: { calls: any[]; smsIn: number; 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export function CommunicationsHub() {
-  const { t } = useTranslation('communications');
+  const { t, i18n } = useTranslation('communications');
   const { tenant } = useTenant();
   const tenantId   = (tenant as any)?.id;
 
@@ -331,7 +333,7 @@ export function CommunicationsHub() {
             </div>
             <div className="flex-1">
               <p className="font-black text-graphite-900 text-lg">{formatPhone(num)}</p>
-              <p className="text-xs text-graphite-400">{selected.direction === 'inbound' ? t('communicationsHub.detail.inbound') : t('communicationsHub.detail.outbound')} · {fmtTime(selected.started_at)}</p>
+              <p className="text-xs text-graphite-400">{selected.direction === 'inbound' ? t('communicationsHub.detail.inbound') : t('communicationsHub.detail.outbound')} · {fmtTime(selected.started_at, i18n.language)}</p>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -363,7 +365,7 @@ export function CommunicationsHub() {
 
           {/* Info cards */}
           <div className="px-6 py-4 grid grid-cols-3 gap-3">
-            {[{ label: t('communicationsHub.detail.duration'), value: fmtDur(selected.duration_seconds) }, { label: t('communicationsHub.detail.status'), value: selected.status }, { label: t('communicationsHub.detail.answered'), value: selected.answered_at ? fmtTime(selected.answered_at) : '—' }].map(i => (
+            {[{ label: t('communicationsHub.detail.duration'), value: fmtDur(selected.duration_seconds) }, { label: t('communicationsHub.detail.status'), value: selected.status }, { label: t('communicationsHub.detail.answered'), value: selected.answered_at ? fmtTime(selected.answered_at, i18n.language) : '—' }].map(i => (
               <div key={i.label} className="bg-ice-50 border border-ice-100 rounded-xl p-3">
                 <p className="text-[10px] font-bold text-graphite-400 uppercase mb-1">{i.label}</p>
                 <p className="text-sm font-black text-graphite-800 capitalize">{i.value}</p>
@@ -413,7 +415,7 @@ export function CommunicationsHub() {
             </div>
             <div>
               <p className="font-black text-graphite-900">{formatPhone(selected.patient_phone)}</p>
-              <p className="text-xs text-graphite-400">{t('communicationsHub.nav.sms')} · {fmtTime(selected.updated_at)}</p>
+              <p className="text-xs text-graphite-400">{t('communicationsHub.nav.sms')} · {fmtTime(selected.updated_at, i18n.language)}</p>
             </div>
             <button
               onClick={() => window.dispatchEvent(new CustomEvent('softphone:dial', { detail: { number: selected.patient_phone } }))}
@@ -435,7 +437,7 @@ export function CommunicationsHub() {
                 }`}>
                   <p className="leading-relaxed">{msg.content}</p>
                   <p className={`text-[10px] mt-1 ${msg.role === 'user' ? 'text-graphite-400' : 'text-white/60'}`}>
-                    {fmtTime(msg.created_at)}
+                    {fmtTime(msg.created_at, i18n.language)}
                     {(msg.role === 'human' || msg.role === 'assistant') && <CheckCheck size={10} className="inline ml-1" />}
                   </p>
                 </div>
@@ -486,7 +488,7 @@ export function CommunicationsHub() {
             </div>
             <div className="flex-1">
               <p className="font-black text-graphite-900 text-lg">{formatPhone(selected.from_number)}</p>
-              <p className="text-xs text-graphite-400">{fmtTime(selected.created_at)}{selected.duration_seconds && ` · ${fmtDur(selected.duration_seconds)}`}</p>
+              <p className="text-xs text-graphite-400">{fmtTime(selected.created_at, i18n.language)}{selected.duration_seconds && ` · ${fmtDur(selected.duration_seconds)}`}</p>
             </div>
             <button
               onClick={() => window.dispatchEvent(new CustomEvent('softphone:dial', { detail: { number: selected.from_number } }))}
@@ -545,7 +547,7 @@ export function CommunicationsHub() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-graphite-800 truncate">{formatPhone(num)}</p>
                   <p className="text-xs text-graphite-400 flex items-center gap-1 mt-0.5">
-                    <Clock size={10} />{fmtTime(call.started_at)}
+                    <Clock size={10} />{fmtTime(call.started_at, i18n.language)}
                     {call.duration_seconds && <span className="ml-1">{fmtDur(call.duration_seconds)}</span>}
                   </p>
                 </div>
@@ -564,7 +566,7 @@ export function CommunicationsHub() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-graphite-800 truncate">{formatPhone(s.patient_phone)}</p>
-                <p className="text-xs text-graphite-400 mt-0.5">{fmtTime(s.updated_at)}</p>
+                <p className="text-xs text-graphite-400 mt-0.5">{fmtTime(s.updated_at, i18n.language)}</p>
               </div>
             </button>
           ))}
@@ -578,7 +580,7 @@ export function CommunicationsHub() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className={`text-sm font-bold truncate ${vm.is_read ? 'text-graphite-500' : 'text-graphite-800'}`}>{formatPhone(vm.from_number)}</p>
-                <p className="text-xs text-graphite-400 mt-0.5">{fmtTime(vm.created_at)}{vm.duration_seconds && ` · ${fmtDur(vm.duration_seconds)}`}</p>
+                <p className="text-xs text-graphite-400 mt-0.5">{fmtTime(vm.created_at, i18n.language)}{vm.duration_seconds && ` · ${fmtDur(vm.duration_seconds)}`}</p>
               </div>
               {!vm.is_read && <div className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" />}
             </button>

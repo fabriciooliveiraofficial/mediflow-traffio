@@ -18,16 +18,16 @@ interface ScriptEditorFormProps {
 }
 
 const PREDEFINED_ICONS = [
-  { char: '💬', nameKey: 'chat' },
-  { char: '📅', nameKey: 'agenda' },
-  { char: '🎉', nameKey: 'festa' },
-  { char: '⚠️', nameKey: 'aviso' },
-  { char: '💰', nameKey: 'preco' },
-  { char: '📍', nameKey: 'local' },
-  { char: '🎁', nameKey: 'brinde' },
-  { char: '⏱️', nameKey: 'urgente' },
-  { char: '📝', nameKey: 'nota' },
-  { char: '🤝', nameKey: 'acordo' }
+  { char: '💬', nameKey: 'icons.chat' },
+  { char: '📅', nameKey: 'icons.agenda' },
+  { char: '🎉', nameKey: 'icons.festa' },
+  { char: '⚠️', nameKey: 'icons.aviso' },
+  { char: '💰', nameKey: 'icons.preco' },
+  { char: '📍', nameKey: 'icons.local' },
+  { char: '🎁', nameKey: 'icons.brinde' },
+  { char: '⏱️', nameKey: 'icons.urgente' },
+  { char: '📝', nameKey: 'icons.nota' },
+  { char: '🤝', nameKey: 'icons.acordo' }
 ];
 
 export function ScriptEditorForm({ tenantId, script, onSave, onCancel }: ScriptEditorFormProps) {
@@ -247,7 +247,7 @@ export function ScriptEditorForm({ tenantId, script, onSave, onCancel }: ScriptE
       <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-blue-50/50 to-white">
         <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
           <Sparkles className="w-4 h-4 text-blue-600" />
-          {script ? 'Editar Script' : 'Novo Script'}
+          {script ? t('scriptEditorForm.header.editTitle') : t('scriptEditorForm.header.newTitle')}
         </h3>
         <button 
           onClick={onCancel}
@@ -263,14 +263,14 @@ export function ScriptEditorForm({ tenantId, script, onSave, onCancel }: ScriptE
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2.5">
             <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
             <div className="text-[11px] text-amber-800 leading-normal font-medium">
-              <span className="font-bold">Modelo Sugerido da Plataforma:</span> Este script é um modelo sugerido. Ao salvá-lo, uma cópia personalizada será criada exclusivamente para sua clínica, mantendo o modelo original intacto.
+              <span className="font-bold">{t('scriptEditorForm.suggestedBanner.label')}</span> {t('scriptEditorForm.suggestedBanner.text')}
             </div>
           </div>
         )}
         {/* Shortcut and Category */}
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Atalho (sem espaço)</label>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t('scriptEditorForm.fields.shortcutLabel')}</label>
             <div className="relative flex items-center">
               <span className="absolute left-3.5 text-gray-400 font-bold text-sm">/</span>
               <input
@@ -278,19 +278,19 @@ export function ScriptEditorForm({ tenantId, script, onSave, onCancel }: ScriptE
                 required
                 value={shortcut}
                 onChange={e => handleShortcutChange(e.target.value)}
-                placeholder="ex: boasvindas"
+                placeholder={t('scriptEditorForm.fields.shortcutPlaceholder')}
                 className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-7 pr-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
               />
             </div>
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Categoria</label>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t('scriptEditorForm.fields.categoryLabel')}</label>
             <input
               type="text"
               value={category}
               onChange={e => setCategory(e.target.value)}
-              placeholder="ex: Atendimento, Vendas"
+              placeholder={t('scriptEditorForm.fields.categoryPlaceholder')}
               className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
             />
           </div>
@@ -299,26 +299,26 @@ export function ScriptEditorForm({ tenantId, script, onSave, onCancel }: ScriptE
         {/* Title and Icon */}
         <div className="grid grid-cols-3 gap-3">
           <div className="col-span-2 flex flex-col gap-1">
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Título do Script</label>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t('scriptEditorForm.fields.titleLabel')}</label>
             <input
               type="text"
               required
               value={title}
               onChange={e => setTitle(e.target.value)}
-              placeholder="ex: Apresentação inicial da clínica"
+              placeholder={t('scriptEditorForm.fields.titlePlaceholder')}
               className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
             />
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Ícone</label>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t('scriptEditorForm.fields.iconLabel')}</label>
             <select
               value={icon}
               onChange={e => setIcon(e.target.value)}
               className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-center"
             >
               {PREDEFINED_ICONS.map(i => (
-                <option key={i.char} value={i.char}>{i.char} {i.name}</option>
+                <option key={i.char} value={i.char}>{i.char} {t(`scriptEditorForm.${i.nameKey}`)}</option>
               ))}
             </select>
           </div>
@@ -326,49 +326,49 @@ export function ScriptEditorForm({ tenantId, script, onSave, onCancel }: ScriptE
 
         {/* Text Content */}
         <div className="flex flex-col gap-1">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Conteúdo da Mensagem</label>
+          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t('scriptEditorForm.fields.contentLabel')}</label>
           <textarea
             ref={textareaRef}
             required
             rows={6}
             value={content}
             onChange={e => setContent(e.target.value)}
-            placeholder="Digite sua mensagem de venda aqui. Use [[Variável]] para campos que deseja preencher na hora de enviar."
+            placeholder={t('scriptEditorForm.fields.contentPlaceholder')}
             className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none leading-relaxed"
           />
         </div>
 
         {/* Quick Variable Insert */}
         <div className="space-y-1.5">
-          <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider block">Inserir Variável Automática</span>
+          <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider block">{t('scriptEditorForm.variables.insertLabel')}</span>
           <div className="flex flex-wrap gap-1.5">
             <button
               type="button"
               onClick={() => insertVariable('{{paciente_nome}}')}
               className="px-2 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-bold border border-blue-200/50 cursor-pointer transition-colors"
             >
-              👤 Paciente
+              {t('scriptEditorForm.variables.patient')}
             </button>
             <button
               type="button"
               onClick={() => insertVariable('{{clinica_nome}}')}
               className="px-2 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-bold border border-blue-200/50 cursor-pointer transition-colors"
             >
-              🏥 Clínica
+              {t('scriptEditorForm.variables.clinic')}
             </button>
             <button
               type="button"
               onClick={() => insertVariable('{{atendente_nome}}')}
               className="px-2 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-bold border border-blue-200/50 cursor-pointer transition-colors"
             >
-              💼 Atendente
+              {t('scriptEditorForm.variables.agent')}
             </button>
             <button
               type="button"
               onClick={() => insertVariable('[[Dia e Hora]]')}
               className="px-2 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 text-[10px] font-bold border border-amber-200/50 cursor-pointer transition-colors flex items-center gap-1"
             >
-              <Plus size={10} /> Variável Manual
+              <Plus size={10} /> {t('scriptEditorForm.variables.manualVariable')}
             </button>
           </div>
         </div>
@@ -376,7 +376,7 @@ export function ScriptEditorForm({ tenantId, script, onSave, onCancel }: ScriptE
         {/* Attachments Section */}
         <div className="border-t border-gray-100 pt-3 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Mídia & Anexos ({attachments.length})</span>
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t('scriptEditorForm.attachments.sectionLabel', { count: attachments.length })}</span>
             <div className="flex gap-2">
               <input
                 type="file"
@@ -392,7 +392,7 @@ export function ScriptEditorForm({ tenantId, script, onSave, onCancel }: ScriptE
                 className="px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-[10px] font-black border-none cursor-pointer flex items-center gap-1 transition-all disabled:opacity-50"
               >
                 {uploading ? <Loader2 size={12} className="animate-spin" /> : <Paperclip size={12} />}
-                Arquivo
+                {t('scriptEditorForm.attachments.fileButton')}
               </button>
               <button
                 type="button"
@@ -400,7 +400,7 @@ export function ScriptEditorForm({ tenantId, script, onSave, onCancel }: ScriptE
                 className="px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-[10px] font-black border-none cursor-pointer flex items-center gap-1 transition-all"
               >
                 <LinkIcon size={12} />
-                Link
+                {t('scriptEditorForm.attachments.linkButton')}
               </button>
             </div>
           </div>
@@ -411,14 +411,14 @@ export function ScriptEditorForm({ tenantId, script, onSave, onCancel }: ScriptE
               <div className="grid grid-cols-2 gap-2">
                 <input
                   type="text"
-                  placeholder="Título do Link"
+                  placeholder={t('scriptEditorForm.attachments.linkTitlePlaceholder')}
                   value={linkTitle}
                   onChange={e => setLinkTitle(e.target.value)}
                   className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold focus:outline-none"
                 />
                 <input
                   type="text"
-                  placeholder="URL (ex: google.com)"
+                  placeholder={t('scriptEditorForm.attachments.linkUrlPlaceholder')}
                   value={linkUrl}
                   onChange={e => setLinkUrl(e.target.value)}
                   className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold focus:outline-none"
@@ -437,18 +437,18 @@ export function ScriptEditorForm({ tenantId, script, onSave, onCancel }: ScriptE
                     }}
                     className="rounded text-blue-600 focus:ring-blue-500 border-gray-300 w-3.5 h-3.5"
                   />
-                  Encurtar link com domínio Traffio
+                  {t('scriptEditorForm.attachments.shortenCheckboxLabel')}
                 </label>
 
                 {shouldShorten && (
                   <div className="pl-5 space-y-1.5 animate-in fade-in duration-200">
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-wide">Sufixo Personalizado (Opcional)</span>
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-wide">{t('scriptEditorForm.attachments.customAliasLabel')}</span>
                       <div className="relative flex items-center">
                         <span className="absolute left-2.5 text-gray-400 font-bold text-[10px]">/l/</span>
                         <input
                           type="text"
-                          placeholder="ex: promocao-junho"
+                          placeholder={t('scriptEditorForm.attachments.customAliasPlaceholder')}
                           value={customAlias}
                           onChange={e => setCustomAlias(e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, ''))}
                           className="bg-white border border-gray-200 rounded-lg pl-6 pr-2.5 py-1 text-[10px] font-semibold focus:outline-none w-full"
@@ -456,9 +456,9 @@ export function ScriptEditorForm({ tenantId, script, onSave, onCancel }: ScriptE
                       </div>
                     </div>
                     <div className="text-[9px] font-bold text-blue-600 bg-blue-50/50 border border-blue-100/30 rounded-lg px-2 py-1 flex items-center gap-1">
-                      <span>Visualização:</span>
+                      <span>{t('scriptEditorForm.attachments.previewLabel')}</span>
                       <span className="font-mono text-slate-600 select-all">
-                        {window.location.origin}/l/{customAlias || '[aleatório]'}
+                        {window.location.origin}/l/{customAlias || t('scriptEditorForm.attachments.previewRandomPlaceholder')}
                       </span>
                     </div>
                   </div>
@@ -472,7 +472,7 @@ export function ScriptEditorForm({ tenantId, script, onSave, onCancel }: ScriptE
                   onClick={() => setShowLinkFields(false)}
                   className="px-2 py-1 text-[10px] font-bold text-gray-500 hover:text-gray-900 border-none bg-transparent cursor-pointer disabled:opacity-50"
                 >
-                  Cancelar
+                  {t('scriptEditorForm.attachments.cancel')}
                 </button>
                 <button
                   type="button"
@@ -481,7 +481,7 @@ export function ScriptEditorForm({ tenantId, script, onSave, onCancel }: ScriptE
                   className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white rounded-lg text-[10px] font-bold border-none cursor-pointer flex items-center gap-1"
                 >
                   {shortening && <Loader2 size={10} className="animate-spin" />}
-                  Adicionar
+                  {t('scriptEditorForm.attachments.add')}
                 </button>
               </div>
             </div>
@@ -519,7 +519,7 @@ export function ScriptEditorForm({ tenantId, script, onSave, onCancel }: ScriptE
           onClick={onCancel}
           className="px-4 py-2.5 text-xs font-black text-gray-500 hover:text-gray-900 transition-colors border-none bg-transparent cursor-pointer uppercase tracking-widest"
         >
-          Cancelar
+          {t('scriptEditorForm.footer.cancel')}
         </button>
         <button
           type="button"
@@ -528,7 +528,7 @@ export function ScriptEditorForm({ tenantId, script, onSave, onCancel }: ScriptE
           className="px-5 py-2.5 text-xs font-black text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 rounded-xl shadow-lg shadow-blue-600/10 transition-all cursor-pointer uppercase tracking-widest flex items-center gap-1.5 border-none"
         >
           {saving ? <Loader2 size={14} className="animate-spin" /> : <MessageSquare size={14} />}
-          Salvar Script
+          {t('scriptEditorForm.footer.save')}
         </button>
       </div>
     </div>

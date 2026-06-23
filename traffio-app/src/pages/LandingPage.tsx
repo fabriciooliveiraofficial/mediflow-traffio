@@ -11,7 +11,7 @@ import {
 import { PLANS, PLAN_ORDER, formatPrice, type BillingCycle, type PlanId } from '../config/planConfig';
 
 export const LandingPage = () => {
-    const { t } = useTranslation('landing');
+    const { t } = useTranslation(['landing', 'billing']);
     const navigate = useNavigate();
     const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
 
@@ -492,8 +492,8 @@ export const LandingPage = () => {
                                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-6 ${plan.badgeClass}`}>
                                         <Icon size={24} />
                                     </div>
-                                    <h3 className="text-2xl font-black text-graphite-900 mb-1">{plan.name}</h3>
-                                    <p className="text-sm text-graphite-400 font-medium mb-6 leading-relaxed">{plan.description}</p>
+                                    <h3 className="text-2xl font-black text-graphite-900 mb-1">{t(`plans.${id}.name`, { ns: 'billing' })}</h3>
+                                    <p className="text-sm text-graphite-400 font-medium mb-6 leading-relaxed">{t(`plans.${id}.description`, { ns: 'billing' })}</p>
                                     <div className="mb-2">
                                         <span className="text-4xl font-black text-graphite-900">{formatPrice(price)}</span>
                                         <span className="text-graphite-400 text-sm font-medium">{t('pricing.perMonth')}</span>
@@ -502,7 +502,7 @@ export const LandingPage = () => {
                                         ? <p className="text-xs text-emerald-600 font-black mb-6">{t('pricing.billedAnnually', { total: formatPrice(price * 12), savings: formatPrice((plan.monthlyPrice - price) * 12) })}</p>
                                         : <div className="mb-6" />}
                                     <ul className="space-y-3 flex-1 mb-8">
-                                        {plan.highlightFeatures.map(f => (
+                                        {(t(`plans.${id}.features`, { ns: 'billing', returnObjects: true }) as string[]).map(f => (
                                             <li key={f} className="flex items-start gap-2.5">
                                                 <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${plan.badgeClass}`}>
                                                     <Check size={11} />
@@ -534,7 +534,7 @@ export const LandingPage = () => {
                                         const Icon = plan.icon;
                                         return (
                                             <th key={id} className={`p-6 text-center font-black ${id === 'clinica' ? 'bg-brand-primary/5 text-brand-primary' : 'text-graphite-700 bg-ice-50/50'}`}>
-                                                <div className="flex flex-col items-center gap-1"><Icon size={18} />{plan.name}</div>
+                                                <div className="flex flex-col items-center gap-1"><Icon size={18} />{t(`plans.${id}.name`, { ns: 'billing' })}</div>
                                             </th>
                                         );
                                     })}

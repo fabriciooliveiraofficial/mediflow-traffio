@@ -1,4 +1,51 @@
 {
+  "plans": {
+    "essencial": {
+      "name": "Essential",
+      "description": "Ideal for solo professionals and independent practices.",
+      "features": [
+        "Up to 2 professionals",
+        "1 location",
+        "Smart scheduling with online booking portal",
+        "Complete electronic health records",
+        "Automatic WhatsApp reminders",
+        "Automatic confirmation and NPS surveys",
+        "1 specialty module",
+        "Email support"
+      ]
+    },
+    "clinica": {
+      "name": "Clinic",
+      "description": "For growing clinics with multiple professionals.",
+      "features": [
+        "Up to 10 professionals",
+        "Up to 3 locations",
+        "WhatsApp inbox with human support",
+        "CRM with follow-up kanban",
+        "Meta Ads + Google Ads integration",
+        "Financial hub (Asaas, Pagar.me, Dr. Cash)",
+        "All specialty modules",
+        "DICOM viewer (X-rays)",
+        "Priority chat support"
+      ]
+    },
+    "rede": {
+      "name": "Network",
+      "description": "For networks and franchises with multiple locations.",
+      "features": [
+        "Unlimited professionals",
+        "Unlimited locations",
+        "3 WhatsApp numbers included",
+        "Master Dashboard (network-wide view)",
+        "Cross-location analytics",
+        "Consolidated billing",
+        "Dedicated API and webhooks",
+        "Assisted onboarding and migration",
+        "Dedicated success manager",
+        "99.9% uptime SLA"
+      ]
+    }
+  },
   "paymentRequiredModal": {
     "title": "Just one more step!",
     "subtitle": "Add a payment method to unlock your 14-day free trial.",

@@ -99,11 +99,15 @@ function useDraggable(defaultPos: { x: number; y: number }, storageKey: string) 
       if (!dragging.current) return;
       dragging.current = false;
       if (hasMoved.current) {
-        // Foi drag: salvar posição e suprimir o click
+        // Foi drag: salvar posição e manter hasMoved=true até o próximo tick,
+        // para que o onClick (disparado pelo browser logo após o mouseup) possa
+        // checar isDragging() e suprimir a ação de clique
         setPos((p) => { localStorage.setItem(storageKey, JSON.stringify(p)); return p; });
         e.stopPropagation();
+        setTimeout(() => { hasMoved.current = false; }, 0);
+      } else {
+        hasMoved.current = false;
       }
-      hasMoved.current = false;
     };
 
     window.addEventListener('mousemove', move);
@@ -127,7 +131,7 @@ interface Props {
 
 export function FloatingCommunicationsButton({ enabled, activeNumber: activeNumberProp, tenantId }: Props) {
   const { t } = useTranslation('communications');
-  const { pos, onMouseDown } = useDraggable(
+  const { pos, onMouseDown, isDragging } = useDraggable(
     { x: window.innerWidth - 80, y: window.innerHeight - 80 },
     'traffio_softphone_pos'
   );
@@ -147,6 +151,36 @@ export function FloatingCommunicationsButton({ enabled, activeNumber: activeNumb
   const ringStopRef  = useRef({ value: false });
   const durationRef  = useRef<ReturnType<typeof setInterval> | null>(null);
   const dialInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Drag do painel expandido (dial / sms) via header ──────────────────────
+  const [panelOffset, setPanelOffset] = useState({ x: 0, y: 0 });
+  const panelDragRef = useRef({ dragging: false, startX: 0, startY: 0, offX: 0, offY: 0 });
+
+  const onPanelHeaderMouseDown = useCallback((e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('button')) return; // não arrasta ao clicar nas tabs/fechar
+    panelDragRef.current = { dragging: true, startX: e.clientX, startY: e.clientY, offX: panelOffset.x, offY: panelOffset.y };
+  }, [panelOffset]);
+
+  useEffect(() => {
+    const move = (e: MouseEvent) => {
+      if (!panelDragRef.current.dragging) return;
+      const dx = e.clientX - panelDragRef.current.startX;
+      const dy = e.clientY - panelDragRef.current.startY;
+      setPanelOffset({ x: panelDragRef.current.offX + dx, y: panelDragRef.current.offY + dy });
+    };
+    const up = () => { panelDragRef.current.dragging = false; };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+    return () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+    };
+  }, []);
+
+  // Reposiciona o painel perto do botão a cada vez que ele é aberto
+  useEffect(() => {
+    if (expanded) setPanelOffset({ x: 0, y: 0 });
+  }, [expanded]);
 
   const {
     status, callState, activeCall,
@@ -560,13 +594,16 @@ export function FloatingCommunicationsButton({ enabled, activeNumber: activeNumb
           className="fixed w-72 bg-white rounded-3xl shadow-2xl border border-ice-100 overflow-hidden"
           style={{
             zIndex: 3000, // acima do botão (2000)
-            // Posicionar o painel ACIMA ou à esquerda do botão, nunca sobre ele
-            left: Math.min(Math.max(8, pos.x - 288 + 56), window.innerWidth - 296),
-            top:  Math.max(8, pos.y - 380),
+            // Posicionar o painel ACIMA ou à esquerda do botão, nunca sobre ele, mais o offset de drag do usuário
+            left: Math.min(Math.max(8, pos.x - 288 + 56 + panelOffset.x), window.innerWidth - 296),
+            top:  Math.max(8, Math.min(pos.y - 380 + panelOffset.y, window.innerHeight - 100)),
           }}
         >
-          {/* Header do painel */}
-          <div className="px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 flex items-center justify-between">
+          {/* Header do painel — arrastável */}
+          <div
+            onMouseDown={onPanelHeaderMouseDown}
+            className="px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 flex items-center justify-between cursor-grab active:cursor-grabbing select-none"
+          >
             <div className="flex gap-1 bg-white/20 p-0.5 rounded-xl">
               <button onClick={() => setMode('dial')} className={`px-3 py-1 rounded-xl text-xs font-bold transition-all border-none cursor-pointer ${mode === 'dial' ? 'bg-white text-blue-600' : 'text-white'}`}>
                 <Phone size={12} className="inline mr-1" />{t('floatingCommunicationsButton.call')}
@@ -711,6 +748,7 @@ export function FloatingCommunicationsButton({ enabled, activeNumber: activeNumb
         <button
           onMouseDown={onMouseDown}
           onClick={() => {
+            if (isDragging()) return; // suprime o click gerado após um drag
             if (isRinging) return;
             if (smsBadge > 0) setSmsBadge(0);
             setExpanded(!expanded);

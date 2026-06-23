@@ -15,9 +15,9 @@ import {
   isBefore, 
   startOfDay 
 } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import { clsx } from 'clsx';
 import { getTenantTodayString } from '../../lib/timezoneUtils';
+import { getDateFnsLocale } from '../../lib/i18n/dateFnsLocale';
 
 interface SidebarCalendarProps {
   selectedDate: string;
@@ -36,7 +36,7 @@ export const SidebarCalendar: React.FC<SidebarCalendarProps> = ({
   onMonthChange,
   timezone,
 }) => {
-  const { t } = useTranslation('common');
+  const { t, i18n } = useTranslation('common');
   const handlePrevMonth = () => onMonthChange(subMonths(currentMonth, 1));
   const handleNextMonth = () => onMonthChange(addMonths(currentMonth, 1));
 
@@ -97,7 +97,7 @@ export const SidebarCalendar: React.FC<SidebarCalendarProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h4 className="text-sm font-black text-gray-900 capitalize">
-          {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
+          {format(currentMonth, 'MMMM yyyy', { locale: getDateFnsLocale(i18n.language) })}
         </h4>
         <div className="flex gap-1">
           <button 

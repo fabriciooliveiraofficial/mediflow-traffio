@@ -4,7 +4,7 @@ import { ChevronLeft, Loader2, X, Plus, Thermometer, Tag, Flag, DollarSign, Stic
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
 import { clsx } from 'clsx';
-import { KANBAN_STAGES } from '../lib/kanbanStages';
+import { KANBAN_STAGES, STAGE_LABEL_KEYS } from '../lib/kanbanStages';
 
 interface ConversationSession {
   id: string;
@@ -173,7 +173,7 @@ export function SidebarLeadClassifyView({ onBack, session, onUpdate }: SidebarLe
             className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
           >
             {KANBAN_STAGES.map(s => (
-              <option key={s} value={s}>{s}</option>
+              <option key={s} value={s}>{t(`kanbanStages.${STAGE_LABEL_KEYS[s]}`)}</option>
             ))}
           </select>
         </div>

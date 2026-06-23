@@ -18,6 +18,7 @@ import { smartSchedulingService, type SmartSlot } from '../../services/smartSche
 import { appointmentService } from '../../services/appointmentService';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatDate, formatSlot } from '../../lib/i18n/formatDateTime';
+import { getIntlLocale } from '../../lib/i18n';
 import { getCountry, DEFAULT_COUNTRY } from '../../lib/i18n/countryFormats';
 import { getTenantTodayString } from '../../lib/timezoneUtils';
 
@@ -36,7 +37,7 @@ interface Doctor {
 }
 
 export function PortalBook() {
-    const { t } = useTranslation('portal');
+    const { t, i18n } = useTranslation('portal');
     const { slug } = useParams<{ slug: string }>();
     const navigate = useNavigate();
     // Use context from PatientPortalLayout
@@ -611,7 +612,7 @@ export function PortalBook() {
                                             <p className="text-sm font-bold text-gray-900">
                                                 {(() => {
                                                     const [y, m, d] = selectedDate.split('-').map(Number);
-                                                    return new Date(y, m - 1, d).toLocaleDateString(slotLocale || 'pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+                                                    return new Date(y, m - 1, d).toLocaleDateString(getIntlLocale(i18n.language), { day: '2-digit', month: 'long', year: 'numeric' });
                                                 })()}
                                             </p>
                                             <p className="text-xs text-gray-500 font-medium">{t('book.atTime', { time: formatSlot(selectedSlot?.slot_time, { locale: slotLocale, hour12 }) })}</p>

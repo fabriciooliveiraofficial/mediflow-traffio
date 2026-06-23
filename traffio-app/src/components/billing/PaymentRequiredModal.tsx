@@ -3,6 +3,7 @@ import { CreditCard, Loader2, ShieldCheck, CheckCircle2, AlertCircle } from 'luc
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 import { PLANS, formatPrice, type PlanId, type BillingCycle } from '../../config/planConfig';
+import { getIntlLocale } from '../../lib/i18n';
 
 interface PaymentRequiredModalProps {
     planId: PlanId;
@@ -17,7 +18,7 @@ interface PaymentRequiredModalProps {
  * de pagamento via Stripe Checkout — nada é cobrado durante o trial.
  */
 export const PaymentRequiredModal = ({ planId, billingCycle, trialEndsAt }: PaymentRequiredModalProps) => {
-    const { t } = useTranslation('billing');
+    const { t, i18n } = useTranslation('billing');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -28,7 +29,7 @@ export const PaymentRequiredModal = ({ planId, billingCycle, trialEndsAt }: Paym
     const trialEndDate = trialEndsAt
         ? new Date(trialEndsAt)
         : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
-    const trialEndLabel = trialEndDate.toLocaleDateString('pt-BR');
+    const trialEndLabel = trialEndDate.toLocaleDateString(getIntlLocale(i18n.language));
 
     const handleAddPayment = async () => {
         setLoading(true);
@@ -83,7 +84,7 @@ export const PaymentRequiredModal = ({ planId, billingCycle, trialEndsAt }: Paym
                             <PlanIcon size={20} />
                         </div>
                         <div>
-                            <p className="text-sm font-black text-graphite-900">{plan.name} · {billingCycle === 'annual' ? t('paymentRequiredModal.cycleAnnual') : t('paymentRequiredModal.cycleMonthly')}</p>
+                            <p className="text-sm font-black text-graphite-900">{t(`plans.${planId}.name`)} · {billingCycle === 'annual' ? t('paymentRequiredModal.cycleAnnual') : t('paymentRequiredModal.cycleMonthly')}</p>
                             <p className="text-[11px] font-bold text-graphite-400">{t('paymentRequiredModal.billedFromPrefix')}{trialEndLabel}</p>
                         </div>
                     </div>

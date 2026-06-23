@@ -41,6 +41,16 @@ export const NAMESPACES = [
 
 export const LANGUAGE_STORAGE_KEY = 'traffio_language';
 
+/** Idioma da UI (i18next) -> tag de locale para `Intl`/`toLocaleDateString`. */
+const INTL_LOCALE_BY_LANGUAGE: Record<AppLanguage, string> = {
+    'pt-BR': 'pt-BR',
+    en: 'en-US',
+    es: 'es-MX',
+};
+export function getIntlLocale(language: string): string {
+    return INTL_LOCALE_BY_LANGUAGE[language as AppLanguage] ?? DEFAULT_LANGUAGE;
+}
+
 // Vite-resolved map of every catalog file, lazily imported on demand.
 const catalogModules = import.meta.glob('../../locales/*/*.json');
 

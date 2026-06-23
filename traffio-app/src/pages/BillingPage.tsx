@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { useTenant } from '../contexts/TenantContext';
 import { usePlan } from '../hooks/usePlan';
 import { useToast } from '../contexts/ToastContext';
+import { useTenantCurrency } from '../hooks/useTenantCurrency';
+import { useLocaleFormat } from '../hooks/useLocaleFormat';
 import { supabase } from '../lib/supabase';
 import {
     PLANS,
@@ -14,12 +16,15 @@ import {
     type PlanId,
     type BillingCycle,
 } from '../config/planConfig';
+import { getIntlLocale } from '../lib/i18n';
 
 export const BillingPage = () => {
-    const { t } = useTranslation('billing');
+    const { t, i18n } = useTranslation('billing');
     const { tenant, refresh } = useTenant();
     const { planId, isTrialActive, isTrialExpired, trialDaysLeft } = usePlan();
     const { showToast, showConfirm } = useToast();
+    const { formatDual, rateFetchedAt } = useTenantCurrency();
+    const { formatDateTime } = useLocaleFormat();
     const [billingCycle, setBillingCycle] = useState<BillingCycle>(
         tenant?.billing_cycle ?? 'monthly'
     );
@@ -79,12 +84,13 @@ export const BillingPage = () => {
         // Confirmação antes de mudanças com efeito financeiro
         if (!isTrialing) {
             const renewsAt = tenant?.subscription_renews_at
-                ? new Date(tenant.subscription_renews_at).toLocaleDateString('pt-BR')
+                ? new Date(tenant.subscription_renews_at).toLocaleDateString(getIntlLocale(i18n.language))
                 : t('billingPage.confirm.nextRenewalFallback');
             const cycleLabel = billingCycle === 'annual' ? t('billingPage.confirm.cycleAnnual') : t('billingPage.confirm.cycleMonthly');
+            const targetPlanName = t(`plans.${targetPlanId}.name`);
             const msg = isUpgrade
-                ? t('billingPage.confirm.upgradeMessage', { plan: PLANS[targetPlanId].name, cycle: cycleLabel })
-                : t('billingPage.confirm.downgradeMessage', { plan: PLANS[targetPlanId].name, cycle: cycleLabel, renewsAt });
+                ? t('billingPage.confirm.upgradeMessage', { plan: targetPlanName, cycle: cycleLabel })
+                : t('billingPage.confirm.downgradeMessage', { plan: targetPlanName, cycle: cycleLabel, renewsAt });
             const ok = await showConfirm(msg);
             if (!ok) return;
         }
@@ -112,15 +118,15 @@ export const BillingPage = () => {
 
             if (data.changed === 'immediate') {
                 showToast('success', data.trial
-                    ? t('billingPage.toasts.planChangedImmediateTrial', { plan: PLANS[targetPlanId].name })
-                    : t('billingPage.toasts.planChangedImmediate', { plan: PLANS[targetPlanId].name }));
+                    ? t('billingPage.toasts.planChangedImmediateTrial', { plan: targetPlanName })
+                    : t('billingPage.toasts.planChangedImmediate', { plan: targetPlanName }));
                 await refresh(undefined, false);
             } else if (data.changed === 'scheduled') {
                 const date = data.effective_at
-                    ? new Date(data.effective_at).toLocaleDateString('pt-BR')
+                    ? new Date(data.effective_at).toLocaleDateString(getIntlLocale(i18n.language))
                     : t('billingPage.confirm.nextRenewalFallback');
-                setScheduledChange({ planName: PLANS[targetPlanId].name, date });
-                showToast('success', t('billingPage.toasts.planChangeScheduled', { plan: PLANS[targetPlanId].name, date }));
+                setScheduledChange({ planName: targetPlanName, date });
+                showToast('success', t('billingPage.toasts.planChangeScheduled', { plan: targetPlanName, date }));
             }
 
         } catch (err: any) {
@@ -206,7 +212,7 @@ export const BillingPage = () => {
                     </div>
                     <div>
                         <p className="text-xs font-black text-brand-primary uppercase tracking-widest mb-1">{t('billingPage.activePlanBanner.label')}</p>
-                        <h2 className="text-2xl font-black text-graphite-900">{currentPlan.name}</h2>
+                        <h2 className="text-2xl font-black text-graphite-900">{t(`plans.${planId}.name`)}</h2>
                         <p className="text-sm text-graphite-500 font-medium">
                             {status === 'active' && renewsAt
                                 ? t('billingPage.activePlanBanner.renewsAt', {
@@ -219,7 +225,7 @@ export const BillingPage = () => {
                                   })
                                 : status === 'trial' && trialEndsAt
                                 ? t('billingPage.activePlanBanner.trialUntil', { date: trialEndsAt })
-                                : currentPlan.description}
+                                : t(`plans.${planId}.description`)}
                         </p>
                     </div>
                 </div>
@@ -323,15 +329,26 @@ export const BillingPage = () => {
                                 <Icon size={24} />
                             </div>
 
-                            <h3 className="text-xl font-black text-graphite-900 mb-1">{plan.name}</h3>
-                            <p className="text-xs text-graphite-400 font-medium mb-4 leading-relaxed">{plan.description}</p>
+                            <h3 className="text-xl font-black text-graphite-900 mb-1">{t(`plans.${id}.name`)}</h3>
+                            <p className="text-xs text-graphite-400 font-medium mb-4 leading-relaxed">{t(`plans.${id}.description`)}</p>
 
                             <div className="mb-1">
-                                <span className="text-3xl font-black text-graphite-900">
-                                    {id === 'rede' && plan.monthlyPrice === 897
-                                        ? formatPrice(price)
-                                        : formatPrice(price)}
-                                </span>
+                                {(() => {
+                                    const d = formatDual(price);
+                                    return (
+                                        <span className="text-3xl font-black text-graphite-900">
+                                            {d.primary}
+                                            {d.secondary && (
+                                                <span
+                                                    className="block text-xs font-medium text-graphite-400 mt-0.5"
+                                                    title={rateFetchedAt ? `Cotação de ${formatDateTime(rateFetchedAt)}` : undefined}
+                                                >
+                                                    ({d.secondary})
+                                                </span>
+                                            )}
+                                        </span>
+                                    );
+                                })()}
                                 <span className="text-graphite-400 font-medium text-sm">{t('billingPage.planCard.perMonth')}</span>
                             </div>
                             {billingCycle === 'annual' && (
@@ -342,7 +359,7 @@ export const BillingPage = () => {
                             {billingCycle === 'monthly' && <div className="mb-4" />}
 
                             <ul className="space-y-3 flex-1 mb-8">
-                                {plan.highlightFeatures.map((feature) => (
+                                {(t(`plans.${id}.features`, { returnObjects: true }) as string[]).map((feature) => (
                                     <li key={feature} className="flex items-start gap-2.5">
                                         <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${plan.badgeClass}`}>
                                             <Check size={12} />

@@ -1,4 +1,51 @@
 {
+  "plans": {
+    "essencial": {
+      "name": "Essencial",
+      "description": "Ideal para profissional autônomo e consultório solo.",
+      "features": [
+        "Até 2 profissionais",
+        "1 unidade",
+        "Agenda inteligente com portal online",
+        "Prontuário eletrônico completo",
+        "Lembretes automáticos por WhatsApp",
+        "Confirmação e NPS automáticos",
+        "1 módulo de especialidade",
+        "Suporte por e-mail"
+      ]
+    },
+    "clinica": {
+      "name": "Clínica",
+      "description": "Para clínicas em crescimento com múltiplos profissionais.",
+      "features": [
+        "Até 10 profissionais",
+        "Até 3 unidades",
+        "Inbox WhatsApp com atendimento humano",
+        "CRM com kanban de follow-up",
+        "Integração Meta Ads + Google Ads",
+        "Hub financeiro (Asaas, Pagar.me, Dr. Cash)",
+        "Todos os módulos de especialidade",
+        "DICOM viewer (radiografias)",
+        "Suporte prioritário por chat"
+      ]
+    },
+    "rede": {
+      "name": "Rede",
+      "description": "Para redes e franquias com múltiplas unidades.",
+      "features": [
+        "Profissionais ilimitados",
+        "Unidades ilimitadas",
+        "3 números WhatsApp inclusos",
+        "Master Dashboard (visão da rede)",
+        "Analytics cross-unidade",
+        "Faturamento consolidado",
+        "API dedicada e webhooks",
+        "Onboarding assistido e migração",
+        "Gerente de sucesso dedicado",
+        "SLA de uptime 99.9%"
+      ]
+    }
+  },
   "paymentRequiredModal": {
     "title": "Falta só um passo!",
     "subtitle": "Adicione uma forma de pagamento para liberar seus 14 dias grátis.",

@@ -7,7 +7,7 @@ import { PLANS, PLAN_ORDER, formatPrice, type PlanId, type BillingCycle } from '
 import { PaymentRequiredModal } from '../components/billing/PaymentRequiredModal';
 
 export const RegisterPage = () => {
-    const { t } = useTranslation('auth');
+    const { t } = useTranslation(['auth', 'billing']);
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
 
@@ -200,7 +200,7 @@ export const RegisterPage = () => {
                         </div>
                         <div>
                             <p className="text-[10px] font-black text-graphite-400 uppercase tracking-wider">{t('register.selectedPlanLabel')}</p>
-                            <p className="text-sm font-black text-graphite-900">{selectedPlan.name} · {billingCycle === 'annual' ? t('register.billingAnnual') : t('register.billingMonthly')}</p>
+                            <p className="text-sm font-black text-graphite-900">{t(`plans.${selectedPlanId}.name`, { ns: 'billing' })} · {billingCycle === 'annual' ? t('register.billingAnnual') : t('register.billingMonthly')}</p>
                         </div>
                     </div>
                     <div className="text-right shrink-0">

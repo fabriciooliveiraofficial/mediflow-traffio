@@ -36,6 +36,7 @@ import { useTranslation } from 'react-i18next';
 import { useTenant } from '../contexts/TenantContext';
 import { useToast } from '../contexts/ToastContext';
 import { useLocaleFormat } from '../hooks/useLocaleFormat';
+import { useTenantCurrency } from '../hooks/useTenantCurrency';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import { jsPDF } from 'jspdf';
@@ -75,11 +76,8 @@ type CampaignRow = {
     roas: number;
 };
 
-const formatCurrency = (value: number) =>
-    `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
 const StatCard = ({ label, value, subtext, trend, trendType, color, icon, iconColorClass }: {
-    label: string, value: string, subtext?: string, trend?: string, trendType?: 'up' | 'down', color: string, icon?: React.ReactNode, iconColorClass?: string
+    label: string, value: React.ReactNode, subtext?: string, trend?: string, trendType?: 'up' | 'down', color: string, icon?: React.ReactNode, iconColorClass?: string
 }) => (
     <motion.div
         whileHover={{ scale: 1.02 }}
@@ -112,6 +110,30 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
     const { tenant } = useTenant();
     const { showToast } = useToast();
     const { locale, formatDate, formatDateTime } = useLocaleFormat();
+    const { formatDual, rateFetchedAt } = useTenantCurrency();
+
+    // Texto "valor convertido (valor BRL original)" para PDF/Excel (células de texto simples).
+    const dualText = useCallback((brlValue: number) => {
+        const d = formatDual(brlValue);
+        return d.secondary ? `${d.primary} (${d.secondary})` : d.primary;
+    }, [formatDual]);
+
+    // Composição visual "valor convertido grande / valor BRL pequeno abaixo" para cards/tabela.
+    const dualNode = useCallback((brlValue: number): React.ReactNode => {
+        const d = formatDual(brlValue);
+        if (!d.secondary) return d.primary;
+        return (
+            <span>
+                {d.primary}
+                <span
+                    className="block text-[10px] font-medium text-graphite-400"
+                    title={rateFetchedAt ? `Cotação de ${formatDateTime(rateFetchedAt)}` : undefined}
+                >
+                    ({d.secondary})
+                </span>
+            </span>
+        );
+    }, [formatDual, rateFetchedAt, formatDateTime]);
 
     const PERIOD_LABELS: Record<Period, string> = {
         today: t('periodLabels.today'),
@@ -496,14 +518,14 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
         return {
             totalLeads: totLeads.toString(),
             conversion: `${conversionRate.toFixed(1)}%`,
-            spent: formatCurrency(totSpent),
+            spent: totSpent, // BRL bruto — formatado na renderização via dualText/dualNode
             roas: `${roas.toFixed(1)}x`,
             impressions: totImpressions.toLocaleString('pt-BR'),
             clicks: totClicks.toLocaleString('pt-BR'),
             ctr: `${ctr.toFixed(2)}%`,
-            cpc: formatCurrency(cpc),
-            cpm: formatCurrency(cpm),
-            cpa: formatCurrency(cpa),
+            cpc, // BRL bruto
+            cpm, // BRL bruto
+            cpa, // BRL bruto
         };
     }, [filteredData]);
 
@@ -626,14 +648,14 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
             body: [
                 [t('pdfReport.totalLeads'), kpis.totalLeads],
                 [t('pdfReport.crmConversion'), kpis.conversion],
-                [t('pdfReport.adSpend'), kpis.spent],
+                [t('pdfReport.adSpend'), dualText(kpis.spent)],
                 [t('pdfReport.avgRoas'), kpis.roas],
                 [t('pdfReport.impressions'), kpis.impressions],
                 [t('pdfReport.clicks'), kpis.clicks],
                 [t('pdfReport.ctr'), kpis.ctr],
-                [t('pdfReport.cpc'), kpis.cpc],
-                [t('pdfReport.cpm'), kpis.cpm],
-                [t('pdfReport.cpa'), kpis.cpa],
+                [t('pdfReport.cpc'), dualText(kpis.cpc)],
+                [t('pdfReport.cpm'), dualText(kpis.cpm)],
+                [t('pdfReport.cpa'), dualText(kpis.cpa)],
             ],
             theme: 'grid',
             headStyles: { fillColor: [0, 129, 251] },
@@ -652,14 +674,14 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
             body: campaignTable.map(c => [
                 c.campaign_name,
                 c.platform === 'meta' ? t('pdfReport.platformMeta') : t('pdfReport.platformGoogle'),
-                formatCurrency(c.spend),
+                dualText(c.spend),
                 c.impressions.toLocaleString('pt-BR'),
                 c.clicks.toLocaleString('pt-BR'),
                 `${c.ctr.toFixed(2)}%`,
-                formatCurrency(c.cpc),
-                formatCurrency(c.cpm),
+                dualText(c.cpc),
+                dualText(c.cpm),
                 c.conversions.toString(),
-                formatCurrency(c.cpa),
+                dualText(c.cpa),
                 `${c.roas.toFixed(1)}x`,
             ]),
             theme: 'striped',
@@ -675,27 +697,36 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
         const summarySheet = XLSX.utils.json_to_sheet([
             { [t('excelReport.indicatorColumn')]: t('excelReport.totalLeads'), [t('excelReport.valueColumn')]: kpis.totalLeads },
             { [t('excelReport.indicatorColumn')]: t('excelReport.crmConversion'), [t('excelReport.valueColumn')]: kpis.conversion },
-            { [t('excelReport.indicatorColumn')]: t('excelReport.adSpend'), [t('excelReport.valueColumn')]: kpis.spent },
+            { [t('excelReport.indicatorColumn')]: t('excelReport.adSpend'), [t('excelReport.valueColumn')]: dualText(kpis.spent) },
             { [t('excelReport.indicatorColumn')]: t('excelReport.avgRoas'), [t('excelReport.valueColumn')]: kpis.roas },
             { [t('excelReport.indicatorColumn')]: t('excelReport.impressions'), [t('excelReport.valueColumn')]: kpis.impressions },
             { [t('excelReport.indicatorColumn')]: t('excelReport.clicks'), [t('excelReport.valueColumn')]: kpis.clicks },
             { [t('excelReport.indicatorColumn')]: t('excelReport.ctr'), [t('excelReport.valueColumn')]: kpis.ctr },
-            { [t('excelReport.indicatorColumn')]: t('excelReport.cpc'), [t('excelReport.valueColumn')]: kpis.cpc },
-            { [t('excelReport.indicatorColumn')]: t('excelReport.cpm'), [t('excelReport.valueColumn')]: kpis.cpm },
-            { [t('excelReport.indicatorColumn')]: t('excelReport.cpa'), [t('excelReport.valueColumn')]: kpis.cpa },
+            { [t('excelReport.indicatorColumn')]: t('excelReport.cpc'), [t('excelReport.valueColumn')]: dualText(kpis.cpc) },
+            { [t('excelReport.indicatorColumn')]: t('excelReport.cpm'), [t('excelReport.valueColumn')]: dualText(kpis.cpm) },
+            { [t('excelReport.indicatorColumn')]: t('excelReport.cpa'), [t('excelReport.valueColumn')]: dualText(kpis.cpa) },
         ]);
 
+        // Colunas BRL brutas (Number) ficam intactas para cálculo no Excel.
+        // Colunas "(Moeda Local)" são texto formatado só para leitura — adicionadas
+        // apenas quando há cotação disponível (tenant não-BRL), para não duplicar
+        // a mesma informação em BRL sem necessidade.
+        const hasConversion = formatDual(1).secondary !== null;
         const campaignSheet = XLSX.utils.json_to_sheet(campaignTable.map(c => ({
             [t('excelReport.campaignColumn')]: c.campaign_name,
             [t('excelReport.platformColumn')]: c.platform === 'meta' ? t('excelReport.platformMeta') : t('excelReport.platformGoogle'),
             [t('excelReport.spendColumn')]: Number(c.spend.toFixed(2)),
+            ...(hasConversion ? { [t('excelReport.spendLocalColumn')]: dualText(c.spend) } : {}),
             [t('excelReport.impressionsColumn')]: c.impressions,
             [t('excelReport.clicksColumn')]: c.clicks,
             [t('excelReport.ctrColumn')]: Number(c.ctr.toFixed(2)),
             [t('excelReport.cpcColumn')]: Number(c.cpc.toFixed(2)),
+            ...(hasConversion ? { [t('excelReport.cpcLocalColumn')]: dualText(c.cpc) } : {}),
             [t('excelReport.cpmColumn')]: Number(c.cpm.toFixed(2)),
+            ...(hasConversion ? { [t('excelReport.cpmLocalColumn')]: dualText(c.cpm) } : {}),
             [t('excelReport.conversionsColumn')]: c.conversions,
             [t('excelReport.cpaColumn')]: Number(c.cpa.toFixed(2)),
+            ...(hasConversion ? { [t('excelReport.cpaLocalColumn')]: dualText(c.cpa) } : {}),
             [t('excelReport.roasColumn')]: Number(c.roas.toFixed(2)),
         })));
 
@@ -859,7 +890,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard label={t('kpis.totalLeads')} value={kpis.totalLeads} subtext={t('kpis.totalLeadsSubtext')} trend="+12%" trendType="up" color="bg-brand-primary" />
                 <StatCard label={t('kpis.crmConversion')} value={kpis.conversion} subtext={t('kpis.crmConversionSubtext')} trend="+0.5%" trendType="up" color="bg-blue-500" />
-                <StatCard label={t('kpis.adSpend')} value={kpis.spent} subtext={PERIOD_LABELS[period]} trend="-2%" trendType="down" color="bg-orange-500" />
+                <StatCard label={t('kpis.adSpend')} value={dualNode(kpis.spent)} subtext={PERIOD_LABELS[period]} trend="-2%" trendType="down" color="bg-orange-500" />
                 <StatCard label={t('kpis.avgRoas')} value={kpis.roas} subtext={t('kpis.avgRoasSubtext')} trend="+1.2x" trendType="up" color="bg-graphite-900" />
             </div>
 
@@ -868,9 +899,9 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                 <StatCard label={t('kpis.impressions')} value={kpis.impressions} subtext={t('kpis.impressionsSubtext')} color="bg-purple-500" iconColorClass="text-purple-600" icon={<Eye size={20} className="stroke-[2.5px]" />} />
                 <StatCard label={t('kpis.clicks')} value={kpis.clicks} subtext={t('kpis.clicksSubtext')} color="bg-cyan-500" iconColorClass="text-cyan-600" icon={<MousePointerClick size={20} className="stroke-[2.5px]" />} />
                 <StatCard label={t('kpis.ctr')} value={kpis.ctr} subtext={t('kpis.ctrSubtext')} color="bg-pink-500" iconColorClass="text-pink-600" icon={<Target size={20} className="stroke-[2.5px]" />} />
-                <StatCard label={t('kpis.cpc')} value={kpis.cpc} subtext={t('kpis.cpcSubtext')} color="bg-amber-500" iconColorClass="text-amber-600" icon={<DollarSign size={20} className="stroke-[2.5px]" />} />
-                <StatCard label={t('kpis.cpm')} value={kpis.cpm} subtext={t('kpis.cpmSubtext')} color="bg-indigo-500" iconColorClass="text-indigo-600" icon={<TrendingUp size={20} className="stroke-[2.5px]" />} />
-                <StatCard label={t('kpis.cpa')} value={kpis.cpa} subtext={t('kpis.cpaSubtext')} color="bg-rose-500" iconColorClass="text-rose-600" icon={<Zap size={20} className="stroke-[2.5px]" />} />
+                <StatCard label={t('kpis.cpc')} value={dualNode(kpis.cpc)} subtext={t('kpis.cpcSubtext')} color="bg-amber-500" iconColorClass="text-amber-600" icon={<DollarSign size={20} className="stroke-[2.5px]" />} />
+                <StatCard label={t('kpis.cpm')} value={dualNode(kpis.cpm)} subtext={t('kpis.cpmSubtext')} color="bg-indigo-500" iconColorClass="text-indigo-600" icon={<TrendingUp size={20} className="stroke-[2.5px]" />} />
+                <StatCard label={t('kpis.cpa')} value={dualNode(kpis.cpa)} subtext={t('kpis.cpaSubtext')} color="bg-rose-500" iconColorClass="text-rose-600" icon={<Zap size={20} className="stroke-[2.5px]" />} />
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-10">
@@ -1135,14 +1166,14 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                                     {c.platform === 'meta' ? t('campaignTable.platformMeta') : t('campaignTable.platformGoogle')}
                                                 </span>
                                             </td>
-                                            <td className="px-4 py-4 text-xs font-bold text-graphite-900 tabular-nums whitespace-nowrap">{formatCurrency(c.spend)}</td>
+                                            <td className="px-4 py-4 text-xs font-bold text-graphite-900 tabular-nums whitespace-nowrap">{dualNode(c.spend)}</td>
                                             <td className="px-4 py-4 text-xs font-bold text-graphite-900 tabular-nums">{c.impressions.toLocaleString('pt-BR')}</td>
                                             <td className="px-4 py-4 text-xs font-bold text-graphite-900 tabular-nums">{c.clicks.toLocaleString('pt-BR')}</td>
                                             <td className="px-4 py-4 text-xs font-bold text-graphite-900 tabular-nums">{c.ctr.toFixed(2)}%</td>
-                                            <td className="px-4 py-4 text-xs font-bold text-graphite-900 tabular-nums whitespace-nowrap">{formatCurrency(c.cpc)}</td>
-                                            <td className="px-4 py-4 text-xs font-bold text-graphite-900 tabular-nums whitespace-nowrap">{formatCurrency(c.cpm)}</td>
+                                            <td className="px-4 py-4 text-xs font-bold text-graphite-900 tabular-nums whitespace-nowrap">{dualNode(c.cpc)}</td>
+                                            <td className="px-4 py-4 text-xs font-bold text-graphite-900 tabular-nums whitespace-nowrap">{dualNode(c.cpm)}</td>
                                             <td className="px-4 py-4 text-xs font-bold text-graphite-900 tabular-nums">{c.conversions}</td>
-                                            <td className="px-4 py-4 text-xs font-bold text-graphite-900 tabular-nums whitespace-nowrap">{formatCurrency(c.cpa)}</td>
+                                            <td className="px-4 py-4 text-xs font-bold text-graphite-900 tabular-nums whitespace-nowrap">{dualNode(c.cpa)}</td>
                                             <td className="px-4 py-4 text-xs font-bold text-graphite-900 tabular-nums">{c.roas.toFixed(1)}x</td>
                                         </tr>
                                     ))}

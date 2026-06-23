@@ -1,4 +1,51 @@
 {
+  "plans": {
+    "essencial": {
+      "name": "Esencial",
+      "description": "Ideal para profesionales independientes y consultorios individuales.",
+      "features": [
+        "Hasta 2 profesionales",
+        "1 sucursal",
+        "Agenda inteligente con portal de reservas online",
+        "Expediente clínico electrónico completo",
+        "Recordatorios automáticos por WhatsApp",
+        "Confirmación y NPS automáticos",
+        "1 módulo de especialidad",
+        "Soporte por correo electrónico"
+      ]
+    },
+    "clinica": {
+      "name": "Clínica",
+      "description": "Para clínicas en crecimiento con múltiples profesionales.",
+      "features": [
+        "Hasta 10 profesionales",
+        "Hasta 3 sucursales",
+        "Bandeja de WhatsApp con atención humana",
+        "CRM con kanban de seguimiento",
+        "Integración con Meta Ads + Google Ads",
+        "Hub financiero (Asaas, Pagar.me, Dr. Cash)",
+        "Todos los módulos de especialidad",
+        "Visor DICOM (radiografías)",
+        "Soporte prioritario por chat"
+      ]
+    },
+    "rede": {
+      "name": "Red",
+      "description": "Para redes y franquicias con múltiples sucursales.",
+      "features": [
+        "Profesionales ilimitados",
+        "Sucursales ilimitadas",
+        "3 números de WhatsApp incluidos",
+        "Master Dashboard (visión de la red)",
+        "Analytics entre sucursales",
+        "Facturación consolidada",
+        "API dedicada y webhooks",
+        "Incorporación asistida y migración",
+        "Gerente de éxito dedicado",
+        "SLA de actividad del 99.9%"
+      ]
+    }
+  },
   "paymentRequiredModal": {
     "title": "¡Falta solo un paso!",
     "subtitle": "Agrega una forma de pago para desbloquear tus 14 días de prueba gratis.",

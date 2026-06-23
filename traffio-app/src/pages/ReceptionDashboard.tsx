@@ -15,18 +15,19 @@ import { NewPatientModal } from '../components/NewPatientModal';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
 import { useLocaleFormat } from '../hooks/useLocaleFormat';
+import { getIntlLocale } from '../lib/i18n';
 import { useTenant } from '../contexts/TenantContext';
-import { getTenantTodayString, localDateTimeToUTC, getTenantNow } from '../lib/timezoneUtils';
+import { getTenantTodayString, localDateTimeToUTC } from '../lib/timezoneUtils';
 
 export const ReceptionDashboard = () => {
-    const { t } = useTranslation('crm');
+    const { t, i18n } = useTranslation('crm');
     const { showToast } = useToast();
     const { tenant } = useTenant();
-    const { formatTime, timezone, locale } = useLocaleFormat();
+    const { formatTime, timezone } = useLocaleFormat();
     const [appointments, setAppointments] = useState<any[]>([]);
     const [filter, setFilter] = useState('all');
     const [isNewPatientModalOpen, setIsNewPatientModalOpen] = useState(false);
-    const [currentTime, setCurrentTime] = useState(() => getTenantNow(timezone));
+    const [currentTime, setCurrentTime] = useState(() => new Date());
     const [search, setSearch] = useState('');
 
     const fetchAppointments = useCallback(async () => {
@@ -60,8 +61,8 @@ export const ReceptionDashboard = () => {
     useEffect(() => { fetchAppointments(); }, [fetchAppointments]);
 
     useEffect(() => {
-        setCurrentTime(getTenantNow(timezone));
-        const timer = setInterval(() => setCurrentTime(getTenantNow(timezone)), 60000);
+        setCurrentTime(new Date());
+        const timer = setInterval(() => setCurrentTime(new Date()), 60000);
         return () => clearInterval(timer);
     }, [timezone]);
 
@@ -121,7 +122,7 @@ export const ReceptionDashboard = () => {
                     </div>
                     <p className="text-graphite-500 font-medium flex items-center gap-2">
                         <Calendar size={14} />
-                        {new Intl.DateTimeFormat(locale, { timeZone: timezone || 'America/Sao_Paulo', weekday: 'long', day: 'numeric', month: 'long' }).format(currentTime)}
+                        {new Intl.DateTimeFormat(getIntlLocale(i18n.language), { timeZone: timezone || 'America/Sao_Paulo', weekday: 'long', day: 'numeric', month: 'long' }).format(currentTime)}
                         <span className="w-1 h-1 bg-graphite-300 rounded-full" />
                         <Clock size={14} />
                         {formatTime(currentTime)}

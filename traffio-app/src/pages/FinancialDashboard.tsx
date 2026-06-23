@@ -30,11 +30,13 @@ import { BillingService } from '../services/billingService';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
 import { useLocaleFormat } from '../hooks/useLocaleFormat';
+import { useTenantCurrency } from '../hooks/useTenantCurrency';
 import { getTenantTodayString } from '../lib/timezoneUtils';
 
 export const FinancialDashboard = () => {
     const { t } = useTranslation('tenantAdmin');
-    const { formatDate } = useLocaleFormat();
+    const { formatDate, formatDateTime } = useLocaleFormat();
+    const { formatDual, rateFetchedAt } = useTenantCurrency();
     const [records, setRecords] = useState<any[]>([]);
     const [summary, setSummary] = useState({ total: 0, paid: 0, pending: 0, overdue: 0 });
     const [analytics, setAnalytics] = useState<any>(null);
@@ -93,6 +95,23 @@ export const FinancialDashboard = () => {
     const formatCurrency = (cents: number) =>
         `R$ ${(cents / 100).toFixed(2).replace('.', ',')}`;
 
+    // KPI cards de receita: valor convertido grande + valor BRL original pequeno abaixo.
+    const dualKpiNode = (cents: number) => {
+        const d = formatDual(cents / 100);
+        if (!d.secondary) return d.primary;
+        return (
+            <span>
+                {d.primary}
+                <span
+                    className="block text-xs font-medium text-graphite-400 mt-0.5"
+                    title={rateFetchedAt ? `Cotação de ${formatDateTime(rateFetchedAt)}` : undefined}
+                >
+                    ({d.secondary})
+                </span>
+            </span>
+        );
+    };
+
     const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
         paid: { label: t('financialDashboard.transactions.statusLabels.paid'), color: 'text-emerald-600', bg: 'bg-emerald-100' },
         pending: { label: t('financialDashboard.transactions.statusLabels.pending'), color: 'text-amber-600', bg: 'bg-amber-100' },
@@ -134,21 +153,21 @@ export const FinancialDashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <KPICard
                     title={t('financialDashboard.kpis.totalRevenue')}
-                    value={formatCurrency(summary.total)}
+                    value={dualKpiNode(summary.total)}
                     icon={DollarSign}
                     color="text-emerald-500"
                     bg="bg-emerald-500/10"
                 />
                 <KPICard
                     title={t('financialDashboard.kpis.received')}
-                    value={formatCurrency(summary.paid)}
+                    value={dualKpiNode(summary.paid)}
                     icon={TrendingUp}
                     color="text-brand-primary"
                     bg="bg-brand-primary/10"
                 />
                 <KPICard
                     title={t('financialDashboard.kpis.toReceive')}
-                    value={formatCurrency(summary.pending)}
+                    value={dualKpiNode(summary.pending)}
                     icon={CreditCard}
                     color="text-amber-500"
                     bg="bg-amber-500/10"

@@ -1,4 +1,15 @@
 {
+  "kanbanStages": {
+    "novosLeads": "Novos Leads",
+    "emContato": "Em Contato",
+    "avaliacao": "Avaliação",
+    "faltouAvaliacao": "Faltou Avaliação",
+    "reagendamentoAvaliacao": "Reagendamento Avaliação",
+    "consulta": "Consulta",
+    "faltouConsulta": "Faltou Consulta",
+    "vendidoProcedimento": "Vendido/Procedimento",
+    "perdido": "Perdido"
+  },
   "leads": {
     "title": "CRM Leads",
     "subtitle": "Gerencie sua base de pacientes e o funil de vendas.",

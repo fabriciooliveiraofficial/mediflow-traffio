@@ -5,6 +5,9 @@ import {
 } from 'recharts';
 import type { PerformanceMetrics } from '../../hooks/useFollowUpMetrics';
 import { useTranslation } from 'react-i18next';
+import { STAGE_LABEL_KEYS, type KanbanStage } from '../../lib/kanbanStages';
+import { useTenantCurrency } from '../../hooks/useTenantCurrency';
+import { useLocaleFormat } from '../../hooks/useLocaleFormat';
 
 interface PerformanceStatsProps {
   metrics: PerformanceMetrics | null;
@@ -30,6 +33,8 @@ const CustomTooltip = ({ active, payload, label, prefix = '' }: any) => {
 
 export function PerformanceStats({ metrics, isLoading }: PerformanceStatsProps) {
   const { t } = useTranslation('crm');
+  const { formatDual, rateFetchedAt } = useTenantCurrency();
+  const { formatDateTime } = useLocaleFormat();
 
   if (isLoading || !metrics) {
     return (
@@ -71,7 +76,21 @@ export function PerformanceStats({ metrics, isLoading }: PerformanceStatsProps) 
     },
     {
       label: t('performanceStats.kpis.sales'),
-      value: `R$ ${metrics.totalRevenue.toLocaleString('pt-BR')}`,
+      value: (() => {
+        const d = formatDual(metrics.totalRevenue);
+        if (!d.secondary) return d.primary;
+        return (
+          <>
+            {d.primary}
+            <span
+              className="block text-[10px] font-medium text-gray-400 mt-0.5 normal-case tracking-normal"
+              title={rateFetchedAt ? `Cotação de ${formatDateTime(rateFetchedAt)}` : undefined}
+            >
+              ({d.secondary})
+            </span>
+          </>
+        );
+      })(),
       trend: metrics.trends.revenue,
       icon: DollarSign,
       color: 'amber',
@@ -100,6 +119,11 @@ export function PerformanceStats({ metrics, isLoading }: PerformanceStatsProps) 
   ];
 
   const hasData = metrics.totalLeads > 0;
+
+  const translatedFunnelData = metrics.funnelData.map(d => ({
+    ...d,
+    stage: t(`kanbanStages.${STAGE_LABEL_KEYS[d.stage as KanbanStage]}`),
+  }));
 
   return (
     <div className="space-y-6 mb-10">
@@ -146,7 +170,7 @@ export function PerformanceStats({ metrics, isLoading }: PerformanceStatsProps) 
           {hasData ? (
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={metrics.funnelData} layout="vertical" margin={{ left: 10, right: 60 }}>
+                <BarChart data={translatedFunnelData} layout="vertical" margin={{ left: 10, right: 60 }}>
                   <XAxis type="number" hide />
                   <YAxis 
                     dataKey="stage" 

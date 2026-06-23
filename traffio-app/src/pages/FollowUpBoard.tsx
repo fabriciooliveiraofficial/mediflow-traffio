@@ -10,7 +10,7 @@ import { useTenant } from '../contexts/TenantContext';
 import { useLocaleFormat } from '../hooks/useLocaleFormat';
 import { useFollowUpMetrics } from '../hooks/useFollowUpMetrics';
 import { PerformanceStats } from '../components/followup/PerformanceStats';
-import { KANBAN_STAGES, STAGE_ICONS } from '../lib/kanbanStages';
+import { KANBAN_STAGES, STAGE_ICONS, STAGE_LABEL_KEYS } from '../lib/kanbanStages';
 import { useTranslation } from 'react-i18next';
 
 type OmnichannelStatus = 'bot_active' | 'queued' | 'human_active' | 'closed';
@@ -244,7 +244,7 @@ export function FollowUpBoard() {
                     <div className="p-1.5 rounded-lg bg-white border border-gray-200">
                       <StageIcon className="w-4 h-4 text-gray-600" />
                     </div>
-                    <span className="text-sm font-black text-gray-800">{stage}</span>
+                    <span className="text-sm font-black text-gray-800">{t(`kanbanStages.${STAGE_LABEL_KEYS[stage]}`)}</span>
                   </div>
                   <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">
                     {columnSessions.length}

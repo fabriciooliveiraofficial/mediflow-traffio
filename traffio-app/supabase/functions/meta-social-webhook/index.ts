@@ -130,13 +130,20 @@ async function processMessagingEvent(
   // Ignorar se não for mensagem nem postback
   if (!message && !postback) return;
 
-  // Conteúdo da mensagem
-  const text = message?.text ?? postback?.title ?? postback?.payload ?? "";
+  // Anexo (imagem, áudio, vídeo ou arquivo) — Meta envia em message.attachments[0]
+  const attachment = message?.attachments?.[0];
+  const mediaUrl   = attachment?.payload?.url ?? null;
+  const messageType = mediaUrl ? toAppMessageType(attachment.type) : "text";
+
+  // Conteúdo da mensagem (texto, título/payload de postback, ou marcador de mídia)
+  const rawText = message?.text ?? postback?.title ?? postback?.payload ?? "";
+  const text = rawText || (mediaUrl ? `[${messageType}]` : "");
+  const caption = mediaUrl && rawText ? rawText : null;
   const messageId = message?.mid ?? `postback_${timestamp}_${senderId}`;
 
   if (!senderId || !text) return;
 
-  console.log(`[meta-social-webhook] ${channel} | sender: ${senderId} | tenant: ${tenantId} | text: "${text.substring(0, 50)}"`);
+  console.log(`[meta-social-webhook] ${channel} | sender: ${senderId} | tenant: ${tenantId} | text: "${text.substring(0, 50)}"${mediaUrl ? ` | media: ${messageType}` : ''}`);
 
   // 1. Salvar preferência de canal com o ID da plataforma
   await upsertChannelPreference(supabase, tenantId, senderId, {
@@ -195,6 +202,9 @@ async function processMessagingEvent(
         session_id:          existingSession.id,
         role:                "user",
         content:             text,
+        message_type:        messageType,
+        media_url:           mediaUrl,
+        caption:             caption,
         whatsapp_message_id: messageId,
       });
 
@@ -220,17 +230,34 @@ async function processMessagingEvent(
 
   // 4. Inserir na message_inbox (inbox pattern — mesmo do whatsapp-bot)
   const { error: inboxErr } = await supabase.from("message_inbox").insert({
-    tenant_id:   tenantId,
-    phone:       senderId,
-    content:     text,
-    message_id:  messageId,
-    status:      "pending",
-    received_at: new Date(validTimestamp).toISOString(),
+    tenant_id:    tenantId,
+    phone:        senderId,
+    content:      text,
+    message_id:   messageId,
+    message_type: messageType,
+    media_url:    mediaUrl,
+    caption:      caption,
+    status:       "pending",
+    received_at:  new Date(validTimestamp).toISOString(),
   });
 
   if (inboxErr) {
     console.error(`[meta-social-webhook] Failed to insert into message_inbox:`, inboxErr.message);
   } else {
     console.log(`[meta-social-webhook] ✓ [${channel}] Queued message ${messageId} from ${senderId}`);
+  }
+}
+
+/** Mapeia o `attachment.type` do webhook da Meta para o vocabulário interno de message_type do app. */
+function toAppMessageType(metaType: string): string {
+  switch (metaType) {
+    case "file":
+      return "document";
+    case "image":
+    case "video":
+    case "audio":
+      return metaType;
+    default:
+      return "document";
   }
 }

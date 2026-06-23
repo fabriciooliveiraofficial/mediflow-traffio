@@ -14,6 +14,23 @@
 
 const GRAPH_API = "https://graph.facebook.com/v21.0";
 
+/** Mapeia o media_type interno do app para o `attachment.type` aceito pelo Send API da Meta. */
+function toMetaAttachmentType(mediaType: string): "image" | "video" | "audio" | "file" {
+  switch (mediaType) {
+    case "image":
+    case "sticker":
+    case "gif":
+      return "image";
+    case "video":
+      return "video";
+    case "audio":
+      return "audio";
+    case "document":
+    default:
+      return "file";
+  }
+}
+
 export interface MetaSendResult {
   messageId: string;
   recipientId: string;
@@ -71,6 +88,78 @@ export class MetaSocialClient {
       body: JSON.stringify({
         recipient: { id: igsid },
         message:   { text },
+      }),
+    });
+
+    const data = await res.json();
+    if (data.error) {
+      throw new MetaSocialError(data.error.code, data.error.message, "instagram");
+    }
+
+    return { messageId: data.message_id, recipientId: data.recipient_id };
+  }
+
+  /**
+   * Envia anexo (imagem, vídeo, áudio ou arquivo) via Facebook Messenger.
+   * @param pageToken  Page Access Token da página do Facebook
+   * @param psid       Page-Scoped User ID do destinatário
+   * @param mediaUrl   URL pública do arquivo (Supabase Storage)
+   * @param mediaType  Tipo de mídia da app ('image' | 'audio' | 'video' | 'document' | 'sticker' | 'gif')
+   */
+  static async sendFacebookAttachment(
+    pageToken: string,
+    psid: string,
+    mediaUrl: string,
+    mediaType: string
+  ): Promise<MetaSendResult> {
+    const res = await fetch(`${GRAPH_API}/me/messages?access_token=${pageToken}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipient: { id: psid },
+        message: {
+          attachment: {
+            type: toMetaAttachmentType(mediaType),
+            payload: { url: mediaUrl, is_reusable: true },
+          },
+        },
+        messaging_type: "MESSAGE_TAG",
+        tag: "CONFIRMED_EVENT_UPDATE",
+      }),
+    });
+
+    const data = await res.json();
+    if (data.error) {
+      throw new MetaSocialError(data.error.code, data.error.message, "facebook");
+    }
+
+    return { messageId: data.message_id, recipientId: data.recipient_id };
+  }
+
+  /**
+   * Envia anexo (imagem, vídeo ou áudio) via Instagram Direct Message.
+   * @param pageToken   Page Access Token da página FB conectada ao Instagram
+   * @param igsid       Instagram-Scoped User ID do destinatário
+   * @param mediaUrl    URL pública do arquivo (Supabase Storage)
+   * @param mediaType   Tipo de mídia da app ('image' | 'audio' | 'video' | 'document' | 'sticker' | 'gif')
+   */
+  static async sendInstagramAttachment(
+    pageToken: string,
+    igsid: string,
+    mediaUrl: string,
+    mediaType: string
+  ): Promise<MetaSendResult> {
+    const res = await fetch(`${GRAPH_API}/me/messages?access_token=${pageToken}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipient: { id: igsid },
+        message: {
+          attachment: {
+            type: toMetaAttachmentType(mediaType),
+            payload: { url: mediaUrl, is_reusable: true },
+          },
+        },
       }),
     });
 

@@ -52,6 +52,12 @@ export interface CountryFormat {
     dateFormat: string; // human-readable hint, e.g. 'dd/MM/yyyy'
     timeFormat: string; // human-readable hint, e.g. 'HH:mm' | 'h:mm a'
     hour12: boolean;
+
+    // ISO 4217 currency code for this country. BRL is always the source of
+    // truth for stored/charged amounts (billing, Stripe, ad spend) — this is
+    // only used to pick a *display* currency for analytics/dashboard values
+    // (see src/hooks/useTenantCurrency.ts). Never used for billing math.
+    currency: string;
 }
 
 export const COUNTRIES: Record<CountryCode, CountryFormat> = {
@@ -76,6 +82,7 @@ export const COUNTRIES: Record<CountryCode, CountryFormat> = {
         dateFormat: 'dd/MM/yyyy',
         timeFormat: 'HH:mm',
         hour12: false,
+        currency: 'BRL',
     },
     US: {
         code: 'US',
@@ -96,6 +103,7 @@ export const COUNTRIES: Record<CountryCode, CountryFormat> = {
         dateFormat: 'MM/dd/yyyy',
         timeFormat: 'h:mm a',
         hour12: true,
+        currency: 'USD',
     },
     NZ: {
         code: 'NZ',
@@ -116,6 +124,7 @@ export const COUNTRIES: Record<CountryCode, CountryFormat> = {
         dateFormat: 'dd/MM/yyyy',
         timeFormat: 'h:mm a',
         hour12: true,
+        currency: 'NZD',
     },
     MX: {
         code: 'MX',
@@ -137,6 +146,7 @@ export const COUNTRIES: Record<CountryCode, CountryFormat> = {
         dateFormat: 'dd/MM/yyyy',
         timeFormat: 'HH:mm',
         hour12: false,
+        currency: 'MXN',
     },
 };
 
@@ -153,6 +163,11 @@ export function listCountries(): CountryFormat[] {
 
 export function getLocaleForCountry(code: string | null | undefined): string {
     return getCountry(code).locale;
+}
+
+/** ISO 4217 currency for display purposes only — see `CountryFormat.currency` doc. */
+export function getCurrencyForCountry(code: string | null | undefined): string {
+    return getCountry(code).currency;
 }
 
 /** UI language each country maps to by default (Pilar 2 — see TASKLIST-I18N-LANGUAGE.md). */

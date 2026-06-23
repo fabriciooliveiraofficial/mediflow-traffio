@@ -51,7 +51,6 @@ import { formatPhone, phoneFlag } from '../lib/formatPhone';
 import { clsx } from 'clsx';
 import { BuyNumberModal } from '../components/numbers/BuyNumberModal';
 import { PendingOrdersList } from '../components/numbers/PendingOrdersList';
-import { SystemLogs } from '../components/settings/SystemLogs';
 import { RoleManagement } from '../components/settings/RoleManagement';
 import { decimalToDMS, parseDMSToDecimal } from '../lib/geoUtils';
 import { TimeInput } from '../components/shared/TimeInput';
@@ -844,7 +843,6 @@ export const Settings = () => {
                     { id: 'roles', label: t('tabs.roles', 'Cargos'), icon: Briefcase },
                     { id: 'communications', label: t('tabs.communications'), icon: Phone },
                     { id: 'profile', label: t('tabs.profile'), icon: User },
-                    { id: 'logs', label: t('tabs.logs', 'Logs'), icon: Terminal },
                 ].map((tab) => (
                     <button
                         key={tab.id}
@@ -871,10 +869,7 @@ export const Settings = () => {
                                 <h3 className="text-xl font-black text-graphite-900">{t('clinics.title')}</h3>
                                 <p className="text-sm text-graphite-400">{t('clinics.subtitle')}</p>
                             </div>
-                            <button className="flex items-center gap-2 bg-ice-50 text-brand-primary px-4 py-2 rounded-xl font-bold hover:bg-ice-100 transition-colors border-none cursor-pointer">
-                                <Plus size={18} />
-                                <span>{t('clinics.addClinic')}</span>
-                            </button>
+
                         </div>
 
                         <div className="grid grid-cols-1 gap-6">
@@ -1161,35 +1156,6 @@ export const Settings = () => {
                                                             className="w-10 h-10 rounded-xl border border-ice-200 cursor-pointer"
                                                         />
                                                         <span className="text-sm font-medium text-graphite-500">{tenant.color_primary || '#1152d4'}</span>
-                                                    </div>
-                                                </div>
-
-                                                {/* Integration Keys */}
-                                                <div className="border-t border-ice-100 pt-4 mt-4">
-                                                    <h4 className="text-xs font-black text-graphite-400 uppercase flex items-center gap-1.5 mb-3">
-                                                        <Key size={12} /> {t('clinics.integrationsSectionTitle')}
-                                                    </h4>
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                        <div>
-                                                            <label className="text-[10px] font-bold text-graphite-400">{t('clinics.zapiInstanceLabel')}</label>
-                                                            <input
-                                                                type="password"
-                                                                defaultValue={tenant.zapi_instance_id || ''}
-                                                                placeholder="Instance ID"
-                                                                onBlur={(e) => handleSaveTenant(tenant.id, { zapi_instance_id: e.target.value })}
-                                                                className="w-full bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm font-mono text-graphite-700 focus:outline-none focus:border-brand-primary transition-colors"
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="text-[10px] font-bold text-graphite-400">{t('clinics.asaasApiKeyLabel')}</label>
-                                                            <input
-                                                                type="password"
-                                                                defaultValue={tenant.asaas_api_key || ''}
-                                                                placeholder="API Key"
-                                                                onBlur={(e) => handleSaveTenant(tenant.id, { asaas_api_key: e.target.value })}
-                                                                className="w-full bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm font-mono text-graphite-700 focus:outline-none focus:border-brand-primary transition-colors"
-                                                            />
-                                                        </div>
                                                     </div>
                                                 </div>
 
@@ -2034,10 +2000,6 @@ export const Settings = () => {
                     <RoleManagement tenantId={currentTenant.id} />
                 )}
 
-                {/* Logs Tab */}
-                {activeTab === 'logs' && (
-                    <SystemLogs tenantId={currentTenant?.id} />
-                )}
 
             </div>
         </div>

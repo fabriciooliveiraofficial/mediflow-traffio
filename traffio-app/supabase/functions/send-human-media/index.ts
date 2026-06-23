@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { corsHeaders } from "../_shared/cors.ts";
 import { OutboxDispatcher } from "../_shared/outboxDispatcher.ts";
+import { MetaSocialClient } from "../_shared/metaSocialClient.ts";
 
 /**
  * Edge Function: send-human-media
@@ -87,7 +88,7 @@ serve(async (req: Request) => {
     const { data: session, error: sessionError } = await supabase
       .from('conversation_sessions')
       .select(`
-        id, patient_phone, tenant_id, omnichannel_status, assigned_to_user_id, channel,
+        id, patient_phone, tenant_id, omnichannel_status, assigned_to_user_id, channel, platform_user_id,
         tenants (
           whatsapp_provider, zapi_instance_id, zapi_token, zapi_client_token,
           cloud_api_phone_number_id, cloud_api_access_token
@@ -143,8 +144,10 @@ serve(async (req: Request) => {
       quotedMsgId = repliedMsg?.whatsapp_message_id ?? undefined;
     }
 
-    // ── Enviar via WhatsApp ou Broadcast para Live Chat ───────────────────────
+    // ── Enviar via WhatsApp, Meta (Instagram/Facebook) ou Broadcast para Live Chat ──
     const isLiveChat = session.channel === 'livechat';
+    const isInstagram = session.channel === 'instagram';
+    const isFacebook = session.channel === 'facebook';
 
     if (isLiveChat) {
       const realtimeChannel = supabase.channel(`livechat:${session_id}`);
@@ -163,6 +166,49 @@ serve(async (req: Request) => {
         }
       });
       console.log(`[send-human-media] Broadcast sent to livechat:${session_id}`);
+    } else if (isInstagram || isFacebook) {
+      // Enviar via Meta Graph API usando platform_user_id (PSID ou IGSID)
+      const recipientId = (session as any).platform_user_id ?? session.patient_phone;
+
+      const pageQuery = isInstagram
+        ? supabase.from('tenant_meta_pages').select('page_access_token, instagram_account_id').eq('tenant_id', tenant_id).not('instagram_account_id', 'is', null).eq('is_active', true).limit(1).maybeSingle()
+        : supabase.from('tenant_meta_pages').select('page_access_token').eq('tenant_id', tenant_id).eq('is_active', true).limit(1).maybeSingle();
+
+      const { data: metaPage } = await pageQuery;
+
+      if (!metaPage?.page_access_token) {
+        console.error(`[send-human-media] No Meta page token for tenant ${tenant_id}. Message saved but not delivered.`);
+        return json({ error: `Página do ${session.channel} não conectada ou token ausente.` });
+      }
+
+      try {
+        const result = isInstagram
+          ? await MetaSocialClient.sendInstagramAttachment(metaPage.page_access_token, recipientId, media_url, media_type)
+          : await MetaSocialClient.sendFacebookAttachment(metaPage.page_access_token, recipientId, media_url, media_type);
+
+        console.log(`[send-human-media] ${session.channel} attachment sent to ${recipientId}`);
+
+        if (dbMsgId && result.messageId) {
+          await supabase.from('conversation_messages').update({ whatsapp_message_id: result.messageId }).eq('id', dbMsgId);
+        }
+
+        // A API da Meta não suporta anexo + texto na mesma mensagem (sem campo "caption" nativo).
+        // Enviamos a legenda como uma segunda mensagem de texto imediatamente após o anexo.
+        if (caption?.trim()) {
+          try {
+            isInstagram
+              ? await MetaSocialClient.sendInstagramMessage(metaPage.page_access_token, (metaPage as any).instagram_account_id, recipientId, caption.trim())
+              : await MetaSocialClient.sendFacebookMessage(metaPage.page_access_token, recipientId, caption.trim());
+            console.log(`[send-human-media] ${session.channel} caption sent to ${recipientId}`);
+          } catch (captionErr: any) {
+            console.error(`[send-human-media] Caption dispatch failed: ${captionErr.message}`);
+            return json({ error: `Anexo enviado, mas a legenda falhou via ${session.channel}: ${captionErr.message}` });
+          }
+        }
+      } catch (metaErr: any) {
+        console.error(`[send-human-media] Meta dispatch failed: ${metaErr.message}`);
+        return json({ error: `Falha ao enviar anexo via ${session.channel}: ${metaErr.message}` });
+      }
     } else {
       const outbox = new OutboxDispatcher(supabase);
       try {
@@ -173,7 +219,7 @@ serve(async (req: Request) => {
           caption,
           file_name,
         }, quotedMsgId);
-        
+
         if (dbMsgId && waMsgId) {
           await supabase.from('conversation_messages').update({ whatsapp_message_id: waMsgId }).eq('id', dbMsgId);
         }

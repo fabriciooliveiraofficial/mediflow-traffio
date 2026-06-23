@@ -174,7 +174,10 @@
         "note": "Write a private internal note...",
         "message": "Click to type... (Enter sends)"
       },
-      "noteHiddenHint": "Note hidden from the patient"
+      "noteHiddenHint": "Note hidden from the patient",
+      "metaWindowExpiredHint": "The 24h Meta window has expired due to patient inactivity. To send free text messages, the patient needs to reopen contact or you must use another channel (WhatsApp or SMS).",
+      "metaWindowExpiredHeading": "Messaging Window Expired (24h)",
+      "metaWindowOpenWarning": "Time remaining to reply via Meta:"
     },
     "patientPanel": {
       "title": "Patient Info",

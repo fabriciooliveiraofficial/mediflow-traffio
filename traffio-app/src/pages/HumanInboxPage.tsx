@@ -907,20 +907,28 @@ export const ChatInput = memo(({
 
   const handleSend = async () => {
     if (selectedFile) {
+      const fileToUpload = selectedFile
+      const fileCaption = input.trim()
+      const currentMode = inputMode
+      const fileName = selectedFile.name
+      const fileType = selectedFile.type
+      const fileSize = selectedFile.size
+      
+      clearMediaFile()
       setUploadingMedia(true)
+      
       try {
-        const url = await onUploadFile(selectedFile)
-        const isImage = selectedFile.type.startsWith('image/')
-        const isVideo = selectedFile.type.startsWith('video/')
+        const url = await onUploadFile(fileToUpload)
+        const isImage = fileType.startsWith('image/')
+        const isVideo = fileType.startsWith('video/')
         const type = isImage ? 'image' : isVideo ? 'video' : 'document'
         await onSendMedia(url, type, {
-          caption: input.trim(),
-          mode: inputMode === 'note' ? 'internal' : 'message',
-          fileName: selectedFile.name,
-          mimeType: selectedFile.type,
-          fileSize: selectedFile.size
+          caption: fileCaption,
+          mode: currentMode === 'note' ? 'internal' : 'message',
+          fileName: fileName,
+          mimeType: fileType,
+          fileSize: fileSize
         })
-        clearMediaFile()
       } catch (err: any) {
         showToast('error', t('humanInbox.chatInput.toasts.fileSendError', { message: err.message }))
       } finally {
@@ -1260,18 +1268,18 @@ export const ChatInput = memo(({
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
               className="absolute bottom-full left-0 right-0 z-50 mb-4 mx-2">
               <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col max-h-[400px]">
-                <div className="p-3 border-b border-gray-50 flex items-center justify-between bg-white/80 backdrop-blur-md">
+                <div className="shrink-0 p-3 border-b border-gray-50 flex items-center justify-between bg-white/80 backdrop-blur-md">
                   <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">{selectedFile?.type.startsWith('image/') ? t('humanInbox.chatInput.mediaPreview.sendImage') : t('humanInbox.chatInput.mediaPreview.sendVideo')}</span>
                   <button onClick={clearMediaFile} className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"><X size={18} className="text-gray-400" /></button>
                 </div>
-                <div className="flex-1 bg-gray-900/5 flex items-center justify-center p-4">
+                <div className="flex-1 min-h-0 bg-gray-900/5 flex items-center justify-center p-4 overflow-hidden">
                   {selectedFile?.type.startsWith('image/') ? (
-                    <img src={previewUrl} className="max-w-full max-h-[240px] rounded-xl shadow-lg object-contain" alt="preview" />
+                    <img src={previewUrl} className="max-w-full max-h-[200px] rounded-xl shadow-lg object-contain" alt="preview" />
                   ) : (
-                    <video src={previewUrl} className="max-w-full max-h-[240px] rounded-xl shadow-lg" controls />
+                    <video src={previewUrl} className="max-w-full max-h-[200px] rounded-xl shadow-lg" controls />
                   )}
                 </div>
-                <div className="p-4 bg-gray-50/50">
+                <div className="shrink-0 p-4 bg-gray-50/50">
                   <p className="text-[10px] text-gray-400 font-bold uppercase mb-2">{t('humanInbox.chatInput.mediaPreview.captionLabel')}</p>
                   <div className="flex items-end gap-2">
                      <textarea

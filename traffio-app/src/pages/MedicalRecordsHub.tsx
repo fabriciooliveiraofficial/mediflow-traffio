@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
+import { getIntlLocale } from '../lib/i18n';
 import { supabase } from '../lib/supabase';
 import { useTenant } from '../contexts/TenantContext';
 import { useToast } from '../contexts/ToastContext';
@@ -87,7 +88,7 @@ export interface Prescription {
 }
 
 export const MedicalRecordsHub = () => {
-    const { t } = useTranslation('medical');
+    const { t, i18n } = useTranslation('medical');
     const { tenant } = useTenant();
     const { showToast } = useToast();
     
@@ -959,7 +960,7 @@ export const MedicalRecordsHub = () => {
                                                                     </div>
                                                                     <div>
                                                                         <p className="text-[10px] font-black uppercase tracking-widest text-graphite-400 mb-0.5">
-                                                                            {new Date(presc.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                                                                            {new Date(presc.created_at).toLocaleDateString(getIntlLocale(i18n.language), { day: '2-digit', month: 'long', year: 'numeric' })}
                                                                         </p>
                                                                         <h4 className="text-sm font-black text-graphite-900">
                                                                             {t('recordsHub.prescriptionsList.digitalPrescription', { time: new Date(presc.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) })}

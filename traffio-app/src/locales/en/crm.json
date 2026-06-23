@@ -1,4 +1,15 @@
 {
+  "kanbanStages": {
+    "novosLeads": "New Leads",
+    "emContato": "In Contact",
+    "avaliacao": "Evaluation",
+    "faltouAvaliacao": "Missed Evaluation",
+    "reagendamentoAvaliacao": "Evaluation Rescheduled",
+    "consulta": "Appointment",
+    "faltouConsulta": "Missed Appointment",
+    "vendidoProcedimento": "Sold/Procedure",
+    "perdido": "Lost"
+  },
   "leads": {
     "title": "CRM Leads",
     "subtitle": "Manage your patient base and sales funnel.",
