@@ -35,6 +35,7 @@ import {
     Stethoscope,
     Apple,
     Briefcase,
+    Settings as SettingsIcon,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { TIMEZONE_OPTIONS, TIMEZONE_REGIONS } from '../lib/timezoneUtils';
@@ -54,6 +55,7 @@ import { PendingOrdersList } from '../components/numbers/PendingOrdersList';
 import { RoleManagement } from '../components/settings/RoleManagement';
 import { decimalToDMS, parseDMSToDecimal } from '../lib/geoUtils';
 import { TimeInput } from '../components/shared/TimeInput';
+import { Button, Badge, EmptyState, PageHeader } from '../components/ui';
 
 
 
@@ -114,10 +116,7 @@ function PhoneNumbersList({ tenantId, showToast, refreshKey }: { tenantId: strin
 
     if (numbers.length === 0) {
         return (
-            <div className="text-center py-6">
-                <p className="text-sm text-graphite-300 font-medium">{t('phoneNumbers.empty')}</p>
-                <p className="text-xs text-graphite-300 mt-1">{t('phoneNumbers.emptyHint')}</p>
-            </div>
+            <EmptyState label={t('phoneNumbers.empty')} hint={t('phoneNumbers.emptyHint')} className="py-6 border-none bg-transparent" />
         );
     }
 
@@ -828,10 +827,7 @@ export const Settings = () => {
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto">
 
             {/* Header */}
-            <div>
-                <h1 className="text-3xl font-black text-graphite-900 tracking-tight">{t('header.title')}</h1>
-                <p className="text-graphite-500 font-medium">{t('header.subtitle')}</p>
-            </div>
+            <PageHeader icon={SettingsIcon} title={t('header.title')} subtitle={t('header.subtitle')} />
 
             {/* Tabs */}
             <div className="flex bg-white p-1.5 rounded-2xl shadow-float w-full">
@@ -1203,13 +1199,13 @@ export const Settings = () => {
                                                                     </div>
                                                                     <div className="flex items-center gap-2">
                                                                         {page.is_active ? (
-                                                                            <span className="flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                                                                            <Badge accent="success" size="sm">
                                                                                 <CheckCircle2 size={10} /> {t('clinics.metaPageActive')}
-                                                                            </span>
+                                                                            </Badge>
                                                                         ) : (
-                                                                            <span className="flex items-center gap-1 text-[10px] font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-full">
+                                                                            <Badge accent="error" size="sm">
                                                                                 <AlertCircle size={10} /> {t('clinics.metaPageInactive')}
-                                                                            </span>
+                                                                            </Badge>
                                                                         )}
                                                                         <button
                                                                             onClick={() => disconnectMetaPage(page.id)}
@@ -1250,7 +1246,7 @@ export const Settings = () => {
                                 <h3 className="text-xl font-black text-graphite-900">{t('locations.title')}</h3>
                                 <p className="text-sm text-graphite-400">{t('locations.subtitle')}</p>
                             </div>
-                            <button onClick={() => {
+                            <Button onClick={() => {
                                 setShowLocForm(true);
                                 setEditingLocId(null);
                                 setLocForm({
@@ -1275,9 +1271,9 @@ export const Settings = () => {
                                         0: { start: '00:00', end: '00:00', closed: true },
                                     }
                                 });
-                            }} className="flex items-center gap-2 bg-brand-primary text-white px-4 py-2 rounded-xl font-bold hover:bg-brand-primary/90 transition-colors border-none cursor-pointer shadow-lg shadow-brand-primary/20">
+                            }}>
                                 <Plus size={18} /> {t('locations.newLocation')}
-                            </button>
+                            </Button>
                         </div>
 
                         {showLocForm && (
@@ -1446,31 +1442,24 @@ export const Settings = () => {
                                     </div>
                                 </div>
                                 <div className="flex gap-2 justify-end">
-                                    <button onClick={() => { setShowLocForm(false); setEditingLocId(null); }} className="px-4 py-2 rounded-xl font-bold text-graphite-500 hover:bg-ice-100 transition-colors border-none cursor-pointer"><X size={16} className="inline mr-1" />{t('actions.cancel')}</button>
-                                    <button onClick={handleSaveLocation} className="px-5 py-2 rounded-xl font-bold bg-brand-primary text-white hover:bg-brand-primary/90 transition-colors border-none cursor-pointer shadow-md"><Check size={16} className="inline mr-1" />{t('actions.save')}</button>
+                                    <Button variant="ghost" onClick={() => { setShowLocForm(false); setEditingLocId(null); }}><X size={16} />{t('actions.cancel')}</Button>
+                                    <Button variant="primary" onClick={handleSaveLocation}><Check size={16} />{t('actions.save')}</Button>
                                 </div>
                             </div>
                         )}
 
                         <div className="space-y-3">
                             {locations.length === 0 ? (
-                                <div className="text-center py-12 text-graphite-400">
-                                    <MapPinHouse size={48} className="mx-auto mb-3 text-ice-300" />
-                                    <p className="font-bold">{t('locations.empty')}</p>
-                                    <p className="text-sm">{t('locations.emptyHint')}</p>
-                                </div>
+                                <EmptyState icon={MapPinHouse} label={t('locations.empty')} hint={t('locations.emptyHint')} />
                             ) : locations.map(loc => (
                                 <div key={loc.id} className="flex items-center gap-4 p-4 border border-transparent rounded-2xl shadow-float hover:border-brand-primary/20 transition-all group">
                                     <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0"><MapPinHouse size={24} /></div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2">
                                             <p className="font-bold text-graphite-900 truncate">{loc.name}</p>
-                                            <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${loc.type === 'hospital' ? 'bg-rose-100 text-rose-600' :
-                                                loc.type === 'clinica' ? 'bg-sky-100 text-sky-600' :
-                                                    'bg-amber-100 text-amber-600'
-                                                }`}>
+                                            <Badge size="sm" accent={loc.type === 'hospital' ? 'error' : loc.type === 'clinica' ? 'info' : 'warning'}>
                                                 {loc.type}
-                                            </span>
+                                            </Badge>
                                         </div>
                                         <div className="flex flex-wrap gap-1 mt-1">
                                             {loc.objectives?.map((obj: string, i: number) => (
@@ -1534,9 +1523,9 @@ export const Settings = () => {
                                 <h3 className="text-xl font-black text-graphite-900">{t('insurance.title')}</h3>
                                 <p className="text-sm text-graphite-400">{t('insurance.subtitle')}</p>
                             </div>
-                            <button onClick={() => { setShowInsForm(true); setEditingInsId(null); setInsForm({ name: '', code: '' }); }} className="flex items-center gap-2 bg-brand-primary text-white px-4 py-2 rounded-xl font-bold hover:bg-brand-primary/90 transition-colors border-none cursor-pointer shadow-lg shadow-brand-primary/20">
+                            <Button onClick={() => { setShowInsForm(true); setEditingInsId(null); setInsForm({ name: '', code: '' }); }}>
                                 <Plus size={18} /> {t('insurance.newInsurance')}
-                            </button>
+                            </Button>
                         </div>
 
                         {showInsForm && (
@@ -1553,19 +1542,15 @@ export const Settings = () => {
                                     </div>
                                 </div>
                                 <div className="flex gap-2 justify-end">
-                                    <button onClick={() => { setShowInsForm(false); setEditingInsId(null); }} className="px-4 py-2 rounded-xl font-bold text-graphite-500 hover:bg-ice-100 transition-colors border-none cursor-pointer"><X size={16} className="inline mr-1" />{t('actions.cancel')}</button>
-                                    <button onClick={handleSaveInsurance} className="px-5 py-2 rounded-xl font-bold bg-brand-primary text-white hover:bg-brand-primary/90 transition-colors border-none cursor-pointer shadow-md"><Check size={16} className="inline mr-1" />{t('actions.save')}</button>
+                                    <Button variant="ghost" onClick={() => { setShowInsForm(false); setEditingInsId(null); }}><X size={16} />{t('actions.cancel')}</Button>
+                                    <Button variant="primary" onClick={handleSaveInsurance}><Check size={16} />{t('actions.save')}</Button>
                                 </div>
                             </div>
                         )}
 
                         <div className="space-y-3">
                             {insurancePlans.length === 0 ? (
-                                <div className="text-center py-12 text-graphite-400">
-                                    <Shield size={48} className="mx-auto mb-3 text-ice-300" />
-                                    <p className="font-bold">{t('insurance.empty')}</p>
-                                    <p className="text-sm">{t('insurance.emptyHint')}</p>
-                                </div>
+                                <EmptyState icon={Shield} label={t('insurance.empty')} hint={t('insurance.emptyHint')} />
                             ) : insurancePlans.map(plan => (
                                 <div key={plan.id} className="flex items-center gap-4 p-4 border border-transparent rounded-2xl shadow-float hover:border-brand-primary/20 transition-all group">
                                     <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 shrink-0"><Shield size={24} /></div>
@@ -1708,13 +1693,9 @@ export const Settings = () => {
                                                             </td>
                                                             <td className="py-3 font-semibold text-graphite-800">{tx.description}</td>
                                                             <td className="py-3 text-center">
-                                                                <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${
-                                                                    tx.type === 'recharge' ? 'bg-emerald-100 text-emerald-600' :
-                                                                    tx.type === 'deduction' ? 'bg-slate-100 text-slate-600' :
-                                                                    'bg-blue-100 text-blue-600'
-                                                                }`}>
+                                                                <Badge size="sm" accent={tx.type === 'recharge' ? 'success' : tx.type === 'deduction' ? 'neutral' : 'info'}>
                                                                     {tx.type === 'recharge' ? t('wallet.typeRecharge') : tx.type === 'deduction' ? t('wallet.typeDeduction') : tx.type}
-                                                                </span>
+                                                                </Badge>
                                                             </td>
                                                             <td className={`py-3 text-right font-bold font-mono ${isCredit ? 'text-emerald-500' : 'text-slate-700'}`}>
                                                                 {isCredit ? '+' : '-'} R$ {Number(tx.amount_brl).toFixed(2)}
@@ -1982,13 +1963,10 @@ export const Settings = () => {
                                     </div>
                                 </div>
                                 <div className="flex justify-end pt-4">
-                                    <button
-                                        onClick={handleSaveProfile}
-                                        className="flex items-center gap-2 bg-brand-primary text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-brand-primary/20 hover:scale-105 transition-transform border-none cursor-pointer"
-                                    >
+                                    <Button onClick={handleSaveProfile}>
                                         <Check size={18} />
                                         <span>{t('profile.saveChanges')}</span>
-                                    </button>
+                                    </Button>
                                 </div>
                             </div>
                         </div>
@@ -2168,20 +2146,13 @@ export const Settings = () => {
                     </div>
 
                     <div className="flex gap-2 justify-end pt-4 border-t border-ice-50">
-                        <button
-                            onClick={() => setShowRechargeModal(false)}
-                            className="px-4 py-2.5 rounded-xl font-bold text-graphite-500 hover:bg-ice-100 transition-colors border-none cursor-pointer bg-transparent"
-                        >
+                        <Button variant="ghost" onClick={() => setShowRechargeModal(false)}>
                             {t('wallet.rechargeModal.cancel')}
-                        </button>
-                        <button
-                            onClick={handleRechargeWallet}
-                            disabled={recharging}
-                            className="px-6 py-2.5 rounded-xl font-bold bg-brand-primary text-white hover:bg-brand-primary/90 transition-colors border-none cursor-pointer shadow-md flex items-center gap-1.5 disabled:opacity-60"
-                        >
+                        </Button>
+                        <Button variant="primary" onClick={handleRechargeWallet} disabled={recharging}>
                             {recharging && <RefreshCw size={14} className="animate-spin" />}
                             {t('wallet.rechargeModal.confirm')}
-                        </button>
+                        </Button>
                     </div>
                 </div>
             </div>

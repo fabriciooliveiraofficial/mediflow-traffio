@@ -4,10 +4,11 @@ import { clsx } from 'clsx';
 interface EmptyStateProps {
   icon?: LucideIcon;
   label: string;
+  hint?: string;
   className?: string;
 }
 
-export function EmptyState({ icon: Icon, label, className }: EmptyStateProps) {
+export function EmptyState({ icon: Icon, label, hint, className }: EmptyStateProps) {
   return (
     <div
       className={clsx(
@@ -21,6 +22,7 @@ export function EmptyState({ icon: Icon, label, className }: EmptyStateProps) {
         </div>
       )}
       <p className="text-[10px] font-black text-graphite-300 uppercase tracking-[0.2em]">{label}</p>
+      {hint && <p className="text-xs text-graphite-300 font-medium mt-1">{hint}</p>}
     </div>
   );
 }
