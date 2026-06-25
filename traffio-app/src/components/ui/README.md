@@ -35,6 +35,12 @@ Toda página vive dentro do `DashboardLayout`, que já aplica o padding padrão 
   Comunicações ou Follow-up), o componente da página define `h-[calc(100vh-Npx)]` ou
   `h-full` e se estiliza como um painel contido: `rounded-3xl border border-ice-100 shadow-sm overflow-hidden`
   — nunca remove o padding do layout para "ganhar espaço".
+- **Nunca** envolver o `<div>` raiz de uma página em `max-w-*` + `mx-auto`. A largura também
+  é responsabilidade do `DashboardLayout` — um `max-w-5xl mx-auto` (ou qualquer outro) por
+  cima do padding do layout cria uma faixa de vazio lateral em telas largas (visto em
+  `Settings.tsx` e `FinancialDashboard.tsx`, corrigido). A página deve ocupar 100% da área
+  útil; se um formulário/grid específico ficar esparso com a largura cheia, ajuste as colunas
+  do grid daquela seção (ex: `md:grid-cols-2 lg:grid-cols-4`) em vez de limitar a página inteira.
 
 ## Tipografia
 
@@ -149,7 +155,8 @@ import { Search } from 'lucide-react';
    nunca `bg-blue-50`, `bg-emerald-100` etc. direto na página.
 2. Raio sempre via variantes do `Card` (`rounded-3xl`/`rounded-4xl`) — nunca `rounded-[Npx]` arbitrário.
 3. Tipografia sempre da escala documentada acima — não recriar combinações de peso/tamanho/tracking.
-4. Padding de página vem do `DashboardLayout`, nunca da própria página.
+4. Padding e largura de página vêm do `DashboardLayout`, nunca da própria página — sem
+   `max-w-*`/`mx-auto` no contêiner raiz.
 5. CTAs (ações primárias clicáveis) sempre via `Button`/`IconButton` — nunca `<button className="...">` com cor/raio/peso escritos à mão. Controles de navegação/filtro (abas, segmented controls) podem continuar bespoke quando representam seleção, não ação.
 6. Se um padrão visual se repete em 2+ páginas e não existe primitivo para ele, criar um novo
    componente aqui antes de copiar/colar JSX.
