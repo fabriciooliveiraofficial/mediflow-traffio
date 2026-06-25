@@ -10,10 +10,10 @@
 
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MessageCircle, Instagram, Facebook, Phone, CheckCircle2, Loader2 } from 'lucide-react';
+import { MessageCircle, Instagram, Facebook, Phone, CheckCircle2, Loader2, Image, Mail } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
-type Channel = 'whatsapp' | 'instagram' | 'facebook' | 'sms';
+type Channel = 'whatsapp' | 'instagram' | 'facebook' | 'sms' | 'email' | 'mms';
 
 interface ChannelOption {
   id:          Channel;
@@ -30,9 +30,10 @@ interface Props {
   tenantId:     string;
   patientPhone: string;
   compact?:     boolean;   // modo compacto para sidebar
+  enabledChannels?: Record<string, boolean>;
 }
 
-export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = false }: Props) {
+export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = false, enabledChannels }: Props) {
   const { t } = useTranslation('communications');
 
   const CHANNELS: ChannelOption[] = [
@@ -70,6 +71,26 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
       idLabel:     t('channelPreferenceSelector.smsIdLabel'),
       idPlaceholder: t('channelPreferenceSelector.smsPlaceholder'),
     },
+    {
+      id:          'mms',
+      label:       'MMS',
+      icon:        Image,
+      color:       'text-indigo-600',
+      bgColor:     'bg-indigo-50 border-indigo-200',
+      requiresId:  true,
+      idLabel:     t('channelPreferenceSelector.mmsIdLabel'),
+      idPlaceholder: t('channelPreferenceSelector.mmsPlaceholder'),
+    },
+    {
+      id:          'email',
+      label:       'E-mail',
+      icon:        Mail,
+      color:       'text-violet-600',
+      bgColor:     'bg-violet-50 border-violet-200',
+      requiresId:  true,
+      idLabel:     t('channelPreferenceSelector.emailIdLabel'),
+      idPlaceholder: t('channelPreferenceSelector.emailPlaceholder'),
+    },
   ];
 
   const [pref,        setPref]        = useState<Channel>('whatsapp');
@@ -78,6 +99,15 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
   const [saving,      setSaving]      = useState(false);
   const [saved,       setSaved]       = useState(false);
   const [loading,     setLoading]     = useState(true);
+
+  const filteredChannels = CHANNELS.filter(ch => {
+    // Sempre exibir o canal preferido atual do paciente
+    if (ch.id === pref) return true;
+    
+    if (!enabledChannels) return true;
+    const isDefaultEnabled = ch.id === 'whatsapp' || ch.id === 'sms';
+    return enabledChannels[ch.id] ?? isDefaultEnabled;
+  });
 
   // Carregar preferência existente
   useEffect(() => {
@@ -115,7 +145,9 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
       updated_at:       new Date().toISOString(),
     };
 
-    if (channel === 'sms') update.sms_phone = phone ?? smsPhone;
+    if (channel === 'sms' || channel === 'mms' || channel === 'email') {
+      update.sms_phone = phone ?? smsPhone;
+    }
 
     await supabase
       .from('patient_channel_preferences')
@@ -160,12 +192,12 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
         </div>
 
         <div className="grid grid-cols-2 gap-1.5">
-          {CHANNELS.map((ch) => {
+          {filteredChannels.map((ch) => {
             const isActive = pref === ch.id;
             return (
               <button
                 key={ch.id}
-                onClick={() => ch.id !== 'sms' && save(ch.id)}
+                onClick={() => ch.requiresId ? setPref(ch.id) : save(ch.id)}
                 className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
                   isActive
                     ? `${ch.bgColor} ${ch.color}`
@@ -180,18 +212,18 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
           })}
         </div>
 
-        {/* Campo de número SMS */}
-        {pref === 'sms' && (
+        {/* Campo de identificação (SMS/MMS/Email) */}
+        {selectedChannel?.requiresId && (
           <div className="flex gap-1.5">
             <input
-              type="tel"
+              type={pref === 'email' ? 'email' : 'tel'}
               value={smsPhone}
               onChange={(e) => setSmsPhone(e.target.value)}
-              placeholder={t('channelPreferenceSelector.smsPlaceholder')}
+              placeholder={selectedChannel.idPlaceholder}
               className="flex-1 text-xs bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 focus:outline-none focus:border-brand-primary"
             />
             <button
-              onClick={() => save('sms', smsPhone)}
+              onClick={() => save(pref, smsPhone)}
               disabled={!smsPhone || saving}
               className="px-3 py-2 bg-brand-primary text-white text-xs font-bold rounded-xl disabled:opacity-40 border-none cursor-pointer"
             >
@@ -200,16 +232,21 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
           </div>
         )}
 
-        {/* Selecionar SMS */}
-        {pref !== 'sms' && (
+        {/* Selecionar outros canais que requerem ID */}
+        {CHANNELS.filter(ch => ch.requiresId && ch.id !== pref && filteredChannels.some(fc => fc.id === ch.id)).map(ch => (
           <button
-            onClick={() => { setPref('sms'); }}
+            key={ch.id}
+            onClick={() => { setPref(ch.id); }}
             className="w-full flex items-center gap-1.5 px-2.5 py-2 rounded-xl border border-ice-100 text-xs font-bold text-graphite-400 hover:border-ice-200 transition-all cursor-pointer bg-white"
           >
-            <Phone size={12} />
-            {t('channelPreferenceSelector.selectSms')}
+            <ch.icon size={12} />
+            {ch.id === 'sms' 
+              ? t('channelPreferenceSelector.selectSms') 
+              : ch.id === 'mms' 
+                ? t('channelPreferenceSelector.selectMms', { defaultValue: 'Selecionar MMS' }) 
+                : t('channelPreferenceSelector.selectEmail', { defaultValue: 'Selecionar E-mail' })}
           </button>
-        )}
+        ))}
 
         {saved && (
           <p className="text-[10px] text-green-600 font-bold flex items-center gap-1">
@@ -220,7 +257,7 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
     );
   }
 
-  // Modo expandido (para uso futuro em página de configurações)
+  // Modo expandido (para uso futuro em página de configurações / PatientDetails)
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -235,12 +272,12 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        {CHANNELS.map((ch) => {
+        {filteredChannels.map((ch) => {
           const isActive = pref === ch.id;
           return (
             <button
               key={ch.id}
-              onClick={() => ch.id !== 'sms' ? save(ch.id) : setPref('sms')}
+              onClick={() => ch.requiresId ? setPref(ch.id) : save(ch.id)}
               className={`flex items-center gap-2 p-3 rounded-2xl border text-sm font-bold transition-all cursor-pointer ${
                 isActive
                   ? `${ch.bgColor} ${ch.color} shadow-sm`
@@ -255,17 +292,17 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
         })}
       </div>
 
-      {pref === 'sms' && (
+      {selectedChannel?.requiresId && (
         <div className="flex gap-2">
           <input
-            type="tel"
+            type={pref === 'email' ? 'email' : 'tel'}
             value={smsPhone}
             onChange={(e) => setSmsPhone(e.target.value)}
-            placeholder={t('channelPreferenceSelector.smsPlaceholder')}
+            placeholder={selectedChannel.idPlaceholder}
             className="flex-1 text-sm bg-ice-50 border border-ice-200 rounded-2xl px-4 py-2.5 focus:outline-none focus:border-brand-primary"
           />
           <button
-            onClick={() => save('sms', smsPhone)}
+            onClick={() => save(pref, smsPhone)}
             disabled={!smsPhone || saving}
             className="px-4 py-2.5 bg-brand-primary text-white font-bold rounded-2xl disabled:opacity-40 border-none cursor-pointer"
           >

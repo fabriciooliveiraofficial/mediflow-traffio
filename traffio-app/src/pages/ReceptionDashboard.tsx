@@ -18,6 +18,9 @@ import { useLocaleFormat } from '../hooks/useLocaleFormat';
 import { getIntlLocale } from '../lib/i18n';
 import { useTenant } from '../contexts/TenantContext';
 import { getTenantTodayString, localDateTimeToUTC } from '../lib/timezoneUtils';
+import { Button, Badge, KpiCard, EmptyState, Card, PageHeader } from '../components/ui';
+
+type StatusAccent = 'neutral' | 'warning' | 'brand' | 'success' | 'error';
 
 export const ReceptionDashboard = () => {
     const { t, i18n } = useTranslation('crm');
@@ -83,14 +86,14 @@ export const ReceptionDashboard = () => {
         }
     };
 
-    const getStatusColor = (status: string) => {
+    const getStatusAccent = (status: string): StatusAccent => {
         switch (status) {
-            case 'scheduled': return 'bg-ice-100 text-graphite-500';
-            case 'waiting': return 'bg-amber-100 text-amber-600';
-            case 'in_consult': return 'bg-brand-secondary/30 text-brand-primary';
-            case 'completed': return 'bg-emerald-100 text-emerald-600';
-            case 'cancelled': return 'bg-rose-100 text-rose-600';
-            default: return 'bg-gray-100 text-gray-500';
+            case 'scheduled': return 'neutral';
+            case 'waiting': return 'warning';
+            case 'in_consult': return 'brand';
+            case 'completed': return 'success';
+            case 'cancelled': return 'error';
+            default: return 'neutral';
         }
     };
 
@@ -114,77 +117,72 @@ export const ReceptionDashboard = () => {
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Top Bar: Clinic Status & Actions */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div>
-                    <div className="flex items-center gap-3 mb-1">
-                        <MapPin className="text-brand-primary" size={20} />
-                        <h2 className="text-xl font-black text-graphite-900 tracking-tight">{tenant?.name || 'Clínica'}</h2>
-                    </div>
-                    <p className="text-graphite-500 font-medium flex items-center gap-2">
+            <PageHeader
+                icon={MapPin}
+                title={tenant?.name || 'Clínica'}
+                subtitle={
+                    <span className="flex items-center gap-2">
                         <Calendar size={14} />
                         {new Intl.DateTimeFormat(getIntlLocale(i18n.language), { timeZone: timezone || 'America/Sao_Paulo', weekday: 'long', day: 'numeric', month: 'long' }).format(currentTime)}
                         <span className="w-1 h-1 bg-graphite-300 rounded-full" />
                         <Clock size={14} />
                         {formatTime(currentTime)}
-                    </p>
-                </div>
-
-                <div className="flex items-center gap-3">
-                    <div className="hidden md:flex items-center gap-2 bg-white border border-ice-200 rounded-xl px-4 py-2.5 shadow-sm">
-                        <Search size={18} className="text-graphite-300" />
-                        <input
-                            type="text"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            placeholder={t('receptionDashboard.searchPlaceholder')}
-                            className="bg-transparent border-none outline-none text-sm font-medium w-64"
-                        />
-                    </div>
-                    <button
-                        onClick={handleCallNext}
-                        className="flex items-center gap-2 bg-emerald-500 text-white px-5 py-2.5 rounded-xl font-bold shadow-md shadow-emerald-500/20 hover:scale-105 transition-transform border-none cursor-pointer"
-                    >
-                        <Megaphone size={18} />
-                        {t('receptionDashboard.callNext')}
-                    </button>
-                    <button
-                        onClick={() => setIsNewPatientModalOpen(true)}
-                        className="flex items-center gap-2 bg-brand-primary text-white px-5 py-2.5 rounded-xl font-bold shadow-md shadow-brand-primary/20 hover:scale-105 transition-transform border-none cursor-pointer"
-                    >
-                        <UserPlus size={18} />
-                        <span>{t('receptionDashboard.newPatient')}</span>
-                    </button>
-                </div>
-            </div>
+                    </span>
+                }
+                actions={
+                    <>
+                        <div className="hidden md:flex items-center gap-2 bg-white border border-ice-200 rounded-xl px-4 py-2.5 shadow-sm">
+                            <Search size={18} className="text-graphite-300" />
+                            <input
+                                type="text"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                placeholder={t('receptionDashboard.searchPlaceholder')}
+                                className="bg-transparent border-none outline-none text-sm font-medium w-64"
+                            />
+                        </div>
+                        <Button variant="success" onClick={handleCallNext}>
+                            <Megaphone size={18} />
+                            {t('receptionDashboard.callNext')}
+                        </Button>
+                        <Button variant="primary" onClick={() => setIsNewPatientModalOpen(true)}>
+                            <UserPlus size={18} />
+                            <span>{t('receptionDashboard.newPatient')}</span>
+                        </Button>
+                    </>
+                }
+            />
 
             {/* Quick Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-white p-4 rounded-2xl border border-ice-100 shadow-sm">
-                    <p className="text-xs font-black text-graphite-400 uppercase tracking-wider mb-1">{t('receptionDashboard.totalToday')}</p>
-                    <p className="text-2xl font-black text-graphite-900">{appointments.length}</p>
-                </div>
-                <div className="bg-amber-50 p-4 rounded-2xl border border-amber-100 shadow-sm">
-                    <p className="text-xs font-black text-amber-700 uppercase tracking-wider mb-1">{t('receptionDashboard.waiting')}</p>
-                    <p className="text-2xl font-black text-amber-900">
-                        {appointments.filter(a => a.status === 'waiting').length}
-                    </p>
-                </div>
-                <div className="bg-brand-secondary/10 p-4 rounded-2xl border border-brand-secondary/20 shadow-sm">
-                    <p className="text-xs font-black text-brand-primary uppercase tracking-wider mb-1">{t('receptionDashboard.inConsult')}</p>
-                    <p className="text-2xl font-black text-brand-primary">
-                        {appointments.filter(a => a.status === 'in_consult').length}
-                    </p>
-                </div>
-                <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 shadow-sm">
-                    <p className="text-xs font-black text-emerald-700 uppercase tracking-wider mb-1">{t('receptionDashboard.completed')}</p>
-                    <p className="text-2xl font-black text-emerald-900">
-                        {appointments.filter(a => a.status === 'completed').length}
-                    </p>
-                </div>
+                <KpiCard
+                    label={t('receptionDashboard.totalToday')}
+                    value={appointments.length}
+                    icon={Calendar}
+                    accent="neutral"
+                />
+                <KpiCard
+                    label={t('receptionDashboard.waiting')}
+                    value={appointments.filter(a => a.status === 'waiting').length}
+                    icon={Clock}
+                    accent="warning"
+                />
+                <KpiCard
+                    label={t('receptionDashboard.inConsult')}
+                    value={appointments.filter(a => a.status === 'in_consult').length}
+                    icon={User}
+                    accent="brand"
+                />
+                <KpiCard
+                    label={t('receptionDashboard.completed')}
+                    value={appointments.filter(a => a.status === 'completed').length}
+                    icon={CheckCircle2}
+                    accent="success"
+                />
             </div>
 
             {/* Main List */}
-            <div className="bg-white rounded-[32px] border border-ice-200 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
+            <Card variant="panel" padding="none" className="overflow-hidden flex flex-col min-h-[500px]">
                 {/* List Header */}
                 <div className="p-6 border-b border-ice-100 flex items-center justify-between bg-ice-50/50">
                     <h3 className="font-black text-lg text-graphite-900">{t('receptionDashboard.dayAgenda')}</h3>
@@ -207,31 +205,29 @@ export const ReceptionDashboard = () => {
                 {/* List Content */}
                 <div className="divide-y divide-ice-50 overflow-y-auto">
                     {filteredAppointments.length === 0 ? (
-                        <div className="p-12 text-center text-graphite-400">
-                            <p className="font-medium">{t('receptionDashboard.empty')}</p>
-                        </div>
+                        <EmptyState icon={Search} label={t('receptionDashboard.empty')} />
                     ) : (
                         filteredAppointments.map((app) => (
                             <div key={app.id} className="p-4 hover:bg-ice-50/50 transition-colors flex flex-col md:flex-row md:items-center gap-4 group">
                                 {/* Time & Status */}
                                 <div className="flex items-center gap-4 w-40 shrink-0">
                                     <span className="font-black text-xl text-graphite-900">{app.time}</span>
-                                    <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase ${getStatusColor(app.status)}`}>
+                                    <Badge accent={getStatusAccent(app.status)} variant="pill" size="sm">
                                         {getStatusLabel(app.status)}
-                                    </span>
+                                    </Badge>
                                 </div>
 
                                 {/* Patient Info */}
                                 <div className="flex-1">
                                     <div className="flex items-center gap-2">
                                         <h4 className="font-bold text-graphite-900 text-base">{app.patient}</h4>
-                                        <span className="text-xs font-medium text-graphite-400 px-2 py-0.5 bg-ice-100 rounded-full">
+                                        <Badge accent="neutral" variant="tag" size="sm">
                                             {app.type}
-                                        </span>
+                                        </Badge>
                                         {app.checkin_at && (
-                                            <span className="flex items-center gap-1 text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                                            <Badge accent="success" variant="pill" size="sm">
                                                 <Wifi size={10} /> {t('receptionDashboard.checkinOk')}
-                                            </span>
+                                            </Badge>
                                         )}
                                     </div>
                                     <p className="text-xs text-graphite-400 font-medium mt-0.5 flex items-center gap-1">
@@ -242,38 +238,29 @@ export const ReceptionDashboard = () => {
                                 {/* Actions */}
                                 <div className="flex items-center gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                                     {app.status === 'scheduled' && (
-                                        <button
-                                            onClick={() => handleStatusChange(app.id, 'waiting')}
-                                            className="px-4 py-2 bg-brand-primary text-white rounded-xl text-xs font-bold hover:scale-105 transition-transform shadow-md shadow-brand-primary/20 border-none cursor-pointer flex items-center gap-2"
-                                        >
+                                        <Button variant="primary" size="sm" onClick={() => handleStatusChange(app.id, 'waiting')}>
                                             <CheckCircle2 size={14} />
                                             {t('receptionDashboard.actions.arrived')}
-                                        </button>
+                                        </Button>
                                     )}
                                     {app.status === 'waiting' && (
-                                        <button
-                                            onClick={() => handleStatusChange(app.id, 'in_consult')}
-                                            className="px-4 py-2 bg-brand-secondary text-brand-primary rounded-xl text-xs font-bold hover:bg-brand-secondary/80 transition-colors border-none cursor-pointer flex items-center gap-2"
-                                        >
+                                        <Button variant="secondary" size="sm" onClick={() => handleStatusChange(app.id, 'in_consult')}>
                                             <Megaphone size={14} />
                                             {t('receptionDashboard.actions.call')}
-                                        </button>
+                                        </Button>
                                     )}
                                     {app.status === 'in_consult' && (
-                                        <button
-                                            onClick={() => handleStatusChange(app.id, 'completed')}
-                                            className="px-4 py-2 bg-emerald-100 text-emerald-700 rounded-xl text-xs font-bold hover:bg-emerald-200 transition-colors border-none cursor-pointer flex items-center gap-2"
-                                        >
+                                        <Button variant="success" size="sm" onClick={() => handleStatusChange(app.id, 'completed')}>
                                             <CheckCircle2 size={14} />
                                             {t('receptionDashboard.actions.finish')}
-                                        </button>
+                                        </Button>
                                     )}
                                 </div>
                             </div>
                         ))
                     )}
                 </div>
-            </div>
+            </Card>
 
             <NewPatientModal
                 isOpen={isNewPatientModalOpen}

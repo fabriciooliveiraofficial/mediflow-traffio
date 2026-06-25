@@ -63,7 +63,7 @@ import { PortalProfile } from './pages/portal/PortalProfile'
 // --- Tenant Application Wrapper (Legacy State Navigation) ---
 function TenantApp() {
   const { t } = useTranslation('billing')
-  const [activeScreen, setActiveScreen] = useState('dashboard')
+  const [activeScreen, setActiveScreen] = useState('agenda')
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null)
   const [searchParams, setSearchParams] = useSearchParams()
   const { tenant, refresh } = useTenant()

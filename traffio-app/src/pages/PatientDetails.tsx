@@ -42,6 +42,7 @@ import { formatDisplayDate } from '../lib/dateUtils';
 import { formatDoc, docLabel } from '../lib/i18n/doc';
 import { formatNational } from '../lib/i18n/phone';
 import { DEFAULT_COUNTRY, type CountryCode } from '../lib/i18n/countryFormats';
+import { ChannelPreferenceSelector } from '../components/channel/ChannelPreferenceSelector';
 
 interface PatientDetailsProps {
     patientId: string;
@@ -306,6 +307,17 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
                                 </div>
                             </div>
                         </div>
+
+                        {/* Preferências de Notificação */}
+                        {tenant?.id && (patient.mobile || patient.phone) && (
+                            <div className="p-5 rounded-2xl bg-ice-50 border border-ice-100">
+                                <ChannelPreferenceSelector
+                                    tenantId={tenant.id}
+                                    patientPhone={patient.mobile || patient.phone}
+                                    enabledChannels={tenant.bot_config?.enabled_channels}
+                                />
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

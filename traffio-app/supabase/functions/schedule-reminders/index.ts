@@ -123,12 +123,11 @@ serve(async (req: Request) => {
         const today     = now.toISOString().split("T")[0];
         const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
 
-        // 1. Buscar agendamentos
         const { data: appointments, error: fetchErr } = await supabase
             .from("appointments")
             .select(`
                 id, tenant_id, date, start_time, status, created_at, booked_by,
-                patients(phone, full_name),
+                patients(phone, full_name, preferred_locale),
                 doctors(full_name),
                 locations(name, address, google_maps_url, latitude, longitude),
                 appointment_types(name)
@@ -273,53 +272,135 @@ serve(async (req: Request) => {
 
             const queueBatch: any[] = [];
 
-            const addMessage = (type: string, targetAt: number, stageKey?: string) => {
-                if (targetAt < now.getTime()) return;
+            if (botConfig.custom_reminders && Array.isArray(botConfig.custom_reminders)) {
+                // Dynamic custom reminders scheduled via the new model
+                botConfig.custom_reminders.forEach((r: any) => {
+                    if (!r.enabled) return;
 
-                const scheduledTime = getSafeScheduledTime(new Date(targetAt), type, timezone);
+                    const offsetMinutes = r.offset_minutes;
+                    let targetTime = apptTimestamp + (offsetMinutes * 60 * 1000);
+                    let type = `reminder_custom_${offsetMinutes}`;
 
-                // Vídeos de lembrete: apenas para WhatsApp
-                let media_url  = null;
-                let media_type = null;
-                if (
-                    channelInfo.channel === "whatsapp" &&
-                    botConfig.reminder_videos_enabled &&
-                    stageKey &&
-                    botConfig.reminder_videos?.[stageKey]
-                ) {
-                    media_url  = botConfig.reminder_videos[stageKey];
-                    media_type = "video";
-                }
+                    // Match legacy test mode behavior for 15m offset
+                    if (botConfig.test_mode_15m && offsetMinutes === -15) {
+                        targetTime = apptTimestamp - (5 * 60 * 1000);
+                    }
 
-                let override_message = null;
-                if (stageKey && botConfig.reminder_captions?.[stageKey]) {
-                    override_message = renderCustomCaption(botConfig.reminder_captions[stageKey], vars);
-                }
+                    if (targetTime < now.getTime()) return;
 
-                queueBatch.push({
-                    tenant_id:            appt.tenant_id,
-                    patient_phone:        patientData.phone,
-                    message_type:         type,
-                    template_key:         type === "reminder_15m" ? "appointment_reminder_15m" : "appointment_" + type,
-                    template_vars:        { ...vars, override_message },
-                    scheduled_at:         scheduledTime,
-                    reference_id:         appt.id,
-                    reference_type:       "appointment",
-                    media_url,
-                    media_type,
-                    is_edited:            !!override_message,
-                    status:               "pending",
-                    // ── Multi-canal ──────────────────────────────────────────
-                    notification_channel: channelInfo.channel,
-                    channel_recipient_id: channelInfo.recipientId,
+                    const scheduledTime = getSafeScheduledTime(new Date(targetTime), type, timezone);
+
+                    // Vídeos de lembrete: apenas para WhatsApp
+                    let media_url = null;
+                    let media_type = null;
+                    if (
+                        channelInfo.channel === "whatsapp" &&
+                        botConfig.reminder_videos_enabled &&
+                        r.videoUrl
+                    ) {
+                        media_url = r.videoUrl;
+                        media_type = "video";
+                    }
+
+                    let override_message = null;
+                    if (r.caption) {
+                        let captionText = "";
+                        if (typeof r.caption === "string") {
+                            captionText = r.caption;
+                        } else if (r.caption && typeof r.caption === "object") {
+                            let locale = (patientData?.preferred_locale || "pt").toLowerCase();
+                            if (locale.startsWith("en")) locale = "en";
+                            else if (locale.startsWith("es")) locale = "es";
+                            else locale = "pt";
+                            captionText = r.caption[locale] || r.caption["pt"] || r.caption["en"] || "";
+                        }
+                        override_message = renderCustomCaption(captionText, vars);
+                    }
+
+                    let templateKey = "appointment_reminder_2h";
+                    if (offsetMinutes === -2880) templateKey = "appointment_reminder_48h";
+                    else if (offsetMinutes === -1440) templateKey = "appointment_reminder_24h";
+                    else if (offsetMinutes === -120) templateKey = "appointment_reminder_2h";
+                    else if (offsetMinutes === -15) templateKey = "appointment_reminder_15m";
+
+                    queueBatch.push({
+                        tenant_id:            appt.tenant_id,
+                        patient_phone:        patientData.phone,
+                        message_type:         type,
+                        template_key:         templateKey,
+                        template_vars:        { ...vars, override_message },
+                        scheduled_at:         scheduledTime,
+                        reference_id:         appt.id,
+                        reference_type:       "appointment",
+                        media_url,
+                        media_type,
+                        is_edited:            !!override_message,
+                        status:               "pending",
+                        // ── Multi-canal ──────────────────────────────────────────
+                        notification_channel: channelInfo.channel,
+                        channel_recipient_id: channelInfo.recipientId,
+                    });
                 });
-            };
+            } else {
+                // Fallback to legacy scheduling logic if custom_reminders is not present
+                const addMessage = (type: string, targetAt: number, stageKey?: string) => {
+                    if (targetAt < now.getTime()) return;
 
-            if (botConfig.active_reminders?.["48h"] !== false) addMessage("reminder_48h", apptTimestamp - (48 * 60 * 60 * 1000), "48h");
-            if (botConfig.active_reminders?.["24h"] !== false) addMessage("reminder_24h", apptTimestamp - (24 * 60 * 60 * 1000), "24h");
-            if (botConfig.active_reminders?.["2h"]  !== false) addMessage("reminder_2h",  apptTimestamp - (2 * 60 * 60 * 1000),  "2h");
-            if (botConfig.test_mode_15m && botConfig.active_reminders?.["15m"] !== false) {
-                addMessage("reminder_15m", apptTimestamp - (5 * 60 * 1000), "15m");
+                    const scheduledTime = getSafeScheduledTime(new Date(targetAt), type, timezone);
+
+                    // Vídeos de lembrete: apenas para WhatsApp
+                    let media_url  = null;
+                    let media_type = null;
+                    if (
+                        channelInfo.channel === "whatsapp" &&
+                        botConfig.reminder_videos_enabled &&
+                        stageKey &&
+                        botConfig.reminder_videos?.[stageKey]
+                    ) {
+                        media_url  = botConfig.reminder_videos[stageKey];
+                        media_type = "video";
+                    }
+
+                    let override_message = null;
+                    if (stageKey && botConfig.reminder_captions?.[stageKey]) {
+                        const captionObj = botConfig.reminder_captions[stageKey];
+                        if (typeof captionObj === "string") {
+                            override_message = renderCustomCaption(captionObj, vars);
+                        } else if (captionObj && typeof captionObj === "object") {
+                            let locale = (patientData?.preferred_locale || "pt").toLowerCase();
+                            if (locale.startsWith("en")) locale = "en";
+                            else if (locale.startsWith("es")) locale = "es";
+                            else locale = "pt";
+                            const msgTemplate = captionObj[locale] || captionObj["pt"] || captionObj["en"] || "";
+                            override_message = renderCustomCaption(msgTemplate, vars);
+                        }
+                    }
+
+                    queueBatch.push({
+                        tenant_id:            appt.tenant_id,
+                        patient_phone:        patientData.phone,
+                        message_type:         type,
+                        template_key:         type === "reminder_15m" ? "appointment_reminder_15m" : "appointment_" + type,
+                        template_vars:        { ...vars, override_message },
+                        scheduled_at:         scheduledTime,
+                        reference_id:         appt.id,
+                        reference_type:       "appointment",
+                        media_url,
+                        media_type,
+                        is_edited:            !!override_message,
+                        status:               "pending",
+                        // ── Multi-canal ──────────────────────────────────────────
+                        notification_channel: channelInfo.channel,
+                        channel_recipient_id: channelInfo.recipientId,
+                    });
+                };
+
+                if (botConfig.active_reminders?.["48h"] !== false) addMessage("reminder_48h", apptTimestamp - (48 * 60 * 60 * 1000), "48h");
+                if (botConfig.active_reminders?.["24h"] !== false) addMessage("reminder_24h", apptTimestamp - (24 * 60 * 60 * 1000), "24h");
+                if (botConfig.active_reminders?.["2h"]  !== false) addMessage("reminder_2h",  apptTimestamp - (2 * 60 * 60 * 1000),  "2h");
+                if (botConfig.test_mode_15m && botConfig.active_reminders?.["15m"] !== false) {
+                    addMessage("reminder_15m", apptTimestamp - (5 * 60 * 1000), "15m");
+                }
             }
 
             if (queueBatch.length > 0) {

@@ -96,8 +96,32 @@ export const FilaAutomacoes: React.FC<FilaAutomacoesProps> = ({ tenantId, dateRa
             nps: { label: t('filaAutomacoes.type.nps'), color: 'bg-blue-50 text-blue-600' },
             reactivation: { label: t('filaAutomacoes.type.reactivation'), color: 'bg-pink-50 text-pink-600' }
         };
-        const config = labels[type] || { label: type, color: 'bg-ice-50 text-graphite-400' };
-        return <span className={clsx("px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-tight", config.color)}>{config.label}</span>;
+        
+        let config = labels[type];
+        if (!config && type.startsWith('reminder_')) {
+            const match = type.match(/reminder_(?:custom_)?(-?\d+)/);
+            if (match) {
+                const mins = parseInt(match[1]);
+                const isBefore = mins < 0;
+                const absMins = Math.abs(mins);
+                let labelText = '';
+                if (absMins % 1440 === 0) {
+                    const days = absMins / 1440;
+                    labelText = `Lembrete ${days}d ${isBefore ? 'Antes' : 'Depois'}`;
+                } else if (absMins % 60 === 0) {
+                    const hrs = absMins / 60;
+                    labelText = `Lembrete ${hrs}h ${isBefore ? 'Antes' : 'Depois'}`;
+                } else {
+                    labelText = `Lembrete ${absMins}m ${isBefore ? 'Antes' : 'Depois'}`;
+                }
+                config = { label: labelText, color: 'bg-amber-50 text-amber-600' };
+            } else {
+                config = { label: type.replace(/_/g, ' '), color: 'bg-amber-50 text-amber-600' };
+            }
+        }
+        
+        const badgeConfig = config || { label: type, color: 'bg-ice-50 text-graphite-400' };
+        return <span className={clsx("px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-tight", badgeConfig.color)}>{badgeConfig.label}</span>;
     };
 
     const handleEditSave = async () => {

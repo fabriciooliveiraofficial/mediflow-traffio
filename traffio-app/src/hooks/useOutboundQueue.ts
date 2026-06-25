@@ -6,7 +6,7 @@ export interface OutboundQueueRow {
     tenant_id: string;
     patient_phone: string;
     patient_name?: string;
-    message_type: 'follow_up' | 'reminder_48h' | 'reminder_24h' | 'reminder_2h' | 'booking_confirmed' | 'post_consultation' | 'nps' | 'reactivation';
+    message_type: 'follow_up' | 'reminder_48h' | 'reminder_24h' | 'reminder_2h' | 'booking_confirmed' | 'post_consultation' | 'nps' | 'reactivation' | (string & {});
     template_key: string;
     template_vars: any;
     scheduled_at: string;

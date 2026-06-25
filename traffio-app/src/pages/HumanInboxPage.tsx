@@ -33,6 +33,7 @@ import { SidebarPatientEditView } from '../components/SidebarPatientEditView'
 import { ChannelPreferenceSelector } from '../components/channel/ChannelPreferenceSelector'
 import { salesScriptService, type SalesScript } from '../services/salesScriptService'
 import { ScriptManagerDrawer } from '../components/ScriptManagerDrawer'
+import { useTenant } from '../contexts/TenantContext'
 
 // ─────────────────────────────────────────────
 // Types
@@ -599,16 +600,29 @@ interface ChatInputProps {
   clinicName?: string
   onOpenScriptManager: (editingId?: string | null) => void
   onDeleteScript?: (id: string) => Promise<void>
+  metaWindowTimeLeft?: number | null
+  metaWindowExpired?: boolean
 }
 
 export const ChatInput = memo(({ 
   isOwned, canClaim, isClosed, onSend, onSendMedia, onUploadFile, sending, 
   uploadingMedia, setUploadingMedia, replyingTo, editingMsg, onCancelContext,
   salesScripts = [], patient, currentUserName = '', clinicName = '',
-  onOpenScriptManager, onDeleteScript
+  onOpenScriptManager, onDeleteScript,
+  metaWindowTimeLeft = null,
+  metaWindowExpired = false
 }: ChatInputProps) => {
   const { t } = useTranslation('communications')
   const { showToast } = useToast()
+
+  const formatCountdown = (ms: number) => {
+    const totalSecs = Math.floor(ms / 1000)
+    const hours = Math.floor(totalSecs / 3600)
+    const minutes = Math.floor((totalSecs % 3600) / 60)
+    const seconds = totalSecs % 60
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+  }
+
   const [input, setInput]           = useState('')
   const [inputMode, setInputMode]   = useState<'message' | 'note'>('message')
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
@@ -1331,6 +1345,19 @@ export const ChatInput = memo(({
         {/* Mode tabs & Input box - Hidden when previewing to avoid confusion */}
         {!previewUrl && (
           <div className="space-y-2">
+            {/* Meta 24h window countdown timer */}
+            {metaWindowTimeLeft !== null && metaWindowTimeLeft > 0 && !metaWindowExpired && (
+              <div className="flex items-center justify-between px-3 py-1.5 bg-blue-50 border border-blue-100 rounded-xl text-xs text-blue-700 animate-fade-in">
+                <div className="flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-blue-500 animate-pulse" />
+                  <span className="font-semibold">{t('humanInbox.chatInput.metaWindowOpenWarning')}</span>
+                </div>
+                <span className="font-mono font-bold tracking-wider bg-blue-100 px-2 py-0.5 rounded text-blue-800">
+                  {formatCountdown(metaWindowTimeLeft)}
+                </span>
+              </div>
+            )}
+
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1">
                 <button onClick={() => setInputMode('message')}
@@ -1352,55 +1379,67 @@ export const ChatInput = memo(({
               )}
             </div>
 
-            <div className="flex flex-col border border-gray-200 rounded-2xl overflow-hidden focus-within:ring-2 focus-within:ring-blue-400 focus-within:border-transparent transition-all shadow-sm">
-              <div className="flex items-center justify-between px-2 py-1.5 bg-gray-50/50 border-b border-gray-100">
-                <div className="flex items-center gap-0.5">
-                  <button onClick={(e) => { e.stopPropagation(); setShowEmojiPicker(!showEmojiPicker) }}
-                    className={clsx("p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-white transition-all", showEmojiPicker && "text-blue-600 bg-white")} title={t('humanInbox.chatInput.titles.emojis')}>
-                    <Smile size={18} />
-                  </button>
-                  <button onClick={() => fileInputRef.current?.click()}
-                    className="p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-white transition-all" title={t('humanInbox.chatInput.titles.attachFile')}>
-                    <Paperclip size={18} />
-                  </button>
-                  <button onClick={() => cameraInputRef.current?.click()}
-                    className="p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-white transition-all hidden sm:flex" title={t('humanInbox.chatInput.titles.camera')}>
-                    <Camera size={18} />
-                  </button>
+            {metaWindowExpired && inputMode === 'message' ? (
+              <div className="flex flex-col border border-red-200 bg-red-50/50 rounded-2xl p-6 gap-3 items-center text-center animate-fade-in">
+                <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center text-red-600 shadow-sm">
+                  <AlertTriangle className="w-6 h-6 animate-pulse" />
                 </div>
-                <div className="flex items-center gap-0.5">
-                  {inputMode === 'message' && (
-                    <button onClick={startRecording}
-                      className="p-2 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all" title={t('humanInbox.chatInput.titles.recordAudio')}>
-                      <Mic size={18} />
+                <div className="space-y-1">
+                  <h4 className="font-bold text-sm text-red-800">{t('humanInbox.chatInput.metaWindowExpiredHeading')}</h4>
+                  <p className="text-xs text-red-600 max-w-md leading-relaxed">{t('humanInbox.chatInput.metaWindowExpiredHint')}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col border border-gray-200 rounded-2xl overflow-hidden focus-within:ring-2 focus-within:ring-blue-400 focus-within:border-transparent transition-all shadow-sm">
+                <div className="flex items-center justify-between px-2 py-1.5 bg-gray-50/50 border-b border-gray-100">
+                  <div className="flex items-center gap-0.5">
+                    <button onClick={(e) => { e.stopPropagation(); setShowEmojiPicker(!showEmojiPicker) }}
+                      className={clsx("p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-white transition-all", showEmojiPicker && "text-blue-600 bg-white")} title={t('humanInbox.chatInput.titles.emojis')}>
+                      <Smile size={18} />
                     </button>
-                  )}
+                    <button onClick={() => fileInputRef.current?.click()}
+                      className="p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-white transition-all" title={t('humanInbox.chatInput.titles.attachFile')}>
+                      <Paperclip size={18} />
+                    </button>
+                    <button onClick={() => cameraInputRef.current?.click()}
+                      className="p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-white transition-all hidden sm:flex" title={t('humanInbox.chatInput.titles.camera')}>
+                      <Camera size={18} />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-0.5">
+                    {inputMode === 'message' && (
+                      <button onClick={startRecording}
+                        className="p-2 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all" title={t('humanInbox.chatInput.titles.recordAudio')}>
+                        <Mic size={18} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-end gap-2 p-1.5 bg-white">
+                  <textarea
+                    ref={inputRef}
+                    value={input}
+                    onChange={handleInputText}
+                    onKeyDown={handleKeyDown}
+                    onPaste={onPaste}
+                    onDragOver={e => e.preventDefault()}
+                    onDrop={onDrop}
+                    placeholder={inputMode === 'note' ? t('humanInbox.chatInput.placeholder.note') : t('humanInbox.chatInput.placeholder.message')}
+                    rows={2}
+                    className={clsx('flex-1 resize-none bg-transparent border-none px-3 py-2 text-sm focus:ring-0 placeholder:text-gray-300',
+                      inputMode === 'note' ? 'text-amber-900' : 'text-gray-800')}
+                  />
+                  <button onClick={handleSend}
+                    disabled={(!input.trim() && !uploadingMedia) || sending}
+                    className={clsx('w-9 h-9 rounded-xl flex items-center justify-center transition-all shrink-0 shadow-sm border-none cursor-pointer',
+                      inputMode === 'note' ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-blue-600 text-white hover:bg-blue-700',
+                      (!input.trim() && !sending) && 'opacity-30 scale-95 grayscale')}>
+                    {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                  </button>
                 </div>
               </div>
-
-              <div className="flex items-end gap-2 p-1.5 bg-white">
-                <textarea
-                  ref={inputRef}
-                  value={input}
-                  onChange={handleInputText}
-                  onKeyDown={handleKeyDown}
-                  onPaste={onPaste}
-                  onDragOver={e => e.preventDefault()}
-                  onDrop={onDrop}
-                  placeholder={inputMode === 'note' ? t('humanInbox.chatInput.placeholder.note') : t('humanInbox.chatInput.placeholder.message')}
-                  rows={2}
-                  className={clsx('flex-1 resize-none bg-transparent border-none px-3 py-2 text-sm focus:ring-0 placeholder:text-gray-300',
-                    inputMode === 'note' ? 'text-amber-900' : 'text-gray-800')}
-                />
-                <button onClick={handleSend}
-                  disabled={(!input.trim() && !uploadingMedia) || sending}
-                  className={clsx('w-9 h-9 rounded-xl flex items-center justify-center transition-all shrink-0 shadow-sm border-none cursor-pointer',
-                    inputMode === 'note' ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-blue-600 text-white hover:bg-blue-700',
-                    (!input.trim() && !sending) && 'opacity-30 scale-95 grayscale')}>
-                  {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-                </button>
-              </div>
-            </div>
+            )}
 
             {inputMode === 'note' && (
               <div className="flex items-center gap-1.5 px-1">
@@ -1439,11 +1478,13 @@ interface PatientPanelProps {
   onAddToWaitlist: () => void
   onResetReschedule: () => void
   rescheduleData: any | null
+  enabledChannels?: Record<string, boolean>
 }
 
 function PatientPanel({
   session, patient, appointments, onClose, onUpdateStage, onTransferClick, isOwned, onNewPatient, onLookupPatient, onQuickBook,
-  view, onViewChange, onPatientSelected, onViewAppointments, onSendMessage, onReschedule, onAddToWaitlist, onResetReschedule, rescheduleData
+  view, onViewChange, onPatientSelected, onViewAppointments, onSendMessage, onReschedule, onAddToWaitlist, onResetReschedule, rescheduleData,
+  enabledChannels
 }: PatientPanelProps) {
   const { t } = useTranslation('communications');
 
@@ -1648,6 +1689,7 @@ function PatientPanel({
           tenantId={session.tenant_id}
           patientPhone={session.patient_phone}
           compact
+          enabledChannels={enabledChannels}
         />
       </div>
 
@@ -1792,6 +1834,7 @@ function PatientPanel({
 export function HumanInboxPage() {
   const { t } = useTranslation('communications')
   const { showToast, showConfirm } = useToast()
+  const { tenant } = useTenant()
   const [tenantId, setTenantId]       = useState<string | null>(null)
   const [userId, setUserId]           = useState<string | null>(null)
   const [tab, setTab]                 = useState<'all' | 'queued' | 'mine'>('queued')
@@ -1843,6 +1886,63 @@ export function HumanInboxPage() {
   const [sidebarView, setSidebarView] = useState<'profile' | 'register' | 'lookup' | 'booking' | 'appointments' | 'edit' | 'availability' | 'payment' | 'directory' | 'classify'>('profile');
   const [, setTick] = useState(0)
   const [replyingTo, setReplyingTo] = useState<Message | null>(null)
+
+  // Meta Window countdown and expired states
+  const [metaWindowTimeLeft, setMetaWindowTimeLeft] = useState<number | null>(null)
+  const [metaWindowExpired, setMetaWindowExpired] = useState<boolean>(false)
+
+  const isMetaChannel = selected?.channel === 'instagram' || selected?.channel === 'facebook'
+
+  const lastUserMessageTime = useMemo(() => {
+    if (!selected) return null
+
+    // 1. Search in the active message list (latest first)
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i]
+      if (msg.role === 'user') {
+        return new Date(msg.created_at).getTime()
+      }
+    }
+
+    // 2. Fallback to selected.recent_messages
+    if (selected.recent_messages && selected.recent_messages.length > 0) {
+      for (let i = selected.recent_messages.length - 1; i >= 0; i--) {
+        const msg = selected.recent_messages[i]
+        if (msg.role === 'user' && msg.timestamp) {
+          return new Date(msg.timestamp).getTime()
+        }
+      }
+    }
+
+    return null
+  }, [selected?.id, messages, selected?.recent_messages])
+
+  useEffect(() => {
+    if (!selected || !isMetaChannel || !lastUserMessageTime) {
+      setMetaWindowTimeLeft(null)
+      setMetaWindowExpired(false)
+      return
+    }
+
+    const updateTimer = () => {
+      const now = Date.now()
+      const elapsed = now - lastUserMessageTime
+      const limit = 24 * 60 * 60 * 1000 // 24 hours in ms
+      const remaining = limit - elapsed
+
+      if (remaining <= 0) {
+        setMetaWindowTimeLeft(0)
+        setMetaWindowExpired(true)
+      } else {
+        setMetaWindowTimeLeft(remaining)
+        setMetaWindowExpired(false)
+      }
+    }
+
+    updateTimer()
+    const intervalId = setInterval(updateTimer, 1000)
+    return () => clearInterval(intervalId)
+  }, [selected?.id, isMetaChannel, lastUserMessageTime])
 
   // ── Handlers ──────────────────────────────────
   const markAsRead = useCallback(async (sessionId: string) => {
@@ -2951,6 +3051,8 @@ export function HumanInboxPage() {
                 loadSalesScripts(tenantId);
               }
             }}
+            metaWindowTimeLeft={metaWindowTimeLeft}
+            metaWindowExpired={metaWindowExpired}
           />
         </div>
       ) : (
@@ -2997,6 +3099,7 @@ export function HumanInboxPage() {
               patient={patient}
               appointments={appointments}
               onClose={() => setShowPatientPanel(false)}
+              enabledChannels={tenant?.bot_config?.enabled_channels}
               onUpdateStage={async (stage: any) => {
                 // Update DB
                 await supabase.from('conversation_sessions').update({ kanban_stage: stage }).eq('id', selected.id);

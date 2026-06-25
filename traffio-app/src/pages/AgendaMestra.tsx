@@ -36,6 +36,7 @@ import type { SmartSlot, BookAppointmentPayload } from '../services/smartSchedul
 import { formatSlot as formatSlotI18n } from '../lib/i18n/formatDateTime';
 import { getCountry, DEFAULT_COUNTRY } from '../lib/i18n/countryFormats';
 import { getTenantTodayString, getTenantNow, addDaysToDateString } from '../lib/timezoneUtils';
+import { Button, Badge, IconButton } from '../components/ui';
 
 function cn(...inputs: any[]) {
     return twMerge(clsx(inputs));
@@ -925,7 +926,7 @@ export const AgendaMestra: React.FC = () => {
                             onClick={() => setBookingModal({ open: false, doctorId: '', slot: null })} />
                         <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
                             className="fixed inset-0 z-[110] flex items-center justify-center p-4 pointer-events-none">
-                            <div className="bg-white pointer-events-auto w-full max-w-lg rounded-[32px] shadow-2xl overflow-hidden border border-white/20">
+                            <div className="bg-white pointer-events-auto w-full max-w-lg rounded-4xl shadow-2xl overflow-hidden border border-white/20">
                                 <div className="px-8 py-5 border-b border-ice-100 bg-ice-50/50 flex justify-between items-center">
                                     <div>
                                         <h3 className="text-lg font-black text-graphite-900">{t('mestra.bookingModal.title')}</h3>
@@ -941,10 +942,9 @@ export const AgendaMestra: React.FC = () => {
                                             {bookingModal.slot && <SlotBadge slot={bookingModal.slot} />}
                                         </div>
                                     </div>
-                                    <button onClick={() => setBookingModal({ open: false, doctorId: '', slot: null })}
-                                        className="w-10 h-10 rounded-xl bg-white border border-ice-200 flex items-center justify-center text-graphite-400 hover:text-brand-primary transition-all cursor-pointer">
+                                    <IconButton onClick={() => setBookingModal({ open: false, doctorId: '', slot: null })}>
                                         <X size={20} />
-                                    </button>
+                                    </IconButton>
                                 </div>
 
                                 <div className="p-6 space-y-5 max-h-[60vh] overflow-y-auto">
@@ -1035,13 +1035,12 @@ export const AgendaMestra: React.FC = () => {
                                     </div>
 
                                     <div className="flex gap-3 pt-2">
-                                        <button onClick={() => setBookingModal({ open: false, doctorId: '', slot: null })}
-                                            className="flex-1 py-3 rounded-2xl font-bold text-graphite-700 hover:bg-ice-50 border border-ice-200 cursor-pointer transition-all bg-transparent">{t('mestra.bookingModal.cancel')}</button>
-                                        <button onClick={handleBook} disabled={!bookingForm.selectedPatient || bookingSaving}
-                                            className={cn("flex-[2] py-3 rounded-2xl font-bold shadow-lg transition-all flex items-center justify-center gap-2 border-none cursor-pointer",
-                                                bookingForm.selectedPatient ? "bg-brand-primary text-white shadow-brand-primary/20 hover:scale-[1.02] active:scale-[0.98]" : "bg-ice-200 text-graphite-400 cursor-not-allowed shadow-none")}>
+                                        <Button variant="ghost" className="flex-1 justify-center" onClick={() => setBookingModal({ open: false, doctorId: '', slot: null })}>
+                                            {t('mestra.bookingModal.cancel')}
+                                        </Button>
+                                        <Button variant="primary" className="flex-[2] justify-center" disabled={!bookingForm.selectedPatient || bookingSaving} onClick={handleBook}>
                                             {bookingSaving ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><CheckCircle2 size={16} /> {t('mestra.bookingModal.confirm')}</>}
-                                        </button>
+                                        </Button>
                                     </div>
                                 </div>
                             </div>
@@ -1055,7 +1054,7 @@ export const AgendaMestra: React.FC = () => {
                 <>
                     <div className="fixed inset-0 bg-graphite-900/40 backdrop-blur-sm z-[100]" onClick={() => setEditingAppt(null)} />
                     <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 pointer-events-none">
-                        <div className="bg-white pointer-events-auto w-full max-w-md rounded-[32px] shadow-2xl overflow-hidden border border-white/20">
+                        <div className="bg-white pointer-events-auto w-full max-w-md rounded-4xl shadow-2xl overflow-hidden border border-white/20">
                             <div className="px-8 py-5 border-b border-ice-100 flex justify-between items-center bg-ice-50/50">
                                 <div>
                                     <h3 className="text-lg font-black text-graphite-900">{editingAppt.patients?.full_name || t('mestra.patientFallback')}</h3>
@@ -1063,7 +1062,7 @@ export const AgendaMestra: React.FC = () => {
                                         {formatSlot(editingAppt.start_time)} – {formatSlot(editingAppt.end_time)} · {formatDateLabel(selectedDateStr)}
                                     </p>
                                 </div>
-                                <button onClick={() => setEditingAppt(null)} className="w-10 h-10 rounded-xl bg-white border border-ice-200 flex items-center justify-center text-graphite-400 hover:text-brand-primary transition-all cursor-pointer"><X size={20} /></button>
+                                <IconButton onClick={() => setEditingAppt(null)}><X size={20} /></IconButton>
                             </div>
                             <div className="p-6 space-y-5">
                                 <div>
@@ -1087,12 +1086,10 @@ export const AgendaMestra: React.FC = () => {
                                 {editingAppt.slot_type && (
                                     <div className="flex items-center gap-2 p-3 rounded-xl bg-ice-50 border border-ice-100">
                                         <span className="text-xs font-bold text-graphite-400">{t('mestra.editModal.slotColonLabel')}</span>
-                                        <span className={cn("px-2 py-0.5 rounded-lg text-[10px] font-black uppercase",
-                                            editingAppt.slot_type === 'prime' ? "bg-yellow-100 text-yellow-700" :
-                                                editingAppt.slot_type === 'auto_released' ? "bg-amber-100 text-amber-700" : "bg-ice-100 text-graphite-500")}>
+                                        <Badge size="sm" accent={editingAppt.slot_type === 'prime' ? 'warning' : editingAppt.slot_type === 'auto_released' ? 'warning' : 'neutral'}>
                                             {editingAppt.slot_type === 'prime' ? t('mestra.slotBadge.prime') : editingAppt.slot_type === 'auto_released' ? t('mestra.slotBadge.released') : t('mestra.slotBadge.regular')}
-                                        </span>
-                                        {editingAppt.patient_type === 'insurance' && <span className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase bg-emerald-100 text-emerald-700">{t('mestra.bookingModal.insurance')}</span>}
+                                        </Badge>
+                                        {editingAppt.patient_type === 'insurance' && <Badge size="sm" accent="success">{t('mestra.bookingModal.insurance')}</Badge>}
                                     </div>
                                 )}
 
@@ -1103,21 +1100,19 @@ export const AgendaMestra: React.FC = () => {
                                 </div>
 
                                 <div className="flex gap-3">
-                                    <button onClick={() => setEditingAppt(null)} className="flex-1 py-3 rounded-2xl font-bold text-graphite-700 hover:bg-ice-50 border border-ice-200 cursor-pointer transition-all bg-transparent">{t('mestra.editModal.close')}</button>
-                                    <button onClick={handleSaveNotes} className="flex-[2] bg-brand-primary text-white py-3 rounded-2xl font-bold shadow-lg shadow-brand-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 border-none cursor-pointer">
+                                    <Button variant="ghost" className="flex-1 justify-center" onClick={() => setEditingAppt(null)}>{t('mestra.editModal.close')}</Button>
+                                    <Button variant="primary" className="flex-[2] justify-center" onClick={handleSaveNotes}>
                                         <Save size={16} /> {t('mestra.editModal.save')}
-                                    </button>
+                                    </Button>
                                 </div>
 
-                                <button onClick={() => setIsCheckoutModalOpen(true)}
-                                    className="w-full py-4 bg-emerald-500 text-white rounded-2xl font-black shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 border-none cursor-pointer">
+                                <Button variant="success" className="w-full py-4 justify-center font-black" onClick={() => setIsCheckoutModalOpen(true)}>
                                     <Wallet size={18} /> {t('mestra.editModal.receivePayment')}
-                                </button>
+                                </Button>
 
-                                <button onClick={() => setConfirmDelete(editingAppt.id)}
-                                    className="w-full py-2.5 rounded-xl text-xs font-bold text-rose-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 cursor-pointer transition-all bg-transparent">
+                                <Button variant="dangerGhost" size="sm" className="w-full justify-center" onClick={() => setConfirmDelete(editingAppt.id)}>
                                     {t('mestra.editModal.deleteAppointment')}
-                                </button>
+                                </Button>
                             </div>
                         </div>
                     </div>
@@ -1136,8 +1131,8 @@ export const AgendaMestra: React.FC = () => {
                                 <h3 className="text-lg font-bold text-graphite-900 mb-2">{t('mestra.confirmDelete.title')}</h3>
                                 <p className="text-sm text-graphite-500 mb-6">{t('mestra.confirmDelete.text')}</p>
                                 <div className="flex gap-3">
-                                    <button onClick={() => setConfirmDelete(null)} className="flex-1 py-3 rounded-xl font-bold text-graphite-700 hover:bg-ice-50 border border-ice-200 cursor-pointer transition-all bg-transparent">{t('mestra.confirmDelete.cancel')}</button>
-                                    <button onClick={() => handleDelete(confirmDelete)} className="flex-1 py-3 rounded-xl font-bold text-white bg-rose-500 hover:bg-rose-600 border-none cursor-pointer transition-all">{t('mestra.confirmDelete.confirm')}</button>
+                                    <Button variant="ghost" className="flex-1 justify-center" onClick={() => setConfirmDelete(null)}>{t('mestra.confirmDelete.cancel')}</Button>
+                                    <Button variant="danger" className="flex-1 justify-center" onClick={() => handleDelete(confirmDelete)}>{t('mestra.confirmDelete.confirm')}</Button>
                                 </div>
                             </div>
                         </motion.div>

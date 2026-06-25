@@ -66,9 +66,9 @@ export function useAutomacaoMetrics({ tenantId, dateRange }: MetricsOptions) {
 
             // ── KPIs: current period ─────────────────────────────────────────
             const sentFollowups = rows.filter(r => r.message_type === 'follow_up' && r.status === 'sent').length;
-            const remindersSent = rows.filter(r => (r.message_type === 'reminder_48h' || r.message_type === 'reminder_24h' || r.message_type === 'reminder_2h') && r.status === 'sent').length;
+            const remindersSent = rows.filter(r => r.message_type.startsWith('reminder') && r.status === 'sent').length;
             const bookingsConfirmed = rows.filter(r => r.message_type === 'booking_confirmed').length;
-            const confirmationsSent = rows.filter(r => (r.message_type === 'reminder_48h' || r.message_type === 'reminder_24h') && r.status === 'sent').length;
+            const confirmationsSent = rows.filter(r => r.message_type.startsWith('reminder') && r.status === 'sent').length;
 
             const leadsCount = funnels.filter(f => f.current_stage !== 'perdido').length;
             const bookedCount = funnels.filter(f => f.current_stage === 'agendado').length;
@@ -85,7 +85,7 @@ export function useAutomacaoMetrics({ tenantId, dateRange }: MetricsOptions) {
 
             // ── KPIs: previous period ────────────────────────────────────────
             const prevSentFollowups = rowsPrev.filter(r => r.message_type === 'follow_up' && r.status === 'sent').length;
-            const prevRemindersSent = rowsPrev.filter(r => (r.message_type === 'reminder_48h' || r.message_type === 'reminder_2h') && r.status === 'sent').length;
+            const prevRemindersSent = rowsPrev.filter(r => r.message_type.startsWith('reminder') && r.status === 'sent').length;
             const prevLeads = funnelsPrev.filter(f => f.current_stage !== 'perdido').length;
             const prevBooked = funnelsPrev.filter(f => f.current_stage === 'agendado').length;
             const prevConversionRate = prevLeads > 0 ? (prevBooked / prevLeads) * 100 : 0;
