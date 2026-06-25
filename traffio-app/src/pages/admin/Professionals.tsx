@@ -609,7 +609,7 @@ export const Professionals = () => {
     // =============================================
     if (selectedPro) {
         return (
-            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300 max-w-5xl mx-auto">
+            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                 {/* Back + Header */}
                 <div className="flex items-center gap-4">
                     <button onClick={handleCloseDetail} className="p-2 rounded-xl hover:bg-ice-100 transition-colors border-none cursor-pointer bg-transparent text-graphite-500">
@@ -679,8 +679,8 @@ export const Professionals = () => {
                             {isEditing ? (
                                 /* --- EDIT FORM --- */
                                 <div className="space-y-6">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="col-span-2">
+                                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                                        <div className="col-span-2 lg:col-span-3">
                                             <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">{t('professionals.detail.dataTab.fullName')}</label>
                                             <input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} placeholder={t('professionals.detail.dataTab.fullNamePlaceholder')} className="w-full bg-ice-50 shadow-float rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors" />
                                         </div>
@@ -725,7 +725,7 @@ export const Professionals = () => {
                                             <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">{t('professionals.detail.dataTab.rqe')}</label>
                                             <input value={form.rqe || ''} onChange={(e) => setForm({ ...form, rqe: e.target.value })} placeholder={t('professionals.detail.dataTab.rqePlaceholder')} className="w-full bg-ice-50 shadow-float rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors" />
                                         </div>
-                                        <div className="col-span-2">
+                                        <div className="col-span-2 lg:col-span-3">
                                             <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">{t('professionals.detail.dataTab.bio')}</label>
                                             <textarea value={form.bio || ''} onChange={(e) => setForm({ ...form, bio: e.target.value })} placeholder={t('professionals.detail.dataTab.bioPlaceholder')} className="w-full bg-ice-50 shadow-float rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors min-h-[100px] resize-none font-sans" />
                                         </div>
@@ -802,7 +802,7 @@ export const Professionals = () => {
                                 </div>
                             ) : (
                                 /* --- READ ONLY VIEW --- */
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                     {[
                                         { label: t('professionals.detail.dataTab.readOnly.fullName'), value: selectedPro.full_name },
                                         { label: t('professionals.detail.dataTab.readOnly.email'), value: selectedPro.email || t('professionals.detail.dataTab.readOnly.empty') },
@@ -819,14 +819,14 @@ export const Professionals = () => {
                                         </div>
                                     ))}
                                     {selectedPro.bio && (
-                                        <div className="col-span-2 space-y-1">
+                                        <div className="md:col-span-2 lg:col-span-3 space-y-1">
                                             <label className="text-xs font-black text-graphite-400 uppercase">{t('professionals.detail.dataTab.readOnly.bio')}</label>
                                             <p className="text-sm text-graphite-700 whitespace-pre-line">{selectedPro.bio}</p>
                                         </div>
                                     )}
 
                                     {/* Read-only Cancellation Policy */}
-                                    <div className="col-span-2 mt-4 pt-4 border-t border-ice-100">
+                                    <div className="md:col-span-2 lg:col-span-3 mt-4 pt-4 border-t border-ice-100">
                                         <label className="text-xs font-black text-graphite-400 uppercase mb-2 block">{t('professionals.detail.dataTab.cancellationPolicy.title')}</label>
                                         {selectedPro.cancellation_policy?.enabled ? (
                                             <div className="bg-ice-50/50 p-3 rounded-xl shadow-float flex gap-4 text-sm">
@@ -1295,7 +1295,7 @@ export const Professionals = () => {
     // MAIN LIST VIEW
     // =============================================
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto">
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
