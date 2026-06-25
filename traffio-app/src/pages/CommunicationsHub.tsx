@@ -11,7 +11,7 @@ import {
   PhoneIncoming, PhoneOutgoing, PhoneMissed, PhoneCall,
   Search, Download, Mic, MicOff, Play, RefreshCw,
   User, Clock, CheckCheck, Send, TrendingUp, Activity,
-  ArrowUpRight, BarChart2, Plus,
+  BarChart2,
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -23,6 +23,7 @@ import { formatPhone } from '../lib/formatPhone';
 import { format, subDays, startOfDay, endOfDay, startOfMonth } from 'date-fns';
 import { getIntlLocale } from '../lib/i18n';
 import { getDateFnsLocale } from '../lib/i18n/dateFnsLocale';
+import { KpiCard, Card } from '../components/ui';
 
 type Section = 'dashboard' | 'sms' | 'calls' | 'voicemail' | 'numbers';
 
@@ -39,29 +40,6 @@ function fmtTime(iso: string, language: string) {
   if (d.toDateString() === now.toDateString())
     return d.toLocaleTimeString(intlLocale, { hour: '2-digit', minute: '2-digit' });
   return d.toLocaleDateString(intlLocale, { day: '2-digit', month: 'short' });
-}
-// ─── KPI Card ─────────────────────────────────────────────────────────────────
-
-function KpiCard({ label, value, sub, icon: Icon, color, trend }: any) {
-  return (
-    <div className="bg-white border border-ice-100 rounded-2xl p-5 flex flex-col gap-2">
-      <div className="flex items-start justify-between">
-        <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${color}`}>
-          <Icon size={18} className="text-white" />
-        </div>
-        {trend && (
-          <span className={`flex items-center gap-0.5 text-xs font-bold ${trend > 0 ? 'text-green-500' : 'text-red-400'}`}>
-            <ArrowUpRight size={12} className={trend < 0 ? 'rotate-90' : ''} />{Math.abs(trend)}%
-          </span>
-        )}
-      </div>
-      <div>
-        <p className="text-xl font-black text-graphite-900">{value}</p>
-        <p className="text-xs font-bold text-graphite-400">{label}</p>
-        {sub && <p className="text-[10px] text-graphite-300 mt-0.5">{sub}</p>}
-      </div>
-    </div>
-  );
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
@@ -89,7 +67,7 @@ function DashboardView({ calls, smsIn, smsOut }: { calls: any[]; smsIn: number; 
   });
 
   const pie = [
-    { name: t('communicationsHub.kpis.received'), value: inbound.length,  color: '#22c55e' },
+    { name: t('communicationsHub.kpis.received'), value: inbound.length,  color: '#10b981' },
     { name: t('communicationsHub.kpis.made'),      value: outbound.length, color: '#3b82f6' },
     { name: t('communicationsHub.kpis.missed'),    value: missed.length,   color: '#ef4444' },
   ].filter(d => d.value > 0);
@@ -97,26 +75,26 @@ function DashboardView({ calls, smsIn, smsOut }: { calls: any[]; smsIn: number; 
   return (
     <div className="flex-1 overflow-y-auto p-6 space-y-6">
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        <KpiCard label={t('communicationsHub.kpis.received')}  value={inbound.length}  sub={t('communicationsHub.kpis.currentMonth')} icon={PhoneIncoming} color="bg-green-500" />
-        <KpiCard label={t('communicationsHub.kpis.made')} value={outbound.length} sub={t('communicationsHub.kpis.currentMonth')} icon={PhoneOutgoing} color="bg-blue-500" />
-        <KpiCard label={t('communicationsHub.kpis.missed')}   value={missed.length}   sub={t('communicationsHub.kpis.currentMonth')} icon={PhoneMissed}   color="bg-red-400" />
-        <KpiCard label={t('communicationsHub.kpis.minutes')}    value={`${totalMin}m`}  sub={t('communicationsHub.kpis.currentMonth')} icon={Mic}           color="bg-purple-500" />
+        <KpiCard label={t('communicationsHub.kpis.received')} value={inbound.length} subValue={t('communicationsHub.kpis.currentMonth')} icon={PhoneIncoming} accent="success" />
+        <KpiCard label={t('communicationsHub.kpis.made')} value={outbound.length} subValue={t('communicationsHub.kpis.currentMonth')} icon={PhoneOutgoing} accent="info" />
+        <KpiCard label={t('communicationsHub.kpis.missed')} value={missed.length} subValue={t('communicationsHub.kpis.currentMonth')} icon={PhoneMissed} accent="error" />
+        <KpiCard label={t('communicationsHub.kpis.minutes')} value={`${totalMin}m`} subValue={t('communicationsHub.kpis.currentMonth')} icon={Mic} accent="brand" />
       </div>
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        <KpiCard label={t('communicationsHub.kpis.smsSent')}  value={smsOut} sub={t('communicationsHub.kpis.currentMonth')} icon={MessageSquare} color="bg-emerald-500" />
-        <KpiCard label={t('communicationsHub.kpis.smsReceived')} value={smsIn}  sub={t('communicationsHub.kpis.currentMonth')} icon={MessageSquare} color="bg-teal-500" />
-        <KpiCard label={t('communicationsHub.kpis.answerRate')} value={thisMonth.length > 0 ? `${Math.round(((thisMonth.length - missed.length) / thisMonth.length) * 100)}%` : '—'} icon={Activity} color="bg-indigo-500" />
-        <KpiCard label={t('communicationsHub.kpis.today')} value={calls.filter(c => new Date(c.started_at) >= startOfDay(new Date())).length} sub={t('communicationsHub.kpis.calls')} icon={TrendingUp} color="bg-amber-500" />
+        <KpiCard label={t('communicationsHub.kpis.smsSent')} value={smsOut} subValue={t('communicationsHub.kpis.currentMonth')} icon={MessageSquare} accent="info" />
+        <KpiCard label={t('communicationsHub.kpis.smsReceived')} value={smsIn} subValue={t('communicationsHub.kpis.currentMonth')} icon={MessageSquare} accent="success" />
+        <KpiCard label={t('communicationsHub.kpis.answerRate')} value={thisMonth.length > 0 ? `${Math.round(((thisMonth.length - missed.length) / thisMonth.length) * 100)}%` : '—'} icon={Activity} accent="indigo" />
+        <KpiCard label={t('communicationsHub.kpis.today')} value={calls.filter(c => new Date(c.started_at) >= startOfDay(new Date())).length} subValue={t('communicationsHub.kpis.calls')} icon={TrendingUp} accent="warning" />
       </div>
 
-      <div className="bg-white border border-ice-100 rounded-2xl p-5">
+      <Card variant="default" padding="md">
         <p className="text-sm font-black text-graphite-700 mb-5 flex items-center gap-2">
           <BarChart2 size={16} className="text-brand-primary" /> {t('communicationsHub.chart.last7DaysTitle')}
         </p>
         <ResponsiveContainer width="100%" height={200}>
           <AreaChart data={last7} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
             <defs>
-              {[['rec','#22c55e'],['rea','#3b82f6'],['per','#ef4444']].map(([id, color]) => (
+              {[['rec','#10b981'],['rea','#3b82f6'],['per','#ef4444']].map(([id, color]) => (
                 <linearGradient key={id} id={`g_${id}`} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%"  stopColor={color} stopOpacity={0.15} />
                   <stop offset="95%" stopColor={color} stopOpacity={0} />
@@ -128,15 +106,15 @@ function DashboardView({ calls, smsIn, smsOut }: { calls: any[]; smsIn: number; 
             <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} allowDecimals={false} />
             <Tooltip contentStyle={{ background: 'white', border: '1px solid #F1F5F9', borderRadius: 16, fontSize: 12, fontWeight: 700 }} />
             <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, fontWeight: 700 }} />
-            <Area type="monotone" dataKey="recebidas"  stroke="#22c55e" strokeWidth={2} fill="url(#g_rec)" dot={{ fill: '#22c55e', r: 3 }} name={t('communicationsHub.kpis.received')} />
+            <Area type="monotone" dataKey="recebidas"  stroke="#10b981" strokeWidth={2} fill="url(#g_rec)" dot={{ fill: '#10b981', r: 3 }} name={t('communicationsHub.kpis.received')} />
             <Area type="monotone" dataKey="realizadas" stroke="#3b82f6" strokeWidth={2} fill="url(#g_rea)" dot={{ fill: '#3b82f6', r: 3 }} name={t('communicationsHub.kpis.made')} />
             <Area type="monotone" dataKey="perdidas"   stroke="#ef4444" strokeWidth={2} fill="url(#g_per)" dot={{ fill: '#ef4444', r: 3 }} name={t('communicationsHub.kpis.missed')} />
           </AreaChart>
         </ResponsiveContainer>
-      </div>
+      </Card>
 
       {pie.length > 0 && (
-        <div className="bg-white border border-ice-100 rounded-2xl p-5">
+        <Card variant="default" padding="md">
           <p className="text-sm font-black text-graphite-700 mb-4">{t('communicationsHub.chart.monthDistributionTitle')}</p>
           <div className="flex items-center gap-8">
             <ResponsiveContainer width={160} height={160}>
@@ -157,7 +135,7 @@ function DashboardView({ calls, smsIn, smsOut }: { calls: any[]; smsIn: number; 
               ))}
             </div>
           </div>
-        </div>
+        </Card>
       )}
     </div>
   );
@@ -611,19 +589,19 @@ export function CommunicationsHub() {
   };
 
   return (
-    <div className="flex h-full bg-white">
+    <div className="flex h-full bg-white rounded-3xl border-none shadow-float overflow-hidden">
 
       {/* ── Mini-nav lateral esquerda ───────────────────────────────────────── */}
-      <div className="w-16 bg-[#0F172A] flex flex-col items-center py-4 gap-1 shrink-0">
+      <div className="w-16 bg-transparent border-r border-ice-100 flex flex-col items-center py-4 gap-1 shrink-0">
         {NAV.map(n => {
           const isActive = section === n.id;
           return (
             <button key={n.id} onClick={() => { setSection(n.id); setSelected(null); setSearch(''); }}
               title={n.label}
-              className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all border-none cursor-pointer group relative ${isActive ? 'bg-brand-primary text-white' : 'text-slate-500 hover:bg-slate-800 hover:text-white'}`}>
+              className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all border-none cursor-pointer group relative ${isActive ? 'bg-accent-info text-white' : 'text-graphite-400 hover:bg-ice-50 hover:text-graphite-900'}`}>
               <n.icon size={19} />
               {/* Tooltip */}
-              <span className="absolute left-12 bg-slate-900 text-white text-[10px] font-bold px-2 py-1 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50">
+              <span className="absolute left-12 bg-graphite-900 text-white text-[10px] font-bold px-2 py-1 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50">
                 {n.label}
               </span>
             </button>
@@ -633,7 +611,7 @@ export function CommunicationsHub() {
         <div className="flex-1" />
 
         <button onClick={fetchAll} title={t('communicationsHub.list.refresh')}
-          className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-800 hover:text-white transition-all border-none cursor-pointer"
+          className="w-10 h-10 rounded-xl flex items-center justify-center text-graphite-400 hover:bg-ice-50 hover:text-graphite-900 transition-all border-none cursor-pointer"
         >
           <RefreshCw size={17} className={loading ? 'animate-spin' : ''} />
         </button>

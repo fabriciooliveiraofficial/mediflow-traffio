@@ -179,7 +179,7 @@ export const BillingPage = () => {
 
             {/* Alerta de trial expirado */}
             {isTrialExpired && (
-                <div className="flex items-start gap-3 p-5 bg-red-50 rounded-2xl border border-red-100">
+                <div className="flex items-start gap-3 p-5 bg-red-50 rounded-2xl shadow-float">
                     <AlertTriangle size={20} className="text-red-500 shrink-0 mt-0.5" />
                     <div>
                         <p className="text-sm font-black text-red-700">{t('billingPage.trialExpiredAlert.title')}</p>
@@ -192,7 +192,7 @@ export const BillingPage = () => {
 
             {/* Alerta de trial ativo */}
             {isTrialActive && (
-                <div className="flex items-start gap-3 p-5 bg-amber-50 rounded-2xl border border-amber-100">
+                <div className="flex items-start gap-3 p-5 bg-amber-50 rounded-2xl shadow-float">
                     <Clock size={20} className="text-amber-500 shrink-0 mt-0.5" />
                     <p className="text-sm text-amber-700 font-medium">
                         {t('billingPage.trialActiveAlert.prefix')}{' '}
@@ -205,7 +205,7 @@ export const BillingPage = () => {
             )}
 
             {/* Banner do plano ativo */}
-            <div className="bg-brand-primary/5 border border-brand-primary/20 rounded-[32px] p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="bg-brand-primary/5 shadow-float rounded-[32px] p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
                 <div className="flex items-center gap-4">
                     <div className="w-14 h-14 bg-brand-primary rounded-2xl flex items-center justify-center shadow-lg shadow-brand-primary/20">
                         <currentPlan.icon size={28} className="text-white" />
@@ -248,7 +248,7 @@ export const BillingPage = () => {
 
             {/* Banner de mudança de plano agendada */}
             {scheduledChange && (
-                <div className="flex items-start gap-3 p-5 bg-indigo-50 rounded-2xl border border-indigo-100">
+                <div className="flex items-start gap-3 p-5 bg-indigo-50 rounded-2xl shadow-float">
                     <CalendarClock size={20} className="text-indigo-500 shrink-0 mt-0.5" />
                     <p className="text-sm text-indigo-700 font-medium">
                         {t('billingPage.scheduledChangeBanner.prefix')}{' '}
@@ -316,7 +316,7 @@ export const BillingPage = () => {
                             className={`relative bg-white rounded-[32px] p-8 border-2 transition-all flex flex-col ${
                                 isCurrent
                                     ? 'border-brand-primary shadow-xl shadow-brand-primary/10'
-                                    : 'border-ice-100 hover:border-ice-200 hover:shadow-lg'
+                                    : 'border-transparent hover:border-ice-200 shadow-float hover:shadow-lg'
                             }`}
                         >
                             {isCurrent && (
@@ -403,7 +403,7 @@ export const BillingPage = () => {
             </div>
 
             {/* Nota de segurança */}
-            <div className="flex items-center gap-3 p-5 bg-ice-50 rounded-2xl border border-ice-100">
+            <div className="flex items-center gap-3 p-5 bg-ice-50 rounded-2xl shadow-float">
                 <Shield size={20} className="text-brand-primary shrink-0" />
                 <p className="text-sm text-graphite-500 font-medium">
                     {t('billingPage.securityNote')}

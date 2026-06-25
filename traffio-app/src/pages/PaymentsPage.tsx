@@ -118,7 +118,7 @@ export const PaymentsPage = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
                 {/* Asaas Card */}
-                <div className={`group bg-white border-2 rounded-[32px] p-8 space-y-6 transition-all relative overflow-hidden ${isAsaasConnected ? 'border-blue-500 shadow-xl shadow-blue-500/10' : 'border-ice-100 hover:border-blue-200 hover:shadow-lg'}`}>
+                <div className={`group bg-white border-2 rounded-[32px] p-8 space-y-6 transition-all relative overflow-hidden ${isAsaasConnected ? 'border-blue-500 shadow-xl shadow-blue-500/10' : 'border-transparent hover:border-blue-200 shadow-float hover:shadow-lg'}`}>
                     <div className={`absolute top-0 left-0 w-full h-1.5 transition-colors ${isAsaasConnected ? 'bg-blue-500' : 'bg-blue-500/10'}`} />
 
                     <div className="flex justify-between items-start">
@@ -166,7 +166,7 @@ export const PaymentsPage = () => {
                                 value={paymentConfig.asaas_api_key}
                                 onChange={(e) => setPaymentConfig({ ...paymentConfig, asaas_api_key: e.target.value })}
                                 placeholder="$aact_prod_..."
-                                className="w-full bg-ice-50 border border-ice-200 rounded-xl pl-9 pr-4 py-3 text-sm font-mono focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+                                className="w-full bg-ice-50 border border-transparent focus:border-blue-500 shadow-float rounded-xl pl-9 pr-4 py-3 text-sm font-mono focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all"
                             />
                         </div>
                         <button
@@ -194,7 +194,7 @@ export const PaymentsPage = () => {
                 </div>
 
                 {/* Dr. Cash Card */}
-                <div className={`group bg-white border-2 rounded-[32px] p-8 space-y-6 transition-all relative overflow-hidden ${isDrcashConnected ? 'border-emerald-500 shadow-xl shadow-emerald-500/10' : 'border-ice-100 hover:border-emerald-200 hover:shadow-lg'}`}>
+                <div className={`group bg-white border-2 rounded-[32px] p-8 space-y-6 transition-all relative overflow-hidden ${isDrcashConnected ? 'border-emerald-500 shadow-xl shadow-emerald-500/10' : 'border-transparent hover:border-emerald-200 shadow-float hover:shadow-lg'}`}>
                     <div className={`absolute top-0 left-0 w-full h-1.5 transition-colors ${isDrcashConnected ? 'bg-emerald-500' : 'bg-emerald-500/10'}`} />
 
                     <div className="flex justify-between items-start">
@@ -242,7 +242,7 @@ export const PaymentsPage = () => {
                                 value={paymentConfig.drcash_api_key}
                                 onChange={(e) => setPaymentConfig({ ...paymentConfig, drcash_api_key: e.target.value })}
                                 placeholder={t('paymentsPage.drcashCard.apiKeyPlaceholder')}
-                                className="w-full bg-ice-50 border border-ice-200 rounded-xl pl-9 pr-4 py-3 text-sm font-mono focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all"
+                                className="w-full bg-ice-50 border border-transparent focus:border-emerald-500 shadow-float rounded-xl pl-9 pr-4 py-3 text-sm font-mono focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
                             />
                         </div>
                         <button
@@ -265,7 +265,7 @@ export const PaymentsPage = () => {
             </div>
 
             {/* Asaas info note */}
-            <div className="flex items-start gap-3 p-5 bg-blue-50/60 rounded-2xl border border-blue-100">
+            <div className="flex items-start gap-3 p-5 bg-blue-50/60 rounded-2xl shadow-float">
                 <Info size={18} className="text-blue-500 shrink-0 mt-0.5" />
                 <p className="text-sm text-graphite-600 font-medium leading-relaxed">
                     <strong className="text-blue-600">{t('paymentsPage.asaasInfoNote.strong')}</strong> {t('paymentsPage.asaasInfoNote.prefix')} <strong>{t('paymentsPage.asaasInfoNote.subaccount')}</strong> {t('paymentsPage.asaasInfoNote.middle')} <strong>{t('paymentsPage.asaasInfoNote.menuPath')}</strong> {t('paymentsPage.asaasInfoNote.suffix')}
@@ -274,7 +274,7 @@ export const PaymentsPage = () => {
 
             {/* Proposals History */}
             {proposals.length > 0 && (
-                <div className="bg-white border border-ice-100 rounded-[32px] p-8 space-y-6">
+                <div className="bg-white rounded-[32px] shadow-float p-8 space-y-6">
                     <div className="flex justify-between items-center">
                         <div>
                             <h4 className="text-xl font-black text-graphite-900">{t('paymentsPage.proposalsHistory.title')}</h4>
@@ -329,15 +329,15 @@ export const PaymentsPage = () => {
 
             {/* Info Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-ice-50 p-6 rounded-2xl border border-ice-100">
+                <div className="bg-ice-50 p-6 rounded-2xl shadow-float">
                     <h5 className="text-sm font-bold text-graphite-900 mb-2">{t('paymentsPage.infoCards.autoSubaccounts.title')}</h5>
                     <p className="text-xs text-graphite-500 leading-relaxed font-medium">{t('paymentsPage.infoCards.autoSubaccounts.description')}</p>
                 </div>
-                <div className="bg-ice-50 p-6 rounded-2xl border border-ice-100">
+                <div className="bg-ice-50 p-6 rounded-2xl shadow-float">
                     <h5 className="text-sm font-bold text-graphite-900 mb-2">{t('paymentsPage.infoCards.installments21x.title')}</h5>
                     <p className="text-xs text-graphite-500 leading-relaxed font-medium">{t('paymentsPage.infoCards.installments21x.description')}</p>
                 </div>
-                <div className="bg-ice-50 p-6 rounded-2xl border border-ice-100">
+                <div className="bg-ice-50 p-6 rounded-2xl shadow-float">
                     <h5 className="text-sm font-bold text-graphite-900 mb-2">{t('paymentsPage.infoCards.whiteLabel.title')}</h5>
                     <p className="text-xs text-graphite-500 leading-relaxed font-medium">{t('paymentsPage.infoCards.whiteLabel.description')}</p>
                 </div>

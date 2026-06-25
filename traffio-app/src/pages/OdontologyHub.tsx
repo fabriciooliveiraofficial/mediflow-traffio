@@ -6,11 +6,10 @@ import {
     Image as ImageIcon,
     Plus,
     ChevronRight,
-    ArrowUpRight,
     Clock,
-    ExternalLink
+    ExternalLink,
+    Stethoscope,
 } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { dentalService } from '../services/dentalService';
 import { useToast } from '../contexts/ToastContext';
@@ -18,6 +17,7 @@ import { NewDentalBudgetModal } from '../components/dental/NewDentalBudgetModal'
 import { DicomViewerModal } from '../components/dental/DicomViewerModal';
 import { OdontogramModal } from '../components/dental/OdontogramModal';
 import { PatientSearchModal } from '../components/shared/PatientSearchModal';
+import { Button, Badge, KpiCard, Card, PageHeader, EmptyState } from '../components/ui';
 
 export const OdontologyHub: React.FC<{ activeView?: string }> = ({ activeView }) => {
     const { t } = useTranslation('medical');
@@ -76,10 +76,10 @@ export const OdontologyHub: React.FC<{ activeView?: string }> = ({ activeView })
     };
 
     const stats = [
-        { label: t('odontologyHub.stats.recallsThisMonth'), value: recalls.length.toString(), icon: Calendar, color: 'text-brand-primary', bg: 'bg-brand-primary/10' },
-        { label: t('odontologyHub.stats.openBudgets'), value: budgets.filter(b => b.status === 'draft' || b.status === 'sent').length.toString(), icon: FileText, color: 'text-blue-600', bg: 'bg-blue-100' },
-        { label: t('odontologyHub.stats.dicomExams'), value: '14', icon: ImageIcon, color: 'text-purple-600', bg: 'bg-purple-100', onClick: () => setIsDicomOpen(true) },
-        { label: t('odontologyHub.stats.clinicalMap'), value: t('odontologyHub.stats.clinicalMapValue'), icon: Activity, color: 'text-emerald-600', bg: 'bg-emerald-100', onClick: () => handleActionRequest('odontogram') },
+        { label: t('odontologyHub.stats.recallsThisMonth'), value: recalls.length.toString(), icon: Calendar, accent: 'brand' as const },
+        { label: t('odontologyHub.stats.openBudgets'), value: budgets.filter(b => b.status === 'draft' || b.status === 'sent').length.toString(), icon: FileText, accent: 'info' as const },
+        { label: t('odontologyHub.stats.dicomExams'), value: '14', icon: ImageIcon, accent: 'purple' as const, onClick: () => setIsDicomOpen(true) },
+        { label: t('odontologyHub.stats.clinicalMap'), value: t('odontologyHub.stats.clinicalMapValue'), icon: Activity, accent: 'success' as const, onClick: () => handleActionRequest('odontogram') },
     ];
 
     if (loading) return <div className="p-8 text-center font-bold text-graphite-400">{t('odontologyHub.loading')}</div>;
@@ -87,62 +87,41 @@ export const OdontologyHub: React.FC<{ activeView?: string }> = ({ activeView })
     return (
         <div className="space-y-8 pb-12">
             {/* Header */}
-            <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div className="space-y-1">
-                    <h2 className="text-4xl font-black text-graphite-900 tracking-tighter">{t('odontologyHub.title')}</h2>
-                    <p className="text-graphite-400 font-medium italic">{t('odontologyHub.subtitle')}</p>
-                </div>
-                <div className="flex gap-3">
-                    <button
-                        onClick={() => setIsDicomOpen(true)}
-                        className="px-6 py-3 bg-white border border-ice-200 text-graphite-900 rounded-2xl text-sm font-bold shadow-sm hover:bg-ice-50 transition-all border-none cursor-pointer flex items-center gap-2"
-                    >
-                        <ImageIcon size={18} className="text-brand-primary" />
-                        {t('odontologyHub.dicomViewerButton')}
-                    </button>
-                    <button
-                        onClick={handleOpenIDocs}
-                        className="px-6 py-3 bg-indigo-50 border border-indigo-100 text-indigo-600 rounded-2xl text-sm font-bold shadow-sm hover:bg-indigo-100 transition-all border-none cursor-pointer flex items-center gap-2"
-                        title={t('odontologyHub.idocsTitle')}
-                    >
-                        <ExternalLink size={18} />
-                        iDocs
-                    </button>
-                    <button
-                        onClick={() => handleActionRequest('budget')}
-                        className="px-6 py-3 bg-brand-primary text-white rounded-2xl text-sm font-bold shadow-lg shadow-brand-primary/20 hover:scale-[1.02] transition-all border-none cursor-pointer flex items-center gap-2"
-                    >
-                        <Plus size={18} />
-                        {t('odontologyHub.newBudget')}
-                    </button>
-                </div>
-            </header>
+            <PageHeader
+                icon={Stethoscope}
+                size="large"
+                title={t('odontologyHub.title')}
+                subtitle={<span className="italic">{t('odontologyHub.subtitle')}</span>}
+                actions={
+                    <>
+                        <Button variant="ghost" onClick={() => setIsDicomOpen(true)}>
+                            <ImageIcon size={18} className="text-brand-primary" />
+                            {t('odontologyHub.dicomViewerButton')}
+                        </Button>
+                        <Button variant="secondary" onClick={handleOpenIDocs} title={t('odontologyHub.idocsTitle')}>
+                            <ExternalLink size={18} />
+                            iDocs
+                        </Button>
+                        <Button variant="primary" onClick={() => handleActionRequest('budget')}>
+                            <Plus size={18} />
+                            {t('odontologyHub.newBudget')}
+                        </Button>
+                    </>
+                }
+            />
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 {stats.map((stat, i) => (
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: i * 0.1 }}
+                    <KpiCard
                         key={i}
+                        variant="glass"
+                        label={stat.label}
+                        value={stat.value}
+                        icon={stat.icon}
+                        accent={stat.accent}
                         onClick={stat.onClick}
-                        className={`glass p-6 rounded-[32px] space-y-4 border border-ice-100/50 ${stat.onClick ? 'cursor-pointer hover:border-brand-primary/30' : ''}`}
-                    >
-                        <div className="flex justify-between items-start">
-                            <div className={`p-3 rounded-2xl ${stat.bg} ${stat.color}`}>
-                                <stat.icon size={20} />
-                            </div>
-                            <div className="bg-emerald-100 text-emerald-600 text-[10px] font-black px-2 py-1 rounded-full flex items-center gap-1">
-                                <ArrowUpRight size={10} />
-                                +12%
-                            </div>
-                        </div>
-                        <div>
-                            <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest">{stat.label}</p>
-                            <h3 className="text-2xl font-black text-graphite-900 tracking-tighter">{stat.value}</h3>
-                        </div>
-                    </motion.div>
+                    />
                 ))}
             </div>
 
@@ -157,7 +136,10 @@ export const OdontologyHub: React.FC<{ activeView?: string }> = ({ activeView })
                         <button className="text-xs font-bold text-brand-primary hover:underline border-none bg-transparent cursor-pointer">{t('odontologyHub.exportList')}</button>
                     </div>
 
-                    <div className="glass rounded-[32px] overflow-hidden border-none">
+                    <Card variant="glass" padding="none" className="overflow-hidden">
+                        {recalls.length === 0 ? (
+                            <EmptyState icon={Calendar} label={t('odontologyHub.emptyRecalls')} className="border-none bg-transparent" />
+                        ) : (
                         <div className="p-2">
                             {recalls.map((recall, i) => (
                                 <div key={i} 
@@ -188,15 +170,19 @@ export const OdontologyHub: React.FC<{ activeView?: string }> = ({ activeView })
                                 </div>
                             ))}
                         </div>
-                    </div>
+                        )}
+                    </Card>
                 </div>
 
                 {/* Recent Budgets */}
                 <div className="space-y-6">
                     <h4 className="text-xl font-black tracking-tight text-graphite-900">{t('odontologyHub.recentBudgets')}</h4>
                     <div className="space-y-4">
+                        {budgets.length === 0 && (
+                            <EmptyState icon={FileText} label={t('odontologyHub.emptyBudgets')} />
+                        )}
                         {budgets.map((budget, i) => (
-                            <div key={i} className="glass p-5 rounded-3xl space-y-3 cursor-pointer group hover:border-brand-primary/30 transition-all border-ice-100">
+                            <Card key={i} variant="glass" padding="md" className="cursor-pointer">
                                 <div className="flex justify-between items-start">
                                     <div className="space-y-1">
                                         <p className="text-sm font-black text-graphite-900 truncate w-32">{budget.patients?.full_name}</p>
@@ -205,18 +191,15 @@ export const OdontologyHub: React.FC<{ activeView?: string }> = ({ activeView })
                                             {new Date(budget.created_at || '').toLocaleDateString()}
                                         </p>
                                     </div>
-                                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${
-                                        budget.status === 'approved' ? 'bg-emerald-100 text-emerald-600' : 
-                                        budget.status === 'draft' ? 'bg-ice-100 text-graphite-400' : 'bg-blue-100 text-blue-600'
-                                    }`}>
+                                    <Badge size="sm" accent={budget.status === 'approved' ? 'success' : budget.status === 'draft' ? 'neutral' : 'info'}>
                                         {budget.status}
-                                    </span>
+                                    </Badge>
                                 </div>
-                                <div className="flex justify-between items-center pt-2 border-t border-ice-50">
+                                <div className="flex justify-between items-center pt-2 mt-3 border-t border-ice-50">
                                     <span className="text-xs font-bold text-graphite-400">{t('odontologyHub.total')}</span>
                                     <span className="text-sm font-black text-graphite-900 text-brand-primary">R$ {budget.total_amount?.toLocaleString()}</span>
                                 </div>
-                            </div>
+                            </Card>
                         ))}
                     </div>
                 </div>

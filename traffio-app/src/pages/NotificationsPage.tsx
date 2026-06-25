@@ -60,7 +60,7 @@ export const NotificationsPage = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Sound Alert */}
                 <div
-                    className={`group p-8 rounded-[32px] border-2 transition-all cursor-pointer hover:shadow-xl ${settings?.whatsapp_sound !== false ? 'border-brand-primary bg-brand-primary/5 shadow-brand-primary/10' : 'border-ice-100 bg-white hover:border-ice-200'}`}
+                    className={`group p-8 rounded-[32px] border-2 transition-all cursor-pointer hover:shadow-xl ${settings?.whatsapp_sound !== false ? 'border-brand-primary bg-brand-primary/5 shadow-brand-primary/10' : 'border-transparent bg-white shadow-float'}`}
                     onClick={() => updateSettings({ whatsapp_sound: settings?.whatsapp_sound === false })}
                 >
                     <div className="flex justify-between items-start mb-6">
@@ -77,7 +77,7 @@ export const NotificationsPage = () => {
 
                 {/* Toast Notification */}
                 <div
-                    className={`group p-8 rounded-[32px] border-2 transition-all cursor-pointer hover:shadow-xl ${settings?.whatsapp_toast !== false ? 'border-blue-500 bg-blue-50/50 shadow-blue-500/10' : 'border-ice-100 bg-white hover:border-ice-200'}`}
+                    className={`group p-8 rounded-[32px] border-2 transition-all cursor-pointer hover:shadow-xl ${settings?.whatsapp_toast !== false ? 'border-blue-500 bg-blue-50/50 shadow-blue-500/10' : 'border-transparent bg-white shadow-float'}`}
                     onClick={() => updateSettings({ whatsapp_toast: settings?.whatsapp_toast === false })}
                 >
                     <div className="flex justify-between items-start mb-6">
@@ -94,7 +94,7 @@ export const NotificationsPage = () => {
 
                 {/* Web Push Notification */}
                 <div
-                    className={`group p-8 rounded-[32px] border-2 transition-all cursor-pointer hover:shadow-xl ${settings?.whatsapp_push ? 'border-indigo-500 bg-indigo-50/50 shadow-indigo-500/10' : 'border-ice-100 bg-white hover:border-ice-200'}`}
+                    className={`group p-8 rounded-[32px] border-2 transition-all cursor-pointer hover:shadow-xl ${settings?.whatsapp_push ? 'border-indigo-500 bg-indigo-50/50 shadow-indigo-500/10' : 'border-transparent bg-white shadow-float'}`}
                     onClick={async () => {
                         if (!settings?.whatsapp_push) {
                             const granted = await requestPermission();
@@ -119,7 +119,7 @@ export const NotificationsPage = () => {
             </div>
 
             {/* Servidor de E-mail (SMTP próprio) */}
-            <div className="bg-white p-8 rounded-[32px] border-2 border-ice-100 shadow-sm space-y-6">
+            <div className="bg-white p-8 rounded-[32px] shadow-float space-y-6">
                 <div className="flex items-center gap-3">
                     <div className="p-3 bg-brand-primary/10 rounded-2xl text-brand-primary">
                         <Mail size={24} />
@@ -139,7 +139,7 @@ export const NotificationsPage = () => {
                                 value={smtpHost}
                                 onChange={e => setSmtpHost(e.target.value)}
                                 placeholder={t('notificationsPage.smtp.hostPlaceholder')}
-                                className="w-full bg-ice-50 border-2 border-ice-100 hover:border-ice-200 focus:border-brand-primary rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none transition-all"
+                                className="w-full bg-ice-50 border-2 border-transparent focus:border-brand-primary shadow-float rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none transition-all"
                             />
                         </div>
                         <div className="space-y-1.5">
@@ -149,7 +149,7 @@ export const NotificationsPage = () => {
                                 value={smtpPort}
                                 onChange={e => setSmtpPort(Number(e.target.value))}
                                 placeholder="465"
-                                className="w-full bg-ice-50 border-2 border-ice-100 hover:border-ice-200 focus:border-brand-primary rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none transition-all"
+                                className="w-full bg-ice-50 border-2 border-transparent focus:border-brand-primary shadow-float rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none transition-all"
                             />
                         </div>
                     </div>
@@ -162,7 +162,7 @@ export const NotificationsPage = () => {
                                 value={smtpUser}
                                 onChange={e => setSmtpUser(e.target.value)}
                                 placeholder={t('notificationsPage.smtp.userPlaceholder')}
-                                className="w-full bg-ice-50 border-2 border-ice-100 hover:border-ice-200 focus:border-brand-primary rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none transition-all"
+                                className="w-full bg-ice-50 border-2 border-transparent focus:border-brand-primary shadow-float rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none transition-all"
                             />
                         </div>
                         <div className="space-y-1.5">
@@ -173,7 +173,7 @@ export const NotificationsPage = () => {
                                     value={smtpPass}
                                     onChange={e => setSmtpPass(e.target.value)}
                                     placeholder="••••••••"
-                                    className="w-full bg-ice-50 border-2 border-ice-100 hover:border-ice-200 focus:border-brand-primary rounded-xl pl-4 pr-10 py-2.5 text-sm font-medium focus:outline-none transition-all"
+                                    className="w-full bg-ice-50 border-2 border-transparent focus:border-brand-primary shadow-float rounded-xl pl-4 pr-10 py-2.5 text-sm font-medium focus:outline-none transition-all"
                                 />
                                 <button
                                     type="button"
@@ -212,7 +212,7 @@ export const NotificationsPage = () => {
             </div>
 
             {/* Info Banner */}
-            <div className="bg-ice-50 p-8 rounded-[32px] border border-ice-100 relative overflow-hidden">
+            <div className="bg-ice-50 p-8 rounded-[32px] shadow-float relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
                     <Shield size={80} className="text-brand-primary" />
                 </div>

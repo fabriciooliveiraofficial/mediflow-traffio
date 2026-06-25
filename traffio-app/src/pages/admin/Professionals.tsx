@@ -636,7 +636,7 @@ export const Professionals = () => {
                 </div>
 
                 {/* Tabs */}
-                <div className="flex bg-white p-1.5 rounded-2xl border border-ice-100 shadow-sm w-fit">
+                <div className="flex bg-white p-1.5 rounded-2xl shadow-float w-fit">
                     {[
                         { id: 'dados' as const, label: t('professionals.detail.tabs.data'), icon: Stethoscope, disabled: false },
                         { id: 'agenda' as const, label: t('professionals.detail.tabs.weeklySchedule'), icon: Clock, disabled: isCreating && !selectedPro?.id },
@@ -662,7 +662,7 @@ export const Professionals = () => {
                 </div>
 
                 {/* Tab Content */}
-                <div className="bg-white rounded-[32px] border border-ice-200 shadow-sm overflow-hidden min-h-[400px]">
+                <div className="bg-white rounded-[32px] shadow-float overflow-hidden min-h-[400px]">
 
                     {/* Feedback Alerts */}
                     {(error || success) && (
@@ -682,15 +682,15 @@ export const Professionals = () => {
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="col-span-2">
                                             <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">{t('professionals.detail.dataTab.fullName')}</label>
-                                            <input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} placeholder={t('professionals.detail.dataTab.fullNamePlaceholder')} className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors" />
+                                            <input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} placeholder={t('professionals.detail.dataTab.fullNamePlaceholder')} className="w-full bg-ice-50 shadow-float rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors" />
                                         </div>
                                         <div>
                                             <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">{t('professionals.detail.dataTab.email')}</label>
-                                            <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder={t('professionals.detail.dataTab.emailPlaceholder')} className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors" />
+                                            <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder={t('professionals.detail.dataTab.emailPlaceholder')} className="w-full bg-ice-50 shadow-float rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors" />
                                         </div>
                                         <div>
                                             <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">{t('professionals.detail.dataTab.phone')}</label>
-                                            <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder={t('professionals.detail.dataTab.phonePlaceholder')} className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors" />
+                                            <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder={t('professionals.detail.dataTab.phonePlaceholder')} className="w-full bg-ice-50 shadow-float rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors" />
                                         </div>
                                         <div>
                                             <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">{t('professionals.detail.dataTab.role')}</label>
@@ -705,7 +705,7 @@ export const Professionals = () => {
                                                         role: matchedRole ? matchedRole.base_role : form.role 
                                                     });
                                                 }} 
-                                                className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-bold text-graphite-900 focus:outline-none focus:border-brand-primary cursor-pointer h-[46px]"
+                                                className="w-full bg-ice-50 shadow-float rounded-xl px-4 py-3 text-sm font-bold text-graphite-900 focus:outline-none focus:border-brand-primary cursor-pointer h-[46px]"
                                             >
                                                 <option value="" disabled>Selecione uma função</option>
                                                 {roles.map(r => (
@@ -715,19 +715,19 @@ export const Professionals = () => {
                                         </div>
                                         <div>
                                             <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">{t('professionals.detail.dataTab.specialty')}</label>
-                                            <input value={form.specialty} onChange={(e) => setForm({ ...form, specialty: e.target.value })} placeholder={t('professionals.detail.dataTab.specialtyPlaceholder')} className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors" />
+                                            <input value={form.specialty} onChange={(e) => setForm({ ...form, specialty: e.target.value })} placeholder={t('professionals.detail.dataTab.specialtyPlaceholder')} className="w-full bg-ice-50 shadow-float rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors" />
                                         </div>
                                         <div>
                                             <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">{t('professionals.detail.dataTab.crm')}</label>
-                                            <input value={form.crm} onChange={(e) => setForm({ ...form, crm: e.target.value })} placeholder={t('professionals.detail.dataTab.crmPlaceholder')} className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors" />
+                                            <input value={form.crm} onChange={(e) => setForm({ ...form, crm: e.target.value })} placeholder={t('professionals.detail.dataTab.crmPlaceholder')} className="w-full bg-ice-50 shadow-float rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors" />
                                         </div>
                                         <div>
                                             <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">{t('professionals.detail.dataTab.rqe')}</label>
-                                            <input value={form.rqe || ''} onChange={(e) => setForm({ ...form, rqe: e.target.value })} placeholder={t('professionals.detail.dataTab.rqePlaceholder')} className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors" />
+                                            <input value={form.rqe || ''} onChange={(e) => setForm({ ...form, rqe: e.target.value })} placeholder={t('professionals.detail.dataTab.rqePlaceholder')} className="w-full bg-ice-50 shadow-float rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors" />
                                         </div>
                                         <div className="col-span-2">
                                             <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">{t('professionals.detail.dataTab.bio')}</label>
-                                            <textarea value={form.bio || ''} onChange={(e) => setForm({ ...form, bio: e.target.value })} placeholder={t('professionals.detail.dataTab.bioPlaceholder')} className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors min-h-[100px] resize-none font-sans" />
+                                            <textarea value={form.bio || ''} onChange={(e) => setForm({ ...form, bio: e.target.value })} placeholder={t('professionals.detail.dataTab.bioPlaceholder')} className="w-full bg-ice-50 shadow-float rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors min-h-[100px] resize-none font-sans" />
                                         </div>
                                         <div>
                                             <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">{t('professionals.detail.dataTab.avatarColor')}</label>
@@ -751,14 +751,14 @@ export const Professionals = () => {
                                         </div>
 
                                         {form.cancellation_policy?.enabled && (
-                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-ice-50/50 p-4 rounded-xl border border-ice-100 animate-in fade-in slide-in-from-top-2">
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-ice-50/50 p-4 rounded-xl shadow-float animate-in fade-in slide-in-from-top-2">
                                                 <div>
                                                     <label className="text-xs font-black text-graphite-400 uppercase mb-1 block">{t('professionals.detail.dataTab.cancellationPolicy.freeWindowHours')}</label>
                                                     <input
                                                         type="number"
                                                         value={form.cancellation_policy.free_window_hours}
                                                         onChange={(e) => setForm(prev => ({ ...prev, cancellation_policy: { ...prev.cancellation_policy!, free_window_hours: parseInt(e.target.value) || 0 } }))}
-                                                        className="w-full bg-white border border-ice-200 rounded-lg px-3 py-2 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary"
+                                                        className="w-full bg-white shadow-float rounded-lg px-3 py-2 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary"
                                                         min="0"
                                                     />
                                                     <p className="text-[10px] text-graphite-400 mt-1">{t('professionals.detail.dataTab.cancellationPolicy.freeWindowHint')}</p>
@@ -769,7 +769,7 @@ export const Professionals = () => {
                                                         type="number"
                                                         value={form.cancellation_policy.late_penalty_percent}
                                                         onChange={(e) => setForm(prev => ({ ...prev, cancellation_policy: { ...prev.cancellation_policy!, late_penalty_percent: parseInt(e.target.value) || 0 } }))}
-                                                        className="w-full bg-white border border-ice-200 rounded-lg px-3 py-2 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary"
+                                                        className="w-full bg-white shadow-float rounded-lg px-3 py-2 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary"
                                                         min="0"
                                                         max="100"
                                                     />
@@ -781,7 +781,7 @@ export const Professionals = () => {
                                                         type="number"
                                                         value={form.cancellation_policy.no_show_penalty_percent}
                                                         onChange={(e) => setForm(prev => ({ ...prev, cancellation_policy: { ...prev.cancellation_policy!, no_show_penalty_percent: parseInt(e.target.value) || 0 } }))}
-                                                        className="w-full bg-white border border-ice-200 rounded-lg px-3 py-2 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary"
+                                                        className="w-full bg-white shadow-float rounded-lg px-3 py-2 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary"
                                                         min="0"
                                                         max="100"
                                                     />
@@ -829,7 +829,7 @@ export const Professionals = () => {
                                     <div className="col-span-2 mt-4 pt-4 border-t border-ice-100">
                                         <label className="text-xs font-black text-graphite-400 uppercase mb-2 block">{t('professionals.detail.dataTab.cancellationPolicy.title')}</label>
                                         {selectedPro.cancellation_policy?.enabled ? (
-                                            <div className="bg-ice-50/50 p-3 rounded-xl border border-ice-100 flex gap-4 text-sm">
+                                            <div className="bg-ice-50/50 p-3 rounded-xl shadow-float flex gap-4 text-sm">
                                                 <div className="flex items-center gap-2 text-graphite-700">
                                                     <Clock size={16} className="text-brand-primary" />
                                                     <span dangerouslySetInnerHTML={{ __html: t('professionals.detail.dataTab.cancellationPolicy.freeUntil', { hours: selectedPro.cancellation_policy.free_window_hours }) }} />
@@ -864,9 +864,9 @@ export const Professionals = () => {
                             </div>
 
                             {/* --- TOOLBAR --- */}
-                            <div className="flex flex-col md:flex-row gap-4 justify-between bg-ice-50/50 p-4 rounded-2xl border border-ice-100">
+                            <div className="flex flex-col md:flex-row gap-4 justify-between bg-ice-50/50 p-4 rounded-2xl shadow-float">
                                 <div className="flex items-center gap-2">
-                                    <div className="flex p-1 bg-white rounded-xl border border-ice-200">
+                                    <div className="flex p-1 bg-white rounded-xl shadow-float">
                                         {(['prime', 'regular', 'blocked', 'eraser'] as ToolType[]).map(tool => (
                                             <button
                                                 key={tool}
@@ -887,7 +887,7 @@ export const Professionals = () => {
                                     <select
                                         value={activeLocationId || ''}
                                         onChange={e => setActiveLocationId(e.target.value)}
-                                        className="bg-white border border-ice-200 rounded-xl px-4 py-2 font-bold text-graphite-900 focus:outline-none focus:border-brand-primary min-w-[200px]"
+                                        className="bg-white shadow-float rounded-xl px-4 py-2 font-bold text-graphite-900 focus:outline-none focus:border-brand-primary min-w-[200px]"
                                     >
                                         {locations.length === 0 && <option value="" disabled>{t('professionals.detail.agendaTab.loadingLocations')}</option>}
                                         {locations.map(loc => (
@@ -906,7 +906,7 @@ export const Professionals = () => {
                             </div>
 
                             {/* --- HEATMAP GRID --- */}
-                            <div className="border border-ice-200 rounded-2xl overflow-hidden bg-white select-none" onMouseLeave={() => setIsMouseDown(false)}>
+                            <div className="shadow-float rounded-2xl overflow-hidden bg-white select-none" onMouseLeave={() => setIsMouseDown(false)}>
                                 <div className="grid grid-cols-[60px_repeat(7,1fr)] divide-x divide-ice-100 border-b border-ice-100 bg-ice-50">
                                     <div className="p-3 text-xs font-black text-graphite-400 text-center flex items-center justify-center">{t('professionals.detail.agendaTab.hourLabel')}</div>
                                     {DAYS.map(d => (
@@ -1146,7 +1146,7 @@ export const Professionals = () => {
                                     onChange={e => setBotProfile(p => ({ ...p, pitch: e.target.value }))}
                                     rows={3}
                                     placeholder={t('professionals.detail.botTab.pitch.placeholder')}
-                                    className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors resize-none"
+                                    className="w-full bg-ice-50 shadow-float rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors resize-none"
                                 />
                             </div>
 
@@ -1159,7 +1159,7 @@ export const Professionals = () => {
                                     onChange={e => setBotProfile(p => ({ ...p, consultation_opening: e.target.value }))}
                                     rows={2}
                                     placeholder={t('professionals.detail.botTab.consultationOpening.placeholder')}
-                                    className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors resize-none"
+                                    className="w-full bg-ice-50 shadow-float rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors resize-none"
                                 />
                             </div>
 
@@ -1178,7 +1178,7 @@ export const Professionals = () => {
                                                     return { ...p, selling_points: arr };
                                                 })}
                                                 placeholder={t('professionals.detail.botTab.sellingPoints.placeholder')}
-                                                className="flex-1 bg-ice-50 border border-ice-200 rounded-xl px-4 py-2.5 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors"
+                                                className="flex-1 bg-ice-50 shadow-float rounded-xl px-4 py-2.5 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors"
                                             />
                                             <button
                                                 onClick={() => setBotProfile(p => ({ ...p, selling_points: p.selling_points.filter((_, j) => j !== i) }))}
@@ -1210,7 +1210,7 @@ export const Professionals = () => {
                                                 onChange={e => setBotProfile(p => ({ ...p, objection_scripts: { ...p.objection_scripts, [key]: e.target.value } }))}
                                                 rows={2}
                                                 placeholder={placeholder}
-                                                className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors resize-none"
+                                                className="w-full bg-ice-50 shadow-float rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors resize-none"
                                             />
                                         </div>
                                     ))}
@@ -1223,7 +1223,7 @@ export const Professionals = () => {
                                 <p className="text-xs text-graphite-400 mb-3">{t('professionals.detail.botTab.faq.hint')}</p>
                                 <div className="space-y-3">
                                     {botProfile.faq.map((item, i) => (
-                                        <div key={i} className="bg-ice-50 border border-ice-200 rounded-xl p-4 space-y-2">
+                                        <div key={i} className="bg-ice-50 shadow-float rounded-xl p-4 space-y-2">
                                             <div className="flex gap-2 items-start">
                                                 <div className="flex-1 space-y-2">
                                                     <input
@@ -1234,7 +1234,7 @@ export const Professionals = () => {
                                                             return { ...p, faq: arr };
                                                         })}
                                                         placeholder={t('professionals.detail.botTab.faq.questionPlaceholder')}
-                                                        className="w-full bg-white border border-ice-200 rounded-lg px-3 py-2 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors"
+                                                        className="w-full bg-white shadow-float rounded-lg px-3 py-2 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors"
                                                     />
                                                     <textarea
                                                         value={item.a}
@@ -1245,7 +1245,7 @@ export const Professionals = () => {
                                                         })}
                                                         rows={2}
                                                         placeholder={t('professionals.detail.botTab.faq.answerPlaceholder')}
-                                                        className="w-full bg-white border border-ice-200 rounded-lg px-3 py-2 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors resize-none"
+                                                        className="w-full bg-white shadow-float rounded-lg px-3 py-2 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors resize-none"
                                                     />
                                                 </div>
                                                 <button
@@ -1270,7 +1270,7 @@ export const Professionals = () => {
                                     value={botProfile.pre_appointment_tip}
                                     onChange={e => setBotProfile(p => ({ ...p, pre_appointment_tip: e.target.value }))}
                                     placeholder={t('professionals.detail.botTab.preAppointmentTip.placeholder')}
-                                    className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors"
+                                    className="w-full bg-ice-50 shadow-float rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors"
                                 />
                             </div>
 
@@ -1327,12 +1327,12 @@ export const Professionals = () => {
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder={t('professionals.list.searchPlaceholder')}
-                    className="w-full bg-white border border-ice-200 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10 transition-all placeholder:text-graphite-300"
+                    className="w-full bg-white shadow-float rounded-2xl pl-12 pr-4 py-3.5 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10 transition-all placeholder:text-graphite-300"
                 />
             </div>
 
             {/* List */}
-            <div className="bg-white rounded-[32px] border border-ice-200 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-[32px] shadow-float overflow-hidden">
                 {loading ? (
                     <div className="p-12 text-center text-graphite-400 font-medium">{t('professionals.list.loading')}</div>
                 ) : filtered.length === 0 ? (

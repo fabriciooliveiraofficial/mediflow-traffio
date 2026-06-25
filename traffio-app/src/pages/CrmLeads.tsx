@@ -128,7 +128,7 @@ export const CrmLeads: React.FC<CrmLeadsProps> = ({ onSelectPatient }) => {
 
             {/* Filters & Search */}
             <div className="flex flex-col md:flex-row gap-4">
-                <div className="flex-1 bg-white border border-ice-200 rounded-2xl flex items-center px-4 py-3 shadow-sm focus-within:border-brand-primary/50 transition-colors">
+                <div className="flex-1 bg-white border-none rounded-2xl flex items-center px-4 py-3 shadow-float transition-colors">
                     <Search size={20} className="text-graphite-400 mr-3" />
                     <input
                         type="text"
@@ -145,7 +145,7 @@ export const CrmLeads: React.FC<CrmLeadsProps> = ({ onSelectPatient }) => {
             </div>
 
             {/* Patients List */}
-            <div className="bg-white rounded-3xl border border-ice-200 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-3xl border-none shadow-float overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>

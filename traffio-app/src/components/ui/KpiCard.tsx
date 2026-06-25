@@ -3,7 +3,7 @@ import { TrendingUp, TrendingDown } from 'lucide-react';
 import { clsx } from 'clsx';
 import { Card } from './Card';
 
-type KpiAccent = 'brand' | 'success' | 'warning' | 'error' | 'info' | 'neutral';
+type KpiAccent = 'brand' | 'success' | 'warning' | 'error' | 'info' | 'neutral' | 'indigo' | 'purple';
 
 interface KpiCardProps {
   label: string;
@@ -12,6 +12,8 @@ interface KpiCardProps {
   icon: LucideIcon;
   accent?: KpiAccent;
   trend?: number | null;
+  variant?: 'interactive' | 'glass' | 'floating';
+  onClick?: () => void;
   className?: string;
 }
 
@@ -22,14 +24,18 @@ const accentClass: Record<KpiAccent, { bg: string; text: string }> = {
   error: { bg: 'bg-accent-error/10', text: 'text-accent-error' },
   info: { bg: 'bg-accent-info/10', text: 'text-accent-info' },
   neutral: { bg: 'bg-ice-100', text: 'text-graphite-700' },
+  // Categorical (non-semantic) hues for KPI rows that need >4 distinct colors. Standard Tailwind
+  // palette, same hues already used in PerformanceStats.tsx — no new hex introduced.
+  indigo: { bg: 'bg-indigo-50', text: 'text-indigo-600' },
+  purple: { bg: 'bg-purple-50', text: 'text-purple-600' },
 };
 
-export function KpiCard({ label, value, subValue, icon: Icon, accent = 'brand', trend, className }: KpiCardProps) {
+export function KpiCard({ label, value, subValue, icon: Icon, accent = 'brand', trend, variant = 'interactive', onClick, className }: KpiCardProps) {
   const { bg, text } = accentClass[accent];
   const hasTrend = trend !== undefined && trend !== null;
 
   return (
-    <Card variant="interactive" padding="md" className={clsx('group', className)}>
+    <Card variant={variant} padding="md" onClick={onClick} className={clsx('group', onClick && 'cursor-pointer', className)}>
       <div className="flex justify-between items-start mb-4">
         <div className={clsx('p-3 rounded-2xl transition-colors group-hover:scale-110 duration-300', bg)}>
           <Icon className={clsx('w-5 h-5', text)} />

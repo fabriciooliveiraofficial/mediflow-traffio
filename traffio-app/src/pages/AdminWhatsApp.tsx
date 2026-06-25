@@ -276,7 +276,7 @@ export const AdminWhatsApp = () => {
 
             {/* Provider Selector Tabs */}
             <div className="flex justify-center mb-6">
-                <div className="bg-white p-1 rounded-2xl border border-ice-200 shadow-sm flex items-center gap-1">
+                <div className="bg-white p-1 rounded-2xl shadow-float flex items-center gap-1">
                     <button
                         onClick={() => setActiveProvider('zapi')}
                         className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold transition-all border-none cursor-pointer ${
@@ -311,7 +311,7 @@ export const AdminWhatsApp = () => {
             </div>
 
             {/* Main Content Area */}
-            <div className="bg-white rounded-[32px] border border-ice-200 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-[32px] shadow-float overflow-hidden">
                 {activeProvider === 'zapi' ? (
                     /* Existing Z-API Content */
                     <ZapiContent 
@@ -346,7 +346,7 @@ export const AdminWhatsApp = () => {
                                     value={cloudForm.phone_number_id}
                                     onChange={(e) => setCloudForm({...cloudForm, phone_number_id: e.target.value})}
                                     placeholder="Ex: 105634563456"
-                                    className="w-full bg-ice-50 border-none rounded-2xl px-5 py-4 text-sm font-bold text-graphite-700 focus:ring-2 focus:ring-emerald-500 transition-all outline-none"
+                                    className="w-full bg-ice-50 shadow-float rounded-2xl px-5 py-4 text-sm font-bold text-graphite-700 focus:ring-2 focus:ring-emerald-500 transition-all outline-none"
                                 />
                             </div>
 
@@ -360,7 +360,7 @@ export const AdminWhatsApp = () => {
                                     value={cloudForm.access_token}
                                     onChange={(e) => setCloudForm({...cloudForm, access_token: e.target.value})}
                                     placeholder="Ex: EAAL..."
-                                    className="w-full bg-ice-50 border-none rounded-2xl px-5 py-4 text-sm font-bold text-graphite-700 focus:ring-2 focus:ring-emerald-500 transition-all outline-none"
+                                    className="w-full bg-ice-50 shadow-float rounded-2xl px-5 py-4 text-sm font-bold text-graphite-700 focus:ring-2 focus:ring-emerald-500 transition-all outline-none"
                                 />
                             </div>
 
@@ -373,7 +373,7 @@ export const AdminWhatsApp = () => {
                                     value={cloudForm.business_account_id}
                                     onChange={(e) => setCloudForm({...cloudForm, business_account_id: e.target.value})}
                                     placeholder="Ex: 10234567890"
-                                    className="w-full bg-ice-50 border-none rounded-2xl px-5 py-4 text-sm font-bold text-graphite-700 focus:ring-2 focus:ring-emerald-500 transition-all outline-none"
+                                    className="w-full bg-ice-50 shadow-float rounded-2xl px-5 py-4 text-sm font-bold text-graphite-700 focus:ring-2 focus:ring-emerald-500 transition-all outline-none"
                                 />
                             </div>
                         </div>
@@ -511,7 +511,7 @@ const ZapiContent = ({ status, qrCode, pollingActive, connectedPhone, onGenerate
 
                 <div className="bg-ice-50 border-2 border-dashed border-ice-200 rounded-3xl p-8 inline-flex flex-col items-center gap-4 mx-auto">
                     {qrCode ? (
-                        <div className="bg-white p-4 rounded-2xl shadow-md animate-in zoom-in duration-300">
+                        <div className="bg-white p-4 rounded-2xl shadow-float animate-in zoom-in duration-300">
                             <img src={qrCode} alt="WhatsApp QR" className="w-52 h-52" />
                         </div>
                     ) : (

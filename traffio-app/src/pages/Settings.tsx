@@ -124,7 +124,7 @@ function PhoneNumbersList({ tenantId, showToast, refreshKey }: { tenantId: strin
     return (
         <div className="space-y-2">
             {numbers.map((num) => (
-                <div key={num.id} className="flex items-center justify-between p-3 bg-ice-50 rounded-xl border border-ice-100">
+                <div key={num.id} className="flex items-center justify-between p-3 bg-ice-50 rounded-xl shadow-float">
                     <div>
                         <p className="text-sm font-black text-graphite-800 font-mono">{num.phone_number}</p>
                         <p className="text-xs text-graphite-400">
@@ -834,7 +834,7 @@ export const Settings = () => {
             </div>
 
             {/* Tabs */}
-            <div className="flex bg-white p-1.5 rounded-2xl border border-ice-100 shadow-sm w-full">
+            <div className="flex bg-white p-1.5 rounded-2xl shadow-float w-full">
                 {[
                     { id: 'clinics', label: t('tabs.clinics'), icon: Building2 },
                     { id: 'locations', label: t('tabs.locations'), icon: MapPin },
@@ -859,7 +859,7 @@ export const Settings = () => {
             </div>
 
             {/* Content */}
-            <div className="bg-white rounded-[32px] border border-ice-200 shadow-sm min-h-[400px] overflow-hidden">
+            <div className="bg-white rounded-[32px] shadow-float min-h-[400px] overflow-hidden">
 
                 {/* Clinics Tab */}
                 {activeTab === 'clinics' && (
@@ -879,7 +879,7 @@ export const Settings = () => {
                                 <p className="text-center text-graphite-400 py-8">{t('clinics.empty')}</p>
                             ) : (
                                 tenants.map((tenant) => (
-                                    <div key={tenant.id} className="group border border-ice-100 rounded-2xl p-6 hover:border-brand-primary/30 hover:shadow-md transition-all">
+                                    <div key={tenant.id} className="group border border-transparent rounded-2xl p-6 shadow-float hover:border-brand-primary/30 hover:shadow-md transition-all">
                                         <div className="flex flex-col md:flex-row md:items-center gap-6">
                                             <div className="w-16 h-16 rounded-2xl bg-brand-primary/10 flex items-center justify-center text-brand-primary shrink-0">
                                                 <Building2 size={32} />
@@ -1002,7 +1002,7 @@ export const Settings = () => {
                                                                 handleSaveTenant(tenant.id, { country, locale });
                                                                 if (currentTenant?.id === tenant.id) updateTenantContext({ country, locale });
                                                             }}
-                                                            className="w-full bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm font-medium text-graphite-700 focus:outline-none focus:border-brand-primary transition-colors"
+                                                            className="w-full bg-ice-50 border border-transparent focus:border-brand-primary shadow-float rounded-xl px-3 py-2 text-sm font-medium text-graphite-700 focus:outline-none transition-colors"
                                                         >
                                                             {listCountries().map(c => (
                                                                 <option key={c.code} value={c.code}>{c.flag} {c.name}</option>
@@ -1032,7 +1032,7 @@ export const Settings = () => {
                                                                     handleSaveTenant(tenant.id, { latitude: val });
                                                                     e.target.value = decimalToDMS(val, true);
                                                                 }}
-                                                                className="w-full bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm font-medium text-graphite-700 focus:outline-none focus:border-brand-primary transition-colors"
+                                                                className="w-full bg-ice-50 border border-transparent focus:border-brand-primary shadow-float rounded-xl px-3 py-2 text-sm font-medium text-graphite-700 focus:outline-none transition-colors"
                                                             />
                                                         </div>
                                                         <div>
@@ -1047,7 +1047,7 @@ export const Settings = () => {
                                                                     handleSaveTenant(tenant.id, { longitude: val });
                                                                     e.target.value = decimalToDMS(val, false);
                                                                 }}
-                                                                className="w-full bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm font-medium text-graphite-700 focus:outline-none focus:border-brand-primary transition-colors"
+                                                                className="w-full bg-ice-50 border border-transparent focus:border-brand-primary shadow-float rounded-xl px-3 py-2 text-sm font-medium text-graphite-700 focus:outline-none transition-colors"
                                                             />
                                                         </div>
                                                         <div>
@@ -1056,7 +1056,7 @@ export const Settings = () => {
                                                                 type="number"
                                                                 defaultValue={tenant.geofence_radius || 100}
                                                                 onBlur={(e) => handleSaveTenant(tenant.id, { geofence_radius: parseInt(e.target.value) || 100 })}
-                                                                className="w-full bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm font-medium text-graphite-700 focus:outline-none focus:border-brand-primary transition-colors"
+                                                                className="w-full bg-ice-50 border border-transparent focus:border-brand-primary shadow-float rounded-xl px-3 py-2 text-sm font-medium text-graphite-700 focus:outline-none transition-colors"
                                                             />
                                                         </div>
                                                     </div>
@@ -1077,7 +1077,7 @@ export const Settings = () => {
                                                                     handleSaveTenant(tenant.id, { timezone: e.target.value });
                                                                     if (currentTenant?.id === tenant.id) updateTenantContext({ timezone: e.target.value });
                                                                 }}
-                                                                className="w-full bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm font-medium text-graphite-700 focus:outline-none focus:border-brand-primary transition-colors"
+                                                                className="w-full bg-ice-50 border border-transparent focus:border-brand-primary shadow-float rounded-xl px-3 py-2 text-sm font-medium text-graphite-700 focus:outline-none transition-colors"
                                                             >
                                                                 {TIMEZONE_REGIONS.map(region => (
                                                                     <optgroup key={region} label={region}>
@@ -1102,7 +1102,7 @@ export const Settings = () => {
                                                                     handleSaveTenant(tenant.id, { time_format });
                                                                     if (currentTenant?.id === tenant.id) updateTenantContext({ time_format });
                                                                 }}
-                                                                className="w-full bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm font-medium text-graphite-700 focus:outline-none focus:border-brand-primary transition-colors"
+                                                                className="w-full bg-ice-50 border border-transparent focus:border-brand-primary shadow-float rounded-xl px-3 py-2 text-sm font-medium text-graphite-700 focus:outline-none transition-colors"
                                                             >
                                                                 <option value="">{t('clinics.timeFormatAuto', 'Automático (Baseado no País)')}</option>
                                                                 <option value="12h">12h (AM/PM)</option>
@@ -1129,7 +1129,7 @@ export const Settings = () => {
                                                             key={`lead-${tenant.id}`}
                                                             defaultValue={tenant.booking_min_lead_minutes ?? 30}
                                                             onBlur={(e) => handleSaveTenant(tenant.id, { booking_min_lead_minutes: parseInt(e.target.value, 10) || 0 })}
-                                                            className="w-full max-w-[200px] bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm font-medium text-graphite-700 focus:outline-none focus:border-brand-primary transition-colors"
+                                                            className="w-full max-w-[200px] bg-ice-50 border border-transparent focus:border-brand-primary shadow-float rounded-xl px-3 py-2 text-sm font-medium text-graphite-700 focus:outline-none transition-colors"
                                                         />
                                                         <p className="text-[10px] text-graphite-400 mt-1">
                                                             {t('clinics.minLeadHint')}
@@ -1153,7 +1153,7 @@ export const Settings = () => {
                                                                 }
                                                             }}
                                                             onBlur={(e) => handleSaveTenant(tenant.id, { color_primary: e.target.value })}
-                                                            className="w-10 h-10 rounded-xl border border-ice-200 cursor-pointer"
+                                                            className="w-10 h-10 rounded-xl shadow-float cursor-pointer"
                                                         />
                                                         <span className="text-sm font-medium text-graphite-500">{tenant.color_primary || '#1152d4'}</span>
                                                     </div>
@@ -1179,7 +1179,7 @@ export const Settings = () => {
                                                     </div>
 
                                                     {metaPages.length === 0 ? (
-                                                        <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 border border-amber-100">
+                                                        <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 shadow-float">
                                                             <AlertCircle size={14} className="text-amber-500 shrink-0" />
                                                             <p className="text-xs text-amber-700 font-medium">
                                                                 {t('clinics.metaNoPagesConnected')}
@@ -1188,7 +1188,7 @@ export const Settings = () => {
                                                     ) : (
                                                         <div className="space-y-2">
                                                             {metaPages.map((page) => (
-                                                                <div key={page.id} className="flex items-center justify-between p-3 rounded-xl bg-ice-50 border border-ice-100">
+                                                                <div key={page.id} className="flex items-center justify-between p-3 rounded-xl bg-ice-50 shadow-float">
                                                                     <div className="flex items-center gap-3">
                                                                         <div className={`w-2 h-2 rounded-full ${page.is_active ? 'bg-green-500' : 'bg-red-400'}`} />
                                                                         <div>
@@ -1281,20 +1281,20 @@ export const Settings = () => {
                         </div>
 
                         {showLocForm && (
-                            <div className="border border-brand-primary/20 bg-brand-primary/5 rounded-2xl p-6 space-y-4">
+                            <div className="bg-brand-primary/5 shadow-float rounded-2xl p-6 space-y-4">
                                 <h4 className="font-bold text-graphite-900">{editingLocId ? t('locations.editLocation') : t('locations.newLocation')}</h4>
                                 <div className="space-y-6">
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <div>
                                             <label className="text-xs font-bold text-graphite-500">{t('locations.nameLabel')}</label>
-                                            <input value={locForm.name} onChange={e => setLocForm({ ...locForm, name: e.target.value })} placeholder={t('locations.namePlaceholder')} className="w-full bg-white border border-ice-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:border-brand-primary transition-colors" />
+                                            <input value={locForm.name} onChange={e => setLocForm({ ...locForm, name: e.target.value })} placeholder={t('locations.namePlaceholder')} className="w-full bg-white border border-transparent focus:border-brand-primary shadow-float rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none transition-colors" />
                                         </div>
                                         <div>
                                             <label className="text-xs font-bold text-graphite-500">{t('locations.typeLabel')}</label>
                                             <select
                                                 value={locForm.type || 'clinica'}
                                                 onChange={e => setLocForm({ ...locForm, type: e.target.value as any })}
-                                                className="w-full bg-white border border-ice-200 rounded-xl px-3 py-2.5 text-sm font-bold text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors h-[42px]"
+                                                className="w-full bg-white border border-transparent focus:border-brand-primary shadow-float rounded-xl px-3 py-2.5 text-sm font-bold text-graphite-900 focus:outline-none transition-colors h-[42px]"
                                             >
                                                 <option value="consultorio">{t('locations.typeOffice')}</option>
                                                 <option value="clinica">{t('locations.typeClinic')}</option>
@@ -1307,7 +1307,7 @@ export const Settings = () => {
                                                 value={locForm.objectives?.join(', ')}
                                                 onChange={e => setLocForm({ ...locForm, objectives: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
                                                 placeholder={t('locations.objectivesPlaceholder')}
-                                                className="w-full bg-white border border-ice-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:border-brand-primary transition-colors"
+                                                className="w-full bg-white border border-transparent focus:border-brand-primary shadow-float rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none transition-colors"
                                             />
                                         </div>
                                         <div>
@@ -1315,7 +1315,7 @@ export const Settings = () => {
                                             <select
                                                 value={locForm.country || tenants[0]?.country || DEFAULT_COUNTRY}
                                                 onChange={e => setLocForm({ ...locForm, country: e.target.value as CountryCode })}
-                                                className="w-full bg-white border border-ice-200 rounded-xl px-3 py-2.5 text-sm font-bold text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors h-[42px]"
+                                                className="w-full bg-white border border-transparent focus:border-brand-primary shadow-float rounded-xl px-3 py-2.5 text-sm font-bold text-graphite-900 focus:outline-none transition-colors h-[42px]"
                                             >
                                                 {listCountries().map(c => (
                                                     <option key={c.code} value={c.code}>{c.flag} {c.name}</option>
@@ -1350,7 +1350,7 @@ export const Settings = () => {
                                                             setLocForm({ ...locForm, latitude: val });
                                                             e.target.value = decimalToDMS(val, true);
                                                         }}
-                                                        className="w-full bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm font-medium text-graphite-700 focus:outline-none focus:border-brand-primary transition-colors"
+                                                        className="w-full bg-ice-50 border border-transparent focus:border-brand-primary shadow-float rounded-xl px-3 py-2 text-sm font-medium text-graphite-700 focus:outline-none transition-colors"
                                                     />
                                                 </div>
                                                 <div>
@@ -1365,7 +1365,7 @@ export const Settings = () => {
                                                             setLocForm({ ...locForm, longitude: val });
                                                             e.target.value = decimalToDMS(val, false);
                                                         }}
-                                                        className="w-full bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm font-medium text-graphite-700 focus:outline-none focus:border-brand-primary transition-colors"
+                                                        className="w-full bg-ice-50 border border-transparent focus:border-brand-primary shadow-float rounded-xl px-3 py-2 text-sm font-medium text-graphite-700 focus:outline-none transition-colors"
                                                     />
                                                 </div>
                                             </div>
@@ -1382,7 +1382,7 @@ export const Settings = () => {
                                                     const hours = locForm.operating_hours?.[day] || { start: '08:00', end: '18:00', closed: true };
 
                                                     return (
-                                                        <div key={day} className="flex items-center gap-3 bg-white p-2 rounded-lg border border-ice-100">
+                                                        <div key={day} className="flex items-center gap-3 bg-white p-2 rounded-lg shadow-float">
                                                             <span className="text-[10px] font-black w-8 text-graphite-400 uppercase">{dayName}</span>
                                                             <div className="flex-1 flex gap-2 items-center">
                                                                 <TimeInput
@@ -1395,7 +1395,7 @@ export const Settings = () => {
                                                                             [day]: { ...hours, start: e.target.value }
                                                                         }
                                                                     })}
-                                                                    className="bg-ice-50 border border-ice-100 rounded px-1.5 py-0.5 text-[11px] font-bold focus-within:border-brand-primary disabled:opacity-30"
+                                                                    className="bg-ice-50 border border-transparent focus-within:border-brand-primary shadow-float rounded px-1.5 py-0.5 text-[11px] font-bold disabled:opacity-30"
                                                                 />
                                                                 <span className="text-[10px] text-graphite-300">{t('locations.until')}</span>
                                                                 <TimeInput
@@ -1408,7 +1408,7 @@ export const Settings = () => {
                                                                             [day]: { ...hours, end: e.target.value }
                                                                         }
                                                                     })}
-                                                                    className="bg-ice-50 border border-ice-100 rounded px-1.5 py-0.5 text-[11px] font-bold focus-within:border-brand-primary disabled:opacity-30"
+                                                                    className="bg-ice-50 border border-transparent focus-within:border-brand-primary shadow-float rounded px-1.5 py-0.5 text-[11px] font-bold disabled:opacity-30"
                                                                 />
                                                             </div>
                                                             <button
@@ -1439,7 +1439,7 @@ export const Settings = () => {
                                                 value={locForm.google_maps_url || ''}
                                                 onChange={e => setLocForm({ ...locForm, google_maps_url: e.target.value })}
                                                 placeholder={t('locations.googleMapsPlaceholder')}
-                                                className="w-full bg-white border border-ice-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:border-brand-primary transition-colors"
+                                                className="w-full bg-white border border-transparent focus:border-brand-primary shadow-float rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none transition-colors"
                                             />
                                             <p className="text-[10px] font-bold text-graphite-400 mt-1">{t('locations.googleMapsHint')}</p>
                                         </div>
@@ -1460,7 +1460,7 @@ export const Settings = () => {
                                     <p className="text-sm">{t('locations.emptyHint')}</p>
                                 </div>
                             ) : locations.map(loc => (
-                                <div key={loc.id} className="flex items-center gap-4 p-4 border border-ice-100 rounded-2xl hover:border-brand-primary/20 hover:shadow-sm transition-all group">
+                                <div key={loc.id} className="flex items-center gap-4 p-4 border border-transparent rounded-2xl shadow-float hover:border-brand-primary/20 transition-all group">
                                     <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0"><MapPinHouse size={24} /></div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2">
@@ -1540,16 +1540,16 @@ export const Settings = () => {
                         </div>
 
                         {showInsForm && (
-                            <div className="border border-brand-primary/20 bg-brand-primary/5 rounded-2xl p-6 space-y-4">
+                            <div className="bg-brand-primary/5 shadow-float rounded-2xl p-6 space-y-4">
                                 <h4 className="font-bold text-graphite-900">{editingInsId ? t('insurance.editInsurance') : t('insurance.newInsurance')}</h4>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label className="text-xs font-bold text-graphite-500">{t('insurance.nameLabel')}</label>
-                                        <input value={insForm.name} onChange={e => setInsForm({ ...insForm, name: e.target.value })} placeholder={t('insurance.namePlaceholder')} className="w-full bg-white border border-ice-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:border-brand-primary transition-colors" />
+                                        <input value={insForm.name} onChange={e => setInsForm({ ...insForm, name: e.target.value })} placeholder={t('insurance.namePlaceholder')} className="w-full bg-white border border-transparent focus:border-brand-primary shadow-float rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none transition-colors" />
                                     </div>
                                     <div>
                                         <label className="text-xs font-bold text-graphite-500">{t('insurance.codeLabel')}</label>
-                                        <input value={insForm.code} onChange={e => setInsForm({ ...insForm, code: e.target.value })} placeholder={t('insurance.codePlaceholder')} className="w-full bg-white border border-ice-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:border-brand-primary transition-colors" />
+                                        <input value={insForm.code} onChange={e => setInsForm({ ...insForm, code: e.target.value })} placeholder={t('insurance.codePlaceholder')} className="w-full bg-white border border-transparent focus:border-brand-primary shadow-float rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none transition-colors" />
                                     </div>
                                 </div>
                                 <div className="flex gap-2 justify-end">
@@ -1567,7 +1567,7 @@ export const Settings = () => {
                                     <p className="text-sm">{t('insurance.emptyHint')}</p>
                                 </div>
                             ) : insurancePlans.map(plan => (
-                                <div key={plan.id} className="flex items-center gap-4 p-4 border border-ice-100 rounded-2xl hover:border-brand-primary/20 hover:shadow-sm transition-all group">
+                                <div key={plan.id} className="flex items-center gap-4 p-4 border border-transparent rounded-2xl shadow-float hover:border-brand-primary/20 transition-all group">
                                     <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 shrink-0"><Shield size={24} /></div>
                                     <div className="flex-1 min-w-0">
                                         <p className="font-bold text-graphite-900">{plan.name}</p>
@@ -1628,7 +1628,7 @@ export const Settings = () => {
                                     </div>
 
                                     {/* Barras de Consumo */}
-                                    <div className="md:col-span-2 bg-white border border-ice-100 rounded-2xl p-6 flex flex-col justify-between">
+                                    <div className="md:col-span-2 bg-white rounded-2xl shadow-float p-6 flex flex-col justify-between">
                                         <div>
                                             <h4 className="text-sm font-black text-graphite-900 mb-4 flex items-center gap-2">
                                                 <Activity size={16} className="text-brand-primary" /> {t('wallet.accumulatedConsumption')}
@@ -1682,7 +1682,7 @@ export const Settings = () => {
                                 </div>
 
                                 {/* LISTA DE TRANSAÇÕES RECENTES */}
-                                <div className="bg-white border border-ice-100 rounded-2xl p-6">
+                                <div className="bg-white rounded-2xl shadow-float p-6">
                                     <h4 className="text-sm font-black text-graphite-900 mb-4 flex items-center gap-2">
                                         <Clock size={16} className="text-brand-primary" /> {t('wallet.recentTransactionsTitle')}
                                     </h4>
@@ -1738,7 +1738,7 @@ export const Settings = () => {
                                 </div>
 
                                 {/* Banner informativo — modelo de revendedor */}
-                                <div className="flex items-start gap-3 p-4 rounded-2xl bg-blue-50 border border-blue-100">
+                                <div className="flex items-start gap-3 p-4 rounded-2xl bg-blue-50 shadow-float">
                                     <div className="w-8 h-8 rounded-xl bg-blue-100 flex items-center justify-center shrink-0 mt-0.5">
                                         <Phone size={16} className="text-blue-600" />
                                     </div>
@@ -1751,7 +1751,7 @@ export const Settings = () => {
                                 </div>
 
                                 {/* Ativar/desativar Softphone — sem campos de credenciais */}
-                                <div className={`bg-white rounded-2xl p-6 border-2 transition-all ${tenant.telnyx_enabled ? 'border-brand-primary/30' : 'border-ice-100'}`}>
+                                <div className={`bg-white rounded-2xl p-6 border-2 transition-all ${tenant.telnyx_enabled ? 'border-brand-primary/30' : 'border-transparent shadow-float'}`}>
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-3">
                                             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors ${tenant.telnyx_enabled ? 'bg-brand-primary' : 'bg-ice-100'}`}>
@@ -1803,7 +1803,7 @@ export const Settings = () => {
 
                                 {/* Gravar chamadas */}
                                 {tenant.telnyx_enabled && (
-                                    <div className="bg-white border border-ice-100 rounded-2xl p-6">
+                                    <div className="bg-white rounded-2xl shadow-float p-6">
                                         <div className="flex items-center justify-between">
                                             <div>
                                                 <h4 className="text-sm font-black text-graphite-800">{t('communications.recordCallsTitle')}</h4>
@@ -1828,7 +1828,7 @@ export const Settings = () => {
                                             <select
                                                 defaultValue={tenant.telnyx_recording_retention_days ?? 90}
                                                 onBlur={(e) => handleSaveTenant(tenant.id, { telnyx_recording_retention_days: parseInt(e.target.value) })}
-                                                className="w-full mt-1 bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-sm text-graphite-700 focus:outline-none focus:border-brand-primary"
+                                                className="w-full mt-1 bg-ice-50 border border-transparent focus:border-brand-primary shadow-float rounded-xl px-3 py-2 text-sm text-graphite-700 focus:outline-none"
                                             >
                                                 <option value={30}>{t('communications.retention30')}</option>
                                                 <option value={60}>{t('communications.retention60')}</option>
@@ -1842,7 +1842,7 @@ export const Settings = () => {
 
                                 {/* Números de telefone */}
                                 {tenant.telnyx_enabled && (
-                                    <div className="bg-white border border-ice-100 rounded-2xl p-6 space-y-4">
+                                    <div className="bg-white rounded-2xl shadow-float p-6 space-y-4">
                                         <div className="flex items-center justify-between">
                                             <h4 className="text-sm font-black text-graphite-800 flex items-center gap-2">
                                                 <Hash size={16} className="text-brand-primary" />
@@ -1882,7 +1882,7 @@ export const Settings = () => {
                                 )}
 
                                 {/* SMS */}
-                                <div className="bg-white border border-ice-100 rounded-2xl p-6">
+                                <div className="bg-white rounded-2xl shadow-float p-6">
                                     <div className="flex items-center justify-between">
                                         <div>
                                             <h4 className="text-sm font-black text-graphite-800 flex items-center gap-2">
@@ -1923,7 +1923,7 @@ export const Settings = () => {
                                             type="text"
                                             value={profile.full_name}
                                             onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
-                                            className="w-full bg-white border border-ice-200 rounded-xl px-4 py-3 font-medium text-graphite-900 focus:outline-none focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10 transition-all"
+                                            className="w-full bg-white border border-transparent focus:border-brand-primary shadow-float rounded-xl px-4 py-3 font-medium text-graphite-900 focus:outline-none focus:ring-4 focus:ring-brand-primary/10 transition-all"
                                         />
                                     </div>
                                     <div className="space-y-2">
@@ -1932,7 +1932,7 @@ export const Settings = () => {
                                             type="email"
                                             value={profile.email}
                                             onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                                            className="w-full bg-white border border-ice-200 rounded-xl px-4 py-3 font-medium text-graphite-900 focus:outline-none focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10 transition-all"
+                                            className="w-full bg-white border border-transparent focus:border-brand-primary shadow-float rounded-xl px-4 py-3 font-medium text-graphite-900 focus:outline-none focus:ring-4 focus:ring-brand-primary/10 transition-all"
                                         />
                                     </div>
                                     <div className="space-y-2">
@@ -1940,7 +1940,7 @@ export const Settings = () => {
                                         <select
                                             value={profile.role}
                                             onChange={(e) => setProfile({ ...profile, role: e.target.value })}
-                                            className="w-full bg-white border border-ice-200 rounded-xl px-4 py-3 font-medium text-graphite-900 focus:outline-none focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10 transition-all cursor-pointer"
+                                            className="w-full bg-white border border-transparent focus:border-brand-primary shadow-float rounded-xl px-4 py-3 font-medium text-graphite-900 focus:outline-none focus:ring-4 focus:ring-brand-primary/10 transition-all cursor-pointer"
                                         >
                                             <option value="owner">{t('profile.roleOwner')}</option>
                                             <option value="staff">{t('profile.roleStaff')}</option>
@@ -1956,7 +1956,7 @@ export const Settings = () => {
                                             type="text"
                                             value={profile.specialty}
                                             onChange={(e) => setProfile({ ...profile, specialty: e.target.value })}
-                                            className="w-full bg-white border border-ice-200 rounded-xl px-4 py-3 font-medium text-graphite-900 focus:outline-none focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10 transition-all"
+                                            className="w-full bg-white border border-transparent focus:border-brand-primary shadow-float rounded-xl px-4 py-3 font-medium text-graphite-900 focus:outline-none focus:ring-4 focus:ring-brand-primary/10 transition-all"
                                         />
                                     </div>
                                     <div className="space-y-2">
@@ -1965,7 +1965,7 @@ export const Settings = () => {
                                             type="text"
                                             value={profile.crm}
                                             onChange={(e) => setProfile({ ...profile, crm: e.target.value })}
-                                            className="w-full bg-white border border-ice-200 rounded-xl px-4 py-3 font-medium text-graphite-900 focus:outline-none focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10 transition-all"
+                                            className="w-full bg-white border border-transparent focus:border-brand-primary shadow-float rounded-xl px-4 py-3 font-medium text-graphite-900 focus:outline-none focus:ring-4 focus:ring-brand-primary/10 transition-all"
                                         />
                                     </div>
                                     <div className="space-y-2">
@@ -1973,7 +1973,7 @@ export const Settings = () => {
                                         <select
                                             value={language}
                                             onChange={(e) => handleLanguageChange(e.target.value as AppLanguage)}
-                                            className="w-full bg-white border border-ice-200 rounded-xl px-4 py-3 font-medium text-graphite-900 focus:outline-none focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10 transition-all cursor-pointer"
+                                            className="w-full bg-white border border-transparent focus:border-brand-primary shadow-float rounded-xl px-4 py-3 font-medium text-graphite-900 focus:outline-none focus:ring-4 focus:ring-brand-primary/10 transition-all cursor-pointer"
                                         >
                                             {supportedLanguages.map((lng) => (
                                                 <option key={lng} value={lng}>{tCommon(`language.${lng}`)}</option>
@@ -2028,7 +2028,7 @@ export const Settings = () => {
                     onClick={() => setMetaConnectModal(false)}
                     className="absolute inset-0 bg-graphite-900/40 backdrop-blur-sm transition-opacity"
                 />
-                <div className="relative w-full max-w-md bg-white rounded-[32px] border border-ice-100 shadow-2xl p-8 space-y-6 animate-in fade-in zoom-in-95 duration-200">
+                <div className="relative w-full max-w-md bg-white rounded-[32px] shadow-2xl p-8 space-y-6 animate-in fade-in zoom-in-95 duration-200">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <div className="w-12 h-12 rounded-2xl bg-[#0081FB] flex items-center justify-center shrink-0">
@@ -2050,7 +2050,7 @@ export const Settings = () => {
                     </div>
 
                     <div className="space-y-4">
-                        <label className="flex items-start gap-3 p-4 rounded-2xl border-2 border-ice-100 hover:border-brand-primary/30 transition-all cursor-pointer bg-white">
+                        <label className="flex items-start gap-3 p-4 rounded-2xl border-2 border-transparent hover:border-brand-primary/30 shadow-float transition-all cursor-pointer bg-white">
                             <input
                                 type="checkbox"
                                 checked={metaFeatures.ads}
@@ -2065,7 +2065,7 @@ export const Settings = () => {
                             </div>
                         </label>
 
-                        <label className="flex items-start gap-3 p-4 rounded-2xl border-2 border-ice-100 hover:border-brand-primary/30 transition-all cursor-pointer bg-white">
+                        <label className="flex items-start gap-3 p-4 rounded-2xl border-2 border-transparent hover:border-brand-primary/30 shadow-float transition-all cursor-pointer bg-white">
                             <input
                                 type="checkbox"
                                 checked={metaFeatures.messaging}
@@ -2114,7 +2114,7 @@ export const Settings = () => {
                     onClick={() => setShowRechargeModal(false)}
                     className="absolute inset-0 bg-graphite-900/40 backdrop-blur-sm transition-opacity"
                 />
-                <div className="relative w-full max-w-md bg-white rounded-[32px] border border-ice-100 shadow-2xl p-8 space-y-6 animate-in fade-in zoom-in-95 duration-200">
+                <div className="relative w-full max-w-md bg-white rounded-[32px] shadow-2xl p-8 space-y-6 animate-in fade-in zoom-in-95 duration-200">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center shrink-0">
@@ -2161,7 +2161,7 @@ export const Settings = () => {
                                 min="10"
                                 value={rechargeAmount}
                                 onChange={e => setRechargeAmount(e.target.value)}
-                                className="w-full mt-1 bg-white border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium focus:outline-none focus:border-brand-primary transition-colors font-mono"
+                                className="w-full mt-1 bg-white border border-transparent focus:border-brand-primary shadow-float rounded-xl px-4 py-3 text-sm font-medium focus:outline-none transition-colors font-mono"
                                 placeholder={t('wallet.rechargeModal.customAmountPlaceholder')}
                             />
                         </div>

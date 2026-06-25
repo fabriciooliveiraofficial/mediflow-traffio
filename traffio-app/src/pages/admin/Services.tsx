@@ -320,7 +320,7 @@ export const Services = () => {
         <div
             key={s.id}
             onClick={() => handleEdit(s)}
-            className="group bg-white rounded-2xl border border-ice-200 p-5 hover:border-brand-primary/30 hover:shadow-md transition-all cursor-pointer relative overflow-hidden h-full"
+            className="group bg-white rounded-2xl border border-transparent shadow-float p-5 hover:border-brand-primary/30 transition-all cursor-pointer relative overflow-hidden h-full"
         >
             {/* Color Indicator */}
             <div
@@ -393,7 +393,7 @@ export const Services = () => {
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder={t('services.searchPlaceholder')}
-                    className="w-full bg-white border border-ice-200 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10 transition-all placeholder:text-graphite-300"
+                    className="w-full bg-white shadow-float rounded-2xl pl-12 pr-4 py-3.5 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10 transition-all placeholder:text-graphite-300"
                 />
             </div>
 
@@ -402,7 +402,7 @@ export const Services = () => {
                 {loading ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {Array.from({ length: 6 }).map((_, i) => (
-                            <div key={i} className="bg-white rounded-2xl border border-ice-200 p-5 animate-pulse">
+                            <div key={i} className="bg-white rounded-2xl shadow-float p-5 animate-pulse">
                                 <div className="h-4 bg-ice-100 rounded mb-3 w-3/4" />
                                 <div className="h-3 bg-ice-100 rounded w-1/2" />
                             </div>
@@ -498,14 +498,14 @@ export const Services = () => {
                                             </button>
                                         </div>
                                     </div>
-                                    <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t('services.modal.namePlaceholder')} className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors" />
+                                    <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t('services.modal.namePlaceholder')} className="w-full bg-ice-50 shadow-float rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors" />
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="text-xs font-black text-graphite-400 uppercase mb-1 block flex items-center gap-1">
                                             <Clock size={12} /> {t('services.modal.durationLabel')}
                                         </label>
-                                        <input type="number" value={form.duration_minutes} onChange={(e) => setForm({ ...form, duration_minutes: parseInt(e.target.value) || 0 })} className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors" />
+                                        <input type="number" value={form.duration_minutes} onChange={(e) => setForm({ ...form, duration_minutes: parseInt(e.target.value) || 0 })} className="w-full bg-ice-50 shadow-float rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors" />
                                     </div>
                                     <div>
                                         <label className="text-xs font-black text-graphite-400 uppercase mb-1 block flex items-center gap-1">
@@ -521,7 +521,7 @@ export const Services = () => {
                                                     const rawValue = e.target.value.replace(/\D/g, '');
                                                     setForm({ ...form, price_cents: parseInt(rawValue) || 0 });
                                                 }}
-                                                className="w-full bg-ice-50 border border-ice-200 rounded-xl pl-10 pr-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors"
+                                                className="w-full bg-ice-50 shadow-float rounded-xl pl-10 pr-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors"
                                             />
                                         </div>
                                     </div>
@@ -531,7 +531,7 @@ export const Services = () => {
                                         <Palette size={12} /> {t('services.modal.colorLabel')}
                                     </label>
                                     <div className="flex items-center gap-3">
-                                        <input type="color" value={form.color_hex} onChange={(e) => setForm({ ...form, color_hex: e.target.value })} className="w-10 h-10 rounded-xl border border-ice-200 cursor-pointer" />
+                                        <input type="color" value={form.color_hex} onChange={(e) => setForm({ ...form, color_hex: e.target.value })} className="w-10 h-10 rounded-xl shadow-float cursor-pointer" />
                                         <span className="text-sm font-mono text-graphite-500">{form.color_hex}</span>
                                     </div>
                                 </div>
@@ -542,7 +542,7 @@ export const Services = () => {
                                         onChange={(e) => setForm({ ...form, preparation_instructions: e.target.value })}
                                         placeholder={t('services.modal.instructionsPlaceholder')}
                                         rows={3}
-                                        className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors resize-none"
+                                        className="w-full bg-ice-50 shadow-float rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors resize-none"
                                     />
                                 </div>
                             </div>
@@ -569,7 +569,7 @@ export const Services = () => {
                                     ) : (
                                         serviceLinks.map((link, idx) => (
                                             <div key={idx} className="flex items-center gap-2 group">
-                                                <div className="flex-1 grid grid-cols-2 gap-2 p-2 bg-ice-50 border border-ice-200 rounded-xl group-hover:border-brand-primary/20 transition-all">
+                                                <div className="flex-1 grid grid-cols-2 gap-2 p-2 bg-ice-50 border border-transparent shadow-float rounded-xl group-hover:border-brand-primary/20 transition-all">
                                                     <select 
                                                         value={link.doctor_id}
                                                         onChange={(e) => {

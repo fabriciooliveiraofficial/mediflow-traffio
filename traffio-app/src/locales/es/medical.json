@@ -169,7 +169,9 @@
     "recallsTitle": "Agenda de Prevención (Recalls)",
     "exportList": "Exportar Lista",
     "overdue": "Vencido",
+    "emptyRecalls": "Sin recalls pendientes",
     "recentBudgets": "Últimos Presupuestos",
+    "emptyBudgets": "Sin presupuestos recientes",
     "total": "Total",
     "searchModal": {
       "budgetTitle": "Crear Presupuesto para...",

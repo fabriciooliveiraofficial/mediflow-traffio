@@ -1,7 +1,7 @@
 import type { HTMLAttributes } from 'react';
 import { clsx } from 'clsx';
 
-type BadgeAccent = 'brand' | 'success' | 'warning' | 'error' | 'info' | 'neutral';
+type BadgeAccent = 'brand' | 'success' | 'warning' | 'error' | 'info' | 'neutral' | 'indigo' | 'purple';
 type BadgeVariant = 'pill' | 'tag';
 type BadgeSize = 'sm' | 'md';
 
@@ -18,6 +18,8 @@ const accentClass: Record<BadgeAccent, string> = {
   error: 'bg-accent-error/10 text-accent-error border-accent-error/20',
   info: 'bg-accent-info/10 text-accent-info border-accent-info/20',
   neutral: 'bg-ice-100 text-graphite-500 border-ice-200',
+  indigo: 'bg-indigo-50 text-indigo-600 border-indigo-100',
+  purple: 'bg-purple-50 text-purple-600 border-purple-100',
 };
 
 const variantClass: Record<BadgeVariant, string> = {

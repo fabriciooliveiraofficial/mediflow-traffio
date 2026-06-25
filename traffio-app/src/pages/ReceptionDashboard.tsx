@@ -131,7 +131,7 @@ export const ReceptionDashboard = () => {
                 }
                 actions={
                     <>
-                        <div className="hidden md:flex items-center gap-2 bg-white border border-ice-200 rounded-xl px-4 py-2.5 shadow-sm">
+                        <div className="hidden md:flex items-center gap-2 bg-white border-none rounded-xl px-4 py-2.5 shadow-float">
                             <Search size={18} className="text-graphite-300" />
                             <input
                                 type="text"
@@ -141,11 +141,11 @@ export const ReceptionDashboard = () => {
                                 className="bg-transparent border-none outline-none text-sm font-medium w-64"
                             />
                         </div>
-                        <Button variant="success" onClick={handleCallNext}>
+                        <Button variant="success" className="!border-none" onClick={handleCallNext}>
                             <Megaphone size={18} />
                             {t('receptionDashboard.callNext')}
                         </Button>
-                        <Button variant="primary" onClick={() => setIsNewPatientModalOpen(true)}>
+                        <Button variant="primary" className="!border-none" onClick={() => setIsNewPatientModalOpen(true)}>
                             <UserPlus size={18} />
                             <span>{t('receptionDashboard.newPatient')}</span>
                         </Button>
@@ -156,24 +156,28 @@ export const ReceptionDashboard = () => {
             {/* Quick Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <KpiCard
+                    variant="floating"
                     label={t('receptionDashboard.totalToday')}
                     value={appointments.length}
                     icon={Calendar}
                     accent="neutral"
                 />
                 <KpiCard
+                    variant="floating"
                     label={t('receptionDashboard.waiting')}
                     value={appointments.filter(a => a.status === 'waiting').length}
                     icon={Clock}
                     accent="warning"
                 />
                 <KpiCard
+                    variant="floating"
                     label={t('receptionDashboard.inConsult')}
                     value={appointments.filter(a => a.status === 'in_consult').length}
                     icon={User}
                     accent="brand"
                 />
                 <KpiCard
+                    variant="floating"
                     label={t('receptionDashboard.completed')}
                     value={appointments.filter(a => a.status === 'completed').length}
                     icon={CheckCircle2}
@@ -182,17 +186,17 @@ export const ReceptionDashboard = () => {
             </div>
 
             {/* Main List */}
-            <Card variant="panel" padding="none" className="overflow-hidden flex flex-col min-h-[500px]">
+            <Card variant="floatingPanel" padding="none" className="overflow-hidden flex flex-col min-h-[500px]">
                 {/* List Header */}
-                <div className="p-6 border-b border-ice-100 flex items-center justify-between bg-ice-50/50">
+                <div className="p-6 flex items-center justify-between bg-ice-50/50">
                     <h3 className="font-black text-lg text-graphite-900">{t('receptionDashboard.dayAgenda')}</h3>
-                    <div className="flex bg-white border border-ice-200 rounded-lg p-1">
+                    <div className="flex bg-white border-none rounded-lg p-1 shadow-float">
                         {['all', 'waiting', 'completed'].map((f) => (
                             <button
                                 key={f}
                                 onClick={() => setFilter(f)}
                                 className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all border-none cursor-pointer ${filter === f
-                                    ? 'bg-graphite-900 text-white shadow-sm'
+                                    ? 'bg-graphite-900 text-white'
                                     : 'text-graphite-500 hover:text-graphite-900 hover:bg-ice-50'
                                     }`}
                             >
@@ -238,19 +242,19 @@ export const ReceptionDashboard = () => {
                                 {/* Actions */}
                                 <div className="flex items-center gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                                     {app.status === 'scheduled' && (
-                                        <Button variant="primary" size="sm" onClick={() => handleStatusChange(app.id, 'waiting')}>
+                                        <Button variant="primary" size="sm" className="!border-none" onClick={() => handleStatusChange(app.id, 'waiting')}>
                                             <CheckCircle2 size={14} />
                                             {t('receptionDashboard.actions.arrived')}
                                         </Button>
                                     )}
                                     {app.status === 'waiting' && (
-                                        <Button variant="secondary" size="sm" onClick={() => handleStatusChange(app.id, 'in_consult')}>
+                                        <Button variant="secondary" size="sm" className="!border-none" onClick={() => handleStatusChange(app.id, 'in_consult')}>
                                             <Megaphone size={14} />
                                             {t('receptionDashboard.actions.call')}
                                         </Button>
                                     )}
                                     {app.status === 'in_consult' && (
-                                        <Button variant="success" size="sm" onClick={() => handleStatusChange(app.id, 'completed')}>
+                                        <Button variant="success" size="sm" className="!border-none" onClick={() => handleStatusChange(app.id, 'completed')}>
                                             <CheckCircle2 size={14} />
                                             {t('receptionDashboard.actions.finish')}
                                         </Button>

@@ -169,7 +169,9 @@
     "recallsTitle": "Prevention Schedule (Recalls)",
     "exportList": "Export List",
     "overdue": "Overdue",
+    "emptyRecalls": "No pending recalls",
     "recentBudgets": "Recent Estimates",
+    "emptyBudgets": "No recent estimates",
     "total": "Total",
     "searchModal": {
       "budgetTitle": "Create Estimate for...",

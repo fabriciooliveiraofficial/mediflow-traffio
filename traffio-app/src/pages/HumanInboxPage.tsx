@@ -2639,7 +2639,7 @@ export function HumanInboxPage() {
   // Render
   // ─────────────────────────────────────────────
   return (
-    <div className="flex h-full w-full bg-white rounded-3xl overflow-hidden border border-ice-100 shadow-sm">
+    <div className="flex h-full w-full bg-white rounded-3xl overflow-hidden border border-ice-100 shadow-float">
       {headerSlot && createPortal(
         <div className="flex items-center justify-between w-full h-full px-1 lg:px-2 gap-2 lg:gap-4">
           {/* Left: Channels segmented control */}

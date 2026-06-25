@@ -466,11 +466,10 @@ export const DashboardLayout = ({ children, activeScreen, onNavigate }: {
                     isSidebarOpen ? "lg:pl-72" : "lg:pl-24"
                 )}
             >
-                {/* Global Header — oculto na página de comunicações (tem nav própria) */}
+                {/* Global Header */}
                 <header
                     className={clsx(
                         "sticky top-0 z-40 transition-all duration-300 px-6 lg:px-12 py-4 flex items-center justify-between no-print",
-                        activeScreen === 'communications' ? "hidden" : "",
                         scrolled ? "bg-[#F7F9FC]/80 backdrop-blur-xl border-b border-ice-100/50 py-3" : "bg-transparent"
                     )}
                 >
@@ -516,8 +515,7 @@ export const DashboardLayout = ({ children, activeScreen, onNavigate }: {
                         {children}
                     </div>
                 ) : activeScreen === 'communications' ? (
-                    // Tela cheia sem padding — ocupa todo o espaço restante após o header
-                    <div className="flex-1 overflow-hidden">
+                    <div className="flex-1 overflow-hidden px-6 lg:px-12 py-8">
                         {children}
                     </div>
                 ) : (

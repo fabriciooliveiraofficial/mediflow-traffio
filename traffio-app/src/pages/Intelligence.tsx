@@ -475,7 +475,7 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
     const [newUnit, setNewUnit] = useState<'minutes' | 'hours' | 'days'>('hours');
     const [newDirection, setNewDirection] = useState<'before' | 'after'>('before');
     return (
-        <div className="bg-white border border-ice-200 rounded-3xl shadow-sm overflow-hidden transition-all duration-300">
+        <div className="bg-white rounded-3xl shadow-float overflow-hidden transition-all duration-300">
             <div className="p-8 space-y-8">
                 {/* ── Matriz de Canais e Automações ── */}
                 <div className="space-y-5">
@@ -483,7 +483,7 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
                         <Activity size={14} className="text-brand-primary" /> {t('intelligence.matrixSection.title', { defaultValue: 'Matriz de Canais e Automações' })}
                     </h4>
 
-                    <div className="overflow-x-auto border border-ice-100 rounded-2xl bg-ice-50/20">
+                    <div className="overflow-x-auto shadow-float rounded-2xl bg-ice-50/20">
                         <table className="w-full border-collapse text-left">
                             <thead>
                                 <tr className="border-b border-ice-100 bg-ice-50/50">
@@ -562,7 +562,7 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
                     config.channel_automations?.whatsapp?.videos ||
                     config.channel_automations?.mms?.videos
                 ) && (
-                    <div className="space-y-5 bg-indigo-50/30 p-8 rounded-3xl border border-indigo-100 animate-in fade-in duration-500">
+                    <div className="space-y-5 bg-indigo-50/30 p-8 rounded-3xl shadow-float animate-in fade-in duration-500">
                         <div className="flex items-center gap-3">
                             <div className="p-2 bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-200">
                                 <Bell size={20} />
@@ -665,7 +665,7 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
                                                     min="1"
                                                     value={newOffset}
                                                     onChange={(e) => setNewOffset(Math.max(1, parseInt(e.target.value) || 1))}
-                                                    className="w-full bg-white border border-ice-200 rounded-xl p-2 text-xs font-bold outline-none focus:border-indigo-500"
+                                                    className="w-full bg-white border border-transparent shadow-float rounded-xl p-2 text-xs font-bold outline-none focus:border-indigo-500"
                                                 />
                                             </div>
                                             <div>
@@ -675,7 +675,7 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
                                                 <select
                                                     value={newUnit}
                                                     onChange={(e) => setNewUnit(e.target.value as any)}
-                                                    className="w-full bg-white border border-ice-200 rounded-xl p-2 text-xs font-bold outline-none focus:border-indigo-500 cursor-pointer"
+                                                    className="w-full bg-white border border-transparent shadow-float rounded-xl p-2 text-xs font-bold outline-none focus:border-indigo-500 cursor-pointer"
                                                 >
                                                     <option value="minutes">{t('intelligence.universalSection.minutesUnit', { defaultValue: 'Minutos' })}</option>
                                                     <option value="hours">{t('intelligence.universalSection.hoursUnit', { defaultValue: 'Horas' })}</option>
@@ -689,7 +689,7 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
                                                 <select
                                                     value={newDirection}
                                                     onChange={(e) => setNewDirection(e.target.value as any)}
-                                                    className="w-full bg-white border border-ice-200 rounded-xl p-2 text-xs font-bold outline-none focus:border-indigo-500 cursor-pointer"
+                                                    className="w-full bg-white border border-transparent shadow-float rounded-xl p-2 text-xs font-bold outline-none focus:border-indigo-500 cursor-pointer"
                                                 >
                                                     <option value="before">{t('intelligence.universalSection.beforeRelation', { defaultValue: 'Antes' })}</option>
                                                     <option value="after">{t('intelligence.universalSection.afterRelation', { defaultValue: 'Depois' })}</option>
@@ -768,7 +768,7 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
                     </div>
                 )}
 
-                <div className="p-4 bg-white/50 rounded-2xl border border-indigo-100 flex items-center gap-3">
+                <div className="p-4 bg-white/50 rounded-2xl shadow-float flex items-center gap-3">
                     <AlertTriangle size={16} className="text-indigo-500 flex-shrink-0" />
                     <p className="text-xs font-bold text-indigo-800 leading-relaxed">
                         {t('intelligence.universalSection.infoBanner')}
@@ -777,7 +777,7 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
 
                 {/* ── Teste e Salvar ── */}
                 <div className="flex flex-col md:flex-row items-center justify-between gap-6 pt-8 border-t border-ice-100">
-                    <div className="flex items-center gap-4 bg-ice-50 px-5 py-3 rounded-2xl border border-ice-100">
+                    <div className="flex items-center gap-4 bg-ice-50 px-5 py-3 rounded-2xl shadow-float">
                         <div className="flex items-center gap-2">
                             <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
                             <p className="text-[10px] font-black text-graphite-400 uppercase">{t('intelligence.testModeLabel')}</p>
@@ -841,7 +841,7 @@ const DurationEditor = ({ offsetMinutes, onChange }: { offsetMinutes: number; on
     };
 
     return (
-        <div className="flex items-center gap-1 bg-ice-50/50 hover:bg-ice-50 px-2.5 py-1 rounded-xl border border-ice-100/50 transition-all select-none">
+        <div className="flex items-center gap-1 bg-ice-50/50 hover:bg-ice-50 px-2.5 py-1 rounded-xl shadow-float transition-all select-none">
             <input 
                 type="number"
                 min="1"
@@ -926,7 +926,7 @@ const UniversalReminderCard = ({ offsetMinutes, onOffsetChange, enabled, onToggl
     ];
 
     return (
-        <div className={`p-5 rounded-2xl border transition-all group/card ${enabled ? 'bg-white/40 border-indigo-100/50 shadow-sm hover:shadow-md' : 'bg-ice-100/30 border-ice-200/50 opacity-60'}`}>
+        <div className={`p-5 rounded-2xl transition-all group/card ${enabled ? 'bg-white/40 shadow-float' : 'bg-ice-100/30 opacity-60'}`}>
             <div className="flex items-center justify-between mb-4">
                 <DurationEditor offsetMinutes={offsetMinutes} onChange={onOffsetChange} />
                 <div className="flex items-center gap-2">
@@ -993,7 +993,7 @@ const UniversalReminderCard = ({ offsetMinutes, onOffsetChange, enabled, onToggl
                             {t('intelligence.universalSection.textLabel', { defaultValue: 'Mensagem (Todos os canais)' })}
                         </label>
                         
-                        <div className="flex bg-ice-100 p-0.5 rounded-lg border border-ice-200">
+                        <div className="flex bg-ice-100 p-0.5 rounded-lg shadow-float">
                             {languages.map((lang) => (
                                 <button
                                     key={lang.code}
@@ -1022,7 +1022,7 @@ const UniversalReminderCard = ({ offsetMinutes, onOffsetChange, enabled, onToggl
                         placeholder={t(`intelligence.universalSection.captionPlaceholder_${activeLang}`, {
                             defaultValue: activeLang === 'pt' ? 'Mensagem em português...' : activeLang === 'en' ? 'Message in English...' : 'Mensaje en español...'
                         })}
-                        className="flex-1 w-full min-h-[120px] bg-white/80 border border-ice-200 rounded-xl p-3 text-xs font-medium text-graphite-700 placeholder:text-graphite-300 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none outline-none leading-relaxed"
+                        className="flex-1 w-full min-h-[120px] bg-white/80 border border-transparent shadow-float rounded-xl p-3 text-xs font-medium text-graphite-700 placeholder:text-graphite-300 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none outline-none leading-relaxed"
                     />
                     <div className="flex items-center justify-between">
                         <span className="text-[8px] font-bold text-graphite-300 uppercase">

@@ -13,7 +13,9 @@
 
   /* Neutrals */
   --color-graphite-900: #0f172a;
+  --color-graphite-800: #1e293b;
   --color-graphite-700: #334155;
+  --color-graphite-500: #64748b;
   --color-graphite-400: #94a3b8;
   --color-graphite-300: #cbd5e1;
 
@@ -42,6 +44,14 @@
   --shadow-premium-sm: 0 1px 2px 0 rgb(17 82 212 / 0.05);
   --shadow-premium-md: 0 4px 6px -1px rgb(17 82 212 / 0.1);
   --shadow-premium-lg: 0 10px 15px -3px rgb(17 82 212 / 0.1);
+
+  /* Glass Shadows: soft, ice-tinted, no blur (perf-friendly elevation for hero/feature panels) */
+  --shadow-glass-sm: 0 2px 8px -2px rgb(226 232 240 / 0.6);
+  --shadow-glass-md: 0 8px 20px -4px rgb(226 232 240 / 0.55);
+  --shadow-glass-lg: 0 16px 32px -8px rgb(226 232 240 / 0.5);
+
+  /* Float Shadow: very soft, wide, borderless elevation for full-height workspace panels */
+  --shadow-float: 0 0 60px 3px rgb(0 0 0 / 0.02);
 }
 
 :root {
