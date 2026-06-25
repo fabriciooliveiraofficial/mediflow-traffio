@@ -121,7 +121,7 @@ function PhoneNumbersList({ tenantId, showToast, refreshKey }: { tenantId: strin
     }
 
     return (
-        <div className="space-y-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
             {numbers.map((num) => (
                 <div key={num.id} className="flex items-center justify-between p-3 bg-ice-50 rounded-xl shadow-float">
                     <div>
@@ -1182,7 +1182,8 @@ export const Settings = () => {
                                                             </p>
                                                         </div>
                                                     ) : (
-                                                        <div className="space-y-2">
+                                                        <div>
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                                             {metaPages.map((page) => (
                                                                 <div key={page.id} className="flex items-center justify-between p-3 rounded-xl bg-ice-50 shadow-float">
                                                                     <div className="flex items-center gap-3">
@@ -1217,6 +1218,7 @@ export const Settings = () => {
                                                                     </div>
                                                                 </div>
                                                             ))}
+                                                        </div>
                                                             <p className="text-[10px] text-graphite-400 mt-1">
                                                                 {t('clinics.metaReconnectHint')}
                                                             </p>
@@ -1448,70 +1450,78 @@ export const Settings = () => {
                             </div>
                         )}
 
-                        <div className="space-y-3">
-                            {locations.length === 0 ? (
-                                <EmptyState icon={MapPinHouse} label={t('locations.empty')} hint={t('locations.emptyHint')} />
-                            ) : locations.map(loc => (
-                                <div key={loc.id} className="flex items-center gap-4 p-4 border border-transparent rounded-2xl shadow-float hover:border-brand-primary/20 transition-all group">
-                                    <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0"><MapPinHouse size={24} /></div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2">
-                                            <p className="font-bold text-graphite-900 truncate">{loc.name}</p>
-                                            <Badge size="sm" accent={loc.type === 'hospital' ? 'error' : loc.type === 'clinica' ? 'info' : 'warning'}>
-                                                {loc.type}
-                                            </Badge>
+                        {locations.length === 0 ? (
+                            <EmptyState icon={MapPinHouse} label={t('locations.empty')} hint={t('locations.emptyHint')} />
+                        ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {locations.map(loc => (
+                                    <div key={loc.id} className="group bg-white rounded-2xl shadow-float p-4 border border-transparent hover:border-brand-primary/20 transition-all">
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0"><MapPinHouse size={24} /></div>
+                                                <div className="min-w-0">
+                                                    <p className="font-bold text-graphite-900 truncate">{loc.name}</p>
+                                                    <Badge size="sm" accent={loc.type === 'hospital' ? 'error' : loc.type === 'clinica' ? 'info' : 'warning'}>
+                                                        {loc.type}
+                                                    </Badge>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-0.5 shrink-0 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button onClick={() => {
+                                                    setEditingLocId(loc.id);
+                                                    setLocForm({
+                                                        name: loc.name,
+                                                        address: loc.address || '',
+                                                        address_number: loc.address_number || '',
+                                                        address_complement: loc.address_complement || '',
+                                                        address_neighborhood: loc.address_neighborhood || '',
+                                                        address_zip_code: loc.address_zip_code || '',
+                                                        phone: loc.phone || '',
+                                                        latitude: loc.latitude || null,
+                                                        longitude: loc.longitude || null,
+                                                        google_maps_url: loc.google_maps_url || '',
+                                                        type: loc.type || 'clinica',
+                                                        country: loc.country,
+                                                        objectives: loc.objectives || [],
+                                                        operating_hours: loc.operating_hours || {
+                                                            1: { start: '08:00', end: '18:00', closed: false },
+                                                            2: { start: '08:00', end: '18:00', closed: false },
+                                                            3: { start: '08:00', end: '18:00', closed: false },
+                                                            4: { start: '08:00', end: '18:00', closed: false },
+                                                            5: { start: '08:00', end: '18:00', closed: false },
+                                                            6: { start: '08:00', end: '12:00', closed: true },
+                                                            0: { start: '00:00', end: '00:00', closed: true },
+                                                        }
+                                                    });
+                                                    setShowLocForm(true);
+                                                }} className="p-1.5 text-graphite-400 hover:text-brand-primary hover:bg-ice-50 rounded-lg transition-colors border-none cursor-pointer"><Edit3 size={14} /></button>
+                                                <button onClick={() => handleDeleteLocation(loc.id)} className="p-1.5 text-graphite-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors border-none cursor-pointer"><Trash2 size={14} /></button>
+                                            </div>
                                         </div>
-                                        <div className="flex flex-wrap gap-1 mt-1">
-                                            {loc.objectives?.map((obj: string, i: number) => (
-                                                <span key={i} className="text-[10px] font-bold text-graphite-400 bg-ice-100 px-1.5 py-0.5 rounded italic">
-                                                    {obj}
-                                                </span>
-                                            ))}
-                                            {!loc.objectives?.length && (
+
+                                        <div className="flex flex-col gap-1 mt-3 pt-3 border-t border-ice-50">
+                                            {loc.objectives?.length ? (
+                                                <div className="flex flex-wrap gap-1">
+                                                    {loc.objectives.map((obj: string, i: number) => (
+                                                        <span key={i} className="text-[10px] font-bold text-graphite-400 bg-ice-100 px-1.5 py-0.5 rounded italic">
+                                                            {obj}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            ) : (
                                                 <div className="flex items-center gap-1.5 text-sm text-graphite-400 truncate">
                                                     <p className="truncate">{loc.address}</p>
                                                     {loc.google_maps_url && (
-                                                        <span title={t('locations.manualLinkConfigured')}><Navigation size={12} className="text-brand-primary" /></span>
+                                                        <span title={t('locations.manualLinkConfigured')}><Navigation size={12} className="text-brand-primary shrink-0" /></span>
                                                     )}
                                                 </div>
                                             )}
+                                            {loc.phone && <span className="text-xs text-graphite-500 font-medium">{phoneFlag(loc.phone)} {formatPhone(loc.phone)}</span>}
                                         </div>
                                     </div>
-                                    {loc.phone && <span className="text-sm text-graphite-500 hidden md:block">{phoneFlag(loc.phone)} {formatPhone(loc.phone)}</span>}
-                                    <div className="flex gap-1">
-                                        <button onClick={() => {
-                                            setEditingLocId(loc.id);
-                                            setLocForm({
-                                                name: loc.name,
-                                                address: loc.address || '',
-                                                address_number: loc.address_number || '',
-                                                address_complement: loc.address_complement || '',
-                                                address_neighborhood: loc.address_neighborhood || '',
-                                                address_zip_code: loc.address_zip_code || '',
-                                                phone: loc.phone || '',
-                                                latitude: loc.latitude || null,
-                                                longitude: loc.longitude || null,
-                                                google_maps_url: loc.google_maps_url || '',
-                                                type: loc.type || 'clinica',
-                                                country: loc.country,
-                                                objectives: loc.objectives || [],
-                                                operating_hours: loc.operating_hours || {
-                                                    1: { start: '08:00', end: '18:00', closed: false },
-                                                    2: { start: '08:00', end: '18:00', closed: false },
-                                                    3: { start: '08:00', end: '18:00', closed: false },
-                                                    4: { start: '08:00', end: '18:00', closed: false },
-                                                    5: { start: '08:00', end: '18:00', closed: false },
-                                                    6: { start: '08:00', end: '12:00', closed: true },
-                                                    0: { start: '00:00', end: '00:00', closed: true },
-                                                }
-                                            });
-                                            setShowLocForm(true);
-                                        }} className="p-2 text-graphite-400 hover:text-brand-primary hover:bg-ice-50 rounded-xl transition-colors border-none cursor-pointer"><Edit3 size={16} /></button>
-                                        <button onClick={() => handleDeleteLocation(loc.id)} className="p-2 text-graphite-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-colors border-none cursor-pointer"><Trash2 size={16} /></button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -1548,23 +1558,25 @@ export const Settings = () => {
                             </div>
                         )}
 
-                        <div className="space-y-3">
-                            {insurancePlans.length === 0 ? (
-                                <EmptyState icon={Shield} label={t('insurance.empty')} hint={t('insurance.emptyHint')} />
-                            ) : insurancePlans.map(plan => (
-                                <div key={plan.id} className="flex items-center gap-4 p-4 border border-transparent rounded-2xl shadow-float hover:border-brand-primary/20 transition-all group">
-                                    <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 shrink-0"><Shield size={24} /></div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="font-bold text-graphite-900">{plan.name}</p>
-                                        {plan.code && <p className="text-xs text-graphite-400">{t('locations.ansLabel')}: {plan.code}</p>}
+                        {insurancePlans.length === 0 ? (
+                            <EmptyState icon={Shield} label={t('insurance.empty')} hint={t('insurance.emptyHint')} />
+                        ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {insurancePlans.map(plan => (
+                                    <div key={plan.id} className="group bg-white rounded-2xl shadow-float p-4 border border-transparent hover:border-brand-primary/20 transition-all flex items-center gap-3">
+                                        <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 shrink-0"><Shield size={24} /></div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-bold text-graphite-900 truncate">{plan.name}</p>
+                                            {plan.code && <p className="text-xs text-graphite-400">{t('locations.ansLabel')}: {plan.code}</p>}
+                                        </div>
+                                        <div className="flex gap-0.5 shrink-0 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button onClick={() => { setEditingInsId(plan.id); setInsForm({ name: plan.name, code: plan.code || '' }); setShowInsForm(true); }} className="p-1.5 text-graphite-400 hover:text-brand-primary hover:bg-ice-50 rounded-lg transition-colors border-none cursor-pointer"><Edit3 size={14} /></button>
+                                            <button onClick={() => handleDeleteInsurance(plan.id)} className="p-1.5 text-graphite-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors border-none cursor-pointer"><Trash2 size={14} /></button>
+                                        </div>
                                     </div>
-                                    <div className="flex gap-1">
-                                        <button onClick={() => { setEditingInsId(plan.id); setInsForm({ name: plan.name, code: plan.code || '' }); setShowInsForm(true); }} className="p-2 text-graphite-400 hover:text-brand-primary hover:bg-ice-50 rounded-xl transition-colors border-none cursor-pointer"><Edit3 size={16} /></button>
-                                        <button onClick={() => handleDeleteInsurance(plan.id)} className="p-2 text-graphite-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-colors border-none cursor-pointer"><Trash2 size={16} /></button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
 

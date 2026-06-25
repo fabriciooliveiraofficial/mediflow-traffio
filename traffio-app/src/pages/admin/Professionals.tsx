@@ -1332,59 +1332,45 @@ export const Professionals = () => {
             </div>
 
             {/* List */}
-            <div className="bg-white rounded-[32px] shadow-float overflow-hidden">
-                {loading ? (
-                    <div className="p-12 text-center text-graphite-400 font-medium">{t('professionals.list.loading')}</div>
-                ) : filtered.length === 0 ? (
-                    <div className="p-12 text-center text-graphite-400 font-medium">
-                        {professionals.length === 0 ? t('professionals.list.emptyAll') : t('professionals.list.emptySearch')}
-                    </div>
-                ) : (
-                    <div className="divide-y divide-ice-100">
-                        {filtered.map((p) => (
-                            <div
-                                key={p.id}
-                                className="flex items-center gap-4 p-5 hover:bg-ice-50/50 transition-colors relative cursor-pointer"
-                                onClick={() => handleViewDetail(p)}
-                            >
-                                {/* Color indicator */}
-                                <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ backgroundColor: (p.color || '#1152d4') + '18' }}>
-                                    {p.role === 'doctor' ? (
-                                        <Stethoscope size={22} style={{ color: p.color || '#1152d4' }} />
-                                    ) : (
-                                        <Shield size={22} className="text-graphite-400" />
-                                    )}
-                                </div>
-
-                                {/* Info */}
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <p className="font-black text-graphite-900 truncate">{p.full_name || t('professionals.list.noName')}</p>
-                                        <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase ${roleColor[p.role] || 'bg-ice-100 text-graphite-500'}`}>
-                                            {p.professional_roles?.name || roleLabel[p.role] || p.role}
-                                        </span>
-                                        {!p.is_active && (
-                                            <span className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase bg-rose-100 text-rose-600">{t('professionals.list.inactive')}</span>
+            {loading ? (
+                <div className="bg-white rounded-[32px] shadow-float p-12 text-center text-graphite-400 font-medium">{t('professionals.list.loading')}</div>
+            ) : filtered.length === 0 ? (
+                <div className="bg-white rounded-[32px] shadow-float p-12 text-center text-graphite-400 font-medium">
+                    {professionals.length === 0 ? t('professionals.list.emptyAll') : t('professionals.list.emptySearch')}
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filtered.map((p) => (
+                        <div
+                            key={p.id}
+                            className="group bg-white rounded-2xl shadow-float p-5 hover:-translate-y-0.5 hover:shadow-lg transition-all cursor-pointer"
+                            onClick={() => handleViewDetail(p)}
+                        >
+                            <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    {/* Color indicator */}
+                                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ backgroundColor: (p.color || '#1152d4') + '18' }}>
+                                        {p.role === 'doctor' ? (
+                                            <Stethoscope size={22} style={{ color: p.color || '#1152d4' }} />
+                                        ) : (
+                                            <Shield size={22} className="text-graphite-400" />
                                         )}
                                     </div>
-                                    <div className="flex items-center gap-4 mt-1 flex-wrap">
-                                        {p.specialty && <span className="text-xs text-graphite-500 font-medium">{p.specialty}</span>}
-                                        {p.crm && <span className="text-xs text-graphite-300 font-medium">{t('professionals.list.crmPrefix', { crm: p.crm })}</span>}
-                                        {p.email && (
-                                            <span className="text-xs text-graphite-300 font-medium flex items-center gap-1">
-                                                <Mail size={10} /> {p.email}
+                                    <div className="min-w-0">
+                                        <p className="font-black text-graphite-900 truncate">{p.full_name || t('professionals.list.noName')}</p>
+                                        <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                                            <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase ${roleColor[p.role] || 'bg-ice-100 text-graphite-500'}`}>
+                                                {p.professional_roles?.name || roleLabel[p.role] || p.role}
                                             </span>
-                                        )}
-                                        {p.phone && (
-                                            <span className="text-xs text-graphite-300 font-medium flex items-center gap-1">
-                                                <Phone size={10} /> {phoneFlag(p.phone)} {formatPhone(p.phone)}
-                                            </span>
-                                        )}
+                                            {!p.is_active && (
+                                                <span className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase bg-rose-100 text-rose-600">{t('professionals.list.inactive')}</span>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
 
                                 {/* Action Buttons */}
-                                <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
+                                <div className="flex items-center gap-0.5 shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
                                     <button
                                         onClick={() => {
                                             setSelectedPro(p);
@@ -1407,35 +1393,56 @@ export const Professionals = () => {
                                             fetchScheduleBlocks(p.id);
                                             fetchDoctorPlans(p.id);
                                         }}
-                                        className="p-2 text-brand-primary hover:bg-brand-primary/10 rounded-xl transition-all border-none cursor-pointer bg-transparent"
+                                        className="p-1.5 text-brand-primary hover:bg-brand-primary/10 rounded-lg transition-all border-none cursor-pointer bg-transparent"
                                         title={t('professionals.list.edit')}
                                     >
-                                        <Pencil size={16} />
+                                        <Pencil size={14} />
                                     </button>
                                     <button
                                         onClick={() => handleToggleActive(p.id, p.is_active)}
-                                        className="p-2 rounded-xl border-none cursor-pointer transition-colors bg-transparent"
+                                        className="p-1.5 rounded-lg border-none cursor-pointer transition-colors bg-transparent"
                                         title={p.is_active ? t('professionals.list.deactivate') : t('professionals.list.activate')}
                                     >
                                         {p.is_active ? (
-                                            <ToggleRight size={20} className="text-emerald-500" />
+                                            <ToggleRight size={18} className="text-emerald-500" />
                                         ) : (
-                                            <ToggleLeft size={20} className="text-graphite-300" />
+                                            <ToggleLeft size={18} className="text-graphite-300" />
                                         )}
                                     </button>
                                     <button
                                         onClick={() => setConfirmDelete(p.id)}
-                                        className="p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all border-none cursor-pointer bg-transparent"
+                                        className="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all border-none cursor-pointer bg-transparent"
                                         title={t('professionals.list.delete')}
                                     >
-                                        <Trash2 size={16} />
+                                        <Trash2 size={14} />
                                     </button>
                                 </div>
                             </div>
-                        ))}
-                    </div>
-                )}
-            </div>
+
+                            {/* Secondary Info */}
+                            {(p.specialty || p.crm || p.email || p.phone) && (
+                                <div className="flex flex-col gap-1 mt-4 pt-3 border-t border-ice-50">
+                                    {(p.specialty || p.crm) && (
+                                        <span className="text-xs text-graphite-500 font-medium truncate">
+                                            {p.specialty}{p.specialty && p.crm && ' · '}{p.crm && t('professionals.list.crmPrefix', { crm: p.crm })}
+                                        </span>
+                                    )}
+                                    {p.email && (
+                                        <span className="text-xs text-graphite-300 font-medium flex items-center gap-1 truncate">
+                                            <Mail size={10} className="shrink-0" /> {p.email}
+                                        </span>
+                                    )}
+                                    {p.phone && (
+                                        <span className="text-xs text-graphite-300 font-medium flex items-center gap-1">
+                                            <Phone size={10} className="shrink-0" /> {phoneFlag(p.phone)} {formatPhone(p.phone)}
+                                        </span>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            )}
 
             {/* Confirm Delete Dialog */}
             {confirmDelete && (
