@@ -824,7 +824,7 @@ export const Settings = () => {
 
     return (
         <>
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto">
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
             {/* Header */}
             <PageHeader icon={SettingsIcon} title={t('header.title')} subtitle={t('header.subtitle')} />
@@ -1280,7 +1280,7 @@ export const Settings = () => {
                             <div className="bg-brand-primary/5 shadow-float rounded-2xl p-6 space-y-4">
                                 <h4 className="font-bold text-graphite-900">{editingLocId ? t('locations.editLocation') : t('locations.newLocation')}</h4>
                                 <div className="space-y-6">
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                         <div>
                                             <label className="text-xs font-bold text-graphite-500">{t('locations.nameLabel')}</label>
                                             <input value={locForm.name} onChange={e => setLocForm({ ...locForm, name: e.target.value })} placeholder={t('locations.namePlaceholder')} className="w-full bg-white border border-transparent focus:border-brand-primary shadow-float rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none transition-colors" />
@@ -1318,7 +1318,7 @@ export const Settings = () => {
                                                 ))}
                                             </select>
                                         </div>
-                                        <div className="col-span-1 md:col-span-3">
+                                        <div className="col-span-1 md:col-span-2 lg:col-span-4">
                                             <TenantAddressForm
                                                 initialData={locForm}
                                                 country={(locForm.country || tenants[0]?.country || DEFAULT_COUNTRY) as CountryCode}
@@ -1897,7 +1897,7 @@ export const Settings = () => {
                         <div className="flex items-start gap-8">
                             {/* Profile Identity - Purely Nominal */}
                             <div className="flex-1 space-y-6">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                     <div className="space-y-2">
                                         <label className="text-sm font-bold text-graphite-900">{t('profile.fullNameLabel')}</label>
                                         <input
