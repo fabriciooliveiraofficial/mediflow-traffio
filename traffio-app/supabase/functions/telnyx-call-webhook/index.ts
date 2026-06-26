@@ -419,7 +419,12 @@ async function handleEvent(supabase: any, eventType: string, payload: any): Prom
       const recordingUrl = payload.recording_urls?.mp3 ?? payload.recording_urls?.wav;
       if (!recordingUrl) break;
 
+      // Fallback legado: URL temporária da Telnyx (expira). Só é mantida se o
+      // upload durável para o Storage falhar.
       let finalRecordingUrl = recordingUrl;
+      // Caminho durável do objeto no bucket privado 'call-recordings'.
+      // É o valor canônico: o frontend gera uma URL assinada a partir dele.
+      let recordingPath: string | null = null;
 
       // Buscar tenant_id para podermos usar a API Key correta do tenant e organizar no storage
       const { data: cdrRecord } = await supabase
@@ -454,16 +459,14 @@ async function handleEvent(supabase: any, eventType: string, payload: any): Prom
               });
 
             if (uploadError) {
-              console.error(`[telnyx-call-webhook] Supabase Storage upload error:`, uploadError.message);
+              console.error(`[telnyx-call-webhook] Supabase Storage upload error (recording will use ephemeral Telnyx URL):`, uploadError.message);
             } else if (uploadData) {
-              const { data: urlData } = supabase
-                .storage
-                .from("call-recordings")
-                .getPublicUrl(filePath);
-
-              finalRecordingUrl = urlData.publicUrl;
-              console.log(`[telnyx-call-webhook] ✓ Recording stored in Supabase: ${finalRecordingUrl}`);
+              // Bucket é privado: guardamos o caminho, não uma URL pública.
+              recordingPath = filePath;
+              console.log(`[telnyx-call-webhook] ✓ Recording stored in Supabase: call-recordings/${filePath}`);
             }
+          } else {
+            console.error(`[telnyx-call-webhook] No Telnyx API key for tenant ${cdrRecord.tenant_id}; cannot persist recording (will expire).`);
           }
         } catch (err: any) {
           console.error(`[telnyx-call-webhook] Failed to download/upload recording:`, err.message);
@@ -473,6 +476,7 @@ async function handleEvent(supabase: any, eventType: string, payload: any): Prom
       await supabase
         .from("call_records")
         .update({
+          recording_path:             recordingPath,
           recording_url:              finalRecordingUrl,
           recording_duration_seconds: payload.duration_millis
             ? Math.round(payload.duration_millis / 1000)

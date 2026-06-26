@@ -232,7 +232,7 @@ serve(async (req: Request) => {
               // 🚀 NOVO: Inscrever a página no Webhook do App para receber mensagens
               try {
                 const subRes = await fetch(
-                  `https://graph.facebook.com/v21.0/${page.id}/subscribed_apps?subscribed_fields=messages,messaging_postbacks&access_token=${page.access_token}`,
+                  `https://graph.facebook.com/v21.0/${page.id}/subscribed_apps?subscribed_fields=messages,messaging_postbacks,standby&access_token=${page.access_token}`,
                   { method: 'POST' }
                 );
                 const subData = await subRes.json();

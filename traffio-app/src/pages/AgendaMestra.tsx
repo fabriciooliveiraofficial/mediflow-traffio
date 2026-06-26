@@ -75,6 +75,21 @@ interface Doctor {
     auto_release_hours: number;
 }
 
+interface AvailabilityBlock {
+    doctor_id: string;
+    location_id: string | null;
+    day_of_week: number;
+    start_time: string;
+    end_time: string;
+    block_type: string | null;
+}
+
+interface BlockedBand {
+    start: number;
+    end: number;
+    label: 'blocked' | 'outsideHours';
+}
+
 interface AppointmentType {
     id: string;
     name: string;
@@ -129,6 +144,7 @@ export const AgendaMestra: React.FC = () => {
     const [appointmentTypes, setAppointmentTypes] = useState<AppointmentType[]>([]);
     const [slotsByDoctor, setSlotsByDoctor] = useState<Record<string, SmartSlot[]>>({});
     const [appointmentsByDoctor, setAppointmentsByDoctor] = useState<Record<string, any[]>>({});
+    const [availabilityByDoctor, setAvailabilityByDoctor] = useState<Record<string, AvailabilityBlock[]>>({});
     const [loading, setLoading] = useState(false);
 
     // Booking modal
@@ -209,6 +225,14 @@ export const AgendaMestra: React.FC = () => {
 
     const visibleDoctors = useMemo(() => doctors.filter(d => selectedDoctors.includes(d.id)), [doctors, selectedDoctors]);
 
+    // ISO day-of-week (1=Mon...7=Sun) for the selected date, matching the
+    // convention used by find_next_available_dates (with the 0=Sunday legacy fallback).
+    const isoDow = useMemo(() => {
+        const [y, m, d] = dateStr.split('-').map(Number);
+        const jsDow = new Date(y, m - 1, d).getDay();
+        return jsDow === 0 ? 7 : jsDow;
+    }, [dateStr]);
+
     const formatSlot = useCallback((timeStr: string | null | undefined) => formatSlotI18n(timeStr, timeFormatOpts), [timeFormatOpts]);
 
     // ── Data fetching ──────────────────────
@@ -257,14 +281,26 @@ export const AgendaMestra: React.FC = () => {
         if (!selectedTenant || selectedDoctors.length === 0) return;
         setLoading(true);
         const defaultDur = SNAP_MIN; // Agenda Mestra precisa de granularidade de 15min para exibir todos os slots
+        const dowCandidates = isoDow === 7 ? [7, 0] : [isoDow];
         try {
-            const [slotsResults, appts] = await Promise.all([
+            const [slotsResults, appts, availability] = await Promise.all([
                 Promise.all(selectedDoctors.map(async (docId) => {
                     try {
                         return { docId, slots: await smartSchedulingService.getAvailableSlots(docId, dateStr, selectedTenant, defaultDur, selectedLocation || undefined) };
                     } catch { return { docId, slots: [] }; }
                 })),
                 smartSchedulingService.getAppointmentsForDate(selectedTenant, dateStr, selectedDoctors),
+                (async () => {
+                    let query = supabase
+                        .from('doctor_availability')
+                        .select('doctor_id, location_id, day_of_week, start_time, end_time, block_type')
+                        .in('doctor_id', selectedDoctors)
+                        .in('day_of_week', dowCandidates);
+                    if (selectedLocation) query = query.eq('location_id', selectedLocation);
+                    const { data, error } = await query;
+                    if (error) { console.error(error); return []; }
+                    return (data || []) as AvailabilityBlock[];
+                })(),
             ]);
             const sm: Record<string, SmartSlot[]> = {};
             slotsResults.forEach(({ docId, slots }) => { sm[docId] = slots; });
@@ -280,9 +316,16 @@ export const AgendaMestra: React.FC = () => {
                 }
             });
             setAppointmentsByDoctor(am);
+
+            const avm: Record<string, AvailabilityBlock[]> = {};
+            selectedDoctors.forEach(id => { avm[id] = []; });
+            availability.forEach((row) => {
+                if (row.doctor_id && avm[row.doctor_id]) avm[row.doctor_id].push(row);
+            });
+            setAvailabilityByDoctor(avm);
         } catch (err) { console.error(err); }
         setLoading(false);
-    }, [selectedTenant, selectedDoctors, dateStr, appointmentTypes, selectedLocation]);
+    }, [selectedTenant, selectedDoctors, dateStr, appointmentTypes, selectedLocation, isoDow]);
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -387,7 +430,9 @@ export const AgendaMestra: React.FC = () => {
                 insurance_plan_id: bookingForm.patientType === 'insurance' ? bookingForm.insurancePlanId || undefined : undefined,
                 slot_type: slotType,
                 notes: bookingForm.notes || undefined,
-                location_id: slot?.location_id || '',
+                // Drag-created bookings have no `slot` (only prefillStart/prefillEnd), so they
+                // had no location_id at all before — fall back to the toolbar's selected location.
+                location_id: slot?.location_id || selectedLocation || '',
             };
 
             await smartSchedulingService.bookAppointment(payload);
@@ -395,7 +440,16 @@ export const AgendaMestra: React.FC = () => {
             setBookingModal({ open: false, doctorId: '', slot: null });
             fetchData();
         } catch (err: any) {
-            showToast('error', t('mestra.toasts.bookError', { message: err.message }));
+            const reasonKey: Record<string, string> = {
+                SLOT_CONFLICT: 'slotConflict',
+                slot_taken: 'slotConflict',
+                OUTSIDE_AVAILABILITY: 'outsideAvailability',
+            };
+            const key = reasonKey[err?.reason];
+            showToast('error', key ? t(`mestra.toasts.${key}`) : t('mestra.toasts.bookError', { message: err.message }));
+            // Backend is the source of truth: refresh so the grid reflects the real state
+            // (e.g. another attendant just took the slot) instead of leaving a stale view.
+            fetchData();
         }
         setBookingSaving(false);
     };
@@ -431,6 +485,65 @@ export const AgendaMestra: React.FC = () => {
             showToast('success', t('mestra.toasts.appointmentRemoved'));
         } catch (err: any) { showToast('error', t('mestra.toasts.genericError', { message: err.message })); }
     };
+
+    // ── Blocked / outside-hours bands ───────
+    // Computed from doctor_availability: any time not covered by a non-'blocked' row
+    // is "outside hours"; any time covered by an explicit block_type='blocked' row
+    // (lunch break, vacation override, etc.) is "blocked". Both are off-limits for
+    // new bookings and for moving/resizing existing appointments into.
+    const blockedBandsByDoctor = useMemo(() => {
+        const dayStart = DAY_START * 60, dayEnd = DAY_END * 60;
+        const clamp = (m: number) => Math.max(dayStart, Math.min(dayEnd, m));
+        const result: Record<string, BlockedBand[]> = {};
+        visibleDoctors.forEach((doc) => {
+            const rows = availabilityByDoctor[doc.id] || [];
+            const bands: BlockedBand[] = [];
+            if (rows.length === 0) {
+                bands.push({ start: dayStart, end: dayEnd, label: 'outsideHours' });
+                result[doc.id] = bands;
+                return;
+            }
+            const allIntervals = rows
+                .map(r => ({ s: clamp(timeToMin(r.start_time)), e: clamp(timeToMin(r.end_time)) }))
+                .sort((a, b) => a.s - b.s);
+            const merged: { s: number; e: number }[] = [];
+            allIntervals.forEach((iv) => {
+                const last = merged[merged.length - 1];
+                if (last && iv.s <= last.e) last.e = Math.max(last.e, iv.e);
+                else merged.push({ ...iv });
+            });
+            let cursor = dayStart;
+            merged.forEach((m) => {
+                if (m.s > cursor) bands.push({ start: cursor, end: m.s, label: 'outsideHours' });
+                cursor = Math.max(cursor, m.e);
+            });
+            if (cursor < dayEnd) bands.push({ start: cursor, end: dayEnd, label: 'outsideHours' });
+            rows.filter(r => r.block_type === 'blocked').forEach((r) => {
+                bands.push({ start: clamp(timeToMin(r.start_time)), end: clamp(timeToMin(r.end_time)), label: 'blocked' });
+            });
+            result[doc.id] = bands;
+        });
+        return result;
+    }, [visibleDoctors, availabilityByDoctor]);
+
+    // Given a free anchor point (guaranteed not inside any obstacle), returns how far
+    // the range around it can stretch before hitting a blocked band or appointment.
+    const getFreeBounds = useCallback((docId: string, anchor: number, excludeApptId?: string) => {
+        const bands = (blockedBandsByDoctor[docId] || []).map(b => ({ s: b.start, e: b.end }));
+        const appts = (appointmentsByDoctor[docId] || [])
+            .filter((a: any) => a.id !== excludeApptId)
+            .map((a: any) => {
+                const s = timeToMin(a.start_time);
+                const e = a.end_time ? timeToMin(a.end_time) : s + (a.appointment_types?.duration_minutes || DEFAULT_DURATION);
+                return { s, e };
+            });
+        let lower = DAY_START * 60, upper = DAY_END * 60;
+        [...bands, ...appts].forEach((o) => {
+            if (o.e <= anchor) lower = Math.max(lower, o.e);
+            else if (o.s >= anchor) upper = Math.min(upper, o.s);
+        });
+        return { lower, upper };
+    }, [blockedBandsByDoctor, appointmentsByDoctor]);
 
     // ── Drag & Drop Engine ──────────────────
     const getGridCoords = useCallback((e: MouseEvent) => {
@@ -520,8 +633,13 @@ export const AgendaMestra: React.FC = () => {
                     const duration = drag.origEnd - drag.origStart;
                     const newStart = clampMin(snap(rawMin - (drag.offsetY / HOUR_PX) * 60));
                     const newEnd = clampMin(newStart + duration);
-                    drag.currentStart = newEnd > DAY_END * 60 ? DAY_END * 60 - duration : newStart;
-                    drag.currentEnd = drag.currentStart + duration;
+                    let s = newEnd > DAY_END * 60 ? DAY_END * 60 - duration : newStart;
+                    // Anchor on the last known-valid position (free of obstacles) and clamp
+                    // the proposed move so it cannot land on a blocked band or another appointment.
+                    const { lower, upper } = getFreeBounds(coords.docId, drag.currentStart, drag.apptId);
+                    s = Math.max(lower, Math.min(upper - duration, s));
+                    drag.currentStart = s;
+                    drag.currentEnd = s + duration;
                     drag.currentDocId = coords.docId;
                     setGhost({
                         colIndex: coords.colIdx,
@@ -531,27 +649,30 @@ export const AgendaMestra: React.FC = () => {
                     });
                 } else if (drag.type === 'resize-bottom') {
                     const newEnd = clampMin(Math.max(drag.currentStart + SNAP_MIN, snap(rawMin)));
-                    drag.currentEnd = newEnd;
+                    const { upper } = getFreeBounds(drag.docId, drag.currentStart, drag.apptId);
+                    drag.currentEnd = Math.min(newEnd, upper);
                     setGhost({
                         colIndex: visibleDoctors.findIndex(d => d.id === drag.docId),
                         top: minToY(drag.currentStart),
-                        height: minToY(newEnd) - minToY(drag.currentStart),
-                        label: `${minToTime(drag.currentStart)} – ${minToTime(newEnd)}`,
+                        height: minToY(drag.currentEnd) - minToY(drag.currentStart),
+                        label: `${minToTime(drag.currentStart)} – ${minToTime(drag.currentEnd)}`,
                     });
                 } else if (drag.type === 'resize-top') {
                     const newStart = clampMin(Math.min(drag.currentEnd - SNAP_MIN, snap(rawMin)));
-                    drag.currentStart = newStart;
+                    const { lower } = getFreeBounds(drag.docId, drag.currentEnd - 1, drag.apptId);
+                    drag.currentStart = Math.max(newStart, lower);
                     setGhost({
                         colIndex: visibleDoctors.findIndex(d => d.id === drag.docId),
-                        top: minToY(newStart),
-                        height: minToY(drag.currentEnd) - minToY(newStart),
-                        label: `${minToTime(newStart)} – ${minToTime(drag.currentEnd)}`,
+                        top: minToY(drag.currentStart),
+                        height: minToY(drag.currentEnd) - minToY(drag.currentStart),
+                        label: `${minToTime(drag.currentStart)} – ${minToTime(drag.currentEnd)}`,
                     });
                 } else if (drag.type === 'create') {
                     const a = drag.origStart;
                     const b = snap(rawMin);
-                    const s = clampMin(Math.min(a, b));
-                    const ed = clampMin(Math.max(a, b));
+                    const { lower, upper } = getFreeBounds(drag.docId, a);
+                    const s = Math.max(lower, clampMin(Math.min(a, b)));
+                    const ed = Math.min(upper, clampMin(Math.max(a, b)));
                     drag.currentStart = s;
                     drag.currentEnd = Math.max(ed, s + SNAP_MIN);
                     setGhost({
@@ -612,7 +733,7 @@ export const AgendaMestra: React.FC = () => {
             document.removeEventListener('mousemove', handleMouseMove);
             document.removeEventListener('mouseup', handleMouseUp);
         };
-    }, [getGridCoords, visibleDoctors, fetchData, appointmentsByDoctor]);
+    }, [getGridCoords, visibleDoctors, fetchData, appointmentsByDoctor, getFreeBounds]);
 
     // ── Helpers ──────────────────────────────
     const apptCount = (docId: string) => (appointmentsByDoctor[docId] || []).length;
@@ -771,8 +892,9 @@ export const AgendaMestra: React.FC = () => {
                                             className="flex-1 min-w-[180px] relative border-l border-ice-100"
                                             style={{ height: TOTAL_PX }}
                                             onMouseDown={(e) => {
-                                                // Only trigger create if clicking on empty space
-                                                if ((e.target as HTMLElement).closest('[data-appt]') || (e.target as HTMLElement).closest('[data-slot]')) return;
+                                                // Only trigger create if clicking on empty, bookable space
+                                                const target = e.target as HTMLElement;
+                                                if (target.closest('[data-appt]') || target.closest('[data-slot]') || target.closest('[data-blocked]')) return;
                                                 onGridMouseDown(e, doc.id);
                                             }}
                                         >
@@ -783,6 +905,36 @@ export const AgendaMestra: React.FC = () => {
                                                     <div className="absolute left-0 right-0 border-b border-ice-100" style={{ top: (h - DAY_START) * HOUR_PX + HOUR_PX / 2 }} />
                                                 </React.Fragment>
                                             ))}
+
+                                            {/* Blocked / outside-hours bands — not selectable */}
+                                            {(blockedBandsByDoctor[doc.id] || []).map((band, i) => {
+                                                const top = minToY(band.start);
+                                                const h = minToY(band.end) - top;
+                                                if (h <= 0) return null;
+                                                const label = band.label === 'blocked' ? t('mestra.blockedLabel') : t('mestra.outsideHoursLabel');
+                                                return (
+                                                    <div
+                                                        key={`blocked-${i}`}
+                                                        data-blocked
+                                                        className="absolute left-0 right-0 cursor-not-allowed"
+                                                        style={{
+                                                            top, height: h,
+                                                            background: 'repeating-linear-gradient(135deg, rgba(148,163,184,0.16) 0px, rgba(148,163,184,0.16) 7px, transparent 7px, transparent 14px)'
+                                                        }}
+                                                        title={label}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            showToast('info', band.label === 'blocked' ? t('mestra.toasts.blockedSlotClick') : t('mestra.toasts.outsideHoursClick'));
+                                                        }}
+                                                    >
+                                                        {h >= 28 && (
+                                                            <span className="absolute top-1 left-1.5 text-[8px] font-black uppercase tracking-wide text-graphite-400/70 select-none">
+                                                                {label}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
 
                                             {/* Available Slots (background indicators) */}
                                             {docSlots.map((slot, i) => {

@@ -165,6 +165,7 @@ export function CommunicationsHub() {
   const [monthUsage,  setMonthUsage]  = useState<any>(null);
   const [loading,     setLoading]     = useState(true);
   const [selected,    setSelected]    = useState<any>(null);
+  const [recordingSrc, setRecordingSrc] = useState<string | null>(null);
   const [search,      setSearch]      = useState('');
   const [smsText,     setSmsText]     = useState('');
   const smsEndRef = useRef<HTMLDivElement>(null);
@@ -174,6 +175,24 @@ export function CommunicationsHub() {
   useEffect(() => {
     if (selected && section === 'sms') fetchSmsMessages(selected.patient_phone);
   }, [selected, section]);
+
+  // Gravações: bucket privado → gerar URL assinada a partir de recording_path.
+  // Fallback para recording_url legado (pode estar expirado).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setRecordingSrc(null);
+      if (selected?.recording_path) {
+        const { data } = await supabase.storage
+          .from('call-recordings')
+          .createSignedUrl(selected.recording_path, 3600);
+        if (!cancelled) setRecordingSrc(data?.signedUrl ?? null);
+      } else if (selected?.recording_url) {
+        if (!cancelled) setRecordingSrc(selected.recording_url);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [selected?.recording_path, selected?.recording_url]);
 
   useEffect(() => {
     smsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -354,10 +373,10 @@ export function CommunicationsHub() {
           {/* Gravação */}
           <div className="mx-6 bg-white border border-ice-100 rounded-2xl p-4 mb-4">
             <p className="text-xs font-black text-graphite-400 uppercase mb-3 flex items-center gap-1.5"><Mic size={12} /> {t('communicationsHub.detail.recording')}</p>
-            {selected.recording_url ? (
+            {recordingSrc ? (
               <>
-                <audio controls src={selected.recording_url} className="w-full" style={{ borderRadius: 10 }} />
-                <a href={selected.recording_url} download target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 mt-2 text-xs font-bold text-brand-primary hover:underline">
+                <audio controls src={recordingSrc} className="w-full" style={{ borderRadius: 10 }} />
+                <a href={recordingSrc} download target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 mt-2 text-xs font-bold text-brand-primary hover:underline">
                   <Download size={11} /> {t('communicationsHub.detail.download')}
                 </a>
               </>
@@ -478,7 +497,11 @@ export function CommunicationsHub() {
           <div className="p-6 space-y-4">
             <div className="bg-white border border-ice-100 rounded-2xl p-5">
               <p className="text-xs font-black text-graphite-400 uppercase mb-3 flex items-center gap-1.5"><Mic size={12} /> {t('communicationsHub.detail.audio')}</p>
-              <audio controls src={selected.recording_url} className="w-full" style={{ borderRadius: 10 }} />
+              {recordingSrc ? (
+                <audio controls src={recordingSrc} className="w-full" style={{ borderRadius: 10 }} />
+              ) : (
+                <p className="text-sm text-graphite-400 italic">{t('communicationsHub.detail.recordingUnavailable', 'Nenhuma gravação disponível.')}</p>
+              )}
             </div>
             {selected.transcript && (
               <div className="bg-white border border-ice-100 rounded-2xl p-5">

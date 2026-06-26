@@ -106,6 +106,38 @@ async function processEntries(
     for (const messaging of entry.messaging ?? []) {
       await processMessagingEvent(supabase, tenantId, channel, messaging);
     }
+
+    // ── Handover Protocol: a Página nasce com "Page Inbox" como Primary Receiver.
+    // Enquanto não assumirmos o controle da conversa, a Meta entrega os eventos
+    // pelo canal `standby` em vez de `messaging`. Processamos a mensagem do mesmo
+    // jeito e pedimos o controle da thread para que as próximas chegem como `messaging`.
+    for (const standby of entry.standby ?? []) {
+      await processMessagingEvent(supabase, tenantId, channel, standby);
+      if (channel === "facebook" && page.page_access_token && standby.sender?.id) {
+        await requestThreadControl(page.page_access_token, standby.sender.id);
+      }
+    }
+  }
+}
+
+async function requestThreadControl(pageAccessToken: string, recipientId: string): Promise<void> {
+  try {
+    const res = await fetch(
+      `https://graph.facebook.com/v21.0/me/request_thread_control?access_token=${pageAccessToken}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recipient: { id: recipientId }, metadata: "traffio-auto-handover" }),
+      }
+    );
+    const data = await res.json();
+    if (!data.success) {
+      console.error(`[meta-social-webhook] Failed to request thread control for ${recipientId}:`, JSON.stringify(data));
+    } else {
+      console.log(`[meta-social-webhook] ✓ Requested thread control for ${recipientId}`);
+    }
+  } catch (err: any) {
+    console.error(`[meta-social-webhook] Exception requesting thread control for ${recipientId}:`, err.message);
   }
 }
 

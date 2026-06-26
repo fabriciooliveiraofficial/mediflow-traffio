@@ -68,7 +68,21 @@ serve(async (req: Request) => {
 
           revoked++;
         } else {
-          // Token válido — atualizar last_refreshed_at
+          // Token válido — garantir que o app continua inscrito para receber
+          // eventos de Messenger (Meta não avisa se essa inscrição cair).
+          try {
+            const subRes = await fetch(
+              `https://graph.facebook.com/v21.0/${page.page_id}/subscribed_apps?subscribed_fields=messages,messaging_postbacks,standby&access_token=${page.page_access_token}`,
+              { method: "POST" }
+            );
+            const subData = await subRes.json();
+            if (!subData.success) {
+              console.error(`[refresh-meta-page-tokens] Failed to (re)subscribe webhook for page ${page.page_name}:`, subData.error || subData);
+            }
+          } catch (subErr: any) {
+            console.error(`[refresh-meta-page-tokens] Exception (re)subscribing webhook for page ${page.page_name}:`, subErr.message);
+          }
+
           await supabase
             .from("tenant_meta_pages")
             .update({ last_refreshed_at: new Date().toISOString() })

@@ -138,9 +138,12 @@ export const smartSchedulingService = {
 
         if (error) throw error;
 
-        // The RPC returns { success, appointment_id, error, message }
+        // The RPC returns { success, appointment_id, reason/error, message }
         if (!data || !data.success) {
-            throw new Error(data?.message || 'Failed to book appointment due to conflict');
+            const reason = data?.reason || data?.error;
+            const bookError: any = new Error(data?.message || reason || 'Failed to book appointment due to conflict');
+            bookError.reason = reason;
+            throw bookError;
         }
 
         // Optional: Update the extra payload fields on the newly created appointment since RPC 

@@ -8,6 +8,8 @@
     "freeSlotsCount_other": "{{count}} free",
     "patientFallback": "Patient",
     "consultaFallback": "Appointment",
+    "blockedLabel": "Blocked",
+    "outsideHoursLabel": "Outside hours",
     "slotBadge": {
       "released": "Released",
       "prime": "Prime",
@@ -59,7 +61,11 @@
       "appointmentMoved": "Appointment moved!",
       "moveError": "Error moving: {{message}}",
       "durationUpdated": "Duration updated!",
-      "resizeError": "Error resizing: {{message}}"
+      "resizeError": "Error resizing: {{message}}",
+      "blockedSlotClick": "This time is blocked and cannot be selected.",
+      "outsideHoursClick": "This time is outside the professional's working hours.",
+      "slotConflict": "This time conflicts with an existing appointment. Please choose another time.",
+      "outsideAvailability": "The professional is not available at this time/location. Please choose another time."
     }
   },
   "quickBooking": {
