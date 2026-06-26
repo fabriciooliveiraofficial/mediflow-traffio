@@ -191,6 +191,22 @@ serve(async (req: Request) => {
       } else {
         savedCount++;
         console.log(`[auth-meta-messaging] ✓ Saved page "${page.name}"${ig ? ` + IG @${ig.username}` : ""}`);
+        
+        // 🚀 NOVO: Inscrever a página no Webhook do App para receber mensagens
+        try {
+          const subRes = await fetch(
+            `https://graph.facebook.com/v21.0/${page.id}/subscribed_apps?subscribed_fields=messages,messaging_postbacks,standby&access_token=${page.access_token}`,
+            { method: 'POST' }
+          );
+          const subData = await subRes.json();
+          if (subData.success) {
+            console.log(`[auth-meta-messaging] ✓ Webhook subscribed for page "${page.name}"`);
+          } else {
+            console.error(`[auth-meta-messaging] Failed to subscribe webhook for page "${page.name}":`, subData.error || subData);
+          }
+        } catch (subErr: any) {
+          console.error(`[auth-meta-messaging] Exception subscribing webhook for page "${page.name}":`, subErr.message);
+        }
       }
     }
 
