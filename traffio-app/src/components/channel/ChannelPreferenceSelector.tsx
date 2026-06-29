@@ -12,6 +12,8 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MessageCircle, Instagram, Facebook, Phone, CheckCircle2, Loader2, Image, Mail } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { phoneCountry, formatNational, formatAsYouType, toE164 } from '../../lib/i18n/phone';
+import { type CountryCode } from '../../lib/i18n/countryFormats';
 
 type Channel = 'whatsapp' | 'instagram' | 'facebook' | 'sms' | 'email' | 'mms';
 
@@ -94,11 +96,15 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
   ];
 
   const [selectedChannels, setSelectedChannels] = useState<Channel[]>(['whatsapp']);
-  const [smsPhone,    setSmsPhone]    = useState('');
-  const [updatedBy,   setUpdatedBy]   = useState<'auto' | 'manual'>('auto');
-  const [saving,      setSaving]      = useState(false);
-  const [saved,       setSaved]       = useState(false);
-  const [loading,     setLoading]     = useState(true);
+  const [whatsappPhone, setWhatsappPhone] = useState('');
+  const [smsPhone,      setSmsPhone]      = useState('');
+  const [email,         setEmail]         = useState('');
+  const [updatedBy,     setUpdatedBy]     = useState<'auto' | 'manual'>('auto');
+  const [saving,        setSaving]        = useState(false);
+  const [saved,         setSaved]         = useState(false);
+  const [loading,       setLoading]       = useState(true);
+
+  const countryCode = (phoneCountry(patientPhone) || 'BR') as CountryCode;
 
   const filteredChannels = CHANNELS.filter(ch => {
     if (!enabledChannels) return true;
@@ -116,7 +122,7 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
     setLoading(true);
     const { data } = await supabase
       .from('patient_channel_preferences')
-      .select('preferred_channel, sms_phone, updated_by')
+      .select('preferred_channel, sms_phone, whatsapp_phone, email, updated_by')
       .eq('tenant_id', tenantId)
       .eq('patient_phone', patientPhone)
       .maybeSingle();
@@ -132,13 +138,37 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
       });
 
       setSelectedChannels(activeChannels);
-      setSmsPhone(data.sms_phone ?? '');
+      setWhatsappPhone(data.whatsapp_phone ? formatNational(data.whatsapp_phone) : '');
+      setSmsPhone(data.sms_phone ? formatNational(data.sms_phone) : '');
+      setEmail(data.email ?? '');
       setUpdatedBy(data.updated_by ?? 'auto');
     }
     setLoading(false);
   }
 
-  async function save(channels: Channel[], phone?: string) {
+  function handleToggle(chId: Channel) {
+    let newChannels = [...selectedChannels];
+    const isActive = selectedChannels.includes(chId);
+
+    if (isActive) {
+      if (newChannels.length > 1) {
+        newChannels = newChannels.filter(id => id !== chId);
+      } else {
+        return; // não permitir desselecionar tudo
+      }
+    } else {
+      newChannels.push(chId);
+    }
+
+    const nextHasInput = newChannels.some(id => ['whatsapp', 'sms', 'mms', 'email'].includes(id));
+    if (nextHasInput) {
+      setSelectedChannels(newChannels);
+    } else {
+      save(newChannels);
+    }
+  }
+
+  async function save(channels: Channel[]) {
     setSaving(true);
     setSaved(false);
 
@@ -160,15 +190,46 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
       updated_at:       new Date().toISOString(),
     };
 
-    if (activeChannelsToSave.includes('sms') || activeChannelsToSave.includes('mms') || activeChannelsToSave.includes('email')) {
-      update.sms_phone = phone ?? smsPhone;
-    }
-
     await supabase
       .from('patient_channel_preferences')
       .upsert(update, { onConflict: 'tenant_id,patient_phone' });
 
     setSelectedChannels(activeChannelsToSave);
+    setUpdatedBy('manual');
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  async function handleSaveDetails() {
+    setSaving(true);
+    setSaved(false);
+
+    const cleanWhatsapp = whatsappPhone ? toE164(whatsappPhone, countryCode) : null;
+    const cleanSms = smsPhone ? toE164(smsPhone, countryCode) : null;
+
+    const activeChannelsToSave = selectedChannels.filter(id => {
+      if (!enabledChannels) return true;
+      const isDefaultEnabled = id === 'whatsapp' || id === 'sms';
+      return enabledChannels[id] ?? isDefaultEnabled;
+    });
+
+    const update: any = {
+      tenant_id:        tenantId,
+      patient_phone:    patientPhone,
+      preferred_channel: activeChannelsToSave.join(','),
+      updated_by:       'manual',
+      last_manual_updated_at: new Date().toISOString(),
+      updated_at:       new Date().toISOString(),
+      whatsapp_phone:   cleanWhatsapp,
+      sms_phone:        cleanSms,
+      email:            email ? email.trim().toLowerCase() : null,
+    };
+
+    await supabase
+      .from('patient_channel_preferences')
+      .upsert(update, { onConflict: 'tenant_id,patient_phone' });
+
     setUpdatedBy('manual');
     setSaving(false);
     setSaved(true);
@@ -184,8 +245,90 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
     );
   }
 
-  const activeRequiresId = selectedChannels.find(id => CHANNELS.find(c => c.id === id)?.requiresId);
-  const selectedChannelObj = activeRequiresId ? CHANNELS.find(c => c.id === activeRequiresId) : null;
+  const showWhatsappInput = selectedChannels.includes('whatsapp');
+  const showSmsInput = selectedChannels.includes('sms') || selectedChannels.includes('mms');
+  const showEmailInput = selectedChannels.includes('email');
+  const hasInputs = showWhatsappInput || showSmsInput || showEmailInput;
+
+  const isValidEmail = !email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  const renderInputFields = (isCompact: boolean) => {
+    if (!hasInputs) return null;
+
+    return (
+      <div className={`space-y-2.5 mt-2.5 p-3 bg-ice-50/50 rounded-2xl border border-ice-100`}>
+        {showWhatsappInput && (
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-graphite-500 uppercase tracking-wider">
+              WhatsApp
+            </label>
+            <input
+              type="tel"
+              value={whatsappPhone}
+              onChange={(e) => {
+                const digits = e.target.value.replace(/\D/g, '');
+                setWhatsappPhone(formatAsYouType(digits, countryCode));
+              }}
+              placeholder={formatNational(patientPhone) || 'WhatsApp (Opcional)'}
+              className={`w-full ${isCompact ? 'text-xs px-2.5 py-1.5' : 'text-sm px-3 py-2'} bg-white border border-ice-200 rounded-xl focus:outline-none focus:border-brand-primary font-medium`}
+            />
+          </div>
+        )}
+
+        {showSmsInput && (
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-graphite-500 uppercase tracking-wider">
+              SMS / MMS
+            </label>
+            <input
+              type="tel"
+              value={smsPhone}
+              onChange={(e) => {
+                const digits = e.target.value.replace(/\D/g, '');
+                setSmsPhone(formatAsYouType(digits, countryCode));
+              }}
+              placeholder={formatNational(patientPhone) || 'SMS/MMS (Opcional)'}
+              className={`w-full ${isCompact ? 'text-xs px-2.5 py-1.5' : 'text-sm px-3 py-2'} bg-white border border-ice-200 rounded-xl focus:outline-none focus:border-brand-primary font-medium`}
+            />
+          </div>
+        )}
+
+        {showEmailInput && (
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-graphite-500 uppercase tracking-wider">
+              E-mail
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="exemplo@email.com"
+              className={`w-full ${isCompact ? 'text-xs px-2.5 py-1.5' : 'text-sm px-3 py-2'} bg-white border border-ice-200 rounded-xl focus:outline-none focus:border-brand-primary font-medium ${!isValidEmail ? 'border-red-300 focus:border-red-500' : ''}`}
+            />
+            {!isValidEmail && (
+              <span className="text-[9px] text-red-500 font-bold block">
+                {t('channelPreferenceSelector.invalidEmail', { defaultValue: 'E-mail inválido' })}
+              </span>
+            )}
+          </div>
+        )}
+
+        <button
+          onClick={handleSaveDetails}
+          disabled={saving || !isValidEmail}
+          className={`w-full mt-1 px-3 ${isCompact ? 'py-2 text-xs' : 'py-2.5 text-sm'} bg-brand-primary text-white font-bold rounded-xl disabled:opacity-40 border-none cursor-pointer flex items-center justify-center gap-1.5`}
+        >
+          {saving ? (
+            <Loader2 size={12} className="animate-spin" />
+          ) : saved ? (
+            '✓'
+          ) : (
+            isCompact ? t('channelPreferenceSelector.confirm') : t('channelPreferenceSelector.save')
+          )}
+        </button>
+      </div>
+    );
+  };
 
   if (compact) {
     // Modo compacto: badge + dropdown inline
@@ -213,26 +356,7 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
             return (
               <button
                 key={ch.id}
-                onClick={() => {
-                  let newChannels = [...selectedChannels];
-                  if (isActive) {
-                    if (newChannels.length > 1) {
-                      newChannels = newChannels.filter(id => id !== ch.id);
-                      if (!ch.requiresId) {
-                        save(newChannels);
-                      } else {
-                        setSelectedChannels(newChannels);
-                      }
-                    }
-                  } else {
-                    newChannels.push(ch.id);
-                    if (!ch.requiresId) {
-                      save(newChannels);
-                    } else {
-                      setSelectedChannels(newChannels);
-                    }
-                  }
-                }}
+                onClick={() => handleToggle(ch.id)}
                 className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
                   isActive
                     ? `${ch.bgColor} ${ch.color}`
@@ -247,45 +371,9 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
           })}
         </div>
 
-        {/* Campo de identificação (SMS/MMS/Email) */}
-        {selectedChannelObj?.requiresId && (
-          <div className="flex gap-1.5">
-            <input
-              type={selectedChannelObj.id === 'email' ? 'email' : 'tel'}
-              value={smsPhone}
-              onChange={(e) => setSmsPhone(e.target.value)}
-              placeholder={selectedChannelObj.idPlaceholder}
-              className="flex-1 text-xs bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 focus:outline-none focus:border-brand-primary"
-            />
-            <button
-              onClick={() => save(selectedChannels, smsPhone)}
-              disabled={!smsPhone || saving}
-              className="px-3 py-2 bg-brand-primary text-white text-xs font-bold rounded-xl disabled:opacity-40 border-none cursor-pointer"
-            >
-              {saving ? <Loader2 size={12} className="animate-spin" /> : saved ? '✓' : t('channelPreferenceSelector.confirm')}
-            </button>
-          </div>
-        )}
+        {renderInputFields(true)}
 
-        {/* Selecionar outros canais que requerem ID */}
-        {CHANNELS.filter(ch => ch.requiresId && !selectedChannels.includes(ch.id) && filteredChannels.some(fc => fc.id === ch.id)).map(ch => (
-          <button
-            key={ch.id}
-            onClick={() => {
-              setSelectedChannels([...selectedChannels, ch.id]);
-            }}
-            className="w-full flex items-center gap-1.5 px-2.5 py-2 rounded-xl border border-ice-100 text-xs font-bold text-graphite-400 hover:border-ice-200 transition-all cursor-pointer bg-white"
-          >
-            <ch.icon size={12} />
-            {ch.id === 'sms' 
-              ? t('channelPreferenceSelector.selectSms') 
-              : ch.id === 'mms' 
-                ? t('channelPreferenceSelector.selectMms', { defaultValue: 'Selecionar MMS' }) 
-                : t('channelPreferenceSelector.selectEmail', { defaultValue: 'Selecionar E-mail' })}
-          </button>
-        ))}
-
-        {saved && (
+        {saved && !hasInputs && (
           <p className="text-[10px] text-green-600 font-bold flex items-center gap-1">
             <CheckCircle2 size={10} /> {t('channelPreferenceSelector.savedSuccess')}
           </p>
@@ -314,26 +402,7 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
           return (
             <button
               key={ch.id}
-              onClick={() => {
-                let newChannels = [...selectedChannels];
-                if (isActive) {
-                  if (newChannels.length > 1) {
-                    newChannels = newChannels.filter(id => id !== ch.id);
-                    if (!ch.requiresId) {
-                      save(newChannels);
-                    } else {
-                      setSelectedChannels(newChannels);
-                    }
-                  }
-                } else {
-                  newChannels.push(ch.id);
-                  if (!ch.requiresId) {
-                    save(newChannels);
-                  } else {
-                    setSelectedChannels(newChannels);
-                  }
-                }
-              }}
+              onClick={() => handleToggle(ch.id)}
               className={`flex items-center gap-2 p-3 rounded-2xl border text-sm font-bold transition-all cursor-pointer ${
                 isActive
                   ? `${ch.bgColor} ${ch.color} shadow-sm`
@@ -348,24 +417,7 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
         })}
       </div>
 
-      {selectedChannelObj?.requiresId && (
-        <div className="flex gap-2">
-          <input
-            type={selectedChannelObj.id === 'email' ? 'email' : 'tel'}
-            value={smsPhone}
-            onChange={(e) => setSmsPhone(e.target.value)}
-            placeholder={selectedChannelObj.idPlaceholder}
-            className="flex-1 text-sm bg-ice-50 border border-ice-200 rounded-2xl px-4 py-2.5 focus:outline-none focus:border-brand-primary"
-          />
-          <button
-            onClick={() => save(selectedChannels, smsPhone)}
-            disabled={!smsPhone || saving}
-            className="px-4 py-2.5 bg-brand-primary text-white font-bold rounded-2xl disabled:opacity-40 border-none cursor-pointer"
-          >
-            {saving ? <Loader2 size={16} className="animate-spin" /> : saved ? '✓' : t('channelPreferenceSelector.save')}
-          </button>
-        </div>
-      )}
+      {renderInputFields(false)}
     </div>
   );
 }

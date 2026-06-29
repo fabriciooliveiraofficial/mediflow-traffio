@@ -16,6 +16,7 @@ export interface ChannelPreferenceUpdate {
   facebook_name?: string;
   whatsapp_phone?: string;
   sms_phone?: string;
+  email?: string;
 }
 
 export async function upsertChannelPreference(

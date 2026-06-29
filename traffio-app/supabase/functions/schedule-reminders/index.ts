@@ -171,7 +171,7 @@ serve(async (req: Request) => {
             // 3a. Preferências explícitas salvas
             const { data: prefs } = await supabase
                 .from("patient_channel_preferences")
-                .select("patient_phone, preferred_channel, instagram_user_id, facebook_user_id, sms_phone, whatsapp_phone")
+                .select("patient_phone, preferred_channel, instagram_user_id, facebook_user_id, sms_phone, whatsapp_phone, email")
                 .in("patient_phone", patientPhones);
 
             for (const pref of prefs ?? []) {
@@ -183,6 +183,11 @@ serve(async (req: Request) => {
                     if (ch === "instagram") recipientId = pref.instagram_user_id ?? pref.patient_phone;
                     if (ch === "facebook")  recipientId = pref.facebook_user_id  ?? pref.patient_phone;
                     if (ch === "sms" || ch === "mms")       recipientId = pref.sms_phone         ?? pref.patient_phone;
+                    if (ch === "email") {
+                        const apt = appointments.find((a: any) => (Array.isArray(a.patients) ? a.patients[0] : a.patients)?.phone === pref.patient_phone);
+                        const patientEmail = (Array.isArray(apt?.patients) ? apt?.patients[0] : apt?.patients)?.email;
+                        recipientId = pref.email ?? patientEmail ?? "";
+                    }
                     
                     list.push({
                         channel:     ch as ChannelInfo["channel"],
