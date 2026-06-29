@@ -1467,7 +1467,6 @@ interface PatientPanelProps {
   onTransferClick: () => void
   onNewPatient: () => void
   onLookupPatient: () => void
-  onQuickBook: () => void
   onViewAppointments: () => void
   onSendMessage: (text: string) => Promise<void>
   isOwned: boolean
@@ -1484,7 +1483,7 @@ interface PatientPanelProps {
 }
 
 function PatientPanel({
-  session, patient, appointments, onClose, onUpdateStage, onTransferClick, isOwned, onNewPatient, onLookupPatient, onQuickBook,
+  session, patient, appointments, onClose, onUpdateStage, onTransferClick, isOwned, onNewPatient, onLookupPatient,
   view, onViewChange, onPatientSelected, onViewAppointments, onSendMessage, onReschedule, onAddToWaitlist, onResetReschedule, rescheduleData,
   preFill, onPreFillChange, enabledChannels
 }: PatientPanelProps) {
@@ -1773,10 +1772,6 @@ function PatientPanel({
             </>
           ) : (
             <>
-              <button onClick={onQuickBook} className="flex flex-col items-center gap-1 p-2 rounded-xl transition-all bg-blue-50 text-blue-600 hover:bg-blue-100">
-                <Calendar size={18} />
-                <span className="text-[9px] font-bold uppercase tracking-tight">{t('humanInbox.patientPanel.actions.schedule')}</span>
-              </button>
               <button onClick={onViewAppointments} className="flex flex-col items-center gap-1 p-2 rounded-xl transition-all bg-gray-50 text-gray-600 hover:bg-gray-100">
                 <Clock size={18} />
                 <span className="text-[9px] font-bold uppercase tracking-tight">{t('humanInbox.patientPanel.actions.appointments')}</span>
@@ -3150,7 +3145,6 @@ export function HumanInboxPage() {
               onTransferClick={() => setShowTransferModal(true)}
               onNewPatient={() => setSidebarView('register')}
               onLookupPatient={() => setSidebarView('lookup')}
-              onQuickBook={() => setSidebarView('booking')}
               onViewAppointments={() => setSidebarView('appointments')}
               onSendMessage={handleSidebarSendMessage}
               isOwned={isOwned}
