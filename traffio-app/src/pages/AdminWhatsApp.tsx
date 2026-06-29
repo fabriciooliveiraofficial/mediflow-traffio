@@ -44,6 +44,11 @@ export const AdminWhatsApp = () => {
         business_account_id: ''
     });
     const [testingCloud, setTestingCloud] = useState(false);
+    const [credentials, setCredentials] = useState<{
+        zapi_instance_id: string | null;
+        zapi_token: string | null;
+        zapi_client_token: string | null;
+    } | null>(null);
 
     const checkInstanceStatus = useCallback(async () => {
         if (tenantLoading) return;
@@ -64,9 +69,16 @@ export const AdminWhatsApp = () => {
 
             if (error || !data || !data.zapi_instance_id || !data.zapi_token) {
                 console.error('Z-API credentials missing or error:', error);
+                setCredentials(null);
                 setStatus('no_instance');
                 return;
             }
+
+            setCredentials({
+                zapi_instance_id: data.zapi_instance_id,
+                zapi_token: data.zapi_token,
+                zapi_client_token: data.zapi_client_token
+            });
 
             const zapiStatus = await zapiService.getStatus(
                 data.zapi_instance_id,
@@ -111,12 +123,12 @@ export const AdminWhatsApp = () => {
     useEffect(() => {
         let intervalId: any;
 
-        if (pollingActive && tenant?.zapi_instance_id && tenant?.zapi_token) {
+        if (pollingActive && credentials?.zapi_instance_id && credentials?.zapi_token) {
             intervalId = setInterval(async () => {
                 const zapiStatus = await zapiService.getStatus(
-                    tenant.zapi_instance_id!,
-                    tenant.zapi_token!,
-                    tenant.zapi_client_token
+                    credentials.zapi_instance_id!,
+                    credentials.zapi_token!,
+                    credentials.zapi_client_token
                 );
 
                 if (zapiStatus.connected) {
@@ -137,10 +149,10 @@ export const AdminWhatsApp = () => {
         return () => {
             if (intervalId) clearInterval(intervalId);
         };
-    }, [pollingActive, tenant, updateTenant, showToast]);
+    }, [pollingActive, credentials, updateTenant, showToast]);
 
     const handleGenerateQrCode = async () => {
-        if (!tenant?.zapi_instance_id || !tenant?.zapi_token) {
+        if (!credentials?.zapi_instance_id || !credentials?.zapi_token) {
             showToast('error', t('adminWhatsApp.toasts.credentialsMissing'));
             return;
         }
@@ -150,9 +162,9 @@ export const AdminWhatsApp = () => {
 
         try {
             const qr = await zapiService.getQrCode(
-                tenant.zapi_instance_id,
-                tenant.zapi_token,
-                tenant.zapi_client_token
+                credentials.zapi_instance_id,
+                credentials.zapi_token,
+                credentials.zapi_client_token
             );
 
             if (qr) {
@@ -169,15 +181,15 @@ export const AdminWhatsApp = () => {
     };
 
     const handleDisconnect = async () => {
-        if (!tenant?.zapi_instance_id || !tenant?.zapi_token) return;
+        if (!credentials?.zapi_instance_id || !credentials?.zapi_token) return;
         if (!confirm(t('adminWhatsApp.disconnectConfirm'))) return;
 
         setStatus('loading');
         try {
             const success = await zapiService.disconnect(
-                tenant.zapi_instance_id,
-                tenant.zapi_token,
-                tenant.zapi_client_token
+                credentials.zapi_instance_id,
+                credentials.zapi_token,
+                credentials.zapi_client_token
             );
 
             if (success) {
