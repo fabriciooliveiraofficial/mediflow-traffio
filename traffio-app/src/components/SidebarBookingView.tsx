@@ -32,8 +32,10 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
     const { tenant } = useTenant();
     const { showToast } = useToast();
     const { formatSlot } = useLocaleFormat();
-    const [step, setStep] = useState(1);
-    const [loading, setLoading] = useState(false);
+    // Quando vem do preFill (Consultar Disponibilidade), já inicia no passo de
+    // confirmação — nunca renderiza os passos do Agendamento Expresso, nem por um instante.
+    const [step, setStep] = useState(() => preFill ? 4 : 1);
+    const [loading, setLoading] = useState(() => !!preFill);
     // When opened from the "Consultar Disponibilidade" flow, professional/procedure/unit/date/slot
     // are already chosen. We then show a confirmation summary instead of repeating the pickers.
     const isPreFilled = !!preFill;
@@ -835,6 +837,9 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                 {step === 4 && (
                     <div className="p-4 space-y-6">
                         {isPreFilled ? (
+                            loading ? (
+                                <div className="py-12 flex justify-center"><Loader2 className="animate-spin text-blue-600 w-6 h-6" /></div>
+                            ) : (
                             <div className="space-y-3">
                                 <p className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">{t('sidebarBookingView.confirmSummaryTitle')}</p>
                                 <div className="rounded-2xl border border-blue-100 bg-blue-50/40 p-4 space-y-3">
@@ -874,6 +879,7 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                                     {t('sidebarBookingView.changeAvailability')}
                                 </button>
                             </div>
+                            )
                         ) : (
                             <>
                                 <div className="flex items-center justify-between">
