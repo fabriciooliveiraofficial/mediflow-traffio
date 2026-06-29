@@ -72,6 +72,31 @@ export function SidebarPatientEditView({ onBack, onSuccess, patient, session, on
     setLoading(true);
 
     try {
+      // Validate duplicate CPF/Document under same tenant (excluding current patient)
+      const formattedCpf = formData.national_id;
+      const cleanedCpf = formData.national_id ? formData.national_id.replace(/\D/g, '') : null;
+
+      if (cleanedCpf && tenant?.id && patient?.id) {
+        const orConditions = [
+          `cpf.eq.${cleanedCpf}`,
+          `cpf.eq.${formattedCpf}`,
+          `national_id.eq.${cleanedCpf}`,
+          `national_id.eq.${formattedCpf}`
+        ];
+
+        const { data: existingPatients, error: checkError } = await supabase
+          .from('patients')
+          .select('id, cpf, national_id')
+          .eq('tenant_id', tenant.id)
+          .neq('id', patient.id)
+          .or(orConditions.join(','));
+
+        if (checkError) {
+          console.error('Error checking duplicate patients:', checkError);
+        } else if (existingPatients && existingPatients.length > 0) {
+          throw new Error(t('sidebarPatientEditView.errors.duplicateCpf') || 'Já existe um paciente cadastrado com este CPF.');
+        }
+      }
       // 1. Update Patient Data
       const { data: updatedPatient, error: pError } = await supabase
         .from('patients')

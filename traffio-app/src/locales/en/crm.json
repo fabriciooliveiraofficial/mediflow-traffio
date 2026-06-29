@@ -110,7 +110,8 @@
     },
     "errors": {
       "tenantNotIdentified": "Tenant not identified.",
-      "createPrefix": "Error registering: {{message}}"
+      "createPrefix": "Error registering: {{message}}",
+      "duplicateCpf": "A patient with this CPF/Document is already registered."
     }
   },
   "receptionDashboard": {
@@ -181,7 +182,8 @@
       "updated": "Information updated!"
     },
     "errors": {
-      "updateFailed": "Failed to update"
+      "updateFailed": "Failed to update",
+      "duplicateCpf": "A patient with this CPF/Document is already registered."
     },
     "self": "Self"
   },
@@ -274,7 +276,8 @@
       "created": "Patient registered successfully!"
     },
     "errors": {
-      "createFailed": "Failed to register"
+      "createFailed": "Failed to register",
+      "duplicateCpf": "A patient with this CPF/Document is already registered."
     }
   }
 }

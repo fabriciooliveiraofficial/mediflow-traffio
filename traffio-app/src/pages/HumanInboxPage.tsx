@@ -2176,7 +2176,11 @@ export function HumanInboxPage() {
     }
 
     if (list.length > 0) {
-      const phones = [...new Set(list.map(s => s.patient_phone))]
+      const phones = [...new Set(list.flatMap(s => {
+        const raw = s.patient_phone || '';
+        const clean = raw.replace(/\D/g, '');
+        return [clean, `+${clean}`];
+      }))]
       const { data: pts } = await supabase
         .from('patients')
         .select('phone, full_name, notes')
@@ -2184,7 +2188,13 @@ export function HumanInboxPage() {
         .eq('tenant_id', targetTenant)
       if (pts) {
         const map: Record<string, string> = {}
-        pts.forEach((p: any) => { if (p.full_name) map[p.phone] = p.full_name })
+        pts.forEach((p: any) => {
+          if (p.full_name && p.phone) {
+            const clean = p.phone.replace(/\D/g, '');
+            map[clean] = p.full_name;
+            map[`+${clean}`] = p.full_name;
+          }
+        })
         setPatientNames(map)
       }
     }
@@ -2238,27 +2248,39 @@ export function HumanInboxPage() {
     setSidebarView('profile')
     if (!selected || !tenantId) return
 
-    const phone = selected.patient_phone
-    supabase.from('patients')
-      .select('id, full_name, cpf, national_id, national_id_type, country, email, birth_date, notes')
-      .eq('tenant_id', tenantId)
-      .eq('phone', phone)
-      .maybeSingle()
-      .then(({ data }) => {
-        setPatient(data as PatientInfo | null)
-        if (data?.id) {
-          supabase.from('appointments')
-            .select('date, start_time, status, doctors(full_name), locations(name), appointment_types(name)')
-            .eq('tenant_id', tenantId)
-            .eq('patient_id', data.id)
-            .in('status', ['scheduled', 'confirmed'])
-            .gte('date', new Date().toISOString().split('T')[0])
-            .order('date', { ascending: true })
-            .limit(3)
-            .then(({ data: appts }) => setAppointments((appts ?? []) as any as Appointment[]))
-        }
-      })
-  }, [selected?.id, tenantId])
+    const loadPatientDetails = async () => {
+      let query;
+      if (selected.patient_id) {
+        query = supabase.from('patients')
+          .select('id, full_name, cpf, national_id, national_id_type, country, email, birth_date, notes')
+          .eq('tenant_id', tenantId)
+          .eq('id', selected.patient_id);
+      } else {
+        const phone = selected.patient_phone;
+        const cleanPhone = phone.replace(/\D/g, '');
+        query = supabase.from('patients')
+          .select('id, full_name, cpf, national_id, national_id_type, country, email, birth_date, notes')
+          .eq('tenant_id', tenantId)
+          .or(`phone.eq.${cleanPhone},phone.eq.+${cleanPhone}`);
+      }
+
+      const { data } = await query.maybeSingle();
+      setPatient(data as PatientInfo | null);
+      if (data?.id) {
+        supabase.from('appointments')
+          .select('date, start_time, status, doctors(full_name), locations(name), appointment_types(name)')
+          .eq('tenant_id', tenantId)
+          .eq('patient_id', data.id)
+          .in('status', ['scheduled', 'confirmed'])
+          .gte('date', new Date().toISOString().split('T')[0])
+          .order('date', { ascending: true })
+          .limit(3)
+          .then(({ data: appts }) => setAppointments((appts ?? []) as any as Appointment[]));
+      }
+    };
+
+    loadPatientDetails();
+  }, [selected?.id, selected?.patient_id, tenantId])
 
   // ── Load messages when session selected ───────
   useEffect(() => {

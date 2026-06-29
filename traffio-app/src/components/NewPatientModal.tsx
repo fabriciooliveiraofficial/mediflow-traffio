@@ -93,6 +93,34 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
         setLoading(true);
 
         try {
+            // Validate duplicate CPF/Document under same tenant
+            const formattedCpf = formData.national_id;
+            const cleanedCpf = formData.national_id ? formData.national_id.replace(/\D/g, '') : null;
+
+            if (cleanedCpf && tenant?.id) {
+                let checkQuery = supabase
+                    .from('patients')
+                    .select('id, cpf, national_id')
+                    .eq('tenant_id', tenant.id);
+
+                if (patientId) {
+                    checkQuery = checkQuery.neq('id', patientId);
+                }
+
+                const orConditions = [
+                    `cpf.eq.${cleanedCpf}`,
+                    `cpf.eq.${formattedCpf}`,
+                    `national_id.eq.${cleanedCpf}`,
+                    `national_id.eq.${formattedCpf}`
+                ];
+
+                const { data: existingPatients, error: checkError } = await checkQuery.or(orConditions.join(','));
+                if (checkError) {
+                    console.error('Error checking duplicate patients:', checkError);
+                } else if (existingPatients && existingPatients.length > 0) {
+                    throw new Error(t('newPatientModal.errors.duplicateCpf') || 'Já existe um paciente cadastrado com este CPF.');
+                }
+            }
             // Build payload dynamically to avoid errors with missing columns
             const payload: any = {
                 full_name: formData.full_name,
