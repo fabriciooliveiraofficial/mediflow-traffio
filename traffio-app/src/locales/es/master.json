@@ -94,6 +94,22 @@
       "suspend": "Suspender",
       "delete": "Eliminar"
     },
+    "trial": {
+      "sectionTitle": "Período de Prueba",
+      "statusTrial": "En prueba",
+      "statusExpired": "Prueba expirada",
+      "statusActive": "Suscriptor",
+      "statusSuspended": "Suspendido",
+      "statusCanceled": "Cancelado",
+      "endsOn": "Termina el {{date}} ({{days}} días restantes)",
+      "endedOn": "Expiró el {{date}}",
+      "noTrial": "Sin período de prueba activo",
+      "addDays": "Agregar días de prueba",
+      "customPlaceholder": "Días",
+      "apply": "Aplicar",
+      "extendSuccess": "Prueba extendida {{days}} días.",
+      "extendError": "Error al extender la prueba: {{message}}"
+    },
     "createModal": {
       "title": "Nuevo Cliente",
       "clinicNameLabel": "Nombre de la Clínica",

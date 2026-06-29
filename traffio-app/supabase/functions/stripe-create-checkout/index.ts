@@ -156,7 +156,9 @@ serve(async (req: Request) => {
     if (tenant.subscription_status === "trial" && tenant.trial_ends_at) {
       const msLeft = new Date(tenant.trial_ends_at).getTime() - Date.now();
       if (msLeft > 0) {
-        trialPeriodDays = Math.min(14, Math.max(1, Math.ceil(msLeft / 86_400_000)));
+        // Respeita o trial_ends_at real do tenant (inclui extensões dadas pelo
+        // super-admin). Cap de 730 dias = limite do trial_period_days do Stripe.
+        trialPeriodDays = Math.min(730, Math.max(1, Math.ceil(msLeft / 86_400_000)));
       }
     }
 

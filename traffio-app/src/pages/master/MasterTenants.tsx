@@ -15,7 +15,8 @@ import {
     Loader2,
     Save,
     X,
-    Sliders
+    Sliders,
+    Clock
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
@@ -36,6 +37,11 @@ interface Tenant {
     telnyx_api_key?: string;
     telnyx_app_id?: string;
     sms_enabled?: boolean;
+    // Assinatura / período de teste
+    subscription_status?: 'trial' | 'active' | 'suspended' | 'canceled';
+    trial_ends_at?: string | null;
+    plan?: string;
+    card_on_file?: boolean;
 }
 
 export const MasterTenants = () => {
@@ -56,7 +62,58 @@ export const MasterTenants = () => {
     const [newTenant, setNewTenant] = useState({ name: '', slug: '', address: '', adminEmail: '' });
     const [creating, setCreating] = useState(false);
 
+    // Trial extension state (apenas um tenant fica expandido por vez)
+    const [extending, setExtending] = useState(false);
+    const [customDays, setCustomDays] = useState('');
+
     useEffect(() => { fetchTenants(); }, []);
+
+    /** Calcula o estado do período de teste a partir das colunas de assinatura. */
+    const trialInfo = (tenant: Tenant) => {
+        const status = tenant.subscription_status ?? 'trial';
+        const endsAt = tenant.trial_ends_at ? new Date(tenant.trial_ends_at) : null;
+        const daysLeft = endsAt ? Math.ceil((endsAt.getTime() - Date.now()) / 86_400_000) : null;
+        const expired = status === 'trial' && !!endsAt && endsAt.getTime() < Date.now();
+        return { status, endsAt, daysLeft, expired };
+    };
+
+    /** Badge de status da assinatura/teste (tema escuro do painel master). */
+    const trialBadge = (tenant: Tenant) => {
+        const { status, expired } = trialInfo(tenant);
+        if (status === 'active') return { label: t('tenants.trial.statusActive'), color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' };
+        if (status === 'suspended') return { label: t('tenants.trial.statusSuspended'), color: 'bg-amber-500/10 text-amber-400 border-amber-500/20' };
+        if (status === 'canceled') return { label: t('tenants.trial.statusCanceled'), color: 'bg-rose-500/10 text-rose-400 border-rose-500/20' };
+        if (expired) return { label: t('tenants.trial.statusExpired'), color: 'bg-amber-500/10 text-amber-400 border-amber-500/20' };
+        return { label: t('tenants.trial.statusTrial'), color: 'bg-sky-500/10 text-sky-400 border-sky-500/20' };
+    };
+
+    const handleExtendTrial = async (tenantId: string, days: number) => {
+        if (!days || days <= 0 || extending) return;
+        setExtending(true);
+        try {
+            // Edge Function: valida super_admin, sincroniza o Stripe e persiste via RPC auditado
+            const { data, error } = await supabase.functions.invoke('extend-tenant-trial', {
+                body: { tenant_id: tenantId, days, reason: null },
+            });
+            if (error) {
+                let msg = error.message;
+                try {
+                    const ctx = await (error as any).context?.json?.();
+                    if (ctx?.error) msg = ctx.error;
+                } catch { /* ignora parse */ }
+                throw new Error(msg);
+            }
+            // Resposta { tenant, stripe_synced } → sincroniza estado local
+            const updated = (data?.tenant ?? {}) as Partial<Tenant>;
+            setTenants(prev => prev.map(tn => (tn.id === tenantId ? { ...tn, ...updated } : tn)));
+            setCustomDays('');
+            showToast('success', t('tenants.trial.extendSuccess', { days }));
+        } catch (err: any) {
+            showToast('error', t('tenants.trial.extendError', { message: err.message }));
+        } finally {
+            setExtending(false);
+        }
+    };
 
     const fetchTenants = async () => {
         try {
@@ -279,6 +336,71 @@ export const MasterTenants = () => {
                                                         </div>
                                                     </div>
                                                 </div>
+
+                                                {/* Período de teste — extensão individual e segura (super-admin) */}
+                                                {(() => {
+                                                    const info = trialInfo(tenant);
+                                                    const badge = trialBadge(tenant);
+                                                    const customN = parseInt(customDays, 10);
+                                                    return (
+                                                        <div className="pt-4 border-t border-[#1E293B] space-y-3">
+                                                            <div className="flex items-center justify-between">
+                                                                <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                                                                    {t('tenants.trial.sectionTitle')}
+                                                                </p>
+                                                                <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md border ${badge.color}`}>
+                                                                    {badge.label}
+                                                                </span>
+                                                            </div>
+
+                                                            <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                                                                <Clock size={12} className="text-slate-500" />
+                                                                {info.endsAt
+                                                                    ? (info.expired
+                                                                        ? t('tenants.trial.endedOn', { date: info.endsAt.toLocaleDateString('pt-BR') })
+                                                                        : t('tenants.trial.endsOn', { date: info.endsAt.toLocaleDateString('pt-BR'), days: Math.max(0, info.daysLeft ?? 0) }))
+                                                                    : t('tenants.trial.noTrial')}
+                                                            </div>
+
+                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 mr-1">
+                                                                    {t('tenants.trial.addDays')}:
+                                                                </span>
+                                                                {[7, 14, 30].map(d => (
+                                                                    <button
+                                                                        key={d}
+                                                                        type="button"
+                                                                        disabled={extending}
+                                                                        onClick={(e) => { e.stopPropagation(); handleExtendTrial(tenant.id, d); }}
+                                                                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-emerald-400 bg-emerald-500/5 hover:bg-emerald-500/15 transition-all border border-emerald-500/20 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                                                    >
+                                                                        <Plus size={12} /> {d}d
+                                                                    </button>
+                                                                ))}
+                                                                <div className="flex items-center gap-1.5 ml-1">
+                                                                    <input
+                                                                        type="number"
+                                                                        min={1}
+                                                                        value={customDays}
+                                                                        onClick={(e) => e.stopPropagation()}
+                                                                        onChange={(e) => setCustomDays(e.target.value)}
+                                                                        placeholder={t('tenants.trial.customPlaceholder')}
+                                                                        className="w-20 bg-[#1A2035] border border-[#2D3B55] rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 transition-colors"
+                                                                    />
+                                                                    <button
+                                                                        type="button"
+                                                                        disabled={extending || !customN || customN <= 0}
+                                                                        onClick={(e) => { e.stopPropagation(); handleExtendTrial(tenant.id, customN); }}
+                                                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-emerald-500 hover:bg-emerald-600 transition-all border-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                                                    >
+                                                                        {extending ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                                                                        {t('tenants.trial.apply')}
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })()}
 
                                                 <div className="flex flex-wrap gap-2 pt-4 border-t border-[#1E293B]">
                                                     <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold text-slate-300 bg-[#1E293B] hover:text-white hover:bg-[#2D3B55] transition-all border-none cursor-pointer">

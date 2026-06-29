@@ -94,6 +94,22 @@
       "suspend": "Suspender",
       "delete": "Deletar"
     },
+    "trial": {
+      "sectionTitle": "Período de Teste",
+      "statusTrial": "Em teste",
+      "statusExpired": "Teste expirado",
+      "statusActive": "Assinante",
+      "statusSuspended": "Suspenso",
+      "statusCanceled": "Cancelado",
+      "endsOn": "Termina em {{date}} ({{days}} dias restantes)",
+      "endedOn": "Expirou em {{date}}",
+      "noTrial": "Sem período de teste ativo",
+      "addDays": "Adicionar dias de teste",
+      "customPlaceholder": "Dias",
+      "apply": "Aplicar",
+      "extendSuccess": "Teste estendido em {{days}} dias.",
+      "extendError": "Erro ao estender teste: {{message}}"
+    },
     "createModal": {
       "title": "Novo Tenant",
       "clinicNameLabel": "Nome da Clínica",

@@ -94,6 +94,22 @@
       "suspend": "Suspend",
       "delete": "Delete"
     },
+    "trial": {
+      "sectionTitle": "Trial Period",
+      "statusTrial": "In trial",
+      "statusExpired": "Trial expired",
+      "statusActive": "Subscriber",
+      "statusSuspended": "Suspended",
+      "statusCanceled": "Canceled",
+      "endsOn": "Ends on {{date}} ({{days}} days left)",
+      "endedOn": "Expired on {{date}}",
+      "noTrial": "No active trial period",
+      "addDays": "Add trial days",
+      "customPlaceholder": "Days",
+      "apply": "Apply",
+      "extendSuccess": "Trial extended by {{days}} days.",
+      "extendError": "Failed to extend trial: {{message}}"
+    },
     "createModal": {
       "title": "New Tenant",
       "clinicNameLabel": "Clinic Name",
