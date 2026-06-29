@@ -105,8 +105,8 @@ function renderCustomCaption(template: string, vars: any): string {
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
 interface ChannelInfo {
-    channel:     "whatsapp" | "instagram" | "facebook" | "sms";
-    recipientId: string;   // phone para whatsapp/sms; IGSID/PSID para instagram/facebook
+    channel:     "whatsapp" | "instagram" | "facebook" | "sms" | "email" | "mms";
+    recipientId: string;   // phone/email para whatsapp/sms/email; IGSID/PSID para instagram/facebook
 }
 
 // ─── Handler principal ───────────────────────────────────────────────────────
@@ -165,7 +165,7 @@ serve(async (req: Request) => {
             )
         ];
 
-        const channelMap: Record<string, ChannelInfo> = {};
+        const channelMap: Record<string, ChannelInfo[]> = {};
 
         if (patientPhones.length > 0) {
             // 3a. Preferências explícitas salvas
@@ -175,14 +175,21 @@ serve(async (req: Request) => {
                 .in("patient_phone", patientPhones);
 
             for (const pref of prefs ?? []) {
-                let recipientId = pref.whatsapp_phone ?? pref.patient_phone;
-                if (pref.preferred_channel === "instagram") recipientId = pref.instagram_user_id ?? pref.patient_phone;
-                if (pref.preferred_channel === "facebook")  recipientId = pref.facebook_user_id  ?? pref.patient_phone;
-                if (pref.preferred_channel === "sms")       recipientId = pref.sms_phone         ?? pref.patient_phone;
-                channelMap[pref.patient_phone] = {
-                    channel:     pref.preferred_channel as ChannelInfo["channel"],
-                    recipientId,
-                };
+                const channels = (pref.preferred_channel || "whatsapp").split(",");
+                const list: ChannelInfo[] = [];
+
+                for (const ch of channels) {
+                    let recipientId = pref.whatsapp_phone ?? pref.patient_phone;
+                    if (ch === "instagram") recipientId = pref.instagram_user_id ?? pref.patient_phone;
+                    if (ch === "facebook")  recipientId = pref.facebook_user_id  ?? pref.patient_phone;
+                    if (ch === "sms" || ch === "mms")       recipientId = pref.sms_phone         ?? pref.patient_phone;
+                    
+                    list.push({
+                        channel:     ch as ChannelInfo["channel"],
+                        recipientId,
+                    });
+                }
+                channelMap[pref.patient_phone] = list;
             }
 
             // 3b. Auto-detect para pacientes sem preferência salva
@@ -203,10 +210,10 @@ serve(async (req: Request) => {
                     const recipientId = (ch === "instagram" || ch === "facebook")
                         ? (s.platform_user_id ?? s.patient_phone)
                         : s.patient_phone;
-                    channelMap[s.patient_phone] = {
+                    channelMap[s.patient_phone] = [{
                         channel:     ch as ChannelInfo["channel"],
                         recipientId,
-                    };
+                    }];
                 }
             }
         }
@@ -265,10 +272,10 @@ serve(async (req: Request) => {
             };
 
             // Canal preferido deste paciente (ou fallback whatsapp)
-            const channelInfo: ChannelInfo = channelMap[patientData.phone] ?? {
+            const channelsInfo: ChannelInfo[] = channelMap[patientData.phone] ?? [{
                 channel:     "whatsapp",
                 recipientId: patientData.phone,
-            };
+            }];
 
             const queueBatch: any[] = [];
 
@@ -290,56 +297,57 @@ serve(async (req: Request) => {
 
                     const scheduledTime = getSafeScheduledTime(new Date(targetTime), type, timezone);
 
-                    // Vídeos de lembrete: apenas para WhatsApp
-                    let media_url = null;
-                    let media_type = null;
-                    if (
-                        channelInfo.channel === "whatsapp" &&
-                        botConfig.reminder_videos_enabled &&
-                        r.videoUrl
-                    ) {
-                        media_url = r.videoUrl;
-                        media_type = "video";
-                    }
-
-                    let override_message = null;
-                    if (r.caption) {
-                        let captionText = "";
-                        if (typeof r.caption === "string") {
-                            captionText = r.caption;
-                        } else if (r.caption && typeof r.caption === "object") {
-                            let locale = (patientData?.preferred_locale || "pt").toLowerCase();
-                            if (locale.startsWith("en")) locale = "en";
-                            else if (locale.startsWith("es")) locale = "es";
-                            else locale = "pt";
-                            captionText = r.caption[locale] || r.caption["pt"] || r.caption["en"] || "";
-                        }
-                        override_message = renderCustomCaption(captionText, vars);
-                    }
-
                     let templateKey = "appointment_reminder_2h";
                     if (offsetMinutes === -2880) templateKey = "appointment_reminder_48h";
                     else if (offsetMinutes === -1440) templateKey = "appointment_reminder_24h";
                     else if (offsetMinutes === -120) templateKey = "appointment_reminder_2h";
                     else if (offsetMinutes === -15) templateKey = "appointment_reminder_15m";
 
-                    queueBatch.push({
-                        tenant_id:            appt.tenant_id,
-                        patient_phone:        patientData.phone,
-                        message_type:         type,
-                        template_key:         templateKey,
-                        template_vars:        { ...vars, override_message },
-                        scheduled_at:         scheduledTime,
-                        reference_id:         appt.id,
-                        reference_type:       "appointment",
-                        media_url,
-                        media_type,
-                        is_edited:            !!override_message,
-                        status:               "pending",
-                        // ── Multi-canal ──────────────────────────────────────────
-                        notification_channel: channelInfo.channel,
-                        channel_recipient_id: channelInfo.recipientId,
-                    });
+                    for (const channelInfo of channelsInfo) {
+                        // Vídeos de lembrete: apenas para WhatsApp
+                        let media_url = null;
+                        let media_type = null;
+                        if (
+                            channelInfo.channel === "whatsapp" &&
+                            botConfig.reminder_videos_enabled &&
+                            r.videoUrl
+                        ) {
+                            media_url = r.videoUrl;
+                            media_type = "video";
+                        }
+
+                        let override_message = null;
+                        if (r.caption) {
+                            let captionText = "";
+                            if (typeof r.caption === "string") {
+                                captionText = r.caption;
+                            } else if (r.caption && typeof r.caption === "object") {
+                                let locale = (patientData?.preferred_locale || "pt").toLowerCase();
+                                if (locale.startsWith("en")) locale = "en";
+                                else if (locale.startsWith("es")) locale = "es";
+                                else locale = "pt";
+                                captionText = r.caption[locale] || r.caption["pt"] || r.caption["en"] || "";
+                            }
+                            override_message = renderCustomCaption(captionText, vars);
+                        }
+
+                        queueBatch.push({
+                            tenant_id:            appt.tenant_id,
+                            patient_phone:        patientData.phone,
+                            message_type:         type,
+                            template_key:         templateKey,
+                            template_vars:        { ...vars, override_message },
+                            scheduled_at:         scheduledTime,
+                            reference_id:         appt.id,
+                            reference_type:       "appointment",
+                            media_url,
+                            media_type,
+                            is_edited:            !!override_message,
+                            status:               "pending",
+                            notification_channel: channelInfo.channel,
+                            channel_recipient_id: channelInfo.recipientId,
+                        });
+                    }
                 });
             } else {
                 // Fallback to legacy scheduling logic if custom_reminders is not present
@@ -348,51 +356,52 @@ serve(async (req: Request) => {
 
                     const scheduledTime = getSafeScheduledTime(new Date(targetAt), type, timezone);
 
-                    // Vídeos de lembrete: apenas para WhatsApp
-                    let media_url  = null;
-                    let media_type = null;
-                    if (
-                        channelInfo.channel === "whatsapp" &&
-                        botConfig.reminder_videos_enabled &&
-                        stageKey &&
-                        botConfig.reminder_videos?.[stageKey]
-                    ) {
-                        media_url  = botConfig.reminder_videos[stageKey];
-                        media_type = "video";
-                    }
-
-                    let override_message = null;
-                    if (stageKey && botConfig.reminder_captions?.[stageKey]) {
-                        const captionObj = botConfig.reminder_captions[stageKey];
-                        if (typeof captionObj === "string") {
-                            override_message = renderCustomCaption(captionObj, vars);
-                        } else if (captionObj && typeof captionObj === "object") {
-                            let locale = (patientData?.preferred_locale || "pt").toLowerCase();
-                            if (locale.startsWith("en")) locale = "en";
-                            else if (locale.startsWith("es")) locale = "es";
-                            else locale = "pt";
-                            const msgTemplate = captionObj[locale] || captionObj["pt"] || captionObj["en"] || "";
-                            override_message = renderCustomCaption(msgTemplate, vars);
+                    for (const channelInfo of channelsInfo) {
+                        // Vídeos de lembrete: apenas para WhatsApp
+                        let media_url  = null;
+                        let media_type = null;
+                        if (
+                            channelInfo.channel === "whatsapp" &&
+                            botConfig.reminder_videos_enabled &&
+                            stageKey &&
+                            botConfig.reminder_videos?.[stageKey]
+                        ) {
+                            media_url  = botConfig.reminder_videos[stageKey];
+                            media_type = "video";
                         }
-                    }
 
-                    queueBatch.push({
-                        tenant_id:            appt.tenant_id,
-                        patient_phone:        patientData.phone,
-                        message_type:         type,
-                        template_key:         type === "reminder_15m" ? "appointment_reminder_15m" : "appointment_" + type,
-                        template_vars:        { ...vars, override_message },
-                        scheduled_at:         scheduledTime,
-                        reference_id:         appt.id,
-                        reference_type:       "appointment",
-                        media_url,
-                        media_type,
-                        is_edited:            !!override_message,
-                        status:               "pending",
-                        // ── Multi-canal ──────────────────────────────────────────
-                        notification_channel: channelInfo.channel,
-                        channel_recipient_id: channelInfo.recipientId,
-                    });
+                        let override_message = null;
+                        if (stageKey && botConfig.reminder_captions?.[stageKey]) {
+                            const captionObj = botConfig.reminder_captions[stageKey];
+                            if (typeof captionObj === "string") {
+                                override_message = renderCustomCaption(captionObj, vars);
+                            } else if (captionObj && typeof captionObj === "object") {
+                                let locale = (patientData?.preferred_locale || "pt").toLowerCase();
+                                if (locale.startsWith("en")) locale = "en";
+                                else if (locale.startsWith("es")) locale = "es";
+                                else locale = "pt";
+                                const msgTemplate = captionObj[locale] || captionObj["pt"] || captionObj["en"] || "";
+                                override_message = renderCustomCaption(msgTemplate, vars);
+                            }
+                        }
+
+                        queueBatch.push({
+                            tenant_id:            appt.tenant_id,
+                            patient_phone:        patientData.phone,
+                            message_type:         type,
+                            template_key:         type === "reminder_15m" ? "appointment_reminder_15m" : "appointment_" + type,
+                            template_vars:        { ...vars, override_message },
+                            scheduled_at:         scheduledTime,
+                            reference_id:         appt.id,
+                            reference_type:       "appointment",
+                            media_url,
+                            media_type,
+                            is_edited:            !!override_message,
+                            status:               "pending",
+                            notification_channel: channelInfo.channel,
+                            channel_recipient_id: channelInfo.recipientId,
+                        });
+                    }
                 };
 
                 if (botConfig.active_reminders?.["48h"] !== false) addMessage("reminder_48h", apptTimestamp - (48 * 60 * 60 * 1000), "48h");
@@ -407,14 +416,14 @@ serve(async (req: Request) => {
                 const { error: upsertErr } = await supabase
                     .from("outbound_message_queue")
                     .upsert(queueBatch, {
-                        onConflict:       "tenant_id,patient_phone,template_key,reference_id",
+                        onConflict:       "tenant_id,patient_phone,message_type,reference_id,notification_channel",
                         ignoreDuplicates: true,
                     });
 
                 if (upsertErr) {
                     console.error(`[schedule-reminders] Upsert failed for Appt ${appt.id}:`, upsertErr.message);
                 } else {
-                    console.log(`[schedule-reminders] ${queueBatch.length} reminders queued | Appt ${appt.id} | canal: ${channelInfo.channel} | tz: ${timezone}`);
+                    console.log(`[schedule-reminders] ${queueBatch.length} reminders queued | Appt ${appt.id} | channels: ${channelsInfo.map(c => c.channel).join(", ")} | tz: ${timezone}`);
                     enqueuedCount += queueBatch.length;
                 }
             }

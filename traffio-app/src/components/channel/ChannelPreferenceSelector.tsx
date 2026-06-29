@@ -93,7 +93,7 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
     },
   ];
 
-  const [pref,        setPref]        = useState<Channel>('whatsapp');
+  const [selectedChannels, setSelectedChannels] = useState<Channel[]>(['whatsapp']);
   const [smsPhone,    setSmsPhone]    = useState('');
   const [updatedBy,   setUpdatedBy]   = useState<'auto' | 'manual'>('auto');
   const [saving,      setSaving]      = useState(false);
@@ -101,9 +101,6 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
   const [loading,     setLoading]     = useState(true);
 
   const filteredChannels = CHANNELS.filter(ch => {
-    // Sempre exibir o canal preferido atual do paciente
-    if (ch.id === pref) return true;
-    
     if (!enabledChannels) return true;
     const isDefaultEnabled = ch.id === 'whatsapp' || ch.id === 'sms';
     return enabledChannels[ch.id] ?? isDefaultEnabled;
@@ -125,27 +122,45 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
       .maybeSingle();
 
     if (data) {
-      setPref(data.preferred_channel as Channel);
+      const channels = (data.preferred_channel || 'whatsapp').split(',') as Channel[];
+      
+      // Sanitizar removendo canais desabilitados na matriz
+      const activeChannels = channels.filter(id => {
+        if (!enabledChannels) return true;
+        const isDefaultEnabled = id === 'whatsapp' || id === 'sms';
+        return enabledChannels[id] ?? isDefaultEnabled;
+      });
+
+      setSelectedChannels(activeChannels);
       setSmsPhone(data.sms_phone ?? '');
       setUpdatedBy(data.updated_by ?? 'auto');
     }
     setLoading(false);
   }
 
-  async function save(channel: Channel, phone?: string) {
+  async function save(channels: Channel[], phone?: string) {
     setSaving(true);
     setSaved(false);
+
+    // Filtrar canais que estão desabilitados na matriz do tenant
+    const activeChannelsToSave = channels.filter(id => {
+      if (!enabledChannels) return true;
+      const isDefaultEnabled = id === 'whatsapp' || id === 'sms';
+      return enabledChannels[id] ?? isDefaultEnabled;
+    });
+
+    const channelsString = activeChannelsToSave.join(',');
 
     const update: any = {
       tenant_id:        tenantId,
       patient_phone:    patientPhone,
-      preferred_channel: channel,
+      preferred_channel: channelsString,
       updated_by:       'manual',
       last_manual_updated_at: new Date().toISOString(),
       updated_at:       new Date().toISOString(),
     };
 
-    if (channel === 'sms' || channel === 'mms' || channel === 'email') {
+    if (activeChannelsToSave.includes('sms') || activeChannelsToSave.includes('mms') || activeChannelsToSave.includes('email')) {
       update.sms_phone = phone ?? smsPhone;
     }
 
@@ -153,7 +168,7 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
       .from('patient_channel_preferences')
       .upsert(update, { onConflict: 'tenant_id,patient_phone' });
 
-    setPref(channel);
+    setSelectedChannels(activeChannelsToSave);
     setUpdatedBy('manual');
     setSaving(false);
     setSaved(true);
@@ -169,7 +184,8 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
     );
   }
 
-  const selectedChannel = CHANNELS.find((c) => c.id === pref)!;
+  const activeRequiresId = selectedChannels.find(id => CHANNELS.find(c => c.id === id)?.requiresId);
+  const selectedChannelObj = activeRequiresId ? CHANNELS.find(c => c.id === activeRequiresId) : null;
 
   if (compact) {
     // Modo compacto: badge + dropdown inline
@@ -193,11 +209,30 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
 
         <div className="grid grid-cols-2 gap-1.5">
           {filteredChannels.map((ch) => {
-            const isActive = pref === ch.id;
+            const isActive = selectedChannels.includes(ch.id);
             return (
               <button
                 key={ch.id}
-                onClick={() => ch.requiresId ? setPref(ch.id) : save(ch.id)}
+                onClick={() => {
+                  let newChannels = [...selectedChannels];
+                  if (isActive) {
+                    if (newChannels.length > 1) {
+                      newChannels = newChannels.filter(id => id !== ch.id);
+                      if (!ch.requiresId) {
+                        save(newChannels);
+                      } else {
+                        setSelectedChannels(newChannels);
+                      }
+                    }
+                  } else {
+                    newChannels.push(ch.id);
+                    if (!ch.requiresId) {
+                      save(newChannels);
+                    } else {
+                      setSelectedChannels(newChannels);
+                    }
+                  }
+                }}
                 className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
                   isActive
                     ? `${ch.bgColor} ${ch.color}`
@@ -213,17 +248,17 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
         </div>
 
         {/* Campo de identificação (SMS/MMS/Email) */}
-        {selectedChannel?.requiresId && (
+        {selectedChannelObj?.requiresId && (
           <div className="flex gap-1.5">
             <input
-              type={pref === 'email' ? 'email' : 'tel'}
+              type={selectedChannelObj.id === 'email' ? 'email' : 'tel'}
               value={smsPhone}
               onChange={(e) => setSmsPhone(e.target.value)}
-              placeholder={selectedChannel.idPlaceholder}
+              placeholder={selectedChannelObj.idPlaceholder}
               className="flex-1 text-xs bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 focus:outline-none focus:border-brand-primary"
             />
             <button
-              onClick={() => save(pref, smsPhone)}
+              onClick={() => save(selectedChannels, smsPhone)}
               disabled={!smsPhone || saving}
               className="px-3 py-2 bg-brand-primary text-white text-xs font-bold rounded-xl disabled:opacity-40 border-none cursor-pointer"
             >
@@ -233,10 +268,12 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
         )}
 
         {/* Selecionar outros canais que requerem ID */}
-        {CHANNELS.filter(ch => ch.requiresId && ch.id !== pref && filteredChannels.some(fc => fc.id === ch.id)).map(ch => (
+        {CHANNELS.filter(ch => ch.requiresId && !selectedChannels.includes(ch.id) && filteredChannels.some(fc => fc.id === ch.id)).map(ch => (
           <button
             key={ch.id}
-            onClick={() => { setPref(ch.id); }}
+            onClick={() => {
+              setSelectedChannels([...selectedChannels, ch.id]);
+            }}
             className="w-full flex items-center gap-1.5 px-2.5 py-2 rounded-xl border border-ice-100 text-xs font-bold text-graphite-400 hover:border-ice-200 transition-all cursor-pointer bg-white"
           >
             <ch.icon size={12} />
@@ -273,11 +310,30 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
 
       <div className="grid grid-cols-2 gap-2">
         {filteredChannels.map((ch) => {
-          const isActive = pref === ch.id;
+          const isActive = selectedChannels.includes(ch.id);
           return (
             <button
               key={ch.id}
-              onClick={() => ch.requiresId ? setPref(ch.id) : save(ch.id)}
+              onClick={() => {
+                let newChannels = [...selectedChannels];
+                if (isActive) {
+                  if (newChannels.length > 1) {
+                    newChannels = newChannels.filter(id => id !== ch.id);
+                    if (!ch.requiresId) {
+                      save(newChannels);
+                    } else {
+                      setSelectedChannels(newChannels);
+                    }
+                  }
+                } else {
+                  newChannels.push(ch.id);
+                  if (!ch.requiresId) {
+                    save(newChannels);
+                  } else {
+                    setSelectedChannels(newChannels);
+                  }
+                }
+              }}
               className={`flex items-center gap-2 p-3 rounded-2xl border text-sm font-bold transition-all cursor-pointer ${
                 isActive
                   ? `${ch.bgColor} ${ch.color} shadow-sm`
@@ -292,17 +348,17 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
         })}
       </div>
 
-      {selectedChannel?.requiresId && (
+      {selectedChannelObj?.requiresId && (
         <div className="flex gap-2">
           <input
-            type={pref === 'email' ? 'email' : 'tel'}
+            type={selectedChannelObj.id === 'email' ? 'email' : 'tel'}
             value={smsPhone}
             onChange={(e) => setSmsPhone(e.target.value)}
-            placeholder={selectedChannel.idPlaceholder}
+            placeholder={selectedChannelObj.idPlaceholder}
             className="flex-1 text-sm bg-ice-50 border border-ice-200 rounded-2xl px-4 py-2.5 focus:outline-none focus:border-brand-primary"
           />
           <button
-            onClick={() => save(pref, smsPhone)}
+            onClick={() => save(selectedChannels, smsPhone)}
             disabled={!smsPhone || saving}
             className="px-4 py-2.5 bg-brand-primary text-white font-bold rounded-2xl disabled:opacity-40 border-none cursor-pointer"
           >

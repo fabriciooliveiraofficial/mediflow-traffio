@@ -9,7 +9,7 @@
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 
 export interface ChannelPreferenceUpdate {
-  preferred_channel?: "whatsapp" | "instagram" | "facebook" | "sms";
+  preferred_channel?: string;
   instagram_user_id?: string;
   instagram_username?: string;
   facebook_user_id?: string;
