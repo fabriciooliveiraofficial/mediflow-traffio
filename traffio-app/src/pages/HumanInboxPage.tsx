@@ -288,10 +288,10 @@ function ConversationRow({
               </span>
             )}
           </div>
-          <div className="mt-2 flex items-center gap-1.5">
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
             <StatusBadge status={session.omnichannel_status} />
             <span className={clsx(
-              "inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-bold border",
+              "inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-bold border shrink-0",
               session.channel === 'livechat'
                 ? "bg-indigo-50 text-indigo-700 border-indigo-100"
                 : session.channel === 'instagram'
@@ -309,7 +309,7 @@ function ConversationRow({
                 : t('humanInbox.channels.whatsapp')}
             </span>
             {isQueued && (
-              <span className="flex items-center gap-0.5 text-[10px] text-amber-600 font-medium">
+              <span className="flex items-center gap-0.5 text-[10px] text-amber-600 font-medium shrink-0">
                 <AlertTriangle className="w-3 h-3" /> {t('humanInbox.conversationRow.waiting')}
               </span>
             )}
