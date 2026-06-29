@@ -187,7 +187,7 @@ export const MasterWhatsApp = () => {
     };
 
     const handleSaveLink = async () => {
-        if (!linkForm.tenant_id || !linkForm.instance_id || !linkForm.token || !linkForm.client_token) {
+        if (!linkForm.tenant_id || !linkForm.instance_id || !linkForm.token) {
             showToast('warning', t('whatsapp.toasts.fillAllFields'));
             return;
         }
@@ -197,7 +197,7 @@ export const MasterWhatsApp = () => {
             .update({
                 zapi_instance_id: linkForm.instance_id,
                 zapi_token: linkForm.token,
-                zapi_client_token: linkForm.client_token
+                zapi_client_token: linkForm.client_token || null
             })
             .eq('id', linkForm.tenant_id);
 
@@ -388,7 +388,9 @@ export const MasterWhatsApp = () => {
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-400 mb-1">{t('whatsapp.linkModal.clientTokenLabel')}</label>
+                                <label className="block text-xs font-bold text-slate-400 mb-1">
+                                    {t('whatsapp.linkModal.clientTokenLabel')} <span className="text-slate-500 font-normal">(Opcional)</span>
+                                </label>
                                 <input
                                     type="text"
                                     value={linkForm.client_token}

@@ -36,7 +36,7 @@ export class FlowOrchestrator {
         // 0. Fetch Tenant Credentials (only if NOT in simulation)
         if (!this.simulatorMode) {
             const tenant = await this.getTenantConfig(tenantId);
-            if (!tenant || !tenant.zapi_instance_id || !tenant.zapi_token || !tenant.zapi_client_token) {
+            if (!tenant || !tenant.zapi_instance_id || !tenant.zapi_token) {
                 console.error(`[FlowOrchestrator] Missing Z-API credentials for tenant ${tenantId}`);
                 return;
             }

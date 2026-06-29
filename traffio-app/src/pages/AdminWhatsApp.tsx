@@ -62,7 +62,7 @@ export const AdminWhatsApp = () => {
                 .eq('id', tenant.id)
                 .single();
 
-            if (error || !data || !data.zapi_instance_id || !data.zapi_token || !data.zapi_client_token) {
+            if (error || !data || !data.zapi_instance_id || !data.zapi_token) {
                 console.error('Z-API credentials missing or error:', error);
                 setStatus('no_instance');
                 return;
@@ -111,12 +111,12 @@ export const AdminWhatsApp = () => {
     useEffect(() => {
         let intervalId: any;
 
-        if (pollingActive && tenant?.zapi_instance_id && tenant?.zapi_token && tenant?.zapi_client_token) {
+        if (pollingActive && tenant?.zapi_instance_id && tenant?.zapi_token) {
             intervalId = setInterval(async () => {
                 const zapiStatus = await zapiService.getStatus(
                     tenant.zapi_instance_id!,
                     tenant.zapi_token!,
-                    tenant.zapi_client_token!
+                    tenant.zapi_client_token
                 );
 
                 if (zapiStatus.connected) {
@@ -140,7 +140,7 @@ export const AdminWhatsApp = () => {
     }, [pollingActive, tenant, updateTenant, showToast]);
 
     const handleGenerateQrCode = async () => {
-        if (!tenant?.zapi_instance_id || !tenant?.zapi_token || !tenant?.zapi_client_token) {
+        if (!tenant?.zapi_instance_id || !tenant?.zapi_token) {
             showToast('error', t('adminWhatsApp.toasts.credentialsMissing'));
             return;
         }
@@ -169,7 +169,7 @@ export const AdminWhatsApp = () => {
     };
 
     const handleDisconnect = async () => {
-        if (!tenant?.zapi_instance_id || !tenant?.zapi_token || !tenant?.zapi_client_token) return;
+        if (!tenant?.zapi_instance_id || !tenant?.zapi_token) return;
         if (!confirm(t('adminWhatsApp.disconnectConfirm'))) return;
 
         setStatus('loading');
