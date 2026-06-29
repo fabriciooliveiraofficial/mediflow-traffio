@@ -166,7 +166,7 @@ Body: {
     default:           → fallback WhatsApp
   }
   ```
-- [ ] **C.3** — Adicionar validação da "janela de mensagem de 24h" da Meta
+- [x] **C.3** — Adicionar validação da "janela de mensagem de 24h" da Meta
   - Instagram/Facebook: só permite responder dentro de 24h após última mensagem do paciente
   - Se fora da janela: registrar falha, notificar operador, sugerir canal alternativo
 

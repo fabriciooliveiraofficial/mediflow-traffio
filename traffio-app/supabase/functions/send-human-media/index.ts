@@ -3,6 +3,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { corsHeaders } from "../_shared/cors.ts";
 import { OutboxDispatcher } from "../_shared/outboxDispatcher.ts";
 import { MetaSocialClient } from "../_shared/metaSocialClient.ts";
+import { TelnyxSmsClient } from "../_shared/telnyxSmsClient.ts";
+import { getTelnyxApiKey } from "../_shared/masterConfig.ts";
+import { getSmsPricing } from "../_shared/pricing.ts";
 
 /**
  * Edge Function: send-human-media
@@ -84,14 +87,15 @@ serve(async (req: Request) => {
       }), { status: 401, headers: corsHeaders });
     }
 
-    // ── Buscar sessão e credenciais WhatsApp ─────────────────────────────────
+    // ── Buscar sessão e credenciais WhatsApp + Telnyx ─────────────────────────
     const { data: session, error: sessionError } = await supabase
       .from('conversation_sessions')
       .select(`
         id, patient_phone, tenant_id, omnichannel_status, assigned_to_user_id, channel, platform_user_id,
         tenants (
           whatsapp_provider, zapi_instance_id, zapi_token, zapi_client_token,
-          cloud_api_phone_number_id, cloud_api_access_token
+          cloud_api_phone_number_id, cloud_api_access_token,
+          telnyx_api_key, sms_enabled
         )
       `)
       .eq('id', session_id)
@@ -144,10 +148,11 @@ serve(async (req: Request) => {
       quotedMsgId = repliedMsg?.whatsapp_message_id ?? undefined;
     }
 
-    // ── Enviar via WhatsApp, Meta (Instagram/Facebook) ou Broadcast para Live Chat ──
+    // ── Enviar via WhatsApp, Meta (Instagram/Facebook), Telnyx SMS/MMS ou Broadcast para Live Chat ──
     const isLiveChat = session.channel === 'livechat';
     const isInstagram = session.channel === 'instagram';
     const isFacebook = session.channel === 'facebook';
+    const isSms = session.channel === 'sms';
 
     if (isLiveChat) {
       const realtimeChannel = supabase.channel(`livechat:${session_id}`);
@@ -208,6 +213,58 @@ serve(async (req: Request) => {
       } catch (metaErr: any) {
         console.error(`[send-human-media] Meta dispatch failed: ${metaErr.message}`);
         return json({ error: `Falha ao enviar anexo via ${session.channel}: ${metaErr.message}` });
+      }
+    } else if (isSms) {
+      // Prioridade: tenant key → Supabase Secret → master_config (UI)
+      const smsApiKey = await getTelnyxApiKey(supabase, tenantDetails?.telnyx_api_key);
+      if (!smsApiKey || !tenantDetails?.sms_enabled) {
+        throw new Error(`SMS/MMS (Telnyx) não está configurado ou habilitado para este tenant.`);
+      }
+
+      // Buscar número remetente: primeiro número ativo do tenant que tenha capacidade SMS
+      const { data: senderRow } = await supabase
+        .from('tenant_phone_numbers')
+        .select('phone_number, country_code')
+        .eq('tenant_id', tenant_id)
+        .eq('is_active', true)
+        .contains('capabilities', { sms: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (!senderRow) {
+        throw new Error(`Nenhum número de envio de SMS/MMS ativo encontrado para este tenant.`);
+      }
+
+      const smsClient = new TelnyxSmsClient(smsApiKey);
+      const mediaUrls = media_url ? [media_url] : undefined;
+      const smsText = caption?.trim() || "";
+      const telnyxRes = await smsClient.sendSms(senderRow.phone_number, session.patient_phone, smsText, mediaUrls);
+      console.log(`[send-human-media] MMS sent to ${session.patient_phone}. Msg ID: ${telnyxRes.messageId}`);
+
+      if (dbMsgId && telnyxRes.messageId) {
+        await supabase
+          .from('conversation_messages')
+          .update({ whatsapp_message_id: telnyxRes.messageId })
+          .eq('id', dbMsgId);
+      }
+
+      // Rastrear uso: SMS/MMS outbound
+      try {
+        const pricing = getSmsPricing(senderRow?.country_code ?? "US", "sms");
+        const billingPeriod = new Date();
+        const periodStr = `${billingPeriod.getFullYear()}-${String(billingPeriod.getMonth() + 1).padStart(2, "0")}-01`;
+        await supabase.from("tenant_usage_log").insert({
+          tenant_id:           tenant_id,
+          resource_type:       "sms_outbound",
+          resource_id:         dbMsgId,
+          quantity:            1,
+          unit_cost_usd:       pricing.unitCostUsd,
+          total_cost_usd:      pricing.unitCostUsd,
+          billing_period:      periodStr,
+          tenant_phone_number: senderRow.phone_number,
+        });
+      } catch (logErr: any) {
+        console.error(`[send-human-media] Falha ao logar uso de SMS/MMS:`, logErr.message);
       }
     } else {
       const outbox = new OutboxDispatcher(supabase);

@@ -297,7 +297,7 @@
 
 - [ ] **J.6** — Nenhuma preferência definida → sistema usa WhatsApp como fallback
 
-- [ ] **J.7** — Instagram/Facebook fora da janela de 24h → falha registrada, operador notificado
+- [x] **J.7** — Instagram/Facebook fora da janela de 24h → falha registrada, operador notificado
 
 - [ ] **J.8** — Tenant compra novo número pelo painel → número ativo em menos de 2 minutos
 
