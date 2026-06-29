@@ -205,7 +205,8 @@
       "instanceIdPlaceholder": "Ex: 3B2D...",
       "tokenLabel": "Instance Token",
       "clientTokenLabel": "Client Token",
-      "save": "Save Link"
+      "save": "Save Link",
+      "unlinkButton": "Delete Link / Clear"
     },
     "qrModal": {
       "title": "Connect WhatsApp",
@@ -216,7 +217,8 @@
     },
     "confirms": {
       "restart": "Are you sure you want to restart this instance?",
-      "disconnect": "Do you really want to disconnect? The tenant will lose the connection immediately."
+      "disconnect": "Do you really want to disconnect? The tenant will lose the connection immediately.",
+      "unlink": "Are you sure you want to delete the credentials and unlink this instance from the tenant in the database?"
     },
     "toasts": {
       "restartSuccess": "Restart command sent successfully.",
@@ -225,8 +227,12 @@
       "qrError": "Could not generate the QR Code. Check the credentials.",
       "fetchTenantsError": "Error loading tenants: {{message}}",
       "fillAllFields": "Fill in all fields!",
-      "linkError": "Error linking: {{message}}"
-    }
+      "linkError": "Error linking: {{message}}",
+      "duplicateError": "Warning: This Z-API instance or Token is already registered to the clinic \"{{clinics}}\". To avoid message routing conflicts, you need to unlink or clear these credentials from the other clinic before saving.",
+      "unlinkSuccess": "Instance unlinked and credentials deleted successfully.",
+      "unlinkError": "Error unlinking instance: {{message}}"
+    },
+    "unlinkTitle": "Delete credentials and unlink from database"
   },
   "intelligence": {
     "sectionLabel": "Platform Core",

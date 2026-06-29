@@ -28,14 +28,21 @@ export class TenantResolver {
         const { data, error } = await this.supabase
             .from('tenants')
             .select('*')
-            .ilike('zapi_instance_id', normalizedId)
-            .maybeSingle();
+            .ilike('zapi_instance_id', normalizedId);
 
-        if (error || !data) {
+        if (error || !data || data.length === 0) {
             console.error(`❌ Tenant resolution failed for instanceId="${normalizedId}":`, error?.message ?? 'not found');
             return null;
         }
-        return data as Tenant;
+
+        if (data.length > 1) {
+            console.warn(`⚠️ Multiple tenants found for instanceId="${normalizedId}". Using fallback resolution.`);
+            // Prioritize the one with whatsapp_status === 'CONNECTED'
+            const connected = data.find(t => t.whatsapp_status === 'CONNECTED');
+            return connected || data[0];
+        }
+
+        return data[0] as Tenant;
     }
 
     async resolveByTenantId(tenantId: string): Promise<Tenant | null> {

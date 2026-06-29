@@ -205,7 +205,8 @@
       "instanceIdPlaceholder": "Ej: 3B2D...",
       "tokenLabel": "Token de la Instancia",
       "clientTokenLabel": "Client Token",
-      "save": "Guardar Vínculo"
+      "save": "Guardar Vínculo",
+      "unlinkButton": "Eliminar Vínculo / Limpiar"
     },
     "qrModal": {
       "title": "Conectar WhatsApp",
@@ -216,7 +217,8 @@
     },
     "confirms": {
       "restart": "¿Estás seguro de que deseas reiniciar esta instancia?",
-      "disconnect": "¿Realmente deseas desconectar? El cliente perderá la conexión de inmediato."
+      "disconnect": "¿Realmente deseas desconectar? El cliente perderá la conexión de inmediato.",
+      "unlink": "¿Estás seguro de que deseas eliminar las credenciales y desvincular esta instancia del tenant en la base de datos?"
     },
     "toasts": {
       "restartSuccess": "Comando de reinicio enviado correctamente.",
@@ -225,8 +227,12 @@
       "qrError": "No se pudo generar el código QR. Verifica las credenciales.",
       "fetchTenantsError": "Error al cargar clientes: {{message}}",
       "fillAllFields": "¡Completa todos los campos!",
-      "linkError": "Error al vincular: {{message}}"
-    }
+      "linkError": "Error al vincular: {{message}}",
+      "duplicateError": "Advertencia: Esta instancia de Z-API o Token ya está registrada en la clínica \"{{clinics}}\". Para evitar conflictos en la recepción de mensajes, debe desvincular o borrar estas credenciales de la otra clínica antes de guardar.",
+      "unlinkSuccess": "Instancia desvinculada y credenciales eliminadas con éxito.",
+      "unlinkError": "Error al desvincular la instancia: {{message}}"
+    },
+    "unlinkTitle": "Eliminar credenciales y desvincular de la base de datos"
   },
   "intelligence": {
     "sectionLabel": "Núcleo de la Plataforma",

@@ -9,7 +9,8 @@ import {
     Loader2,
     QrCode,
     Link,
-    X
+    X,
+    Trash2
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
@@ -192,6 +193,26 @@ export const MasterWhatsApp = () => {
             return;
         }
 
+        // Check for duplicates (other tenants with same instance ID or token)
+        const normalizedInstanceId = linkForm.instance_id.trim().toUpperCase();
+        const normalizedToken = linkForm.token.trim();
+
+        const { data: duplicates, error: checkError } = await supabase
+            .from('tenants')
+            .select('name')
+            .neq('id', linkForm.tenant_id)
+            .or(`zapi_instance_id.ilike.${normalizedInstanceId},zapi_token.eq.${normalizedToken}`);
+
+        if (checkError) {
+            console.error('Error checking duplicate instances:', checkError);
+        } else if (duplicates && duplicates.length > 0) {
+            const clinics = duplicates.map(d => d.name).join(', ');
+            const alertMsg = t('whatsapp.toasts.duplicateError', { clinics });
+            window.alert(alertMsg);
+            showToast('error', alertMsg);
+            return;
+        }
+
         const { error } = await supabase
             .from('tenants')
             .update({
@@ -207,6 +228,30 @@ export const MasterWhatsApp = () => {
             setShowLinkModal(false);
             fetchInstances();
         }
+    };
+
+    const handleUnlink = async (tenantId: string) => {
+        if (!confirm(t('whatsapp.confirms.unlink'))) return;
+        setLoading(true);
+        const { error } = await supabase
+            .from('tenants')
+            .update({
+                zapi_instance_id: null,
+                zapi_token: null,
+                zapi_client_token: null,
+                whatsapp_status: 'DISCONNECTED',
+                whatsapp_phone: null
+            })
+            .eq('id', tenantId);
+
+        if (error) {
+            showToast('error', t('whatsapp.toasts.unlinkError', { message: error.message }));
+        } else {
+            showToast('success', t('whatsapp.toasts.unlinkSuccess'));
+            setShowLinkModal(false);
+            fetchInstances();
+        }
+        setLoading(false);
     };
 
 
@@ -330,11 +375,19 @@ export const MasterWhatsApp = () => {
                                         <button
                                             onClick={() => handleConnect(instance)}
                                             disabled={isRefreshing}
-                                            className="w-full px-3 py-2 rounded-lg bg-emerald-500/10 text-emerald-400 text-xs font-bold hover:bg-emerald-500/20 transition-colors border-none cursor-pointer flex items-center justify-center gap-2"
+                                            className="flex-1 px-3 py-2 rounded-lg bg-emerald-500/10 text-emerald-400 text-xs font-bold hover:bg-emerald-500/20 transition-colors border-none cursor-pointer flex items-center justify-center gap-2"
                                         >
                                             <QrCode size={14} /> {t('whatsapp.connectQr')}
                                         </button>
                                     )}
+                                    <button
+                                        onClick={() => handleUnlink(instance.tenant_id)}
+                                        disabled={isRefreshing}
+                                        className="p-2 rounded-lg bg-[#1A2035] text-rose-500 hover:bg-rose-500/10 hover:text-rose-400 transition-colors border-none cursor-pointer flex items-center justify-center shrink-0"
+                                        title={t('whatsapp.unlinkTitle') || ''}
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
                                 </div>
 
                             </div>
@@ -405,6 +458,16 @@ export const MasterWhatsApp = () => {
                             >
                                 {t('whatsapp.linkModal.save')}
                             </button>
+
+                            {/* If the tenant has an existing config, show the Unlink button */}
+                            {tenantsWithoutZapi.find(t => t.id === linkForm.tenant_id)?.zapi_instance_id && (
+                                <button
+                                    onClick={() => handleUnlink(linkForm.tenant_id)}
+                                    className="w-full bg-rose-500/10 text-rose-500 py-3 rounded-xl font-bold hover:bg-rose-500/20 transition-colors mt-2 border-none cursor-pointer"
+                                >
+                                    {t('whatsapp.linkModal.unlinkButton')}
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
