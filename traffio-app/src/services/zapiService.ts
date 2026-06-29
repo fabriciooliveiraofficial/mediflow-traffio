@@ -126,5 +126,38 @@ export const zapiService = {
             console.error('Z-API Request Failed:', error);
             throw error;
         }
+    },
+
+    async updateWebhooks(instanceId: string, token: string, clientToken: string | null | undefined, webhookUrl: string): Promise<boolean> {
+        try {
+            const headers = this.getHeaders(clientToken, {
+                'Content-Type': 'application/json'
+            });
+            const body = JSON.stringify({ value: webhookUrl });
+
+            // We update received, delivery, and disconnected webhooks
+            const endpoints = [
+                '/update-webhook-received',
+                '/update-webhook-delivery',
+                '/update-webhook-disconnected'
+            ];
+
+            const results = await Promise.all(
+                endpoints.map(endpoint => 
+                    fetch(this.getUrl(instanceId, token, endpoint), {
+                        method: 'PUT',
+                        headers,
+                        body
+                    }).then(res => res.ok).catch(() => false)
+                )
+            );
+
+            // Log if any webhook update failed, but return true if received is configured
+            console.log(`[Z-API] Webhooks updated for ${instanceId}:`, results);
+            return results[0]; // Received message webhook is the critical one
+        } catch (error) {
+            console.error('Z-API Webhooks Update Failed:', error);
+            return false;
+        }
     }
 };

@@ -546,14 +546,24 @@ export async function updatePhoneNumberConnection(
   connectionId?: string | null,
   messagingProfileId?: string | null
 ): Promise<any> {
-  const body: any = {};
-  if (connectionId !== undefined) body.connection_id = connectionId || null;
-  if (messagingProfileId !== undefined) body.messaging_profile_id = messagingProfileId || null;
+  let voiceResult = null;
+  let messagingResult = null;
 
-  if (Object.keys(body).length === 0) return null;
+  if (connectionId !== undefined) {
+    const res = await telnyxRequest(apiKey, "PATCH", `/phone_numbers/${phoneId}`, {
+      connection_id: connectionId || null,
+    });
+    voiceResult = res.data;
+  }
 
-  const data = await telnyxRequest(apiKey, "PATCH", `/phone_numbers/${phoneId}`, body);
-  return data.data;
+  if (messagingProfileId !== undefined) {
+    const res = await telnyxRequest(apiKey, "PATCH", `/phone_numbers/${phoneId}/messaging`, {
+      messaging_profile_id: messagingProfileId || null,
+    });
+    messagingResult = res.data;
+  }
+
+  return { voice: voiceResult, messaging: messagingResult };
 }
 
 // ─── RECORDINGS ──────────────────────────────────────────────────────────────

@@ -90,6 +90,18 @@ export const AdminWhatsApp = () => {
                 setStatus('connected');
                 setConnectedPhone(zapiStatus.phone || data.whatsapp_phone || null);
                 
+                // Configure webhooks automatically on connection
+                const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+                if (supabaseUrl) {
+                    const webhookUrl = `${supabaseUrl}/functions/v1/whatsapp-bot`;
+                    zapiService.updateWebhooks(
+                        data.zapi_instance_id,
+                        data.zapi_token,
+                        data.zapi_client_token,
+                        webhookUrl
+                    ).catch(err => console.error('Error configuring Z-API webhooks:', err));
+                }
+                
                 if (data.whatsapp_status !== 'CONNECTED') {
                     await updateTenant({ 
                         whatsapp_status: 'CONNECTED',
@@ -137,6 +149,18 @@ export const AdminWhatsApp = () => {
                     setStatus('connected');
                     setConnectedPhone(zapiStatus.phone || null);
                     showToast('success', t('adminWhatsApp.toasts.connectedSuccess'));
+                    
+                    // Configure webhooks automatically on connection
+                    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+                    if (supabaseUrl) {
+                        const webhookUrl = `${supabaseUrl}/functions/v1/whatsapp-bot`;
+                        zapiService.updateWebhooks(
+                            credentials.zapi_instance_id!,
+                            credentials.zapi_token!,
+                            credentials.zapi_client_token,
+                            webhookUrl
+                        ).catch(err => console.error('Error configuring Z-API webhooks:', err));
+                    }
                     
                     await updateTenant({ 
                         whatsapp_status: 'CONNECTED',
