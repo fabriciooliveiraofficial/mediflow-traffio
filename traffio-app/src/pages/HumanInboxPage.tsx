@@ -1478,13 +1478,15 @@ interface PatientPanelProps {
   onAddToWaitlist: () => void
   onResetReschedule: () => void
   rescheduleData: any | null
+  preFill: any | null
+  onPreFillChange: (data: any | null) => void
   enabledChannels?: Record<string, boolean>
 }
 
 function PatientPanel({
   session, patient, appointments, onClose, onUpdateStage, onTransferClick, isOwned, onNewPatient, onLookupPatient, onQuickBook,
   view, onViewChange, onPatientSelected, onViewAppointments, onSendMessage, onReschedule, onAddToWaitlist, onResetReschedule, rescheduleData,
-  enabledChannels
+  preFill, onPreFillChange, enabledChannels
 }: PatientPanelProps) {
   const { t } = useTranslation('communications');
 
@@ -1525,14 +1527,17 @@ function PatientPanel({
         <SidebarBookingView 
           onBack={() => {
             onResetReschedule();
+            onPreFillChange(null);
             onViewChange('profile');
           }}
           patientId={patient.id}
           patientName={patient.full_name || t('humanInbox.fallbackNames.patient')}
           onSendMessage={onSendMessage}
           rescheduleFrom={rescheduleData}
+          preFill={preFill}
           onSuccess={() => {
             onResetReschedule();
+            onPreFillChange(null);
             onViewChange('profile');
           }}
         />
@@ -1579,7 +1584,16 @@ function PatientPanel({
       <div className="w-full flex flex-col h-full border-l border-ice-100">
         <SidebarAvailabilityView
           onBack={() => onViewChange('profile')}
-          onBookSlot={() => onViewChange('booking')}
+          onBookSlot={(doctor, location, procedure, date, time) => {
+            onPreFillChange({
+              doctorId: doctor.id,
+              locationId: location.id,
+              service: procedure,
+              date,
+              slotTime: time
+            });
+            onViewChange('booking');
+          }}
         />
       </div>
     );
@@ -1860,6 +1874,7 @@ export function HumanInboxPage() {
   const [selectedStage, setSelectedStage] = useState<string>('Todos')
   const [stageDropdownOpen, setStageDropdownOpen] = useState(false)
   const [rescheduleData, setRescheduleData] = useState<any | null>(null);
+  const [bookingPreFill, setBookingPreFill] = useState<any | null>(null);
   const [channelFilter, setChannelFilter] = useState<'all' | 'whatsapp' | 'livechat' | 'instagram' | 'facebook'>('all');
   const [headerSlot, setHeaderSlot] = useState<HTMLElement | null>(null);
 
@@ -3131,6 +3146,8 @@ export function HumanInboxPage() {
               }}
               onResetReschedule={() => setRescheduleData(null)}
               rescheduleData={rescheduleData}
+              preFill={bookingPreFill}
+              onPreFillChange={setBookingPreFill}
               onAddToWaitlist={async () => {
                 if (!patient || !tenantId) return;
                 const { error } = await supabase.from('waitlist').insert({

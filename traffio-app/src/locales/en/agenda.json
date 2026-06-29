@@ -123,6 +123,14 @@
     "changeUnit": "Change Unit",
     "changeService": "Change Service",
     "changeLabel": "Change {{target}}",
+    "confirmSummaryTitle": "Booking Summary",
+    "changeAvailability": "Change Availability",
+    "summary": {
+      "professional": "Professional",
+      "procedure": "Procedure",
+      "unit": "Unit",
+      "dateTime": "Date & Time"
+    },
     "noProceduresFound": "No procedures found.",
     "agendaForDate": "Schedule for {{date}}",
     "noSlotsForDay": "No time slots available for this day.",

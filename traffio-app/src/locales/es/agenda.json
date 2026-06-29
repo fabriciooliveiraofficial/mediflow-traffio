@@ -123,6 +123,14 @@
     "changeUnit": "Cambiar Unidad",
     "changeService": "Cambiar Servicio",
     "changeLabel": "Cambiar {{target}}",
+    "confirmSummaryTitle": "Resumen del Agendamiento",
+    "changeAvailability": "Cambiar Disponibilidad",
+    "summary": {
+      "professional": "Profesional",
+      "procedure": "Procedimiento",
+      "unit": "Unidad",
+      "dateTime": "Fecha y Hora"
+    },
     "noProceduresFound": "No se encontraron procedimientos.",
     "agendaForDate": "Agenda para {{date}}",
     "noSlotsForDay": "No hay horarios disponibles para este día.",

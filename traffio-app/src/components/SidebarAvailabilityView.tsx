@@ -23,7 +23,7 @@ import { getTenantNow, getTenantTodayString } from '../lib/timezoneUtils';
 
 interface SidebarAvailabilityViewProps {
   onBack: () => void;
-  onBookSlot?: (doctorId: string, date: string, time: string) => void;
+  onBookSlot?: (doctor: any, location: any, procedure: any, date: string, time: string) => void;
 }
 
 export function SidebarAvailabilityView({ onBack, onBookSlot }: SidebarAvailabilityViewProps) {
@@ -826,7 +826,7 @@ export function SidebarAvailabilityView({ onBack, onBookSlot }: SidebarAvailabil
                   {slots.map((slot, i) => (
                     <button
                       key={i}
-                      onClick={() => onBookSlot?.(selectedDoctor.id, selectedDate, slot.slot_time)}
+                      onClick={() => onBookSlot?.(selectedDoctor, selectedLocation, selectedProcedure, selectedDate, slot.slot_time)}
                       className={clsx('py-2 text-xs font-bold rounded-xl border transition-all', slotColor(slot))}
                       title={`${slot.block_type}${slot.location_name ? ` · ${slot.location_name}` : ''}${slot.allowed_patient_type !== 'any' ? ` · ${slot.allowed_patient_type}` : ''}`}
                     >

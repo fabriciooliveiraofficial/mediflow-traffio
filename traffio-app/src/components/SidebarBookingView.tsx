@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { User, Stethoscope, CheckCircle2, ChevronRight, Loader2, Copy, Check, ChevronLeft, MapPin, X, CreditCard, Link2, MessageSquare } from 'lucide-react';
+import { User, Stethoscope, CheckCircle2, ChevronRight, Loader2, Copy, Check, ChevronLeft, MapPin, X, CreditCard, Link2, MessageSquare, Calendar } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useTenant } from '../contexts/TenantContext';
 import { useToast } from '../contexts/ToastContext';
@@ -17,16 +17,26 @@ interface SidebarBookingViewProps {
   patientName: string;
   onSendMessage: (text: string) => Promise<void>;
   rescheduleFrom?: any;
+  preFill?: {
+    doctorId: string;
+    locationId: string;
+    service: any;
+    date: string;
+    slotTime: string;
+  } | null;
   onSuccess?: () => void;
 }
 
-export function SidebarBookingView({ onBack, patientId, patientName, onSendMessage, rescheduleFrom, onSuccess }: SidebarBookingViewProps) {
+export function SidebarBookingView({ onBack, patientId, patientName, onSendMessage, rescheduleFrom, preFill, onSuccess }: SidebarBookingViewProps) {
     const { t } = useTranslation('agenda');
     const { tenant } = useTenant();
     const { showToast } = useToast();
     const { formatSlot } = useLocaleFormat();
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
+    // When opened from the "Consultar Disponibilidade" flow, professional/procedure/unit/date/slot
+    // are already chosen. We then show a confirmation summary instead of repeating the pickers.
+    const isPreFilled = !!preFill;
 
     // Data
     const [doctors, setDoctors] = useState<any[]>([]);
@@ -62,7 +72,9 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
         if (tenant?.id) {
             loadDoctors();
             
-            if (rescheduleFrom) {
+            if (preFill) {
+                handlePreFillInit(preFill);
+            } else if (rescheduleFrom) {
                 // Pre-fill for rescheduling
                 setSelectedDoctor(rescheduleFrom.doctor_id);
                 setSelectedLocation(rescheduleFrom.location_id);
@@ -71,7 +83,124 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                 handleRescheduleInit();
             }
         }
-    }, [tenant?.id]);
+    }, [tenant?.id, preFill]);
+
+    const handlePreFillInit = async (data: any) => {
+        setLoading(true);
+        try {
+            // 1. Fetch locations for the doctor to populate the locations list
+            const { data: officialMappings } = await supabase
+                .from('doctor_locations')
+                .select('locations(id, name, google_maps_url)')
+                .eq('doctor_id', data.doctorId);
+            
+            let locs = officialMappings?.map((d: any) => d.locations).filter(Boolean) || [];
+            if (locs.length === 0) {
+                const { data: serviceMappings } = await supabase
+                    .from('doctor_services')
+                    .select('locations(id, name, google_maps_url)')
+                    .eq('doctor_id', data.doctorId);
+                const seen = new Set();
+                locs = (serviceMappings?.map((d: any) => d.locations).filter(Boolean) || []).filter(l => {
+                    if (seen.has(l.id)) return false;
+                    seen.add(l.id);
+                    return true;
+                });
+            }
+            if (locs.length === 0) {
+                const { data: allLocs } = await supabase
+                    .from('locations')
+                    .select('id, name, google_maps_url')
+                    .eq('tenant_id', tenant?.id)
+                    .eq('is_active', true);
+                locs = allLocs || [];
+            }
+            setLocations(locs);
+
+            // 2. Fetch services for the doctor/location to populate the services list
+            let query = supabase
+                .from('doctor_services')
+                .select('appointment_types(*)')
+                .eq('doctor_id', data.doctorId);
+            if (data.locationId) {
+                query = query.eq('location_id', data.locationId);
+            }
+            const { data: servicesData } = await query;
+            const activeServices = (servicesData?.map((d: any) => d.appointment_types).filter(Boolean) || [])
+                .filter((s: any) => s.is_active !== false)
+                .sort((a: any, b: any) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
+            setServices(activeServices);
+
+            // 3. Hydrate slots calendar markers
+            const { data: datesData, error: datesError } = await supabase.rpc('find_next_available_dates', {
+                p_doctor_id: data.doctorId,
+                p_location_id: data.locationId,
+                p_duration_minutes: data.service?.duration_minutes || 15,
+                p_limit: 60,
+                p_from_date: format(startOfMonth(currentMonth), 'yyyy-MM-dd')
+            });
+            if (datesError) throw datesError;
+            const tz = tenant?.timezone || 'America/Sao_Paulo';
+            const todayStr = getTenantTodayString(tz);
+            const dates = (datesData || [])
+                .map((d: any) => d.date)
+                .filter((d: string) => d >= todayStr);
+            setAvailableDates(dates);
+
+            // 4. Hydrate slot grid
+            const { data: slotsData, error: slotsError } = await supabase.rpc('find_next_available_dates', {
+                p_doctor_id: data.doctorId,
+                p_location_id: data.locationId,
+                p_duration_minutes: data.service?.duration_minutes || 15,
+                p_limit: 1,
+                p_from_date: data.date
+            });
+            if (slotsError) throw slotsError;
+            
+            const dayData = (slotsData || []).find((d: any) => d.date === data.date);
+            if (dayData) {
+                const now = getTenantNow(tz);
+                const currentHours = now.getHours();
+                const currentMinutes = now.getMinutes();
+
+                const filteredSlots = (dayData.slots || []).filter((slot: any) => {
+                    if (data.date < todayStr) return false;
+                    if (data.date === todayStr) {
+                        const [h, m] = slot.time.split(':').map(Number);
+                        if (h > currentHours) return true;
+                        if (h === currentHours && m > currentMinutes) return true;
+                        return false;
+                    }
+                    return true;
+                });
+
+                setSlots(filteredSlots);
+                
+                if (dayData.start_hour !== undefined && dayData.end_hour !== undefined) {
+                    setAgendaRange({ 
+                        start: Math.max(0, dayData.start_hour),
+                        end: Math.min(23, dayData.end_hour + 1)
+                    });
+                }
+            } else {
+                setSlots([]);
+                setAgendaRange({ start: 7, end: 20 });
+            }
+
+            // Set final selections
+            setSelectedDoctor(data.doctorId);
+            setSelectedLocation(data.locationId);
+            setSelectedService(data.service);
+            setSelectedDate(data.date);
+            setSelectedSlot({ time: data.slotTime, type: 'regular' });
+            setStep(4);
+
+        } catch (err) {
+            console.error('Error pre-filling booking view:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleRescheduleInit = async () => {
         if (!rescheduleFrom) return;
@@ -103,7 +232,7 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                 setStep(4);
                 break;
             case 4:
-                setStep(3);
+                if (isPreFilled) { onBack(); } else { setStep(3); }
                 break;
             case 3:
                 setStep(locations.length > 1 ? 2 : 1);
@@ -580,21 +709,23 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                         <ChevronLeft className="w-5 h-5" />
                     </button>
                     <div>
-                        <p className="text-xs font-bold opacity-80 uppercase tracking-tighter">{t('sidebarBookingView.headerLabel')}</p>
+                        <p className="text-xs font-bold opacity-80 uppercase tracking-tighter">{isPreFilled ? t('sidebarBookingView.confirmAppointment') : t('sidebarBookingView.headerLabel')}</p>
                         <p className="text-sm font-bold truncate max-w-[150px]">{patientName}</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-1.5">
-                    {[1, 2, 3, 4].map(s => (
-                        <div 
-                            key={s} 
-                            className={clsx(
-                                "w-1.5 h-1.5 rounded-full transition-all",
-                                step === s ? "bg-white w-4" : "bg-white/30"
-                            )} 
-                        />
-                    ))}
-                </div>
+                {!isPreFilled && (
+                    <div className="flex items-center gap-1.5">
+                        {[1, 2, 3, 4].map(s => (
+                            <div
+                                key={s}
+                                className={clsx(
+                                    "w-1.5 h-1.5 rounded-full transition-all",
+                                    step === s ? "bg-white w-4" : "bg-white/30"
+                                )}
+                            />
+                        ))}
+                    </div>
+                )}
             </div>
 
             <div className="flex-1 overflow-y-auto">
@@ -703,22 +834,67 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                 {/* Step 4: Slots with Calendar */}
                 {step === 4 && (
                     <div className="p-4 space-y-6">
-                        <div className="flex items-center justify-between">
-                            <p className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">{t('sidebarBookingView.steps.selectDateTime')}</p>
-                            <button onClick={() => setStep(3)} className="text-[10px] font-black text-blue-600 uppercase border-none bg-transparent cursor-pointer">{t('sidebarBookingView.changeService')}</button>
-                        </div>
-                        
-                        <SidebarCalendar 
-                            selectedDate={selectedDate}
-                            onDateSelect={(date) => loadSlotsForDate(date)}
-                            availableDates={availableDates}
-                            currentMonth={currentMonth}
-                            onMonthChange={setCurrentMonth}
-                            timezone={tenant?.timezone}
-                        />
+                        {isPreFilled ? (
+                            <div className="space-y-3">
+                                <p className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">{t('sidebarBookingView.confirmSummaryTitle')}</p>
+                                <div className="rounded-2xl border border-blue-100 bg-blue-50/40 p-4 space-y-3">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-blue-600 shrink-0 shadow-sm"><User size={18} /></div>
+                                        <div className="min-w-0">
+                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">{t('sidebarBookingView.summary.professional')}</p>
+                                            <p className="text-sm font-bold text-gray-800 truncate">{doctors.find(d => d.id === selectedDoctor)?.full_name || t('sidebarBookingView.professionalFallback')}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-emerald-600 shrink-0 shadow-sm"><Stethoscope size={18} /></div>
+                                        <div className="min-w-0">
+                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">{t('sidebarBookingView.summary.procedure')}</p>
+                                            <p className="text-sm font-bold text-gray-800 truncate">{selectedService?.name}{selectedService?.duration_minutes ? ` (${selectedService.duration_minutes} min)` : ''}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-amber-600 shrink-0 shadow-sm"><MapPin size={18} /></div>
+                                        <div className="min-w-0">
+                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">{t('sidebarBookingView.summary.unit')}</p>
+                                            <p className="text-sm font-bold text-gray-800 truncate">{locations.find(l => l.id === selectedLocation)?.name || '—'}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-indigo-600 shrink-0 shadow-sm"><Calendar size={18} /></div>
+                                        <div className="min-w-0">
+                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">{t('sidebarBookingView.summary.dateTime')}</p>
+                                            <p className="text-sm font-bold text-gray-800">
+                                                {selectedDate ? format(new Date(selectedDate + 'T12:00:00'), "dd 'de' MMMM", { locale: ptBR }) : ''}
+                                                {selectedSlot ? ` · ${formatSlot(selectedSlot.time)}` : ''}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button onClick={onBack} className="text-[10px] font-black text-blue-600 uppercase border-none bg-transparent cursor-pointer pl-1">
+                                    {t('sidebarBookingView.changeAvailability')}
+                                </button>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="flex items-center justify-between">
+                                    <p className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">{t('sidebarBookingView.steps.selectDateTime')}</p>
+                                    <button onClick={() => setStep(3)} className="text-[10px] font-black text-blue-600 uppercase border-none bg-transparent cursor-pointer">{t('sidebarBookingView.changeService')}</button>
+                                </div>
+
+                                <SidebarCalendar
+                                    selectedDate={selectedDate}
+                                    onDateSelect={(date) => loadSlotsForDate(date)}
+                                    availableDates={availableDates}
+                                    currentMonth={currentMonth}
+                                    onMonthChange={setCurrentMonth}
+                                    timezone={tenant?.timezone}
+                                />
+                            </>
+                        )}
 
                         {selectedDate && (
                             <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                                {!isPreFilled && (<>
                                 <div className="flex items-center justify-between px-1">
                                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
                                       {t('sidebarBookingView.agendaForDate', { date: format(new Date(selectedDate + 'T12:00:00'), "dd 'de' MMMM", { locale: ptBR }) })}
@@ -889,6 +1065,7 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                                           </div>
                                         </div>
                                 )}
+                                </>)}
 
                                 {/* Message Customization Panel */}
                                 {selectedSlot && (
