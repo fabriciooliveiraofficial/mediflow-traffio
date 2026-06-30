@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { startOfDay, endOfDay, subDays } from 'date-fns';
 import { useLocaleFormat } from './useLocaleFormat';
+import { getTenantTodayString, addDaysToDateString, localDateTimeToUTC } from '../lib/timezoneUtils';
 
 export interface PerformanceMetrics {
   totalLeads: number;
@@ -24,9 +25,10 @@ export interface PerformanceMetrics {
 interface MetricsOptions {
   tenantId: string;
   days?: number;
+  timezone?: string;
 }
 
-export function useFollowUpMetrics({ tenantId, days = 30 }: MetricsOptions) {
+export function useFollowUpMetrics({ tenantId, days = 30, timezone }: MetricsOptions) {
   const { locale } = useLocaleFormat();
   const [metrics, setMetrics] = useState<PerformanceMetrics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -36,11 +38,23 @@ export function useFollowUpMetrics({ tenantId, days = 30 }: MetricsOptions) {
     setIsLoading(true);
 
     try {
-      const now = new Date();
-      const startDate = startOfDay(subDays(now, days));
-      const endDate = endOfDay(now);
-      const startStr = startDate.toISOString();
-      const endStr = endDate.toISOString();
+      const tz = timezone || 'America/Sao_Paulo';
+      const todayStr = getTenantTodayString(tz);
+      const startDateStr = addDaysToDateString(todayStr, -days);
+      const prevStartDateStr = addDaysToDateString(startDateStr, -days);
+
+      const startLocalTime = '00:00';
+      const endLocalTime = '23:59';
+
+      const startDateUTC = localDateTimeToUTC(startDateStr, startLocalTime, tz);
+      const endDateUTC = localDateTimeToUTC(todayStr, endLocalTime, tz);
+      const prevStartDateUTC = localDateTimeToUTC(prevStartDateStr, startLocalTime, tz);
+      const prevEndDateUTC = localDateTimeToUTC(startDateStr, endLocalTime, tz);
+
+      const startStr = startDateUTC.toISOString();
+      const endStr = endDateUTC.toISOString();
+      const prevStartStr = prevStartDateUTC.toISOString();
+      const prevEndStr = prevEndDateUTC.toISOString();
 
       // 1. Current Period Data
       // Leads: Created in period
@@ -72,13 +86,10 @@ export function useFollowUpMetrics({ tenantId, days = 30 }: MetricsOptions) {
         .from('appointments')
         .select('*, type:appointment_types(name)')
         .eq('tenant_id', tenantId)
-        .gte('date', startStr.split('T')[0])
-        .lte('date', endStr.split('T')[0]);
+        .gte('date', startDateStr)
+        .lte('date', todayStr);
 
       // 2. Previous Period Data (for trends)
-      const prevStartDate = startOfDay(subDays(startDate, days));
-      const prevStartStr = prevStartDate.toISOString();
-      const prevEndStr = startStr;
 
       const { data: prevLeads } = await supabase
         .from('conversation_sessions')
@@ -140,7 +151,11 @@ export function useFollowUpMetrics({ tenantId, days = 30 }: MetricsOptions) {
       // Time Series (New leads per day)
       const daysMap: Record<string, number> = {};
       leads.forEach(s => {
-        const d = new Intl.DateTimeFormat(locale, { day: '2-digit', month: '2-digit' }).format(new Date(s.created_at));
+        const d = new Intl.DateTimeFormat(locale, { 
+          day: '2-digit', 
+          month: '2-digit',
+          timeZone: tz
+        }).format(new Date(s.created_at));
         daysMap[d] = (daysMap[d] || 0) + 1;
       });
       const timeSeriesData = Object.entries(daysMap).map(([date, leads]) => ({ date, leads }));
@@ -180,7 +195,7 @@ export function useFollowUpMetrics({ tenantId, days = 30 }: MetricsOptions) {
     } finally {
       setIsLoading(false);
     }
-  }, [tenantId, days, locale]);
+  }, [tenantId, days, locale, timezone]);
 
   useEffect(() => {
     fetchMetrics();

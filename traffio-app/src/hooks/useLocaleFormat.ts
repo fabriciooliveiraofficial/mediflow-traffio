@@ -27,8 +27,8 @@ export function useLocaleFormat() {
         locale,
         timezone,
         hour12,
-        formatDate: (value: Date | string | null | undefined, opts?: Partial<FormatOpts>) =>
-            formatDate(value, { locale, ...opts }),
+        formatDate: (value: Date | string | null | undefined, opts?: Partial<FormatOpts & Intl.DateTimeFormatOptions>) =>
+            formatDate(value, { locale, timezone, ...opts }),
         formatTime: (value: Date | string | null | undefined, opts?: Partial<FormatOpts>) =>
             formatTime(value, { locale, timezone, hour12, ...opts }),
         formatDateTime: (value: Date | string | null | undefined, opts?: Partial<FormatOpts>) =>

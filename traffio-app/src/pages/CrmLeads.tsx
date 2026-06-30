@@ -17,6 +17,7 @@ import { supabase } from '../lib/supabase';
 import { NewPatientModal } from '../components/NewPatientModal';
 import { useToast } from '../contexts/ToastContext';
 import { useTranslation } from 'react-i18next';
+import { useLocaleFormat } from '../hooks/useLocaleFormat';
 
 interface CrmLeadsProps {
     onSelectPatient?: (id: string) => void;
@@ -24,6 +25,7 @@ interface CrmLeadsProps {
 
 export const CrmLeads: React.FC<CrmLeadsProps> = ({ onSelectPatient }) => {
     const { t } = useTranslation('crm');
+    const { formatDate: formatLocaleDate } = useLocaleFormat();
     const { showToast } = useToast();
     const [patients, setPatients] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -38,12 +40,8 @@ export const CrmLeads: React.FC<CrmLeadsProps> = ({ onSelectPatient }) => {
     const formatDate = (dateString: string | null) => {
         if (!dateString) return t('leads.noVisits');
         try {
-            const date = new Date(dateString);
-            return new Intl.DateTimeFormat('pt-BR', {
-                day: '2-digit',
-                month: 'short',
-                year: 'numeric'
-            }).format(date).replace('.', '').replace('de ', '');
+            const formatted = formatLocaleDate(dateString, { month: 'short' });
+            return formatted.replace('.', '').replace('de ', '');
         } catch (e) {
             return '---';
         }

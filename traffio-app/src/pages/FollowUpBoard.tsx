@@ -13,7 +13,7 @@ import { PerformanceStats } from '../components/followup/PerformanceStats';
 import { KANBAN_STAGES, STAGE_ICONS, STAGE_LABEL_KEYS } from '../lib/kanbanStages';
 import { useTranslation } from 'react-i18next';
 import { Badge, Button, IconButton, EmptyState, PageHeader } from '../components/ui';
-
+import { FollowUpTimelineDrawer } from '../components/crm/FollowUpTimelineDrawer';
 type OmnichannelStatus = 'bot_active' | 'queued' | 'human_active' | 'closed';
 
 interface ConversationSession {
@@ -45,9 +45,12 @@ export function FollowUpBoard() {
   // Sale details state
   const [saleDetails, setSaleDetails] = useState<{ id: string; procedure: string; value: string } | null>(null);
 
+  // Timeline Drawer state
+  const [selectedSessionTimeline, setSelectedSessionTimeline] = useState<ConversationSession | null>(null);
   const { metrics, isLoading: loadingMetrics, refetch: refetchMetrics } = useFollowUpMetrics({ 
     tenantId: tenant?.id || '', 
-    days 
+    days,
+    timezone: tenant?.timezone
   });
 
   useEffect(() => {
@@ -93,7 +96,12 @@ export function FollowUpBoard() {
     setSessions(list);
 
     if (list.length > 0) {
-      const phones = [...new Set(list.map(s => s.patient_phone))];
+      const phones = [...new Set(list.flatMap(s => {
+        const raw = s.patient_phone || '';
+        const clean = raw.replace(/\D/g, '');
+        return [clean, `+${clean}`, raw];
+      }))];
+      
       const { data: pts } = await supabase
         .from('patients')
         .select('phone, full_name')
@@ -102,7 +110,14 @@ export function FollowUpBoard() {
       
       if (pts) {
         const map: Record<string, string> = {};
-        pts.forEach((p: any) => { if (p.full_name) map[p.phone] = p.full_name; });
+        pts.forEach((p: any) => {
+          if (p.full_name && p.phone) {
+            const clean = p.phone.replace(/\D/g, '');
+            map[clean] = p.full_name;
+            map[`+${clean}`] = p.full_name;
+            map[p.phone] = p.full_name;
+          }
+        });
         setPatientNames(map);
       }
     }
@@ -248,6 +263,7 @@ export function FollowUpBoard() {
                       key={session.id}
                       draggable
                       onDragStart={(e) => handleDragStart(e, session.id)}
+                      onClick={() => setSelectedSessionTimeline(session)}
                       className="group bg-white p-4 rounded-2xl shadow-float border border-ice-100 cursor-grab active:cursor-grabbing hover:border-brand-primary/40 hover:-translate-y-0.5 transition-all duration-300 animate-in fade-in slide-in-from-bottom-2"
                     >
                       <div className="flex items-center justify-between mb-4">
@@ -257,7 +273,9 @@ export function FollowUpBoard() {
                           </div>
                           <div className="overflow-hidden">
                             <p className="text-xs font-black text-graphite-900 truncate tracking-tight">
-                              {patientNames[session.patient_phone] || (
+                              {patientNames[session.patient_phone] ||
+                               patientNames[session.patient_phone.replace(/\D/g, '')] ||
+                               patientNames[`+${session.patient_phone.replace(/\D/g, '')}`] || (
                                 ['instagram', 'facebook', 'livechat'].includes(session.channel || '')
                                   ? (session.context?.visitor_name || session.context?.username || session.context?.name || (session.channel === 'instagram' ? t('followUp.channelFallback.instagram') : session.channel === 'facebook' ? t('followUp.channelFallback.facebook') : t('followUp.channelFallback.web')))
                                   : `${phoneFlag(session.patient_phone)} ${formatPhone(session.patient_phone)}`
@@ -363,6 +381,14 @@ export function FollowUpBoard() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Timeline Drawer */}
+      {selectedSessionTimeline && (
+        <FollowUpTimelineDrawer 
+          session={selectedSessionTimeline} 
+          onClose={() => setSelectedSessionTimeline(null)} 
+        />
       )}
     </div>
   );
