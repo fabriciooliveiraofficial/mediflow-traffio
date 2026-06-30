@@ -42,6 +42,7 @@
       "notesPlaceholder": "Notas...",
       "close": "Cerrar",
       "save": "Guardar",
+      "reschedule": "Reprogramar",
       "receivePayment": "Recibir Pago",
       "deleteAppointment": "Eliminar Cita"
     },

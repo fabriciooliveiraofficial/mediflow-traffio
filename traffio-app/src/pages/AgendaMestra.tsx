@@ -19,7 +19,13 @@ import {
     User,
     MapPin,
     Stethoscope as StethoscopeIcon,
-    Wallet
+    Wallet,
+    MessageCircle,
+    Mail,
+    Phone,
+    Instagram,
+    Send,
+    Repeat
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -174,6 +180,20 @@ export const AgendaMestra: React.FC = () => {
     const [editNotes, setEditNotes] = useState('');
     const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+    const [patientNoShowStats, setPatientNoShowStats] = useState<{ total: number; noShows: number; rate: number } | null>(null);
+    const [reschedulingFromAppt, setReschedulingFromAppt] = useState<any | null>(null);
+    const [doctorServices, setDoctorServices] = useState<any[]>([]);
+    const [isRecurring, setIsRecurring] = useState(false);
+    const [recurrencePattern, setRecurrencePattern] = useState<'weekly' | 'biweekly' | 'monthly' | 'd60' | 'd90'>('weekly');
+    const [occurrencesCount, setOccurrencesCount] = useState(4);
+    const [generatedOccurrences, setGeneratedOccurrences] = useState<any[]>([]);
+    const [futureScheduleData, setFutureScheduleData] = useState<any>(null);
+    const [recurrenceLoading, setRecurrenceLoading] = useState(false);
+    const [showNotificationModal, setShowNotificationModal] = useState(false);
+    const [notificationChannel, setNotificationChannel] = useState<string>('whatsapp');
+    const [recipientId, setRecipientId] = useState('');
+    const [notificationPreviewText, setNotificationPreviewText] = useState('');
+    const [tempBookedAppointments, setTempBookedAppointments] = useState<any[]>([]);
 
     // Drag & Drop
     const gridRef = useRef<HTMLDivElement>(null);
@@ -210,6 +230,18 @@ export const AgendaMestra: React.FC = () => {
             setSelectedDateStr(getTenantTodayString(timeFormatOpts.timezone));
         }
     }, [timeFormatOpts.timezone]);
+
+    // Load patient no-show stats when editing modal is opened
+    useEffect(() => {
+        if (editingAppt?.patient_id && selectedTenant) {
+            setPatientNoShowStats(null);
+            smartSchedulingService.getPatientNoShowStats(selectedTenant, editingAppt.patient_id)
+                .then(stats => setPatientNoShowStats(stats))
+                .catch(err => console.error("Error loading no-show stats:", err));
+        } else {
+            setPatientNoShowStats(null);
+        }
+    }, [editingAppt, selectedTenant]);
 
     const formatDateLabel = (dateStr: string) => {
         const [y, m, d] = dateStr.split('-').map(Number);
@@ -260,15 +292,17 @@ export const AgendaMestra: React.FC = () => {
     useEffect(() => {
         if (!selectedTenant) return;
         (async () => {
-            const [docs, types, locs] = await Promise.all([
+            const [docs, types, locs, servicesRes] = await Promise.all([
                 smartSchedulingService.getActiveDoctors(selectedTenant),
                 smartSchedulingService.getAppointmentTypes(selectedTenant),
                 locationService.getAll(selectedTenant),
+                supabase.from('doctor_services').select('*').eq('tenant_id', selectedTenant)
             ]);
             setDoctors(docs as Doctor[]);
             setAppointmentTypes(types as AppointmentType[]);
             setSelectedDoctors(docs.map((d: any) => d.id));
             setLocations(locs);
+            setDoctorServices(servicesRes.data || []);
             if (locs.length > 0) {
                 setSelectedLocation(locs[0].id);
             } else {
@@ -371,23 +405,226 @@ export const AgendaMestra: React.FC = () => {
         return () => el?.removeEventListener('scroll', handleScroll);
     }, [loading]);
 
+    const calculateNextDate = (startDateStr: string, pattern: string, index: number): string => {
+        const [y, m, d] = startDateStr.split('-').map(Number);
+        const date = new Date(y, m - 1, d);
+        if (pattern === 'weekly') {
+            date.setDate(date.getDate() + index * 7);
+        } else if (pattern === 'biweekly') {
+            date.setDate(date.getDate() + index * 14);
+        } else if (pattern === 'monthly') {
+            date.setMonth(date.getMonth() + index);
+        } else if (pattern === 'd60') {
+            date.setDate(date.getDate() + index * 60);
+        } else if (pattern === 'd90') {
+            date.setDate(date.getDate() + index * 90);
+        }
+        const ry = date.getFullYear();
+        const rm = String(date.getMonth() + 1).padStart(2, '0');
+        const rd = String(date.getDate()).padStart(2, '0');
+        return `${ry}-${rm}-${rd}`;
+    };
+
+    const loadDoctorFutureSchedule = async (docId: string, maxDate: string) => {
+        if (!selectedTenant) return { absences: [], appts: [], avail: [] };
+        
+        const [absences, appts, avail] = await Promise.all([
+            supabase.from('doctor_absences').select('*').eq('doctor_id', docId).eq('tenant_id', selectedTenant),
+            supabase.from('appointments').select('date, start_time, end_time, status').eq('doctor_id', docId).eq('tenant_id', selectedTenant).gte('date', dateStr).lte('date', maxDate).not('status', 'in', '("canceled","cancelled","noshow","no_show")'),
+            supabase.from('doctor_availability').select('*').eq('doctor_id', docId).eq('tenant_id', selectedTenant).eq('is_active', true)
+        ]);
+
+        return {
+            absences: absences.data || [],
+            appts: appts.data || [],
+            avail: avail.data || []
+        };
+    };
+
+    const checkSlotAvailabilityLocal = (
+        dateStr: string,
+        startTime: string,
+        endTime: string,
+        docId: string,
+        locId: string,
+        scheduleData: any
+    ) => {
+        const sMin = timeToMin(startTime);
+        const eMin = timeToMin(endTime);
+
+        // 1. Check doctor absences
+        const isAbsent = scheduleData.absences.some((abs: any) => {
+            return dateStr >= abs.start_date && dateStr <= abs.end_date;
+        });
+        if (isAbsent) return { available: false, reason: 'DOCTOR_ABSENT' };
+
+        // 2. Check general week day availability
+        const [y, m, d] = dateStr.split('-').map(Number);
+        const jsDow = new Date(y, m - 1, d).getDay();
+        const isoDow = jsDow === 0 ? 7 : jsDow;
+        const dowCandidates = isoDow === 7 ? [7, 0] : [isoDow];
+
+        const hasAvailability = scheduleData.avail.some((av: any) => {
+            if (!dowCandidates.includes(av.day_of_week)) return false;
+            if (av.location_id && av.location_id !== locId) return false;
+            if (av.block_type === 'blocked') return false;
+            const avStart = timeToMin(av.start_time);
+            const avEnd = timeToMin(av.end_time);
+            return avStart <= sMin && avEnd >= eMin;
+        });
+        if (!hasAvailability) return { available: false, reason: 'OUTSIDE_AVAILABILITY' };
+
+        // 3. Check if slot overlaps with block_type = 'blocked' block
+        const isBlocked = scheduleData.avail.some((av: any) => {
+            if (!dowCandidates.includes(av.day_of_week)) return false;
+            if (av.location_id && av.location_id !== locId) return false;
+            if (av.block_type !== 'blocked') return false;
+            const avStart = timeToMin(av.start_time);
+            const avEnd = timeToMin(av.end_time);
+            return avStart < eMin && avEnd > sMin;
+        });
+        if (isBlocked) return { available: false, reason: 'OUTSIDE_AVAILABILITY' };
+
+        // 4. Check overlap with existing appointments
+        const hasConflict = scheduleData.appts.some((appt: any) => {
+            if (appt.date !== dateStr) return false;
+            const apptStart = timeToMin(appt.start_time);
+            const apptEnd = appt.end_time ? timeToMin(appt.end_time) : apptStart + 30;
+            return apptStart < eMin && apptEnd > sMin;
+        });
+        if (hasConflict) return { available: false, reason: 'SLOT_CONFLICT' };
+
+        return { available: true, reason: null };
+    };
+
+    const findSuggestedSlotLocal = (
+        dateStr: string,
+        duration: number,
+        docId: string,
+        locId: string,
+        scheduleData: any
+    ): { date: string; start: string; end: string } | null => {
+        const [y, m, d] = dateStr.split('-').map(Number);
+        const jsDow = new Date(y, m - 1, d).getDay();
+        const isoDow = jsDow === 0 ? 7 : jsDow;
+        const dowCandidates = isoDow === 7 ? [7, 0] : [isoDow];
+
+        const blocks = scheduleData.avail.filter((av: any) => {
+            return dowCandidates.includes(av.day_of_week) && av.block_type !== 'blocked' && (!av.location_id || av.location_id === locId);
+        });
+
+        for (const block of blocks) {
+            let current = timeToMin(block.start_time);
+            const blockEnd = timeToMin(block.end_time);
+
+            while (current + duration <= blockEnd) {
+                const startStr = minToTime(current);
+                const endStr = minToTime(current + duration);
+
+                const check = checkSlotAvailabilityLocal(dateStr, startStr, endStr, docId, locId, scheduleData);
+                if (check.available) {
+                    return { date: dateStr, start: startStr, end: endStr };
+                }
+                current += 15;
+            }
+        }
+
+        // Check subsequent days
+        for (let offset = 1; offset <= 5; offset++) {
+            const nextDate = addDaysToDateString(dateStr, offset);
+            const suggestion = findSuggestedSlotLocal(nextDate, duration, docId, locId, scheduleData);
+            if (suggestion) return suggestion;
+        }
+
+        return null;
+    };
+
+    const generateOccurrencesPreview = async (targetDocId?: string, targetTypeId?: string) => {
+        if (!selectedTenant) return;
+        setRecurrenceLoading(true);
+
+        const startTime = bookingModal.slot?.slot_time || bookingModal.prefillStart || '08:00';
+        const endTime = bookingModal.slot?.slot_end || bookingModal.prefillEnd || '08:30';
+        const duration = timeToMin(endTime) - timeToMin(startTime);
+        const docId = targetDocId || bookingModal.doctorId;
+        const locId = bookingModal.slot?.location_id || selectedLocation || '';
+        const typeId = targetTypeId || bookingForm.typeId;
+        const selectedType = appointmentTypes.find(t => t.id === typeId);
+
+        // Calculate max date to fetch future schedule data
+        const maxDate = calculateNextDate(dateStr, recurrencePattern, occurrencesCount);
+
+        try {
+            const scheduleData = await loadDoctorFutureSchedule(docId, maxDate);
+            setFutureScheduleData(scheduleData);
+
+            const occurrences = [];
+            for (let i = 0; i < occurrencesCount; i++) {
+                const occurrenceDate = calculateNextDate(dateStr, recurrencePattern, i);
+                const check = checkSlotAvailabilityLocal(occurrenceDate, startTime, endTime, docId, locId, scheduleData);
+
+                let start_time = startTime;
+                let end_time = endTime;
+                let is_conflict = !check.available;
+                let conflict_reason = check.reason;
+                let suggested_slot = null;
+
+                if (is_conflict) {
+                    const suggestion = findSuggestedSlotLocal(occurrenceDate, duration, docId, locId, scheduleData);
+                    if (suggestion) {
+                        suggested_slot = {
+                            date: suggestion.date,
+                            slot_time: suggestion.start,
+                            slot_end: suggestion.end
+                        };
+                    }
+                }
+
+                occurrences.push({
+                    index: i,
+                    date: occurrenceDate,
+                    start_time,
+                    end_time,
+                    doctor_id: docId,
+                    type_id: typeId,
+                    doctor_name: doctors.find(d => d.id === docId)?.full_name || '',
+                    type_name: selectedType?.name || '',
+                    is_conflict,
+                    conflict_reason,
+                    suggested_slot,
+                    is_edited: false
+                });
+            }
+            setGeneratedOccurrences(occurrences);
+        } catch (err) {
+            console.error("Error generating preview:", err);
+            showToast('error', 'Erro ao gerar preview de recorrência.');
+        } finally {
+            setRecurrenceLoading(false);
+        }
+    };
+
     const toggleDoctor = (id: string) => {
         setSelectedDoctors(prev => prev.includes(id) ? prev.filter(d => d !== id) : [...prev, id]);
     };
 
     // ── Booking ─────────────────────────────
-    const openBookingModal = (doctorId: string, slot: SmartSlot) => {
-        setBookingForm({ patientSearch: '', selectedPatient: null, patientType: 'private', insurancePlanId: '', typeId: appointmentTypes[0]?.id || '', notes: '' });
-        setPatientResults([]);
-        setDoctorPlans([]);
+    const openBookingModal = (doctorId: string, slot: SmartSlot | null) => {
+        if (!reschedulingFromAppt) {
+            setBookingForm({ patientSearch: '', selectedPatient: null, patientType: 'private', insurancePlanId: '', typeId: appointmentTypes[0]?.id || '', notes: '' });
+            setPatientResults([]);
+            setDoctorPlans([]);
+        }
         setBookingModal({ open: true, doctorId, slot });
         smartSchedulingService.getDoctorInsurancePlans(doctorId).then(setDoctorPlans);
     };
 
     const openBookingFromDrag = (doctorId: string, startMin: number, endMin: number) => {
-        setBookingForm({ patientSearch: '', selectedPatient: null, patientType: 'private', insurancePlanId: '', typeId: appointmentTypes[0]?.id || '', notes: '' });
-        setPatientResults([]);
-        setDoctorPlans([]);
+        if (!reschedulingFromAppt) {
+            setBookingForm({ patientSearch: '', selectedPatient: null, patientType: 'private', insurancePlanId: '', typeId: appointmentTypes[0]?.id || '', notes: '' });
+            setPatientResults([]);
+            setDoctorPlans([]);
+        }
         setBookingModal({
             open: true,
             doctorId,
@@ -398,6 +635,7 @@ export const AgendaMestra: React.FC = () => {
         smartSchedulingService.getDoctorInsurancePlans(doctorId).then(setDoctorPlans);
     };
 
+
     const handlePatientSearch = (query: string) => {
         setBookingForm(prev => ({ ...prev, patientSearch: query, selectedPatient: null }));
         if (searchTimeout.current) clearTimeout(searchTimeout.current);
@@ -406,6 +644,65 @@ export const AgendaMestra: React.FC = () => {
             if (!selectedTenant) return;
             setPatientResults((await smartSchedulingService.searchPatients(selectedTenant, query)) as Patient[]);
         }, 300);
+    };
+
+    const buildConsolidatedMessage = (patientName: string, appointments: any[]) => {
+        const firstName = patientName.split(' ')[0];
+        let msg = `Olá, ${firstName}! 😊 Aqui está o resumo das suas consultas confirmadas:\n\n`;
+        appointments.forEach((appt, idx) => {
+            const dateFormatted = appt.date.split('-').reverse().slice(0, 2).join('/');
+            const typeObj = appointmentTypes.find(t => t.id === appt.type_id);
+            const docObj = doctors.find(d => d.id === appt.doctor_id);
+            msg += `• ${dateFormatted} às ${formatSlot(appt.start_time)} – ${typeObj?.name || 'Consulta'} (Prof. ${docObj?.full_name || 'Profissional'})\n`;
+        });
+        msg += `\nNos vemos em breve! 💙`;
+        return msg;
+    };
+
+    const loadPatientPreferences = async (patientId: string) => {
+        if (!selectedTenant) return null;
+        const { data, error } = await supabase
+            .from('patient_channel_preferences')
+            .select('*')
+            .eq('patient_id', patientId)
+            .eq('tenant_id', selectedTenant)
+            .maybeSingle();
+        if (error) {
+            console.error("Error loading patient preference:", error);
+            return null;
+        }
+        return data;
+    };
+
+    const handleSendNotification = async () => {
+        if (!bookingForm.selectedPatient || !selectedTenant) return;
+        
+        try {
+            const recipient = recipientId || bookingForm.selectedPatient.phone || bookingForm.selectedPatient.email || '';
+            const { error } = await supabase.from('outbound_message_queue').insert({
+                tenant_id: selectedTenant,
+                patient_phone: bookingForm.selectedPatient.phone || recipient,
+                message_type: 'booking_confirmed',
+                template_key: 'custom',
+                template_vars: { message: notificationPreviewText },
+                scheduled_at: new Date().toISOString(),
+                status: 'pending',
+                notification_channel: notificationChannel,
+                channel_recipient_id: recipient
+            });
+
+            if (error) throw error;
+
+            showToast('success', 'Lembrete de agendamentos enviado para a fila de processamento!');
+            setShowNotificationModal(false);
+            setTempBookedAppointments([]);
+            setGeneratedOccurrences([]);
+            setIsRecurring(false);
+            fetchData();
+        } catch (err: any) {
+            console.error("Error sending notification:", err);
+            showToast('error', `Erro ao enviar notificação: ${err.message}`);
+        }
     };
 
     const handleBook = async () => {
@@ -418,27 +715,83 @@ export const AgendaMestra: React.FC = () => {
             const slot = bookingModal.slot;
             const slotType = slot ? (slot.is_auto_released ? 'auto_released' : slot.block_type) : 'regular';
 
-            const payload: BookAppointmentPayload = {
-                tenant_id: selectedTenant,
-                doctor_id: bookingModal.doctorId,
-                patient_id: bookingForm.selectedPatient.id,
-                type_id: bookingForm.typeId || undefined,
-                date: dateStr,
-                start_time: startTime,
-                end_time: endTime,
-                patient_type: bookingForm.patientType,
-                insurance_plan_id: bookingForm.patientType === 'insurance' ? bookingForm.insurancePlanId || undefined : undefined,
-                slot_type: slotType,
-                notes: bookingForm.notes || undefined,
-                // Drag-created bookings have no `slot` (only prefillStart/prefillEnd), so they
-                // had no location_id at all before — fall back to the toolbar's selected location.
-                location_id: slot?.location_id || selectedLocation || '',
-            };
+            if (isRecurring) {
+                // Check if any occurrence still has conflicts
+                const hasConflicts = generatedOccurrences.some(o => o.is_conflict);
+                if (hasConflicts) {
+                    showToast('error', 'Por favor, resolva todos os conflitos antes de confirmar.');
+                    setBookingSaving(false);
+                    return;
+                }
 
-            await smartSchedulingService.bookAppointment(payload);
-            showToast('success', t('mestra.toasts.bookedFor', { name: bookingForm.selectedPatient.full_name }));
-            setBookingModal({ open: false, doctorId: '', slot: null });
-            fetchData();
+                const payloads = generatedOccurrences.map((occ, idx) => ({
+                    doctor_id: occ.doctor_id,
+                    location_id: slot?.location_id || selectedLocation || '',
+                    type_id: occ.type_id || null,
+                    date: occ.date,
+                    start_time: occ.start_time,
+                    end_time: occ.end_time,
+                    notes: bookingForm.notes || null,
+                    patient_type: bookingForm.patientType,
+                    insurance_plan_id: bookingForm.patientType === 'insurance' ? bookingForm.insurancePlanId || null : null,
+                    slot_type: slotType,
+                    recurrence_index: idx,
+                    recurrence_pattern: recurrencePattern
+                }));
+
+                await smartSchedulingService.bookRecurringAppointments(
+                    selectedTenant,
+                    bookingForm.selectedPatient.id,
+                    payloads
+                );
+
+                showToast('success', `${occurrencesCount} agendamentos criados com sucesso!`);
+                setBookingModal({ open: false, doctorId: '', slot: null });
+
+                // Open notification dispatch modal
+                setTempBookedAppointments(payloads);
+                const initialMsg = buildConsolidatedMessage(bookingForm.selectedPatient.full_name, payloads);
+                setNotificationPreviewText(initialMsg);
+                
+                const pref = await loadPatientPreferences(bookingForm.selectedPatient.id);
+                if (pref?.preferred_channel) {
+                    setNotificationChannel(pref.preferred_channel);
+                } else {
+                    setNotificationChannel('whatsapp');
+                }
+                setRecipientId(bookingForm.selectedPatient.phone || bookingForm.selectedPatient.email || '');
+                setShowNotificationModal(true);
+
+            } else {
+                const payload: BookAppointmentPayload = {
+                    tenant_id: selectedTenant,
+                    doctor_id: bookingModal.doctorId,
+                    patient_id: bookingForm.selectedPatient.id,
+                    type_id: bookingForm.typeId || undefined,
+                    date: dateStr,
+                    start_time: startTime,
+                    end_time: endTime,
+                    patient_type: bookingForm.patientType,
+                    insurance_plan_id: bookingForm.patientType === 'insurance' ? bookingForm.insurancePlanId || undefined : undefined,
+                    slot_type: slotType,
+                    notes: bookingForm.notes || undefined,
+                    location_id: slot?.location_id || selectedLocation || '',
+                };
+
+                await smartSchedulingService.bookAppointment(payload);
+                showToast('success', t('mestra.toasts.bookedFor', { name: bookingForm.selectedPatient.full_name }));
+
+                if (reschedulingFromAppt) {
+                    await supabase.from('appointments').update({
+                        status: 'canceled',
+                        notes: (reschedulingFromAppt.notes || '') + ' - Reagendado'
+                    }).eq('id', reschedulingFromAppt.id);
+                    setReschedulingFromAppt(null);
+                }
+
+                setBookingModal({ open: false, doctorId: '', slot: null });
+                fetchData();
+            }
         } catch (err: any) {
             const reasonKey: Record<string, string> = {
                 SLOT_CONFLICT: 'slotConflict',
@@ -447,8 +800,6 @@ export const AgendaMestra: React.FC = () => {
             };
             const key = reasonKey[err?.reason];
             showToast('error', key ? t(`mestra.toasts.${key}`) : t('mestra.toasts.bookError', { message: err.message }));
-            // Backend is the source of truth: refresh so the grid reflects the real state
-            // (e.g. another attendant just took the slot) instead of leaving a stale view.
             fetchData();
         }
         setBookingSaving(false);
@@ -474,6 +825,30 @@ export const AgendaMestra: React.FC = () => {
             fetchData();
             showToast('success', t('mestra.toasts.notesSaved'));
         } catch (err: any) { showToast('error', t('mestra.toasts.genericError', { message: err.message })); }
+    };
+
+    const handleRescheduleClick = () => {
+        if (!editingAppt) return;
+
+        setReschedulingFromAppt(editingAppt);
+
+        setBookingForm({
+            patientSearch: editingAppt.patients?.full_name || '',
+            selectedPatient: editingAppt.patients ? {
+                id: editingAppt.patient_id,
+                full_name: editingAppt.patients.full_name,
+                phone: editingAppt.patients.phone || null,
+                email: editingAppt.patients.email || null,
+                insurance_provider: editingAppt.patients.insurance_provider || null
+            } : null,
+            patientType: editingAppt.patient_type || (editingAppt.patients?.insurance_provider ? 'insurance' : 'private'),
+            insurancePlanId: editingAppt.insurance_plan_id || '',
+            typeId: editingAppt.type_id || '',
+            notes: editingAppt.notes || '',
+        });
+
+        setEditingAppt(null);
+        showToast('info', 'Selecione um novo horário no calendário para reagendar.');
     };
 
     const handleDelete = async (id: string) => {
@@ -1010,6 +1385,7 @@ export const AgendaMestra: React.FC = () => {
                                                                     {appt.patients?.full_name || t('mestra.patientFallback')}
                                                                 </span>
                                                                 {appt.patient_type === 'insurance' && <Shield size={9} className="text-emerald-400 shrink-0" />}
+                                                                {appt.recurring_group_id && <Repeat size={9} className="text-brand-primary shrink-0" title="Agendamento Recorrente" />}
                                                             </div>
                                                             {h > 36 && (
                                                                 <div className="flex items-center gap-1 mt-0.5">
@@ -1172,7 +1548,25 @@ export const AgendaMestra: React.FC = () => {
 
                                     <div>
                                         <label className="text-xs font-black text-graphite-400 uppercase mb-2 block">{t('mestra.bookingModal.appointmentTypeLabel')}</label>
-                                        <select value={bookingForm.typeId} onChange={(e) => setBookingForm(prev => ({ ...prev, typeId: e.target.value }))}
+                                        <select value={bookingForm.typeId} onChange={(e) => {
+                                            const newTypeId = e.target.value;
+                                            setBookingForm(prev => ({ ...prev, typeId: newTypeId }));
+                                            
+                                            // Auto-assign professional if only 1 is mapped
+                                            const linkedDocIds = doctorServices
+                                                .filter(ds => ds.service_id === newTypeId)
+                                                .map(ds => ds.doctor_id);
+                                            let currentDocId = bookingModal.doctorId;
+                                            if (linkedDocIds.length === 1) {
+                                                currentDocId = linkedDocIds[0];
+                                                setBookingModal(prev => ({ ...prev, doctorId: linkedDocIds[0] }));
+                                                showToast('info', 'Profissional auto-selecionado para este procedimento.');
+                                            }
+                                            
+                                            if (isRecurring) {
+                                                setTimeout(() => generateOccurrencesPreview(currentDocId, newTypeId), 50);
+                                            }
+                                        }}
                                             className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium cursor-pointer focus:outline-none focus:border-brand-primary transition-colors">
                                             <option value="">{t('mestra.bookingModal.selectTypePlaceholder')}</option>
                                             {appointmentTypes.map(t => <option key={t.id} value={t.id}>{t.name} ({t.duration_minutes}min)</option>)}
@@ -1186,12 +1580,273 @@ export const AgendaMestra: React.FC = () => {
                                             className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors resize-none min-h-[60px]" />
                                     </div>
 
+                                    {/* Toggle Recurrence */}
+                                    <div className="flex items-center justify-between p-3 bg-ice-50 rounded-xl border border-ice-100">
+                                        <div className="flex flex-col">
+                                            <span className="text-xs font-black text-graphite-850">Agendamento Recorrente</span>
+                                            <span className="text-[10px] text-graphite-400">Marcar várias consultas de forma automática</span>
+                                        </div>
+                                        <input
+                                            type="checkbox"
+                                            checked={isRecurring}
+                                            onChange={(e) => {
+                                                setIsRecurring(e.target.checked);
+                                                if (e.target.checked) {
+                                                    setTimeout(() => generateOccurrencesPreview(), 50);
+                                                } else {
+                                                    setGeneratedOccurrences([]);
+                                                }
+                                            }}
+                                            className="w-4 h-4 text-brand-primary border-ice-300 rounded focus:ring-brand-primary cursor-pointer font-bold"
+                                        />
+                                    </div>
+
+                                    {/* Recurrence Panel */}
+                                    {isRecurring && (
+                                        <div className="p-4 bg-ice-50/50 border border-ice-200 rounded-2xl space-y-4">
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div>
+                                                    <label className="text-[10px] font-black text-graphite-400 uppercase mb-1.5 block">Frequência</label>
+                                                    <select
+                                                        value={recurrencePattern}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value as any;
+                                                            setRecurrencePattern(val);
+                                                            setTimeout(() => generateOccurrencesPreview(), 50);
+                                                        }}
+                                                        className="w-full bg-white border border-ice-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:border-brand-primary"
+                                                    >
+                                                        <option value="weekly">Semanal</option>
+                                                        <option value="biweekly">Quinzenal</option>
+                                                        <option value="monthly">Mensal</option>
+                                                        <option value="d60">A cada 60 dias</option>
+                                                        <option value="d90">A cada 90 dias</option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] font-black text-graphite-400 uppercase mb-1.5 block">Nº de Consultas</label>
+                                                    <input
+                                                        type="number"
+                                                        min={2}
+                                                        max={24}
+                                                        value={occurrencesCount}
+                                                        onChange={(e) => {
+                                                            const val = Math.max(2, Math.min(24, Number(e.target.value)));
+                                                            setOccurrencesCount(val);
+                                                            setTimeout(() => generateOccurrencesPreview(), 50);
+                                                        }}
+                                                        className="w-full bg-white border border-ice-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:border-brand-primary"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Preview Header */}
+                                            <div className="flex items-center justify-between border-t border-ice-200 pt-3">
+                                                <span className="text-[10px] font-black text-graphite-400 uppercase">Preview dos Agendamentos ({generatedOccurrences.length})</span>
+                                                <button type="button" className="text-brand-primary bg-transparent border-none text-[10px] font-black cursor-pointer hover:underline" onClick={() => generateOccurrencesPreview()}>
+                                                    🔄 Atualizar
+                                                </button>
+                                            </div>
+
+                                            {/* Occurrences List */}
+                                            {recurrenceLoading ? (
+                                                <div className="flex justify-center py-4">
+                                                    <div className="w-5 h-5 border-2 border-brand-primary/30 border-t-brand-primary rounded-full animate-spin" />
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                                                    {generatedOccurrences.map((occ, idx) => (
+                                                        <div key={idx} className={cn("p-2.5 rounded-xl border text-xs space-y-1.5 bg-white transition-all",
+                                                            occ.is_conflict ? "border-amber-200 bg-amber-50/20" : "border-ice-200"
+                                                        )}>
+                                                            <div className="flex items-center justify-between font-black text-graphite-850">
+                                                                <span>Consulta #{idx + 1}</span>
+                                                                <span className={occ.is_conflict ? "text-amber-600 font-black" : "text-graphite-500"}>
+                                                                    {occ.date.split('-').reverse().slice(0, 2).join('/')} · {formatSlot(occ.start_time)}
+                                                                </span>
+                                                            </div>
+                                                            
+                                                            <div className="flex flex-col gap-1 text-[10px] text-graphite-500 font-medium">
+                                                                <div>Procedimento: <span className="font-bold text-graphite-800">{occ.type_name}</span></div>
+                                                                <div>Profissional: <span className="font-bold text-graphite-800">{occ.doctor_name}</span></div>
+                                                            </div>
+
+                                                            {occ.is_conflict && (
+                                                                <div className="p-2 rounded-lg bg-amber-50 border border-amber-200 text-[10px] font-semibold text-amber-900 space-y-1">
+                                                                    <div className="flex items-center gap-1">
+                                                                        <AlertTriangle size={10} className="text-amber-500" />
+                                                                        <span>Conflito: {occ.conflict_reason === 'DOCTOR_ABSENT' ? 'Profissional ausente (férias/licença)' : occ.conflict_reason === 'OUTSIDE_AVAILABILITY' ? 'Fora do horário do profissional' : 'Horário ocupado'}</span>
+                                                                    </div>
+                                                                    {occ.suggested_slot && (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                const updated = [...generatedOccurrences];
+                                                                                updated[idx] = {
+                                                                                    ...updated[idx],
+                                                                                    date: occ.suggested_slot.date,
+                                                                                    start_time: occ.suggested_slot.slot_time,
+                                                                                    end_time: occ.suggested_slot.slot_end,
+                                                                                    is_conflict: false,
+                                                                                    conflict_reason: null,
+                                                                                    suggested_slot: null,
+                                                                                    is_edited: true
+                                                                                };
+                                                                                setGeneratedOccurrences(updated);
+                                                                            }}
+                                                                            className="w-full text-left p-1 bg-white border border-amber-200 rounded-md hover:bg-amber-50 text-[9px] font-bold text-brand-primary cursor-pointer flex items-center justify-between"
+                                                                        >
+                                                                            <span>💡 Aceitar sugestão: {occ.suggested_slot.date.split('-').reverse().slice(0, 2).join('/')} às {formatSlot(occ.suggested_slot.slot_time)}</span>
+                                                                            <ChevronRight size={10} className="text-brand-primary" />
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            )}
+
+                                                            <div className="flex gap-1.5 pt-1">
+                                                                <select
+                                                                    value={occ.doctor_id}
+                                                                    onChange={(e) => {
+                                                                        const docId = e.target.value;
+                                                                        const updated = [...generatedOccurrences];
+                                                                        updated[idx] = {
+                                                                            ...updated[idx],
+                                                                            doctor_id: docId,
+                                                                            doctor_name: doctors.find(d => d.id === docId)?.full_name || '',
+                                                                            is_edited: true
+                                                                        };
+                                                                        if (futureScheduleData) {
+                                                                            const check = checkSlotAvailabilityLocal(occ.date, occ.start_time, occ.end_time, docId, bookingModal.slot?.location_id || selectedLocation || '', futureScheduleData);
+                                                                            updated[idx].is_conflict = !check.available;
+                                                                            updated[idx].conflict_reason = check.reason;
+                                                                        }
+                                                                        setGeneratedOccurrences(updated);
+                                                                    }}
+                                                                    className="flex-1 bg-ice-50 border border-ice-200 rounded-lg px-1.5 py-0.5 text-[9px] font-bold cursor-pointer"
+                                                                >
+                                                                    {doctors.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
+                                                                </select>
+
+                                                                <select
+                                                                    value={occ.type_id}
+                                                                    onChange={(e) => {
+                                                                        const tId = e.target.value;
+                                                                        const typeObj = appointmentTypes.find(t => t.id === tId);
+                                                                        const updated = [...generatedOccurrences];
+                                                                        updated[idx] = {
+                                                                            ...updated[idx],
+                                                                            type_id: tId,
+                                                                            type_name: typeObj?.name || '',
+                                                                            is_edited: true
+                                                                        };
+                                                                        setGeneratedOccurrences(updated);
+                                                                    }}
+                                                                    className="flex-1 bg-ice-50 border border-ice-200 rounded-lg px-1.5 py-0.5 text-[9px] font-bold cursor-pointer"
+                                                                >
+                                                                    {appointmentTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
                                     <div className="flex gap-3 pt-2">
                                         <Button variant="ghost" className="flex-1 justify-center" onClick={() => setBookingModal({ open: false, doctorId: '', slot: null })}>
                                             {t('mestra.bookingModal.cancel')}
                                         </Button>
                                         <Button variant="primary" className="flex-[2] justify-center" disabled={!bookingForm.selectedPatient || bookingSaving} onClick={handleBook}>
                                             {bookingSaving ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><CheckCircle2 size={16} /> {t('mestra.bookingModal.confirm')}</>}
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
+
+            {/* ========== CONSOLIDATED NOTIFICATION MODAL ========== */}
+            <AnimatePresence>
+                {showNotificationModal && bookingForm.selectedPatient && (
+                    <>
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-graphite-900/40 backdrop-blur-sm z-[120]"
+                            onClick={() => setShowNotificationModal(false)} />
+                        <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="fixed inset-0 z-[130] flex items-center justify-center p-4 pointer-events-none">
+                            <div className="bg-white pointer-events-auto w-full max-w-md rounded-4xl shadow-2xl overflow-hidden border border-white/20">
+                                <div className="px-8 py-5 border-b border-ice-100 bg-ice-50/50 flex justify-between items-center">
+                                    <div>
+                                        <h3 className="text-sm font-black text-graphite-900">Enviar Resumo de Agendamentos</h3>
+                                        <p className="text-xs text-graphite-400 font-medium">Notifique o paciente sobre as datas reservadas</p>
+                                    </div>
+                                    <IconButton onClick={() => setShowNotificationModal(false)}><X size={18} /></IconButton>
+                                </div>
+                                <div className="p-6 space-y-4">
+                                    {/* Channel Selector */}
+                                    <div>
+                                        <label className="text-[10px] font-black text-graphite-400 uppercase mb-2 block">Canal de Envio</label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {[
+                                                { id: 'whatsapp', label: 'WhatsApp', icon: MessageCircle, color: 'text-green-600 border-green-200 bg-green-50/10' },
+                                                { id: 'email', label: 'E-mail', icon: Mail, color: 'text-violet-650 border-violet-200 bg-violet-50/10' },
+                                                { id: 'sms', label: 'SMS', icon: Phone, color: 'text-graphite-700 border-ice-300 bg-ice-50/15' },
+                                                { id: 'instagram', label: 'Instagram DM', icon: Instagram, color: 'text-pink-600 border-pink-200 bg-pink-50/10' },
+                                            ].map(ch => {
+                                                const isSel = notificationChannel === ch.id;
+                                                return (
+                                                    <button key={ch.id} onClick={() => {
+                                                        setNotificationChannel(ch.id);
+                                                        if (ch.id === 'email') {
+                                                            setRecipientId(bookingForm.selectedPatient?.email || '');
+                                                        } else {
+                                                            setRecipientId(bookingForm.selectedPatient?.phone || '');
+                                                        }
+                                                    }}
+                                                        className={cn("flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer",
+                                                            isSel ? "bg-brand-primary text-white border-brand-primary" : "bg-white text-graphite-600 border-ice-200 hover:border-ice-300"
+                                                        )}>
+                                                        <ch.icon size={14} className={isSel ? 'text-white' : ch.color.split(' ')[0]} />
+                                                        {ch.label}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    {/* Destination Identifier */}
+                                    <div>
+                                        <label className="text-[10px] font-black text-graphite-400 uppercase mb-1.5 block">
+                                            {notificationChannel === 'email' ? 'Endereço de E-mail' : 'Número de Telefone'}
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={recipientId}
+                                            onChange={(e) => setRecipientId(e.target.value)}
+                                            className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-2.5 text-xs font-semibold focus:outline-none focus:border-brand-primary"
+                                        />
+                                    </div>
+
+                                    {/* Message Preview */}
+                                    <div>
+                                        <label className="text-[10px] font-black text-graphite-400 uppercase mb-1.5 block">Visualização da Mensagem</label>
+                                        <textarea
+                                            value={notificationPreviewText}
+                                            onChange={(e) => setNotificationPreviewText(e.target.value)}
+                                            className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-xs font-medium text-graphite-900 focus:outline-none focus:border-brand-primary resize-none min-h-[140px]"
+                                        />
+                                    </div>
+
+                                    {/* Action Buttons */}
+                                    <div className="flex gap-3 pt-2">
+                                        <Button variant="ghost" className="flex-1 justify-center rounded-xl text-xs cursor-pointer" onClick={() => setShowNotificationModal(false)}>
+                                            Pular
+                                        </Button>
+                                        <Button variant="primary" className="flex-[2] justify-center rounded-xl text-xs cursor-pointer" onClick={handleSendNotification}>
+                                            <Send size={14} /> Enviar Mensagem
                                         </Button>
                                     </div>
                                 </div>
@@ -1213,13 +1868,21 @@ export const AgendaMestra: React.FC = () => {
                                     <p className="text-xs text-graphite-400 font-medium">
                                         {formatSlot(editingAppt.start_time)} – {formatSlot(editingAppt.end_time)} · {formatDateLabel(selectedDateStr)}
                                     </p>
+                                    {patientNoShowStats && patientNoShowStats.noShows > 0 && (
+                                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200/60 rounded-xl text-amber-800 text-[10px] font-bold mt-2 shadow-sm">
+                                            <AlertTriangle size={12} className="shrink-0 text-amber-500 animate-pulse" />
+                                            <span>
+                                                {patientNoShowStats.noShows}º no-show deste paciente (Taxa: {patientNoShowStats.rate}%)
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                                 <IconButton onClick={() => setEditingAppt(null)}><X size={20} /></IconButton>
                             </div>
                             <div className="p-6 space-y-5">
                                 <div>
                                     <label className="text-xs font-black text-graphite-400 uppercase mb-2 block">{t('mestra.editModal.statusLabel')}</label>
-                                    <div className="grid grid-cols-2 gap-2">
+                                    <div className="grid grid-cols-2 gap-2 mb-3">
                                         {[
                                             { status: 'confirmed', label: t('mestra.editModal.statusConfirmed'), icon: CheckCircle2, ac: 'bg-brand-primary text-white border-brand-primary' },
                                             { status: 'checkin_done', label: t('mestra.editModal.statusCheckin'), icon: UserCheck, ac: 'bg-emerald-500 text-white border-emerald-500' },
@@ -1233,6 +1896,10 @@ export const AgendaMestra: React.FC = () => {
                                             </button>
                                         ))}
                                     </div>
+                                    
+                                    <Button variant="ghost" className="w-full py-2.5 justify-center border border-ice-200 hover:border-ice-300 text-brand-primary font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer" onClick={handleRescheduleClick}>
+                                        <Clock size={14} className="shrink-0 text-brand-primary" /> {t('mestra.editModal.reschedule')}
+                                    </Button>
                                 </div>
 
                                 {editingAppt.slot_type && (

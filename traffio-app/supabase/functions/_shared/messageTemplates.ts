@@ -45,17 +45,44 @@ export const MESSAGE_TEMPLATES: Record<string, (vars: any) => string> = {
 
     // --- POST-CONSULTATION ---
 
-    'nps_survey': (v) =>
-        `Olá ${v.patient_name}! Como foi sua experiência na ${v.clinic_name} hoje? De 0 a 10, o quanto você nos recomendaria? ⭐`,
+    'nps_survey': (v) => {
+        const locale = (v.locale || 'pt').toLowerCase();
+        if (locale.startsWith('en'))
+            return `Hi ${v.patient_name || 'there'}! 😊 How was your experience at ${v.clinic_name} today? On a scale of 0 to 10, how likely are you to recommend us? ⭐\n\nJust reply with a number — it only takes 5 seconds!`;
+        if (locale.startsWith('es'))
+            return `¡Hola ${v.patient_name || 'tú'}! 😊 ¿Cómo fue tu experiencia en ${v.clinic_name} hoy? Del 0 al 10, ¿cuánto nos recomendarías? ⭐\n\nSolo responde con un número — ¡solo tarda 5 segundos!`;
+        return `Olá ${v.patient_name}! 😊 Como foi sua experiência na ${v.clinic_name} hoje?\n\nDe *0 a 10*, o quanto você nos recomendaria? ⭐\n\nSó responda com um número — leva 5 segundos!`;
+    },
 
     'post_treatment_followup': (v) =>
         `Oi! Como você está se sentindo após o atendimento de hoje? Qualquer dúvida sobre a prescrição, é só me chamar! 😉`,
+
+    // --- REATIVAÇÃO (RECALL) ---
+
+    'recall': (v) => {
+        const locale = (v.locale || 'pt').toLowerCase();
+        if (locale.startsWith('en'))
+            return `Hi ${v.patient_name || 'there'}! 😊 This is the team at ${v.clinic_name}. It's been a while since your last visit!\n\nWould you like to schedule a check-up? We have openings this week. 📅\n\nReply *SCHEDULE* to book or *NO THANKS* to opt out.`;
+        if (locale.startsWith('es'))
+            return `¡Hola ${v.patient_name || 'tú'}! 😊 Somos el equipo de ${v.clinic_name}. ¡Te echamos de menos!\n\n¿Te gustaría agendar una consulta de seguimiento? Tenemos horarios disponibles esta semana. 📅\n\nResponde *AGENDAR* para reservar o *NO GRACIAS* para no recibir más mensajes.`;
+        return `Olá ${v.patient_name}! 😊 Aqui é a equipe da ${v.clinic_name}. Faz um tempo que não te vemos por aqui!\n\nQue tal agendar uma consulta de acompanhamento? Temos horários disponíveis essa semana. 📅\n\nResponda *AGENDAR* para marcar sua consulta ou *NÃO, OBRIGADO* para encerrar.`;
+    },
 };
 
 export function getRenderedMessage(key: string, vars: any): string {
     const template = MESSAGE_TEMPLATES[key];
-    if (!template) return `[Template ${key} não encontrado]`;
-    return template(vars);
+    if (template) return template(vars);
+    // Fallback genérico para lembretes com offset personalizado (ex: appointment_reminder_custom_360m)
+    if (key.startsWith("appointment_reminder_custom_")) {
+        const mins = parseInt(key.replace("appointment_reminder_custom_", "").replace("m", ""), 10);
+        const label = mins >= 1440
+            ? `${Math.round(mins / 1440)} dia(s)`
+            : mins >= 60
+                ? `${Math.round(mins / 60)} hora(s)`
+                : `${mins} minuto(s)`;
+        return `Olá ${vars.patient_name || ""}! 😊 Lembrete: sua consulta com ${vars.doctor_name || "nosso especialista"} é ${label.includes("dia") ? `em ${label}` : `em ${label}`} — ${vars.date} às ${vars.time}${vars.location_name ? ` na ${vars.location_name}` : ""}.\n\nAté logo! 🙏`;
+    }
+    return `[Template ${key} não encontrado]`;
 }
 
 // ─── SMS TEMPLATES ──────────────────────────────────────────────────────────
@@ -88,6 +115,10 @@ export const SMS_TEMPLATES: Record<string, (vars: any) => string> = {
         `Ola ${v.patient_name}! Como foi sua consulta na ${v.clinic_name} hoje? ` +
         `Responda com nota de 0 a 10. Sua opiniao e muito importante!`,
 
+    'recall': (v) =>
+        `Ola ${v.patient_name}! Aqui e a ${v.clinic_name}. Sentimos sua falta! ` +
+        `Que tal agendar uma consulta? Responda AGENDAR ou NAO OBRIGADO.`,
+
     'post_treatment_followup': (v) =>
         `Ola! Como voce esta se sentindo apos o atendimento? Qualquer duvida, responda esta mensagem.`,
 
@@ -112,6 +143,17 @@ export function getSmsTemplate(key: string, vars: any): string {
     // Procura template SMS específico; fallback para versão WhatsApp sem emojis
     const smsTemplate = SMS_TEMPLATES[key];
     if (smsTemplate) return smsTemplate(vars);
+
+    // Fallback SMS para offsets custom
+    if (key.startsWith("appointment_reminder_custom_")) {
+        const mins = parseInt(key.replace("appointment_reminder_custom_", "").replace("m", ""), 10);
+        const label = mins >= 1440
+            ? `em ${Math.round(mins / 1440)} dia(s)`
+            : mins >= 60
+                ? `em ${Math.round(mins / 60)}h`
+                : `em ${mins}min`;
+        return `Ola ${vars.patient_name || ""}! Lembrete: consulta com ${vars.doctor_name || "especialista"} ${label} (${vars.date} as ${vars.time})${vars.location_name ? ` - ${vars.location_name}` : ""}. Ate logo!`;
+    }
 
     // Fallback: usa template WhatsApp mas remove markdown e emojis
     const waTemplate = MESSAGE_TEMPLATES[key];

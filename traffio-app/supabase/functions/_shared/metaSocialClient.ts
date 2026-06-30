@@ -55,8 +55,7 @@ export class MetaSocialClient {
       body: JSON.stringify({
         recipient: { id: psid },
         message:   { text },
-        messaging_type: "MESSAGE_TAG",
-        tag: "CONFIRMED_EVENT_UPDATE",  // Tag válida para lembretes de agendamento
+        messaging_type: "RESPONSE",
       }),
     });
 
@@ -123,8 +122,7 @@ export class MetaSocialClient {
             payload: { url: mediaUrl, is_reusable: true },
           },
         },
-        messaging_type: "MESSAGE_TAG",
-        tag: "CONFIRMED_EVENT_UPDATE",
+        messaging_type: "RESPONSE",
       }),
     });
 

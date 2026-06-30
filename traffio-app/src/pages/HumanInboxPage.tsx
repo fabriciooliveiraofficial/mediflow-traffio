@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, memo, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
+import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { formatPhone, phoneFlag } from '../lib/formatPhone'
 import { formatDisplayDate } from '../lib/dateUtils'
@@ -11,7 +12,7 @@ import {
   Loader2, PhoneCall, CheckCircle2, XCircle, Bot, Search,
   StickyNote, Info, X, Calendar, CreditCard,
   AlertTriangle, MoreVertical, ArrowRightLeft, UserCircle2,
-  UserPlus, Users, Building2, Tag, CalendarSearch, DollarSign,
+  UserPlus, UserMinus, Users, Building2, Tag, CalendarSearch, DollarSign,
   Mic, Paperclip, Camera, Smile, Play, Pause,
   FileText, Download, Reply, Pencil, Copy, Forward, Trash2, Zap, ArrowRight, Instagram, Facebook, ChevronDown, ArrowLeft, Settings, Plus
 } from 'lucide-react'
@@ -45,6 +46,7 @@ interface ConversationSession {
   id: string
   tenant_id: string
   patient_phone: string
+  patient_id?: string | null
   current_state: string
   omnichannel_status: OmnichannelStatus
   assigned_to_user_id: string | null
@@ -1473,6 +1475,7 @@ interface PatientPanelProps {
   view: 'profile' | 'register' | 'lookup' | 'booking' | 'appointments' | 'edit' | 'availability' | 'payment' | 'directory' | 'classify'
   onViewChange: (view: 'profile' | 'register' | 'lookup' | 'booking' | 'appointments' | 'edit' | 'availability' | 'payment' | 'directory' | 'classify') => void
   onPatientSelected: (p: any) => void
+  onUnlink: () => Promise<void>
   onReschedule: (appt: any) => void
   onAddToWaitlist: () => void
   onResetReschedule: () => void
@@ -1484,7 +1487,7 @@ interface PatientPanelProps {
 
 function PatientPanel({
   session, patient, appointments, onClose, onUpdateStage, onTransferClick, isOwned, onNewPatient, onLookupPatient,
-  view, onViewChange, onPatientSelected, onViewAppointments, onSendMessage, onReschedule, onAddToWaitlist, onResetReschedule, rescheduleData,
+  view, onViewChange, onPatientSelected, onUnlink, onViewAppointments, onSendMessage, onReschedule, onAddToWaitlist, onResetReschedule, rescheduleData,
   preFill, onPreFillChange, enabledChannels
 }: PatientPanelProps) {
   const { t } = useTranslation('communications');
@@ -1663,13 +1666,22 @@ function PatientPanel({
           </div>
         </div>
         {patient && (
-          <button 
-            onClick={() => onViewChange('edit')}
-            className="p-2 rounded-xl text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-all opacity-0 group-hover:opacity-100 border-none bg-transparent cursor-pointer"
-            title={t('humanInbox.patientPanel.editProfileTitle')}
-          >
-            <UserPlus className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            <button 
+              onClick={() => onViewChange('edit')}
+              className="p-2 rounded-xl text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-all border-none bg-transparent cursor-pointer"
+              title={t('humanInbox.patientPanel.editProfileTitle')}
+            >
+              <UserPlus className="w-4 h-4" />
+            </button>
+            <button 
+              onClick={onUnlink}
+              className="p-2 rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all border-none bg-transparent cursor-pointer"
+              title={t('humanInbox.patientPanel.unlinkTitle')}
+            >
+              <UserMinus className="w-4 h-4" />
+            </button>
+          </div>
         )}
       </div>
 
@@ -1844,6 +1856,7 @@ export function HumanInboxPage() {
   const { t } = useTranslation('communications')
   const { showToast, showConfirm } = useToast()
   const { tenant } = useTenant()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [tenantId, setTenantId]       = useState<string | null>(null)
   const [userId, setUserId]           = useState<string | null>(null)
   const [tab, setTab]                 = useState<'all' | 'queued' | 'mine'>('queued')
@@ -2176,28 +2189,63 @@ export function HumanInboxPage() {
         const clean = raw.replace(/\D/g, '');
         return [clean, `+${clean}`];
       }))]
-      const { data: pts } = await supabase
-        .from('patients')
-        .select('phone, full_name, notes')
-        .in('phone', phones)
-        .eq('tenant_id', targetTenant)
-      if (pts) {
-        const map: Record<string, string> = {}
-        pts.forEach((p: any) => {
+      const patientIds = [...new Set(list.map(s => s.patient_id).filter(Boolean))] as string[];
+
+      const [ptsPhoneRes, ptsIdRes] = await Promise.all([
+        phones.length > 0
+          ? supabase.from('patients').select('phone, full_name').in('phone', phones).eq('tenant_id', targetTenant)
+          : { data: [] },
+        patientIds.length > 0
+          ? supabase.from('patients').select('id, full_name').in('id', patientIds).eq('tenant_id', targetTenant)
+          : { data: [] }
+      ]);
+
+      const map: Record<string, string> = {};
+      if (ptsPhoneRes.data) {
+        ptsPhoneRes.data.forEach((p: any) => {
           if (p.full_name && p.phone) {
             const clean = p.phone.replace(/\D/g, '');
             map[clean] = p.full_name;
             map[`+${clean}`] = p.full_name;
           }
-        })
-        setPatientNames(map)
+        });
       }
+
+      if (ptsIdRes.data) {
+        const idToName: Record<string, string> = {};
+        ptsIdRes.data.forEach((p: any) => {
+          idToName[p.id] = p.full_name;
+        });
+
+        list.forEach(s => {
+          if (s.patient_id && idToName[s.patient_id]) {
+            map[s.patient_phone] = idToName[s.patient_id];
+          }
+        });
+      }
+
+      setPatientNames(map);
     }
 
     if (!silent) setLoadingSessions(false)
   }, [tenantId, tab, userId])
 
   useEffect(() => { loadSessions() }, [loadSessions])
+
+  // Auto-select session from handoff alert
+  useEffect(() => {
+    const handoffSessionId = searchParams.get('handoff_session')
+    if (handoffSessionId && sessions.length > 0) {
+      const sessionToSelect = sessions.find(s => s.id === handoffSessionId)
+      if (sessionToSelect) {
+        handleSelectSession(sessionToSelect)
+        // Clean up URL
+        const newParams = new URLSearchParams(searchParams)
+        newParams.delete('handoff_session')
+        setSearchParams(newParams, { replace: true })
+      }
+    }
+  }, [searchParams, sessions, handleSelectSession, setSearchParams])
 
   // ── Realtime: session list ────────────────────
   useEffect(() => {
@@ -3153,7 +3201,109 @@ export function HumanInboxPage() {
               onPatientSelected={async (p) => {
                 if (!selected) return;
                 setPatient(p);
-                await supabase.from('conversation_sessions').update({ patient_id: p.id }).eq('id', selected.id);
+                try {
+                  // 1. Link the current conversation session to the official patient ID
+                  const { error: sessionUpdateError } = await supabase
+                    .from('conversation_sessions')
+                    .update({ patient_id: p.id })
+                    .eq('id', selected.id);
+
+                  if (sessionUpdateError) throw sessionUpdateError;
+
+                  // 2. Permanently map this communication channel in patient_channel_preferences
+                  const canonicalPhone = p.phone || selected.patient_phone;
+                  const updatePayload: any = {
+                    tenant_id: selected.tenant_id,
+                    patient_phone: canonicalPhone,
+                    updated_by: 'manual',
+                    last_manual_updated_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                  };
+
+                  if (selected.channel === 'instagram') {
+                    updatePayload.instagram_user_id = selected.patient_phone;
+                    if (selected.context?.username) {
+                      updatePayload.instagram_username = selected.context.username;
+                    }
+                  } else if (selected.channel === 'facebook') {
+                    updatePayload.facebook_user_id = selected.patient_phone;
+                    if (selected.context?.name || selected.context?.visitor_name) {
+                      updatePayload.facebook_name = selected.context.name || selected.context.visitor_name;
+                    }
+                  } else if (selected.channel === 'sms') {
+                    updatePayload.sms_phone = selected.patient_phone;
+                  } else if (selected.channel === 'whatsapp') {
+                    updatePayload.whatsapp_phone = selected.patient_phone;
+                  }
+
+                  const { error: upsertError } = await supabase
+                    .from('patient_channel_preferences')
+                    .upsert(updatePayload, { onConflict: 'tenant_id,patient_phone' });
+
+                  if (upsertError) throw upsertError;
+
+                  // Update locally so header and child components adapt immediately
+                  setSelected(prev => prev ? { ...prev, patient_id: p.id } : null);
+                  showToast('success', t('humanInbox.main.toasts.channelLinkedSuccess'));
+                } catch (err: any) {
+                  console.error('Error linking patient details:', err);
+                  showToast('error', t('humanInbox.main.toasts.channelLinkedError', { message: err.message }));
+                }
+
+                loadSessions();
+              }}
+              onUnlink={async () => {
+                if (!selected) return;
+                const confirm = await showConfirm(t('humanInbox.main.toasts.unlinkConfirm'));
+                if (!confirm) return;
+
+                try {
+                  // 1. Remove patient_id relationship from current conversation session
+                  const { error: sessionError } = await supabase
+                    .from('conversation_sessions')
+                    .update({ patient_id: null })
+                    .eq('id', selected.id);
+
+                  if (sessionError) throw sessionError;
+
+                  // 2. Remove the channel mapping from patient_channel_preferences
+                  if (patient && patient.phone) {
+                    const updatePayload: any = {
+                      updated_at: new Date().toISOString()
+                    };
+
+                    if (selected.channel === 'instagram') {
+                      updatePayload.instagram_user_id = null;
+                      updatePayload.instagram_username = null;
+                    } else if (selected.channel === 'facebook') {
+                      updatePayload.facebook_user_id = null;
+                      updatePayload.facebook_name = null;
+                    } else if (selected.channel === 'sms') {
+                      updatePayload.sms_phone = null;
+                    } else if (selected.channel === 'whatsapp') {
+                      updatePayload.whatsapp_phone = null;
+                    }
+
+                    const { error: prefError } = await supabase
+                      .from('patient_channel_preferences')
+                      .update(updatePayload)
+                      .eq('tenant_id', selected.tenant_id)
+                      .eq('patient_phone', patient.phone);
+
+                    if (prefError) {
+                      console.warn('Non-blocking pref update error during unlink:', prefError);
+                    }
+                  }
+
+                  // Update locally so header and child components adapt immediately
+                  setSelected(prev => prev ? { ...prev, patient_id: null } : null);
+                  setPatient(null);
+                  showToast('success', t('humanInbox.main.toasts.unlinkSuccess'));
+                } catch (err: any) {
+                  console.error('Error unlinking channel:', err);
+                  showToast('error', err.message || 'Erro ao desvincular canal.');
+                }
+
                 loadSessions();
               }}
               onReschedule={(appt) => {

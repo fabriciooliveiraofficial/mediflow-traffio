@@ -43,6 +43,7 @@
     "dashboardToggle": "Panel",
     "emptyColumn": "Vacío",
     "activityLabel": "Actividad",
+    "firstContact": "Primer Contacto",
     "directFallback": "Directo",
     "channelFallback": {
       "instagram": "Usuario de Instagram",

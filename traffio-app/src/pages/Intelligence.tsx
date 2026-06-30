@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     Brain,
@@ -26,7 +26,8 @@ import {
     Mail,
     Instagram,
     Facebook,
-    Plus
+    Plus,
+    Code2
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
@@ -47,11 +48,23 @@ export interface CustomReminder {
     enabled: boolean;
 }
 
+export interface MotorHealthStats {
+    pending: number;
+    sent24h: number;
+    failed24h: number;
+    loading: boolean;
+}
+
 export interface BotConfig {
     enabled: boolean;
     active_agent: 'human' | 'ai_assistant' | 'flow_bot';
     no_show_prevention?: boolean;
     nps_enabled?: boolean;
+    nps_delay_minutes?: number;
+    nps_captions?: { pt: string; en: string; es: string };
+    notification_locale?: 'pt' | 'en' | 'es';
+    recall_enabled?: boolean;
+    recall_days?: number;
     test_mode_15m?: boolean;
     reminder_videos_enabled?: boolean;
     reminder_videos?: {
@@ -106,11 +119,17 @@ export const Intelligence = () => {
     const { tenant, loading: tenantLoading, refresh: refreshTenant } = useTenant();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [healthStats, setHealthStats] = useState<MotorHealthStats>({
+        pending: 0, sent24h: 0, failed24h: 0, loading: true
+    });
     const [config, setConfig] = useState<BotConfig>({
         enabled: true,
         active_agent: 'human',
         no_show_prevention: true,
         nps_enabled: true,
+        nps_delay_minutes: 180,
+        recall_enabled: false,
+        recall_days: 180,
         test_mode_15m: false,
         reminder_videos_enabled: false,
         reminder_captions: {
@@ -182,6 +201,35 @@ export const Intelligence = () => {
             setLoading(false);
         }
     }, [tenant?.id, tenantLoading]);
+
+    useEffect(() => {
+        if (!tenant?.id) return;
+        const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+        const fetchHealth = async () => {
+            const [pendingRes, sentRes, failedRes] = await Promise.all([
+                supabase.from('outbound_message_queue')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('tenant_id', tenant.id).eq('status', 'pending'),
+                supabase.from('outbound_message_queue')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('tenant_id', tenant.id).eq('status', 'sent').gte('sent_at', since24h),
+                supabase.from('outbound_message_queue')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('tenant_id', tenant.id).eq('status', 'failed').gte('created_at', since24h),
+            ]);
+            setHealthStats({
+                pending:  pendingRes.count  ?? 0,
+                sent24h:  sentRes.count     ?? 0,
+                failed24h: failedRes.count  ?? 0,
+                loading:  false,
+            });
+        };
+
+        fetchHealth();
+        const interval = setInterval(fetchHealth, 60_000);
+        return () => clearInterval(interval);
+    }, [tenant?.id]);
 
     const fetchConfig = async () => {
         try {
@@ -266,6 +314,9 @@ export const Intelligence = () => {
                     ...savedConfig,
                     active_agent: 'human',
                     enabled: true,
+                    nps_delay_minutes: savedConfig.nps_delay_minutes ?? 180,
+                    recall_enabled: savedConfig.recall_enabled ?? false,
+                    recall_days: savedConfig.recall_days ?? 180,
                     custom_reminders: customReminders,
                     reminder_captions: Object.keys(migratedCaptions).length > 0 ? migratedCaptions : {
                         '48h': { pt: 'Olá! Passando para confirmar seu agendamento em 48 horas.', en: 'Hello! Just confirming your appointment in 48 hours.', es: '¡Hola! Confirmamos tu cita en 48 horas.' },
@@ -428,6 +479,8 @@ export const Intelligence = () => {
                 </div>
             </div>
 
+            <MotorHealth stats={healthStats} />
+
             <div className="space-y-6">
                 <AutomationSettings
                     config={config}
@@ -436,6 +489,83 @@ export const Intelligence = () => {
                     saving={saving}
                 />
             </div>
+        </div>
+    );
+};
+
+const MotorHealth = ({ stats }: { stats: MotorHealthStats }) => {
+    const { t } = useTranslation('tenantAdmin');
+
+    const cards = [
+        {
+            label: t('intelligence.health.pending', { defaultValue: 'Mensagens Pendentes' }),
+            value: stats.pending,
+            icon: Clock,
+            color: stats.pending > 0 ? 'text-amber-600' : 'text-graphite-400',
+            bg:    stats.pending > 0 ? 'bg-amber-50'   : 'bg-ice-50',
+            dot:   stats.pending > 0 ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400',
+        },
+        {
+            label: t('intelligence.health.sent24h', { defaultValue: 'Enviadas (24h)' }),
+            value: stats.sent24h,
+            icon: Check,
+            color: 'text-emerald-600',
+            bg:    'bg-emerald-50',
+            dot:   'bg-emerald-400',
+        },
+        {
+            label: t('intelligence.health.failed24h', { defaultValue: 'Falhas (24h)' }),
+            value: stats.failed24h,
+            icon: AlertCircle,
+            color: stats.failed24h > 0 ? 'text-rose-600'  : 'text-graphite-400',
+            bg:    stats.failed24h > 0 ? 'bg-rose-50'     : 'bg-ice-50',
+            dot:   stats.failed24h > 0 ? 'bg-rose-500 animate-pulse' : 'bg-emerald-400',
+        },
+    ];
+
+    const motorOk = !stats.loading && stats.failed24h === 0;
+
+    return (
+        <div className="bg-white rounded-3xl shadow-float p-6 space-y-4 animate-in fade-in duration-500">
+            <div className="flex items-center justify-between">
+                <h4 className="text-xs font-black text-graphite-400 uppercase flex items-center gap-2">
+                    <Activity size={14} className="text-brand-primary" />
+                    {t('intelligence.health.title', { defaultValue: 'Saúde do Motor de Notificações' })}
+                </h4>
+                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase ${motorOk ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-600'}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${motorOk ? 'bg-emerald-500' : 'bg-rose-500 animate-pulse'}`} />
+                    {motorOk
+                        ? t('intelligence.health.statusOk',    { defaultValue: 'Operacional' })
+                        : t('intelligence.health.statusAlert', { defaultValue: 'Atenção' })}
+                </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+                {cards.map((card) => {
+                    const Icon = card.icon;
+                    return (
+                        <div key={card.label} className={`${card.bg} rounded-2xl p-4 flex flex-col gap-2`}>
+                            <div className="flex items-center justify-between">
+                                <Icon size={16} className={card.color} />
+                                <span className={`w-1.5 h-1.5 rounded-full ${card.dot}`} />
+                            </div>
+                            <p className="text-2xl font-black text-graphite-900 tabular-nums">
+                                {stats.loading ? '—' : card.value}
+                            </p>
+                            <p className="text-[9px] font-bold text-graphite-400 uppercase leading-tight">{card.label}</p>
+                        </div>
+                    );
+                })}
+            </div>
+
+            {stats.failed24h > 0 && (
+                <div className="flex items-center gap-2 px-4 py-2 bg-rose-50 rounded-xl">
+                    <AlertTriangle size={13} className="text-rose-500 flex-shrink-0" />
+                    <p className="text-[10px] font-bold text-rose-700">
+                        {t('intelligence.health.failureHint', { defaultValue: 'Há falhas de envio nas últimas 24h. Verifique as credenciais de WhatsApp/SMS nas Configurações.' })}
+                    </p>
+                </div>
+            )}
         </div>
     );
 };
@@ -461,6 +591,12 @@ const formatOffsetLabel = (offsetMinutes: number, t: any) => {
     return `${value} ${unitStr} ${relationStr}`;
 };
 
+const DEFAULT_NPS_CAPTIONS = {
+    pt: 'Olá {nome}! 😊 Como foi sua experiência na {clínica} hoje?\n\nDe *0 a 10*, o quanto você nos recomendaria? ⭐\n\nSó responda com um número — leva 5 segundos!',
+    en: 'Hi {nome}! 😊 How was your experience at {clínica} today?\n\nOn a scale of *0 to 10*, how likely are you to recommend us? ⭐\n\nJust reply with a number — it only takes 5 seconds!',
+    es: '¡Hola {nome}! 😊 ¿Cómo fue tu experiencia en {clínica} hoy?\n\nDel *0 al 10*, ¿qué tan probable es que nos recomiendes? ⭐\n\n¡Solo responde con un número — toma 5 segundos!',
+};
+
 const AutomationSettings = ({ config, setConfig, onSave, saving }: {
     config: BotConfig,
     setConfig: React.Dispatch<React.SetStateAction<BotConfig>>,
@@ -468,12 +604,39 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
     saving: boolean
 }) => {
     const { t } = useTranslation('tenantAdmin');
-    
+    const { showToast } = useToast();
+
     // Add custom reminder states
     const [isAdding, setIsAdding] = useState(false);
     const [newOffset, setNewOffset] = useState<number>(2);
     const [newUnit, setNewUnit] = useState<'minutes' | 'hours' | 'days'>('hours');
     const [newDirection, setNewDirection] = useState<'before' | 'after'>('before');
+
+    const MAX_REMINDERS = 3;
+    const MIN_SPACING_MINUTES = 60;
+    const reminderCount = config.custom_reminders?.length || 0;
+
+    // Idioma ativo — fonte de verdade do idioma de ENVIO das mensagens (não há
+    // cadastro de idioma por paciente). A seleção aqui é persistida em
+    // bot_config.notification_locale e usada pelo motor de notificações para
+    // decidir em que idioma cada lembrete/NPS/recall é enviado.
+    const [activeLang, setActiveLang] = useState<'pt' | 'en' | 'es'>(() => {
+        const saved = localStorage.getItem('intelligence_activeLang');
+        return (saved === 'en' || saved === 'es') ? saved : 'pt';
+    });
+    const handleLangChange = (lang: 'pt' | 'en' | 'es') => {
+        setActiveLang(lang);
+        localStorage.setItem('intelligence_activeLang', lang);
+        setConfig(prev => ({ ...prev, notification_locale: lang }));
+    };
+    // Sincroniza com o valor salvo no tenant assim que o config carrega do banco
+    useEffect(() => {
+        if (config.notification_locale && config.notification_locale !== activeLang) {
+            setActiveLang(config.notification_locale);
+            localStorage.setItem('intelligence_activeLang', config.notification_locale);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [config.notification_locale]);
     return (
         <div className="bg-white rounded-3xl shadow-float overflow-hidden transition-all duration-300">
             <div className="p-8 space-y-8">
@@ -643,6 +806,8 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
                                                 custom_reminders: prev.custom_reminders?.filter(r => r.id !== reminder.id)
                                             }));
                                         }}
+                                        activeLang={activeLang}
+                                        onLangChange={handleLangChange}
                                     />
                                 );
                             })}
@@ -713,7 +878,17 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
                                                 if (newUnit === 'hours') multiplier = 60;
                                                 if (newUnit === 'days') multiplier = 1440;
                                                 const offsetMinutes = newOffset * multiplier * (newDirection === 'before' ? -1 : 1);
-                                                
+
+                                                const tooClose = (config.custom_reminders || []).some(
+                                                    r => Math.abs(r.offset_minutes - offsetMinutes) < MIN_SPACING_MINUTES
+                                                );
+                                                if (tooClose) {
+                                                    showToast('error', t('intelligence.universalSection.reminderTooClose', {
+                                                        defaultValue: `Esse lembrete está muito próximo de outro já configurado. Mantenha pelo menos ${MIN_SPACING_MINUTES} minutos de intervalo entre lembretes.`
+                                                    }));
+                                                    return;
+                                                }
+
                                                 const id = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9);
                                                 
                                                 const captionTextPt = `Lembrete: Seu agendamento é em ${newOffset} ${newUnit === 'days' ? 'dias' : newUnit === 'hours' ? 'horas' : 'minutos'}.`;
@@ -745,7 +920,7 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
                                         </button>
                                     </div>
                                 </div>
-                            ) : (
+                            ) : reminderCount < MAX_REMINDERS ? (
                                 <button
                                     type="button"
                                     onClick={() => {
@@ -762,7 +937,20 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
                                     <span className="text-[10px] font-black uppercase tracking-wider">
                                         {t('intelligence.universalSection.addReminder', { defaultValue: 'Adicionar Lembrete' })}
                                     </span>
+                                    <span className="text-[9px] font-bold text-indigo-300">
+                                        {reminderCount}/{MAX_REMINDERS}
+                                    </span>
                                 </button>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center p-5 rounded-2xl border border-dashed border-ice-200 bg-ice-50/30 text-graphite-400 font-bold gap-2 min-h-[160px] text-center">
+                                    <Check size={20} className="text-ice-300" />
+                                    <span className="text-[10px] font-black uppercase tracking-wider">
+                                        {t('intelligence.universalSection.maxRemindersReached', { defaultValue: 'Limite de 3 lembretes atingido' })}
+                                    </span>
+                                    <span className="text-[9px] font-medium text-graphite-300 leading-relaxed px-2">
+                                        {t('intelligence.universalSection.maxRemindersHint', { defaultValue: 'Remova um lembrete existente para adicionar outro' })}
+                                    </span>
+                                </div>
                             )}
                         </div>
                     </div>
@@ -773,6 +961,127 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
                     <p className="text-xs font-bold text-indigo-800 leading-relaxed">
                         {t('intelligence.universalSection.infoBanner')}
                     </p>
+                </div>
+
+                {/* ── Config NPS ── */}
+                {!!(
+                    config.channel_automations?.whatsapp?.nps ||
+                    config.channel_automations?.sms?.nps ||
+                    config.channel_automations?.email?.nps
+                ) && (
+                    <div className="space-y-5 bg-amber-50/30 p-8 rounded-3xl shadow-float animate-in fade-in duration-500">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-amber-500 text-white rounded-xl shadow-lg shadow-amber-200">
+                                <Star size={20} />
+                            </div>
+                            <div>
+                                <h4 className="text-lg font-black text-graphite-900 tracking-tight">{t('intelligence.npsSection.title', { defaultValue: 'Pesquisa NPS — Pós-Consulta' })}</h4>
+                                <p className="text-[10px] font-bold text-amber-600 uppercase">{t('intelligence.npsSection.subtitle', { defaultValue: 'Disparada automaticamente após o agendamento ser marcado como "realizado"' })}</p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-graphite-400 uppercase">{t('intelligence.npsSection.delayLabel', { defaultValue: 'Enviar NPS após' })}</label>
+                                <NpsDelayEditor
+                                    minutes={config.nps_delay_minutes ?? 180}
+                                    onChange={(mins) => setConfig(prev => ({ ...prev, nps_delay_minutes: mins }))}
+                                />
+                                <p className="text-[9px] font-medium text-graphite-400 leading-relaxed">
+                                    {t('intelligence.npsSection.delayHint', { defaultValue: 'A mensagem é enviada automaticamente quando a recepção marca o agendamento como "realizado". Horário de silêncio (22h–8h) é sempre respeitado.' })}
+                                </p>
+                            </div>
+
+                            <div className="bg-white/80 rounded-2xl p-4 shadow-float space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <p className="text-[9px] font-black text-graphite-400 uppercase">
+                                        {t('intelligence.npsSection.messageLabel', { defaultValue: 'Mensagem Personalizada' })}
+                                    </p>
+                                    <div className="flex bg-ice-100 p-0.5 rounded-lg gap-0.5">
+                                        {(['pt', 'en', 'es'] as const).map(lang => (
+                                            <button
+                                                key={lang}
+                                                type="button"
+                                                onClick={() => handleLangChange(lang)}
+                                                className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase transition-all ${activeLang === lang ? 'bg-white shadow-sm text-graphite-900' : 'text-graphite-400 hover:text-graphite-700'}`}
+                                            >
+                                                {lang}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <textarea
+                                    value={config.nps_captions?.[activeLang] ?? DEFAULT_NPS_CAPTIONS[activeLang]}
+                                    onChange={(e) => setConfig(prev => ({
+                                        ...prev,
+                                        nps_captions: {
+                                            ...(prev.nps_captions ?? DEFAULT_NPS_CAPTIONS),
+                                            [activeLang]: e.target.value
+                                        }
+                                    }))}
+                                    rows={6}
+                                    className="w-full bg-emerald-50 rounded-xl p-3 text-xs font-medium text-graphite-700 leading-relaxed border border-emerald-100 outline-none focus:border-emerald-300 resize-none transition-colors"
+                                />
+                                <p className="text-[9px] font-medium text-graphite-400">
+                                    {t('intelligence.npsSection.variablesHint', { defaultValue: 'Variáveis disponíveis:' })}{' '}
+                                    <span className="font-mono bg-ice-100 px-1 py-0.5 rounded text-graphite-600">{'{nome}'}</span>{' '}
+                                    <span className="font-mono bg-ice-100 px-1 py-0.5 rounded text-graphite-600">{'{clínica}'}</span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* ── Config Recall ── */}
+                <div className="space-y-5 bg-ice-50/30 p-8 rounded-3xl shadow-float">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className={`p-2 text-white rounded-xl shadow-lg ${config.recall_enabled ? 'bg-indigo-500 shadow-indigo-200' : 'bg-graphite-300 shadow-ice-200'}`}>
+                                <Bell size={20} />
+                            </div>
+                            <div>
+                                <h4 className="text-lg font-black text-graphite-900 tracking-tight">{t('intelligence.recallSection.title', { defaultValue: 'Reativação de Pacientes' })}</h4>
+                                <p className="text-[10px] font-bold text-graphite-400 uppercase">{t('intelligence.recallSection.subtitle', { defaultValue: 'Mensagem automática para pacientes sem retorno' })}</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setConfig(prev => ({ ...prev, recall_enabled: !prev.recall_enabled }))}
+                            className={`relative w-12 h-6 rounded-full transition-all border-none cursor-pointer flex-shrink-0 ${config.recall_enabled ? 'bg-indigo-500' : 'bg-ice-200'}`}
+                        >
+                            <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-all ${config.recall_enabled ? 'left-6' : 'left-0.5'}`} />
+                        </button>
+                    </div>
+
+                    {config.recall_enabled && (
+                        <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-graphite-400 uppercase">{t('intelligence.recallSection.daysLabel', { defaultValue: 'Disparar recall após' })}</label>
+                                <div className="flex items-center gap-3">
+                                    <select
+                                        value={config.recall_days ?? 180}
+                                        onChange={(e) => setConfig(prev => ({ ...prev, recall_days: parseInt(e.target.value) }))}
+                                        className="bg-white border border-transparent shadow-float rounded-xl px-3 py-2 text-sm font-bold text-graphite-700 outline-none focus:border-indigo-500 cursor-pointer"
+                                    >
+                                        <option value={30}>30 {t('intelligence.recallSection.days', { defaultValue: 'dias' })}</option>
+                                        <option value={60}>60 {t('intelligence.recallSection.days', { defaultValue: 'dias' })}</option>
+                                        <option value={90}>90 {t('intelligence.recallSection.days', { defaultValue: 'dias' })}</option>
+                                        <option value={180}>180 {t('intelligence.recallSection.days', { defaultValue: 'dias' })} (6 {t('intelligence.recallSection.months', { defaultValue: 'meses' })})</option>
+                                        <option value={365}>365 {t('intelligence.recallSection.days', { defaultValue: 'dias' })} (1 {t('intelligence.recallSection.year', { defaultValue: 'ano' })})</option>
+                                    </select>
+                                    <p className="text-[10px] font-medium text-graphite-400">
+                                        {t('intelligence.recallSection.daysHint', { defaultValue: 'sem visita registrada no sistema' })}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="p-4 bg-indigo-50/60 rounded-2xl flex items-start gap-2">
+                                <AlertTriangle size={13} className="text-indigo-500 flex-shrink-0 mt-0.5" />
+                                <p className="text-[10px] font-bold text-indigo-800 leading-relaxed">
+                                    {t('intelligence.recallSection.hint', { defaultValue: 'O recall é enviado uma vez por período. O sistema aguarda metade do período configurado antes de reenviar para o mesmo paciente.' })}
+                                </p>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* ── Teste e Salvar ── */}
@@ -800,6 +1109,41 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
                     </button>
                 </div>
             </div>
+        </div>
+    );
+};
+
+const NpsDelayEditor = ({ minutes, onChange }: { minutes: number; onChange: (mins: number) => void }) => {
+    const { t } = useTranslation('tenantAdmin');
+    let value = minutes;
+    let unit: 'minutes' | 'hours' | 'days' = 'minutes';
+    if (minutes % 1440 === 0)      { value = minutes / 1440; unit = 'days'; }
+    else if (minutes % 60 === 0)   { value = minutes / 60;   unit = 'hours'; }
+
+    const toMinutes = (v: number, u: 'minutes' | 'hours' | 'days') =>
+        u === 'days' ? v * 1440 : u === 'hours' ? v * 60 : v;
+
+    return (
+        <div className="flex items-center gap-2">
+            <input
+                type="number"
+                min="1"
+                value={value}
+                onChange={(e) => onChange(toMinutes(Math.max(1, parseInt(e.target.value) || 1), unit))}
+                className="w-16 bg-white border border-transparent shadow-float rounded-xl px-3 py-2 text-sm font-bold text-graphite-700 outline-none focus:border-amber-500 text-center"
+            />
+            <select
+                value={unit}
+                onChange={(e) => onChange(toMinutes(value, e.target.value as 'minutes' | 'hours' | 'days'))}
+                className="bg-white border border-transparent shadow-float rounded-xl px-3 py-2 text-sm font-bold text-graphite-700 outline-none focus:border-amber-500 cursor-pointer"
+            >
+                <option value="minutes">{t('intelligence.npsSection.unitMinutes', { defaultValue: 'minutos' })}</option>
+                <option value="hours">{t('intelligence.npsSection.unitHours', { defaultValue: 'horas' })}</option>
+                <option value="days">{t('intelligence.npsSection.unitDays', { defaultValue: 'dias' })}</option>
+            </select>
+            <span className="text-xs font-medium text-graphite-400">
+                {t('intelligence.npsSection.afterCompletion', { defaultValue: 'após conclusão da consulta' })}
+            </span>
         </div>
     );
 };
@@ -870,22 +1214,52 @@ const DurationEditor = ({ offsetMinutes, onChange }: { offsetMinutes: number; on
     );
 };
 
-const UniversalReminderCard = ({ offsetMinutes, onOffsetChange, enabled, onToggle, videoUrl, caption, onVideoChange, onCaptionChange, onDelete }: { 
+const TEMPLATE_VARIABLES = [
+    { placeholder: '{{nome_paciente}}',        label: 'Nome do Paciente',          example: 'Maria Silva' },
+    { placeholder: '{{data_agendamento}}',     label: 'Data da Consulta',           example: '30/06/2026' },
+    { placeholder: '{{horario_agendamento}}',  label: 'Horário da Consulta',        example: '10:00' },
+    { placeholder: '{{nome_do_profissional}}', label: 'Nome do Profissional',       example: 'Dr. João Costa' },
+    { placeholder: '{{nome_procedimento}}',    label: 'Tipo de Procedimento',       example: 'Consulta de Retorno' },
+    { placeholder: '{{nome_local}}',           label: 'Unidade / Local',            example: 'Clínica Central' },
+    { placeholder: '{{link_endereco}}',        label: 'Link Google Maps',           example: 'maps.google.com/...' },
+    { placeholder: '{{link_sala_espera}}',     label: 'Sala de Espera Virtual',     example: 'traffio.app/waiting-room' },
+    { placeholder: '{{link_checkin}}',         label: 'Link Check-in Express',      example: 'traffio.app/checkin' },
+    { placeholder: '{{nome_clinica}}',         label: 'Nome da Clínica',            example: 'Clínica Exemplo' },
+] as const;
+
+const UniversalReminderCard = ({ offsetMinutes, onOffsetChange, enabled, onToggle, videoUrl, caption, onVideoChange, onCaptionChange, onDelete, activeLang, onLangChange }: {
     offsetMinutes: number;
     onOffsetChange: (mins: number) => void;
     enabled: boolean;
     onToggle: () => void;
-    videoUrl: string | null; 
+    videoUrl: string | null;
     caption: Record<string, string>;
     onVideoChange: (url: string | null) => void;
     onCaptionChange: (captionRecord: Record<string, string>) => void;
     onDelete?: () => void;
+    activeLang: 'pt' | 'en' | 'es';
+    onLangChange: (lang: 'pt' | 'en' | 'es') => void;
 }) => {
     const { t } = useTranslation('tenantAdmin');
     const [uploading, setUploading] = useState(false);
     const { tenant } = useTenant();
     const { showToast } = useToast();
-    const [activeLang, setActiveLang] = useState<'pt' | 'en' | 'es'>('pt');
+    const [showVarsPanel, setShowVarsPanel] = useState(false);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    const insertVariable = (placeholder: string) => {
+        const el = textareaRef.current;
+        const current = caption[activeLang] || '';
+        const start = el?.selectionStart ?? current.length;
+        const end   = el?.selectionEnd   ?? current.length;
+        const newValue = current.slice(0, start) + placeholder + current.slice(end);
+        onCaptionChange({ ...caption, [activeLang]: newValue });
+        setShowVarsPanel(false);
+        setTimeout(() => {
+            el?.focus();
+            el?.setSelectionRange(start + placeholder.length, start + placeholder.length);
+        }, 0);
+    };
 
     const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -989,28 +1363,39 @@ const UniversalReminderCard = ({ offsetMinutes, onOffsetChange, enabled, onToggl
                 <div className="flex flex-col space-y-2 flex-1">
                     <div className="flex items-center justify-between">
                         <label className="text-[8px] font-black text-graphite-400 uppercase tracking-wider flex items-center gap-1">
-                            <MessageSquare size={10} className="text-indigo-500" /> 
+                            <MessageSquare size={10} className="text-indigo-500" />
                             {t('intelligence.universalSection.textLabel', { defaultValue: 'Mensagem (Todos os canais)' })}
                         </label>
-                        
-                        <div className="flex bg-ice-100 p-0.5 rounded-lg shadow-float">
-                            {languages.map((lang) => (
-                                <button
-                                    key={lang.code}
-                                    type="button"
-                                    onClick={() => setActiveLang(lang.code)}
-                                    className={`px-2 py-0.5 text-[9px] font-black rounded-md transition-all border-none cursor-pointer ${
-                                        activeLang === lang.code
-                                            ? 'bg-white text-graphite-900 shadow-sm font-black'
-                                            : 'text-graphite-400 hover:text-graphite-600 bg-transparent font-bold'
-                                    }`}
-                                >
-                                    {lang.label}
-                                </button>
-                            ))}
+
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setShowVarsPanel(true)}
+                                className="flex items-center gap-1 px-2 py-1 text-[9px] font-black text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-all border-none cursor-pointer"
+                            >
+                                <Code2 size={10} />
+                                {t('intelligence.universalSection.variablesButton', { defaultValue: 'Variáveis' })}
+                            </button>
+                            <div className="flex bg-ice-100 p-0.5 rounded-lg shadow-float">
+                                {languages.map((lang) => (
+                                    <button
+                                        key={lang.code}
+                                        type="button"
+                                        onClick={() => onLangChange(lang.code)}
+                                        className={`px-2 py-0.5 text-[9px] font-black rounded-md transition-all border-none cursor-pointer ${
+                                            activeLang === lang.code
+                                                ? 'bg-white text-graphite-900 shadow-sm font-black'
+                                                : 'text-graphite-400 hover:text-graphite-600 bg-transparent font-bold'
+                                        }`}
+                                    >
+                                        {lang.label}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     </div>
                     <textarea
+                        ref={textareaRef}
                         value={caption[activeLang] || ''}
                         onChange={(e) => {
                             const updatedCaption = {
@@ -1035,6 +1420,65 @@ const UniversalReminderCard = ({ offsetMinutes, onOffsetChange, enabled, onToggl
                     </div>
                 </div>
             </div>
+
+            {/* ── Painel de Variáveis (off-canvas) ─────────────────────────────── */}
+            {showVarsPanel && (
+                <>
+                    <div
+                        className="fixed inset-0 z-[80] bg-black/25 backdrop-blur-[1px]"
+                        onClick={() => setShowVarsPanel(false)}
+                    />
+                    <div className="fixed right-0 top-0 h-full w-72 z-[90] bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+                        {/* Header */}
+                        <div className="p-5 border-b border-ice-100 flex items-start justify-between gap-3">
+                            <div>
+                                <p className="text-sm font-black text-graphite-900">
+                                    {t('intelligence.varsPanel.title', { defaultValue: 'Variáveis Disponíveis' })}
+                                </p>
+                                <p className="text-[10px] font-medium text-graphite-400 mt-0.5 leading-relaxed">
+                                    {t('intelligence.varsPanel.subtitle', { defaultValue: 'Clique para inserir no cursor — idioma ativo:' })}{' '}
+                                    <span className="font-black text-indigo-600 uppercase">{activeLang}</span>
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowVarsPanel(false)}
+                                className="p-1.5 hover:bg-ice-100 rounded-lg transition-all border-none bg-transparent cursor-pointer flex-shrink-0 mt-0.5"
+                            >
+                                <X size={15} className="text-graphite-500" />
+                            </button>
+                        </div>
+
+                        {/* Lista de variáveis */}
+                        <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
+                            {TEMPLATE_VARIABLES.map((v) => (
+                                <button
+                                    key={v.placeholder}
+                                    type="button"
+                                    onClick={() => insertVariable(v.placeholder)}
+                                    className="w-full text-left p-3 rounded-xl border border-transparent hover:border-indigo-200 hover:bg-indigo-50/60 transition-all cursor-pointer bg-ice-50/60 group"
+                                >
+                                    <p className="font-mono text-[10px] font-black text-indigo-600 group-hover:text-indigo-700">
+                                        {v.placeholder}
+                                    </p>
+                                    <p className="text-[11px] font-bold text-graphite-700 mt-0.5">{v.label}</p>
+                                    <p className="text-[9px] font-medium text-graphite-400 mt-0.5">
+                                        ex: <span className="italic">{v.example}</span>
+                                    </p>
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-4 border-t border-ice-100 bg-ice-50/50">
+                            <p className="text-[9px] font-medium text-graphite-400 text-center leading-relaxed">
+                                {t('intelligence.varsPanel.footer', { defaultValue: 'As variáveis são preenchidas automaticamente com os dados do agendamento no momento do envio.' })}
+                            </p>
+                        </div>
+                    </div>
+                </>
+            )}
+            {/* ─────────────────────────────────────────────────────────────────── */}
         </div>
     );
 };

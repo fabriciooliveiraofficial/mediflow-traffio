@@ -46,8 +46,25 @@ function getLocalHour(date: Date, timezone: string): number {
     }
 }
 
+function getLocalTime(date: Date, timezone: string): { hour: number; minute: number } {
+    try {
+        const parts = new Intl.DateTimeFormat("en-US", {
+            timeZone: timezone,
+            hour:     "numeric",
+            minute:   "2-digit",
+            hour12:   false,
+        }).formatToParts(date);
+        return {
+            hour:   parseInt(parts.find((p) => p.type === "hour")!.value,   10),
+            minute: parseInt(parts.find((p) => p.type === "minute")!.value, 10),
+        };
+    } catch {
+        return { hour: date.getUTCHours(), minute: date.getUTCMinutes() };
+    }
+}
+
 function getSafeScheduledTime(target: Date, type: string, timezone: string): string {
-    const localHour = getLocalHour(target, timezone);
+    const { hour: localHour, minute: localMinute } = getLocalTime(target, timezone);
     const isQuiet = localHour >= 22 || localHour < 8;
     if (!isQuiet) return target.toISOString();
 
@@ -59,18 +76,33 @@ function getSafeScheduledTime(target: Date, type: string, timezone: string): str
     const localMonth = parseInt(localParts.find((p) => p.type === "month")!.value, 10) - 1;
     const localDay   = parseInt(localParts.find((p) => p.type === "day")!.value, 10);
 
-    let targetHour = 8;
-    let dayOffset  = 0;
+    let targetHour   = 8;
+    let targetMinute = 0;
+    let dayOffset    = 0;
 
     if (type.startsWith("reminder")) {
-        targetHour = localHour < 8 ? 21 : 21;
-        dayOffset  = localHour < 8 ? -1 : 0;
+        if (localHour < 8) {
+            // Distribuição proporcional: preserva o espaçamento relativo entre lembretes.
+            // minutesBefore8 = distância (min) entre o horário do lembrete e o início da janela segura (8h).
+            // Subtraímos essa distância de 21:00 da véspera → spread natural na tarde/noite anterior.
+            const minutesBefore8    = (8 * 60) - (localHour * 60 + localMinute);
+            const remappedTotalMins = Math.max(8 * 60, 21 * 60 - minutesBefore8);
+            targetHour   = Math.floor(remappedTotalMins / 60);
+            targetMinute = remappedTotalMins % 60;
+            dayOffset    = -1;
+        } else {
+            // Lembrete cai após 22h: empurra para 21h do mesmo dia (logo antes do silêncio).
+            targetHour   = 21;
+            targetMinute = 0;
+            dayOffset    = 0;
+        }
     } else {
-        targetHour = 8;
-        dayOffset  = localHour >= 22 ? 1 : 0;
+        targetHour   = 8;
+        targetMinute = 0;
+        dayOffset    = localHour >= 22 ? 1 : 0;
     }
 
-    const shiftedDate = new Date(Date.UTC(localYear, localMonth, localDay + dayOffset, targetHour, 0, 0));
+    const shiftedDate = new Date(Date.UTC(localYear, localMonth, localDay + dayOffset, targetHour, targetMinute, 0));
     const offset = getUTCOffsetString(timezone, shiftedDate);
     const sign    = offset[0] === "-" ? 1 : -1;
     const [offH, offM] = offset.slice(1).split(":").map(Number);
@@ -122,6 +154,11 @@ serve(async (req: Request) => {
         const now       = new Date();
         const today     = now.toISOString().split("T")[0];
         const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+        // Janela de varredura: maior offset de lembrete em uso é de dias, não meses.
+        // Limitar a 10 dias evita escanear toda a agenda futura (timeout em tenants
+        // com agenda cheia) — agendamentos distantes entram na janela conforme se
+        // aproximam, cobertos pela cadência de 5 minutos do cron.
+        const windowEnd = new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
         const { data: appointments, error: fetchErr } = await supabase
             .from("appointments")
@@ -133,6 +170,7 @@ serve(async (req: Request) => {
                 appointment_types(name)
             `)
             .or("date.gte." + today + ",created_at.gte." + yesterday)
+            .lte("date", windowEnd)
             .in("status", ["scheduled", "confirmed"])
             .order("date", { ascending: true });
 
@@ -263,6 +301,16 @@ serve(async (req: Request) => {
             const timeShort     = appt.start_time.substring(0, 5);
             const publicUrl     = Deno.env.get("PUBLIC_APP_URL") || "https://" + appt.tenant_id + ".traffio.app";
 
+            // Fonte de verdade do idioma: bot_config.notification_locale (definido pelo
+            // tenant na página Inteligência). Não há cadastro de idioma por paciente —
+            // o fallback em preferred_locale só cobre tenants que nunca configuraram isso.
+            const patientLocale = (() => {
+                const l = (botConfig.notification_locale || patientData.preferred_locale || "pt").toLowerCase();
+                if (l.startsWith("en")) return "en";
+                if (l.startsWith("es")) return "es";
+                return "pt";
+            })();
+
             const vars = {
                 patient_name:      patientData.full_name || "Paciente",
                 date:              dateFormatted,
@@ -274,6 +322,7 @@ serve(async (req: Request) => {
                 clinic_name:       clinicName,
                 waiting_room_link: publicUrl + "/waiting-room?tenant=" + appt.tenant_id + "&apt=" + appt.id,
                 checkin_link:      publicUrl + "/checkin?apt=" + appt.id,
+                locale:            patientLocale,
             };
 
             // Canal preferido deste paciente (ou fallback whatsapp)
@@ -302,11 +351,14 @@ serve(async (req: Request) => {
 
                     const scheduledTime = getSafeScheduledTime(new Date(targetTime), type, timezone);
 
-                    let templateKey = "appointment_reminder_2h";
+                    // Cada offset custom gera um template_key único para não colidir
+                    // no índice (tenant_id, patient_phone, template_key, reference_id).
+                    // Offsets exatos dos templates legado mantêm a chave legada.
+                    let templateKey = `appointment_reminder_custom_${Math.abs(offsetMinutes)}m`;
                     if (offsetMinutes === -2880) templateKey = "appointment_reminder_48h";
                     else if (offsetMinutes === -1440) templateKey = "appointment_reminder_24h";
-                    else if (offsetMinutes === -120) templateKey = "appointment_reminder_2h";
-                    else if (offsetMinutes === -15) templateKey = "appointment_reminder_15m";
+                    else if (offsetMinutes === -120)  templateKey = "appointment_reminder_2h";
+                    else if (offsetMinutes === -15)   templateKey = "appointment_reminder_15m";
 
                     for (const channelInfo of channelsInfo) {
                         // Vídeos de lembrete: apenas para WhatsApp
@@ -418,10 +470,12 @@ serve(async (req: Request) => {
             }
 
             if (queueBatch.length > 0) {
+                // CRITICAL: onConflict must match the actual unique index:
+                // idx_outbound_queue_unique_msg ON (tenant_id, patient_phone, template_key, reference_id)
                 const { error: upsertErr } = await supabase
                     .from("outbound_message_queue")
                     .upsert(queueBatch, {
-                        onConflict:       "tenant_id,patient_phone,message_type,reference_id,notification_channel",
+                        onConflict:       "tenant_id,patient_phone,template_key,reference_id",
                         ignoreDuplicates: true,
                     });
 
@@ -433,6 +487,90 @@ serve(async (req: Request) => {
                 }
             }
         }
+
+        // ── NPS BACKFILL: rede de segurança para agendamentos concluídos ─────────
+        // O trigger Postgres é o mecanismo primário; este backfill cobre casos onde
+        // o trigger falhou ou o agendamento foi concluído antes do trigger existir.
+        const completedSince = new Date(now.getTime() - 25 * 60 * 60 * 1000).toISOString(); // últimas 25h
+
+        const { data: completedAppts } = await supabase
+            .from("appointments")
+            .select(`
+                id, tenant_id, patient_id,
+                patients(phone, full_name, preferred_locale)
+            `)
+            .eq("status", "completed")
+            .gte("completed_at", completedSince);
+
+        for (const appt of completedAppts ?? []) {
+            const patientData = Array.isArray(appt.patients) ? appt.patients[0] : appt.patients;
+            if (!patientData?.phone) continue;
+
+            const tenantInfo = tenantConfigMap[appt.tenant_id];
+            if (!tenantInfo) continue;
+
+            const { bot_config: botConfig, name: clinicName, timezone } = tenantInfo;
+            const npsChannels = botConfig?.channel_automations ?? {};
+            const npsEnabled = (
+                npsChannels.whatsapp?.nps ||
+                npsChannels.sms?.nps ||
+                npsChannels.email?.nps
+            );
+            if (!npsEnabled) continue;
+
+            const delayMinutes = botConfig?.nps_delay_minutes ?? 180;
+            let targetTime = now.getTime() + delayMinutes * 60 * 1000;
+            const scheduledTime = getSafeScheduledTime(new Date(targetTime), "nps", timezone);
+
+            // Canal preferido
+            const channelsForPatient: ChannelInfo[] = channelMap[patientData.phone] ?? [{
+                channel:     "whatsapp",
+                recipientId: patientData.phone,
+            }];
+
+            const npsChannel = channelsForPatient.find((c) =>
+                npsChannels[c.channel]?.nps
+            ) ?? { channel: "whatsapp" as const, recipientId: patientData.phone };
+
+            const locale = (() => {
+                const l = (botConfig?.notification_locale || patientData.preferred_locale || "pt").toLowerCase();
+                if (l.startsWith("en")) return "en";
+                if (l.startsWith("es")) return "es";
+                return "pt";
+            })();
+
+            const { error: npsErr } = await supabase
+                .from("outbound_message_queue")
+                .upsert({
+                    tenant_id:            appt.tenant_id,
+                    patient_phone:        patientData.phone,
+                    message_type:         "nps_survey",
+                    template_key:         "nps_survey",
+                    template_vars:        {
+                        patient_name: patientData.full_name || "Paciente",
+                        clinic_name:  clinicName,
+                        locale,
+                    },
+                    scheduled_at:         scheduledTime,
+                    reference_id:         appt.id,
+                    reference_type:       "appointment",
+                    status:               "pending",
+                    notification_channel: npsChannel.channel,
+                    channel_recipient_id: npsChannel.recipientId,
+                    is_edited:            false,
+                }, {
+                    onConflict:       "tenant_id,patient_phone,template_key,reference_id",
+                    ignoreDuplicates: true,
+                });
+
+            if (npsErr) {
+                console.error(`[schedule-reminders] NPS backfill failed for Appt ${appt.id}:`, npsErr.message);
+            } else {
+                enqueuedCount++;
+                console.log(`[schedule-reminders] NPS backfill | Appt ${appt.id} | ${npsChannel.channel}`);
+            }
+        }
+        // ─────────────────────────────────────────────────────────────────────────
 
         return new Response(JSON.stringify({ scheduled: enqueuedCount, count: appointments.length }), {
             status:  200,

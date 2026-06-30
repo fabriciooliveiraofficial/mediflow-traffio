@@ -30,7 +30,10 @@ import {
     TrendingUp,
     FileText,
     FileSpreadsheet,
-    ArrowUpDown
+    ArrowUpDown,
+    MessageCircle,
+    ExternalLink,
+    CheckCircle2
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useTenant } from '../contexts/TenantContext';
@@ -107,6 +110,7 @@ const StatCard = ({ label, value, subtext, trend, trendType, color, icon, iconCo
 
 export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onNavigate }) => {
     const { t } = useTranslation('dashboard');
+    const { t: tSettings } = useTranslation('settings');
     const { tenant } = useTenant();
     const { showToast } = useToast();
     const { locale, formatDate, formatDateTime } = useLocaleFormat();
@@ -184,9 +188,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
     const [manageData, setManageData] = useState<any>(null);
     const [manageLoading, setManageLoading] = useState(false);
 
-    // Meta connection features choice
-    const [metaConnectModal, setMetaConnectModal] = useState(false);
-    const [metaFeatures, setMetaFeatures] = useState({ ads: true, messaging: true });
+    const [metaPages, setMetaPages] = useState<any[]>([]);
 
     const fetchDashboardData = useCallback(async () => {
             if (!tenant?.id) return;
@@ -244,6 +246,25 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                 console.error('Error fetching dashboard data:', error);
             }
     }, [tenant?.id, tenant?.timezone]);
+
+    const fetchMetaPages = useCallback(async () => {
+        if (!tenant?.id) return;
+        const { data } = await supabase
+            .from('tenant_meta_pages')
+            .select('id, page_id, page_name, page_category, instagram_account_id, instagram_username, is_active, last_refreshed_at')
+            .eq('tenant_id', tenant.id)
+            .order('page_name');
+        setMetaPages(data ?? []);
+    }, [tenant?.id]);
+
+    const disconnectMetaPage = async (pageId: string) => {
+        await supabase
+            .from('tenant_meta_pages')
+            .update({ is_active: false })
+            .eq('id', pageId);
+        fetchMetaPages();
+        showToast('success', tSettings('toasts.metaPageDisconnected'));
+    };
 
     // Fire-and-forget call to sync-ads-performance, then refresh once new data lands
     const triggerSyncAndRefresh = () => {
@@ -348,11 +369,15 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
         try {
             const { data } = await supabase
                 .from('ad_integrations')
-                .select('settings, updated_at')
+                .select('settings, updated_at, status')
                 .eq('tenant_id', tenant.id)
                 .eq('platform', platform)
                 .maybeSingle();
             setManageData(data);
+
+            if (platform === 'meta') {
+                await fetchMetaPages();
+            }
         } catch {
             setManageData(null);
         } finally {
@@ -365,6 +390,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
         setManageData(null);
     };
 
+
     const handleDisconnect = async (platform: 'meta' | 'google') => {
         if (!tenant?.id) return;
         await supabase
@@ -372,6 +398,15 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
             .update({ status: 'inactive' })
             .eq('tenant_id', tenant.id)
             .eq('platform', platform);
+
+        if (platform === 'meta') {
+            await supabase
+                .from('tenant_meta_pages')
+                .update({ is_active: false })
+                .eq('tenant_id', tenant.id);
+            fetchMetaPages();
+        }
+        
         setIntegrations(prev => ({ ...prev, [platform]: false }));
         showToast('success', t('toasts.disconnectedSuccess'));
         closeManageModal();
@@ -410,7 +445,8 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
 
     useEffect(() => {
         fetchDashboardData();
-    }, [fetchDashboardData]);
+        fetchMetaPages();
+    }, [fetchDashboardData, fetchMetaPages]);
 
     // Fetch adicional sob-demanda quando o período personalizado ultrapassa a janela padrão de 90 dias
     useEffect(() => {
@@ -1038,7 +1074,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                 {t('integrations.metaDescription')}
                             </p>
                             <button
-                                onClick={() => integrations.meta ? openManageModal('meta') : setMetaConnectModal(true)}
+                                onClick={() => integrations.meta ? openManageModal('meta') : handleConnect('meta', 'ads,messaging')}
                                 className={clsx(
                                     "w-full py-4 rounded-2xl font-black text-xs shadow-xl transition-all border-none cursor-pointer flex items-center justify-center gap-2",
                                     integrations.meta
@@ -1285,25 +1321,98 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                     <Loader2 className="animate-spin text-brand-primary" size={28} />
                                 </div>
                             ) : (
-                                <div className="space-y-4">
+                                <div className="space-y-5">
                                     {manageModal.platform === 'meta' && (
-                                        <div className="space-y-2">
-                                            <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest">{t('manageModal.adAccountLabel')}</p>
-                                            {(manageData?.settings?.available_ad_accounts?.length > 1) ? (
-                                                <select
-                                                    value={manageData?.settings?.ad_account_id || ''}
-                                                    onChange={(e) => handleChangeAdAccount(e.target.value)}
-                                                    className="w-full px-4 py-3 bg-ice-50 rounded-2xl text-sm font-bold text-graphite-900 border-none cursor-pointer"
-                                                >
-                                                    {manageData.settings.available_ad_accounts.map((acc: any) => (
-                                                        <option key={acc.id} value={acc.id}>{acc.name} ({acc.id})</option>
-                                                    ))}
-                                                </select>
-                                            ) : (
-                                                <p className="text-sm font-bold text-graphite-900">
-                                                    {manageData?.settings?.ad_account_id || t('manageModal.noAccountLinked')}
-                                                </p>
-                                            )}
+                                        <div className="space-y-6">
+                                            {/* Conta de Anúncios */}
+                                            <div className="space-y-3">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-6 h-6 rounded-lg bg-blue-50 text-[#0081FB] flex items-center justify-center">
+                                                        <Target size={14} />
+                                                    </div>
+                                                    <h4 className="text-sm font-black text-graphite-900 tracking-tight">Conta de Anúncios</h4>
+                                                </div>
+                                                
+                                                <div className="bg-ice-50/50 border border-ice-100 rounded-[20px] p-4">
+                                                    {manageData?.settings?.available_ad_accounts?.length > 1 ? (
+                                                        <select
+                                                            value={manageData?.settings?.ad_account_id || ''}
+                                                            onChange={(e) => handleChangeAdAccount(e.target.value)}
+                                                            className="w-full bg-transparent text-sm font-bold text-graphite-900 border-none cursor-pointer focus:outline-none focus:ring-0"
+                                                        >
+                                                            {manageData.settings.available_ad_accounts.map((acc: any) => (
+                                                                <option key={acc.id} value={acc.id}>{acc.name} ({acc.id})</option>
+                                                            ))}
+                                                        </select>
+                                                    ) : (
+                                                        <p className="text-sm font-bold text-graphite-900">
+                                                            {manageData?.settings?.ad_account_id || t('manageModal.noAccountLinked')}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Páginas do Meta (Messaging) */}
+                                            <div className="space-y-3">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-6 h-6 rounded-lg bg-pink-50 text-pink-500 flex items-center justify-center">
+                                                        <MessageCircle size={14} />
+                                                    </div>
+                                                    <h4 className="text-sm font-black text-graphite-900 tracking-tight">Canais de Mensagem</h4>
+                                                </div>
+
+                                                {metaPages.length === 0 ? (
+                                                    <div className="flex items-center gap-3 p-4 rounded-[20px] bg-amber-50/50 border border-amber-100/50">
+                                                        <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                                                            <AlertCircle size={16} />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xs text-amber-900 font-bold">Nenhum canal conectado</p>
+                                                            <p className="text-[10px] text-amber-700/80 font-medium">Reconecte sua conta para selecionar páginas.</p>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="grid grid-cols-1 gap-3 max-h-[220px] overflow-y-auto pr-2 custom-scrollbar">
+                                                        {metaPages.map((page) => (
+                                                            <div key={page.id} className="flex items-center justify-between p-4 rounded-[20px] bg-white border border-ice-100 shadow-sm transition-all hover:border-[#0081FB]/30 hover:shadow-md group">
+                                                                <div className="flex items-center gap-3.5">
+                                                                    <div className="w-10 h-10 rounded-xl bg-ice-50 flex items-center justify-center shrink-0 border border-ice-100/50 group-hover:bg-[#0081FB]/5 group-hover:border-[#0081FB]/20 transition-colors">
+                                                                        {page.instagram_username ? (
+                                                                            <Instagram size={18} className="text-[#E4405F]" />
+                                                                        ) : (
+                                                                            <Facebook size={18} className="text-[#0081FB]" />
+                                                                        )}
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="text-xs font-black text-graphite-900 leading-tight">{page.page_name}</p>
+                                                                        {page.instagram_username && (
+                                                                            <p className="text-[10px] text-graphite-400 font-medium mt-0.5">
+                                                                                @{page.instagram_username}
+                                                                            </p>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <div className={clsx("w-1.5 h-1.5 rounded-full", page.is_active ? "bg-green-500" : "bg-red-500")}></div>
+                                                                        <span className={clsx("text-[9px] font-black uppercase tracking-widest hidden sm:inline-block", page.is_active ? "text-green-600" : "text-red-600")}>
+                                                                            {page.is_active ? tSettings('clinics.metaPageActive') : tSettings('clinics.metaPageInactive')}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="w-px h-4 bg-ice-100"></div>
+                                                                    <button
+                                                                        onClick={() => disconnectMetaPage(page.id)}
+                                                                        className="p-1.5 text-graphite-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all border-none cursor-pointer"
+                                                                        title={tSettings('clinics.metaDisconnectTitle')}
+                                                                    >
+                                                                        <Unlink size={14} />
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     )}
 
@@ -1338,7 +1447,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                         </div>
                                     )}
 
-                                    <div className="space-y-2">
+                                    <div className="space-y-2 border-t border-ice-100/50 pt-3">
                                         <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest">{t('manageModal.lastSyncLabel')}</p>
                                         <p className="text-sm font-bold text-graphite-900">
                                             {manageData?.settings?.last_sync_at
@@ -1359,14 +1468,26 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                     <div className="flex flex-col gap-3 pt-2">
                                         <button
                                             onClick={handleSyncNow}
-                                            className="w-full py-3 bg-brand-primary text-white rounded-2xl font-black text-xs flex items-center justify-center gap-2 border-none cursor-pointer hover:translate-y-[-1px] transition-all"
+                                            className="w-full py-3.5 bg-brand-primary text-white rounded-2xl font-black text-xs flex items-center justify-center gap-2 border-none cursor-pointer hover:translate-y-[-1px] transition-all"
                                         >
                                             <RefreshCw size={14} />
                                             {t('manageModal.syncNow')}
                                         </button>
+                                        {manageModal.platform === 'meta' && (
+                                            <button
+                                                onClick={() => {
+                                                    handleConnect('meta', 'ads,messaging');
+                                                    closeManageModal();
+                                                }}
+                                                className="w-full py-3.5 bg-ice-50 hover:bg-ice-100 text-graphite-600 rounded-2xl font-black text-xs flex items-center justify-center gap-2 border-none cursor-pointer transition-all"
+                                            >
+                                                <RefreshCw size={14} />
+                                                Reconectar Conta Meta
+                                            </button>
+                                        )}
                                         <button
                                             onClick={() => handleDisconnect(manageModal.platform)}
-                                            className="w-full py-3 bg-red-50 text-red-600 rounded-2xl font-black text-xs flex items-center justify-center gap-2 border-none cursor-pointer hover:bg-red-100 transition-all"
+                                            className="w-full py-3.5 bg-red-50 text-red-600 rounded-2xl font-black text-xs flex items-center justify-center gap-2 border-none cursor-pointer hover:bg-red-100 transition-all"
                                         >
                                             <Unlink size={14} />
                                             {t('manageModal.disconnect')}
@@ -1379,101 +1500,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                 )}
             </AnimatePresence>
 
-            {/* ── CONEXÃO META SELEÇÃO DE RECURSOS MODAL ───────────────────────── */}
-            <AnimatePresence>
-                {metaConnectModal && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 sm:p-12">
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => setMetaConnectModal(false)}
-                            className="absolute inset-0 bg-graphite-900/40 backdrop-blur-sm"
-                        />
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                            className="relative w-full max-w-md bg-white rounded-[32px] border border-ice-100 shadow-2xl p-8 space-y-6"
-                        >
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 rounded-2xl bg-[#0081FB] flex items-center justify-center shrink-0">
-                                        <Facebook className="text-white" fill="white" size={22} />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-base font-black text-graphite-900 tracking-tight">
-                                            {t('metaConnectModal.title')}
-                                        </h3>
-                                        <p className="text-[10px] font-bold text-graphite-400">{t('metaConnectModal.subtitle')}</p>
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={() => setMetaConnectModal(false)}
-                                    className="p-2 rounded-xl hover:bg-ice-50 border-none cursor-pointer transition-colors"
-                                >
-                                    <X size={18} className="text-graphite-400" />
-                                </button>
-                            </div>
 
-                            <div className="space-y-4">
-                                <label className="flex items-start gap-3 p-4 rounded-2xl border-2 border-ice-100 hover:border-brand-primary/30 transition-all cursor-pointer bg-white">
-                                    <input
-                                        type="checkbox"
-                                        checked={metaFeatures.ads}
-                                        onChange={(e) => setMetaFeatures(prev => ({ ...prev, ads: e.target.checked }))}
-                                        className="mt-1 h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary cursor-pointer"
-                                    />
-                                    <div>
-                                        <p className="font-black text-sm text-graphite-900 leading-none">{t('metaConnectModal.adsFeatureLabel')}</p>
-                                        <p className="text-[11px] font-bold text-graphite-400 mt-1">
-                                            {t('metaConnectModal.adsFeatureDescription')}
-                                        </p>
-                                    </div>
-                                </label>
-
-                                <label className="flex items-start gap-3 p-4 rounded-2xl border-2 border-ice-100 hover:border-brand-primary/30 transition-all cursor-pointer bg-white">
-                                    <input
-                                        type="checkbox"
-                                        checked={metaFeatures.messaging}
-                                        onChange={(e) => setMetaFeatures(prev => ({ ...prev, messaging: e.target.checked }))}
-                                        className="mt-1 h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary cursor-pointer"
-                                    />
-                                    <div>
-                                        <p className="font-black text-sm text-graphite-900 leading-none">{t('metaConnectModal.messagingFeatureLabel')}</p>
-                                        <p className="text-[11px] font-bold text-graphite-400 mt-1">
-                                            {t('metaConnectModal.messagingFeatureDescription')}
-                                        </p>
-                                    </div>
-                                </label>
-                            </div>
-
-                            <div className="flex gap-3 pt-2">
-                                <button
-                                    onClick={() => setMetaConnectModal(false)}
-                                    className="flex-1 py-3.5 bg-ice-50 hover:bg-ice-100 text-graphite-600 rounded-2xl font-black text-xs transition-colors border-none cursor-pointer"
-                                >
-                                    {t('metaConnectModal.cancel')}
-                                </button>
-                                <button
-                                    disabled={!metaFeatures.ads && !metaFeatures.messaging}
-                                    onClick={() => {
-                                        const featuresStr = [
-                                            metaFeatures.ads ? 'ads' : '',
-                                            metaFeatures.messaging ? 'messaging' : ''
-                                        ].filter(Boolean).join(',');
-                                        handleConnect('meta', featuresStr);
-                                        setMetaConnectModal(false);
-                                    }}
-                                    className="flex-1 py-3.5 bg-[#0081FB] hover:bg-blue-600 text-white rounded-2xl font-black text-xs transition-colors border-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                                >
-                                    {t('metaConnectModal.continueToFacebook')}
-                                </button>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
         </div>
     );
 };

@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import {
   User, Loader2,
   DollarSign,
-  Search, TrendingUp, Activity, Save, X
+  Search, TrendingUp, Activity, Save, X, Clock
 } from 'lucide-react';
 import { formatPhone, phoneFlag } from '../lib/formatPhone';
 import { useTenant } from '../contexts/TenantContext';
@@ -25,6 +25,7 @@ interface ConversationSession {
   assigned_to_user_id: string | null;
   kanban_stage: string;
   revenue_estimated: number;
+  created_at: string;
   updated_at: string;
   variables?: any;
   channel?: string;
@@ -35,7 +36,7 @@ interface ConversationSession {
 export function FollowUpBoard() {
   const { t } = useTranslation('crm');
   const { tenant } = useTenant();
-  const { formatDate } = useLocaleFormat();
+  const { formatDate, formatDateTime } = useLocaleFormat();
   const [sessions, setSessions] = useState<ConversationSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [patientNames, setPatientNames] = useState<Record<string, string>>({});
@@ -307,12 +308,12 @@ export function FollowUpBoard() {
 
                       <div className="flex items-center justify-between mt-5 pt-4 border-t border-ice-50">
                         <div className="flex items-center gap-1.5">
-                          <Activity className="w-3 h-3 text-ice-200" />
+                          <Clock className="w-3 h-3 text-ice-200" />
                           <span className="text-[9px] font-black text-graphite-400 uppercase tracking-widest">
-                            {t('followUp.activityLabel')}
+                            {t('followUp.firstContact')}
                           </span>
                         </div>
-                        <Badge accent="neutral" variant="tag" size="sm">{formatDate(session.updated_at)}</Badge>
+                        <Badge accent="neutral" variant="tag" size="sm">{formatDateTime(session.created_at)}</Badge>
                       </div>
                     </div>
                   ))}

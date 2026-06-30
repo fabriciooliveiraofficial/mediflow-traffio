@@ -141,119 +141,145 @@ async function processConversationTurn(
     }
 
     const messageIds = messages.map((m: any) => m.id);
-
-    // --- 4. Mark as processing (prevent double-pick by concurrent cron runs) ---
-    const batchId = crypto.randomUUID();
-    await supabase
-      .from("message_inbox")
-      .update({ status: "processing", batch_id: batchId })
-      .in("id", messageIds);
-
-    // --- 5. Context Fusion: merge multiple messages into one coherent user turn ---
-    let fusedContent = messages.length === 1
-      ? messages[0].content
-      : messages.map((m: any) => m.content).join("\n");
-
-    console.log(`[process-inbox] [${phone}] Fused ${messages.length} msg(s): "${fusedContent.substring(0, 80)}"`);
-
-    // --- 5b. Media/voice guard — categorizar e salvar mídia para visibilidade humana ---
-    // Z-API e Cloud API entregam mídia com content vazio ou markers tipo [áudio].
-    // Categorizamos para que o atendente veja no chat, mesmo que o bot não processe.
-    const mediaMatch = fusedContent?.trim().match(/^\[(áudio|audio|imagem|image|vídeo|video|documento|document|sticker|figurinha)\]$/i);
-    const isMediaOnly = !fusedContent?.trim() || !!mediaMatch;
-
-    if (isMediaOnly) {
-      const typeMap: Record<string, string> = {
-        audio: 'audio', áudio: 'audio', image: 'image', imagem: 'image',
-        video: 'video', vídeo: 'video', document: 'document', documento: 'document',
-        sticker: 'sticker', figurinha: 'sticker'
-      };
-      const detectedType = mediaMatch ? typeMap[mediaMatch[1].toLowerCase()] : 'text';
-
-      console.log(`[process-inbox] [${phone}] Media detected (${detectedType}) — saving for human visibility`);
-      
-      // Buscar URL de mídia do message_inbox (se disponível)
-      const { data: rawMsg } = await supabase
-        .from('message_inbox')
-        .select('media_url, caption')
-        .in('id', messageIds)
-        .not('media_url', 'is', null)
-        .limit(1)
-        .maybeSingle();
-
-      const session = await sessionManager.getOrCreateSession(tenantId, phone);
-      const incomingWaId = messages[0]?.message_id;
-
-      await sessionManager.logMessage(session.id, 'user', rawMsg?.caption || fusedContent || `[${detectedType}]`, {
-        whatsapp_message_id: incomingWaId,
-        message_type: detectedType,
-        media_url: rawMsg?.media_url,
-        caption: rawMsg?.caption
-      });
-
-      // Trigger handoff para que o humano assuma o atendimento de mídia
-      if (session.omnichannel_status !== 'human_active' && session.omnichannel_status !== 'queued') {
-        await sessionManager.triggerHumanHandoff(session.id);
-      }
-
-      await markMessages(supabase, messageIds, 'done');
-      return;
-    }
-
-    const session = await sessionManager.getOrCreateSession(tenantId, phone);
-
-    // --- 6. Patient lookup & Funnel tracking (Passive CRM) ---
-    const [{ data: patientRow }, { data: patientData }] = await Promise.all([
-      supabase.from("patient_funnel_stage")
-        .select("id, patient_name, current_stage")
-        .eq("tenant_id", tenantId)
-        .eq("patient_phone", phone)
-        .maybeSingle(),
-      supabase.from("patients")
-        .select("id, full_name")
-        .eq("tenant_id", tenantId)
-        .eq("phone", phone)
-        .maybeSingle()
-    ]);
-
-    const funnelUpdate: any = {
-      last_interaction_at: new Date().toISOString(),
-      last_message_snippet: fusedContent.length > 200 ? fusedContent.substring(0, 197) + '...' : fusedContent
-    };
-
-    if (!patientRow) {
-        const sessionName = (session as any).context?.known_first_name ?? null;
-        await supabase
-          .from("patient_funnel_stage")
-          .upsert({
-            tenant_id: tenantId,
-            patient_phone: phone,
-            patient_name: patientData?.full_name || sessionName || null,
-            current_stage: 'novo_lead',
-            lead_source: 'whatsapp',
-            ...funnelUpdate
-          }, { onConflict: 'tenant_id, patient_phone' });
-    } else {
-        await supabase
-          .from("patient_funnel_stage")
-          .update(funnelUpdate)
-          .eq('tenant_id', tenantId)
-          .eq('patient_phone', phone);
-    }
-
-    // --- 7. Log message to history ---
-    await sessionManager.logMessage(session.id, "user", fusedContent, {
-      whatsapp_message_id: messages[0]?.message_id
-    });
-
-    // --- 8. Ensure Human Visibility (Trigger Handoff/Queue) ---
-    console.log(`[process-inbox] [${phone}] Routing message to human queue.`);
-    if (session.omnichannel_status !== "human_active" && session.omnichannel_status !== "queued") {
-      await sessionManager.triggerHumanHandoff(session.id);
-    }
-
-    // --- 12. Mark inbox messages as done ---
-    await markMessages(supabase, messageIds, "done");
+ 
+     // --- 4. Mark as processing (prevent double-pick by concurrent cron runs) ---
+     const batchId = crypto.randomUUID();
+     await supabase
+       .from("message_inbox")
+       .update({ status: "processing", batch_id: batchId })
+       .in("id", messageIds);
+ 
+     const session = await sessionManager.getOrCreateSession(tenantId, phone);
+     let lastMessageSnippet = "";
+ 
+     if (session.omnichannel_status === "human_active" || session.omnichannel_status === "queued") {
+       console.log(`[process-inbox] [${phone}] Session status is ${session.omnichannel_status}. Logging ${messages.length} message(s) individually.`);
+       
+       for (const msg of messages) {
+         const typeMap: Record<string, string> = {
+           audio: 'audio', áudio: 'audio', image: 'image', imagem: 'image',
+           video: 'video', vídeo: 'video', document: 'document', documento: 'document',
+           sticker: 'sticker', figurinha: 'sticker'
+         };
+         const mediaMatch = msg.content?.trim().match(/^\[(áudio|audio|imagem|image|vídeo|video|documento|document|sticker|figurinha)\]$/i);
+         const detectedType = mediaMatch ? typeMap[mediaMatch[1].toLowerCase()] : (msg.message_type || 'text');
+ 
+         await sessionManager.logMessage(session.id, 'user', msg.caption || msg.content || `[${detectedType}]`, {
+           whatsapp_message_id: msg.message_id,
+           message_type: detectedType,
+           media_url: msg.media_url,
+           caption: msg.caption
+         });
+       }
+ 
+       const lastMsg = messages[messages.length - 1];
+       lastMessageSnippet = lastMsg.caption || lastMsg.content || `[${lastMsg.message_type || 'mídia'}]`;
+ 
+     } else {
+       // --- 5. Context Fusion: merge multiple messages into one coherent user turn ---
+       let fusedContent = messages.length === 1
+         ? messages[0].content
+         : messages.map((m: any) => m.content).join("\n");
+ 
+       console.log(`[process-inbox] [${phone}] Fused ${messages.length} msg(s): "${fusedContent.substring(0, 80)}"`);
+       lastMessageSnippet = fusedContent;
+ 
+       // --- 5b. Media/voice guard — categorizar e salvar mídia para visibilidade humana ---
+       // Z-API e Cloud API entregam mídia com content vazio ou markers tipo [áudio].
+       // Categorizamos para que o atendente veja no chat, mesmo que o bot não processe.
+       const mediaMatch = fusedContent?.trim().match(/^\[(áudio|audio|imagem|image|vídeo|video|documento|document|sticker|figurinha)\]$/i);
+       const isMediaOnly = !fusedContent?.trim() || !!mediaMatch;
+ 
+       if (isMediaOnly) {
+         const typeMap: Record<string, string> = {
+           audio: 'audio', áudio: 'audio', image: 'image', imagem: 'image',
+           video: 'video', vídeo: 'video', document: 'document', documento: 'document',
+           sticker: 'sticker', figurinha: 'sticker'
+         };
+         const detectedType = mediaMatch ? typeMap[mediaMatch[1].toLowerCase()] : 'text';
+ 
+         console.log(`[process-inbox] [${phone}] Media detected (${detectedType}) — saving for human visibility`);
+         
+         // Buscar URL de mídia do message_inbox (se disponível)
+         const { data: rawMsg } = await supabase
+           .from('message_inbox')
+           .select('media_url, caption')
+           .in('id', messageIds)
+           .not('media_url', 'is', null)
+           .limit(1)
+           .maybeSingle();
+ 
+         const incomingWaId = messages[0]?.message_id;
+ 
+         await sessionManager.logMessage(session.id, 'user', rawMsg?.caption || fusedContent || `[${detectedType}]`, {
+           whatsapp_message_id: incomingWaId,
+           message_type: detectedType,
+           media_url: rawMsg?.media_url,
+           caption: rawMsg?.caption
+         });
+ 
+         // Trigger handoff para que o humano assuma o atendimento de mídia
+         if (session.omnichannel_status !== 'human_active' && session.omnichannel_status !== 'queued') {
+           await sessionManager.triggerHumanHandoff(session.id);
+         }
+ 
+         await markMessages(supabase, messageIds, 'done');
+         return;
+       }
+ 
+       // --- 7. Log message to history ---
+       await sessionManager.logMessage(session.id, "user", fusedContent, {
+         whatsapp_message_id: messages[0]?.message_id
+       });
+ 
+       // --- 8. Ensure Human Visibility (Trigger Handoff/Queue) ---
+       console.log(`[process-inbox] [${phone}] Routing message to human queue.`);
+       if (session.omnichannel_status !== "human_active" && session.omnichannel_status !== "queued") {
+         await sessionManager.triggerHumanHandoff(session.id);
+       }
+     }
+ 
+     // --- 6. Patient lookup & Funnel tracking (Passive CRM) ---
+     const [{ data: patientRow }, { data: patientData }] = await Promise.all([
+       supabase.from("patient_funnel_stage")
+         .select("id, patient_name, current_stage")
+         .eq("tenant_id", tenantId)
+         .eq("patient_phone", phone)
+         .maybeSingle(),
+       supabase.from("patients")
+         .select("id, full_name")
+         .eq("tenant_id", tenantId)
+         .eq("phone", phone)
+         .maybeSingle()
+     ]);
+ 
+     const funnelUpdate: any = {
+       last_interaction_at: new Date().toISOString(),
+       last_message_snippet: lastMessageSnippet.length > 200 ? lastMessageSnippet.substring(0, 197) + '...' : lastMessageSnippet
+     };
+ 
+     if (!patientRow) {
+         const sessionName = (session as any).context?.known_first_name ?? null;
+         await supabase
+           .from("patient_funnel_stage")
+           .upsert({
+             tenant_id: tenantId,
+             patient_phone: phone,
+             patient_name: patientData?.full_name || sessionName || null,
+             current_stage: 'novo_lead',
+             lead_source: 'whatsapp',
+             ...funnelUpdate
+           }, { onConflict: 'tenant_id, patient_phone' });
+     } else {
+         await supabase
+           .from("patient_funnel_stage")
+           .update(funnelUpdate)
+           .eq('tenant_id', tenantId)
+           .eq('patient_phone', phone);
+     }
+ 
+     // --- 12. Mark inbox messages as done ---
+     await markMessages(supabase, messageIds, "done");
 
   } finally {
     // Always release the advisory lock

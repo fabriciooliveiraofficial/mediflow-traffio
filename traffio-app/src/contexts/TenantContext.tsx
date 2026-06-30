@@ -39,6 +39,7 @@ interface Tenant {
     smtp_pass?: string;
     smtp_from?: string;
     color_primary?: string;
+    bot_config?: any;
 }
 
 export interface UserProfile {

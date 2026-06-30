@@ -216,14 +216,6 @@ export const Settings = () => {
     const [showInsForm, setShowInsForm] = useState(false);
     const [editingInsId, setEditingInsId] = useState<string | null>(null);
 
-    // Meta Messaging Pages state
-    const [metaPages, setMetaPages] = useState<any[]>([]);
-    const [connectingMeta, setConnectingMeta] = useState(false);
-
-    // Meta connection features choice
-    const [metaConnectModal, setMetaConnectModal] = useState(false);
-    const [metaFeatures, setMetaFeatures] = useState({ ads: true, messaging: true });
-
     // Modal: Comprar número Telnyx
     const [showBuyNumber, setShowBuyNumber]       = useState(false);
     const [resubmitOrderId, setResubmitOrderId]   = useState<string | undefined>(undefined);
@@ -418,63 +410,7 @@ export const Settings = () => {
 
     useEffect(() => {
         fetchSettingsData();
-        fetchMetaPages();
-
-        // Ouvir mensagem do popup de OAuth Meta Messaging / Unified
-        const handleOAuthMessage = (event: MessageEvent) => {
-            if (
-                event.data?.type === 'META_MESSAGING_CONNECTED' || 
-                (event.data?.type === 'OAUTH_CONNECTED' && event.data?.platform === 'meta')
-            ) {
-                fetchMetaPages();
-                showToast('success', t('toasts.metaConnectedSuccess'));
-                setConnectingMeta(false);
-            } else if (
-                event.data?.type === 'META_MESSAGING_ERROR' ||
-                (event.data?.type === 'OAUTH_ERROR' && event.data?.platform === 'meta')
-            ) {
-                showToast('error', `${t('toasts.metaConnectErrorPrefix')} ${event.data.message || t('toasts.metaAuthErrorFallback')}`);
-                setConnectingMeta(false);
-            }
-        };
-        window.addEventListener('message', handleOAuthMessage);
-        return () => window.removeEventListener('message', handleOAuthMessage);
     }, []);
-
-    const fetchMetaPages = async () => {
-        const tenantId = currentTenant?.id;
-        if (!tenantId) return;
-        const { data } = await supabase
-            .from('tenant_meta_pages')
-            .select('id, page_id, page_name, page_category, instagram_account_id, instagram_username, is_active, last_refreshed_at')
-            .eq('tenant_id', tenantId)
-            .order('page_name');
-        setMetaPages(data ?? []);
-    };
-
-    const openMetaMessagingOAuth = (features?: string) => {
-        const tenantId = currentTenant?.id;
-        if (!tenantId) { showToast('error', t('toasts.metaSelectClinicFirst')); return; }
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ?? '';
-        const redirectBack = window.location.origin;
-        const featuresParam = features ? `&features=${features}` : '';
-        const oauthUrl = `${supabaseUrl}/functions/v1/auth-meta?tenant_id=${tenantId}&redirect_back=${encodeURIComponent(redirectBack)}${featuresParam}`;
-        setConnectingMeta(true);
-        const popup = window.open(oauthUrl, 'meta_oauth', 'width=580,height=680,left=200,top=100');
-        if (!popup) {
-            showToast('error', t('toasts.metaAllowPopups'));
-            setConnectingMeta(false);
-        }
-    };
-
-    const disconnectMetaPage = async (pageId: string) => {
-        await supabase
-            .from('tenant_meta_pages')
-            .update({ is_active: false })
-            .eq('id', pageId);
-        fetchMetaPages();
-        showToast('success', t('toasts.metaPageDisconnected'));
-    };
 
     const fetchSettingsData = async () => {
         try {
@@ -1155,76 +1091,6 @@ export const Settings = () => {
                                                     </div>
                                                 </div>
 
-                                                {/* Meta Messaging — Instagram DM + Facebook Messenger */}
-                                                <div className="border-t border-ice-100 pt-4 mt-4">
-                                                    <div className="flex items-center justify-between mb-3">
-                                                        <h4 className="text-xs font-black text-graphite-400 uppercase flex items-center gap-1.5">
-                                                            <MessageCircle size={12} /> {t('clinics.metaMessagingSectionTitle')}
-                                                        </h4>
-                                                        <button
-                                                            onClick={() => setMetaConnectModal(true)}
-                                                            disabled={connectingMeta}
-                                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border-none cursor-pointer"
-                                                        >
-                                                            {connectingMeta ? (
-                                                                <><RefreshCw size={12} className="animate-spin" /> {t('clinics.metaConnecting')}</>
-                                                            ) : (
-                                                                <><ExternalLink size={12} /> {t('clinics.metaConnectPages')}</>
-                                                            )}
-                                                        </button>
-                                                    </div>
-
-                                                    {metaPages.length === 0 ? (
-                                                        <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 shadow-float">
-                                                            <AlertCircle size={14} className="text-amber-500 shrink-0" />
-                                                            <p className="text-xs text-amber-700 font-medium">
-                                                                {t('clinics.metaNoPagesConnected')}
-                                                            </p>
-                                                        </div>
-                                                    ) : (
-                                                        <div>
-                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                                            {metaPages.map((page) => (
-                                                                <div key={page.id} className="flex items-center justify-between p-3 rounded-xl bg-ice-50 shadow-float">
-                                                                    <div className="flex items-center gap-3">
-                                                                        <div className={`w-2 h-2 rounded-full ${page.is_active ? 'bg-green-500' : 'bg-red-400'}`} />
-                                                                        <div>
-                                                                            <p className="text-sm font-bold text-graphite-700">{page.page_name}</p>
-                                                                            {page.instagram_username && (
-                                                                                <p className="text-xs text-graphite-400 flex items-center gap-1">
-                                                                                    <Instagram size={10} />
-                                                                                    @{page.instagram_username}
-                                                                                </p>
-                                                                            )}
-                                                                        </div>
-                                                                    </div>
-                                                                    <div className="flex items-center gap-2">
-                                                                        {page.is_active ? (
-                                                                            <Badge accent="success" size="sm">
-                                                                                <CheckCircle2 size={10} /> {t('clinics.metaPageActive')}
-                                                                            </Badge>
-                                                                        ) : (
-                                                                            <Badge accent="error" size="sm">
-                                                                                <AlertCircle size={10} /> {t('clinics.metaPageInactive')}
-                                                                            </Badge>
-                                                                        )}
-                                                                        <button
-                                                                            onClick={() => disconnectMetaPage(page.id)}
-                                                                            className="p-1 text-graphite-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors border-none cursor-pointer"
-                                                                            title={t('clinics.metaDisconnectTitle')}
-                                                                        >
-                                                                            <X size={12} />
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                            <p className="text-[10px] text-graphite-400 mt-1">
-                                                                {t('clinics.metaReconnectHint')}
-                                                            </p>
-                                                        </div>
-                                                    )}
-                                                </div>
                                             </div>
 
                                             <button className="opacity-0 group-hover:opacity-100 p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all border-none cursor-pointer self-start">
@@ -2009,92 +1875,6 @@ export const Settings = () => {
                 showToast={showToast}
                 resubmitOrderId={resubmitOrderId}
             />
-        )}
-
-        {/* ── CONEXÃO META SELEÇÃO DE RECURSOS MODAL ───────────────────────── */}
-        {metaConnectModal && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 sm:p-12">
-                <div
-                    onClick={() => setMetaConnectModal(false)}
-                    className="absolute inset-0 bg-graphite-900/40 backdrop-blur-sm transition-opacity"
-                />
-                <div className="relative w-full max-w-md bg-white rounded-[32px] shadow-2xl p-8 space-y-6 animate-in fade-in zoom-in-95 duration-200">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-2xl bg-[#0081FB] flex items-center justify-center shrink-0">
-                                <Facebook className="text-white" fill="white" size={22} />
-                            </div>
-                            <div>
-                                <h3 className="text-base font-black text-graphite-900 tracking-tight">
-                                    {t('metaConnectModal.title')}
-                                </h3>
-                                <p className="text-[10px] font-bold text-graphite-400">{t('metaConnectModal.subtitle')}</p>
-                            </div>
-                        </div>
-                        <button
-                            onClick={() => setMetaConnectModal(false)}
-                            className="p-2 rounded-xl hover:bg-ice-50 border-none cursor-pointer transition-colors"
-                        >
-                            <X size={18} className="text-graphite-400" />
-                        </button>
-                    </div>
-
-                    <div className="space-y-4">
-                        <label className="flex items-start gap-3 p-4 rounded-2xl border-2 border-transparent hover:border-brand-primary/30 shadow-float transition-all cursor-pointer bg-white">
-                            <input
-                                type="checkbox"
-                                checked={metaFeatures.ads}
-                                onChange={(e) => setMetaFeatures(prev => ({ ...prev, ads: e.target.checked }))}
-                                className="mt-1 h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary cursor-pointer"
-                            />
-                            <div>
-                                <p className="font-black text-sm text-graphite-900 leading-none">{t('metaConnectModal.adsLabel')}</p>
-                                <p className="text-[11px] font-bold text-graphite-400 mt-1">
-                                    {t('metaConnectModal.adsHint')}
-                                </p>
-                            </div>
-                        </label>
-
-                        <label className="flex items-start gap-3 p-4 rounded-2xl border-2 border-transparent hover:border-brand-primary/30 shadow-float transition-all cursor-pointer bg-white">
-                            <input
-                                type="checkbox"
-                                checked={metaFeatures.messaging}
-                                onChange={(e) => setMetaFeatures(prev => ({ ...prev, messaging: e.target.checked }))}
-                                className="mt-1 h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary cursor-pointer"
-                            />
-                            <div>
-                                <p className="font-black text-sm text-graphite-900 leading-none">{t('metaConnectModal.messagingLabel')}</p>
-                                <p className="text-[11px] font-bold text-graphite-400 mt-1">
-                                    {t('metaConnectModal.messagingHint')}
-                                </p>
-                            </div>
-                        </label>
-                    </div>
-
-                    <div className="flex gap-3 pt-2">
-                        <button
-                            onClick={() => setMetaConnectModal(false)}
-                            className="flex-1 py-3.5 bg-ice-50 hover:bg-ice-100 text-graphite-600 rounded-2xl font-black text-xs transition-colors border-none cursor-pointer"
-                        >
-                            {t('metaConnectModal.cancel')}
-                        </button>
-                        <button
-                            disabled={!metaFeatures.ads && !metaFeatures.messaging}
-                            onClick={() => {
-                                const featuresStr = [
-                                    metaFeatures.ads ? 'ads' : '',
-                                    metaFeatures.messaging ? 'messaging' : ''
-                                ].filter(Boolean).join(',');
-                                openMetaMessagingOAuth(featuresStr);
-                                setMetaConnectModal(false);
-                            }}
-                            className="flex-1 py-3.5 bg-[#0081FB] hover:bg-blue-600 text-white rounded-2xl font-black text-xs transition-colors border-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                            {t('metaConnectModal.continueToFacebook')}
-                        </button>
-                    </div>
-                </div>
-            </div>
         )}
 
         {/* ── Modal: Recarregar Carteira ───────────────────────────────────── */}

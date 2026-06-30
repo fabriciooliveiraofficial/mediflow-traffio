@@ -195,4 +195,55 @@ export const smartSchedulingService = {
         if (error) throw error;
         return data || [];
     },
+
+    async bookRecurringAppointments(tenantId: string, patientId: string, appointments: any[], bookedBy: string = 'system') {
+        const { data, error } = await supabase.rpc('book_recurring_appointments', {
+            p_tenant_id: tenantId,
+            p_patient_id: patientId,
+            p_appointments: appointments,
+            p_booked_by: bookedBy
+        });
+
+        if (error) throw error;
+
+        if (!data || !data.success) {
+            const reason = data?.reason || data?.error;
+            const bookError: any = new Error(data?.message || reason || 'Failed to book recurring appointments');
+            bookError.reason = reason;
+            bookError.date = data?.date;
+            bookError.start_time = data?.start_time;
+            throw bookError;
+        }
+
+        return data;
+    },
+
+    async getPatientNoShowStats(tenantId: string, patientId: string) {
+        const { data, error } = await supabase
+            .from('appointments')
+            .select('status')
+            .eq('tenant_id', tenantId)
+            .eq('patient_id', patientId);
+
+        if (error) throw error;
+
+        const total = data?.length || 0;
+        const noShows = data?.filter(a => ['noshow', 'no_show'].includes(a.status)).length || 0;
+        const rate = total > 0 ? Math.round((noShows / total) * 100) : 0;
+
+        return { total, noShows, rate };
+    },
+
+    async getDoctorAbsences(tenantId: string, doctorId: string) {
+        const { data, error } = await supabase
+            .from('doctor_absences')
+            .select('*')
+            .eq('tenant_id', tenantId)
+            .eq('doctor_id', doctorId)
+            .order('start_date', { ascending: true });
+
+        if (error) throw error;
+        return data || [];
+    }
 };
+

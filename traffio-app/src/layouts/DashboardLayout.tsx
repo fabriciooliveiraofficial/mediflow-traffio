@@ -30,7 +30,7 @@ import { FloatingCommunicationsButton } from '../components/softphone/FloatingCo
 import { motion, AnimatePresence } from 'framer-motion'
 import { clsx } from 'clsx'
 import { supabase } from '../lib/supabase'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useTenant } from '../contexts/TenantContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -111,6 +111,7 @@ export const DashboardLayout = ({ children, activeScreen, onNavigate }: {
     const [scrolled, setScrolled] = useState(false)
     const [expandedMenus, setExpandedMenus] = useState<string[]>([])
     const [profile, setProfile] = useState<{ full_name: string; role: string } | null>(null)
+    const [, setSearchParams] = useSearchParams()
 
     // ── Human handoff alert system ────────────────
     const [queuedCount, setQueuedCount]     = useState(0)
@@ -629,6 +630,7 @@ export const DashboardLayout = ({ children, activeScreen, onNavigate }: {
                                 <div className="px-4 pb-4 flex gap-2">
                                     <button
                                         onClick={() => {
+                                            setSearchParams({ handoff_session: alert.id })
                                             onNavigate('inbox')
                                             setAlerts(prev => prev.filter(a => a.id !== alert.id))
                                         }}
