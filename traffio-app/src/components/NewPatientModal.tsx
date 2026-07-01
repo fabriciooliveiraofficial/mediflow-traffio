@@ -97,6 +97,11 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
             const formattedCpf = formData.national_id;
             const cleanedCpf = formData.national_id ? formData.national_id.replace(/\D/g, '') : null;
 
+            // Normalized the same way as public-booking (idx_patients_tenant_email
+            // is case-sensitive on the stored value), so case-only differences
+            // don't slip past this check and hit the DB constraint instead.
+            const normalizedEmail = formData.email ? formData.email.trim().toLowerCase() : '';
+
             const orConditions: string[] = [];
             if (cleanedCpf) {
                 orConditions.push(
@@ -106,8 +111,8 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
                     `national_id.eq.${formattedCpf}`
                 );
             }
-            if (formData.email) {
-                orConditions.push(`email.eq.${formData.email}`);
+            if (normalizedEmail) {
+                orConditions.push(`email.eq.${normalizedEmail}`);
             }
 
             if (orConditions.length > 0 && tenant?.id) {
@@ -124,7 +129,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
                 if (checkError) {
                     console.error('Error checking duplicate patients:', checkError);
                 } else if (existingPatients && existingPatients.length > 0) {
-                    const hasEmailDuplicate = existingPatients.some(p => p.email && p.email.toLowerCase() === formData.email.toLowerCase());
+                    const hasEmailDuplicate = existingPatients.some(p => p.email && p.email.toLowerCase() === normalizedEmail);
                     if (hasEmailDuplicate) {
                         throw new Error(t('newPatientModal.errors.duplicateEmail') || 'Já existe um paciente cadastrado com este e-mail.');
                     } else {
@@ -142,7 +147,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
                 country: formData.country,
                 birth_date: toDBDate(formData.birth_date),
                 phone: formData.phone,
-                email: formData.email
+                email: normalizedEmail || null
             };
 
             // Only include type if it's NOT the default 'particular' to avoid schema errors
@@ -180,7 +185,14 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
 
         } catch (error: any) {
             console.error('Error adding patient:', error);
-            showToast('error', t('newPatientModal.errors.createPrefix', { message: error.message }));
+            // Never surface the raw Postgres constraint text to the user; map the
+            // known unique-violation (idx_patients_tenant_email) to the friendly
+            // message, in case a race slipped past the pre-check above.
+            if (error?.code === '23505' && /email/i.test(error?.message || '')) {
+                showToast('error', t('newPatientModal.errors.duplicateEmail') || 'Já existe um paciente cadastrado com este e-mail.');
+            } else {
+                showToast('error', t('newPatientModal.errors.createPrefix', { message: error.message }));
+            }
         } finally {
             setLoading(false);
         }

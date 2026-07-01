@@ -11,6 +11,12 @@ import { ptBR } from 'date-fns/locale';
 import { clsx } from 'clsx';
 import { useLocaleFormat } from '../hooks/useLocaleFormat';
 
+const DEFAULT_BOOKING_CAPTIONS = {
+    pt: 'Olá {{nome_paciente}}! 😊\nSeu agendamento foi realizado com sucesso!\n\n---------------------------------------------------------------------\n📝 Detalhes da Consulta:\n📅 Data: {{data_agendamento}}\n🕒 Horário: {{horario_agendamento}}\n👨‍⚕️ Profissional: {{nome_do_profissional}}\n📍 Local: {{nome_local}}\n🗺️ Como Chegar: {{link_endereco}}\n\n🔗 SALA DE ESPERA VIRTUAL:\nAcesse para fazer seu check-in na hora da consulta:\n{{link_sala_espera}}\n\n💳 PAGAMENTO / CONFIRMAÇÃO:\nPara garantir sua vaga, realize o pagamento no link:\n{{link_pagamento}}\n\nNos vemos em breve! 💙\n---------------------------------------------------------------------',
+    en: 'Hi {{nome_paciente}}! 😊\nYour appointment has been successfully booked!\n\n---------------------------------------------------------------------\n📝 Appointment Details:\n📅 Date: {{data_agendamento}}\n🕒 Time: {{horario_agendamento}}\n👨‍⚕️ Professional: {{nome_do_profissional}}\n📍 Location: {{nome_local}}\n🗺️ How to Get There: {{link_endereco}}\n\n🔗 VIRTUAL WAITING ROOM:\nAccess this link to check-in at the time of your appointment:\n{{link_sala_espera}}\n\n💳 PAYMENT / CONFIRMATION:\nTo secure your spot, please complete the payment here:\n{{link_pagamento}}\n\nSee you soon! 💙\n---------------------------------------------------------------------',
+    es: '¡Hola {{nome_paciente}}! 😊\n¡Tu cita ha sido reservada con éxito!\n\n---------------------------------------------------------------------\n📝 Detalles de la Cita:\n📅 Fecha: {{data_agendamento}}\n🕒 Hora: {{horario_agendamento}}\n👨‍⚕️ Profesional: {{nome_do_profissional}}\n📍 Lugar: {{nome_local}}\n🗺️ Cómo llegar: {{link_endereco}}\n\n🔗 SALA DE ESPERA VIRTUAL:\nAccede para hacer tu check-in a la hora de tu cita:\n{{link_sala_espera}}\n\n💳 PAGO / CONFIRMACIÓN:\nPara asegurar tu turno, realiza el pago en el siguiente enlace:\n{{link_pagamento}}\n\n¡Nos vemos pronto! 💙\n---------------------------------------------------------------------',
+};
+
 interface SidebarBookingViewProps {
   onBack: () => void;
   patientId: string;
@@ -650,39 +656,56 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
             const locationName = location?.name || '';
             const mapsUrl = location?.google_maps_url;
 
-            const messageParts = [
-                t('sidebarBookingView.message.greeting', { name: firstName }),
-                rescheduleFrom ? t('sidebarBookingView.message.rescheduled') : t('sidebarBookingView.message.booked'),
-                ``,
-                t('sidebarBookingView.message.detailsTitle'),
-                t('sidebarBookingView.message.dateLine', { date: dateStr }),
-                t('sidebarBookingView.message.timeLine', { time: selectedSlot.time }),
-                t('sidebarBookingView.message.doctorLine', { doctor: doctorName }),
-                locationName ? t('sidebarBookingView.message.locationLine', { location: locationName }) : ``
-            ];
+            const botConfig = tenant?.bot_config;
+            const outboundLocale = botConfig?.notification_locale || 'pt';
+            const templates = botConfig?.booking_confirmation_captions || DEFAULT_BOOKING_CAPTIONS;
+            let template = templates[outboundLocale] || templates['pt'];
 
-            if (includeMaps && mapsUrl) {
-                messageParts.push(t('sidebarBookingView.message.mapsLine', { url: mapsUrl }));
+            // Adjust template if rescheduling
+            if (rescheduleFrom) {
+                template = template
+                    .replace(/agendamento foi realizado com sucesso/gi, 'reagendamento foi realizado com sucesso')
+                    .replace(/appointment has been successfully booked/gi, 'appointment has been successfully rescheduled')
+                    .replace(/cita ha sido reservada con éxito/gi, 'cita ha sido reprogramada con éxito');
             }
 
-            if (includeCheckin) {
-                messageParts.push(``);
-                messageParts.push(t('sidebarBookingView.message.checkinTitle'));
-                messageParts.push(t('sidebarBookingView.message.checkinInstructions'));
-                messageParts.push(checkinLink);
-            }
+            // Split template into blocks by double newlines to filter checkin/payment/maps sections
+            const blocks = template.split('\n\n');
+            const filteredBlocks = blocks.map(block => {
+                if (block.includes('{{link_sala_espera}}') && !includeCheckin) {
+                    return null;
+                }
+                if (block.includes('{{link_pagamento}}') && !includePayment) {
+                    return null;
+                }
+                
+                let lines = block.split('\n');
+                if (!includeMaps || !mapsUrl) {
+                    lines = lines.filter(line => !line.includes('{{link_endereco}}'));
+                }
+                return lines.join('\n');
+            }).filter(b => b !== null);
 
-            if (includePayment) {
-                messageParts.push(``);
-                messageParts.push(t('sidebarBookingView.message.paymentTitle'));
-                messageParts.push(t('sidebarBookingView.message.paymentInstructions'));
-                messageParts.push(payLink);
-            }
+            let message = filteredBlocks.join('\n\n');
 
-            messageParts.push(``);
-            messageParts.push(t('sidebarBookingView.message.closing'));
+            // Replace variables
+            const replacements: Record<string, string> = {
+                '{{nome_paciente}}': firstName,
+                '{{data_agendamento}}': dateStr,
+                '{{horario_agendamento}}': selectedSlot.time,
+                '{{nome_do_profissional}}': doctorName,
+                '{{nome_local}}': locationName,
+                '{{nome_clinica}}': tenant?.name || '',
+                '{{link_endereco}}': mapsUrl || '',
+                '{{link_sala_espera}}': checkinLink || '',
+                '{{link_pagamento}}': payLink || '',
+            };
 
-            const message = messageParts.filter(p => p !== undefined).join('\n');
+            Object.entries(replacements).forEach(([key, val]) => {
+                message = message.replace(new RegExp(key, 'g'), val);
+            });
+
+            message = message.trim();
 
             await onSendMessage(message);
             onSuccess?.();

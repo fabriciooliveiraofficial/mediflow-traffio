@@ -76,6 +76,11 @@ export function SidebarPatientEditView({ onBack, onSuccess, patient, session, on
       const formattedCpf = formData.national_id;
       const cleanedCpf = formData.national_id ? formData.national_id.replace(/\D/g, '') : null;
 
+      // Normalized the same way as public-booking (idx_patients_tenant_email
+      // is case-sensitive on the stored value), so case-only differences
+      // don't slip past this check and hit the DB constraint instead.
+      const normalizedEmail = formData.email ? formData.email.trim().toLowerCase() : '';
+
       const orConditions: string[] = [];
       if (cleanedCpf) {
         orConditions.push(
@@ -85,8 +90,8 @@ export function SidebarPatientEditView({ onBack, onSuccess, patient, session, on
           `national_id.eq.${formattedCpf}`
         );
       }
-      if (formData.email) {
-        orConditions.push(`email.eq.${formData.email}`);
+      if (normalizedEmail) {
+        orConditions.push(`email.eq.${normalizedEmail}`);
       }
 
       if (orConditions.length > 0 && tenant?.id && patient?.id) {
@@ -100,7 +105,7 @@ export function SidebarPatientEditView({ onBack, onSuccess, patient, session, on
         if (checkError) {
           console.error('Error checking duplicate patients:', checkError);
         } else if (existingPatients && existingPatients.length > 0) {
-          const hasEmailDuplicate = existingPatients.some(p => p.email && p.email.toLowerCase() === formData.email.toLowerCase());
+          const hasEmailDuplicate = existingPatients.some(p => p.email && p.email.toLowerCase() === normalizedEmail);
           if (hasEmailDuplicate) {
             throw new Error(t('sidebarPatientEditView.errors.duplicateEmail') || 'Já existe um paciente cadastrado com este e-mail.');
           } else {
@@ -120,7 +125,7 @@ export function SidebarPatientEditView({ onBack, onSuccess, patient, session, on
           country: formData.country,
           birth_date: toDBDate(formData.birth_date),
           phone: formData.phone,
-          email: formData.email,
+          email: normalizedEmail || null,
           type: formData.type,
           notes: formData.notes,
           updated_at: new Date().toISOString()
@@ -157,7 +162,14 @@ export function SidebarPatientEditView({ onBack, onSuccess, patient, session, on
       onSuccess(updatedPatient);
       onSessionUpdate(updatedSession);
     } catch (err: any) {
-      showToast('error', err.message || t('sidebarPatientEditView.errors.updateFailed'));
+      // Never surface the raw Postgres constraint text to the user; map the
+      // known unique-violation (idx_patients_tenant_email) to the friendly
+      // message, in case a race slipped past the pre-check above.
+      if (err?.code === '23505' && /email/i.test(err?.message || '')) {
+        showToast('error', t('sidebarPatientEditView.errors.duplicateEmail') || 'Já existe um paciente cadastrado com este e-mail.');
+      } else {
+        showToast('error', err.message || t('sidebarPatientEditView.errors.updateFailed'));
+      }
     } finally {
       setLoading(false);
     }

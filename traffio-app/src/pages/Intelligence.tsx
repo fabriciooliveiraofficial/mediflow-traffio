@@ -103,6 +103,11 @@ export interface BotConfig {
         mms?: ChannelAutomation;
         email?: ChannelAutomation;
     };
+    booking_confirmation_captions?: {
+        pt: string;
+        en: string;
+        es: string;
+    };
 
     // Mantendo estes campos para compatibilidade de schema, mas não serão editáveis
     personality?: string;
@@ -128,6 +133,7 @@ export const Intelligence = () => {
         no_show_prevention: true,
         nps_enabled: true,
         nps_delay_minutes: 180,
+        booking_confirmation_captions: DEFAULT_BOOKING_CAPTIONS,
         recall_enabled: false,
         recall_days: 180,
         test_mode_15m: false,
@@ -315,6 +321,7 @@ export const Intelligence = () => {
                     active_agent: 'human',
                     enabled: true,
                     nps_delay_minutes: savedConfig.nps_delay_minutes ?? 180,
+                    booking_confirmation_captions: savedConfig.booking_confirmation_captions || DEFAULT_BOOKING_CAPTIONS,
                     recall_enabled: savedConfig.recall_enabled ?? false,
                     recall_days: savedConfig.recall_days ?? 180,
                     custom_reminders: customReminders,
@@ -595,6 +602,12 @@ const DEFAULT_NPS_CAPTIONS = {
     pt: 'Olá {nome}! 😊 Como foi sua experiência na {clínica} hoje?\n\nDe *0 a 10*, o quanto você nos recomendaria? ⭐\n\nSó responda com um número — leva 5 segundos!',
     en: 'Hi {nome}! 😊 How was your experience at {clínica} today?\n\nOn a scale of *0 to 10*, how likely are you to recommend us? ⭐\n\nJust reply with a number — it only takes 5 seconds!',
     es: '¡Hola {nome}! 😊 ¿Cómo fue tu experiencia en {clínica} hoy?\n\nDel *0 al 10*, ¿qué tan probable es que nos recomiendes? ⭐\n\n¡Solo responde con un número — toma 5 segundos!',
+};
+
+const DEFAULT_BOOKING_CAPTIONS = {
+    pt: 'Olá {{nome_paciente}}! 😊\nSeu agendamento foi realizado com sucesso!\n\n---------------------------------------------------------------------\n📝 Detalhes da Consulta:\n📅 Data: {{data_agendamento}}\n🕒 Horário: {{horario_agendamento}}\n👨‍⚕️ Profissional: {{nome_do_profissional}}\n📍 Local: {{nome_local}}\n🗺️ Como Chegar: {{link_endereco}}\n\n🔗 SALA DE ESPERA VIRTUAL:\nAcesse para fazer seu check-in na hora da consulta:\n{{link_sala_espera}}\n\n💳 PAGAMENTO / CONFIRMAÇÃO:\nPara garantir sua vaga, realize o pagamento no link:\n{{link_pagamento}}\n\nNos vemos em breve! 💙\n---------------------------------------------------------------------',
+    en: 'Hi {{nome_paciente}}! 😊\nYour appointment has been successfully booked!\n\n---------------------------------------------------------------------\n📝 Appointment Details:\n📅 Date: {{data_agendamento}}\n🕒 Time: {{horario_agendamento}}\n👨‍⚕️ Professional: {{nome_do_profissional}}\n📍 Location: {{nome_local}}\n🗺️ How to Get There: {{link_endereco}}\n\n🔗 VIRTUAL WAITING ROOM:\nAccess this link to check-in at the time of your appointment:\n{{link_sala_espera}}\n\n💳 PAYMENT / CONFIRMATION:\nTo secure your spot, please complete the payment here:\n{{link_pagamento}}\n\nSee you soon! 💙\n---------------------------------------------------------------------',
+    es: '¡Hola {{nome_paciente}}! 😊\n¡Tu cita ha sido reservada con éxito!\n\n---------------------------------------------------------------------\n📝 Detalles de la Cita:\n📅 Fecha: {{data_agendamento}}\n🕒 Hora: {{horario_agendamento}}\n👨‍⚕️ Profesional: {{nome_do_profissional}}\n📍 Lugar: {{nome_local}}\n🗺️ Cómo llegar: {{link_endereco}}\n\n🔗 SALA DE ESPERA VIRTUAL:\nAccede para hacer tu check-in a la hora de tu cita:\n{{link_sala_espera}}\n\n💳 PAGO / CONFIRMACIÓN:\nPara asegurar tu turno, realiza el pago en el siguiente enlace:\n{{link_pagamento}}\n\n¡Nos vemos pronto! 💙\n---------------------------------------------------------------------',
 };
 
 const AutomationSettings = ({ config, setConfig, onSave, saving }: {
@@ -956,6 +969,87 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
                     </div>
                 )}
 
+                <div className="space-y-5 bg-blue-50/30 p-8 rounded-3xl shadow-float animate-in fade-in duration-500">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-600 text-white rounded-xl shadow-lg shadow-blue-200">
+                            <MessageSquare size={20} />
+                        </div>
+                        <div>
+                            <h4 className="text-lg font-black text-graphite-900 tracking-tight">{t('intelligence.bookingSection.title', { defaultValue: 'Confirmação de Agendamento' })}</h4>
+                            <p className="text-[10px] font-bold text-blue-600 uppercase">{t('intelligence.bookingSection.subtitle', { defaultValue: 'Enviada no momento em que o agendamento é realizado no atendimento' })}</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                            <p className="text-xs font-bold text-graphite-600 leading-relaxed">
+                                {t('intelligence.bookingSection.description', { defaultValue: 'Personalize a mensagem automática que o paciente receberá ao ser agendado. Você pode traduzir e ajustar a mensagem para cada idioma que sua clínica atende.' })}
+                            </p>
+                            <div className="p-4 bg-blue-55 rounded-2xl flex items-start gap-2 border border-blue-100/50 bg-blue-50/50">
+                                <AlertTriangle size={13} className="text-blue-500 flex-shrink-0 mt-0.5" />
+                                <p className="text-[10px] font-bold text-blue-800 leading-relaxed">
+                                    {t('intelligence.bookingSection.varsHintText', { defaultValue: 'Use as variáveis ao lado para preencher dados como nome do paciente, data, local e links automaticamente. Clique para inserir no final da mensagem.' })}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="bg-white/80 rounded-2xl p-4 shadow-float space-y-3">
+                            <div className="flex items-center justify-between">
+                                <p className="text-[9px] font-black text-graphite-400 uppercase">
+                                    {t('intelligence.bookingSection.messageLabel', { defaultValue: 'Mensagem Personalizada' })}
+                                </p>
+                                <div className="flex bg-ice-100 p-0.5 rounded-lg gap-0.5">
+                                    {(['pt', 'en', 'es'] as const).map(lang => (
+                                        <button
+                                            key={lang}
+                                            type="button"
+                                            onClick={() => handleLangChange(lang)}
+                                            className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase transition-all ${activeLang === lang ? 'bg-white shadow-sm text-graphite-900' : 'text-graphite-400 hover:text-graphite-700'}`}
+                                        >
+                                            {lang}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            <textarea
+                                value={config.booking_confirmation_captions?.[activeLang] ?? DEFAULT_BOOKING_CAPTIONS[activeLang]}
+                                onChange={(e) => setConfig(prev => ({
+                                    ...prev,
+                                    booking_confirmation_captions: {
+                                        ...(prev.booking_confirmation_captions ?? DEFAULT_BOOKING_CAPTIONS),
+                                        [activeLang]: e.target.value
+                                    }
+                                }))}
+                                rows={8}
+                                className="w-full bg-blue-50/50 rounded-xl p-3 text-xs font-medium text-graphite-700 leading-relaxed border border-blue-100/50 outline-none focus:border-blue-300 resize-none transition-colors"
+                            />
+                            <div className="flex flex-wrap gap-1.5 pt-1">
+                                {TEMPLATE_VARIABLES.map((v) => (
+                                    <button
+                                        key={v.placeholder}
+                                        type="button"
+                                        onClick={() => {
+                                            const currentText = config.booking_confirmation_captions?.[activeLang] ?? DEFAULT_BOOKING_CAPTIONS[activeLang];
+                                            const updatedText = currentText + v.placeholder;
+                                            setConfig(prev => ({
+                                                ...prev,
+                                                booking_confirmation_captions: {
+                                                    ...(prev.booking_confirmation_captions ?? DEFAULT_BOOKING_CAPTIONS),
+                                                    [activeLang]: updatedText
+                                                }
+                                            }));
+                                        }}
+                                        className="px-1.5 py-0.5 text-[8px] font-mono font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded border-none cursor-pointer transition-colors"
+                                        title={v.label}
+                                    >
+                                        {v.placeholder}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div className="p-4 bg-white/50 rounded-2xl shadow-float flex items-center gap-3">
                     <AlertTriangle size={16} className="text-indigo-500 flex-shrink-0" />
                     <p className="text-xs font-bold text-indigo-800 leading-relaxed">
@@ -1225,6 +1319,7 @@ const TEMPLATE_VARIABLES = [
     { placeholder: '{{link_sala_espera}}',     label: 'Sala de Espera Virtual',     example: 'traffio.app/checkin?apt=...&loc=...' },
     { placeholder: '{{link_checkin}}',         label: 'Link Check-in Express',      example: 'traffio.app/checkin' },
     { placeholder: '{{nome_clinica}}',         label: 'Nome da Clínica',            example: 'Clínica Exemplo' },
+    { placeholder: '{{link_pagamento}}',       label: 'Link de Pagamento',          example: 'checkout.traffio.com/pay/...' },
 ] as const;
 
 const UniversalReminderCard = ({ offsetMinutes, onOffsetChange, enabled, onToggle, videoUrl, caption, onVideoChange, onCaptionChange, onDelete, activeLang, onLangChange }: {
