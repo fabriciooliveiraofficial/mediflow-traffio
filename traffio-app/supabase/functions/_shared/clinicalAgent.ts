@@ -148,20 +148,6 @@ ${recentAppointment ? JSON.stringify(recentAppointment) : "Nenhum agendamento id
     const args = JSON.parse(toolCall.function.arguments);
     const name = toolCall.function.name;
 
-    if (name === 'qualify_lead') {
-      this.sessionContext = { ...this.sessionContext, ...args, qualified: true };
-      // Also update funnel
-      await this.supabase
-        .from('patient_funnel_stage')
-        .update({ 
-          patient_name: args.name,
-          current_stage: 'qualificado'
-        })
-        .eq('tenant_id', this.config.tenantId)
-        .eq('patient_phone', this.config.patientPhone);
-      return { status: "success" };
-    }
-
     if (name === 'transfer_to_human') {
       this.humanHandoffRequested = true;
       return { status: "success", target: "commercial_queue" };

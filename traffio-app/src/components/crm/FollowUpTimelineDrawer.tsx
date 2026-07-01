@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
     X, Calendar, MessageSquare, Play, User, Activity, Clock,
-    CheckCircle2, XCircle, AlertCircle, Save, Loader2, DollarSign,
+    CheckCircle2, XCircle, AlertCircle, Save, Loader2, DollarSign, Zap, StickyNote,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
@@ -14,9 +14,10 @@ import { Button } from '../ui/Button';
 import { formatPhone, phoneFlag } from '../../lib/formatPhone';
 import { useTenant } from '../../contexts/TenantContext';
 import { useToast } from '../../contexts/ToastContext';
+import { CRM_STAGE_LABEL_KEYS, type CrmStageId } from '../../lib/crmStages';
 
 interface FollowUpTimelineDrawerProps {
-    session: any;
+    journey: any;
     onClose: () => void;
 }
 
@@ -25,12 +26,12 @@ interface OutcomeModal {
     dateLabel: string;
 }
 
-export function FollowUpTimelineDrawer({ session, onClose }: FollowUpTimelineDrawerProps) {
+export function FollowUpTimelineDrawer({ journey, onClose }: FollowUpTimelineDrawerProps) {
     const { t } = useTranslation('crm');
     const { tenant } = useTenant();
     const { formatDate } = useLocaleFormat();
     const { showToast } = useToast();
-    const { events, loading, refresh } = useLeadTimeline(session.id, tenant?.id);
+    const { events, pendingAppointments, loading, refresh } = useLeadTimeline(journey.id, tenant?.id);
 
     const [outcomeModal, setOutcomeModal] = useState<OutcomeModal | null>(null);
     const [procedure, setProcedure] = useState('');
@@ -38,47 +39,41 @@ export function FollowUpTimelineDrawer({ session, onClose }: FollowUpTimelineDra
     const [saving, setSaving] = useState(false);
     const [savingNoShow, setSavingNoShow] = useState<string | null>(null);
 
-    // Agendamento passado ou hoje, ainda não concluído
-    const isPendingPastAppointment = (event: CrmTimelineEvent) => {
-        if (event.type !== 'appointment' || event.status !== 'created') return false;
-        const apt = event.data;
-        if (!apt || !['scheduled', 'confirmed'].includes(apt.status ?? '')) return false;
-        const today = new Date().toISOString().split('T')[0];
-        return apt.date <= today;
-    };
+    const phone = journey.lead_phone || journey.patients?.phone || journey.conversation_sessions?.patient_phone || '';
+    const displayName = journey.patients?.full_name || journey.conversation_sessions?.context?.visitor_name || phone;
 
-    const handleClickCompleted = (event: CrmTimelineEvent) => {
-        const apt = event.data;
-        setProcedure(apt?.appointment_types?.name || apt?.type_id || '');
+    const handleClickCompleted = (apt: any) => {
+        setProcedure(apt?.type?.name || '');
         setValue('');
-        setOutcomeModal({
-            appointmentId: apt.id,
-            dateLabel: `${apt.date} ${(apt.start_time || '').slice(0, 5)}`,
-        });
+        setOutcomeModal({ appointmentId: apt.id, dateLabel: `${apt.date} ${(apt.start_time || '').slice(0, 5)}` });
     };
 
     const handleSaveOutcome = async () => {
-        if (!outcomeModal || !tenant?.id) return;
+        if (!outcomeModal) return;
         setSaving(true);
         try {
-            // 1. Marcar consulta como realizada → dispara trigger NPS + trigger Kanban
+            // Marca como concluída → trigger do CRM Journey Engine avança o card
+            // automaticamente para "Compareceu" e mantém o kanban sincronizado.
             const { error: aptErr } = await supabase
                 .from('appointments')
                 .update({ status: 'completed' })
                 .eq('id', outcomeModal.appointmentId);
             if (aptErr) throw aptErr;
 
-            // 2. Registrar receita e procedimento na sessão (Kanban trigger já avançou o estágio)
             const revenueNum = parseFloat(value.replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
-            const sessionUpdate: Record<string, any> = {};
-            if (revenueNum > 0) sessionUpdate.revenue_estimated = revenueNum;
-            if (procedure.trim()) sessionUpdate.variables = { ...(session.variables || {}), procedure_name: procedure.trim() };
-
-            if (Object.keys(sessionUpdate).length > 0) {
-                await supabase
-                    .from('conversation_sessions')
-                    .update(sessionUpdate)
-                    .eq('id', session.id);
+            if (revenueNum > 0 || procedure.trim()) {
+                await supabase.rpc('crm_move_stage', {
+                    p_journey_id: journey.id,
+                    p_to_stage: journey.stage_id === 'showed_up' ? 'proposal' : journey.stage_id,
+                    p_actor: 'user',
+                    p_extra: {
+                        ...(revenueNum > 0 ? { revenue_estimated: revenueNum } : {}),
+                        ...(procedure.trim() ? { procedure_name: procedure.trim() } : {}),
+                    },
+                }).then(({ error }) => {
+                    // Transição pode ser no-op (mesmo estágio) — apenas os dados extras importam aqui.
+                    if (error && error.code !== '22023') throw error;
+                });
             }
 
             showToast('success', t('timeline.toasts.completedSuccess', { defaultValue: 'Consulta registrada como realizada! NPS será enviado automaticamente.' }));
@@ -91,19 +86,18 @@ export function FollowUpTimelineDrawer({ session, onClose }: FollowUpTimelineDra
         }
     };
 
-    const handleMarkNoShow = async (event: CrmTimelineEvent) => {
-        const apt = event.data;
-        if (!apt?.id || !tenant?.id) return;
+    const handleMarkNoShow = async (apt: any) => {
         setSavingNoShow(apt.id);
         try {
-            // Marcar como no_show → dispara trigger Kanban automaticamente
+            // Marca como falta → trigger do CRM Journey Engine move o card para
+            // "Recuperação" e a cadência automática de recuperação já é enfileirada.
             const { error: aptErr } = await supabase
                 .from('appointments')
-                .update({ status: 'no_show' })
+                .update({ status: 'noshow' })
                 .eq('id', apt.id);
             if (aptErr) throw aptErr;
 
-            showToast('success', t('timeline.toasts.noShowSuccess', { defaultValue: 'Falta registrada. Kanban atualizado.' }));
+            showToast('success', t('timeline.toasts.noShowSuccess', { defaultValue: 'Falta registrada. Cadência de recuperação iniciada automaticamente.' }));
             refresh();
         } catch (e: any) {
             showToast('error', t('timeline.toasts.noShowError', { defaultValue: 'Erro ao registrar falta.' }));
@@ -112,45 +106,47 @@ export function FollowUpTimelineDrawer({ session, onClose }: FollowUpTimelineDra
         }
     };
 
-    const getEventIcon = (type: CrmTimelineEventType, status?: string | null) => {
+    const getEventIcon = (type: CrmTimelineEventType) => {
         switch (type) {
-            case 'session_created':   return <Play className="w-4 h-4 text-brand-primary" />;
-            case 'appointment':
-                if (status === 'completed') return <CheckCircle2 className="w-4 h-4 text-emerald-500" />;
-                if (status === 'canceled')  return <XCircle className="w-4 h-4 text-red-500" />;
-                if (status === 'no_show')   return <AlertCircle className="w-4 h-4 text-orange-500" />;
-                return <Calendar className="w-4 h-4 text-blue-500" />;
-            case 'message_outbound':  return <MessageSquare className="w-4 h-4 text-indigo-500" />;
-            case 'message_inbound':   return <User className="w-4 h-4 text-graphite-500" />;
-            case 'stage_change':      return <Activity className="w-4 h-4 text-purple-500" />;
-            default:                  return <Activity className="w-4 h-4 text-gray-500" />;
+            case 'journey_created':        return <Play className="w-4 h-4 text-brand-primary" />;
+            case 'appointment_created':
+            case 'appointment_confirmed':   return <Calendar className="w-4 h-4 text-blue-500" />;
+            case 'checked_in':               return <CheckCircle2 className="w-4 h-4 text-emerald-500" />;
+            case 'appointment_completed':    return <CheckCircle2 className="w-4 h-4 text-emerald-500" />;
+            case 'appointment_cancelled':    return <XCircle className="w-4 h-4 text-red-500" />;
+            case 'no_show':                   return <AlertCircle className="w-4 h-4 text-orange-500" />;
+            case 'message_sent':              return <MessageSquare className="w-4 h-4 text-indigo-500" />;
+            case 'message_received':          return <User className="w-4 h-4 text-graphite-500" />;
+            case 'stage_changed':             return <Activity className="w-4 h-4 text-purple-500" />;
+            case 'automation_fired':          return <Zap className="w-4 h-4 text-amber-500" />;
+            case 'note_added':                return <StickyNote className="w-4 h-4 text-graphite-500" />;
+            default:                          return <Activity className="w-4 h-4 text-gray-500" />;
         }
     };
 
-    const getEventColor = (type: CrmTimelineEventType, status?: string | null) => {
+    const getEventColor = (type: CrmTimelineEventType) => {
         switch (type) {
-            case 'session_created':  return 'bg-brand-primary/10 border-brand-primary/20';
-            case 'appointment':
-                if (status === 'completed') return 'bg-emerald-50 border-emerald-100';
-                if (status === 'canceled')  return 'bg-red-50 border-red-100';
-                if (status === 'no_show')   return 'bg-orange-50 border-orange-100';
-                return 'bg-blue-50 border-blue-100';
-            case 'message_outbound': return 'bg-indigo-50 border-indigo-100';
-            case 'message_inbound':  return 'bg-gray-50 border-gray-100';
-            case 'stage_change':     return 'bg-purple-50 border-purple-100';
-            default:                 return 'bg-ice-50 border-ice-100';
+            case 'journey_created':      return 'bg-brand-primary/10 border-brand-primary/20';
+            case 'checked_in':
+            case 'appointment_completed': return 'bg-emerald-50 border-emerald-100';
+            case 'appointment_cancelled': return 'bg-red-50 border-red-100';
+            case 'no_show':               return 'bg-orange-50 border-orange-100';
+            case 'appointment_created':
+            case 'appointment_confirmed': return 'bg-blue-50 border-blue-100';
+            case 'message_sent':          return 'bg-indigo-50 border-indigo-100';
+            case 'message_received':      return 'bg-gray-50 border-gray-100';
+            case 'stage_changed':         return 'bg-purple-50 border-purple-100';
+            case 'automation_fired':      return 'bg-amber-50 border-amber-100';
+            default:                      return 'bg-ice-50 border-ice-100';
         }
     };
 
     return (
         <>
             <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-end z-[60] overflow-hidden">
-                {/* Overlay */}
                 <div className="absolute inset-0 cursor-pointer" onClick={onClose} />
 
-                {/* Drawer */}
                 <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
-                    {/* Header */}
                     <div className="p-6 border-b border-ice-100 flex items-center justify-between bg-ice-50/50 shrink-0">
                         <div className="flex items-center gap-4">
                             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-primary to-indigo-600 flex items-center justify-center shadow-inner">
@@ -158,10 +154,10 @@ export function FollowUpTimelineDrawer({ session, onClose }: FollowUpTimelineDra
                             </div>
                             <div>
                                 <h2 className="text-lg font-black text-graphite-900 leading-tight">
-                                    {session.variables?.patient_name || session.patient_phone || t('timeline.unknownLead', { defaultValue: 'Lead Desconhecido' })}
+                                    {displayName || t('timeline.unknownLead', { defaultValue: 'Lead Desconhecido' })}
                                 </h2>
                                 <p className="text-xs font-bold text-graphite-500 flex items-center gap-1 mt-0.5">
-                                    {phoneFlag(session.patient_phone)} {formatPhone(session.patient_phone)}
+                                    {phoneFlag(phone)} {formatPhone(phone)}
                                 </p>
                             </div>
                         </div>
@@ -170,22 +166,58 @@ export function FollowUpTimelineDrawer({ session, onClose }: FollowUpTimelineDra
                         </IconButton>
                     </div>
 
-                    {/* Sub-header */}
                     <div className="px-6 py-3 border-b border-ice-100 bg-white flex items-center justify-between shrink-0">
                         <div className="flex flex-col">
                             <span className="text-[10px] font-bold text-graphite-400 uppercase tracking-widest">{t('timeline.currentStage', { defaultValue: 'Fase Atual' })}</span>
-                            <Badge accent="brand" size="sm" className="mt-0.5 w-fit">{session.kanban_stage || 'Novos Leads'}</Badge>
+                            <Badge accent="brand" size="sm" className="mt-0.5 w-fit">
+                                {t(`stages.${CRM_STAGE_LABEL_KEYS[journey.stage_id as CrmStageId]}`)}
+                            </Badge>
                         </div>
-                        {session.revenue_estimated > 0 && (
+                        {journey.revenue_estimated > 0 && (
                             <div className="flex flex-col items-end">
                                 <span className="text-[10px] font-bold text-graphite-400 uppercase tracking-widest">{t('timeline.estimatedValue', { defaultValue: 'Valor Estimado' })}</span>
-                                <span className="text-sm font-black text-emerald-600">R$ {session.revenue_estimated.toLocaleString('pt-BR')}</span>
+                                <span className="text-sm font-black text-emerald-600">R$ {journey.revenue_estimated.toLocaleString('pt-BR')}</span>
                             </div>
                         )}
                     </div>
 
-                    {/* Timeline */}
                     <div className="flex-1 overflow-y-auto p-6 bg-white custom-scrollbar relative">
+                        {/* Ação rápida: agendamentos passados sem resultado registrado */}
+                        {pendingAppointments.length > 0 && (
+                            <div className="mb-6 space-y-3">
+                                {pendingAppointments.map(apt => {
+                                    const isLoadingNoShow = savingNoShow === apt.id;
+                                    return (
+                                        <div key={apt.id} className="p-4 rounded-2xl border border-amber-200 bg-amber-50/60">
+                                            <p className="text-[10px] font-black text-amber-700 uppercase tracking-wider mb-1">
+                                                {apt.date} {(apt.start_time || '').slice(0, 5)}
+                                            </p>
+                                            <p className="text-xs font-bold text-graphite-700 mb-3">
+                                                {t('timeline.outcome.label', { defaultValue: 'Registrar resultado desta consulta' })}
+                                            </p>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => handleClickCompleted(apt)}
+                                                    className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black py-2 px-3 rounded-xl transition-colors border-none cursor-pointer"
+                                                >
+                                                    <CheckCircle2 size={14} />
+                                                    {t('timeline.outcome.attended', { defaultValue: 'Compareceu' })}
+                                                </button>
+                                                <button
+                                                    onClick={() => handleMarkNoShow(apt)}
+                                                    disabled={isLoadingNoShow}
+                                                    className="flex-1 flex items-center justify-center gap-1.5 bg-orange-100 hover:bg-orange-200 text-orange-700 text-xs font-black py-2 px-3 rounded-xl transition-colors border-none cursor-pointer disabled:opacity-60"
+                                                >
+                                                    {isLoadingNoShow ? <Loader2 size={14} className="animate-spin" /> : <AlertCircle size={14} />}
+                                                    {t('timeline.outcome.noShow', { defaultValue: 'Não compareceu' })}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+
                         {loading ? (
                             <div className="flex flex-col items-center justify-center h-full gap-3 opacity-60">
                                 <Activity className="w-8 h-8 text-brand-primary animate-spin" />
@@ -198,81 +230,30 @@ export function FollowUpTimelineDrawer({ session, onClose }: FollowUpTimelineDra
                             </div>
                         ) : (
                             <div className="relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-ice-200 before:to-transparent">
-                                {events.map((event) => {
-                                    const isPending = isPendingPastAppointment(event);
-                                    const isLoadingNoShow = savingNoShow === event.data?.id;
-
-                                    return (
-                                        <div key={event.id} className="relative flex items-start justify-normal group mb-8 last:mb-0">
-                                            {/* Icon Marker */}
-                                            <div className="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-ice-50 shadow-sm shrink-0 z-10 mt-1 transition-transform group-hover:scale-110">
-                                                {getEventIcon(event.type, event.status)}
-                                            </div>
-
-                                            {/* Content Card */}
-                                            <div className={`w-[calc(100%-3rem)] ml-4 p-4 rounded-2xl border shadow-sm transition-all duration-300 hover:shadow-md ${isPending ? 'border-amber-200 bg-amber-50/60' : getEventColor(event.type, event.status)}`}>
-                                                <div className="flex items-center justify-between mb-2">
-                                                    <h3 className="text-sm font-black text-graphite-900">{event.title}</h3>
-                                                    <span className="text-[10px] font-bold text-graphite-500 uppercase tracking-wider bg-white/60 px-2 py-0.5 rounded-md backdrop-blur-sm shrink-0">
-                                                        {formatDate(event.date, { hour: '2-digit', minute: '2-digit', month: 'short', day: '2-digit' })}
-                                                    </span>
-                                                </div>
-
-                                                {event.subtitle && (
-                                                    <p className="text-xs text-graphite-600 font-medium leading-relaxed">
-                                                        {event.subtitle}
-                                                    </p>
-                                                )}
-
-                                                {/* Badge de status para eventos não-pendentes */}
-                                                {event.type === 'appointment' && event.status && event.status !== 'created' && !isPending && (
-                                                    <div className="mt-3">
-                                                        <Badge accent={event.status === 'completed' ? 'success' : event.status === 'canceled' ? 'error' : 'warning'} size="sm">
-                                                            {event.status === 'completed' ? t('timeline.status.completed', { defaultValue: 'Realizada' })
-                                                                : event.status === 'canceled' ? t('timeline.status.canceled', { defaultValue: 'Cancelada' })
-                                                                : t('timeline.status.noShow', { defaultValue: 'Não compareceu' })}
-                                                        </Badge>
-                                                    </div>
-                                                )}
-
-                                                {/* ── Botões de Resultado (agendamentos passados pendentes) ── */}
-                                                {isPending && (
-                                                    <div className="mt-4 pt-3 border-t border-amber-200">
-                                                        <p className="text-[10px] font-black text-amber-700 uppercase tracking-wider mb-2">
-                                                            {t('timeline.outcome.label', { defaultValue: 'Registrar resultado desta consulta' })}
-                                                        </p>
-                                                        <div className="flex gap-2">
-                                                            <button
-                                                                onClick={() => handleClickCompleted(event)}
-                                                                className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black py-2 px-3 rounded-xl transition-colors border-none cursor-pointer"
-                                                            >
-                                                                <CheckCircle2 size={14} />
-                                                                {t('timeline.outcome.attended', { defaultValue: 'Compareceu' })}
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleMarkNoShow(event)}
-                                                                disabled={isLoadingNoShow}
-                                                                className="flex-1 flex items-center justify-center gap-1.5 bg-orange-100 hover:bg-orange-200 text-orange-700 text-xs font-black py-2 px-3 rounded-xl transition-colors border-none cursor-pointer disabled:opacity-60"
-                                                            >
-                                                                {isLoadingNoShow
-                                                                    ? <Loader2 size={14} className="animate-spin" />
-                                                                    : <AlertCircle size={14} />}
-                                                                {t('timeline.outcome.noShow', { defaultValue: 'Não compareceu' })}
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
+                                {events.map((event: CrmTimelineEvent) => (
+                                    <div key={event.id} className="relative flex items-start justify-normal group mb-8 last:mb-0">
+                                        <div className="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-ice-50 shadow-sm shrink-0 z-10 mt-1 transition-transform group-hover:scale-110">
+                                            {getEventIcon(event.type)}
                                         </div>
-                                    );
-                                })}
+                                        <div className={`w-[calc(100%-3rem)] ml-4 p-4 rounded-2xl border shadow-sm transition-all duration-300 hover:shadow-md ${getEventColor(event.type)}`}>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <h3 className="text-sm font-black text-graphite-900">{event.title}</h3>
+                                                <span className="text-[10px] font-bold text-graphite-500 uppercase tracking-wider bg-white/60 px-2 py-0.5 rounded-md backdrop-blur-sm shrink-0">
+                                                    {formatDate(event.date, { hour: '2-digit', minute: '2-digit', month: 'short', day: '2-digit' })}
+                                                </span>
+                                            </div>
+                                            {event.subtitle && (
+                                                <p className="text-xs text-graphite-600 font-medium leading-relaxed">{event.subtitle}</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         )}
                     </div>
                 </div>
             </div>
 
-            {/* Modal de Resultado da Consulta */}
             {outcomeModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
                     <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl border border-white/20 animate-in zoom-in-95 duration-200">

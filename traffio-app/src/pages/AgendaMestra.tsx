@@ -25,8 +25,16 @@ import {
     Phone,
     Instagram,
     Send,
-    Repeat
+    Repeat,
+    CreditCard,
+    Link2,
+    Check
 } from 'lucide-react';
+const DEFAULT_BOOKING_CAPTIONS = {
+    pt: 'Olá {{nome_paciente}}! 😊\nSeu agendamento foi realizado com sucesso!\n\n---------------------------------------------------------------------\n📝 Detalhes da Consulta:\n📅 Data: {{data_agendamento}}\n🕒 Horário: {{horario_agendamento}}\n👨‍⚕️ Profissional: {{nome_do_profissional}}\n📍 Local: {{nome_local}}\n🗺️ Como Chegar: {{link_endereco}}\n\n🔗 SALA DE ESPERA VIRTUAL:\nAcesse para fazer seu check-in na hora da consulta:\n{{link_sala_espera}}\n\n💳 PAGAMENTO / CONFIRMAÇÃO:\nPara garantir sua vaga, realize o pagamento no link:\n{{link_pagamento}}\n\nNos vemos em breve! 💙\n---------------------------------------------------------------------',
+    en: 'Hi {{nome_paciente}}! 😊\nYour appointment has been successfully booked!\n\n---------------------------------------------------------------------\n📝 Appointment Details:\n📅 Date: {{data_agendamento}}\n🕒 Time: {{horario_agendamento}}\n👨‍⚕️ Professional: {{nome_do_profissional}}\n📍 Location: {{nome_local}}\n🗺️ How to Get There: {{link_endereco}}\n\n🔗 VIRTUAL WAITING ROOM:\nAccess this link to check-in at the time of your appointment:\n{{link_sala_espera}}\n\n💳 PAYMENT / CONFIRMATION:\nTo secure your spot, please complete the payment here:\n{{link_pagamento}}\n\nSee you soon! 💙\n---------------------------------------------------------------------',
+    es: '¡Hola {{nome_paciente}}! 😊\n¡Tu cita ha sido reservada con éxito!\n\n---------------------------------------------------------------------\n📝 Detalles de la Cita:\n📅 Fecha: {{data_agendamento}}\n🕒 Hora: {{horario_agendamento}}\n👨‍⚕️ Profesional: {{nome_do_profissional}}\n📍 Lugar: {{nome_local}}\n🗺️ Cómo llegar: {{link_endereco}}\n\n🔗 SALA DE ESPERA VIRTUAL:\nAccede para fazer tu check-in a la hora de tu cita:\n{{link_sala_espera}}\n\n💳 PAGO / CONFIRMACIÓN:\nPara asegurar tu turno, realiza el pago en el siguiente enlace:\n{{link_pagamento}}\n\n¡Nos vemos pronto! 💙\n---------------------------------------------------------------------',
+};
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { getIntlLocale } from '../lib/i18n';
@@ -41,6 +49,7 @@ import { CheckoutModal } from '../components/CheckoutModal';
 import type { SmartSlot, BookAppointmentPayload } from '../services/smartSchedulingService';
 import { formatSlot as formatSlotI18n } from '../lib/i18n/formatDateTime';
 import { getCountry, DEFAULT_COUNTRY } from '../lib/i18n/countryFormats';
+import { format } from 'date-fns';
 import { getTenantTodayString, getTenantNow, addDaysToDateString } from '../lib/timezoneUtils';
 import { Button, Badge, IconButton } from '../components/ui';
 
@@ -193,7 +202,17 @@ export const AgendaMestra: React.FC = () => {
     const [notificationChannel, setNotificationChannel] = useState<string>('whatsapp');
     const [recipientId, setRecipientId] = useState('');
     const [notificationPreviewText, setNotificationPreviewText] = useState('');
-    const [, setTempBookedAppointments] = useState<any[]>([]);
+    const [tempBookedAppointments, setTempBookedAppointments] = useState<any[]>([]);
+    const [includeCheckin, setIncludeCheckin] = useState(false);
+    const [includePayment, setIncludePayment] = useState(false);
+    const [includeMaps, setIncludeMaps] = useState(false);
+
+    // Quick-create patient states
+    const [isCreatingPatient, setIsCreatingPatient] = useState(false);
+    const [newPatientData, setNewPatientData] = useState({
+        phone: '',
+        email: '',
+    });
 
 
     // Drag & Drop
@@ -647,6 +666,43 @@ export const AgendaMestra: React.FC = () => {
         }, 300);
     };
 
+    const handleSaveNewPatient = async () => {
+        if (!selectedTenant || !bookingForm.patientSearch.trim()) return;
+        try {
+            const fullName = bookingForm.patientSearch.trim();
+            const { data, error } = await supabase.from('patients').insert({
+                tenant_id: selectedTenant,
+                full_name: fullName,
+                phone: newPatientData.phone.trim() || null,
+                email: newPatientData.email.trim() || null,
+            }).select('*').single();
+
+            if (error) throw error;
+
+            if (data) {
+                const newPat: Patient = {
+                    id: data.id,
+                    full_name: data.full_name,
+                    phone: data.phone,
+                    email: data.email,
+                    insurance_provider: data.insurance_provider,
+                };
+                setBookingForm(prev => ({
+                    ...prev,
+                    selectedPatient: newPat,
+                    patientSearch: newPat.full_name,
+                    patientType: 'private'
+                }));
+                setIsCreatingPatient(false);
+                setPatientResults([]);
+                showToast('success', 'Paciente cadastrado e selecionado com sucesso!');
+            }
+        } catch (err: any) {
+            console.error("Error creating patient:", err);
+            showToast('error', `Erro ao cadastrar paciente: ${err.message}`);
+        }
+    };
+
     const buildConsolidatedMessage = (patientName: string, appointments: any[]) => {
         const firstName = patientName.split(' ')[0];
         let msg = `Olá, ${firstName}! 😊 Aqui está o resumo das suas consultas confirmadas:\n\n`;
@@ -659,6 +715,91 @@ export const AgendaMestra: React.FC = () => {
         msg += `\nNos vemos em breve! 💙`;
         return msg;
     };
+
+    const buildSingleMessage = (appt: any) => {
+        if (!selectedTenant) return '';
+        const currentTenant = tenants.find(t => t.id === selectedTenant);
+        const botConfig = currentTenant?.bot_config;
+        const outboundLocale = botConfig?.notification_locale || 'pt';
+        const templates = botConfig?.booking_confirmation_captions || DEFAULT_BOOKING_CAPTIONS;
+        let template = templates[outboundLocale] || templates['pt'];
+
+        if (reschedulingFromAppt) {
+            template = template
+                .replace(/agendamento foi realizado com sucesso/gi, 'reagendamento foi realizado com sucesso')
+                .replace(/appointment has been successfully booked/gi, 'appointment has been successfully rescheduled')
+                .replace(/cita ha sido reservada con éxito/gi, 'cita ha sido reprogramada con éxito');
+        }
+
+        const baseUrl = window.location.origin;
+        const payLink = `https://checkout.traffio.com/pay/${appt.id}`;
+        const checkinLink = `${baseUrl}/checkin?apt=${appt.id}&loc=${appt.location_id}`;
+        
+        const firstName = (bookingForm.selectedPatient?.full_name || appt.patients?.full_name || '').split(' ')[0];
+        const dateFormatted = appt.date ? format(new Date(appt.date + 'T12:00:00'), "dd/MM/yyyy") : '';
+        const docObj = doctors.find(d => d.id === appt.doctor_id);
+        const docName = docObj?.full_name || t('sidebarBookingView.professionalFallback');
+        const locObj = locations.find(l => l.id === appt.location_id);
+        const locName = locObj?.name || '';
+        const mapsUrl = locObj?.google_maps_url || '';
+
+        // Split template into blocks by double newlines to filter checkin/payment/maps sections
+        const blocks = template.split('\n\n');
+        const filteredBlocks = blocks.map((block: string) => {
+            if (block.includes('{{link_sala_espera}}') && !includeCheckin) {
+                return null;
+            }
+            if (block.includes('{{link_pagamento}}') && !includePayment) {
+                return null;
+            }
+            
+            let lines = block.split('\n');
+            if (!includeMaps || !mapsUrl) {
+                lines = lines.filter((line: string) => !line.includes('{{link_endereco}}'));
+            }
+            return lines.join('\n');
+        }).filter((b: string | null) => b !== null);
+
+        let message = filteredBlocks.join('\n\n');
+
+        // Replace variables
+        const replacements: Record<string, string> = {
+            '{{nome_paciente}}': firstName,
+            '{{data_agendamento}}': dateFormatted,
+            '{{horario_agendamento}}': appt.start_time || '',
+            '{{nome_do_profissional}}': docName,
+            '{{nome_local}}': locName,
+            '{{nome_clinica}}': currentTenant?.name || '',
+            '{{link_endereco}}': mapsUrl || '',
+            '{{link_sala_espera}}': checkinLink || '',
+            '{{link_pagamento}}': payLink || '',
+        };
+
+        Object.entries(replacements).forEach(([key, val]) => {
+            message = message.replace(new RegExp(key, 'g'), val);
+        });
+
+        return message.trim();
+    };
+
+    useEffect(() => {
+        if (!bookingForm.selectedPatient) return;
+        if (tempBookedAppointments.length === 1) {
+            const msg = buildSingleMessage(tempBookedAppointments[0]);
+            setNotificationPreviewText(msg);
+        } else if (tempBookedAppointments.length > 1) {
+            const msg = buildConsolidatedMessage(bookingForm.selectedPatient.full_name, tempBookedAppointments);
+            setNotificationPreviewText(msg);
+        }
+    }, [
+        tempBookedAppointments,
+        includeCheckin,
+        includePayment,
+        includeMaps,
+        selectedTenant,
+        bookingForm.selectedPatient,
+        reschedulingFromAppt
+    ]);
 
     const loadPatientPreferences = async (patientId: string) => {
         if (!selectedTenant) return null;
@@ -673,6 +814,17 @@ export const AgendaMestra: React.FC = () => {
             return null;
         }
         return data;
+    };
+
+    const closeNotificationModal = () => {
+        setShowNotificationModal(false);
+        setTempBookedAppointments([]);
+        setGeneratedOccurrences([]);
+        setIsRecurring(false);
+        setIncludeCheckin(false);
+        setIncludePayment(false);
+        setIncludeMaps(false);
+        fetchData();
     };
 
     const handleSendNotification = async () => {
@@ -695,11 +847,7 @@ export const AgendaMestra: React.FC = () => {
             if (error) throw error;
 
             showToast('success', 'Lembrete de agendamentos enviado para a fila de processamento!');
-            setShowNotificationModal(false);
-            setTempBookedAppointments([]);
-            setGeneratedOccurrences([]);
-            setIsRecurring(false);
-            fetchData();
+            closeNotificationModal();
         } catch (err: any) {
             console.error("Error sending notification:", err);
             showToast('error', `Erro ao enviar notificação: ${err.message}`);
@@ -779,7 +927,7 @@ export const AgendaMestra: React.FC = () => {
                     location_id: slot?.location_id || selectedLocation || '',
                 };
 
-                await smartSchedulingService.bookAppointment(payload);
+                const appt = await smartSchedulingService.bookAppointment(payload);
                 showToast('success', t('mestra.toasts.bookedFor', { name: bookingForm.selectedPatient.full_name }));
 
                 if (reschedulingFromAppt) {
@@ -791,7 +939,17 @@ export const AgendaMestra: React.FC = () => {
                 }
 
                 setBookingModal({ open: false, doctorId: '', slot: null });
-                fetchData();
+                
+                // Open notification dispatch modal
+                setTempBookedAppointments([appt]);
+                const pref = await loadPatientPreferences(bookingForm.selectedPatient.id);
+                if (pref?.preferred_channel) {
+                    setNotificationChannel(pref.preferred_channel);
+                } else {
+                    setNotificationChannel('whatsapp');
+                }
+                setRecipientId(bookingForm.selectedPatient.phone || bookingForm.selectedPatient.email || '');
+                setShowNotificationModal(true);
             }
         } catch (err: any) {
             const reasonKey: Record<string, string> = {
@@ -1490,14 +1648,65 @@ export const AgendaMestra: React.FC = () => {
                                                 <button onClick={() => setBookingForm(prev => ({ ...prev, selectedPatient: null, patientSearch: '' }))}
                                                     className="p-1.5 hover:bg-white rounded-lg transition-colors border-none bg-transparent cursor-pointer text-graphite-400"><X size={16} /></button>
                                             </div>
+                                        ) : isCreatingPatient ? (
+                                            <div className="p-4 bg-ice-50/50 border border-ice-200 rounded-2xl space-y-3">
+                                                <p className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">Novo Cadastro de Paciente</p>
+                                                <div>
+                                                    <label className="text-[10px] text-graphite-400 font-bold block mb-1">Nome Completo</label>
+                                                    <input
+                                                        type="text"
+                                                        value={bookingForm.patientSearch}
+                                                        onChange={(e) => setBookingForm(prev => ({ ...prev, patientSearch: e.target.value }))}
+                                                        className="w-full bg-white border border-ice-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:border-brand-primary"
+                                                    />
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div>
+                                                        <label className="text-[10px] text-graphite-400 font-bold block mb-1">Telefone</label>
+                                                        <input
+                                                            type="text"
+                                                            value={newPatientData.phone}
+                                                            onChange={(e) => setNewPatientData(prev => ({ ...prev, phone: e.target.value }))}
+                                                            placeholder="(00) 99999-9999"
+                                                            className="w-full bg-white border border-ice-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:border-brand-primary"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[10px] text-graphite-400 font-bold block mb-1">E-mail</label>
+                                                        <input
+                                                            type="email"
+                                                            value={newPatientData.email}
+                                                            onChange={(e) => setNewPatientData(prev => ({ ...prev, email: e.target.value }))}
+                                                            placeholder="email@provedor.com"
+                                                            className="w-full bg-white border border-ice-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:border-brand-primary"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="flex gap-2 pt-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setIsCreatingPatient(false)}
+                                                        className="flex-1 py-2 bg-white border border-ice-200 rounded-xl text-xs font-bold text-graphite-600 hover:bg-ice-50 transition-all cursor-pointer"
+                                                    >
+                                                        Cancelar
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleSaveNewPatient}
+                                                        className="flex-1 py-2 bg-brand-primary text-white border border-brand-primary rounded-xl text-xs font-bold hover:bg-brand-primary-dark transition-all cursor-pointer"
+                                                    >
+                                                        Salvar e Selecionar
+                                                    </button>
+                                                </div>
+                                            </div>
                                         ) : (
                                             <div className="relative">
                                                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-graphite-300" />
                                                 <input type="text" value={bookingForm.patientSearch} onChange={(e) => handlePatientSearch(e.target.value)}
                                                     placeholder={t('mestra.bookingModal.patientSearchPlaceholder')} autoFocus
                                                     className="w-full bg-ice-50 border border-ice-200 rounded-xl pl-10 pr-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors" />
-                                                {patientResults.length > 0 && (
-                                                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-ice-200 rounded-xl shadow-lg z-10 max-h-48 overflow-y-auto">
+                                                {bookingForm.patientSearch.length >= 2 && (
+                                                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-ice-200 rounded-xl shadow-lg z-10 max-h-56 overflow-y-auto">
                                                         {patientResults.map(p => (
                                                             <button key={p.id} onClick={() => { setBookingForm(prev => ({ ...prev, selectedPatient: p, patientSearch: p.full_name, patientType: p.insurance_provider ? 'insurance' : 'private' })); setPatientResults([]); }}
                                                                 className="w-full text-left px-4 py-2.5 hover:bg-ice-50 transition-colors border-none bg-transparent cursor-pointer flex items-center gap-3">
@@ -1509,6 +1718,17 @@ export const AgendaMestra: React.FC = () => {
                                                                 {p.insurance_provider && <Shield size={12} className="ml-auto text-emerald-400" />}
                                                             </button>
                                                         ))}
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setNewPatientData({ phone: '', email: '' });
+                                                                setIsCreatingPatient(true);
+                                                            }}
+                                                            className="w-full text-left px-4 py-3 hover:bg-brand-primary/5 transition-colors border-t border-ice-100 bg-white cursor-pointer flex items-center gap-2 text-brand-primary font-bold text-xs"
+                                                        >
+                                                            <Plus size={14} />
+                                                            Cadastrar novo: "{bookingForm.patientSearch}"
+                                                        </button>
                                                     </div>
                                                 )}
                                             </div>
@@ -1775,7 +1995,7 @@ export const AgendaMestra: React.FC = () => {
                     <>
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                             className="fixed inset-0 bg-graphite-900/40 backdrop-blur-sm z-[120]"
-                            onClick={() => setShowNotificationModal(false)} />
+                            onClick={closeNotificationModal} />
                         <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
                             className="fixed inset-0 z-[130] flex items-center justify-center p-4 pointer-events-none">
                             <div className="bg-white pointer-events-auto w-full max-w-md rounded-4xl shadow-2xl overflow-hidden border border-white/20">
@@ -1784,9 +2004,9 @@ export const AgendaMestra: React.FC = () => {
                                         <h3 className="text-sm font-black text-graphite-900">Enviar Resumo de Agendamentos</h3>
                                         <p className="text-xs text-graphite-400 font-medium">Notifique o paciente sobre as datas reservadas</p>
                                     </div>
-                                    <IconButton onClick={() => setShowNotificationModal(false)}><X size={18} /></IconButton>
+                                    <IconButton onClick={closeNotificationModal}><X size={18} /></IconButton>
                                 </div>
-                                <div className="p-6 space-y-4">
+                                <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
                                     {/* Channel Selector */}
                                     <div>
                                         <label className="text-[10px] font-black text-graphite-400 uppercase mb-2 block">Canal de Envio</label>
@@ -1831,6 +2051,89 @@ export const AgendaMestra: React.FC = () => {
                                         />
                                     </div>
 
+                                    {/* Link Customization Options */}
+                                    {tempBookedAppointments.length === 1 && (
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-graphite-400 uppercase block">Incluir Links na Confirmação</label>
+                                            <div className="grid grid-cols-1 gap-2">
+                                                <button
+                                                    onClick={() => setIncludeCheckin(!includeCheckin)}
+                                                    className={cn(
+                                                        "flex items-center gap-3 p-2.5 rounded-xl border transition-all text-left bg-white cursor-pointer w-full",
+                                                        includeCheckin ? "border-brand-primary/30 shadow-sm" : "border-ice-200 opacity-60"
+                                                    )}
+                                                >
+                                                    <div className={cn(
+                                                        "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
+                                                        includeCheckin ? "bg-brand-primary/10 text-brand-primary" : "bg-ice-50 text-graphite-400"
+                                                    )}>
+                                                        <Link2 size={16} />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-[11px] font-black text-graphite-900">{t('sidebarBookingView.checkinOption.title')}</p>
+                                                        <p className="text-[9px] text-graphite-400">{t('sidebarBookingView.checkinOption.subtitle')}</p>
+                                                    </div>
+                                                    <div className={cn(
+                                                        "w-4 h-4 rounded-full border flex items-center justify-center transition-colors shrink-0",
+                                                        includeCheckin ? "bg-brand-primary border-brand-primary" : "border-ice-300"
+                                                    )}>
+                                                        {includeCheckin && <Check size={10} className="text-white" strokeWidth={4} />}
+                                                    </div>
+                                                </button>
+
+                                                <button
+                                                    onClick={() => setIncludePayment(!includePayment)}
+                                                    className={cn(
+                                                        "flex items-center gap-3 p-2.5 rounded-xl border transition-all text-left bg-white cursor-pointer w-full",
+                                                        includePayment ? "border-brand-primary/30 shadow-sm" : "border-ice-200 opacity-60"
+                                                    )}
+                                                >
+                                                    <div className={cn(
+                                                        "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
+                                                        includePayment ? "bg-brand-primary/10 text-brand-primary" : "bg-ice-50 text-graphite-400"
+                                                    )}>
+                                                        <CreditCard size={16} />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-[11px] font-black text-graphite-900">{t('sidebarBookingView.paymentOption.title')}</p>
+                                                        <p className="text-[9px] text-graphite-400">{t('sidebarBookingView.paymentOption.subtitle')}</p>
+                                                    </div>
+                                                    <div className={cn(
+                                                        "w-4 h-4 rounded-full border flex items-center justify-center transition-colors shrink-0",
+                                                        includePayment ? "bg-brand-primary border-brand-primary" : "border-ice-300"
+                                                    )}>
+                                                        {includePayment && <Check size={10} className="text-white" strokeWidth={4} />}
+                                                    </div>
+                                                </button>
+
+                                                <button
+                                                    onClick={() => setIncludeMaps(!includeMaps)}
+                                                    className={cn(
+                                                        "flex items-center gap-3 p-2.5 rounded-xl border transition-all text-left bg-white cursor-pointer w-full",
+                                                        includeMaps ? "border-brand-primary/30 shadow-sm" : "border-ice-200 opacity-60"
+                                                    )}
+                                                >
+                                                    <div className={cn(
+                                                        "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
+                                                        includeMaps ? "bg-brand-primary/10 text-brand-primary" : "bg-ice-50 text-graphite-400"
+                                                    )}>
+                                                        <MapPin size={16} />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-[11px] font-black text-graphite-900">{t('sidebarBookingView.mapsOption.title')}</p>
+                                                        <p className="text-[9px] text-graphite-400">{t('sidebarBookingView.mapsOption.subtitle')}</p>
+                                                    </div>
+                                                    <div className={cn(
+                                                        "w-4 h-4 rounded-full border flex items-center justify-center transition-colors shrink-0",
+                                                        includeMaps ? "bg-brand-primary border-brand-primary" : "border-ice-300"
+                                                    )}>
+                                                        {includeMaps && <Check size={10} className="text-white" strokeWidth={4} />}
+                                                    </div>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {/* Message Preview */}
                                     <div>
                                         <label className="text-[10px] font-black text-graphite-400 uppercase mb-1.5 block">Visualização da Mensagem</label>
@@ -1843,7 +2146,7 @@ export const AgendaMestra: React.FC = () => {
 
                                     {/* Action Buttons */}
                                     <div className="flex gap-3 pt-2">
-                                        <Button variant="ghost" className="flex-1 justify-center rounded-xl text-xs cursor-pointer" onClick={() => setShowNotificationModal(false)}>
+                                        <Button variant="ghost" className="flex-1 justify-center rounded-xl text-xs cursor-pointer" onClick={closeNotificationModal}>
                                             Pular
                                         </Button>
                                         <Button variant="primary" className="flex-[2] justify-center rounded-xl text-xs cursor-pointer" onClick={handleSendNotification}>

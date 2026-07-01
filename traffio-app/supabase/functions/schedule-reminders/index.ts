@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * schedule-reminders — Edge Function (Supabase Cron)
  * v4.0 — Multi-Canal + Multi-timezone
@@ -183,13 +184,14 @@ serve(async (req: Request) => {
         const tenantIds = [...new Set(appointments.map((a: any) => a.tenant_id))];
         const { data: tenants } = await supabase
             .from("tenants")
-            .select("id, name, bot_config, timezone")
+            .select("id, name, slug, bot_config, timezone")
             .in("id", tenantIds);
 
         const tenantConfigMap: Record<string, any> = Object.fromEntries(
             (tenants ?? []).map((t: any) => [t.id, {
                 bot_config: t.bot_config ?? {},
                 name:       t.name,
+                slug:       t.slug,
                 timezone:   t.timezone || "America/Sao_Paulo",
             }])
         );
@@ -268,8 +270,8 @@ serve(async (req: Request) => {
             const patientData = Array.isArray(appt.patients) ? appt.patients[0] : appt.patients;
             if (!patientData?.phone) continue;
 
-            const { bot_config: botConfig, name: clinicName, timezone } =
-                tenantConfigMap[appt.tenant_id] ?? { bot_config: {}, name: "Clínica", timezone: "America/Sao_Paulo" };
+            const tenantConfig  = tenantConfigMap[appt.tenant_id] ?? { bot_config: {}, name: "Clínica", timezone: "America/Sao_Paulo", slug: null };
+            const { bot_config: botConfig, name: clinicName, timezone } = tenantConfig;
 
             if (!botConfig.no_show_prevention && !botConfig.test_mode_15m) continue;
 
@@ -299,7 +301,10 @@ serve(async (req: Request) => {
 
             const dateFormatted = appt.date.split("-").reverse().join("/");
             const timeShort     = appt.start_time.substring(0, 5);
-            const publicUrl     = Deno.env.get("PUBLIC_APP_URL") || "https://" + appt.tenant_id + ".traffio.app";
+            
+            const customAppUrl  = botConfig.app_url;
+            const fallbackUrl   = tenantConfig?.slug ? "https://" + tenantConfig.slug + ".com" : "https://" + appt.tenant_id + ".traffio.app";
+            const publicUrl     = customAppUrl || Deno.env.get("PUBLIC_APP_URL") || fallbackUrl;
 
             // Fonte de verdade do idioma: bot_config.notification_locale (definido pelo
             // tenant na página Inteligência). Não há cadastro de idioma por paciente —

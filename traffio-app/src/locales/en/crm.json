@@ -10,6 +10,17 @@
     "vendidoProcedimento": "Sold/Procedure",
     "perdido": "Lost"
   },
+  "stages": {
+    "newLead": "New Lead",
+    "inContact": "In Contact",
+    "scheduled": "Scheduled",
+    "showedUp": "Showed Up",
+    "proposal": "Proposal",
+    "recovery": "Recovery",
+    "recallDue": "Recall",
+    "won": "Won",
+    "lost": "Lost"
+  },
   "leads": {
     "title": "CRM Leads",
     "subtitle": "Manage your patient base and sales funnel.",
@@ -64,6 +75,37 @@
       "valuePlaceholder": "0.00",
       "cancel": "Cancel",
       "save": "Save Sale"
+    },
+    "lostModal": {
+      "title": "Mark as Lost",
+      "subtitle": "Select the reason for the loss.",
+      "save": "Confirm Loss"
+    },
+    "actionQueue": {
+      "title": "Today's Actions"
+    },
+    "appointmentsBadge": "{{count}} appointments",
+    "originBadge": {
+      "walkIn": "Walk-in",
+      "recall": "Recall"
+    },
+    "nextAction": {
+      "call": "Call",
+      "message": "Message",
+      "confirm": "Confirm",
+      "followProposal": "Follow Up Proposal",
+      "recover": "Recover",
+      "recall": "Recall"
+    },
+    "lostReason": {
+      "price": "Price",
+      "competitor": "Competitor",
+      "noResponse": "No Response",
+      "gaveUp": "Gave Up",
+      "other": "Other"
+    },
+    "toasts": {
+      "moveError": "Could not move the card."
     }
   },
   "performanceStats": {
@@ -72,7 +114,8 @@
       "conversionRate": "Conversion Rate",
       "sales": "Sales (Closed)",
       "appointments": "Appointments",
-      "noShow": "No-shows"
+      "noShow": "No-shows",
+      "recoveredRevenue": "Recovered Revenue"
     },
     "evaluationsSuffix": "{{count}} Evaluations",
     "noShowRateSuffix": "{{rate}}% rate",
@@ -82,6 +125,50 @@
     "trendTitle": "Lead Acquisition",
     "trendSubtitle": "Daily volume of new leads",
     "trendEmpty": "Awaiting new leads"
+  },
+  "timeline": {
+    "currentStage": "Current Stage",
+    "estimatedValue": "Estimated Value",
+    "unknownLead": "Unknown Lead",
+    "loading": "Loading History...",
+    "noEvents": "No events found",
+    "events": {
+      "leadEntered": "Lead entered CRM",
+      "stageChanged": "Stage Changed",
+      "appointmentCreated": "Appointment Booked",
+      "appointmentConfirmedEvent": "Appointment Confirmed",
+      "checkedIn": "Patient Arrived",
+      "appointmentCompleted": "Appointment Completed",
+      "appointmentNoShow": "Patient No-Showed",
+      "appointmentCanceled": "Appointment Canceled",
+      "messageReceived": "Message Received",
+      "messageSent": "Message Sent",
+      "saleRecorded": "Sale Recorded",
+      "noteAdded": "Note Added",
+      "automationFired": "Automation Fired",
+      "automationStopped": "Automation Stopped",
+      "genericEvent": "Event Recorded"
+    },
+    "outcome": {
+      "label": "Record the outcome of this appointment",
+      "attended": "Attended",
+      "noShow": "No-show"
+    },
+    "outcomeModal": {
+      "title": "Record Outcome",
+      "procedureLabel": "Procedure Performed",
+      "procedurePlaceholder": "Ex: Evaluation, Cleaning, Implant...",
+      "valueLabel": "Procedure Value (optional)",
+      "npsHint": "The NPS survey will be sent automatically to the patient after the configured delay in Intelligence.",
+      "cancel": "Cancel",
+      "save": "Confirm Completion"
+    },
+    "toasts": {
+      "completedSuccess": "Appointment recorded as completed! NPS will be sent automatically.",
+      "completedError": "Error recording outcome.",
+      "noShowSuccess": "No-show recorded. Recovery cadence started automatically.",
+      "noShowError": "Error recording no-show."
+    }
   },
   "newPatientModal": {
     "editTitle": "Edit Patient",

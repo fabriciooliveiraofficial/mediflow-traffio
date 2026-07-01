@@ -10,6 +10,17 @@
     "vendidoProcedimento": "Vendido/Procedimento",
     "perdido": "Perdido"
   },
+  "stages": {
+    "newLead": "Novo Lead",
+    "inContact": "Em Contato",
+    "scheduled": "Agendado",
+    "showedUp": "Compareceu",
+    "proposal": "Proposta",
+    "recovery": "Recuperação",
+    "recallDue": "Recall",
+    "won": "Ganho",
+    "lost": "Perdido"
+  },
   "leads": {
     "title": "CRM Leads",
     "subtitle": "Gerencie sua base de pacientes e o funil de vendas.",
@@ -64,6 +75,37 @@
       "valuePlaceholder": "0,00",
       "cancel": "Cancelar",
       "save": "Salvar Venda"
+    },
+    "lostModal": {
+      "title": "Marcar como Perdido",
+      "subtitle": "Selecione o motivo da perda.",
+      "save": "Confirmar Perda"
+    },
+    "actionQueue": {
+      "title": "Ações de Hoje"
+    },
+    "appointmentsBadge": "{{count}} agendamentos",
+    "originBadge": {
+      "walkIn": "Walk-in",
+      "recall": "Recall"
+    },
+    "nextAction": {
+      "call": "Ligar",
+      "message": "Mensagem",
+      "confirm": "Confirmar",
+      "followProposal": "Acompanhar Proposta",
+      "recover": "Recuperar",
+      "recall": "Recall"
+    },
+    "lostReason": {
+      "price": "Preço",
+      "competitor": "Concorrente",
+      "noResponse": "Sem Resposta",
+      "gaveUp": "Desistiu",
+      "other": "Outro"
+    },
+    "toasts": {
+      "moveError": "Não foi possível mover o card."
     }
   },
   "performanceStats": {
@@ -72,7 +114,8 @@
       "conversionRate": "Taxa de Conversão",
       "sales": "Vendas (Vendido)",
       "appointments": "Agendamentos",
-      "noShow": "No-show (Faltas)"
+      "noShow": "No-show (Faltas)",
+      "recoveredRevenue": "Receita Recuperada"
     },
     "evaluationsSuffix": "{{count}} Avaliações",
     "noShowRateSuffix": "{{rate}}% de taxa",
@@ -82,6 +125,50 @@
     "trendTitle": "Aquisição de Leads",
     "trendSubtitle": "Volume diário de novos leads",
     "trendEmpty": "Aguardando novos leads"
+  },
+  "timeline": {
+    "currentStage": "Fase Atual",
+    "estimatedValue": "Valor Estimado",
+    "unknownLead": "Lead Desconhecido",
+    "loading": "Carregando Histórico...",
+    "noEvents": "Nenhum evento encontrado",
+    "events": {
+      "leadEntered": "Lead entrou no CRM",
+      "stageChanged": "Fase Alterada",
+      "appointmentCreated": "Agendamento Realizado",
+      "appointmentConfirmedEvent": "Consulta Confirmada",
+      "checkedIn": "Paciente Chegou",
+      "appointmentCompleted": "Consulta Realizada",
+      "appointmentNoShow": "Paciente Faltou",
+      "appointmentCanceled": "Consulta Cancelada",
+      "messageReceived": "Mensagem Recebida",
+      "messageSent": "Mensagem Enviada",
+      "saleRecorded": "Venda Registrada",
+      "noteAdded": "Nota Adicionada",
+      "automationFired": "Automação Disparada",
+      "automationStopped": "Automação Interrompida",
+      "genericEvent": "Evento Registrado"
+    },
+    "outcome": {
+      "label": "Registrar resultado desta consulta",
+      "attended": "Compareceu",
+      "noShow": "Não compareceu"
+    },
+    "outcomeModal": {
+      "title": "Registrar Resultado",
+      "procedureLabel": "Procedimento Realizado",
+      "procedurePlaceholder": "Ex: Consulta de avaliação, Limpeza, Implante...",
+      "valueLabel": "Valor do Procedimento (opcional)",
+      "npsHint": "A pesquisa NPS será enviada automaticamente ao paciente após o prazo configurado em Inteligência.",
+      "cancel": "Cancelar",
+      "save": "Confirmar Realização"
+    },
+    "toasts": {
+      "completedSuccess": "Consulta registrada como realizada! NPS será enviado automaticamente.",
+      "completedError": "Erro ao registrar resultado.",
+      "noShowSuccess": "Falta registrada. Cadência de recuperação iniciada automaticamente.",
+      "noShowError": "Erro ao registrar falta."
+    }
   },
   "newPatientModal": {
     "editTitle": "Editar Paciente",

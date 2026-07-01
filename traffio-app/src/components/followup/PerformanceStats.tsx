@@ -1,11 +1,11 @@
-import { TrendingUp, Users, DollarSign, Calendar, CalendarX, Target, Activity } from 'lucide-react';
+import { TrendingUp, Users, DollarSign, Calendar, CalendarX, Target, Activity, RotateCcw } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   AreaChart, Area
 } from 'recharts';
 import type { PerformanceMetrics } from '../../hooks/useFollowUpMetrics';
 import { useTranslation } from 'react-i18next';
-import { STAGE_LABEL_KEYS, type KanbanStage } from '../../lib/kanbanStages';
+import { CRM_STAGE_LABEL_KEYS } from '../../lib/crmStages';
 import { useTenantCurrency } from '../../hooks/useTenantCurrency';
 import { useLocaleFormat } from '../../hooks/useLocaleFormat';
 import { Card, KpiCard, EmptyState } from '../ui';
@@ -41,8 +41,8 @@ export function PerformanceStats({ metrics, isLoading }: PerformanceStatsProps) 
     return (
       <div className="space-y-6 mb-10 animate-pulse">
         {/* KPI Cards Skeleton */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          {[1, 2, 3, 4, 5].map(i => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+          {[1, 2, 3, 4, 5, 6].map(i => (
             <Card key={i} variant="floating" padding="none" className="h-[124px]" />
           ))}
         </div>
@@ -106,6 +106,15 @@ export function PerformanceStats({ metrics, isLoading }: PerformanceStatsProps) 
       trend: metrics.trends.noShows,
       icon: CalendarX,
       accent: 'error' as const,
+    },
+    {
+      label: t('performanceStats.kpis.recoveredRevenue'),
+      value: (() => {
+        const d = formatDual(metrics.recoveredRevenue);
+        return d.primary;
+      })(),
+      icon: RotateCcw,
+      accent: 'indigo' as const,
     }
   ];
 
@@ -113,13 +122,13 @@ export function PerformanceStats({ metrics, isLoading }: PerformanceStatsProps) 
 
   const translatedFunnelData = metrics.funnelData.map(d => ({
     ...d,
-    stage: t(`kanbanStages.${STAGE_LABEL_KEYS[d.stage as KanbanStage]}`),
+    stage: t(`stages.${CRM_STAGE_LABEL_KEYS[d.stage]}`),
   }));
 
   return (
     <div className="space-y-6 mb-10">
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
         {kpis.map((kpi, idx) => (
           <KpiCard
             key={idx}

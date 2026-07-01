@@ -64,9 +64,9 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [nowMin, setNowMin] = useState(new Date().getHours() * 60 + new Date().getMinutes());
     const [agendaRange, setAgendaRange] = useState({ start: 0, end: 23 });
-    const [includeCheckin, setIncludeCheckin] = useState(true);
-    const [includePayment, setIncludePayment] = useState(true);
-    const [includeMaps, setIncludeMaps] = useState(true);
+    const [includeCheckin, setIncludeCheckin] = useState(false);
+    const [includePayment, setIncludePayment] = useState(false);
+    const [includeMaps, setIncludeMaps] = useState(false);
     const GRID_PADDING = 16;
 
     useEffect(() => {

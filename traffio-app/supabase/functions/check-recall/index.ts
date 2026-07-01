@@ -198,6 +198,29 @@ serve(async (req: Request) => {
                 } else {
                     totalEnqueued++;
                     console.log(`[check-recall] ✓ Recall queued | ${patient.phone} | ${channel} | tenant ${tenant.id}`);
+
+                    // Reabre (ou cria) o card do paciente no CRM Journey Engine em
+                    // 'recall_due' — sem isto o recall dispara mensagem mas o CRM
+                    // nunca sabe que o paciente voltou a estar em prospecção ativa.
+                    const { data: journeyId, error: journeyErr } = await supabase.rpc("crm_ensure_journey", {
+                        p_tenant_id:   tenant.id,
+                        p_patient_id:  patient.id,
+                        p_lead_phone:  patient.phone,
+                        p_session_id:  null,
+                        p_origin:      "recall",
+                    });
+                    if (journeyErr) {
+                        console.error(`[check-recall] crm_ensure_journey failed for ${patient.phone}:`, journeyErr.message);
+                    } else if (journeyId) {
+                        const { error: moveErr } = await supabase.rpc("crm_move_stage", {
+                            p_journey_id: journeyId,
+                            p_to_stage:   "recall_due",
+                            p_actor:      "system",
+                        });
+                        if (moveErr) {
+                            console.error(`[check-recall] crm_move_stage failed for ${patient.phone}:`, moveErr.message);
+                        }
+                    }
                 }
             }
         }

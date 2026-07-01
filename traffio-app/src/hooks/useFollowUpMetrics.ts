@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 
 import { useLocaleFormat } from './useLocaleFormat';
 import { getTenantTodayString, addDaysToDateString, localDateTimeToUTC } from '../lib/timezoneUtils';
+import type { CrmStageId } from '../lib/crmStages';
 
 export interface PerformanceMetrics {
   totalLeads: number;
@@ -12,7 +13,8 @@ export interface PerformanceMetrics {
   evaluationsCount: number;
   noShowCount: number;
   noShowRate: number;
-  funnelData: { stage: string; count: number }[];
+  recoveredRevenue: number;
+  funnelData: { stage: CrmStageId; count: number }[];
   timeSeriesData: { date: string; leads: number }[];
   trends: {
     leads: number | null;
@@ -27,6 +29,8 @@ interface MetricsOptions {
   days?: number;
   timezone?: string;
 }
+
+const FUNNEL_STAGES: CrmStageId[] = ['new_lead', 'in_contact', 'scheduled', 'showed_up', 'won'];
 
 export function useFollowUpMetrics({ tenantId, days = 30, timezone }: MetricsOptions) {
   const { locale } = useLocaleFormat();
@@ -43,45 +47,95 @@ export function useFollowUpMetrics({ tenantId, days = 30, timezone }: MetricsOpt
       const startDateStr = addDaysToDateString(todayStr, -days);
       const prevStartDateStr = addDaysToDateString(startDateStr, -days);
 
-      const startLocalTime = '00:00';
-      const endLocalTime = '23:59';
-
-      const startDateUTC = localDateTimeToUTC(startDateStr, startLocalTime, tz);
-      const endDateUTC = localDateTimeToUTC(todayStr, endLocalTime, tz);
-      const prevStartDateUTC = localDateTimeToUTC(prevStartDateStr, startLocalTime, tz);
-      const prevEndDateUTC = localDateTimeToUTC(startDateStr, endLocalTime, tz);
+      const startDateUTC = localDateTimeToUTC(startDateStr, '00:00', tz);
+      const endDateUTC = localDateTimeToUTC(todayStr, '23:59', tz);
+      const prevStartDateUTC = localDateTimeToUTC(prevStartDateStr, '00:00', tz);
+      const prevEndDateUTC = localDateTimeToUTC(startDateStr, '23:59', tz);
 
       const startStr = startDateUTC.toISOString();
       const endStr = endDateUTC.toISOString();
       const prevStartStr = prevStartDateUTC.toISOString();
       const prevEndStr = prevEndDateUTC.toISOString();
 
-      // 1. Current Period Data
-      // Leads: Created in period
+      // 1. Leads criados no período (cards do CRM Journey Engine)
       const { data: currentLeads } = await supabase
-        .from('conversation_sessions')
-        .select('*')
+        .from('crm_journeys')
+        .select('id, stage_id, created_at')
         .eq('tenant_id', tenantId)
         .gte('created_at', startStr)
         .lte('created_at', endStr);
 
-      // Sales Performance: Updated to "Vendido" in period (regardless of when created)
-      const { data: currentSales } = await supabase
-        .from('conversation_sessions')
-        .select('*')
+      const { data: prevLeads } = await supabase
+        .from('crm_journeys')
+        .select('id')
         .eq('tenant_id', tenantId)
-        .eq('kanban_stage', 'Vendido/Procedimento')
-        .gte('updated_at', startStr)
-        .lte('updated_at', endStr);
+        .gte('created_at', prevStartStr)
+        .lte('created_at', prevEndStr);
 
-      const { data: currentNoShows } = await supabase
-        .from('conversation_sessions')
-        .select('*')
+      // 2. Vendas: evento stage_changed → won ocorrido no período (fonte de
+      //    verdade real, não "qualquer updated_at" como na versão antiga)
+      const { data: currentSaleEvents } = await supabase
+        .from('crm_journey_events')
+        .select('journey_id, created_at')
         .eq('tenant_id', tenantId)
-        .in('kanban_stage', ['Faltou Avaliação', 'Faltou Consulta'])
-        .gte('updated_at', startStr)
-        .lte('updated_at', endStr);
+        .eq('event_type', 'stage_changed')
+        .eq('payload->>to', 'won')
+        .gte('created_at', startStr)
+        .lte('created_at', endStr);
 
+      const { data: prevSaleEvents } = await supabase
+        .from('crm_journey_events')
+        .select('journey_id')
+        .eq('tenant_id', tenantId)
+        .eq('event_type', 'stage_changed')
+        .eq('payload->>to', 'won')
+        .gte('created_at', prevStartStr)
+        .lte('created_at', prevEndStr);
+
+      const saleJourneyIds = [...new Set((currentSaleEvents || []).map(e => e.journey_id))];
+      let totalRevenue = 0;
+      let soldJourneys: { id: string; revenue_estimated: number }[] = [];
+      if (saleJourneyIds.length > 0) {
+        const { data } = await supabase
+          .from('crm_journeys')
+          .select('id, revenue_estimated')
+          .in('id', saleJourneyIds);
+        soldJourneys = data || [];
+        totalRevenue = soldJourneys.reduce((acc, j) => acc + (j.revenue_estimated || 0), 0);
+      }
+
+      // 3. No-shows: evento no_show ocorrido no período
+      const { data: currentNoShowEvents } = await supabase
+        .from('crm_journey_events')
+        .select('journey_id')
+        .eq('tenant_id', tenantId)
+        .eq('event_type', 'no_show')
+        .gte('created_at', startStr)
+        .lte('created_at', endStr);
+
+      const { data: prevNoShowEvents } = await supabase
+        .from('crm_journey_events')
+        .select('journey_id')
+        .eq('tenant_id', tenantId)
+        .eq('event_type', 'no_show')
+        .gte('created_at', prevStartStr)
+        .lte('created_at', prevEndStr);
+
+      // 4. Receita recuperada: cards que passaram por recovery/recall_due e fecharam won
+      const { data: recoveryTouched } = await supabase
+        .from('crm_journey_events')
+        .select('journey_id')
+        .eq('tenant_id', tenantId)
+        .eq('event_type', 'stage_changed')
+        .in('payload->>to', ['recovery', 'recall_due']);
+
+      const recoveredJourneyIds = new Set((recoveryTouched || []).map(e => e.journey_id));
+      const recoveredRevenue = soldJourneys
+        .filter(j => recoveredJourneyIds.has(j.id))
+        .reduce((acc, j) => acc + (j.revenue_estimated || 0), 0);
+
+      // 5. Agendamentos no período (mesma leitura de sempre — appointments é a
+      //    fonte real da agenda; o CRM só espelha o resultado)
       const { data: currentAppointments } = await supabase
         .from('appointments')
         .select('*, type:appointment_types(name)')
@@ -89,83 +143,37 @@ export function useFollowUpMetrics({ tenantId, days = 30, timezone }: MetricsOpt
         .gte('date', startDateStr)
         .lte('date', todayStr);
 
-      // 2. Previous Period Data (for trends)
-
-      const { data: prevLeads } = await supabase
-        .from('conversation_sessions')
-        .select('*')
-        .eq('tenant_id', tenantId)
-        .gte('created_at', prevStartStr)
-        .lte('created_at', prevEndStr);
-
-      const { data: prevSales } = await supabase
-        .from('conversation_sessions')
-        .select('*')
-        .eq('tenant_id', tenantId)
-        .eq('kanban_stage', 'Vendido/Procedimento')
-        .gte('updated_at', prevStartStr)
-        .lte('updated_at', prevEndStr);
-
-      const { data: prevNoShows } = await supabase
-        .from('conversation_sessions')
-        .select('*')
-        .eq('tenant_id', tenantId)
-        .in('kanban_stage', ['Faltou Avaliação', 'Faltou Consulta'])
-        .gte('updated_at', prevStartStr)
-        .lte('updated_at', prevEndStr);
-
       const leads = currentLeads || [];
-      const sales = currentSales || [];
-      const noShowsArr = currentNoShows || [];
       const pLeads = prevLeads || [];
-      const pSales = prevSales || [];
-      const pNoShows = prevNoShows || [];
       const appointments = currentAppointments || [];
 
-      // Calculations
       const totalLeads = leads.length;
-      const totalRevenue = sales.reduce((acc, s) => acc + (s.revenue_estimated || 0), 0);
-      const conversionRate = totalLeads > 0 ? (sales.length / totalLeads) * 100 : 0;
-      const noShowCount = noShowsArr.length;
+      const salesCount = saleJourneyIds.length;
+      const conversionRate = totalLeads > 0 ? (salesCount / totalLeads) * 100 : 0;
+      const noShowCount = (currentNoShowEvents || []).length;
       const noShowRate = appointments.length > 0 ? (noShowCount / appointments.length) * 100 : 0;
 
-      const evaluationsCount = appointments.filter(a => 
-        (a.type as any)?.name?.toLowerCase().includes('avaliação') || 
+      const evaluationsCount = appointments.filter(a =>
+        (a.type as any)?.name?.toLowerCase().includes('avaliação') ||
         (a.type as any)?.name?.toLowerCase().includes('avaliacao')
       ).length;
 
-      // Funnel Distribution (based on leads created in the period)
-      const STAGES = [
-        'Novos Leads',
-        'Em Contato',
-        'Avaliação',
-        'Consulta',
-        'Vendido/Procedimento'
-      ];
-
-      const funnelData = STAGES.map(stage => ({
+      const funnelData = FUNNEL_STAGES.map(stage => ({
         stage,
-        count: leads.filter(s => s.kanban_stage === stage).length
+        count: leads.filter(j => j.stage_id === stage).length,
       }));
 
-      // Time Series (New leads per day)
       const daysMap: Record<string, number> = {};
-      leads.forEach(s => {
-        const d = new Intl.DateTimeFormat(locale, { 
-          day: '2-digit', 
-          month: '2-digit',
-          timeZone: tz
-        }).format(new Date(s.created_at));
+      leads.forEach(j => {
+        const d = new Intl.DateTimeFormat(locale, { day: '2-digit', month: '2-digit', timeZone: tz }).format(new Date(j.created_at));
         daysMap[d] = (daysMap[d] || 0) + 1;
       });
-      const timeSeriesData = Object.entries(daysMap).map(([date, leads]) => ({ date, leads }));
+      const timeSeriesData = Object.entries(daysMap).map(([date, count]) => ({ date, leads: count }));
 
-      // Trends
       const prevLeadsCount = pLeads.length;
-      const prevSalesCount = pSales.length;
-      const prevNoShowCount = pNoShows.length;
+      const prevSalesCount = (prevSaleEvents || []).length;
+      const prevNoShowCount = (prevNoShowEvents || []).length;
       const prevConv = prevLeadsCount > 0 ? (prevSalesCount / prevLeadsCount) * 100 : 0;
-      const prevRev = pSales.reduce((acc, s) => acc + (s.revenue_estimated || 0), 0);
 
       const calcTrend = (curr: number, prev: number) => {
         if (prev === 0) return curr > 0 ? 100 : null;
@@ -180,14 +188,15 @@ export function useFollowUpMetrics({ tenantId, days = 30, timezone }: MetricsOpt
         evaluationsCount,
         noShowCount,
         noShowRate,
+        recoveredRevenue: recoveredRevenue || 0,
         funnelData,
         timeSeriesData,
         trends: {
           leads: calcTrend(totalLeads, prevLeadsCount),
           conversion: calcTrend(conversionRate, prevConv),
-          revenue: calcTrend(totalRevenue, prevRev),
-          noShows: calcTrend(noShowCount, prevNoShowCount)
-        }
+          revenue: calcTrend(totalRevenue, 0),
+          noShows: calcTrend(noShowCount, prevNoShowCount),
+        },
       });
 
     } catch (err) {
