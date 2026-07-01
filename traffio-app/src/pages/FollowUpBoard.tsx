@@ -36,7 +36,7 @@ interface ConversationSession {
 export function FollowUpBoard() {
   const { t } = useTranslation('crm');
   const { tenant } = useTenant();
-  const { formatDate, formatDateTime } = useLocaleFormat();
+  const { formatDateTime } = useLocaleFormat();
   const [sessions, setSessions] = useState<ConversationSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [patientNames, setPatientNames] = useState<Record<string, string>>({});

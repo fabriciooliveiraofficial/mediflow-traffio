@@ -193,7 +193,8 @@ export const AgendaMestra: React.FC = () => {
     const [notificationChannel, setNotificationChannel] = useState<string>('whatsapp');
     const [recipientId, setRecipientId] = useState('');
     const [notificationPreviewText, setNotificationPreviewText] = useState('');
-    const [tempBookedAppointments, setTempBookedAppointments] = useState<any[]>([]);
+    const [, setTempBookedAppointments] = useState<any[]>([]);
+
 
     // Drag & Drop
     const gridRef = useRef<HTMLDivElement>(null);
@@ -445,7 +446,7 @@ export const AgendaMestra: React.FC = () => {
         dateStr: string,
         startTime: string,
         endTime: string,
-        docId: string,
+        _docId: string,
         locId: string,
         scheduleData: any
     ) => {
@@ -649,7 +650,7 @@ export const AgendaMestra: React.FC = () => {
     const buildConsolidatedMessage = (patientName: string, appointments: any[]) => {
         const firstName = patientName.split(' ')[0];
         let msg = `Olá, ${firstName}! 😊 Aqui está o resumo das suas consultas confirmadas:\n\n`;
-        appointments.forEach((appt, idx) => {
+        appointments.forEach((appt) => {
             const dateFormatted = appt.date.split('-').reverse().slice(0, 2).join('/');
             const typeObj = appointmentTypes.find(t => t.id === appt.type_id);
             const docObj = doctors.find(d => d.id === appt.doctor_id);
@@ -1385,7 +1386,7 @@ export const AgendaMestra: React.FC = () => {
                                                                     {appt.patients?.full_name || t('mestra.patientFallback')}
                                                                 </span>
                                                                 {appt.patient_type === 'insurance' && <Shield size={9} className="text-emerald-400 shrink-0" />}
-                                                                {appt.recurring_group_id && <Repeat size={9} className="text-brand-primary shrink-0" title="Agendamento Recorrente" />}
+                                                                {appt.recurring_group_id && <span title="Agendamento Recorrente"><Repeat size={9} className="text-brand-primary shrink-0" /></span>}
                                                             </div>
                                                             {h > 36 && (
                                                                 <div className="flex items-center gap-1 mt-0.5">

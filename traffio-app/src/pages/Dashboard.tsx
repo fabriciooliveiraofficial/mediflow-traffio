@@ -32,8 +32,6 @@ import {
     FileSpreadsheet,
     ArrowUpDown,
     MessageCircle,
-    ExternalLink,
-    CheckCircle2
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useTenant } from '../contexts/TenantContext';

@@ -12,7 +12,7 @@ import { IconButton } from '../ui/IconButton';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { formatPhone, phoneFlag } from '../../lib/formatPhone';
-import { useAuth } from '../../contexts/AuthContext';
+import { useTenant } from '../../contexts/TenantContext';
 import { useToast } from '../../contexts/ToastContext';
 
 interface FollowUpTimelineDrawerProps {
@@ -27,7 +27,7 @@ interface OutcomeModal {
 
 export function FollowUpTimelineDrawer({ session, onClose }: FollowUpTimelineDrawerProps) {
     const { t } = useTranslation('crm');
-    const { tenant } = useAuth();
+    const { tenant } = useTenant();
     const { formatDate } = useLocaleFormat();
     const { showToast } = useToast();
     const { events, loading, refresh } = useLeadTimeline(session.id, tenant?.id);
@@ -227,7 +227,7 @@ export function FollowUpTimelineDrawer({ session, onClose }: FollowUpTimelineDra
                                                 {/* Badge de status para eventos não-pendentes */}
                                                 {event.type === 'appointment' && event.status && event.status !== 'created' && !isPending && (
                                                     <div className="mt-3">
-                                                        <Badge accent={event.status === 'completed' ? 'success' : event.status === 'canceled' ? 'danger' : 'warning'} size="sm">
+                                                        <Badge accent={event.status === 'completed' ? 'success' : event.status === 'canceled' ? 'error' : 'warning'} size="sm">
                                                             {event.status === 'completed' ? t('timeline.status.completed', { defaultValue: 'Realizada' })
                                                                 : event.status === 'canceled' ? t('timeline.status.canceled', { defaultValue: 'Cancelada' })
                                                                 : t('timeline.status.noShow', { defaultValue: 'Não compareceu' })}

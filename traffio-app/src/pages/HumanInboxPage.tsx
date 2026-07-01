@@ -90,6 +90,7 @@ interface PatientInfo {
   email: string | null
   birth_date: string | null
   notes: string | null
+  phone?: string | null
 }
 
 interface Appointment {
@@ -2295,14 +2296,14 @@ export function HumanInboxPage() {
       let query;
       if (selected.patient_id) {
         query = supabase.from('patients')
-          .select('id, full_name, cpf, national_id, national_id_type, country, email, birth_date, notes')
+          .select('id, full_name, cpf, national_id, national_id_type, country, email, birth_date, notes, phone')
           .eq('tenant_id', tenantId)
           .eq('id', selected.patient_id);
       } else {
         const phone = selected.patient_phone;
         const cleanPhone = phone.replace(/\D/g, '');
         query = supabase.from('patients')
-          .select('id, full_name, cpf, national_id, national_id_type, country, email, birth_date, notes')
+          .select('id, full_name, cpf, national_id, national_id_type, country, email, birth_date, notes, phone')
           .eq('tenant_id', tenantId)
           .or(`phone.eq.${cleanPhone},phone.eq.+${cleanPhone}`);
       }

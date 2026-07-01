@@ -195,11 +195,11 @@ serve(async (req: Request) => {
         );
 
         // 3. ── NOVO: Buscar preferências de canal dos pacientes ────────────────
-        const patientPhones = [
+        const patientPhones: string[] = [
             ...new Set(
                 appointments
                     .map((a: any) => (Array.isArray(a.patients) ? a.patients[0] : a.patients)?.phone)
-                    .filter(Boolean)
+                    .filter(Boolean) as string[]
             )
         ];
 
