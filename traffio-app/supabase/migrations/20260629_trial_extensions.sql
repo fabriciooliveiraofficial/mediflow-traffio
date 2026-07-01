@@ -10,6 +10,12 @@
 -- pagamento volta a ser reforçado automaticamente.
 -- ================================================================
 
+-- 0. Flag de bypass do gate de cartão para trials concedidos pelo super-admin.
+--    Sem essa flag, um tenant sem cartão continua caindo no PaymentRequiredModal
+--    do SubscriptionGuard mesmo com trial_ends_at estendido no futuro.
+ALTER TABLE public.tenants
+    ADD COLUMN IF NOT EXISTS admin_granted_trial BOOLEAN NOT NULL DEFAULT FALSE;
+
 -- 1. Tabela de auditoria das extensões
 CREATE TABLE IF NOT EXISTS public.trial_extensions (
     id                     UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -95,8 +101,9 @@ BEGIN
                   + make_interval(days => p_days);
 
     UPDATE public.tenants
-    SET trial_ends_at       = v_new_ends,
-        subscription_status = CASE
+    SET trial_ends_at        = v_new_ends,
+        admin_granted_trial  = TRUE,
+        subscription_status  = CASE
             WHEN subscription_status = 'active' THEN subscription_status
             ELSE 'trial'
         END

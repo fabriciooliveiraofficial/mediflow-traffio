@@ -1222,7 +1222,7 @@ const TEMPLATE_VARIABLES = [
     { placeholder: '{{nome_procedimento}}',    label: 'Tipo de Procedimento',       example: 'Consulta de Retorno' },
     { placeholder: '{{nome_local}}',           label: 'Unidade / Local',            example: 'Clínica Central' },
     { placeholder: '{{link_endereco}}',        label: 'Link Google Maps',           example: 'maps.google.com/...' },
-    { placeholder: '{{link_sala_espera}}',     label: 'Sala de Espera Virtual',     example: 'traffio.app/waiting-room' },
+    { placeholder: '{{link_sala_espera}}',     label: 'Sala de Espera Virtual',     example: 'traffio.app/checkin?apt=...&loc=...' },
     { placeholder: '{{link_checkin}}',         label: 'Link Check-in Express',      example: 'traffio.app/checkin' },
     { placeholder: '{{nome_clinica}}',         label: 'Nome da Clínica',            example: 'Clínica Exemplo' },
 ] as const;

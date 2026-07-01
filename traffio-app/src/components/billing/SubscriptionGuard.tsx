@@ -33,7 +33,8 @@ export const SubscriptionGuard = ({ activeScreen, onNavigate, children }: Subscr
     const status = tenant.subscription_status ?? 'trial';
 
     // ── 1. Trial sem cartão: modal não-fechável, bloqueia tudo ──────────────
-    if (status === 'trial' && !tenant.card_on_file && !isTrialExpired) {
+    // admin_granted_trial = super_admin concedeu teste estendido sem exigir cartão
+    if (status === 'trial' && !tenant.card_on_file && !tenant.admin_granted_trial && !isTrialExpired) {
         return (
             <PaymentRequiredModal
                 planId={tenant.plan ?? 'essencial'}

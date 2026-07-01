@@ -166,7 +166,7 @@ serve(async (req: Request) => {
                 id, tenant_id, date, start_time, status, created_at, booked_by,
                 patients(phone, full_name, preferred_locale),
                 doctors(full_name),
-                locations(name, address, google_maps_url, latitude, longitude),
+                locations(id, name, address, google_maps_url, latitude, longitude),
                 appointment_types(name)
             `)
             .or("date.gte." + today + ",created_at.gte." + yesterday)
@@ -320,8 +320,8 @@ serve(async (req: Request) => {
                 location_name:     locationName,
                 location_link:     locationLink,
                 clinic_name:       clinicName,
-                waiting_room_link: publicUrl + "/waiting-room?tenant=" + appt.tenant_id + "&apt=" + appt.id,
-                checkin_link:      publicUrl + "/checkin?apt=" + appt.id,
+                waiting_room_link: publicUrl + "/checkin?apt=" + appt.id + (locationData?.id ? "&loc=" + locationData.id : ""),
+                checkin_link:      publicUrl + "/checkin?apt=" + appt.id + (locationData?.id ? "&loc=" + locationData.id : ""),
                 locale:            patientLocale,
             };
 

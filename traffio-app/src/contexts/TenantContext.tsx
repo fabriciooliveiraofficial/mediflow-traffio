@@ -32,6 +32,7 @@ interface Tenant {
     subscription_renews_at: string | null;
     trial_ends_at: string | null;
     card_on_file: boolean;
+    admin_granted_trial: boolean;
     // SMTP (SMTP próprio)
     smtp_host?: string;
     smtp_port?: number;
