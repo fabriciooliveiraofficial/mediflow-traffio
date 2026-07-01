@@ -93,32 +93,43 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
         setLoading(true);
 
         try {
-            // Validate duplicate CPF/Document under same tenant
+            // Validate duplicate CPF/Document/Email under same tenant
             const formattedCpf = formData.national_id;
             const cleanedCpf = formData.national_id ? formData.national_id.replace(/\D/g, '') : null;
 
-            if (cleanedCpf && tenant?.id) {
+            const orConditions: string[] = [];
+            if (cleanedCpf) {
+                orConditions.push(
+                    `cpf.eq.${cleanedCpf}`,
+                    `cpf.eq.${formattedCpf}`,
+                    `national_id.eq.${cleanedCpf}`,
+                    `national_id.eq.${formattedCpf}`
+                );
+            }
+            if (formData.email) {
+                orConditions.push(`email.eq.${formData.email}`);
+            }
+
+            if (orConditions.length > 0 && tenant?.id) {
                 let checkQuery = supabase
                     .from('patients')
-                    .select('id, cpf, national_id')
+                    .select('id, cpf, national_id, email')
                     .eq('tenant_id', tenant.id);
 
                 if (patientId) {
                     checkQuery = checkQuery.neq('id', patientId);
                 }
 
-                const orConditions = [
-                    `cpf.eq.${cleanedCpf}`,
-                    `cpf.eq.${formattedCpf}`,
-                    `national_id.eq.${cleanedCpf}`,
-                    `national_id.eq.${formattedCpf}`
-                ];
-
                 const { data: existingPatients, error: checkError } = await checkQuery.or(orConditions.join(','));
                 if (checkError) {
                     console.error('Error checking duplicate patients:', checkError);
                 } else if (existingPatients && existingPatients.length > 0) {
-                    throw new Error(t('newPatientModal.errors.duplicateCpf') || 'Já existe um paciente cadastrado com este CPF.');
+                    const hasEmailDuplicate = existingPatients.some(p => p.email && p.email.toLowerCase() === formData.email.toLowerCase());
+                    if (hasEmailDuplicate) {
+                        throw new Error(t('newPatientModal.errors.duplicateEmail') || 'Já existe um paciente cadastrado com este e-mail.');
+                    } else {
+                        throw new Error(t('newPatientModal.errors.duplicateCpf') || 'Já existe um paciente cadastrado com este CPF.');
+                    }
                 }
             }
             // Build payload dynamically to avoid errors with missing columns

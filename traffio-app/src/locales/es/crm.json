@@ -112,7 +112,8 @@
     "errors": {
       "tenantNotIdentified": "Cliente no identificado.",
       "createPrefix": "Error al registrar: {{message}}",
-      "duplicateCpf": "Ya existe un paciente registrado con este CPF/Documento."
+      "duplicateCpf": "Ya existe un paciente registrado con este CPF/Documento.",
+      "duplicateEmail": "Ya existe un paciente registrado con este correo electrónico."
     }
   },
   "receptionDashboard": {
@@ -184,7 +185,8 @@
     },
     "errors": {
       "updateFailed": "Error al actualizar",
-      "duplicateCpf": "Ya existe un paciente registrado con este CPF/Documento."
+      "duplicateCpf": "Ya existe un paciente registrado con este CPF/Documento.",
+      "duplicateEmail": "Ya existe un paciente registrado con este correo electrónico."
     },
     "self": "Self"
   },
@@ -278,7 +280,8 @@
     },
     "errors": {
       "createFailed": "Error al registrar",
-      "duplicateCpf": "Ya existe un paciente registrado con este CPF/Documento."
+      "duplicateCpf": "Ya existe un paciente registrado con este CPF/Documento.",
+      "duplicateEmail": "Ya existe un paciente registrado con este correo electrónico."
     }
   }
 }

@@ -72,21 +72,27 @@ export function SidebarPatientEditView({ onBack, onSuccess, patient, session, on
     setLoading(true);
 
     try {
-      // Validate duplicate CPF/Document under same tenant (excluding current patient)
+      // Validate duplicate CPF/Document/Email under same tenant (excluding current patient)
       const formattedCpf = formData.national_id;
       const cleanedCpf = formData.national_id ? formData.national_id.replace(/\D/g, '') : null;
 
-      if (cleanedCpf && tenant?.id && patient?.id) {
-        const orConditions = [
+      const orConditions: string[] = [];
+      if (cleanedCpf) {
+        orConditions.push(
           `cpf.eq.${cleanedCpf}`,
           `cpf.eq.${formattedCpf}`,
           `national_id.eq.${cleanedCpf}`,
           `national_id.eq.${formattedCpf}`
-        ];
+        );
+      }
+      if (formData.email) {
+        orConditions.push(`email.eq.${formData.email}`);
+      }
 
+      if (orConditions.length > 0 && tenant?.id && patient?.id) {
         const { data: existingPatients, error: checkError } = await supabase
           .from('patients')
-          .select('id, cpf, national_id')
+          .select('id, cpf, national_id, email')
           .eq('tenant_id', tenant.id)
           .neq('id', patient.id)
           .or(orConditions.join(','));
@@ -94,7 +100,12 @@ export function SidebarPatientEditView({ onBack, onSuccess, patient, session, on
         if (checkError) {
           console.error('Error checking duplicate patients:', checkError);
         } else if (existingPatients && existingPatients.length > 0) {
-          throw new Error(t('sidebarPatientEditView.errors.duplicateCpf') || 'Já existe um paciente cadastrado com este CPF.');
+          const hasEmailDuplicate = existingPatients.some(p => p.email && p.email.toLowerCase() === formData.email.toLowerCase());
+          if (hasEmailDuplicate) {
+            throw new Error(t('sidebarPatientEditView.errors.duplicateEmail') || 'Já existe um paciente cadastrado com este e-mail.');
+          } else {
+            throw new Error(t('sidebarPatientEditView.errors.duplicateCpf') || 'Já existe um paciente cadastrado com este CPF.');
+          }
         }
       }
       // 1. Update Patient Data

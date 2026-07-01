@@ -112,7 +112,8 @@
     "errors": {
       "tenantNotIdentified": "Tenant não identificado.",
       "createPrefix": "Erro ao cadastrar: {{message}}",
-      "duplicateCpf": "Já existe um paciente cadastrado com este CPF."
+      "duplicateCpf": "Já existe um paciente cadastrado com este CPF.",
+      "duplicateEmail": "Já existe um paciente cadastrado com este e-mail."
     }
   },
   "receptionDashboard": {
@@ -184,7 +185,8 @@
     },
     "errors": {
       "updateFailed": "Falha ao atualizar",
-      "duplicateCpf": "Já existe um paciente cadastrado com este CPF."
+      "duplicateCpf": "Já existe um paciente cadastrado com este CPF.",
+      "duplicateEmail": "Já existe um paciente cadastrado com este e-mail."
     },
     "self": "Self"
   },
@@ -278,7 +280,8 @@
     },
     "errors": {
       "createFailed": "Falha ao cadastrar",
-      "duplicateCpf": "Já existe um paciente cadastrado com este CPF."
+      "duplicateCpf": "Já existe um paciente cadastrado com este CPF.",
+      "duplicateEmail": "Já existe um paciente cadastrado com este e-mail."
     }
   }
 }
