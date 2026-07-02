@@ -145,6 +145,12 @@
       "needsAction": "Necesita acción",
       "allOpen": "Todos abiertos"
     },
+    "sections": {
+      "dueNow": "Actuar ahora",
+      "scheduled": "Programados",
+      "handled": "Al día"
+    },
+    "returnsAt": "Vuelve {{date}}",
     "emptyAction": "Todo al día — ningún contacto necesita acción ahora.",
     "emptyAll": "Ningún contacto abierto encontrado.",
     "nextAppointment": "Próx. cita: {{date}}",

@@ -145,6 +145,12 @@
       "needsAction": "Needs action",
       "allOpen": "All open"
     },
+    "sections": {
+      "dueNow": "Act now",
+      "scheduled": "Scheduled",
+      "handled": "Up to date"
+    },
+    "returnsAt": "Back {{date}}",
     "emptyAction": "All caught up — no contact needs action right now.",
     "emptyAll": "No open contacts found.",
     "nextAppointment": "Next appt: {{date}}",

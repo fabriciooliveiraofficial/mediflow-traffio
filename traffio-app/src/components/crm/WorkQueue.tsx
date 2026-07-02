@@ -54,21 +54,29 @@ export function WorkQueue({
 
     const now = Date.now();
 
-    const rows = useMemo(() => {
-        const open = journeys.filter(j => !['won', 'lost'].includes(j.stage_id));
-        const needing = open.filter(j =>
-            j.needs_action || (j.next_action_at && new Date(j.next_action_at).getTime() <= now)
-        );
-        const list = mode === 'action' ? needing : open;
-        return [...list].sort((a, b) => b.priority_score - a.priority_score);
-    }, [journeys, mode, now]);
+    // Estratificação visual por importância operacional:
+    //   due       → para agir agora (topo, ordenado por score)
+    //   scheduled → adiados/compromisso futuro (meio, ordenado pelo vencimento
+    //               mais próximo; ao vencer, sobem sozinhos para "due")
+    //   quiet     → tratados/em dia (fundo, esmaecidos, ordenados por recência)
+    type Stratum = 'due' | 'scheduled' | 'quiet';
 
-    const actionCount = useMemo(() =>
-        journeys.filter(j =>
-            !['won', 'lost'].includes(j.stage_id)
-            && (j.needs_action || (j.next_action_at && new Date(j.next_action_at).getTime() <= now))
-        ).length,
-    [journeys, now]);
+    const strata = useMemo(() => {
+        const open = journeys.filter(j => !['won', 'lost'].includes(j.stage_id));
+        const isDue = (j: CrmJourney) =>
+            j.needs_action || (!!j.next_action_at && new Date(j.next_action_at).getTime() <= now);
+
+        const due = open.filter(isDue)
+            .sort((a, b) => b.priority_score - a.priority_score);
+        const scheduled = open.filter(j => !isDue(j) && j.next_action_at)
+            .sort((a, b) => new Date(a.next_action_at!).getTime() - new Date(b.next_action_at!).getTime());
+        const quiet = open.filter(j => !isDue(j) && !j.next_action_at)
+            .sort((a, b) => new Date(b.last_event_at).getTime() - new Date(a.last_event_at).getTime());
+
+        return { due, scheduled, quiet };
+    }, [journeys, now]);
+
+    const actionCount = strata.due.length;
 
     // "Por que este card está na fila" — a linha de contexto que elimina a
     // necessidade de abrir cada card para entender o que fazer
@@ -206,99 +214,157 @@ export function WorkQueue({
                 </div>
             </div>
 
-            {/* Fila */}
-            {rows.length === 0 ? (
-                <div className="bg-white rounded-2xl border border-ice-100 shadow-float py-16">
-                    <EmptyState
-                        icon={CheckCircle2}
-                        label={mode === 'action' ? t('workQueue.emptyAction') : t('workQueue.emptyAll')}
-                    />
-                </div>
-            ) : (
-                <div className="space-y-2.5">
-                    {rows.map(j => {
-                        const reason = reasonFor(j);
-                        const channels = journeyChannels(j);
-                        const busy = actingOn === j.id;
+            {/* Fila estratificada por importância */}
+            {(() => {
+                const renderRow = (j: CrmJourney, stratum: Stratum) => {
+                    const reason = reasonFor(j);
+                    const channels = journeyChannels(j);
+                    const busy = actingOn === j.id;
 
-                        return (
-                            <div
-                                key={j.id}
-                                className={`group bg-white rounded-2xl border shadow-float p-4 flex items-center gap-4 transition-all duration-500 hover:border-brand-primary/40 ${
-                                    justHandled === j.id
-                                        ? 'border-accent-success ring-2 ring-accent-success/30 bg-accent-success/5'
-                                        : reason.urgent ? 'border-amber-200' : 'border-ice-100'
-                                }`}
+                    return (
+                        <div
+                            key={`${j.id}-${stratum}`}
+                            className={`group bg-white rounded-2xl border shadow-float p-4 flex items-center gap-4 transition-all duration-500 hover:border-brand-primary/40 animate-in fade-in slide-in-from-top-1 ${
+                                justHandled === j.id
+                                    ? 'border-accent-success ring-2 ring-accent-success/30 bg-accent-success/5'
+                                    : stratum === 'due' && reason.urgent ? 'border-amber-300 border-l-4'
+                                    : stratum === 'due' ? 'border-amber-200'
+                                    : 'border-ice-100'
+                            } ${stratum === 'quiet' ? 'opacity-60 hover:opacity-100' : ''}`}
+                        >
+                            {/* Score */}
+                            <div className="shrink-0 w-12 text-center">
+                                <span className={`text-lg font-black tracking-tight ${
+                                    stratum !== 'due' ? 'text-graphite-300'
+                                        : j.priority_score >= 60 ? 'text-accent-error'
+                                        : j.priority_score >= 30 ? 'text-accent-warning'
+                                        : 'text-graphite-400'
+                                }`}>
+                                    {j.priority_score}
+                                </span>
+                                <p className="text-[8px] font-black text-graphite-300 uppercase tracking-widest">{t('workQueue.scoreLabel')}</p>
+                            </div>
+
+                            {/* Identidade */}
+                            <button
+                                onClick={() => onOpenJourney(j)}
+                                className="min-w-0 flex-1 text-left cursor-pointer"
                             >
-                                {/* Score */}
-                                <div className="shrink-0 w-12 text-center">
-                                    <span className={`text-lg font-black tracking-tight ${
-                                        j.priority_score >= 60 ? 'text-accent-error' : j.priority_score >= 30 ? 'text-accent-warning' : 'text-graphite-400'
-                                    }`}>
-                                        {j.priority_score}
-                                    </span>
-                                    <p className="text-[8px] font-black text-graphite-300 uppercase tracking-widest">{t('workQueue.scoreLabel')}</p>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-sm font-black text-graphite-900 truncate">{displayName(j)}</span>
+                                    <Badge accent="brand" size="sm">{t(`stages.${CRM_STAGE_LABEL_KEYS[j.stage_id as CrmStageId]}`)}</Badge>
+                                    {channels.filter(c => channels.length > 1 || !['whatsapp', 'phone', 'sms'].includes(c)).map(c => (
+                                        <Badge key={c} accent="info" size="sm">{t(`followUp.channelChip.${c}`, { defaultValue: c })}</Badge>
+                                    ))}
+                                    {j.no_show_count > 0 && (
+                                        <Badge accent="error" size="sm"><AlertTriangle className="w-3 h-3" />{j.no_show_count}</Badge>
+                                    )}
+                                    {stratum === 'scheduled' && j.next_action_at && (
+                                        <Badge accent="indigo" size="sm">
+                                            <AlarmClock className="w-3 h-3" />
+                                            {t('workQueue.returnsAt', { date: formatDateTime(j.next_action_at) })}
+                                        </Badge>
+                                    )}
+                                    {stratum === 'quiet' && (
+                                        <Badge accent="neutral" size="sm">
+                                            <Check className="w-3 h-3" />
+                                            {t('workQueue.reason.upToDate')}
+                                        </Badge>
+                                    )}
                                 </div>
-
-                                {/* Identidade */}
-                                <button
-                                    onClick={() => onOpenJourney(j)}
-                                    className="min-w-0 flex-1 text-left cursor-pointer"
-                                >
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <span className="text-sm font-black text-graphite-900 truncate">{displayName(j)}</span>
-                                        <Badge accent="brand" size="sm">{t(`stages.${CRM_STAGE_LABEL_KEYS[j.stage_id as CrmStageId]}`)}</Badge>
-                                        {channels.filter(c => channels.length > 1 || !['whatsapp', 'phone', 'sms'].includes(c)).map(c => (
-                                            <Badge key={c} accent="info" size="sm">{t(`followUp.channelChip.${c}`, { defaultValue: c })}</Badge>
-                                        ))}
-                                        {j.no_show_count > 0 && (
-                                            <Badge accent="error" size="sm"><AlertTriangle className="w-3 h-3" />{j.no_show_count}</Badge>
-                                        )}
-                                    </div>
-                                    <div className="flex items-center gap-3 mt-1">
-                                        <span className={`text-xs font-bold ${reason.urgent ? 'text-amber-600' : 'text-graphite-500'}`}>
-                                            {reason.text}
+                                <div className="flex items-center gap-3 mt-1">
+                                    <span className={`text-xs font-bold ${stratum === 'due' && reason.urgent ? 'text-amber-600' : 'text-graphite-500'}`}>
+                                        {reason.text}
+                                    </span>
+                                    <span className="text-[10px] font-bold text-graphite-400 uppercase tracking-wider">{displaySubtitle(j)}</span>
+                                    {j.next_appointment_at && (
+                                        <span className="text-[10px] font-bold text-graphite-400">
+                                            {t('workQueue.nextAppointment', { date: formatDateTime(j.next_appointment_at) })}
                                         </span>
-                                        <span className="text-[10px] font-bold text-graphite-400 uppercase tracking-wider">{displaySubtitle(j)}</span>
-                                        {j.next_appointment_at && (
-                                            <span className="text-[10px] font-bold text-graphite-400">
-                                                {t('workQueue.nextAppointment', { date: formatDateTime(j.next_appointment_at) })}
-                                            </span>
-                                        )}
-                                    </div>
-                                </button>
+                                    )}
+                                </div>
+                            </button>
 
-                                {/* Ações inline */}
-                                <div className="shrink-0 flex items-center gap-1 opacity-70 group-hover:opacity-100 transition-opacity">
-                                    <IconButton
-                                        title={t('workQueue.actions.message')}
-                                        onClick={() => { setMsgText(''); setMsgModal(j); }}
-                                    >
-                                        <MessageSquare className="w-4 h-4" />
-                                    </IconButton>
-                                    <IconButton
-                                        title={t('workQueue.actions.conversation')}
-                                        onClick={() => onOpenConversation(j)}
-                                        disabled={!j.session_id}
-                                        className={!j.session_id ? 'opacity-30 cursor-not-allowed' : ''}
-                                    >
-                                        <Inbox className="w-4 h-4" />
-                                    </IconButton>
-                                    <IconButton title={t('workQueue.actions.book')} onClick={() => onBook(j)}>
-                                        <CalendarPlus className="w-4 h-4" />
-                                    </IconButton>
+                            {/* Ações inline */}
+                            <div className="shrink-0 flex items-center gap-1 opacity-70 group-hover:opacity-100 transition-opacity">
+                                <IconButton
+                                    title={t('workQueue.actions.message')}
+                                    onClick={() => { setMsgText(''); setMsgModal(j); }}
+                                >
+                                    <MessageSquare className="w-4 h-4" />
+                                </IconButton>
+                                <IconButton
+                                    title={t('workQueue.actions.conversation')}
+                                    onClick={() => onOpenConversation(j)}
+                                    disabled={!j.session_id}
+                                    className={!j.session_id ? 'opacity-30 cursor-not-allowed' : ''}
+                                >
+                                    <Inbox className="w-4 h-4" />
+                                </IconButton>
+                                <IconButton title={t('workQueue.actions.book')} onClick={() => onBook(j)}>
+                                    <CalendarPlus className="w-4 h-4" />
+                                </IconButton>
+                                {stratum !== 'scheduled' && (
                                     <IconButton title={t('workQueue.actions.snooze')} onClick={() => handleSnooze(j)} disabled={busy}>
                                         {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <AlarmClock className="w-4 h-4" />}
                                     </IconButton>
+                                )}
+                                {stratum !== 'quiet' && (
                                     <IconButton title={t('workQueue.actions.done')} onClick={() => handleDone(j)} disabled={busy}>
                                         <Check className="w-4 h-4" />
                                     </IconButton>
-                                </div>
+                                )}
                             </div>
-                        );
-                    })}
-                </div>
-            )}
+                        </div>
+                    );
+                };
+
+                const sectionHeader = (labelKey: string, count: number, tone: 'urgent' | 'scheduled' | 'quiet') => (
+                    <div className="flex items-center gap-2 pt-2">
+                        <span className={`text-[10px] font-black uppercase tracking-widest ${
+                            tone === 'urgent' ? 'text-amber-600' : tone === 'scheduled' ? 'text-indigo-500' : 'text-graphite-400'
+                        }`}>
+                            {t(labelKey)}
+                        </span>
+                        <Badge accent={tone === 'urgent' ? 'warning' : tone === 'scheduled' ? 'indigo' : 'neutral'} size="sm">{count}</Badge>
+                        <div className="flex-1 h-px bg-ice-200" />
+                    </div>
+                );
+
+                if (mode === 'action') {
+                    return strata.due.length === 0 ? (
+                        <div className="bg-white rounded-2xl border border-ice-100 shadow-float py-16">
+                            <EmptyState icon={CheckCircle2} label={t('workQueue.emptyAction')} />
+                        </div>
+                    ) : (
+                        <div className="space-y-2.5">
+                            {strata.due.map(j => renderRow(j, 'due'))}
+                        </div>
+                    );
+                }
+
+                const total = strata.due.length + strata.scheduled.length + strata.quiet.length;
+                if (total === 0) {
+                    return (
+                        <div className="bg-white rounded-2xl border border-ice-100 shadow-float py-16">
+                            <EmptyState icon={CheckCircle2} label={t('workQueue.emptyAll')} />
+                        </div>
+                    );
+                }
+
+                return (
+                    <div className="space-y-2.5">
+                        {strata.due.length > 0 && sectionHeader('workQueue.sections.dueNow', strata.due.length, 'urgent')}
+                        {strata.due.map(j => renderRow(j, 'due'))}
+
+                        {strata.scheduled.length > 0 && sectionHeader('workQueue.sections.scheduled', strata.scheduled.length, 'scheduled')}
+                        {strata.scheduled.map(j => renderRow(j, 'scheduled'))}
+
+                        {strata.quiet.length > 0 && sectionHeader('workQueue.sections.handled', strata.quiet.length, 'quiet')}
+                        {strata.quiet.map(j => renderRow(j, 'quiet'))}
+                    </div>
+                );
+            })()}
 
             {/* Modal de mensagem rápida */}
             {msgModal && (
