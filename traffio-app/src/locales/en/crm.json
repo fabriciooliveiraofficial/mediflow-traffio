@@ -89,6 +89,14 @@
       "walkIn": "Walk-in",
       "recall": "Recall"
     },
+    "channelChip": {
+      "whatsapp": "WhatsApp",
+      "instagram": "Instagram",
+      "facebook": "Messenger",
+      "livechat": "Web Chat",
+      "sms": "SMS",
+      "phone": "Phone"
+    },
     "nextAction": {
       "call": "Call",
       "message": "Message",
@@ -162,6 +170,16 @@
       "npsHint": "The NPS survey will be sent automatically to the patient after the configured delay in Intelligence.",
       "cancel": "Cancel",
       "save": "Confirm Completion"
+    },
+    "merge": {
+      "action": "Merge",
+      "title": "Merge Contact",
+      "subtitle": "This card will be merged into the selected contact.",
+      "searchPlaceholder": "Search by name or phone...",
+      "empty": "No contacts found.",
+      "confirm": "Merge Contacts",
+      "success": "Contacts merged successfully!",
+      "error": "Error merging contacts."
     },
     "toasts": {
       "completedSuccess": "Appointment recorded as completed! NPS will be sent automatically.",

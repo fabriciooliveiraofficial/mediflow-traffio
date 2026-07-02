@@ -19,6 +19,12 @@ import { useTranslation } from 'react-i18next';
 import { Badge, Button, IconButton, EmptyState, PageHeader } from '../components/ui';
 import { FollowUpTimelineDrawer } from '../components/crm/FollowUpTimelineDrawer';
 
+export interface CrmJourneyIdentity {
+  channel: 'whatsapp' | 'instagram' | 'facebook' | 'livechat' | 'sms' | 'phone';
+  identifier: string;
+  display_name: string | null;
+}
+
 interface CrmJourney {
   id: string;
   tenant_id: string;
@@ -41,7 +47,8 @@ interface CrmJourney {
   last_event_at: string;
   created_at: string;
   patients: { full_name: string; phone: string } | null;
-  conversation_sessions: { channel: string | null; context: any; patient_phone: string } | null;
+  conversation_sessions: { channel: string | null; context: any; patient_phone: string; platform_display_name: string | null } | null;
+  crm_journey_identities: CrmJourneyIdentity[];
 }
 
 const LOST_REASONS = ['price', 'competitor', 'no_response', 'gave_up', 'other'] as const;
@@ -86,7 +93,7 @@ export function FollowUpBoard() {
     setLoading(true);
     const { data, error } = await supabase
       .from('crm_journeys')
-      .select('*, patients(full_name, phone), conversation_sessions(channel, context, patient_phone)')
+      .select('*, patients(full_name, phone), conversation_sessions(channel, context, patient_phone, platform_display_name), crm_journey_identities(channel, identifier, display_name)')
       .eq('tenant_id', tenant!.id)
       .order('last_event_at', { ascending: false });
 
@@ -95,8 +102,16 @@ export function FollowUpBoard() {
     setLoading(false);
   };
 
+  // Resolução de nome em cascata (padrão identity resolution):
+  // cadastro do paciente → nome real capturado em qualquer identidade de canal
+  // → platform_display_name da sessão → context legado → genérico (último recurso)
   const displayName = (j: CrmJourney) => {
     if (j.patients?.full_name) return j.patients.full_name;
+
+    const identityName = (j.crm_journey_identities || []).find(i => i.display_name)?.display_name;
+    if (identityName) return identityName;
+    if (j.conversation_sessions?.platform_display_name) return j.conversation_sessions.platform_display_name;
+
     const channel = j.conversation_sessions?.channel;
     if (channel && ['instagram', 'facebook', 'livechat'].includes(channel)) {
       const ctx = j.conversation_sessions?.context;
@@ -110,15 +125,25 @@ export function FollowUpBoard() {
     return `${phoneFlag(phone)} ${formatPhone(phone)}`;
   };
 
+  // Subtítulo: telefone quando houver; senão o rótulo do canal principal
   const displaySubtitle = (j: CrmJourney) => {
+    const phoneIdentity = (j.crm_journey_identities || []).find(i => i.channel === 'whatsapp' || i.channel === 'sms' || i.channel === 'phone');
+    const phone = j.patients?.phone || phoneIdentity?.identifier
+      || (j.conversation_sessions?.channel === 'whatsapp' || !j.conversation_sessions?.channel ? j.lead_phone : null);
+    if (phone) return formatPhone(phone);
+
     const channel = j.conversation_sessions?.channel;
-    if (channel && ['instagram', 'facebook', 'livechat'].includes(channel)) {
-      return channel === 'instagram'
-        ? t('followUp.channelLabel.instagram', { username: j.conversation_sessions?.context?.username || t('followUp.directFallback') })
-        : channel === 'facebook' ? t('followUp.channelLabel.facebook') : t('followUp.channelLabel.livechat');
-    }
-    const phone = j.lead_phone || j.patients?.phone || j.conversation_sessions?.patient_phone || '';
-    return formatPhone(phone);
+    if (channel === 'instagram') return t('followUp.channelLabel.instagram', { username: j.conversation_sessions?.context?.username || t('followUp.directFallback') });
+    if (channel === 'facebook') return t('followUp.channelLabel.facebook');
+    if (channel === 'livechat') return t('followUp.channelLabel.livechat');
+    return formatPhone(j.lead_phone || '');
+  };
+
+  // Canais conectados ao card (deduplica por canal para os chips)
+  const journeyChannels = (j: CrmJourney): string[] => {
+    const set = new Set<string>((j.crm_journey_identities || []).map(i => i.channel));
+    if (j.conversation_sessions?.channel) set.add(j.conversation_sessions.channel);
+    return [...set];
   };
 
   const actionQueue = useMemo(() => {
@@ -310,6 +335,16 @@ export function FollowUpBoard() {
                       </div>
 
                       <div className="flex flex-wrap gap-2 mt-2">
+                        {(() => {
+                          const channels = journeyChannels(j);
+                          // Chips de canal: sempre para canais sociais; WhatsApp só
+                          // quando o card tem mais de um canal conectado (evita ruído)
+                          return channels
+                            .filter(c => channels.length > 1 || !['whatsapp', 'phone', 'sms'].includes(c))
+                            .map(c => (
+                              <Badge key={c} accent="info" size="sm">{t(`followUp.channelChip.${c}`, { defaultValue: c })}</Badge>
+                            ));
+                        })()}
                         {j.revenue_estimated > 0 && (
                           <Badge accent="success" size="sm"><DollarSign className="w-3 h-3" />R$ {j.revenue_estimated.toLocaleString('pt-BR')}</Badge>
                         )}

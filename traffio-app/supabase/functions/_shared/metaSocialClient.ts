@@ -55,7 +55,8 @@ export class MetaSocialClient {
       body: JSON.stringify({
         recipient: { id: psid },
         message:   { text },
-        messaging_type: "RESPONSE",
+        messaging_type: "MESSAGE_TAG",
+        tag: "HUMAN_AGENT",
       }),
     });
 
@@ -87,6 +88,8 @@ export class MetaSocialClient {
       body: JSON.stringify({
         recipient: { id: igsid },
         message:   { text },
+        messaging_type: "MESSAGE_TAG",
+        tag: "HUMAN_AGENT",
       }),
     });
 
@@ -122,7 +125,8 @@ export class MetaSocialClient {
             payload: { url: mediaUrl, is_reusable: true },
           },
         },
-        messaging_type: "RESPONSE",
+        messaging_type: "MESSAGE_TAG",
+        tag: "HUMAN_AGENT",
       }),
     });
 
@@ -158,6 +162,8 @@ export class MetaSocialClient {
             payload: { url: mediaUrl, is_reusable: true },
           },
         },
+        messaging_type: "MESSAGE_TAG",
+        tag: "HUMAN_AGENT",
       }),
     });
 

@@ -89,6 +89,14 @@
       "walkIn": "Walk-in",
       "recall": "Recall"
     },
+    "channelChip": {
+      "whatsapp": "WhatsApp",
+      "instagram": "Instagram",
+      "facebook": "Messenger",
+      "livechat": "Chat Web",
+      "sms": "SMS",
+      "phone": "Teléfono"
+    },
     "nextAction": {
       "call": "Llamar",
       "message": "Mensaje",
@@ -162,6 +170,16 @@
       "npsHint": "La encuesta NPS se enviará automáticamente al paciente después del plazo configurado en Inteligencia.",
       "cancel": "Cancelar",
       "save": "Confirmar Realización"
+    },
+    "merge": {
+      "action": "Fusionar",
+      "title": "Fusionar Contacto",
+      "subtitle": "Esta tarjeta se fusionará con el contacto seleccionado.",
+      "searchPlaceholder": "Buscar por nombre o teléfono...",
+      "empty": "Ningún contacto encontrado.",
+      "confirm": "Fusionar Contactos",
+      "success": "¡Contactos fusionados con éxito!",
+      "error": "Error al fusionar contactos."
     },
     "toasts": {
       "completedSuccess": "¡Cita registrada como realizada! El NPS se enviará automáticamente.",

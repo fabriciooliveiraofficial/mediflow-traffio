@@ -1951,7 +1951,7 @@ export function HumanInboxPage() {
     const updateTimer = () => {
       const now = Date.now()
       const elapsed = now - lastUserMessageTime
-      const limit = 24 * 60 * 60 * 1000 // 24 hours in ms
+      const limit = 7 * 24 * 60 * 60 * 1000 // 7 days in ms
       const remaining = limit - elapsed
 
       if (remaining <= 0) {

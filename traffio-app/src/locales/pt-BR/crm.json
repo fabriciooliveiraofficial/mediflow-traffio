@@ -89,6 +89,14 @@
       "walkIn": "Walk-in",
       "recall": "Recall"
     },
+    "channelChip": {
+      "whatsapp": "WhatsApp",
+      "instagram": "Instagram",
+      "facebook": "Messenger",
+      "livechat": "Chat Web",
+      "sms": "SMS",
+      "phone": "Telefone"
+    },
     "nextAction": {
       "call": "Ligar",
       "message": "Mensagem",
@@ -162,6 +170,16 @@
       "npsHint": "A pesquisa NPS será enviada automaticamente ao paciente após o prazo configurado em Inteligência.",
       "cancel": "Cancelar",
       "save": "Confirmar Realização"
+    },
+    "merge": {
+      "action": "Mesclar",
+      "title": "Mesclar Contato",
+      "subtitle": "Este card será fundido no contato selecionado.",
+      "searchPlaceholder": "Buscar por nome ou telefone...",
+      "empty": "Nenhum contato encontrado.",
+      "confirm": "Mesclar Contatos",
+      "success": "Contatos mesclados com sucesso!",
+      "error": "Erro ao mesclar contatos."
     },
     "toasts": {
       "completedSuccess": "Consulta registrada como realizada! NPS será enviado automaticamente.",

@@ -175,8 +175,8 @@
         "message": "Clique para digitar... (Enter envia)"
       },
       "noteHiddenHint": "Nota invisível para o paciente",
-      "metaWindowExpiredHint": "A janela de 24h do Meta expirou por inatividade do paciente. Para enviar mensagens de texto livre, o paciente precisa reabrir o contato ou você deve usar outro canal (WhatsApp ou SMS).",
-      "metaWindowExpiredHeading": "Janela de Atendimento Expirada (24h)",
+      "metaWindowExpiredHint": "A janela de 7 dias do Meta expirou por inatividade do paciente. Para enviar mensagens de texto livre, o paciente precisa reabrir o contato ou você deve usar outro canal (WhatsApp ou SMS).",
+      "metaWindowExpiredHeading": "Janela de Atendimento Expirada (7 dias)",
       "metaWindowOpenWarning": "Tempo restante para responder via Meta:"
     },
     "patientPanel": {

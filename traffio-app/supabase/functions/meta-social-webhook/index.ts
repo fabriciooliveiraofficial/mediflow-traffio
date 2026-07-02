@@ -104,7 +104,7 @@ async function processEntries(
     const tenantId = page.tenant_id;
 
     for (const messaging of entry.messaging ?? []) {
-      await processMessagingEvent(supabase, tenantId, channel, messaging);
+      await processMessagingEvent(supabase, tenantId, channel, messaging, page.page_access_token ?? null);
     }
 
     // ── Handover Protocol: a Página nasce com "Page Inbox" como Primary Receiver.
@@ -112,7 +112,7 @@ async function processEntries(
     // pelo canal `standby` em vez de `messaging`. Processamos a mensagem do mesmo
     // jeito e pedimos o controle da thread para que as próximas chegem como `messaging`.
     for (const standby of entry.standby ?? []) {
-      await processMessagingEvent(supabase, tenantId, channel, standby);
+      await processMessagingEvent(supabase, tenantId, channel, standby, page.page_access_token ?? null);
       if (channel === "facebook" && page.page_access_token && standby.sender?.id) {
         await requestThreadControl(page.page_access_token, standby.sender.id);
       }
@@ -141,11 +141,42 @@ async function requestThreadControl(pageAccessToken: string, recipientId: string
   }
 }
 
+/**
+ * Busca o nome real do remetente na Graph API usando o page token que já
+ * usamos para responder. 1 chamada por sessão nova (não por mensagem) —
+ * sem isto o CRM exibe "Instagram User" genérico para sempre.
+ */
+async function fetchProfileName(
+  channel: "instagram" | "facebook",
+  userId: string,
+  pageAccessToken: string | null
+): Promise<string | null> {
+  if (!pageAccessToken) return null;
+  try {
+    const fields = channel === "instagram" ? "name,username" : "first_name,last_name";
+    const res = await fetch(
+      `https://graph.facebook.com/v21.0/${userId}?fields=${fields}&access_token=${pageAccessToken}`
+    );
+    const data = await res.json();
+    if (data.error) {
+      console.warn(`[meta-social-webhook] Profile fetch failed for ${userId}:`, JSON.stringify(data.error));
+      return null;
+    }
+    if (channel === "instagram") return data.name || data.username || null;
+    const full = [data.first_name, data.last_name].filter(Boolean).join(" ");
+    return full || null;
+  } catch (err: any) {
+    console.warn(`[meta-social-webhook] Profile fetch exception for ${userId}:`, err.message);
+    return null;
+  }
+}
+
 async function processMessagingEvent(
   supabase: any,
   tenantId: string,
   channel: "instagram" | "facebook",
-  messaging: any
+  messaging: any,
+  pageAccessToken: string | null
 ): Promise<void> {
   const senderId    = messaging.sender?.id;
   const recipientId = messaging.recipient?.id;
@@ -199,28 +230,41 @@ async function processMessagingEvent(
   // 3. Garantir/atualizar conversation_session
   const { data: existingSession } = await supabase
     .from("conversation_sessions")
-    .select("id, omnichannel_status, platform_user_id, recent_messages")
+    .select("id, omnichannel_status, platform_user_id, platform_display_name, recent_messages")
     .eq("tenant_id", tenantId)
     .eq("patient_phone", senderId)
     .maybeSingle();
 
   if (!existingSession) {
+    // Buscar o nome real ANTES do insert: o trigger AFTER INSERT da sessão
+    // cria o card no CRM e registra a identidade já com o display_name.
+    const displayName = await fetchProfileName(channel, senderId, pageAccessToken);
+
     // Criar nova sessão para este contato
     await supabase.from("conversation_sessions").insert({
-      tenant_id:            tenantId,
-      patient_phone:        senderId,   // Para IG/FB: usar o sender ID como identificador
-      channel:              channel,
-      current_state:        "INIT",
-      omnichannel_status:   "bot_active",
-      platform_user_id:     senderId,
-      context:              {},
+      tenant_id:             tenantId,
+      patient_phone:         senderId,   // Para IG/FB: usar o sender ID como identificador
+      channel:               channel,
+      current_state:         "INIT",
+      omnichannel_status:    "bot_active",
+      platform_user_id:      senderId,
+      platform_display_name: displayName,
+      context:               {},
     });
-    console.log(`[meta-social-webhook] Created new ${channel} session for sender ${senderId}`);
+    console.log(`[meta-social-webhook] Created new ${channel} session for sender ${senderId}${displayName ? ` (${displayName})` : ''}`);
   } else {
-    if (!existingSession.platform_user_id) {
-      // Atualizar platform_user_id se ainda não estava preenchido
+    if (!existingSession.platform_user_id || !existingSession.platform_display_name) {
+      // Backfill de platform_user_id e do nome real em sessões antigas.
+      // O UPDATE de platform_display_name dispara tr_crm_session_display_name,
+      // que propaga o nome para crm_journey_identities.
+      const displayName = existingSession.platform_display_name
+        || await fetchProfileName(channel, senderId, pageAccessToken);
       await supabase.from("conversation_sessions")
-        .update({ platform_user_id: senderId, channel })
+        .update({
+          platform_user_id: senderId,
+          channel,
+          ...(displayName && !existingSession.platform_display_name ? { platform_display_name: displayName } : {}),
+        })
         .eq("tenant_id", tenantId)
         .eq("patient_phone", senderId);
     }
