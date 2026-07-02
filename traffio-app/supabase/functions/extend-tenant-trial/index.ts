@@ -82,14 +82,21 @@ serve(async (req: Request) => {
     const newEndMs = Math.max(now, currentEnd) + days * 86_400_000;
 
     // ── 5. Sincronizar Stripe ANTES de persistir ──────────────────────────────
-    // Só faz sentido para assinaturas em 'trialing'. Assinatura já ativa
-    // (cliente pagante) não é tocada; tenant sem assinatura também não.
+    // Empurra trial_end para qualquer assinatura que não esteja em estado
+    // terminal. Isso cobre não só 'trialing', mas também 'past_due' / 'unpaid'
+    // / 'incomplete' — Stripe REVIVE essas assinaturas de volta para
+    // 'trialing' ao mover trial_end pro futuro, o que interrompe as
+    // re-tentativas automáticas de cobrança (Smart Retries) que, do
+    // contrário, continuam disparando invoice.payment_failed e re-suspendendo
+    // o tenant mesmo após a extensão. Assinatura já ativa (cliente pagante)
+    // não é tocada; canceled/incomplete_expired também não (estado terminal).
+    const NON_REVIVABLE_STATUSES = new Set(["active", "canceled", "incomplete_expired"]);
     let stripeSynced = false;
     if (stripeKey && tenant.subscription_external_id) {
       try {
         const stripe = new Stripe(stripeKey, { apiVersion: "2024-06-20" });
         const sub = await stripe.subscriptions.retrieve(tenant.subscription_external_id);
-        if (sub.status === "trialing") {
+        if (!NON_REVIVABLE_STATUSES.has(sub.status)) {
           await stripe.subscriptions.update(tenant.subscription_external_id, {
             trial_end: Math.floor(newEndMs / 1000),
             proration_behavior: "none",

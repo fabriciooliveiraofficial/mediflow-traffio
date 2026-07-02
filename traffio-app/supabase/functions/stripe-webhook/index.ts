@@ -189,8 +189,15 @@ serve(async (req: Request) => {
         const tenant = await getTenantByCustomerId(supabase, subscription.customer as string);
         if (!tenant) break;
 
-        const newStatus = STRIPE_STATUS_MAP[subscription.status] ?? "suspended";
+        let newStatus = STRIPE_STATUS_MAP[subscription.status] ?? "suspended";
         const renewsAt  = new Date(subscription.current_period_end * 1000).toISOString();
+
+        // Extensão administrativa vigente: não deixar um retry de cobrança
+        // (past_due/unpaid/incomplete) rebaixar o tenant para 'suspended'.
+        if (newStatus === "suspended" && hasActiveAdminTrial(tenant)) {
+          console.log(`[stripe-webhook] tenant=${tenant.id} status stripe=${subscription.status} mas há extensão admin vigente — mantendo trial`);
+          newStatus = "trial";
+        }
 
         // Tentar extrair plano dos metadados da subscription
         const planId = (subscription.metadata?.plan_id ?? tenant.plan) as PlanId;
@@ -311,10 +318,14 @@ serve(async (req: Request) => {
         const tenant = await getTenantByCustomerId(supabase, invoice.customer as string);
         if (!tenant) break;
 
-        await supabase
-          .from("tenants")
-          .update({ subscription_status: "suspended" })
-          .eq("id", tenant.id);
+        if (hasActiveAdminTrial(tenant)) {
+          console.log(`[stripe-webhook] tenant=${tenant.id} pagamento falhou mas há extensão admin vigente — não suspendendo`);
+        } else {
+          await supabase
+            .from("tenants")
+            .update({ subscription_status: "suspended" })
+            .eq("id", tenant.id);
+        }
 
         // Registrar fatura com falha
         if (invoice.subscription) {
@@ -396,7 +407,7 @@ serve(async (req: Request) => {
 async function getTenantByCustomerId(supabase: any, customerId: string) {
   const { data } = await supabase
     .from("tenants")
-    .select("id, plan, subscription_status, subscription_started_at")
+    .select("id, plan, subscription_status, subscription_started_at, trial_ends_at, admin_granted_trial")
     .eq("stripe_customer_id", customerId)
     .maybeSingle();
 
@@ -404,6 +415,18 @@ async function getTenantByCustomerId(supabase: any, customerId: string) {
     console.warn(`[stripe-webhook] tenant não encontrado para customer: ${customerId}`);
   }
   return data;
+}
+
+/**
+ * true se o super_admin concedeu uma extensão de trial ainda vigente.
+ * Usado para não deixar retries de cobrança do Stripe (invoice.payment_failed,
+ * subscription.updated → past_due/unpaid) sobrescreverem uma extensão
+ * administrativa que ainda não expirou.
+ */
+function hasActiveAdminTrial(tenant: { admin_granted_trial?: boolean; trial_ends_at?: string | null }): boolean {
+  return !!tenant.admin_granted_trial
+    && !!tenant.trial_ends_at
+    && new Date(tenant.trial_ends_at).getTime() > Date.now();
 }
 
 /**
