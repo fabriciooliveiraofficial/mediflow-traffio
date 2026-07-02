@@ -258,12 +258,19 @@ BEGIN
     RETURNING id INTO v_run_id;
 
     IF v_run_id IS NOT NULL THEN
+      -- message_type = template_key (não uma constante): o índice único
+      -- idx_outbound_queue_unique_msg já existente é por
+      -- (tenant_id, patient_phone, message_type, reference_id, notification_channel).
+      -- Como reference_id é o journey_id (igual para todas as mensagens da
+      -- cadência D0/D2/D7), message_type precisa diferenciar cada uma —
+      -- mesma convenção que o resto do app já usa ('recall', 'nps', etc.).
       INSERT INTO public.outbound_message_queue
         (tenant_id, patient_phone, message_type, template_key, template_vars, scheduled_at, status, reference_id, reference_type)
       VALUES
-        (j.tenant_id, v_phone, 'crm_automation', a.template_key,
+        (j.tenant_id, v_phone, a.template_key, a.template_key,
          jsonb_build_object('journey_id', p_journey_id, 'procedure_name', j.procedure_name),
          v_scheduled_at, 'pending', p_journey_id, 'crm_journey')
+      ON CONFLICT DO NOTHING
       RETURNING id INTO v_outbound_id;
 
       UPDATE public.crm_automation_runs SET outbound_id = v_outbound_id WHERE id = v_run_id;
