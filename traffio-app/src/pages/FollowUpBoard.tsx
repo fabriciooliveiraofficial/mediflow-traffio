@@ -1,9 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import {
   User, Loader2,
   DollarSign,
-  Search, TrendingUp, Activity, Save, X, Clock, Flame, AlertTriangle,
+  Search, TrendingUp, Activity, Save, X, Clock, AlertTriangle,
+  ListTodo, Columns3,
 } from 'lucide-react';
 import { formatPhone, phoneFlag } from '../lib/formatPhone';
 import { useTenant } from '../contexts/TenantContext';
@@ -13,11 +15,12 @@ import { useToast } from '../contexts/ToastContext';
 import { PerformanceStats } from '../components/followup/PerformanceStats';
 import {
   CRM_STAGES, CRM_STAGE_ICONS, CRM_STAGE_LABEL_KEYS,
-  NEXT_ACTION_LABEL_KEYS, LOST_REASON_LABEL_KEYS, type CrmStageId,
+  LOST_REASON_LABEL_KEYS, type CrmStageId,
 } from '../lib/crmStages';
 import { useTranslation } from 'react-i18next';
 import { Badge, Button, IconButton, EmptyState, PageHeader } from '../components/ui';
 import { FollowUpTimelineDrawer } from '../components/crm/FollowUpTimelineDrawer';
+import { WorkQueue } from '../components/crm/WorkQueue';
 
 export interface CrmJourneyIdentity {
   channel: 'whatsapp' | 'instagram' | 'facebook' | 'livechat' | 'sms' | 'phone';
@@ -25,7 +28,7 @@ export interface CrmJourneyIdentity {
   display_name: string | null;
 }
 
-interface CrmJourney {
+export interface CrmJourney {
   id: string;
   tenant_id: string;
   patient_id: string | null;
@@ -53,15 +56,22 @@ interface CrmJourney {
 
 const LOST_REASONS = ['price', 'competitor', 'no_response', 'gave_up', 'other'] as const;
 
-export function FollowUpBoard() {
+interface FollowUpBoardProps {
+  onNavigate?: (screen: string) => void;
+}
+
+export function FollowUpBoard({ onNavigate }: FollowUpBoardProps) {
   const { t } = useTranslation('crm');
   const { tenant } = useTenant();
   const { formatDateTime } = useLocaleFormat();
   const { showToast } = useToast();
+  const [, setSearchParams] = useSearchParams();
   const [journeys, setJourneys] = useState<CrmJourney[]>([]);
   const [loading, setLoading] = useState(true);
   const [days, setDays] = useState(30);
-  const [showMetrics, setShowMetrics] = useState(true);
+  const [showMetrics, setShowMetrics] = useState(false);
+  const [view, setView] = useState<'queue' | 'pipeline'>('queue');
+  const [search, setSearch] = useState('');
 
   const [saleModal, setSaleModal] = useState<{ id: string; procedure: string; value: string } | null>(null);
   const [lostModal, setLostModal] = useState<{ id: string; reason: string } | null>(null);
@@ -95,7 +105,8 @@ export function FollowUpBoard() {
       .from('crm_journeys')
       .select('*, patients(full_name, phone), conversation_sessions(channel, context, patient_phone, platform_display_name), crm_journey_identities(channel, identifier, display_name)')
       .eq('tenant_id', tenant!.id)
-      .order('last_event_at', { ascending: false });
+      .order('last_event_at', { ascending: false })
+      .limit(1000);
 
     if (error) console.error('[FollowUpBoard] load error:', error);
     setJourneys((data as any) || []);
@@ -146,14 +157,37 @@ export function FollowUpBoard() {
     return [...set];
   };
 
-  const actionQueue = useMemo(() => {
-    const now = Date.now();
-    return journeys
-      .filter(j => !['won', 'lost'].includes(j.stage_id))
-      .filter(j => j.needs_action || (j.next_action_at && new Date(j.next_action_at).getTime() <= now))
-      .sort((a, b) => b.priority_score - a.priority_score)
-      .slice(0, 12);
-  }, [journeys]);
+  // Busca unificada: nome resolvido, telefone e identidades de qualquer canal
+  const filteredJourneys = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return journeys;
+    const qDigits = q.replace(/\D/g, '');
+    return journeys.filter(j => {
+      if (displayName(j).toLowerCase().includes(q)) return true;
+      if (qDigits && (j.lead_phone || '').replace(/\D/g, '').includes(qDigits)) return true;
+      if (qDigits && (j.patients?.phone || '').replace(/\D/g, '').includes(qDigits)) return true;
+      return (j.crm_journey_identities || []).some(i =>
+        (i.display_name || '').toLowerCase().includes(q) || i.identifier.includes(qDigits || q)
+      );
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [journeys, search]);
+
+  // Integração real com as outras páginas: conversa via deep-link que o
+  // HumanInboxPage já suporta (?handoff_session=), agenda via navegação
+  const openConversation = (j: CrmJourney) => {
+    if (!j.session_id) return;
+    setSearchParams(prev => {
+      const p = new URLSearchParams(prev);
+      p.set('handoff_session', j.session_id!);
+      return p;
+    });
+    onNavigate?.('inbox');
+  };
+
+  const openBooking = (_j: CrmJourney) => {
+    onNavigate?.('agenda');
+  };
 
   const moveStage = async (journeyId: string, toStage: CrmStageId, extra: Record<string, any> = {}, reason?: string) => {
     // Optimistic update
@@ -230,19 +264,55 @@ export function FollowUpBoard() {
           subtitle={t('followUp.subtitle')}
           actions={
             <>
-              <div className="flex bg-ice-100 p-1 rounded-xl border border-ice-200">
-                {[7, 30, 90].map(d => (
-                  <button
-                    key={d}
-                    onClick={() => setDays(d)}
-                    className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                      days === d ? 'bg-white text-brand-primary shadow-sm' : 'text-graphite-500 hover:text-graphite-800'
-                    }`}
-                  >
-                    {t('followUp.daysFilter', { count: d })}
-                  </button>
-                ))}
+              {/* Busca unificada */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-graphite-400" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={t('followUp.searchPlaceholder')}
+                  className="w-56 bg-ice-50 border border-ice-200 rounded-xl pl-9 pr-3 py-2 text-xs font-medium focus:ring-2 focus:ring-brand-primary focus:border-transparent outline-none transition-all"
+                />
               </div>
+
+              {/* Alternância Fila / Pipeline */}
+              <div className="flex bg-ice-100 p-1 rounded-xl border border-ice-200">
+                <button
+                  onClick={() => setView('queue')}
+                  className={`flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                    view === 'queue' ? 'bg-white text-brand-primary shadow-sm' : 'text-graphite-500 hover:text-graphite-800'
+                  }`}
+                >
+                  <ListTodo className="w-3.5 h-3.5" />
+                  {t('followUp.views.queue')}
+                </button>
+                <button
+                  onClick={() => setView('pipeline')}
+                  className={`flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                    view === 'pipeline' ? 'bg-white text-brand-primary shadow-sm' : 'text-graphite-500 hover:text-graphite-800'
+                  }`}
+                >
+                  <Columns3 className="w-3.5 h-3.5" />
+                  {t('followUp.views.pipeline')}
+                </button>
+              </div>
+
+              {showMetrics && (
+                <div className="flex bg-ice-100 p-1 rounded-xl border border-ice-200">
+                  {[7, 30, 90].map(d => (
+                    <button
+                      key={d}
+                      onClick={() => setDays(d)}
+                      className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                        days === d ? 'bg-white text-brand-primary shadow-sm' : 'text-graphite-500 hover:text-graphite-800'
+                      }`}
+                    >
+                      {t('followUp.daysFilter', { count: d })}
+                    </button>
+                  ))}
+                </div>
+              )}
               <Button variant={showMetrics ? 'secondary' : 'ghost'} onClick={() => setShowMetrics(!showMetrics)}>
                 <Activity className="w-4 h-4" />
                 {t('followUp.dashboardToggle')}
@@ -255,45 +325,25 @@ export function FollowUpBoard() {
       <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
         {showMetrics && <PerformanceStats metrics={metrics} isLoading={loadingMetrics} />}
 
-        {/* Ações de Hoje — fila priorizada por score determinístico */}
-        {actionQueue.length > 0 && (
-          <div className="mb-8">
-            <div className="flex items-center gap-2 mb-3">
-              <Flame className="w-4 h-4 text-accent-warning" />
-              <h2 className="text-sm font-black text-graphite-900 uppercase tracking-wider">{t('followUp.actionQueue.title')}</h2>
-              <Badge accent="warning" size="sm">{actionQueue.length}</Badge>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              {actionQueue.map(j => (
-                <button
-                  key={j.id}
-                  onClick={() => setSelectedJourney(j)}
-                  className="w-72 text-left bg-white p-4 rounded-2xl shadow-float border border-ice-100 hover:border-brand-primary/40 hover:-translate-y-0.5 transition-all duration-300 cursor-pointer"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-black text-graphite-900 truncate">{displayName(j)}</p>
-                    <Badge accent={j.priority_score >= 60 ? 'error' : j.priority_score >= 30 ? 'warning' : 'neutral'} size="sm">
-                      {j.priority_score}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {j.next_action_type && (
-                      <Badge accent="brand" size="sm">{t(`followUp.${NEXT_ACTION_LABEL_KEYS[j.next_action_type]}`)}</Badge>
-                    )}
-                    {j.no_show_count > 0 && (
-                      <Badge accent="error" size="sm"><AlertTriangle className="w-3 h-3" />{j.no_show_count}</Badge>
-                    )}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
+        {/* Fila de Trabalho — a superfície operável (padrão) */}
+        {view === 'queue' && (
+          <WorkQueue
+            journeys={filteredJourneys}
+            displayName={displayName}
+            displaySubtitle={displaySubtitle}
+            journeyChannels={journeyChannels}
+            onOpenJourney={setSelectedJourney}
+            onOpenConversation={openConversation}
+            onBook={openBooking}
+            onRefresh={() => { loadBoard(); refetchMetrics(); }}
+          />
         )}
 
-        {/* Kanban Board */}
+        {/* Pipeline (kanban) — visão de mapa */}
+        {view === 'pipeline' && (
         <div className="flex gap-5 h-full items-start overflow-x-auto pb-6">
           {CRM_STAGES.map(stage => {
-            const columnJourneys = journeys.filter(j => j.stage_id === stage);
+            const columnJourneys = filteredJourneys.filter(j => j.stage_id === stage);
             const StageIcon = CRM_STAGE_ICONS[stage];
 
             return (
@@ -377,6 +427,7 @@ export function FollowUpBoard() {
             );
           })}
         </div>
+        )}
       </div>
 
       {/* Sale Modal */}

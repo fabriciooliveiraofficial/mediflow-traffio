@@ -48,10 +48,15 @@
     }
   },
   "followUp": {
-    "title": "Performance Center",
-    "subtitle": "Sales management and conversion funnel in real time.",
+    "title": "Follow-up Center",
+    "subtitle": "Prioritized work queue and real-time pipeline.",
     "daysFilter": "{{count}} days",
     "dashboardToggle": "Dashboard",
+    "searchPlaceholder": "Search name, phone, @...",
+    "views": {
+      "queue": "Work Queue",
+      "pipeline": "Pipeline"
+    },
     "emptyColumn": "Empty",
     "activityLabel": "Activity",
     "firstContact": "First Contact",
@@ -133,6 +138,44 @@
     "trendTitle": "Lead Acquisition",
     "trendSubtitle": "Daily volume of new leads",
     "trendEmpty": "Awaiting new leads"
+  },
+  "workQueue": {
+    "scoreLabel": "Score",
+    "modes": {
+      "needsAction": "Needs action",
+      "allOpen": "All open"
+    },
+    "emptyAction": "All caught up — no contact needs action right now.",
+    "emptyAll": "No open contacts found.",
+    "nextAppointment": "Next appt: {{date}}",
+    "reason": {
+      "noShowRecovery": "No-showed {{count}}x — in automatic recovery",
+      "recallDue": "Recall overdue — reactivate patient",
+      "overdue": "Action overdue by {{hours}}h",
+      "dueAt": "{{action}} by {{date}}",
+      "slaBreached": "Stalled beyond stage SLA",
+      "genericAction": "Action",
+      "upToDate": "Up to date"
+    },
+    "actions": {
+      "message": "Send message",
+      "conversation": "Open conversation",
+      "book": "Book appointment",
+      "snooze": "Snooze 24h",
+      "done": "Mark as handled"
+    },
+    "messageModal": {
+      "title": "Quick Message",
+      "placeholder": "Write the message to the patient...",
+      "hint": "Sent through the contact's preferred channel within 1 minute. The card's next action is automatically rescheduled for tomorrow.",
+      "send": "Send"
+    },
+    "toasts": {
+      "snoozed": "Snoozed for 24 hours.",
+      "done": "Marked as handled.",
+      "messageSent": "Message queued for sending!",
+      "messageError": "Error sending message."
+    }
   },
   "timeline": {
     "currentStage": "Current Stage",

@@ -48,10 +48,15 @@
     }
   },
   "followUp": {
-    "title": "Centro de Performance",
-    "subtitle": "Gestão comercial e funil de conversão em tempo real.",
+    "title": "Centro de Follow-up",
+    "subtitle": "Fila de trabalho priorizada e pipeline em tempo real.",
     "daysFilter": "{{count}} dias",
     "dashboardToggle": "Dashboard",
+    "searchPlaceholder": "Buscar nome, telefone, @...",
+    "views": {
+      "queue": "Fila de Trabalho",
+      "pipeline": "Pipeline"
+    },
     "emptyColumn": "Vazio",
     "activityLabel": "Atividade",
     "firstContact": "Primeiro Contato",
@@ -133,6 +138,44 @@
     "trendTitle": "Aquisição de Leads",
     "trendSubtitle": "Volume diário de novos leads",
     "trendEmpty": "Aguardando novos leads"
+  },
+  "workQueue": {
+    "scoreLabel": "Score",
+    "modes": {
+      "needsAction": "Precisa de ação",
+      "allOpen": "Todos abertos"
+    },
+    "emptyAction": "Tudo em dia — nenhum contato precisa de ação agora.",
+    "emptyAll": "Nenhum contato aberto encontrado.",
+    "nextAppointment": "Próx. consulta: {{date}}",
+    "reason": {
+      "noShowRecovery": "Faltou {{count}}x — em recuperação automática",
+      "recallDue": "Retorno vencido — reativar paciente",
+      "overdue": "Ação vencida há {{hours}}h",
+      "dueAt": "{{action}} até {{date}}",
+      "slaBreached": "Parado além do prazo do estágio",
+      "genericAction": "Ação",
+      "upToDate": "Em dia"
+    },
+    "actions": {
+      "message": "Enviar mensagem",
+      "conversation": "Abrir conversa",
+      "book": "Agendar consulta",
+      "snooze": "Adiar 24h",
+      "done": "Marcar como tratado"
+    },
+    "messageModal": {
+      "title": "Mensagem Rápida",
+      "placeholder": "Escreva a mensagem para o paciente...",
+      "hint": "Enviada pelo canal preferido do contato em até 1 minuto. A próxima ação do card é reagendada para amanhã automaticamente.",
+      "send": "Enviar"
+    },
+    "toasts": {
+      "snoozed": "Adiado por 24 horas.",
+      "done": "Marcado como tratado.",
+      "messageSent": "Mensagem na fila de envio!",
+      "messageError": "Erro ao enviar mensagem."
+    }
   },
   "timeline": {
     "currentStage": "Fase Atual",

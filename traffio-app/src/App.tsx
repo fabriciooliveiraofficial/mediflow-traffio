@@ -121,7 +121,7 @@ function TenantApp() {
       case 'settings': return <Settings key="settings" />
       case 'reception': return <ReceptionDashboard key="reception" />
       case 'inbox': return <HumanInboxPage key="inbox" />
-      case 'followup': return <FollowUpBoard key="followup" />
+      case 'followup': return <FollowUpBoard key="followup" onNavigate={setActiveScreen} />
       case 'notifications': return <NotificationsPage key="notifications" />
       case 'payments': return <PaymentsPage key="payments" />
       case 'billing': return <BillingPage key="billing" />

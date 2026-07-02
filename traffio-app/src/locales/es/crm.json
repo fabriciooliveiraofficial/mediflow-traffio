@@ -48,10 +48,15 @@
     }
   },
   "followUp": {
-    "title": "Centro de Desempeño",
-    "subtitle": "Gestión comercial y embudo de conversión en tiempo real.",
+    "title": "Centro de Follow-up",
+    "subtitle": "Cola de trabajo priorizada y pipeline en tiempo real.",
     "daysFilter": "{{count}} días",
     "dashboardToggle": "Panel",
+    "searchPlaceholder": "Buscar nombre, teléfono, @...",
+    "views": {
+      "queue": "Cola de Trabajo",
+      "pipeline": "Pipeline"
+    },
     "emptyColumn": "Vacío",
     "activityLabel": "Actividad",
     "firstContact": "Primer Contacto",
@@ -133,6 +138,44 @@
     "trendTitle": "Adquisición de Leads",
     "trendSubtitle": "Volumen diario de nuevos leads",
     "trendEmpty": "Esperando nuevos leads"
+  },
+  "workQueue": {
+    "scoreLabel": "Score",
+    "modes": {
+      "needsAction": "Necesita acción",
+      "allOpen": "Todos abiertos"
+    },
+    "emptyAction": "Todo al día — ningún contacto necesita acción ahora.",
+    "emptyAll": "Ningún contacto abierto encontrado.",
+    "nextAppointment": "Próx. cita: {{date}}",
+    "reason": {
+      "noShowRecovery": "Faltó {{count}}x — en recuperación automática",
+      "recallDue": "Retorno vencido — reactivar paciente",
+      "overdue": "Acción vencida hace {{hours}}h",
+      "dueAt": "{{action}} hasta {{date}}",
+      "slaBreached": "Detenido más allá del plazo de la etapa",
+      "genericAction": "Acción",
+      "upToDate": "Al día"
+    },
+    "actions": {
+      "message": "Enviar mensaje",
+      "conversation": "Abrir conversación",
+      "book": "Agendar cita",
+      "snooze": "Posponer 24h",
+      "done": "Marcar como tratado"
+    },
+    "messageModal": {
+      "title": "Mensaje Rápido",
+      "placeholder": "Escribe el mensaje para el paciente...",
+      "hint": "Enviado por el canal preferido del contacto en menos de 1 minuto. La próxima acción de la tarjeta se reprograma automáticamente para mañana.",
+      "send": "Enviar"
+    },
+    "toasts": {
+      "snoozed": "Pospuesto por 24 horas.",
+      "done": "Marcado como tratado.",
+      "messageSent": "¡Mensaje en cola de envío!",
+      "messageError": "Error al enviar el mensaje."
+    }
   },
   "timeline": {
     "currentStage": "Fase Actual",
