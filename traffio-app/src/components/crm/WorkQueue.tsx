@@ -141,18 +141,39 @@ export function WorkQueue({
         if (!msgModal || !msgText.trim()) return;
         setSending(true);
         try {
-            const { error } = await supabase.rpc('crm_send_manual_message', {
+            const { data, error } = await supabase.rpc('crm_send_manual_message', {
                 p_journey_id: msgModal.id,
                 p_message: msgText.trim(),
             });
             if (error) throw error;
+
+            const res = data as {
+                scheduled_at: string; delayed: boolean; timezone: string;
+                window_start: string; window_end: string;
+            } | null;
+
             onPatch(msgModal.id, {
                 needs_action: false,
-                next_action_at: new Date(Date.now() + 24 * 3600000).toISOString(),
+                next_action_at: res?.scheduled_at
+                    ? new Date(new Date(res.scheduled_at).getTime() + 24 * 3600000).toISOString()
+                    : new Date(Date.now() + 24 * 3600000).toISOString(),
                 next_action_type: 'message',
             });
             flashHandled(msgModal.id);
-            showToast('success', t('workQueue.toasts.messageSent'));
+
+            if (res?.delayed) {
+                // Fora do horário de envio da clínica: informa a janela permitida
+                // e quando a mensagem efetivamente sairá (no fuso da clínica).
+                const when = new Intl.DateTimeFormat(undefined, {
+                    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+                    timeZone: res.timezone,
+                }).format(new Date(res.scheduled_at));
+                showToast('warning', t('workQueue.toasts.messageDelayed', {
+                    start: res.window_start, end: res.window_end, time: when,
+                }));
+            } else {
+                showToast('success', t('workQueue.toasts.messageSent'));
+            }
             setMsgModal(null);
             setMsgText('');
         } catch (e: any) {
