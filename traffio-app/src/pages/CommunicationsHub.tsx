@@ -19,6 +19,7 @@ import {
 } from 'recharts';
 import { supabase } from '../lib/supabase';
 import { useTenant } from '../contexts/TenantContext';
+import { useToast } from '../contexts/ToastContext';
 import { formatPhone } from '../lib/formatPhone';
 import { format, subDays, startOfDay, endOfDay, startOfMonth } from 'date-fns';
 import { getIntlLocale } from '../lib/i18n';
@@ -146,6 +147,7 @@ function DashboardView({ calls, smsIn, smsOut }: { calls: any[]; smsIn: number; 
 export function CommunicationsHub() {
   const { t, i18n } = useTranslation('communications');
   const { tenant } = useTenant();
+  const { showToast } = useToast();
   const tenantId   = (tenant as any)?.id;
 
   const NAV: { id: Section; icon: any; label: string }[] = [
@@ -168,6 +170,7 @@ export function CommunicationsHub() {
   const [recordingSrc, setRecordingSrc] = useState<string | null>(null);
   const [search,      setSearch]      = useState('');
   const [smsText,     setSmsText]     = useState('');
+  const [sendingSms,  setSendingSms]  = useState(false);
   const smsEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { if (!tenantId) return; fetchAll(); }, [tenantId]);
@@ -269,14 +272,65 @@ export function CommunicationsHub() {
     setSmsMessages(msgs ?? []);
   }
 
+  // Envia pela mesma Edge Function do Painel de Atendimento (send-human-message),
+  // que despacha via Telnyx e registra em conversation_messages.
   async function sendSms() {
-    if (!smsText.trim() || !selected) return;
+    if (!smsText.trim() || !selected || !tenantId || sendingSms) return;
     const text = smsText.trim();
     setSmsText('');
+    setSendingSms(true);
     // Inserir mensagem localmente para resposta imediata
-    setSmsMessages(prev => [...prev, { id: 'tmp', role: 'human', content: text, created_at: new Date().toISOString() }]);
-    // TODO: chamar telnyx-numbers send_sms quando implementado no backend
+    const tempId = `tmp-${Date.now()}`;
+    setSmsMessages(prev => [...prev, { id: tempId, role: 'human', content: text, created_at: new Date().toISOString() }]);
+
+    const { data: { session: authSession } } = await supabase.auth.getSession();
+    const res = await supabase.functions.invoke('send-human-message', {
+      body: {
+        ...(selected.id ? { session_id: selected.id } : {}),
+        patient_phone: selected.patient_phone,
+        target_channel: 'sms',
+        text,
+        tenant_id: tenantId,
+        user_id: authSession?.user?.id,
+      },
+      headers: { Authorization: `Bearer ${authSession?.access_token}` },
+    });
+    setSendingSms(false);
+
+    if (res.error || res.data?.error) {
+      setSmsMessages(prev => prev.filter(m => m.id !== tempId));
+      setSmsText(text);
+      showToast('error', res.error?.message || res.data?.error);
+      return;
+    }
+    // Conversa nova (iniciada a partir de uma chamada): a sessão foi criada agora
+    if (res.data?.session_id && !selected.id) {
+      setSelected((prev: any) => prev ? { ...prev, id: res.data.session_id } : prev);
+      fetchAll();
+    }
   }
+
+  // Realtime: novas mensagens da conversa SMS selecionada
+  useEffect(() => {
+    if (!selected?.id || section !== 'sms') return;
+    const ch = supabase
+      .channel(`comm-sms:${selected.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'conversation_messages', filter: `session_id=eq.${selected.id}` },
+        (payload) => {
+          const m = payload.new as any;
+          setSmsMessages(prev => {
+            if (prev.some(x => x.id === m.id)) return prev;
+            // A mensagem real substitui o eco otimista do atendente
+            const base = m.role === 'human' ? prev.filter(x => !String(x.id).startsWith('tmp')) : prev;
+            return [...base, { id: m.id, role: m.role, content: m.content, created_at: m.created_at }];
+          });
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [selected?.id, section]);
 
   // ── Listas filtradas ─────────────────────────────────────────────────────────
 

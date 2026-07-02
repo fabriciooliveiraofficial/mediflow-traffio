@@ -6,10 +6,19 @@
  *   1. Validar que o user_id é o atendente atribuído à conversa (ownership check)
  *   2. Inserir a mensagem em conversation_messages com role='human'
  *   3. Enfileirar a mensagem na message_outbox para entrega Z-API com retry
+ *
+ * Envio cross-channel (confirmação de agendamento e afins):
+ *   - `target_channel` opcional ('whatsapp' | 'sms' | 'instagram' | 'facebook' | 'email'):
+ *     despacha por um canal diferente do da sessão de origem, resolvendo (ou criando,
+ *     quando telefone-based) a sessão do canal-alvo para registrar a mensagem.
+ *   - Alternativamente aceita `patient_phone` + `target_channel` sem `session_id`
+ *     (ex.: novo SMS iniciado pela Central de Comunicações).
+ *   - 'email' envia via SMTP do tenant (fallback global) e registra nota interna.
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { OutboxDispatcher } from "../_shared/outboxDispatcher.ts";
 import { SessionManager } from "../_shared/sessionManager.ts";
@@ -18,16 +27,46 @@ import { TelnyxSmsClient } from "../_shared/telnyxSmsClient.ts";
 import { getTelnyxApiKey } from "../_shared/masterConfig.ts";
 import { getSmsPricing } from "../_shared/pricing.ts";
 
+const SESSION_SELECT = `
+  id,
+  patient_phone,
+  patient_id,
+  tenant_id,
+  omnichannel_status,
+  assigned_to_user_id,
+  channel,
+  platform_user_id,
+  tenants (
+    name,
+    whatsapp_provider,
+    zapi_instance_id,
+    zapi_token,
+    zapi_client_token,
+    cloud_api_phone_number_id,
+    cloud_api_access_token,
+    telnyx_api_key,
+    sms_enabled,
+    smtp_host,
+    smtp_port,
+    smtp_user,
+    smtp_pass,
+    smtp_from
+  )
+`;
+
+const normalizeChannel = (c: string | null | undefined) => c || 'whatsapp';
+
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
     const body = await req.json();
-    const { session_id, text, tenant_id, user_id, replied_to_id } = body;
+    const { session_id, text, tenant_id, user_id, replied_to_id, target_channel, patient_phone } = body;
 
-    if (!session_id || !text?.trim() || !tenant_id || !user_id) {
+    const hasPhoneEntry = !!(patient_phone && target_channel);
+    if ((!session_id && !hasPhoneEntry) || !text?.trim() || !tenant_id || !user_id) {
       return new Response(
-        JSON.stringify({ error: 'session_id, text, tenant_id e user_id são obrigatórios' }),
+        JSON.stringify({ error: 'session_id (ou patient_phone + target_channel), text, tenant_id e user_id são obrigatórios' }),
         { status: 400, headers: corsHeaders }
       );
     }
@@ -36,36 +75,66 @@ serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log('[send-human-message] Request from user:', user_id);
+    console.log('[send-human-message] Request from user:', user_id, target_channel ? `(target: ${target_channel})` : '');
 
-    // 1. Buscar sessão com credenciais de todos os canais
-    const { data: session, error: sessionError } = await supabase
-      .from('conversation_sessions')
-      .select(`
-        id,
-        patient_phone,
-        tenant_id,
-        omnichannel_status,
-        assigned_to_user_id,
-        channel,
-        platform_user_id,
-        tenants (
-          whatsapp_provider,
-          zapi_instance_id,
-          zapi_token,
-          zapi_client_token,
-          cloud_api_phone_number_id,
-          cloud_api_access_token,
-          telnyx_api_key,
-          sms_enabled
-        )
-      `)
-      .eq('id', session_id)
-      .eq('tenant_id', tenant_id)
-      .single();
+    // 1. Resolver a sessão de origem (quando informada)
+    let session: any = null;
+    if (session_id) {
+      const { data, error: sessionError } = await supabase
+        .from('conversation_sessions')
+        .select(SESSION_SELECT)
+        .eq('id', session_id)
+        .eq('tenant_id', tenant_id)
+        .single();
 
-    if (sessionError || !session) {
-      return new Response(JSON.stringify({ error: 'Sessão não encontrada' }), { status: 404, headers: corsHeaders });
+      if (sessionError || !data) {
+        return new Response(JSON.stringify({ error: 'Sessão não encontrada' }), { status: 404, headers: corsHeaders });
+      }
+      session = data;
+    }
+
+    // 1b. E-MAIL: envia via SMTP e registra nota interna na conversa de origem
+    if (target_channel === 'email') {
+      if (!session) {
+        return new Response(JSON.stringify({ error: 'session_id é obrigatório para envio por e-mail' }), { status: 400, headers: corsHeaders });
+      }
+      if (!session.patient_id) {
+        throw new Error('Vincule um paciente à conversa para enviar por e-mail.');
+      }
+      const { data: patientRow } = await supabase
+        .from('patients')
+        .select('email, full_name')
+        .eq('id', session.patient_id)
+        .maybeSingle();
+
+      const email = patientRow?.email?.trim();
+      if (!email) {
+        throw new Error('Paciente não possui e-mail cadastrado.');
+      }
+
+      await sendConfirmationEmail((session as any).tenants, email, text.trim());
+
+      // Comprovante visível apenas internamente na conversa de origem
+      await supabase.from('conversation_messages').insert({
+        session_id: session.id,
+        role: 'internal',
+        content: `📧 E-mail enviado para ${email}:\n\n${text.trim()}`,
+      });
+
+      console.log(`[send-human-message] Email sent to ${email} (session ${session.id})`);
+      return new Response(JSON.stringify({ success: true, delivered_via: 'email' }), { headers: corsHeaders });
+    }
+
+    // 1c. Cross-channel: resolver/criar a sessão do canal-alvo
+    const dispatchChannel = target_channel ? normalizeChannel(target_channel) : normalizeChannel(session?.channel);
+    if (!session || (target_channel && normalizeChannel(session.channel) !== dispatchChannel)) {
+      session = await resolveTargetSession(supabase, {
+        tenantId: tenant_id,
+        targetChannel: dispatchChannel,
+        sourceSession: session,
+        rawPhone: patient_phone,
+        userId: user_id,
+      });
     }
 
     const tenantDetails = (session as any).tenants;
@@ -73,9 +142,9 @@ serve(async (req: Request) => {
     // 2. AUTO-HANDOFF: Se um humano está enviando mensagem, assumimos o controle
     // Isso remove a fricção de ter que trocar o status manualmente.
     const mustUpdateStatus = session.omnichannel_status !== 'human_active' || session.assigned_to_user_id !== user_id;
-    
+
     if (mustUpdateStatus) {
-      console.log(`[send-human-message] Auto-handoff for session ${session_id}. Assigned to ${user_id}`);
+      console.log(`[send-human-message] Auto-handoff for session ${session.id}. Assigned to ${user_id}`);
       await supabase
         .from('conversation_sessions')
         .update({
@@ -84,12 +153,12 @@ serve(async (req: Request) => {
           assigned_to_user_id: user_id,
           current_state: 'HUMAN_ACTIVE'
         })
-        .eq('id', session_id);
+        .eq('id', session.id);
     }
 
     // 3. Inserir mensagem na tabela de histórico
     const sessionManager = new SessionManager(supabase);
-    const dbMsgId = await sessionManager.logMessage(session_id, 'human' as any, text.trim(), {
+    const dbMsgId = await sessionManager.logMessage(session.id, 'human' as any, text.trim(), {
       replied_to_id,
     });
 
@@ -106,13 +175,13 @@ serve(async (req: Request) => {
     }
 
     // 4. IMMEDIATE DISPATCH: Enviar agora via Z-API/Cloud-API (Zero Latency) ou Broadcast para Live Chat / Meta / Telnyx SMS
-    const isLiveChat = session.channel === 'livechat';
-    const isInstagram = session.channel === 'instagram';
-    const isFacebook = session.channel === 'facebook';
-    const isSms = session.channel === 'sms';
+    const isLiveChat = dispatchChannel === 'livechat';
+    const isInstagram = dispatchChannel === 'instagram';
+    const isFacebook = dispatchChannel === 'facebook';
+    const isSms = dispatchChannel === 'sms';
 
     if (isLiveChat) {
-      const realtimeChannel = supabase.channel(`livechat:${session_id}`);
+      const realtimeChannel = supabase.channel(`livechat:${session.id}`);
       await realtimeChannel.send({
         type: 'broadcast',
         event: 'message',
@@ -123,7 +192,7 @@ serve(async (req: Request) => {
           created_at: new Date().toISOString()
         }
       });
-      console.log(`[send-human-message] Broadcast sent to livechat:${session_id}`);
+      console.log(`[send-human-message] Broadcast sent to livechat:${session.id}`);
     } else if (isInstagram || isFacebook) {
       // Enviar via Meta Graph API usando platform_user_id (PSID ou IGSID)
       const recipientId = session.platform_user_id ?? session.patient_phone;
@@ -158,7 +227,7 @@ serve(async (req: Request) => {
         } catch (metaErr: any) {
           console.error(`[send-human-message] Meta dispatch failed: ${metaErr.message}`);
           // Não falhar silenciosamente — informar o atendente
-          throw new Error(`Falha ao enviar via ${session.channel}: ${metaErr.message}`);
+          throw new Error(`Falha ao enviar via ${dispatchChannel}: ${metaErr.message}`);
         }
       }
     } else if (isSms) {
@@ -182,9 +251,14 @@ serve(async (req: Request) => {
         throw new Error(`Nenhum número de envio de SMS ativo encontrado para este tenant.`);
       }
 
+      // Telnyx exige E.164 (sessões WhatsApp guardam o telefone sem o '+')
+      const toPhone = session.patient_phone.startsWith('+')
+        ? session.patient_phone
+        : `+${session.patient_phone.replace(/\D/g, '')}`;
+
       const smsClient = new TelnyxSmsClient(smsApiKey);
-      const telnyxRes = await smsClient.sendSms(senderRow.phone_number, session.patient_phone, text.trim());
-      console.log(`[send-human-message] SMS sent to ${session.patient_phone}. Msg ID: ${telnyxRes.messageId}`);
+      const telnyxRes = await smsClient.sendSms(senderRow.phone_number, toPhone, text.trim());
+      console.log(`[send-human-message] SMS sent to ${toPhone}. Msg ID: ${telnyxRes.messageId}`);
 
       if (dbMsgId && telnyxRes.messageId) {
         await supabase
@@ -213,20 +287,22 @@ serve(async (req: Request) => {
       }
     } else {
       const outbox = new OutboxDispatcher(supabase);
+      // Sessões SMS guardam E.164 com '+'; WhatsApp usa apenas dígitos (no-op no fluxo normal)
+      const waPhone = session.patient_phone.replace(/^\+/, '');
       try {
-        const waMsgId = await outbox.sendNow(tenantDetails, session.patient_phone, { text: text.trim() }, 0, quotedMsgId);
-        console.log(`[send-human-message] Immediate dispatch success for ${session.patient_phone}, waMsgId: ${waMsgId}`);
-        
+        const waMsgId = await outbox.sendNow(tenantDetails, waPhone, { text: text.trim() }, 0, quotedMsgId);
+        console.log(`[send-human-message] Immediate dispatch success for ${waPhone}, waMsgId: ${waMsgId}`);
+
         if (dbMsgId && waMsgId) {
           await supabase.from('conversation_messages').update({ whatsapp_message_id: waMsgId }).eq('id', dbMsgId);
         }
       } catch (dispatchErr: any) {
         console.error(`[send-human-message] Immediate dispatch failed, falling back to outbox:`, dispatchErr.message);
-        await outbox.enqueue(tenant_id, session.patient_phone, { text: text.trim(), quotedMsgId });
+        await outbox.enqueue(tenant_id, waPhone, { text: text.trim(), quotedMsgId });
       }
     }
 
-    return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+    return new Response(JSON.stringify({ success: true, session_id: session.id, delivered_via: dispatchChannel }), { headers: corsHeaders });
 
   } catch (error: any) {
     console.error('send-human-message error:', error);
@@ -234,3 +310,174 @@ serve(async (req: Request) => {
     return new Response(JSON.stringify({ error: error.message }), { status: 200, headers: corsHeaders });
   }
 });
+
+/**
+ * Resolve a sessão do canal-alvo para um envio cross-channel.
+ * Canais Meta exigem sessão existente (precisamos do PSID/IGSID);
+ * WhatsApp/SMS são telefone-based e a sessão é criada quando não existe.
+ */
+async function resolveTargetSession(
+  supabase: any,
+  opts: {
+    tenantId: string;
+    targetChannel: string;
+    sourceSession: any | null;
+    rawPhone?: string;
+    userId: string;
+  }
+): Promise<any> {
+  const { tenantId, targetChannel, sourceSession, rawPhone, userId } = opts;
+
+  // Identidade do paciente: patient_id e/ou telefone real
+  // (sessões Instagram/Facebook guardam PSID/IGSID em patient_phone — não é telefone)
+  const patientId = sourceSession?.patient_id ?? null;
+  let phone: string | null = null;
+
+  const sourceIsMeta = ['instagram', 'facebook', 'livechat'].includes(sourceSession?.channel || '');
+  if (rawPhone) {
+    phone = rawPhone;
+  } else if (sourceSession && !sourceIsMeta && sourceSession.patient_phone && !/[a-zA-Z]/.test(sourceSession.patient_phone)) {
+    phone = sourceSession.patient_phone;
+  }
+  if (!phone && patientId) {
+    const { data: p } = await supabase
+      .from('patients')
+      .select('phone, mobile')
+      .eq('id', patientId)
+      .maybeSingle();
+    phone = p?.phone || p?.mobile || null;
+  }
+  const cleanPhone = phone ? phone.replace(/\D/g, '') : '';
+
+  // Buscar sessão existente no canal-alvo
+  const orParts: string[] = [];
+  if (patientId) orParts.push(`patient_id.eq.${patientId}`);
+  if (cleanPhone) orParts.push(`patient_phone.eq.${cleanPhone}`, `patient_phone.eq."+${cleanPhone}"`);
+
+  if (orParts.length > 0) {
+    let query = supabase
+      .from('conversation_sessions')
+      .select(SESSION_SELECT)
+      .eq('tenant_id', tenantId)
+      .or(orParts.join(','));
+
+    query = targetChannel === 'whatsapp'
+      ? query.or('channel.eq.whatsapp,channel.is.null')
+      : query.eq('channel', targetChannel);
+
+    const { data: existing } = await query
+      .order('updated_at', { ascending: false })
+      .limit(1);
+
+    if (existing && existing.length > 0) return existing[0];
+  }
+
+  if (targetChannel === 'instagram' || targetChannel === 'facebook') {
+    const label = targetChannel === 'instagram' ? 'Instagram Direct' : 'Facebook Messenger';
+    throw new Error(`O paciente não possui conversa no ${label}. Só é possível enviar por esse canal quando já existe uma conversa iniciada pelo paciente.`);
+  }
+
+  if (!cleanPhone) {
+    throw new Error('Paciente sem telefone cadastrado — não é possível enviar por este canal.');
+  }
+
+  // Criar sessão nova (telefone-based): SMS em E.164 com '+', WhatsApp só dígitos
+  const newPhone = targetChannel === 'sms' ? `+${cleanPhone}` : cleanPhone;
+  const insertPayload: any = {
+    tenant_id: tenantId,
+    patient_phone: newPhone,
+    channel: targetChannel,
+    current_state: 'HUMAN_ACTIVE',
+    omnichannel_status: 'human_active',
+    human_handoff: true,
+    assigned_to_user_id: userId,
+    context: {},
+  };
+  if (patientId) insertPayload.patient_id = patientId;
+
+  const { data: created, error: insertError } = await supabase
+    .from('conversation_sessions')
+    .insert(insertPayload)
+    .select(SESSION_SELECT)
+    .single();
+
+  if (created) return created;
+
+  // Conflito com unique (tenant_id, patient_phone): outra sessão já usa esse número
+  // (ex.: sessão WhatsApp com o mesmo formato). Reutilizamos para registrar o histórico;
+  // o despacho continua seguindo o canal-alvo.
+  console.warn(`[send-human-message] Session insert conflict (${insertError?.message}); reusing existing row for ${newPhone}`);
+  const { data: fallback, error: fetchError } = await supabase
+    .from('conversation_sessions')
+    .select(SESSION_SELECT)
+    .eq('tenant_id', tenantId)
+    .eq('patient_phone', newPhone)
+    .single();
+
+  if (fetchError || !fallback) {
+    throw new Error(`Não foi possível resolver a conversa do canal ${targetChannel}: ${insertError?.message}`);
+  }
+  return fallback;
+}
+
+/**
+ * Envia o e-mail de confirmação usando o SMTP próprio do tenant,
+ * com fallback para o SMTP global do sistema (secrets SMTP_*).
+ */
+async function sendConfirmationEmail(tenantDetails: any, to: string, message: string): Promise<void> {
+  let hostname = tenantDetails?.smtp_host;
+  let port = tenantDetails?.smtp_port ? Number(tenantDetails.smtp_port) : 465;
+  let username = tenantDetails?.smtp_user;
+  let password = tenantDetails?.smtp_pass;
+  let from = tenantDetails?.smtp_from || username;
+  const clinicName = tenantDetails?.name || 'Traffio';
+
+  const hasTenantSMTP = hostname && username && password;
+  if (!hasTenantSMTP) {
+    hostname = Deno.env.get('SMTP_HOST') ?? '';
+    port = Number(Deno.env.get('SMTP_PORT') ?? '465');
+    username = Deno.env.get('SMTP_USER') ?? '';
+    password = Deno.env.get('SMTP_PASS') ?? '';
+    from = Deno.env.get('SMTP_FROM') ?? username;
+  }
+
+  if (!hostname || !username || !password) {
+    throw new Error('SMTP não configurado para este tenant (e sem SMTP global disponível).');
+  }
+
+  const escaped = message
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  const html = `
+    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+      <h2 style="color: #0E7C7B;">${clinicName}</h2>
+      <p style="white-space: pre-wrap; line-height: 1.6;">${escaped}</p>
+      <p style="font-size: 12px; color: #718096; margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 10px;">
+        Este é um e-mail automático enviado em nome de ${clinicName}.
+      </p>
+    </div>
+  `;
+
+  const client = new SMTPClient({
+    connection: {
+      hostname,
+      port,
+      tls: port === 465,
+      auth: { username, password },
+    },
+  });
+
+  try {
+    await client.send({
+      from: `${clinicName} <${from}>`,
+      to,
+      subject: `Confirmação de Agendamento - ${clinicName}`,
+      content: message,
+      html,
+    });
+  } finally {
+    await client.close();
+  }
+}

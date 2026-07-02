@@ -49,18 +49,30 @@ export class MetaSocialClient {
     psid: string,
     text: string
   ): Promise<MetaSendResult> {
-    const res = await fetch(`${GRAPH_API}/me/messages?access_token=${pageToken}`, {
+    const payload = {
+      recipient: { id: psid },
+      message:   { text },
+      messaging_type: "RESPONSE",
+    };
+
+    let res = await fetch(`${GRAPH_API}/me/messages?access_token=${pageToken}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        recipient: { id: psid },
-        message:   { text },
-        messaging_type: "MESSAGE_TAG",
-        tag: "HUMAN_AGENT",
-      }),
+      body: JSON.stringify(payload),
     });
+    let data = await res.json();
 
-    const data = await res.json();
+    // Fallback: Se estiver fora da janela de 24h, tenta novamente com HUMAN_AGENT
+    if (data.error && (data.error.code === 10 || data.error.code === 200 || String(data.error.message).includes("24-hour"))) {
+      const fallbackPayload = { ...payload, messaging_type: "MESSAGE_TAG", tag: "HUMAN_AGENT" };
+      res = await fetch(`${GRAPH_API}/me/messages?access_token=${pageToken}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(fallbackPayload),
+      });
+      data = await res.json();
+    }
+
     if (data.error) {
       throw new MetaSocialError(data.error.code, data.error.message, "facebook");
     }
@@ -81,19 +93,29 @@ export class MetaSocialClient {
     igsid: string,
     text: string
   ): Promise<MetaSendResult> {
-    // Para Instagram Direct, enviamos para /me/messages (vinculado à página FB) com o IGSID no recipient.id
-    const res = await fetch(`${GRAPH_API}/me/messages?access_token=${pageToken}`, {
+    const payload = {
+      recipient: { id: igsid },
+      message:   { text },
+      messaging_type: "RESPONSE",
+    };
+
+    let res = await fetch(`${GRAPH_API}/me/messages?access_token=${pageToken}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        recipient: { id: igsid },
-        message:   { text },
-        messaging_type: "MESSAGE_TAG",
-        tag: "HUMAN_AGENT",
-      }),
+      body: JSON.stringify(payload),
     });
+    let data = await res.json();
 
-    const data = await res.json();
+    if (data.error && (data.error.code === 10 || data.error.code === 200 || String(data.error.message).includes("24-hour"))) {
+      const fallbackPayload = { ...payload, messaging_type: "MESSAGE_TAG", tag: "HUMAN_AGENT" };
+      res = await fetch(`${GRAPH_API}/me/messages?access_token=${pageToken}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(fallbackPayload),
+      });
+      data = await res.json();
+    }
+
     if (data.error) {
       throw new MetaSocialError(data.error.code, data.error.message, "instagram");
     }
@@ -114,23 +136,34 @@ export class MetaSocialClient {
     mediaUrl: string,
     mediaType: string
   ): Promise<MetaSendResult> {
-    const res = await fetch(`${GRAPH_API}/me/messages?access_token=${pageToken}`, {
+    const payload = {
+      recipient: { id: psid },
+      message: {
+        attachment: {
+          type: toMetaAttachmentType(mediaType),
+          payload: { url: mediaUrl, is_reusable: true },
+        },
+      },
+      messaging_type: "RESPONSE",
+    };
+
+    let res = await fetch(`${GRAPH_API}/me/messages?access_token=${pageToken}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        recipient: { id: psid },
-        message: {
-          attachment: {
-            type: toMetaAttachmentType(mediaType),
-            payload: { url: mediaUrl, is_reusable: true },
-          },
-        },
-        messaging_type: "MESSAGE_TAG",
-        tag: "HUMAN_AGENT",
-      }),
+      body: JSON.stringify(payload),
     });
+    let data = await res.json();
 
-    const data = await res.json();
+    if (data.error && (data.error.code === 10 || data.error.code === 200 || String(data.error.message).includes("24-hour"))) {
+      const fallbackPayload = { ...payload, messaging_type: "MESSAGE_TAG", tag: "HUMAN_AGENT" };
+      res = await fetch(`${GRAPH_API}/me/messages?access_token=${pageToken}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(fallbackPayload),
+      });
+      data = await res.json();
+    }
+
     if (data.error) {
       throw new MetaSocialError(data.error.code, data.error.message, "facebook");
     }
@@ -151,23 +184,34 @@ export class MetaSocialClient {
     mediaUrl: string,
     mediaType: string
   ): Promise<MetaSendResult> {
-    const res = await fetch(`${GRAPH_API}/me/messages?access_token=${pageToken}`, {
+    const payload = {
+      recipient: { id: igsid },
+      message: {
+        attachment: {
+          type: toMetaAttachmentType(mediaType),
+          payload: { url: mediaUrl, is_reusable: true },
+        },
+      },
+      messaging_type: "RESPONSE",
+    };
+
+    let res = await fetch(`${GRAPH_API}/me/messages?access_token=${pageToken}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        recipient: { id: igsid },
-        message: {
-          attachment: {
-            type: toMetaAttachmentType(mediaType),
-            payload: { url: mediaUrl, is_reusable: true },
-          },
-        },
-        messaging_type: "MESSAGE_TAG",
-        tag: "HUMAN_AGENT",
-      }),
+      body: JSON.stringify(payload),
     });
+    let data = await res.json();
 
-    const data = await res.json();
+    if (data.error && (data.error.code === 10 || data.error.code === 200 || String(data.error.message).includes("24-hour"))) {
+      const fallbackPayload = { ...payload, messaging_type: "MESSAGE_TAG", tag: "HUMAN_AGENT" };
+      res = await fetch(`${GRAPH_API}/me/messages?access_token=${pageToken}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(fallbackPayload),
+      });
+      data = await res.json();
+    }
+
     if (data.error) {
       throw new MetaSocialError(data.error.code, data.error.message, "instagram");
     }

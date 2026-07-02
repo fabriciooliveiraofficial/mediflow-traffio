@@ -342,7 +342,10 @@ serve(async (req: Request) => {
 
             const smsClient = new TelnyxSmsClient(smsApiKey);
             const mediaUrls = msg.media_url ? [msg.media_url] : undefined;
-            await smsClient.sendSms(senderRow.phone_number, recipient, text, mediaUrls);
+            const toPhone = recipient.startsWith('+')
+              ? recipient
+              : `+${recipient.replace(/\D/g, '')}`;
+            await smsClient.sendSms(senderRow.phone_number, toPhone, text, mediaUrls);
 
             // Rastrear uso (não-bloqueante)
             const pricing = getSmsPricing(senderRow?.country_code ?? "US", "sms");

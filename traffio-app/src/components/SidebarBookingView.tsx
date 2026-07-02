@@ -22,6 +22,9 @@ interface SidebarBookingViewProps {
   patientId: string;
   patientName: string;
   onSendMessage: (text: string) => Promise<void>;
+  // Quando presente, a mensagem de confirmação não é enviada direto na conversa:
+  // é entregue ao chamador, que abre o seletor de canal (WhatsApp/SMS/Meta/E-mail).
+  onConfirmationReady?: (text: string) => void;
   rescheduleFrom?: any;
   preFill?: {
     doctorId: string;
@@ -33,7 +36,7 @@ interface SidebarBookingViewProps {
   onSuccess?: () => void;
 }
 
-export function SidebarBookingView({ onBack, patientId, patientName, onSendMessage, rescheduleFrom, preFill, onSuccess }: SidebarBookingViewProps) {
+export function SidebarBookingView({ onBack, patientId, patientName, onSendMessage, onConfirmationReady, rescheduleFrom, preFill, onSuccess }: SidebarBookingViewProps) {
     const { t } = useTranslation('agenda');
     const { tenant } = useTenant();
     const { showToast } = useToast();
@@ -707,7 +710,11 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
 
             message = message.trim();
 
-            await onSendMessage(message);
+            if (onConfirmationReady) {
+                onConfirmationReady(message);
+            } else {
+                await onSendMessage(message);
+            }
             onSuccess?.();
         } catch (err: any) {
             showToast('error', err.message);

@@ -699,13 +699,19 @@ export function FloatingCommunicationsButton({ enabled, activeNumber: activeNumb
                 <button
                   disabled={!smsTo || !smsInput || smsInput.length > 160}
                   onClick={async () => {
-                    // Enviar SMS via endpoint existente
+                    // Enviar SMS via endpoint send-human-message
                     const { data: { session } } = await supabase.auth.getSession();
                     if (!session) return;
-                    await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/telnyx-numbers`, {
+                    await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-human-message`, {
                       method: 'POST',
                       headers: { 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ action: 'send_sms', to: smsTo, text: smsInput }),
+                      body: JSON.stringify({
+                        tenant_id: tenantId,
+                        user_id: session.user.id,
+                        target_channel: 'sms',
+                        patient_phone: smsTo,
+                        text: smsInput
+                      }),
                     });
                     setSmsInput(''); setSmsTo('');
                     setExpanded(false);

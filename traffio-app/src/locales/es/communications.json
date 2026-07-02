@@ -76,8 +76,28 @@
       "instagram": "Instagram",
       "messenger": "Messenger",
       "whatsapp": "WhatsApp",
+      "sms": "SMS",
+      "email": "Correo electrónico",
       "instagramDirect": "Instagram Direct",
       "facebookMessenger": "Facebook Messenger"
+    },
+    "channelModal": {
+      "title": "¿Por qué canal enviar la confirmación?",
+      "subtitle": "La cita fue confirmada. Elige el canal para enviar el mensaje de confirmación al paciente.",
+      "currentBadge": "Conversación actual",
+      "previewLabel": "Vista previa del mensaje",
+      "send": "Enviar confirmación",
+      "skip": "No enviar mensaje",
+      "reasons": {
+        "noConversation": "Sin conversación con el paciente en este canal",
+        "noPhone": "Paciente sin teléfono registrado",
+        "noEmail": "Paciente sin correo registrado",
+        "smsDisabled": "SMS no está habilitado para esta clínica"
+      },
+      "toasts": {
+        "sent": "Confirmación enviada vía {{channel}}",
+        "error": "Error al enviar la confirmación: {{message}}"
+      }
     },
     "fallbackNames": {
       "instagramUser": "Usuario de Instagram",

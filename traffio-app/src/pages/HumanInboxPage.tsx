@@ -14,7 +14,8 @@ import {
   AlertTriangle, MoreVertical, ArrowRightLeft, UserCircle2,
   UserPlus, UserMinus, Users, Building2, Tag, CalendarSearch, DollarSign,
   Mic, Paperclip, Camera, Smile, Play, Pause,
-  FileText, Download, Reply, Pencil, Copy, Forward, Trash2, Zap, ArrowRight, Instagram, Facebook, ChevronDown, ArrowLeft, Settings, Plus
+  FileText, Download, Reply, Pencil, Copy, Forward, Trash2, Zap, ArrowRight, Instagram, Facebook, ChevronDown, ArrowLeft, Settings, Plus,
+  MessageSquare
 } from 'lucide-react'
 import data from '@emoji-mart/data'
 import Picker from '@emoji-mart/react'
@@ -32,6 +33,7 @@ import { SidebarDirectoryView } from '../components/SidebarDirectoryView'
 import { SidebarLeadClassifyView } from '../components/SidebarLeadClassifyView'
 import { SidebarPatientEditView } from '../components/SidebarPatientEditView'
 import { ChannelPreferenceSelector } from '../components/channel/ChannelPreferenceSelector'
+import { ConfirmationChannelModal, type ConfirmationChannelId, type ConfirmationChannelOption } from '../components/channel/ConfirmationChannelModal'
 import { salesScriptService, type SalesScript } from '../services/salesScriptService'
 import { ScriptManagerDrawer } from '../components/ScriptManagerDrawer'
 import { useTenant } from '../contexts/TenantContext'
@@ -224,6 +226,8 @@ function ConversationRow({
             <Instagram className={clsx('w-4 h-4', isQueued ? 'text-amber-600' : 'text-gray-500')} />
           ) : session.channel === 'facebook' ? (
             <Facebook className={clsx('w-4 h-4', isQueued ? 'text-amber-600' : 'text-gray-500')} />
+          ) : session.channel === 'sms' ? (
+            <MessageSquare className={clsx('w-4 h-4', isQueued ? 'text-amber-600' : 'text-gray-500')} />
           ) : (
             <User className={clsx('w-4 h-4', isQueued ? 'text-amber-600' : 'text-gray-500')} />
           )}
@@ -301,6 +305,8 @@ function ConversationRow({
                 ? "bg-pink-50 text-pink-700 border-pink-100"
                 : session.channel === 'facebook'
                 ? "bg-blue-50 text-blue-700 border-blue-100"
+                : session.channel === 'sms'
+                ? "bg-teal-50 text-teal-700 border-teal-100"
                 : "bg-green-50 text-green-700 border-green-100"
             )}>
               {session.channel === 'livechat'
@@ -309,6 +315,8 @@ function ConversationRow({
                 ? t('humanInbox.channels.instagram')
                 : session.channel === 'facebook'
                 ? t('humanInbox.channels.messenger')
+                : session.channel === 'sms'
+                ? t('humanInbox.channels.sms')
                 : t('humanInbox.channels.whatsapp')}
             </span>
             {isQueued && (
@@ -1472,6 +1480,7 @@ interface PatientPanelProps {
   onLookupPatient: () => void
   onViewAppointments: () => void
   onSendMessage: (text: string) => Promise<void>
+  onSendConfirmation: (text: string) => void
   isOwned: boolean
   view: 'profile' | 'register' | 'lookup' | 'booking' | 'appointments' | 'edit' | 'availability' | 'payment' | 'directory' | 'classify'
   onViewChange: (view: 'profile' | 'register' | 'lookup' | 'booking' | 'appointments' | 'edit' | 'availability' | 'payment' | 'directory' | 'classify') => void
@@ -1488,7 +1497,7 @@ interface PatientPanelProps {
 
 function PatientPanel({
   session, patient, appointments, onClose, onUpdateStage, onTransferClick, isOwned, onNewPatient, onLookupPatient,
-  view, onViewChange, onPatientSelected, onUnlink, onViewAppointments, onSendMessage, onReschedule, onAddToWaitlist, onResetReschedule, rescheduleData,
+  view, onViewChange, onPatientSelected, onUnlink, onViewAppointments, onSendMessage, onSendConfirmation, onReschedule, onAddToWaitlist, onResetReschedule, rescheduleData,
   preFill, onPreFillChange, enabledChannels
 }: PatientPanelProps) {
   const { t } = useTranslation('communications');
@@ -1536,6 +1545,7 @@ function PatientPanel({
           patientId={patient.id}
           patientName={patient.full_name || t('humanInbox.fallbackNames.patient')}
           onSendMessage={onSendMessage}
+          onConfirmationReady={onSendConfirmation}
           rescheduleFrom={rescheduleData}
           preFill={preFill}
           onSuccess={() => {
@@ -1884,7 +1894,12 @@ export function HumanInboxPage() {
   const [stageDropdownOpen, setStageDropdownOpen] = useState(false)
   const [rescheduleData, setRescheduleData] = useState<any | null>(null);
   const [bookingPreFill, setBookingPreFill] = useState<any | null>(null);
-  const [channelFilter, setChannelFilter] = useState<'all' | 'whatsapp' | 'livechat' | 'instagram' | 'facebook'>('all');
+  const [channelFilter, setChannelFilter] = useState<'all' | 'whatsapp' | 'livechat' | 'instagram' | 'facebook' | 'sms'>('all');
+
+  // ── Popup de canal para a mensagem de confirmação de agendamento ──
+  const [confirmationMsg, setConfirmationMsg] = useState<string | null>(null);
+  const [confirmationOptions, setConfirmationOptions] = useState<ConfirmationChannelOption[] | null>(null);
+  const [confirmationSending, setConfirmationSending] = useState(false);
   const [headerSlot, setHeaderSlot] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -2611,6 +2626,76 @@ export function HumanInboxPage() {
     }
   }
 
+  // ── Confirmação de agendamento: seleção de canal ──
+  const openConfirmationModal = useCallback(async (message: string) => {
+    if (!selected || !tenantId) return
+    setConfirmationMsg(message)
+    setConfirmationOptions(null)
+
+    // Telefone real do paciente (sessões Meta guardam PSID/IGSID em patient_phone)
+    const isMetaSession = ['instagram', 'facebook', 'livechat'].includes(selected.channel || '')
+    let phone = patient?.phone || (!isMetaSession ? selected.patient_phone : '') || ''
+    if (/[a-zA-Z]/.test(phone)) phone = ''
+    const clean = phone.replace(/\D/g, '')
+
+    // Canais onde já existe conversa com este paciente
+    const orParts: string[] = [`id.eq.${selected.id}`]
+    if (selected.patient_id) orParts.push(`patient_id.eq.${selected.patient_id}`)
+    if (clean) orParts.push(`patient_phone.eq.${clean}`, `patient_phone.eq."+${clean}"`)
+    const { data: related } = await supabase
+      .from('conversation_sessions')
+      .select('id, channel')
+      .eq('tenant_id', tenantId)
+      .or(orParts.join(','))
+    const channelsWithSession = new Set((related ?? []).map(s => s.channel || 'whatsapp'))
+
+    const smsEnabled = !!((tenant as any)?.telnyx_enabled || (tenant as any)?.sms_enabled)
+    const hasEmail = !!patient?.email?.trim()
+
+    const options: ConfirmationChannelOption[] = [
+      { id: 'whatsapp', available: !!clean || channelsWithSession.has('whatsapp'), reasonKey: 'humanInbox.channelModal.reasons.noPhone' },
+      { id: 'facebook', available: channelsWithSession.has('facebook'), reasonKey: 'humanInbox.channelModal.reasons.noConversation' },
+      { id: 'instagram', available: channelsWithSession.has('instagram'), reasonKey: 'humanInbox.channelModal.reasons.noConversation' },
+      {
+        id: 'sms',
+        available: smsEnabled && (!!clean || channelsWithSession.has('sms')),
+        reasonKey: !smsEnabled ? 'humanInbox.channelModal.reasons.smsDisabled' : 'humanInbox.channelModal.reasons.noPhone',
+      },
+      { id: 'email', available: hasEmail, reasonKey: 'humanInbox.channelModal.reasons.noEmail' },
+    ]
+    // Conversa atual em Live Chat continua sendo uma opção válida de entrega
+    if ((selected.channel || 'whatsapp') === 'livechat') {
+      options.unshift({ id: 'livechat', available: true })
+    }
+    setConfirmationOptions(options)
+  }, [selected, patient, tenantId, tenant])
+
+  const handleConfirmationSend = async (channel: ConfirmationChannelId) => {
+    if (!selected || !confirmationMsg || !tenantId || !userId) return
+    setConfirmationSending(true)
+    const currentChannel = selected.channel || 'whatsapp'
+    const { data: { session: authSession } } = await supabase.auth.getSession()
+    const res = await supabase.functions.invoke('send-human-message', {
+      body: {
+        session_id: selected.id,
+        text: confirmationMsg,
+        tenant_id: tenantId,
+        user_id: userId,
+        ...(channel !== currentChannel ? { target_channel: channel } : {}),
+      },
+      headers: { Authorization: `Bearer ${authSession?.access_token}` },
+    })
+    setConfirmationSending(false)
+    if (res.error || res.data?.error) {
+      showToast('error', t('humanInbox.channelModal.toasts.error', { message: res.error?.message || res.data?.error }))
+    } else {
+      showToast('success', t('humanInbox.channelModal.toasts.sent', { channel: t(`humanInbox.channels.${channel === 'facebook' ? 'messenger' : channel === 'livechat' ? 'liveChat' : channel}`) }))
+      setConfirmationMsg(null)
+      setConfirmationOptions(null)
+      loadSessions()
+    }
+  }
+
   // ── Transfer ──────────────────────────────────
   const handleTransfer = async () => {
     if (!selected || !selectedUserToTransfer || !userId || !tenantId) return;
@@ -2683,10 +2768,10 @@ export function HumanInboxPage() {
 
 
   const channelCounts = useMemo(() => {
-    const counts = { all: 0, whatsapp: 0, livechat: 0, instagram: 0, facebook: 0 }
+    const counts = { all: 0, whatsapp: 0, livechat: 0, instagram: 0, facebook: 0, sms: 0 }
     sessions.forEach(s => {
       const chan = s.channel || 'whatsapp'
-      if (chan === 'whatsapp' || chan === 'livechat' || chan === 'instagram' || chan === 'facebook') {
+      if (chan === 'whatsapp' || chan === 'livechat' || chan === 'instagram' || chan === 'facebook' || chan === 'sms') {
         counts[chan]++
       }
     })
@@ -2823,6 +2908,23 @@ export function HumanInboxPage() {
                     channelFilter === 'facebook' ? "bg-white/20 text-white" : "bg-slate-200/50 text-slate-500"
                   )}>
                     {channelCounts.facebook}
+                  </span>
+                </button>
+               <button
+                  onClick={() => setChannelFilter('sms')}
+                  className={clsx(
+                    "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer",
+                    channelFilter === 'sms'
+                      ? "bg-teal-600 text-white shadow-sm shadow-teal-600/10 border border-teal-500/50"
+                      : "text-slate-500 hover:text-slate-900 hover:bg-slate-200/50"
+                  )}
+                >
+                  {t('humanInbox.channels.sms')}
+                  <span className={clsx(
+                    "px-1.5 py-0.5 rounded-full text-[9px] font-extrabold transition-all",
+                    channelFilter === 'sms' ? "bg-white/20 text-white" : "bg-slate-200/50 text-slate-500"
+                  )}>
+                    {channelCounts.sms}
                   </span>
                 </button>
             </div>
@@ -3030,6 +3132,8 @@ export function HumanInboxPage() {
                   <Instagram className="w-4 h-4 text-blue-600" />
                 ) : selected.channel === 'facebook' ? (
                   <Facebook className="w-4 h-4 text-blue-600" />
+                ) : selected.channel === 'sms' ? (
+                  <MessageSquare className="w-4 h-4 text-blue-600" />
                 ) : (
                   <User className="w-4 h-4 text-blue-600" />
                 )}
@@ -3209,6 +3313,7 @@ export function HumanInboxPage() {
               onLookupPatient={() => setSidebarView('lookup')}
               onViewAppointments={() => setSidebarView('appointments')}
               onSendMessage={handleSidebarSendMessage}
+              onSendConfirmation={openConfirmationModal}
               isOwned={isOwned}
               view={sidebarView}
               onViewChange={setSidebarView}
@@ -3504,6 +3609,18 @@ export function HumanInboxPage() {
         onClose={() => setIsScriptManagerOpen(false)}
         onScriptsUpdated={setSalesScripts}
       />
+
+      {/* Seletor de canal da mensagem de confirmação de agendamento */}
+      {confirmationMsg && selected && (
+        <ConfirmationChannelModal
+          message={confirmationMsg}
+          currentChannel={(selected.channel || 'whatsapp') as ConfirmationChannelId}
+          options={confirmationOptions}
+          sending={confirmationSending}
+          onConfirm={handleConfirmationSend}
+          onSkip={() => { setConfirmationMsg(null); setConfirmationOptions(null) }}
+        />
+      )}
     </div>
   )
 }

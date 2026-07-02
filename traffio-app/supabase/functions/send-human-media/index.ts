@@ -238,7 +238,10 @@ serve(async (req: Request) => {
       const smsClient = new TelnyxSmsClient(smsApiKey);
       const mediaUrls = media_url ? [media_url] : undefined;
       const smsText = caption?.trim() || "";
-      const telnyxRes = await smsClient.sendSms(senderRow.phone_number, session.patient_phone, smsText, mediaUrls);
+      const toPhone = session.patient_phone.startsWith('+')
+        ? session.patient_phone
+        : `+${session.patient_phone.replace(/\D/g, '')}`;
+      const telnyxRes = await smsClient.sendSms(senderRow.phone_number, toPhone, smsText, mediaUrls);
       console.log(`[send-human-media] MMS sent to ${session.patient_phone}. Msg ID: ${telnyxRes.messageId}`);
 
       if (dbMsgId && telnyxRes.messageId) {
