@@ -189,6 +189,12 @@ export function FollowUpBoard({ onNavigate }: FollowUpBoardProps) {
     onNavigate?.('agenda');
   };
 
+  // Patch otimista: a linha reage no mesmo instante do clique, sem esperar
+  // o round-trip do banco nem o realtime
+  const patchJourney = (id: string, patch: Partial<CrmJourney>) => {
+    setJourneys(prev => prev.map(j => j.id === id ? { ...j, ...patch } : j));
+  };
+
   const moveStage = async (journeyId: string, toStage: CrmStageId, extra: Record<string, any> = {}, reason?: string) => {
     // Optimistic update
     setJourneys(prev => prev.map(j => j.id === journeyId ? { ...j, stage_id: toStage } : j));
@@ -335,6 +341,7 @@ export function FollowUpBoard({ onNavigate }: FollowUpBoardProps) {
             onOpenJourney={setSelectedJourney}
             onOpenConversation={openConversation}
             onBook={openBooking}
+            onPatch={patchJourney}
             onRefresh={() => { loadBoard(); refetchMetrics(); }}
           />
         )}

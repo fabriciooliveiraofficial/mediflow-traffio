@@ -2233,19 +2233,32 @@ export function HumanInboxPage() {
 
   useEffect(() => { loadSessions() }, [loadSessions])
 
-  // Auto-select session from handoff alert
+  // Auto-select session from handoff alert / CRM deep-link
   useEffect(() => {
     const handoffSessionId = searchParams.get('handoff_session')
-    if (handoffSessionId && sessions.length > 0) {
-      const sessionToSelect = sessions.find(s => s.id === handoffSessionId)
-      if (sessionToSelect) {
-        handleSelectSession(sessionToSelect)
-        // Clean up URL
-        const newParams = new URLSearchParams(searchParams)
-        newParams.delete('handoff_session')
-        setSearchParams(newParams, { replace: true })
-      }
+    if (!handoffSessionId || sessions.length === 0) return
+
+    // Limpa a URL imediatamente para não re-disparar o efeito
+    const newParams = new URLSearchParams(searchParams)
+    newParams.delete('handoff_session')
+    setSearchParams(newParams, { replace: true })
+
+    const sessionToSelect = sessions.find(s => s.id === handoffSessionId)
+    if (sessionToSelect) {
+      handleSelectSession(sessionToSelect)
+      return
     }
+
+    // Sessão fora da aba/lista atual (ex.: veio do CRM e a conversa está
+    // fechada ou em outra aba) — busca direta pelo id e seleciona mesmo assim
+    supabase
+      .from('conversation_sessions')
+      .select('*')
+      .eq('id', handoffSessionId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) handleSelectSession(data as any)
+      })
   }, [searchParams, sessions, handleSelectSession, setSearchParams])
 
   // ── Realtime: session list ────────────────────

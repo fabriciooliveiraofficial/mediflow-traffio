@@ -21,6 +21,7 @@ interface WorkQueueProps {
     onOpenJourney: (j: CrmJourney) => void;
     onOpenConversation: (j: CrmJourney) => void;
     onBook: (j: CrmJourney) => void;
+    onPatch: (id: string, patch: Partial<CrmJourney>) => void;
     onRefresh: () => void;
 }
 
@@ -31,7 +32,7 @@ interface WorkQueueProps {
  */
 export function WorkQueue({
     journeys, displayName, displaySubtitle, journeyChannels,
-    onOpenJourney, onOpenConversation, onBook, onRefresh,
+    onOpenJourney, onOpenConversation, onBook, onPatch, onRefresh,
 }: WorkQueueProps) {
     const { t } = useTranslation('crm');
     const { showToast } = useToast();
@@ -42,6 +43,14 @@ export function WorkQueue({
     const [msgText, setMsgText] = useState('');
     const [sending, setSending] = useState(false);
     const [actingOn, setActingOn] = useState<string | null>(null);
+    const [justHandled, setJustHandled] = useState<string | null>(null);
+
+    // Destaque temporário na linha após uma ação — feedback inequívoco mesmo
+    // no modo "Todos abertos", onde a linha não sai da lista
+    const flashHandled = (id: string) => {
+        setJustHandled(id);
+        setTimeout(() => setJustHandled(prev => (prev === id ? null : prev)), 1600);
+    };
 
     const now = Date.now();
 
@@ -92,24 +101,29 @@ export function WorkQueue({
 
     const handleSnooze = async (j: CrmJourney) => {
         setActingOn(j.id);
+        const nextAt = new Date(Date.now() + 24 * 3600000).toISOString();
+        // Otimista: a linha reage no instante do clique
+        onPatch(j.id, { needs_action: false, next_action_at: nextAt });
+        flashHandled(j.id);
+
         const { error } = await supabase
             .from('crm_journeys')
-            .update({
-                needs_action: false,
-                next_action_at: new Date(Date.now() + 24 * 3600000).toISOString(),
-            })
+            .update({ needs_action: false, next_action_at: nextAt })
             .eq('id', j.id);
         setActingOn(null);
         if (error) {
             showToast('error', error.message);
+            onRefresh(); // reverte o patch otimista
         } else {
             showToast('success', t('workQueue.toasts.snoozed'));
-            onRefresh();
         }
     };
 
     const handleDone = async (j: CrmJourney) => {
         setActingOn(j.id);
+        onPatch(j.id, { needs_action: false, next_action_at: null });
+        flashHandled(j.id);
+
         const { error } = await supabase
             .from('crm_journeys')
             .update({ needs_action: false, next_action_at: null })
@@ -117,9 +131,9 @@ export function WorkQueue({
         setActingOn(null);
         if (error) {
             showToast('error', error.message);
+            onRefresh();
         } else {
             showToast('success', t('workQueue.toasts.done'));
-            onRefresh();
         }
     };
 
@@ -132,10 +146,15 @@ export function WorkQueue({
                 p_message: msgText.trim(),
             });
             if (error) throw error;
+            onPatch(msgModal.id, {
+                needs_action: false,
+                next_action_at: new Date(Date.now() + 24 * 3600000).toISOString(),
+                next_action_type: 'message',
+            });
+            flashHandled(msgModal.id);
             showToast('success', t('workQueue.toasts.messageSent'));
             setMsgModal(null);
             setMsgText('');
-            onRefresh();
         } catch (e: any) {
             showToast('error', e.message || t('workQueue.toasts.messageError'));
         } finally {
@@ -184,8 +203,10 @@ export function WorkQueue({
                         return (
                             <div
                                 key={j.id}
-                                className={`group bg-white rounded-2xl border shadow-float p-4 flex items-center gap-4 transition-all duration-200 hover:border-brand-primary/40 ${
-                                    reason.urgent ? 'border-amber-200' : 'border-ice-100'
+                                className={`group bg-white rounded-2xl border shadow-float p-4 flex items-center gap-4 transition-all duration-500 hover:border-brand-primary/40 ${
+                                    justHandled === j.id
+                                        ? 'border-accent-success ring-2 ring-accent-success/30 bg-accent-success/5'
+                                        : reason.urgent ? 'border-amber-200' : 'border-ice-100'
                                 }`}
                             >
                                 {/* Score */}
