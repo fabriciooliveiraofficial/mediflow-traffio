@@ -37,6 +37,7 @@ export interface ChannelAutomation {
     no_show: boolean;
     videos: boolean;
     nps: boolean;
+    recovery?: boolean;
 }
 
 export interface CustomReminder {
@@ -108,6 +109,7 @@ export interface BotConfig {
         en: string;
         es: string;
     };
+    recovery_captions?: Record<string, { pt: string; en: string; es: string }>;
 
     // Mantendo estes campos para compatibilidade de schema, mas não serão editáveis
     personality?: string;
@@ -159,11 +161,12 @@ export const Intelligence = () => {
             facebook: false
         },
         channel_automations: {
-            whatsapp: { no_show: true, videos: true, nps: true },
-            sms: { no_show: true, videos: false, nps: true },
+            whatsapp: { no_show: true, videos: true, nps: true, recovery: true },
+            sms: { no_show: true, videos: false, nps: true, recovery: false },
             mms: { no_show: true, videos: true, nps: false },
             email: { no_show: false, videos: false, nps: true }
         },
+        recovery_captions: DEFAULT_RECOVERY_CAPTIONS,
         custom_reminders: [
             {
                 id: '48h-default',
@@ -345,28 +348,42 @@ export const Intelligence = () => {
                         instagram: false,
                         facebook: false
                     },
-                    channel_automations: savedConfig.channel_automations || {
-                        whatsapp: { 
-                            no_show: savedConfig.no_show_prevention !== false, 
-                            videos: savedConfig.reminder_videos_enabled ?? true, 
-                            nps: savedConfig.nps_enabled !== false 
-                        },
-                        sms: { 
-                            no_show: savedConfig.no_show_prevention !== false, 
-                            videos: false, 
-                            nps: savedConfig.nps_enabled !== false 
-                        },
-                        mms: { 
-                            no_show: savedConfig.no_show_prevention !== false, 
-                            videos: savedConfig.reminder_videos_enabled ?? false, 
-                            nps: savedConfig.nps_enabled !== false 
-                        },
-                        email: { 
-                            no_show: false, 
-                            videos: false, 
-                            nps: savedConfig.nps_enabled !== false 
-                        }
-                    }
+                    channel_automations: (() => {
+                        const base = savedConfig.channel_automations || {
+                            whatsapp: {
+                                no_show: savedConfig.no_show_prevention !== false,
+                                videos: savedConfig.reminder_videos_enabled ?? true,
+                                nps: savedConfig.nps_enabled !== false
+                            },
+                            sms: {
+                                no_show: savedConfig.no_show_prevention !== false,
+                                videos: false,
+                                nps: savedConfig.nps_enabled !== false
+                            },
+                            mms: {
+                                no_show: savedConfig.no_show_prevention !== false,
+                                videos: savedConfig.reminder_videos_enabled ?? false,
+                                nps: savedConfig.nps_enabled !== false
+                            },
+                            email: {
+                                no_show: false,
+                                videos: false,
+                                nps: savedConfig.nps_enabled !== false
+                            }
+                        };
+                        // Recovery: WhatsApp ligado por padrão (comportamento do motor CRM)
+                        return {
+                            ...base,
+                            whatsapp: { recovery: true, ...(base.whatsapp || {}) },
+                            sms: { recovery: false, ...(base.sms || {}) }
+                        };
+                    })(),
+                    recovery_captions: Object.fromEntries(
+                        Object.keys(DEFAULT_RECOVERY_CAPTIONS).map(key => [key, {
+                            ...DEFAULT_RECOVERY_CAPTIONS[key],
+                            ...(savedConfig.recovery_captions?.[key] || {})
+                        }])
+                    )
                 });
             }
         } catch (error) {
@@ -400,8 +417,8 @@ export const Intelligence = () => {
             );
 
             const enabledChannels = {
-                whatsapp: !!(config.channel_automations?.whatsapp?.no_show || config.channel_automations?.whatsapp?.videos || config.channel_automations?.whatsapp?.nps),
-                sms: !!(config.channel_automations?.sms?.no_show || config.channel_automations?.sms?.nps),
+                whatsapp: !!(config.channel_automations?.whatsapp?.no_show || config.channel_automations?.whatsapp?.videos || config.channel_automations?.whatsapp?.nps || config.channel_automations?.whatsapp?.recovery),
+                sms: !!(config.channel_automations?.sms?.no_show || config.channel_automations?.sms?.nps || config.channel_automations?.sms?.recovery),
                 mms: !!(config.channel_automations?.mms?.no_show || config.channel_automations?.mms?.videos || config.channel_automations?.mms?.nps),
                 email: !!(config.channel_automations?.email?.no_show || config.channel_automations?.email?.nps),
                 instagram: false,
@@ -598,10 +615,45 @@ const formatOffsetLabel = (offsetMinutes: number, t: any) => {
     return `${value} ${unitStr} ${relationStr}`;
 };
 
+// Ordem e rótulos dos cards da seção Recuperação de Pacientes
+const RECOVERY_TEMPLATE_META: { key: string; chip: string; labelKey: string; defaultLabel: string }[] = [
+    { key: 'recovery_immediate', chip: 'D0',     labelKey: 'intelligence.recoverySection.cards.immediate', defaultLabel: 'Imediata — logo após a falta' },
+    { key: 'recovery_48h',       chip: 'D+2',    labelKey: 'intelligence.recoverySection.cards.after48h',  defaultLabel: '2 dias após a falta' },
+    { key: 'recovery_7d',        chip: 'D+7',    labelKey: 'intelligence.recoverySection.cards.after7d',   defaultLabel: '7 dias após a falta' },
+    { key: 'recall_immediate',   chip: 'RECALL', labelKey: 'intelligence.recoverySection.cards.recall',    defaultLabel: 'Reativação — retorno do paciente' },
+];
+
 const DEFAULT_NPS_CAPTIONS = {
     pt: 'Olá {nome}! 😊 Como foi sua experiência na {clínica} hoje?\n\nDe *0 a 10*, o quanto você nos recomendaria? ⭐\n\nSó responda com um número — leva 5 segundos!',
     en: 'Hi {nome}! 😊 How was your experience at {clínica} today?\n\nOn a scale of *0 to 10*, how likely are you to recommend us? ⭐\n\nJust reply with a number — it only takes 5 seconds!',
     es: '¡Hola {nome}! 😊 ¿Cómo fue tu experiencia en {clínica} hoy?\n\nDel *0 al 10*, ¿qué tan probable es que nos recomiendes? ⭐\n\n¡Solo responde con un número — toma 5 segundos!',
+};
+
+// Cadência de recuperação do CRM (Faltou → D0/D2/D7) + reativação (recall_due).
+// As chaves espelham crm_stage_automations.template_key; os textos são o ponto
+// de partida editável — o process-outbound usa bot_config.recovery_captions
+// quando presente, senão o template padrão do backend.
+export const DEFAULT_RECOVERY_CAPTIONS: Record<string, { pt: string; en: string; es: string }> = {
+    recovery_immediate: {
+        pt: 'Olá {{nome_paciente}}! 😊 Aqui é a equipe da {{nome_clinica}}. Notamos que você não conseguiu comparecer à sua consulta. Aconteceu algum imprevisto?\n\nSem problemas — podemos remarcar em um horário melhor para você! 📅\n\nÉ só responder *REMARCAR* que cuidamos de tudo.',
+        en: 'Hi {{nome_paciente}}! 😊 This is the team at {{nome_clinica}}. We noticed you couldn\'t make it to your appointment. Did something come up?\n\nNo worries — we can reschedule at a better time for you! 📅\n\nJust reply *RESCHEDULE* and we\'ll take care of everything.',
+        es: '¡Hola {{nome_paciente}}! 😊 Somos el equipo de {{nome_clinica}}. Notamos que no pudiste asistir a tu cita. ¿Surgió algún imprevisto?\n\nNo hay problema — ¡podemos reagendar en un mejor horario para ti! 📅\n\nSolo responde *REAGENDAR* y nos encargamos de todo.'
+    },
+    recovery_48h: {
+        pt: 'Oi {{nome_paciente}}! Ainda temos horários disponíveis esta semana na {{nome_clinica}}. ✨\n\nQue tal remarcarmos sua consulta? É rapidinho: responda *REMARCAR* que eu encontro o melhor horário para você. 😊',
+        en: 'Hi {{nome_paciente}}! We still have openings this week at {{nome_clinica}}. ✨\n\nHow about rescheduling your appointment? It\'s quick: reply *RESCHEDULE* and I\'ll find the best time for you. 😊',
+        es: '¡Hola {{nome_paciente}}! Todavía tenemos horarios disponibles esta semana en {{nome_clinica}}. ✨\n\n¿Qué tal si reagendamos tu cita? Es rápido: responde *REAGENDAR* y encuentro el mejor horario para ti. 😊'
+    },
+    recovery_7d: {
+        pt: 'Olá {{nome_paciente}}! Passando uma última vez por aqui. 😊\n\nSua saúde é importante para nós da {{nome_clinica}}. Se quiser remarcar sua consulta, é só responder *REMARCAR*.\n\nSe preferir não receber mais mensagens, responda *SAIR*. 🙏',
+        en: 'Hello {{nome_paciente}}! Just checking in one last time. 😊\n\nYour health matters to us at {{nome_clinica}}. If you\'d like to reschedule your appointment, just reply *RESCHEDULE*.\n\nIf you\'d rather not receive more messages, reply *STOP*. 🙏',
+        es: '¡Hola {{nome_paciente}}! Paso por aquí una última vez. 😊\n\nTu salud es importante para nosotros en {{nome_clinica}}. Si quieres reagendar tu cita, solo responde *REAGENDAR*.\n\nSi prefieres no recibir más mensajes, responde *SALIR*. 🙏'
+    },
+    recall_immediate: {
+        pt: 'Olá {{nome_paciente}}! 😊 Aqui é a equipe da {{nome_clinica}}. Está chegando a hora do seu retorno!\n\nQue tal agendar sua próxima consulta? Temos horários disponíveis. 📅\n\nResponda *AGENDAR* para ver as opções.',
+        en: 'Hi {{nome_paciente}}! 😊 This is the team at {{nome_clinica}}. It\'s time for your follow-up visit!\n\nHow about booking your next appointment? We have openings available. 📅\n\nReply *SCHEDULE* to see the options.',
+        es: '¡Hola {{nome_paciente}}! 😊 Somos el equipo de {{nome_clinica}}. ¡Ya es hora de tu visita de seguimiento!\n\n¿Qué tal agendar tu próxima cita? Tenemos horarios disponibles. 📅\n\nResponde *AGENDAR* para ver las opciones.'
+    }
 };
 
 const DEFAULT_BOOKING_CAPTIONS = {
@@ -667,6 +719,7 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
                                     <th className="p-4 text-[10px] font-black text-graphite-400 uppercase tracking-wider text-center">{t('intelligence.matrixSection.headers.noShow', { defaultValue: 'Prevenção de No-Show' })}</th>
                                     <th className="p-4 text-[10px] font-black text-graphite-400 uppercase tracking-wider text-center">{t('intelligence.matrixSection.headers.videos', { defaultValue: 'Vídeos de Confirmação' })}</th>
                                     <th className="p-4 text-[10px] font-black text-graphite-400 uppercase tracking-wider text-center">{t('intelligence.matrixSection.headers.nps', { defaultValue: 'Pesquisa NPS' })}</th>
+                                    <th className="p-4 text-[10px] font-black text-graphite-400 uppercase tracking-wider text-center">{t('intelligence.matrixSection.headers.recovery', { defaultValue: 'Recuperação de Faltas' })}</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-ice-100 bg-white">
@@ -678,7 +731,7 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
                                     label="WhatsApp"
                                     config={config}
                                     setConfig={setConfig}
-                                    supports={{ no_show: true, videos: true, nps: true }}
+                                    supports={{ no_show: true, videos: true, nps: true, recovery: true }}
                                 />
                                 <MatrixRow
                                     channelId="sms"
@@ -688,7 +741,7 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
                                     label="SMS"
                                     config={config}
                                     setConfig={setConfig}
-                                    supports={{ no_show: true, videos: false, nps: true }}
+                                    supports={{ no_show: true, videos: false, nps: true, recovery: true }}
                                     videoFallbackLabel={t('intelligence.matrixSection.textOnly', { defaultValue: 'Apenas Texto' })}
                                 />
                                 <MatrixRow
@@ -699,7 +752,7 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
                                     label="MMS"
                                     config={config}
                                     setConfig={setConfig}
-                                    supports={{ no_show: true, videos: true, nps: true }}
+                                    supports={{ no_show: true, videos: true, nps: true, recovery: false }}
                                 />
                                 <MatrixRow
                                     channelId="email"
@@ -709,7 +762,7 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
                                     label="E-mail"
                                     config={config}
                                     setConfig={setConfig}
-                                    supports={{ no_show: true, videos: false, nps: true }}
+                                    supports={{ no_show: true, videos: false, nps: true, recovery: false }}
                                     videoFallbackLabel={t('intelligence.matrixSection.linkOnly', { defaultValue: 'Apenas Link' })}
                                 />
                                 <MatrixRowMetaDisabled
@@ -1122,6 +1175,88 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
                                     <span className="font-mono bg-ice-100 px-1 py-0.5 rounded text-graphite-600">{'{clínica}'}</span>
                                 </p>
                             </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* ── Recuperação de Pacientes (Faltas — cadência D0/D2/D7 + Recall) ── */}
+                {!!(
+                    config.channel_automations?.whatsapp?.recovery ||
+                    config.channel_automations?.sms?.recovery
+                ) && (
+                    <div className="space-y-5 bg-rose-50/30 p-8 rounded-3xl shadow-float animate-in fade-in duration-500">
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-rose-500 text-white rounded-xl shadow-lg shadow-rose-200">
+                                    <Clock size={20} />
+                                </div>
+                                <div>
+                                    <h4 className="text-lg font-black text-graphite-900 tracking-tight">{t('intelligence.recoverySection.title', { defaultValue: 'Recuperação de Pacientes' })}</h4>
+                                    <p className="text-[10px] font-bold text-rose-600 uppercase">{t('intelligence.recoverySection.subtitle', { defaultValue: 'Cadência automática após falta (imediata, 2 dias, 7 dias) e reativação de retorno' })}</p>
+                                </div>
+                            </div>
+
+                            {/* Idioma padrão de ENVIO das mensagens (bot_config.notification_locale) */}
+                            <div className="flex items-center gap-3 bg-white/70 px-4 py-2.5 rounded-2xl shadow-float">
+                                <p className="text-[10px] font-black text-graphite-400 uppercase">
+                                    {t('intelligence.recoverySection.defaultLangLabel', { defaultValue: 'Idioma padrão de envio' })}
+                                </p>
+                                <div className="flex bg-ice-100 p-0.5 rounded-lg gap-0.5">
+                                    {(['pt', 'en', 'es'] as const).map(lang => (
+                                        <button
+                                            key={lang}
+                                            type="button"
+                                            onClick={() => handleLangChange(lang)}
+                                            className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase transition-all border-none cursor-pointer ${activeLang === lang ? 'bg-white shadow-sm text-graphite-900' : 'bg-transparent text-graphite-400 hover:text-graphite-700'}`}
+                                        >
+                                            {lang}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-4 bg-rose-50/60 rounded-2xl flex items-start gap-2">
+                            <AlertTriangle size={13} className="text-rose-500 flex-shrink-0 mt-0.5" />
+                            <p className="text-[10px] font-bold text-rose-800 leading-relaxed">
+                                {t('intelligence.recoverySection.hint', { defaultValue: 'Disparada quando o paciente falta à consulta (cartão movido para "Faltou" no CRM). A cadência para automaticamente se o paciente responder, agendar ou pagar. O idioma selecionado acima é o usado no envio de todas as mensagens automáticas.' })}
+                            </p>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            {RECOVERY_TEMPLATE_META.map(({ key, chip, labelKey, defaultLabel }) => (
+                                <div key={key} className="bg-white/80 rounded-2xl p-4 shadow-float space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-[9px] font-black text-graphite-400 uppercase">
+                                            {t(labelKey, { defaultValue: defaultLabel })}
+                                        </p>
+                                        <span className="px-2 py-0.5 bg-rose-50 text-rose-600 rounded-lg text-[9px] font-black uppercase border border-rose-100">
+                                            {chip}
+                                        </span>
+                                    </div>
+                                    <textarea
+                                        value={config.recovery_captions?.[key]?.[activeLang] ?? DEFAULT_RECOVERY_CAPTIONS[key][activeLang]}
+                                        onChange={(e) => setConfig(prev => ({
+                                            ...prev,
+                                            recovery_captions: {
+                                                ...(prev.recovery_captions ?? DEFAULT_RECOVERY_CAPTIONS),
+                                                [key]: {
+                                                    ...(prev.recovery_captions?.[key] ?? DEFAULT_RECOVERY_CAPTIONS[key]),
+                                                    [activeLang]: e.target.value
+                                                }
+                                            }
+                                        }))}
+                                        rows={6}
+                                        className="w-full bg-rose-50/40 rounded-xl p-3 text-xs font-medium text-graphite-700 leading-relaxed border border-rose-100/50 outline-none focus:border-rose-300 resize-none transition-colors"
+                                    />
+                                    <p className="text-[9px] font-medium text-graphite-400">
+                                        {t('intelligence.recoverySection.variablesHint', { defaultValue: 'Variáveis disponíveis:' })}{' '}
+                                        <span className="font-mono bg-ice-100 px-1 py-0.5 rounded text-graphite-600">{'{{nome_paciente}}'}</span>{' '}
+                                        <span className="font-mono bg-ice-100 px-1 py-0.5 rounded text-graphite-600">{'{{nome_clinica}}'}</span>{' '}
+                                        <span className="font-mono bg-ice-100 px-1 py-0.5 rounded text-graphite-600">{'{{nome_procedimento}}'}</span>
+                                    </p>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 )}
@@ -1596,15 +1731,15 @@ const MatrixRow = ({
     label: string;
     config: BotConfig;
     setConfig: React.Dispatch<React.SetStateAction<BotConfig>>;
-    supports: { no_show: boolean; videos: boolean; nps: boolean };
+    supports: { no_show: boolean; videos: boolean; nps: boolean; recovery: boolean };
     videoFallbackLabel?: string;
 }) => {
-    const automations = config.channel_automations?.[channelId] || { no_show: false, videos: false, nps: false };
+    const automations = config.channel_automations?.[channelId] || { no_show: false, videos: false, nps: false, recovery: false };
 
-    const toggle = (key: 'no_show' | 'videos' | 'nps') => {
+    const toggle = (key: 'no_show' | 'videos' | 'nps' | 'recovery') => {
         setConfig(prev => {
             const currentAutomations = prev.channel_automations || {};
-            const channelCurrent = currentAutomations[channelId] || { no_show: false, videos: false, nps: false };
+            const channelCurrent = currentAutomations[channelId] || { no_show: false, videos: false, nps: false, recovery: false };
             const updated = {
                 ...currentAutomations,
                 [channelId]: {
@@ -1666,6 +1801,19 @@ const MatrixRow = ({
                     <span className="text-xs text-graphite-300 font-bold uppercase">—</span>
                 )}
             </td>
+            {/* Column: Recuperação de Faltas (cadência D0/D2/D7 do CRM) */}
+            <td className="p-4 text-center">
+                {supports.recovery ? (
+                    <button
+                        onClick={() => toggle('recovery')}
+                        className={`relative inline-block w-12 h-6 rounded-full transition-all border-none cursor-pointer ${automations.recovery ? 'bg-brand-primary' : 'bg-ice-200'}`}
+                    >
+                        <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-all ${automations.recovery ? 'left-6' : 'left-0.5'}`} />
+                    </button>
+                ) : (
+                    <span className="text-xs text-graphite-300 font-bold uppercase">—</span>
+                )}
+            </td>
         </tr>
     );
 };
@@ -1690,7 +1838,7 @@ const MatrixRowMetaDisabled = ({
                 </div>
                 <span className="line-through">{label}</span>
             </td>
-            <td colSpan={3} className="p-4 text-center">
+            <td colSpan={4} className="p-4 text-center">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 text-rose-600 text-[10px] font-bold border border-rose-100">
                     <AlertCircle size={12} /> {t('intelligence.matrixSection.metaRestriction', { defaultValue: 'Indisponível (Restrição da Janela de 24h da Meta)' })}
                 </span>

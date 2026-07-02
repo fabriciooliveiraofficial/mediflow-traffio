@@ -57,6 +57,48 @@ export const MESSAGE_TEMPLATES: Record<string, (vars: any) => string> = {
     'post_treatment_followup': (v) =>
         `Oi! Como você está se sentindo após o atendimento de hoje? Qualquer dúvida sobre a prescrição, é só me chamar! 😉`,
 
+    // --- RECUPERAÇÃO (CRM — cadência D0/D2/D7 após falta) ---
+
+    'recovery_immediate': (v) => {
+        const locale = (v.locale || 'pt').toLowerCase();
+        const name = v.patient_name || '';
+        if (locale.startsWith('en'))
+            return `Hi ${name || 'there'}! 😊 This is the team at ${v.clinic_name || 'the clinic'}. We noticed you couldn't make it to your appointment. Did something come up?\n\nNo worries — we can reschedule at a better time for you! 📅\n\nJust reply *RESCHEDULE* and we'll take care of everything.`;
+        if (locale.startsWith('es'))
+            return `¡Hola${name ? ` ${name}` : ''}! 😊 Somos el equipo de ${v.clinic_name || 'la clínica'}. Notamos que no pudiste asistir a tu cita. ¿Surgió algún imprevisto?\n\nNo hay problema — ¡podemos reagendar en un mejor horario para ti! 📅\n\nSolo responde *REAGENDAR* y nos encargamos de todo.`;
+        return `Olá${name ? ` ${name}` : ''}! 😊 Aqui é a equipe da ${v.clinic_name || 'clínica'}. Notamos que você não conseguiu comparecer à sua consulta. Aconteceu algum imprevisto?\n\nSem problemas — podemos remarcar em um horário melhor para você! 📅\n\nÉ só responder *REMARCAR* que cuidamos de tudo.`;
+    },
+
+    'recovery_48h': (v) => {
+        const locale = (v.locale || 'pt').toLowerCase();
+        const name = v.patient_name || '';
+        if (locale.startsWith('en'))
+            return `Hi${name ? ` ${name}` : ''}! We still have openings this week at ${v.clinic_name || 'the clinic'}. ✨\n\nHow about rescheduling your appointment? It's quick: reply *RESCHEDULE* and I'll find the best time for you. 😊`;
+        if (locale.startsWith('es'))
+            return `¡Hola${name ? ` ${name}` : ''}! Todavía tenemos horarios disponibles esta semana en ${v.clinic_name || 'la clínica'}. ✨\n\n¿Qué tal si reagendamos tu cita? Es rápido: responde *REAGENDAR* y encuentro el mejor horario para ti. 😊`;
+        return `Oi${name ? ` ${name}` : ''}! Ainda temos horários disponíveis esta semana na ${v.clinic_name || 'clínica'}. ✨\n\nQue tal remarcarmos sua consulta? É rapidinho: responda *REMARCAR* que eu encontro o melhor horário para você. 😊`;
+    },
+
+    'recovery_7d': (v) => {
+        const locale = (v.locale || 'pt').toLowerCase();
+        const name = v.patient_name || '';
+        if (locale.startsWith('en'))
+            return `Hello${name ? ` ${name}` : ''}! Just checking in one last time. 😊\n\nYour health matters to us at ${v.clinic_name || 'the clinic'}. If you'd like to reschedule your appointment, just reply *RESCHEDULE*.\n\nIf you'd rather not receive more messages, reply *STOP*. 🙏`;
+        if (locale.startsWith('es'))
+            return `¡Hola${name ? ` ${name}` : ''}! Paso por aquí una última vez. 😊\n\nTu salud es importante para nosotros en ${v.clinic_name || 'la clínica'}. Si quieres reagendar tu cita, solo responde *REAGENDAR*.\n\nSi prefieres no recibir más mensajes, responde *SALIR*. 🙏`;
+        return `Olá${name ? ` ${name}` : ''}! Passando uma última vez por aqui. 😊\n\nSua saúde é importante para nós da ${v.clinic_name || 'clínica'}. Se quiser remarcar sua consulta, é só responder *REMARCAR*.\n\nSe preferir não receber mais mensagens, responda *SAIR*. 🙏`;
+    },
+
+    'recall_immediate': (v) => {
+        const locale = (v.locale || 'pt').toLowerCase();
+        const name = v.patient_name || '';
+        if (locale.startsWith('en'))
+            return `Hi${name ? ` ${name}` : ''}! 😊 This is the team at ${v.clinic_name || 'the clinic'}. It's time for your follow-up visit!\n\nHow about booking your next appointment? We have openings available. 📅\n\nReply *SCHEDULE* to see the options.`;
+        if (locale.startsWith('es'))
+            return `¡Hola${name ? ` ${name}` : ''}! 😊 Somos el equipo de ${v.clinic_name || 'la clínica'}. ¡Ya es hora de tu visita de seguimiento!\n\n¿Qué tal agendar tu próxima cita? Tenemos horarios disponibles. 📅\n\nResponde *AGENDAR* para ver las opciones.`;
+        return `Olá${name ? ` ${name}` : ''}! 😊 Aqui é a equipe da ${v.clinic_name || 'clínica'}. Está chegando a hora do seu retorno!\n\nQue tal agendar sua próxima consulta? Temos horários disponíveis. 📅\n\nResponda *AGENDAR* para ver as opções.`;
+    },
+
     // --- REATIVAÇÃO (RECALL) ---
 
     'recall': (v) => {
@@ -118,6 +160,42 @@ export const SMS_TEMPLATES: Record<string, (vars: any) => string> = {
     'recall': (v) =>
         `Ola ${v.patient_name}! Aqui e a ${v.clinic_name}. Sentimos sua falta! ` +
         `Que tal agendar uma consulta? Responda AGENDAR ou NAO OBRIGADO.`,
+
+    'recovery_immediate': (v) => {
+        const locale = (v.locale || 'pt').toLowerCase();
+        const name = v.patient_name ? ` ${v.patient_name}` : '';
+        const clinic = v.clinic_name || 'clinica';
+        if (locale.startsWith('en')) return `Hi${name}! This is ${clinic}. We saw you missed your appointment. Want to reschedule? Reply RESCHEDULE.`;
+        if (locale.startsWith('es')) return `Hola${name}! Somos ${clinic}. Vimos que no pudiste asistir a tu cita. Quieres reagendar? Responde REAGENDAR.`;
+        return `Ola${name}! Aqui e a ${clinic}. Vimos que nao pode comparecer a sua consulta. Quer remarcar? Responda REMARCAR.`;
+    },
+
+    'recovery_48h': (v) => {
+        const locale = (v.locale || 'pt').toLowerCase();
+        const name = v.patient_name ? ` ${v.patient_name}` : '';
+        const clinic = v.clinic_name || 'clinica';
+        if (locale.startsWith('en')) return `Hi${name}! We still have openings this week at ${clinic}. Reply RESCHEDULE to book your appointment.`;
+        if (locale.startsWith('es')) return `Hola${name}! Aun tenemos horarios esta semana en ${clinic}. Responde REAGENDAR para reagendar tu cita.`;
+        return `Ola${name}! Ainda temos horarios esta semana na ${clinic}. Responda REMARCAR para reagendar sua consulta.`;
+    },
+
+    'recovery_7d': (v) => {
+        const locale = (v.locale || 'pt').toLowerCase();
+        const name = v.patient_name ? ` ${v.patient_name}` : '';
+        const clinic = v.clinic_name || 'clinica';
+        if (locale.startsWith('en')) return `Hello${name}! Last message: to reschedule your appointment at ${clinic}, reply RESCHEDULE. To opt out, reply STOP.`;
+        if (locale.startsWith('es')) return `Hola${name}! Ultimo mensaje: para reagendar tu cita en ${clinic}, responde REAGENDAR. Para no recibir mas, responde SALIR.`;
+        return `Ola${name}! Ultima mensagem: se quiser remarcar sua consulta na ${clinic}, responda REMARCAR. Para nao receber mais, responda SAIR.`;
+    },
+
+    'recall_immediate': (v) => {
+        const locale = (v.locale || 'pt').toLowerCase();
+        const name = v.patient_name ? ` ${v.patient_name}` : '';
+        const clinic = v.clinic_name || 'clinica';
+        if (locale.startsWith('en')) return `Hi${name}! This is ${clinic}. Time for your follow-up! Reply SCHEDULE to book your next appointment.`;
+        if (locale.startsWith('es')) return `Hola${name}! Somos ${clinic}. Es hora de tu seguimiento! Responde AGENDAR para tu proxima cita.`;
+        return `Ola${name}! Aqui e a ${clinic}. Hora do seu retorno! Responda AGENDAR para marcar sua proxima consulta.`;
+    },
 
     'post_treatment_followup': (v) =>
         `Ola! Como voce esta se sentindo apos o atendimento? Qualquer duvida, responda esta mensagem.`,

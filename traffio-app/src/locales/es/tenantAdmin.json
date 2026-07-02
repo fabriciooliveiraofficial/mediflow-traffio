@@ -476,7 +476,21 @@
         "channel": "Canal",
         "noShow": "Prevención de Inasistencias",
         "videos": "Videos de Confirmación",
-        "nps": "Encuesta NPS"
+        "nps": "Encuesta NPS",
+        "recovery": "Recuperación de Inasistencias"
+      }
+    },
+    "recoverySection": {
+      "title": "Recuperación de Pacientes",
+      "subtitle": "Cadencia automática tras una inasistencia (inmediata, 2 días, 7 días) y reactivación de seguimiento",
+      "defaultLangLabel": "Idioma predeterminado de envío",
+      "hint": "Se activa cuando el paciente falta a su cita (tarjeta movida a \"Faltó\" en el CRM). La cadencia se detiene automáticamente si el paciente responde, agenda o paga. El idioma seleccionado arriba se usa al enviar todos los mensajes automáticos.",
+      "variablesHint": "Variables disponibles:",
+      "cards": {
+        "immediate": "Inmediata — justo después de la inasistencia",
+        "after48h": "2 días después de la inasistencia",
+        "after7d": "7 días después de la inasistencia",
+        "recall": "Reactivación — seguimiento del paciente"
       }
     },
     "videoSection": {

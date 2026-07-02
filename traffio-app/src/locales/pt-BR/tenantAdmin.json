@@ -476,7 +476,21 @@
         "channel": "Canal",
         "noShow": "Prevenção de No-Show",
         "videos": "Vídeos de Confirmação",
-        "nps": "Pesquisa NPS"
+        "nps": "Pesquisa NPS",
+        "recovery": "Recuperação de Faltas"
+      }
+    },
+    "recoverySection": {
+      "title": "Recuperação de Pacientes",
+      "subtitle": "Cadência automática após falta (imediata, 2 dias, 7 dias) e reativação de retorno",
+      "defaultLangLabel": "Idioma padrão de envio",
+      "hint": "Disparada quando o paciente falta à consulta (cartão movido para \"Faltou\" no CRM). A cadência para automaticamente se o paciente responder, agendar ou pagar. O idioma selecionado acima é o usado no envio de todas as mensagens automáticas.",
+      "variablesHint": "Variáveis disponíveis:",
+      "cards": {
+        "immediate": "Imediata — logo após a falta",
+        "after48h": "2 dias após a falta",
+        "after7d": "7 dias após a falta",
+        "recall": "Reativação — retorno do paciente"
       }
     },
     "videoSection": {

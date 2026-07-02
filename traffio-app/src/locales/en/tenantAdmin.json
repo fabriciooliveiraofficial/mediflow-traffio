@@ -476,7 +476,21 @@
         "channel": "Channel",
         "noShow": "No-Show Prevention",
         "videos": "Confirmation Videos",
-        "nps": "NPS Survey"
+        "nps": "NPS Survey",
+        "recovery": "No-Show Recovery"
+      }
+    },
+    "recoverySection": {
+      "title": "Patient Recovery",
+      "subtitle": "Automatic cadence after a no-show (immediate, 2 days, 7 days) and follow-up reactivation",
+      "defaultLangLabel": "Default sending language",
+      "hint": "Triggered when the patient misses an appointment (card moved to \"No-Show\" in the CRM). The cadence stops automatically if the patient replies, books or pays. The language selected above is used when sending all automatic messages.",
+      "variablesHint": "Available variables:",
+      "cards": {
+        "immediate": "Immediate — right after the no-show",
+        "after48h": "2 days after the no-show",
+        "after7d": "7 days after the no-show",
+        "recall": "Reactivation — patient follow-up"
       }
     },
     "videoSection": {

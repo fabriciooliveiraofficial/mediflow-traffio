@@ -51,6 +51,9 @@ function renderCustomCaptionFromVars(template: string, vars: any): string {
   return rendered;
 }
 
+// Cadência de recuperação do CRM (Faltou → D0/D2/D7) + reativação (recall_due)
+const RECOVERY_TEMPLATE_KEYS = ['recovery_immediate', 'recovery_48h', 'recovery_7d', 'recall_immediate'];
+
 // Resolve a caption personalizada do bot_config do tenant para um lembrete.
 // Retorna null se não houver caption configurada para este template/idioma.
 function resolveTenantCaption(
@@ -68,6 +71,8 @@ function resolveTenantCaption(
       (r: any) => Math.abs(r.offset_minutes) === mins && r.offset_minutes < 0
     );
     captionObj = reminder?.caption ?? null;
+  } else if (RECOVERY_TEMPLATE_KEYS.includes(templateKey)) {
+    captionObj = botConfig.recovery_captions?.[templateKey] ?? null;
   } else {
     const stageMap: Record<string, string> = {
       'appointment_reminder_48h': '48h',
@@ -256,6 +261,21 @@ serve(async (req: Request) => {
         return;
       }
 
+      // ── Recuperação (CRM): canal definido na Matriz de Canais do tenant ──
+      // A fila é populada pelo motor SQL sem notification_channel; o canal de
+      // entrega é decidido aqui via bot_config.channel_automations.<canal>.recovery.
+      if (msg.reference_type === 'crm_journey' && RECOVERY_TEMPLATE_KEYS.includes(msg.template_key)) {
+        const autos = tenant?.bot_config?.channel_automations ?? {};
+        const waOn  = autos.whatsapp?.recovery !== false; // default: WhatsApp ligado
+        const smsOn = autos.sms?.recovery === true;
+        if (!waOn && !smsOn) {
+          await supabase.from('outbound_message_queue')
+            .update({ status: 'cancelled', error_message: 'Recovery automation disabled in channel matrix' }).eq('id', msg.id);
+          return;
+        }
+        msg.notification_channel = waOn ? 'whatsapp' : 'sms';
+      }
+
       try {
         // Pular reminder se já confirmado
         if ((msg.message_type === 'reminder_24h' || msg.message_type === 'reminder_2h')
@@ -269,15 +289,23 @@ serve(async (req: Request) => {
         if (msg.is_edited && msg.template_vars?.override_message) {
           text = msg.template_vars.override_message;
         } else {
-          const locale = (msg.template_vars?.locale || 'pt') as string;
+          // Idioma: vars da mensagem → idioma padrão do tenant (página Inteligência) → pt
+          const locale = (msg.template_vars?.locale || tenant?.bot_config?.notification_locale || 'pt') as string;
           const customCaption = resolveTenantCaption(msg.template_key, tenant?.bot_config, locale);
           if (customCaption) {
             text = renderCustomCaptionFromVars(customCaption, msg.template_vars);
           } else if (msg.notification_channel === 'sms') {
-            text = getSmsTemplate(msg.template_key, msg.template_vars);
+            text = getSmsTemplate(msg.template_key, { ...msg.template_vars, locale });
           } else {
-            text = getRenderedMessage(msg.template_key, msg.template_vars);
+            text = getRenderedMessage(msg.template_key, { ...msg.template_vars, locale });
           }
+        }
+
+        // Template inexistente nunca deve chegar ao paciente
+        if (text.startsWith('[Template')) {
+          await supabase.from('outbound_message_queue')
+            .update({ status: 'failed', error_message: `Template '${msg.template_key}' not found — message blocked` }).eq('id', msg.id);
+          return;
         }
 
         // NPS: caption customizada do tenant (variáveis {nome}/{clínica})
