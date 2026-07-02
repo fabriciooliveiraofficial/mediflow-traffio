@@ -108,7 +108,12 @@
       "customPlaceholder": "Días",
       "apply": "Aplicar",
       "extendSuccess": "Prueba extendida {{days}} días.",
-      "extendError": "Error al extender la prueba: {{message}}"
+      "extendError": "Error al extender la prueba: {{message}}",
+      "setEndDate": "Definir fecha final",
+      "setEndApply": "Definir",
+      "setEndSuccess": "Fecha final de la prueba definida para {{date}}.",
+      "setEndError": "Error al definir la fecha final: {{message}}",
+      "confirmShorten": "Esto ACORTARÁ la prueba hasta {{date}}, exigiendo el pago inmediatamente después de esa fecha. ¿Confirma?"
     },
     "createModal": {
       "title": "Nuevo Cliente",

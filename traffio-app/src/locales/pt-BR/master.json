@@ -108,7 +108,12 @@
       "customPlaceholder": "Dias",
       "apply": "Aplicar",
       "extendSuccess": "Teste estendido em {{days}} dias.",
-      "extendError": "Erro ao estender teste: {{message}}"
+      "extendError": "Erro ao estender teste: {{message}}",
+      "setEndDate": "Definir data final",
+      "setEndApply": "Definir",
+      "setEndSuccess": "Data final do teste definida para {{date}}.",
+      "setEndError": "Erro ao definir data final: {{message}}",
+      "confirmShorten": "Isso vai ENCURTAR o teste para {{date}}, exigindo pagamento imediatamente após essa data. Confirma?"
     },
     "createModal": {
       "title": "Novo Tenant",

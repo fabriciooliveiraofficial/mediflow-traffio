@@ -108,7 +108,12 @@
       "customPlaceholder": "Days",
       "apply": "Apply",
       "extendSuccess": "Trial extended by {{days}} days.",
-      "extendError": "Failed to extend trial: {{message}}"
+      "extendError": "Failed to extend trial: {{message}}",
+      "setEndDate": "Set end date",
+      "setEndApply": "Set",
+      "setEndSuccess": "Trial end date set to {{date}}.",
+      "setEndError": "Failed to set end date: {{message}}",
+      "confirmShorten": "This will SHORTEN the trial to {{date}}, requiring payment immediately after that date. Confirm?"
     },
     "createModal": {
       "title": "New Tenant",

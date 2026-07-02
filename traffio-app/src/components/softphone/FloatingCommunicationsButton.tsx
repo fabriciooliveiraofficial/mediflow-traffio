@@ -702,7 +702,7 @@ export function FloatingCommunicationsButton({ enabled, activeNumber: activeNumb
                     // Enviar SMS via endpoint send-human-message
                     const { data: { session } } = await supabase.auth.getSession();
                     if (!session) return;
-                    await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-human-message`, {
+                    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-human-message`, {
                       method: 'POST',
                       headers: { 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
                       body: JSON.stringify({
@@ -713,6 +713,12 @@ export function FloatingCommunicationsButton({ enabled, activeNumber: activeNumb
                         text: smsInput
                       }),
                     });
+                    const resData = await res.json();
+                    if (resData.error) {
+                      console.error("Erro ao enviar SMS:", resData.error);
+                      alert("Erro ao enviar SMS: " + resData.error);
+                      return;
+                    }
                     setSmsInput(''); setSmsTo('');
                     setExpanded(false);
                   }}

@@ -65,6 +65,7 @@ export const MasterTenants = () => {
     // Trial extension state (apenas um tenant fica expandido por vez)
     const [extending, setExtending] = useState(false);
     const [customDays, setCustomDays] = useState('');
+    const [customEndDate, setCustomEndDate] = useState('');
 
     useEffect(() => { fetchTenants(); }, []);
 
@@ -110,6 +111,42 @@ export const MasterTenants = () => {
             showToast('success', t('tenants.trial.extendSuccess', { days }));
         } catch (err: any) {
             showToast('error', t('tenants.trial.extendError', { message: err.message }));
+        } finally {
+            setExtending(false);
+        }
+    };
+
+    /** Define a data final do trial diretamente — pode estender OU encurtar (diferente de handleExtendTrial). */
+    const handleSetTrialEnd = async (tenantId: string, dateStr: string) => {
+        if (!dateStr || extending) return;
+        const tenant = tenants.find(tn => tn.id === tenantId);
+        const currentEnd = tenant?.trial_ends_at ? new Date(tenant.trial_ends_at) : null;
+        const newEnd = new Date(`${dateStr}T23:59:59`);
+
+        const shortening = currentEnd && newEnd.getTime() < currentEnd.getTime();
+        if (shortening && !window.confirm(t('tenants.trial.confirmShorten', { date: newEnd.toLocaleDateString('pt-BR') }))) {
+            return;
+        }
+
+        setExtending(true);
+        try {
+            const { data, error } = await supabase.functions.invoke('set-tenant-trial-end', {
+                body: { tenant_id: tenantId, end_date: newEnd.toISOString(), reason: null },
+            });
+            if (error) {
+                let msg = error.message;
+                try {
+                    const ctx = await (error as any).context?.json?.();
+                    if (ctx?.error) msg = ctx.error;
+                } catch { /* ignora parse */ }
+                throw new Error(msg);
+            }
+            const updated = (data?.tenant ?? {}) as Partial<Tenant>;
+            setTenants(prev => prev.map(tn => (tn.id === tenantId ? { ...tn, ...updated } : tn)));
+            setCustomEndDate('');
+            showToast('success', t('tenants.trial.setEndSuccess', { date: newEnd.toLocaleDateString('pt-BR') }));
+        } catch (err: any) {
+            showToast('error', t('tenants.trial.setEndError', { message: err.message }));
         } finally {
             setExtending(false);
         }
@@ -397,6 +434,28 @@ export const MasterTenants = () => {
                                                                         {t('tenants.trial.apply')}
                                                                     </button>
                                                                 </div>
+                                                            </div>
+
+                                                            <div className="flex flex-wrap items-center gap-2 pt-1">
+                                                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 mr-1">
+                                                                    {t('tenants.trial.setEndDate')}:
+                                                                </span>
+                                                                <input
+                                                                    type="date"
+                                                                    value={customEndDate}
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    onChange={(e) => setCustomEndDate(e.target.value)}
+                                                                    className="bg-[#1A2035] border border-[#2D3B55] rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 transition-colors [color-scheme:dark]"
+                                                                />
+                                                                <button
+                                                                    type="button"
+                                                                    disabled={extending || !customEndDate}
+                                                                    onClick={(e) => { e.stopPropagation(); handleSetTrialEnd(tenant.id, customEndDate); }}
+                                                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-sky-500 hover:bg-sky-600 transition-all border-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                                                >
+                                                                    {extending ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                                                                    {t('tenants.trial.setEndApply')}
+                                                                </button>
                                                             </div>
                                                         </div>
                                                     );
