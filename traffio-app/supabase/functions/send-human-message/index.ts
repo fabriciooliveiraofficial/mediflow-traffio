@@ -251,13 +251,16 @@ serve(async (req: Request) => {
         throw new Error(`Nenhum número de envio de SMS ativo encontrado para este tenant.`);
       }
 
-      // Telnyx exige E.164 (sessões WhatsApp guardam o telefone sem o '+')
+      // Telnyx exige E.164 (tanto para o remetente quanto para o destinatário)
       const toPhone = session.patient_phone.startsWith('+')
         ? session.patient_phone
         : `+${session.patient_phone.replace(/\D/g, '')}`;
+      const fromPhone = senderRow.phone_number.startsWith('+')
+        ? senderRow.phone_number
+        : `+${senderRow.phone_number.replace(/\D/g, '')}`;
 
       const smsClient = new TelnyxSmsClient(smsApiKey);
-      const telnyxRes = await smsClient.sendSms(senderRow.phone_number, toPhone, text.trim());
+      const telnyxRes = await smsClient.sendSms(fromPhone, toPhone, text.trim());
       console.log(`[send-human-message] SMS sent to ${toPhone}. Msg ID: ${telnyxRes.messageId}`);
 
       if (dbMsgId && telnyxRes.messageId) {

@@ -345,7 +345,10 @@ serve(async (req: Request) => {
             const toPhone = recipient.startsWith('+')
               ? recipient
               : `+${recipient.replace(/\D/g, '')}`;
-            await smsClient.sendSms(senderRow.phone_number, toPhone, text, mediaUrls);
+            const fromPhone = senderRow.phone_number.startsWith('+')
+              ? senderRow.phone_number
+              : `+${senderRow.phone_number.replace(/\D/g, '')}`;
+            await smsClient.sendSms(fromPhone, toPhone, text, mediaUrls);
 
             // Rastrear uso (não-bloqueante)
             const pricing = getSmsPricing(senderRow?.country_code ?? "US", "sms");

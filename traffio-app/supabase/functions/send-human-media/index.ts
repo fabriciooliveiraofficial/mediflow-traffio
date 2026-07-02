@@ -241,7 +241,10 @@ serve(async (req: Request) => {
       const toPhone = session.patient_phone.startsWith('+')
         ? session.patient_phone
         : `+${session.patient_phone.replace(/\D/g, '')}`;
-      const telnyxRes = await smsClient.sendSms(senderRow.phone_number, toPhone, smsText, mediaUrls);
+      const fromPhone = senderRow.phone_number.startsWith('+')
+        ? senderRow.phone_number
+        : `+${senderRow.phone_number.replace(/\D/g, '')}`;
+      const telnyxRes = await smsClient.sendSms(fromPhone, toPhone, smsText, mediaUrls);
       console.log(`[send-human-media] MMS sent to ${session.patient_phone}. Msg ID: ${telnyxRes.messageId}`);
 
       if (dbMsgId && telnyxRes.messageId) {
