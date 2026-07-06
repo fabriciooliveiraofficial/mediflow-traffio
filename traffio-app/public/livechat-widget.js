@@ -430,7 +430,15 @@
 
   let supabaseClient = null;
   let activeSessionId = localStorage.getItem("traffio_livechat_session_id");
+  if (activeSessionId === "undefined" || activeSessionId === "null" || activeSessionId === "") {
+    activeSessionId = null;
+    localStorage.removeItem("traffio_livechat_session_id");
+  }
   let visitorName = localStorage.getItem("traffio_livechat_name");
+  if (visitorName === "undefined" || visitorName === "null" || visitorName === "") {
+    visitorName = null;
+    localStorage.removeItem("traffio_livechat_name");
+  }
   let selectedFile = null;
   let messagesList = [];
 
@@ -651,6 +659,14 @@
     chatFooter.style.display = "block";
   }
 
+  function clearSession() {
+    activeSessionId = null;
+    visitorName = null;
+    localStorage.removeItem("traffio_livechat_session_id");
+    localStorage.removeItem("traffio_livechat_name");
+    showRegistrationForm();
+  }
+
   // Carregar histórico de mensagens
   async function loadHistory() {
     try {
@@ -670,9 +686,12 @@
       if (data.success && data.messages) {
         messagesList = data.messages;
         renderMessages();
+      } else {
+        clearSession();
       }
     } catch (err) {
       console.error("Falha ao obter histórico de mensagens:", err);
+      clearSession();
     }
   }
 

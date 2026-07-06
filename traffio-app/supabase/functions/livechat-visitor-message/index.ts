@@ -74,7 +74,7 @@ serve(async (req: Request) => {
       );
     }
 
-    let activeSessionId = session_id;
+    let activeSessionId = (session_id && session_id !== 'null' && session_id !== 'undefined') ? session_id : null;
     let isNewSession = false;
 
     // 2. Se for uma nova sessão, validar os campos obrigatórios (Nome, E-mail, Telefone)
