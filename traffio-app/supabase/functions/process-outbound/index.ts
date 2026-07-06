@@ -382,16 +382,20 @@ serve(async (req: Request) => {
             const pricing = getSmsPricing(senderRow?.country_code ?? "US", "sms");
             const billingPeriod = new Date();
             const periodStr = `${billingPeriod.getFullYear()}-${String(billingPeriod.getMonth() + 1).padStart(2, "0")}-01`;
-            await supabase.from("tenant_usage_log").insert({
-              tenant_id:           msg.tenant_id,
-              resource_type:       "sms_outbound",
-              resource_id:         msg.id,
-              quantity:            1,
-              unit_cost_usd:       pricing.unitCostUsd,
-              total_cost_usd:      pricing.unitCostUsd,
-              billing_period:      periodStr,
-              tenant_phone_number: senderRow.phone_number,
-            }).catch(() => {});
+            try {
+              await supabase.from("tenant_usage_log").insert({
+                tenant_id:           msg.tenant_id,
+                resource_type:       "sms_outbound",
+                resource_id:         msg.id,
+                quantity:            1,
+                unit_cost_usd:       pricing.unitCostUsd,
+                total_cost_usd:      pricing.unitCostUsd,
+                billing_period:      periodStr,
+                tenant_phone_number: senderRow.phone_number,
+              });
+            } catch {
+              // Ignore tracking error
+            }
             break;
           }
 

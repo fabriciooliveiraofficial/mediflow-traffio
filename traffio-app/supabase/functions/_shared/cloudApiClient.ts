@@ -199,7 +199,8 @@ export class CloudApiClient {
     mediaUrl: string,
     mimeType: string,
     caption?: string,
-    fileName?: string
+    fileName?: string,
+    quotedMsgId?: string
   ): Promise<any> {
     // Cloud API requer upload prévio para obter media_id
     const mediaId = await this.uploadMedia(mediaUrl, mimeType);
@@ -212,13 +213,19 @@ export class CloudApiClient {
       mediaObject.filename = fileName;
     }
 
-    return this.postRequest('messages', {
+    const body: any = {
       messaging_product: 'whatsapp',
       recipient_type: 'individual',
       to: this.formatPhone(to),
       type: mediaType,
       [mediaType]: mediaObject,
-    });
+    };
+
+    if (quotedMsgId) {
+      body.context = { message_id: quotedMsgId };
+    }
+
+    return this.postRequest('messages', body);
   }
 
   /**

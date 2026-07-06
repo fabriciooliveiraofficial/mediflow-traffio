@@ -24,8 +24,8 @@
       width: 60px;
       height: 60px;
       border-radius: 30px;
-      background: linear-gradient(135deg, #1152d4 0%, #0037a8 100%);
-      box-shadow: 0 4px 16px rgba(17, 82, 212, 0.4);
+      background: var(--traffio-chat-primary, #1152d4);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
       cursor: pointer;
       display: flex;
       align-items: center;
@@ -35,7 +35,7 @@
     }
     .traffio-chat-bubble:hover {
       transform: scale(1.08) translateY(-2px);
-      box-shadow: 0 6px 20px rgba(17, 82, 212, 0.5);
+      filter: brightness(1.1);
     }
     .traffio-chat-bubble svg {
       width: 28px;
@@ -68,7 +68,7 @@
       pointer-events: auto;
     }
     .traffio-chat-header {
-      background: linear-gradient(135deg, #1152d4 0%, #0037a8 100%);
+      background: var(--traffio-chat-primary, #1152d4);
       color: #ffffff;
       padding: 16px 20px;
       display: flex;
@@ -191,7 +191,7 @@
       width: 100%;
       padding: 12px;
       border-radius: 10px;
-      background: #1152d4;
+      background: var(--traffio-chat-primary, #1152d4);
       color: #ffffff;
       border: none;
       font-weight: bold;
@@ -201,7 +201,7 @@
       transition: background-color 0.2s;
     }
     .traffio-chat-form-btn:hover {
-      background: #003bba;
+      filter: brightness(0.9);
     }
     .traffio-chat-form-btn:disabled {
       background: #94a3b8;
@@ -217,7 +217,7 @@
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     }
     .traffio-chat-bubble-msg.visitor {
-      background: #1152d4;
+      background: var(--traffio-chat-primary, #1152d4);
       color: #ffffff;
       align-self: flex-end;
       border-bottom-right-radius: 4px;
@@ -292,11 +292,11 @@
       color: #0f172a;
     }
     .traffio-chat-send-btn {
-      background: #1152d4;
+      background: var(--traffio-chat-primary, #1152d4);
       color: #ffffff;
     }
     .traffio-chat-send-btn:hover {
-      background: #003bbba;
+      filter: brightness(0.9);
     }
     .traffio-chat-send-btn:disabled {
       background: #e2e8f0;
@@ -421,6 +421,14 @@
     sendBtn.disabled = !chatInput.value.trim() && !selectedFile;
   });
 
+  // Lógica de configuração padrão
+  let chatConfig = {
+    primary_color: '#1152d4',
+    welcome_title: 'Iniciar Atendimento',
+    welcome_subtitle: 'Preencha os campos abaixo para conversar em tempo real com a nossa equipe.',
+    is_active: true
+  };
+
   // Carregar biblioteca Supabase do CDN de forma assíncrona se não estiver disponível
   function loadSupabaseAndConnect() {
     if (window.supabase) {
@@ -433,33 +441,89 @@
     }
   }
 
-  function initSupabase() {
+  async function initSupabase() {
     if (!supabaseUrl || !supabaseAnonKey) {
       console.warn("[Traffio LiveChat] Supabase URL ou Anon Key ausentes. O realtime pode não funcionar.");
+      // Exibe com defaults caso falhe
+      widgetContainer.style.display = "block";
+      if (activeSessionId) {
+        showChatScreen();
+        loadHistory();
+      } else {
+        showRegistrationForm();
+      }
       return;
     }
+    
     supabaseClient = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
-    if (activeSessionId) {
-      subscribeToRealtime();
+    
+    // Buscar configurações do banco de dados (bypass RLS se ativo)
+    try {
+      const { data, error } = await supabaseClient
+        .from('tenant_livechat_configs')
+        .select('primary_color, welcome_title, welcome_subtitle, is_active')
+        .eq('tenant_id', tenantId)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (data) {
+        chatConfig = data;
+      }
+    } catch (err) {
+      console.error("[Traffio LiveChat] Erro ao carregar configurações:", err);
+    }
+
+    // Aplicar a configuração recebida
+    applyDynamicConfig();
+
+    if (chatConfig.is_active) {
+      if (activeSessionId) {
+        showChatScreen();
+        loadHistory();
+        subscribeToRealtime();
+      } else {
+        showRegistrationForm();
+      }
     }
   }
 
-  // Se o usuário já tiver uma sessão ativa, ir direto para a tela de chat
-  if (activeSessionId) {
-    showChatScreen();
-    loadHistory();
-    loadSupabaseAndConnect();
-  } else {
-    showRegistrationForm();
+  function applyDynamicConfig() {
+    if (!chatConfig.is_active) {
+      widgetContainer.style.display = "none";
+      return;
+    }
+    
+    widgetContainer.style.display = "block";
+
+    // Injetar variável CSS para a cor primária
+    const primaryColor = chatConfig.primary_color || '#1152d4';
+    style.textContent += `
+      :root {
+        --traffio-chat-primary: ${primaryColor} !important;
+      }
+    `;
+
+    // Atualizar títulos no formulário de registro, se visível
+    const formTitle = document.getElementById("traffio-form-title-el");
+    if (formTitle) {
+      formTitle.textContent = chatConfig.welcome_title || 'Iniciar Atendimento';
+    }
+    const formSubtitle = document.getElementById("traffio-form-subtitle-el");
+    if (formSubtitle) {
+      formSubtitle.textContent = chatConfig.welcome_subtitle || 'Preencha os campos abaixo...';
+    }
   }
+
+  // Iniciar carregamento imediatamente
+  loadSupabaseAndConnect();
 
   // ── Renderizador do Formulário de Registro ──
   function showRegistrationForm() {
     chatFooter.style.display = "none";
     chatBody.innerHTML = `
       <div class="traffio-chat-form-container">
-        <h3 class="traffio-chat-form-title">Iniciar Atendimento</h3>
-        <p class="traffio-chat-form-subtitle">Preencha os campos abaixo para conversar em tempo real com a nossa equipe comercial.</p>
+        <h3 class="traffio-chat-form-title" id="traffio-form-title-el">${chatConfig.welcome_title || 'Iniciar Atendimento'}</h3>
+        <p class="traffio-chat-form-subtitle" id="traffio-form-subtitle-el">${chatConfig.welcome_subtitle || 'Preencha os campos abaixo para conversar em tempo real com a nossa equipe.'}</p>
         
         <form id="traffio-reg-form">
           <div class="traffio-chat-form-group">

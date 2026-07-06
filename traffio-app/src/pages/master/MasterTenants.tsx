@@ -22,6 +22,7 @@ import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../contexts/ToastContext';
 import { MasterTenantWidgetConfig } from '../../components/master/MasterTenantWidgetConfig';
+import { MasterTenantLiveChatConfig } from '../../components/master/MasterTenantLiveChatConfig';
 
 interface Tenant {
     id: string;
@@ -54,9 +55,9 @@ export const MasterTenants = () => {
     const [showCreateModal, setShowCreateModal] = useState(false);
     
     // Tab State for each Tenant
-    const [tenantTabs, setTenantTabs] = useState<Record<string, 'general' | 'widget'>>({});
+    const [tenantTabs, setTenantTabs] = useState<Record<string, 'general' | 'widget' | 'livechat'>>({});
     const getTenantTab = (id: string) => tenantTabs[id] || 'general';
-    const setTenantTab = (id: string, tab: 'general' | 'widget') => setTenantTabs(prev => ({ ...prev, [id]: tab }));
+    const setTenantTab = (id: string, tab: 'general' | 'widget' | 'livechat') => setTenantTabs(prev => ({ ...prev, [id]: tab }));
 
     // Create Form State
     const [newTenant, setNewTenant] = useState({ name: '', slug: '', address: '', adminEmail: '' });
@@ -317,6 +318,17 @@ export const MasterTenants = () => {
                                             >
                                                 {t('tenants.tabs.widget')}
                                             </button>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => { e.stopPropagation(); setTenantTab(tenant.id, 'livechat'); }}
+                                                className={`pb-2 text-xs font-black uppercase tracking-wider border-b-2 transition-colors cursor-pointer bg-transparent border-none ${
+                                                    getTenantTab(tenant.id) === 'livechat'
+                                                        ? 'border-emerald-500 text-emerald-400'
+                                                        : 'border-transparent text-slate-500 hover:text-slate-300'
+                                                }`}
+                                            >
+                                                Live Chat
+                                            </button>
                                         </div>
 
                                         {getTenantTab(tenant.id) === 'general' ? (
@@ -479,8 +491,10 @@ export const MasterTenants = () => {
                                                     </button>
                                                 </div>
                                             </>
-                                        ) : (
+                                        ) : getTenantTab(tenant.id) === 'widget' ? (
                                             <MasterTenantWidgetConfig tenantId={tenant.id} tenantName={tenant.name} />
+                                        ) : (
+                                            <MasterTenantLiveChatConfig tenantId={tenant.id} tenantName={tenant.name} />
                                         )}
                                     </div>
                                 )}
