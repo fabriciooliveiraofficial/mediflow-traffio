@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS public.tenant_livechat_configs (
     primary_color    TEXT NOT NULL DEFAULT '#1152d4',
     welcome_title    TEXT NOT NULL DEFAULT 'Iniciar Atendimento',
     welcome_subtitle TEXT NOT NULL DEFAULT 'Preencha os campos abaixo para conversar em tempo real com a nossa equipe.',
+    pill_text        TEXT NOT NULL DEFAULT 'Fale conosco',
     created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -24,6 +25,8 @@ ALTER TABLE public.tenant_livechat_configs ENABLE ROW LEVEL SECURITY;
 -- Remover políticas antigas se existirem
 DROP POLICY IF EXISTS "Tenants can manage own livechat configs" ON public.tenant_livechat_configs;
 DROP POLICY IF EXISTS "Allow public read of active livechat configs" ON public.tenant_livechat_configs;
+DROP POLICY IF EXISTS "Allow public read of all livechat configs" ON public.tenant_livechat_configs;
+DROP POLICY IF EXISTS "Super admins can manage all livechat configs" ON public.tenant_livechat_configs;
 DROP POLICY IF EXISTS "service_role_full_access" ON public.tenant_livechat_configs;
 
 -- Criar Políticas
@@ -42,11 +45,30 @@ CREATE POLICY "Tenants can manage own livechat configs"
         )
     );
 
-CREATE POLICY "Allow public read of active livechat configs"
+CREATE POLICY "Super admins can manage all livechat configs"
+    ON public.tenant_livechat_configs
+    FOR ALL
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.profiles
+            WHERE profiles.id = auth.uid()
+              AND profiles.role = 'super_admin'
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM public.profiles
+            WHERE profiles.id = auth.uid()
+              AND profiles.role = 'super_admin'
+        )
+    );
+
+CREATE POLICY "Allow public read of all livechat configs"
     ON public.tenant_livechat_configs
     FOR SELECT
     TO anon, authenticated
-    USING (is_active = true);
+    USING (true);
 
 CREATE POLICY "service_role_full_access" 
     ON public.tenant_livechat_configs

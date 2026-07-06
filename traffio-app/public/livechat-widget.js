@@ -17,6 +17,32 @@
       box-sizing: border-box;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
+    .traffio-chat-pill {
+      position: fixed;
+      bottom: 30px;
+      right: 96px;
+      height: 48px;
+      padding: 0 20px;
+      border-radius: 24px;
+      background: #ffffff;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999999;
+      font-size: 14px;
+      font-weight: 600;
+      color: #1e293b;
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      white-space: nowrap;
+      user-select: none;
+    }
+    .traffio-chat-pill:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+    }
     .traffio-chat-bubble {
       position: fixed;
       bottom: 24px;
@@ -332,6 +358,9 @@
         bottom: 16px;
         right: 16px;
       }
+      .traffio-chat-pill {
+        display: none !important;
+      }
     }
   `;
   document.head.appendChild(style);
@@ -340,6 +369,7 @@
   const widgetContainer = document.createElement("div");
   widgetContainer.className = "traffio-chat-widget";
   widgetContainer.innerHTML = `
+    <div class="traffio-chat-pill" id="traffio-pill">Fale conosco</div>
     <div class="traffio-chat-bubble" id="traffio-bubble">
       <svg viewBox="0 0 24 24">
         <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/>
@@ -385,6 +415,7 @@
 
   // 4. Lógica de controle de estado do widget
   const bubble = document.getElementById("traffio-bubble");
+  const pill = document.getElementById("traffio-pill");
   const windowEl = document.getElementById("traffio-window");
   const closeBtn = document.getElementById("traffio-close");
   const chatBody = document.getElementById("traffio-chat-body");
@@ -404,17 +435,32 @@
   let messagesList = [];
 
   // Toggle de exibição da janela do chat
-  bubble.addEventListener("click", () => {
+  function toggleChatWindow() {
     windowEl.classList.toggle("open");
-    if (windowEl.classList.contains("open")) {
+    const isOpen = windowEl.classList.contains("open");
+    if (isOpen) {
+      if (pill) {
+        pill.style.opacity = "0";
+        pill.style.pointerEvents = "none";
+        pill.style.transform = "translateX(10px) scale(0.9)";
+      }
       scrollToBottom();
       chatInput.focus();
+    } else {
+      if (pill) {
+        pill.style.opacity = "1";
+        pill.style.pointerEvents = "auto";
+        pill.style.transform = "translateX(0) scale(1)";
+      }
     }
-  });
+  }
 
-  closeBtn.addEventListener("click", () => {
-    windowEl.classList.remove("open");
-  });
+  bubble.addEventListener("click", toggleChatWindow);
+  if (pill) {
+    pill.addEventListener("click", toggleChatWindow);
+  }
+
+  closeBtn.addEventListener("click", toggleChatWindow);
 
   // Habilitar/Desabilitar botão de envio
   chatInput.addEventListener("input", () => {
@@ -426,6 +472,7 @@
     primary_color: '#1152d4',
     welcome_title: 'Iniciar Atendimento',
     welcome_subtitle: 'Preencha os campos abaixo para conversar em tempo real com a nossa equipe.',
+    pill_text: 'Fale conosco',
     is_active: true
   };
 
@@ -461,7 +508,7 @@
     try {
       const { data, error } = await supabaseClient
         .from('tenant_livechat_configs')
-        .select('primary_color, welcome_title, welcome_subtitle, is_active')
+        .select('primary_color, welcome_title, welcome_subtitle, pill_text, is_active')
         .eq('tenant_id', tenantId)
         .maybeSingle();
 
@@ -511,6 +558,10 @@
     const formSubtitle = document.getElementById("traffio-form-subtitle-el");
     if (formSubtitle) {
       formSubtitle.textContent = chatConfig.welcome_subtitle || 'Preencha os campos abaixo...';
+    }
+    const chatPill = document.getElementById("traffio-pill");
+    if (chatPill) {
+      chatPill.textContent = chatConfig.pill_text || 'Fale conosco';
     }
   }
 

@@ -32,7 +32,8 @@ export const MasterTenantLiveChatConfig: React.FC<MasterTenantLiveChatConfigProp
         is_active: true,
         primary_color: '#1152d4',
         welcome_title: 'Iniciar Atendimento',
-        welcome_subtitle: 'Preencha os campos abaixo para conversar em tempo real com a nossa equipe.'
+        welcome_subtitle: 'Preencha os campos abaixo para conversar em tempo real com a nossa equipe.',
+        pill_text: 'Fale conosco'
     });
 
     useEffect(() => {
@@ -67,7 +68,8 @@ export const MasterTenantLiveChatConfig: React.FC<MasterTenantLiveChatConfigProp
                     is_active: data.is_active,
                     primary_color: data.primary_color || '#1152d4',
                     welcome_title: data.welcome_title || 'Iniciar Atendimento',
-                    welcome_subtitle: data.welcome_subtitle || 'Preencha os campos abaixo para conversar em tempo real com a nossa equipe.'
+                    welcome_subtitle: data.welcome_subtitle || 'Preencha os campos abaixo para conversar em tempo real com a nossa equipe.',
+                    pill_text: data.pill_text || 'Fale conosco'
                 });
             } else {
                 // If not found, insert default config
@@ -78,7 +80,8 @@ export const MasterTenantLiveChatConfig: React.FC<MasterTenantLiveChatConfigProp
                         is_active: true,
                         primary_color: '#1152d4',
                         welcome_title: 'Iniciar Atendimento',
-                        welcome_subtitle: 'Preencha os campos abaixo para conversar em tempo real com a nossa equipe.'
+                        welcome_subtitle: 'Preencha os campos abaixo para conversar em tempo real com a nossa equipe.',
+                        pill_text: 'Fale conosco'
                     })
                     .select()
                     .single();
@@ -90,7 +93,8 @@ export const MasterTenantLiveChatConfig: React.FC<MasterTenantLiveChatConfigProp
                         is_active: newConfig.is_active,
                         primary_color: newConfig.primary_color,
                         welcome_title: newConfig.welcome_title,
-                        welcome_subtitle: newConfig.welcome_subtitle
+                        welcome_subtitle: newConfig.welcome_subtitle,
+                        pill_text: newConfig.pill_text
                     });
                 }
             }
@@ -113,7 +117,8 @@ export const MasterTenantLiveChatConfig: React.FC<MasterTenantLiveChatConfigProp
                     is_active: formData.is_active,
                     primary_color: formData.primary_color,
                     welcome_title: formData.welcome_title,
-                    welcome_subtitle: formData.welcome_subtitle
+                    welcome_subtitle: formData.welcome_subtitle,
+                    pill_text: formData.pill_text
                 })
                 .eq('tenant_id', tenantId);
 
@@ -280,6 +285,19 @@ export const MasterTenantLiveChatConfig: React.FC<MasterTenantLiveChatConfigProp
                             placeholder="Preencha os campos abaixo para conversar em tempo real com a nossa equipe."
                             rows={3}
                             className="w-full bg-[#1A2035] border border-[#2D3B55] rounded-xl px-3.5 py-2 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 resize-none"
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                            Texto do Botão / Balão (Pill)
+                        </label>
+                        <input
+                            type="text"
+                            value={formData.pill_text}
+                            onChange={e => setFormData(prev => ({ ...prev, pill_text: e.target.value }))}
+                            placeholder="Fale conosco"
+                            className="w-full bg-[#1A2035] border border-[#2D3B55] rounded-xl px-3.5 py-2 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500"
                         />
                     </div>
                 </div>
