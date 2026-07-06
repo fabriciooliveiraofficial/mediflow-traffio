@@ -501,8 +501,10 @@
       }
       return;
     }
-    
-    supabaseClient = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+    if (!window._traffioSupabaseClient) {
+      window._traffioSupabaseClient = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+    }
+    supabaseClient = window._traffioSupabaseClient;
     
     // Buscar configurações do banco de dados (bypass RLS se ativo)
     try {
@@ -611,6 +613,7 @@
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "Authorization": `Bearer ${supabaseAnonKey}`
           },
           body: JSON.stringify({
             tenant_id: tenantId,
@@ -653,7 +656,10 @@
     try {
       const response = await fetch(`${supabaseUrl}/functions/v1/livechat-visitor-message`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${supabaseAnonKey}`
+        },
         body: JSON.stringify({
           action: "get_history",
           session_id: activeSessionId,
@@ -792,13 +798,19 @@
 
         response = await fetch(`${supabaseUrl}/functions/v1/livechat-visitor-message`, {
           method: "POST",
+          headers: {
+            "Authorization": `Bearer ${supabaseAnonKey}`
+          },
           body: formData
         });
       } else {
         // Envio JSON simples
         response = await fetch(`${supabaseUrl}/functions/v1/livechat-visitor-message`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${supabaseAnonKey}`
+          },
           body: JSON.stringify({
             session_id: activeSessionId,
             tenant_id: tenantId,

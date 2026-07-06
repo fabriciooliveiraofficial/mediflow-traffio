@@ -49,6 +49,7 @@ import { RoleManagement } from '../components/settings/RoleManagement';
 import { decimalToDMS, parseDMSToDecimal } from '../lib/geoUtils';
 import { TimeInput } from '../components/shared/TimeInput';
 import { Button, Badge, EmptyState, PageHeader } from '../components/ui';
+import { TenantLiveChatConfig } from '../components/settings/TenantLiveChatConfig';
 
 
 
@@ -767,6 +768,7 @@ export const Settings = () => {
                     { id: 'team', label: t('tabs.team'), icon: Users },
                     { id: 'roles', label: t('tabs.roles', 'Cargos'), icon: Briefcase },
                     { id: 'communications', label: t('tabs.communications'), icon: Phone },
+                    { id: 'livechat', label: t('tabs.livechat', 'Live Chat'), icon: MessageSquare },
                     { id: 'profile', label: t('tabs.profile'), icon: User },
                 ].map((tab) => (
                     <button
@@ -1847,6 +1849,11 @@ export const Settings = () => {
                 {/* Roles Tab */}
                 {activeTab === 'roles' && currentTenant && (
                     <RoleManagement tenantId={currentTenant.id} />
+                )}
+
+                {/* Live Chat Tab */}
+                {activeTab === 'livechat' && currentTenant && (
+                    <TenantLiveChatConfig tenantId={currentTenant.id} />
                 )}
 
 
