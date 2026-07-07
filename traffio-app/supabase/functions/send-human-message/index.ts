@@ -181,6 +181,14 @@ serve(async (req: Request) => {
     const isSms = dispatchChannel === 'sms';
 
     if (isLiveChat) {
+      // Nome do atendente para o widget exibir com quem o visitante está falando
+      const { data: agentProfile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user_id)
+        .maybeSingle();
+      const senderName = agentProfile?.full_name ?? null;
+
       const realtimeChannel = supabase.channel(`livechat:${session.id}`);
       await realtimeChannel.send({
         type: 'broadcast',
@@ -189,6 +197,7 @@ serve(async (req: Request) => {
           id: dbMsgId,
           role: 'human',
           content: text.trim(),
+          sender_name: senderName,
           created_at: new Date().toISOString()
         }
       });

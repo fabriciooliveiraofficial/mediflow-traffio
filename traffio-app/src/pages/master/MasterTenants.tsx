@@ -19,6 +19,7 @@ import {
     Clock
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../contexts/ToastContext';
 import { MasterTenantWidgetConfig } from '../../components/master/MasterTenantWidgetConfig';
@@ -51,13 +52,39 @@ export const MasterTenants = () => {
     const [tenants, setTenants] = useState<Tenant[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
-    const [expandedId, setExpandedId] = useState<string | null>(null);
     const [showCreateModal, setShowCreateModal] = useState(false);
-    
-    // Tab State for each Tenant
-    const [tenantTabs, setTenantTabs] = useState<Record<string, 'general' | 'widget' | 'livechat'>>({});
-    const getTenantTab = (id: string) => tenantTabs[id] || 'general';
-    const setTenantTab = (id: string, tab: 'general' | 'widget' | 'livechat') => setTenantTabs(prev => ({ ...prev, [id]: tab }));
+    const [searchParams, setSearchParams] = useSearchParams();
+
+    // URL-based Tab State for each Tenant
+    const expandedId = searchParams.get('tenant');
+
+    const setExpandedId = (id: string | null) => {
+        const nextParams = new URLSearchParams(searchParams);
+        if (id) {
+            nextParams.set('tenant', id);
+            if (!nextParams.has('tab')) {
+                nextParams.set('tab', 'general');
+            }
+        } else {
+            nextParams.delete('tenant');
+            nextParams.delete('tab');
+        }
+        setSearchParams(nextParams);
+    };
+
+    const getTenantTab = (id: string) => {
+        if (id === expandedId) {
+            return (searchParams.get('tab') as 'general' | 'widget' | 'livechat') || 'general';
+        }
+        return 'general';
+    };
+
+    const setTenantTab = (id: string, tab: 'general' | 'widget' | 'livechat') => {
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.set('tenant', id);
+        nextParams.set('tab', tab);
+        setSearchParams(nextParams);
+    };
 
     // Create Form State
     const [newTenant, setNewTenant] = useState({ name: '', slug: '', address: '', adminEmail: '' });

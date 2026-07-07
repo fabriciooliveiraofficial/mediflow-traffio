@@ -2725,6 +2725,18 @@ export function HumanInboxPage() {
     await supabase.from('conversation_sessions')
       .update({ omnichannel_status: 'closed', closed_at: new Date().toISOString() })
       .eq('id', selected.id)
+
+    // Avisar o widget do visitante em tempo real que o atendimento foi encerrado
+    if (selected.channel === 'livechat') {
+      const closeChannel = supabase.channel(`livechat:${selected.id}`)
+      await closeChannel.send({
+        type: 'broadcast',
+        event: 'session_closed',
+        payload: { session_id: selected.id, closed_by: 'agent' }
+      })
+      supabase.removeChannel(closeChannel)
+    }
+
     setSelected(null)
     loadSessions()
   }

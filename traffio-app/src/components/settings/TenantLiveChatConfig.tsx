@@ -34,7 +34,10 @@ export const TenantLiveChatConfig: React.FC<TenantLiveChatConfigProps> = ({ tena
         primary_color: '#1152d4',
         welcome_title: 'Iniciar Atendimento',
         welcome_subtitle: 'Preencha os campos abaixo para conversar em tempo real com a nossa equipe.',
-        pill_text: 'Fale conosco'
+        pill_text: 'Fale conosco',
+        header_title: 'Atendimento Online',
+        header_subtitle: 'Fale conosco',
+        inactivity_timeout_minutes: 30
     });
 
     useEffect(() => {
@@ -68,7 +71,10 @@ export const TenantLiveChatConfig: React.FC<TenantLiveChatConfigProps> = ({ tena
                     primary_color: data.primary_color || '#1152d4',
                     welcome_title: data.welcome_title || 'Iniciar Atendimento',
                     welcome_subtitle: data.welcome_subtitle || 'Preencha os campos abaixo para conversar em tempo real com a nossa equipe.',
-                    pill_text: data.pill_text || 'Fale conosco'
+                    pill_text: data.pill_text || 'Fale conosco',
+                    header_title: data.header_title || 'Atendimento Online',
+                    header_subtitle: data.header_subtitle || 'Fale conosco',
+                    inactivity_timeout_minutes: data.inactivity_timeout_minutes ?? 30
                 });
             } else {
                 // Provision default config if not found
@@ -92,7 +98,10 @@ export const TenantLiveChatConfig: React.FC<TenantLiveChatConfigProps> = ({ tena
                         primary_color: newConfig.primary_color,
                         welcome_title: newConfig.welcome_title,
                         welcome_subtitle: newConfig.welcome_subtitle,
-                        pill_text: newConfig.pill_text
+                        pill_text: newConfig.pill_text,
+                        header_title: newConfig.header_title || 'Atendimento Online',
+                        header_subtitle: newConfig.header_subtitle || 'Fale conosco',
+                        inactivity_timeout_minutes: newConfig.inactivity_timeout_minutes ?? 30
                     });
                 }
             }
@@ -116,7 +125,10 @@ export const TenantLiveChatConfig: React.FC<TenantLiveChatConfigProps> = ({ tena
                     primary_color: formData.primary_color,
                     welcome_title: formData.welcome_title,
                     welcome_subtitle: formData.welcome_subtitle,
-                    pill_text: formData.pill_text
+                    pill_text: formData.pill_text,
+                    header_title: formData.header_title,
+                    header_subtitle: formData.header_subtitle,
+                    inactivity_timeout_minutes: Math.max(0, Number(formData.inactivity_timeout_minutes) || 0)
                 })
                 .eq('tenant_id', tenantId);
 
@@ -262,7 +274,48 @@ export const TenantLiveChatConfig: React.FC<TenantLiveChatConfigProps> = ({ tena
                 <h4 className="font-bold text-sm text-graphite-700 flex items-center gap-1.5">
                     <Sliders className="text-brand-primary" size={16} /> Personalização do Atendimento
                 </h4>
-                
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="space-y-1">
+                        <label className="text-xs font-bold text-graphite-500">
+                            Título do Cabeçalho do Chat
+                        </label>
+                        <input
+                            type="text"
+                            value={formData.header_title}
+                            onChange={e => setFormData(prev => ({ ...prev, header_title: e.target.value }))}
+                            placeholder="Atendimento Online"
+                            className="w-full bg-ice-50 border border-transparent focus:border-brand-primary shadow-float rounded-xl px-3.5 py-2.5 text-sm font-medium text-graphite-700 focus:outline-none transition-colors"
+                        />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-xs font-bold text-graphite-500">
+                            Subtítulo do Cabeçalho
+                        </label>
+                        <input
+                            type="text"
+                            value={formData.header_subtitle}
+                            onChange={e => setFormData(prev => ({ ...prev, header_subtitle: e.target.value }))}
+                            placeholder="Fale conosco"
+                            className="w-full bg-ice-50 border border-transparent focus:border-brand-primary shadow-float rounded-xl px-3.5 py-2.5 text-sm font-medium text-graphite-700 focus:outline-none transition-colors"
+                        />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-xs font-bold text-graphite-500">
+                            Encerrar por Inatividade (min)
+                        </label>
+                        <input
+                            type="number"
+                            min={0}
+                            value={formData.inactivity_timeout_minutes}
+                            onChange={e => setFormData(prev => ({ ...prev, inactivity_timeout_minutes: Number(e.target.value) }))}
+                            placeholder="30"
+                            className="w-full bg-ice-50 border border-transparent focus:border-brand-primary shadow-float rounded-xl px-3.5 py-2.5 text-sm font-medium text-graphite-700 focus:outline-none transition-colors"
+                        />
+                        <p className="text-[10px] text-graphite-400">0 = nunca encerrar automaticamente.</p>
+                    </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-4">
                         <div className="space-y-1">

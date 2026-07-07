@@ -47,22 +47,93 @@ serve(async (req: Request) => {
 
     // Suporte para recuperar o histórico da conversa
     if (action === 'get_history') {
-      if (!session_id) {
+      if (!session_id || !tenant_id) {
         return new Response(
-          JSON.stringify({ error: 'session_id é obrigatório para carregar o histórico.' }),
+          JSON.stringify({ error: 'session_id e tenant_id são obrigatórios para carregar o histórico.' }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
+
+      // Validar que a sessão pertence ao tenant informado
+      const { data: sessionRow, error: sessionErr } = await supabase
+        .from('conversation_sessions')
+        .select('id, omnichannel_status, assigned_to_user_id')
+        .eq('id', session_id)
+        .eq('tenant_id', tenant_id)
+        .maybeSingle();
+
+      if (sessionErr) throw sessionErr;
+      if (!sessionRow) {
+        return new Response(
+          JSON.stringify({ error: 'Sessão não encontrada.' }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Notas internas (role='internal') nunca são expostas ao visitante
       const { data: messages, error: msgsError } = await supabase
         .from('conversation_messages')
         .select('id, role, content, message_type, media_url, file_name, created_at')
         .eq('session_id', session_id)
+        .neq('role', 'internal')
         .order('created_at', { ascending: true });
 
       if (msgsError) throw msgsError;
 
+      // Nome do atendente atribuído (exibido no cabeçalho do widget)
+      let agentName: string | null = null;
+      if (sessionRow.assigned_to_user_id) {
+        const { data: agentProfile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', sessionRow.assigned_to_user_id)
+          .maybeSingle();
+        agentName = agentProfile?.full_name ?? null;
+      }
+
       return new Response(
-        JSON.stringify({ success: true, messages }),
+        JSON.stringify({
+          success: true,
+          messages,
+          session_status: sessionRow.omnichannel_status,
+          agent_name: agentName
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Encerramento do atendimento pelo visitante (ou por inatividade no widget)
+    if (action === 'end_session') {
+      if (!session_id || !tenant_id) {
+        return new Response(
+          JSON.stringify({ error: 'session_id e tenant_id são obrigatórios para encerrar o atendimento.' }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const { error: closeError } = await supabase
+        .from('conversation_sessions')
+        .update({
+          omnichannel_status: 'closed',
+          closed_at: new Date().toISOString(),
+          human_handoff: false
+        })
+        .eq('id', session_id)
+        .eq('tenant_id', tenant_id);
+
+      if (closeError) throw closeError;
+
+      // Avisar o painel de atendimento e outras abas do visitante em tempo real
+      const closeChannel = supabase.channel(`livechat:${session_id}`);
+      await closeChannel.send({
+        type: 'broadcast',
+        event: 'session_closed',
+        payload: { session_id, closed_by: 'visitor' }
+      });
+
+      console.log(`[livechat-visitor-message] Sessão ${session_id} encerrada pelo visitante.`);
+      return new Response(
+        JSON.stringify({ success: true }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

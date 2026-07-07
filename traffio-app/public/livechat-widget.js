@@ -69,6 +69,23 @@
       fill: #ffffff;
       transition: transform 0.3s ease;
     }
+    .traffio-chat-bubble-badge {
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      min-width: 20px;
+      height: 20px;
+      padding: 0 5px;
+      border-radius: 10px;
+      background: #ef4444;
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 700;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    }
     .traffio-chat-window {
       position: fixed;
       bottom: 96px;
@@ -106,6 +123,13 @@
       display: flex;
       align-items: center;
       gap: 10px;
+      min-width: 0;
+    }
+    .traffio-chat-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
     }
     .traffio-chat-avatar {
       width: 36px;
@@ -117,14 +141,19 @@
       justify-content: center;
       font-weight: bold;
       font-size: 16px;
+      flex-shrink: 0;
     }
     .traffio-chat-status {
       display: flex;
       flex-direction: column;
+      min-width: 0;
     }
     .traffio-chat-status-title {
       font-size: 14px;
       font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .traffio-chat-status-sub {
       font-size: 11px;
@@ -132,6 +161,9 @@
       display: flex;
       align-items: center;
       gap: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .traffio-chat-status-dot {
       width: 6px;
@@ -139,21 +171,24 @@
       background: #10b981;
       border-radius: 50%;
       display: inline-block;
+      flex-shrink: 0;
     }
-    .traffio-chat-close {
+    .traffio-chat-close, .traffio-chat-end {
       cursor: pointer;
       opacity: 0.8;
       transition: opacity 0.2s;
       background: transparent;
       border: none;
       color: white;
-      font-size: 20px;
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 4px;
     }
-    .traffio-chat-close:hover {
+    .traffio-chat-close {
+      font-size: 20px;
+    }
+    .traffio-chat-close:hover, .traffio-chat-end:hover {
       opacity: 1;
     }
     .traffio-chat-body {
@@ -254,6 +289,62 @@
       align-self: flex-start;
       border-bottom-left-radius: 4px;
       border: 1px solid #e2e8f0;
+    }
+    .traffio-chat-agent-name {
+      font-size: 10px;
+      font-weight: 700;
+      color: #64748b;
+      margin-bottom: 3px;
+    }
+    .traffio-chat-system-msg {
+      align-self: center;
+      background: #e2e8f0;
+      color: #475569;
+      font-size: 11px;
+      padding: 6px 14px;
+      border-radius: 12px;
+      text-align: center;
+      max-width: 90%;
+    }
+    .traffio-chat-ended-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      height: 100%;
+      padding: 24px;
+      text-align: center;
+    }
+    .traffio-chat-ended-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: #d1fae5;
+      color: #059669;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+    .traffio-chat-ended-text {
+      font-size: 13px;
+      color: #475569;
+      line-height: 1.5;
+    }
+    .traffio-chat-new-chat-btn {
+      padding: 10px 20px;
+      border-radius: 10px;
+      background: var(--traffio-chat-primary, #1152d4);
+      color: #ffffff;
+      border: none;
+      font-weight: bold;
+      font-size: 13px;
+      cursor: pointer;
+      margin-top: 6px;
+    }
+    .traffio-chat-new-chat-btn:hover {
+      filter: brightness(0.9);
     }
     .traffio-chat-bubble-msg img {
       max-width: 100%;
@@ -374,17 +465,25 @@
       <svg viewBox="0 0 24 24">
         <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/>
       </svg>
+      <span class="traffio-chat-bubble-badge" id="traffio-badge"></span>
     </div>
     <div class="traffio-chat-window" id="traffio-window">
       <div class="traffio-chat-header">
         <div class="traffio-chat-header-info">
-          <div class="traffio-chat-avatar">T</div>
+          <div class="traffio-chat-avatar" id="traffio-avatar">A</div>
           <div class="traffio-chat-status">
-            <span class="traffio-chat-status-title">Atendimento Online</span>
-            <span class="traffio-chat-status-sub"><span class="traffio-chat-status-dot"></span>Fale conosco</span>
+            <span class="traffio-chat-status-title" id="traffio-header-title">Atendimento Online</span>
+            <span class="traffio-chat-status-sub"><span class="traffio-chat-status-dot"></span><span id="traffio-header-sub">Fale conosco</span></span>
           </div>
         </div>
-        <button class="traffio-chat-close" id="traffio-close">×</button>
+        <div class="traffio-chat-header-actions">
+          <button class="traffio-chat-end" id="traffio-end-btn" title="Encerrar atendimento" style="display: none;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+          </button>
+          <button class="traffio-chat-close" id="traffio-close" title="Minimizar">×</button>
+        </div>
       </div>
       <div class="traffio-chat-body" id="traffio-chat-body">
         <!-- O formulário de registro ou as mensagens serão injetadas aqui -->
@@ -415,9 +514,14 @@
 
   // 4. Lógica de controle de estado do widget
   const bubble = document.getElementById("traffio-bubble");
+  const badge = document.getElementById("traffio-badge");
   const pill = document.getElementById("traffio-pill");
   const windowEl = document.getElementById("traffio-window");
   const closeBtn = document.getElementById("traffio-close");
+  const endBtn = document.getElementById("traffio-end-btn");
+  const avatarEl = document.getElementById("traffio-avatar");
+  const headerTitleEl = document.getElementById("traffio-header-title");
+  const headerSubEl = document.getElementById("traffio-header-sub");
   const chatBody = document.getElementById("traffio-chat-body");
   const chatFooter = document.getElementById("traffio-chat-footer");
   const chatInput = document.getElementById("traffio-chat-input");
@@ -428,25 +532,87 @@
   const fileNameSpan = document.getElementById("traffio-file-name");
   const fileCancelBtn = document.getElementById("traffio-file-cancel");
 
+  const LS_SESSION = "traffio_livechat_session_id";
+  const LS_NAME = "traffio_livechat_name";
+  const LS_ACTIVITY = "traffio_livechat_last_activity";
+
   let supabaseClient = null;
-  let activeSessionId = localStorage.getItem("traffio_livechat_session_id");
+  let realtimeChannel = null;
+  let inactivityTimer = null;
+  let agentName = null;
+  let unreadCount = 0;
+  let activeSessionId = localStorage.getItem(LS_SESSION);
   if (activeSessionId === "undefined" || activeSessionId === "null" || activeSessionId === "") {
     activeSessionId = null;
-    localStorage.removeItem("traffio_livechat_session_id");
+    localStorage.removeItem(LS_SESSION);
   }
-  let visitorName = localStorage.getItem("traffio_livechat_name");
+  let visitorName = localStorage.getItem(LS_NAME);
   if (visitorName === "undefined" || visitorName === "null" || visitorName === "") {
     visitorName = null;
-    localStorage.removeItem("traffio_livechat_name");
+    localStorage.removeItem(LS_NAME);
   }
   let selectedFile = null;
   let messagesList = [];
+
+  // Escapar HTML para impedir injeção de markup/script via conteúdo de mensagens
+  function escapeHtml(value) {
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  // URLs de mídia só são renderizadas se forem http(s) absolutas
+  function safeUrl(url) {
+    return /^https?:\/\//i.test(url || "") ? escapeHtml(url) : "";
+  }
+
+  // ── Rastreio de atividade (para encerramento por inatividade) ──
+  function touchActivity() {
+    localStorage.setItem(LS_ACTIVITY, String(Date.now()));
+  }
+
+  function getInactivityLimitMs() {
+    const minutes = Number(chatConfig.inactivity_timeout_minutes);
+    if (!minutes || minutes <= 0) return 0; // 0 = nunca expira
+    return minutes * 60 * 1000;
+  }
+
+  function isSessionStale() {
+    const limit = getInactivityLimitMs();
+    if (!limit || !activeSessionId) return false;
+    const last = Number(localStorage.getItem(LS_ACTIVITY) || 0);
+    if (!last) return false;
+    return Date.now() - last > limit;
+  }
+
+  function startInactivityWatcher() {
+    if (inactivityTimer) clearInterval(inactivityTimer);
+    inactivityTimer = setInterval(() => {
+      if (activeSessionId && isSessionStale()) {
+        endSession("Atendimento encerrado por inatividade.", true);
+      }
+    }, 60 * 1000);
+  }
+
+  function setUnread(count) {
+    unreadCount = count;
+    if (unreadCount > 0) {
+      badge.textContent = unreadCount > 9 ? "9+" : String(unreadCount);
+      badge.style.display = "flex";
+    } else {
+      badge.style.display = "none";
+    }
+  }
 
   // Toggle de exibição da janela do chat
   function toggleChatWindow() {
     windowEl.classList.toggle("open");
     const isOpen = windowEl.classList.contains("open");
     if (isOpen) {
+      setUnread(0);
       if (pill) {
         pill.style.opacity = "0";
         pill.style.pointerEvents = "none";
@@ -470,6 +636,14 @@
 
   closeBtn.addEventListener("click", toggleChatWindow);
 
+  // Encerramento manual pelo visitante
+  endBtn.addEventListener("click", () => {
+    if (!activeSessionId) return;
+    if (window.confirm("Deseja encerrar este atendimento?")) {
+      endSession("Você encerrou o atendimento. Obrigado pelo contato!", true);
+    }
+  });
+
   // Habilitar/Desabilitar botão de envio
   chatInput.addEventListener("input", () => {
     sendBtn.disabled = !chatInput.value.trim() && !selectedFile;
@@ -481,6 +655,9 @@
     welcome_title: 'Iniciar Atendimento',
     welcome_subtitle: 'Preencha os campos abaixo para conversar em tempo real com a nossa equipe.',
     pill_text: 'Fale conosco',
+    header_title: 'Atendimento Online',
+    header_subtitle: 'Fale conosco',
+    inactivity_timeout_minutes: 30,
     is_active: true
   };
 
@@ -501,6 +678,7 @@
       console.warn("[Traffio LiveChat] Supabase URL ou Anon Key ausentes. O realtime pode não funcionar.");
       // Exibe com defaults caso falhe
       widgetContainer.style.display = "block";
+      updateHeader();
       if (activeSessionId) {
         showChatScreen();
         loadHistory();
@@ -513,12 +691,12 @@
       window._traffioSupabaseClient = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
     }
     supabaseClient = window._traffioSupabaseClient;
-    
+
     // Buscar configurações do banco de dados (bypass RLS se ativo)
     try {
       const { data, error } = await supabaseClient
         .from('tenant_livechat_configs')
-        .select('primary_color, welcome_title, welcome_subtitle, pill_text, is_active')
+        .select('primary_color, welcome_title, welcome_subtitle, pill_text, header_title, header_subtitle, inactivity_timeout_minutes, is_active')
         .eq('tenant_id', tenantId)
         .maybeSingle();
 
@@ -534,10 +712,17 @@
     applyDynamicConfig();
 
     if (chatConfig.is_active) {
+      // Sessão antiga demais? Encerra silenciosamente antes de exibir
+      if (activeSessionId && isSessionStale()) {
+        endSession(null, true);
+        showRegistrationForm();
+        return;
+      }
       if (activeSessionId) {
         showChatScreen();
         loadHistory();
         subscribeToRealtime();
+        startInactivityWatcher();
       } else {
         showRegistrationForm();
       }
@@ -549,7 +734,7 @@
       widgetContainer.style.display = "none";
       return;
     }
-    
+
     widgetContainer.style.display = "block";
 
     // Injetar variável CSS para a cor primária
@@ -559,6 +744,8 @@
         --traffio-chat-primary: ${primaryColor} !important;
       }
     `;
+
+    updateHeader();
 
     // Atualizar títulos no formulário de registro, se visível
     const formTitle = document.getElementById("traffio-form-title-el");
@@ -575,17 +762,38 @@
     }
   }
 
+  // Cabeçalho dinâmico: título/subtítulo das configurações; quando um atendente
+  // assume a conversa, o subtítulo e o avatar passam a exibir o nome dele
+  function updateHeader() {
+    const title = chatConfig.header_title || 'Atendimento Online';
+    headerTitleEl.textContent = title;
+    if (agentName) {
+      headerSubEl.textContent = `Você está falando com ${agentName}`;
+      avatarEl.textContent = agentName.trim().charAt(0).toUpperCase();
+    } else {
+      headerSubEl.textContent = chatConfig.header_subtitle || 'Fale conosco';
+      avatarEl.textContent = (title.trim().charAt(0) || 'A').toUpperCase();
+    }
+  }
+
+  function setAgentName(name) {
+    if (!name || name === agentName) return;
+    agentName = name;
+    updateHeader();
+  }
+
   // Iniciar carregamento imediatamente
   loadSupabaseAndConnect();
 
   // ── Renderizador do Formulário de Registro ──
   function showRegistrationForm() {
     chatFooter.style.display = "none";
+    endBtn.style.display = "none";
     chatBody.innerHTML = `
       <div class="traffio-chat-form-container">
-        <h3 class="traffio-chat-form-title" id="traffio-form-title-el">${chatConfig.welcome_title || 'Iniciar Atendimento'}</h3>
-        <p class="traffio-chat-form-subtitle" id="traffio-form-subtitle-el">${chatConfig.welcome_subtitle || 'Preencha os campos abaixo para conversar em tempo real com a nossa equipe.'}</p>
-        
+        <h3 class="traffio-chat-form-title" id="traffio-form-title-el">${escapeHtml(chatConfig.welcome_title || 'Iniciar Atendimento')}</h3>
+        <p class="traffio-chat-form-subtitle" id="traffio-form-subtitle-el">${escapeHtml(chatConfig.welcome_subtitle || 'Preencha os campos abaixo para conversar em tempo real com a nossa equipe.')}</p>
+
         <form id="traffio-reg-form">
           <div class="traffio-chat-form-group">
             <label for="traffio-reg-name">Seu Nome *</label>
@@ -638,12 +846,14 @@
         activeSessionId = data.session_id;
         visitorName = nameVal;
 
-        localStorage.setItem("traffio_livechat_session_id", activeSessionId);
-        localStorage.setItem("traffio_livechat_name", visitorName);
+        localStorage.setItem(LS_SESSION, activeSessionId);
+        localStorage.setItem(LS_NAME, visitorName);
+        touchActivity();
 
         showChatScreen();
         loadHistory();
-        loadSupabaseAndConnect();
+        subscribeToRealtime();
+        startInactivityWatcher();
 
       } catch (error) {
         alert("Erro ao conectar: " + error.message);
@@ -657,14 +867,82 @@
   function showChatScreen() {
     chatBody.innerHTML = "";
     chatFooter.style.display = "block";
+    endBtn.style.display = "flex";
   }
 
   function clearSession() {
     activeSessionId = null;
     visitorName = null;
-    localStorage.removeItem("traffio_livechat_session_id");
-    localStorage.removeItem("traffio_livechat_name");
+    agentName = null;
+    messagesList = [];
+    localStorage.removeItem(LS_SESSION);
+    localStorage.removeItem(LS_NAME);
+    localStorage.removeItem(LS_ACTIVITY);
+    unsubscribeRealtime();
+    if (inactivityTimer) {
+      clearInterval(inactivityTimer);
+      inactivityTimer = null;
+    }
+    updateHeader();
     showRegistrationForm();
+  }
+
+  // Encerra a sessão no servidor e exibe a tela de fim de atendimento.
+  // Com `message = null`, encerra silenciosamente (usado para sessões velhas).
+  async function endSession(message, notifyServer) {
+    const sessionToClose = activeSessionId;
+    if (notifyServer && sessionToClose) {
+      try {
+        await fetch(`${supabaseUrl}/functions/v1/livechat-visitor-message`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${supabaseAnonKey}`
+          },
+          body: JSON.stringify({
+            action: "end_session",
+            session_id: sessionToClose,
+            tenant_id: tenantId
+          })
+        });
+      } catch (err) {
+        console.error("[Traffio LiveChat] Falha ao encerrar sessão no servidor:", err);
+      }
+    }
+
+    activeSessionId = null;
+    visitorName = null;
+    agentName = null;
+    messagesList = [];
+    localStorage.removeItem(LS_SESSION);
+    localStorage.removeItem(LS_NAME);
+    localStorage.removeItem(LS_ACTIVITY);
+    unsubscribeRealtime();
+    if (inactivityTimer) {
+      clearInterval(inactivityTimer);
+      inactivityTimer = null;
+    }
+    updateHeader();
+
+    if (message) {
+      showEndedScreen(message);
+    }
+  }
+
+  // Tela exibida após o encerramento do atendimento
+  function showEndedScreen(message) {
+    chatFooter.style.display = "none";
+    endBtn.style.display = "none";
+    chatBody.innerHTML = `
+      <div class="traffio-chat-ended-container">
+        <div class="traffio-chat-ended-icon">✓</div>
+        <p class="traffio-chat-ended-text">${escapeHtml(message)}</p>
+        <button class="traffio-chat-new-chat-btn" id="traffio-new-chat-btn">Iniciar novo atendimento</button>
+      </div>
+    `;
+    document.getElementById("traffio-new-chat-btn").addEventListener("click", () => {
+      showRegistrationForm();
+    });
   }
 
   // Carregar histórico de mensagens
@@ -672,7 +950,7 @@
     try {
       const response = await fetch(`${supabaseUrl}/functions/v1/livechat-visitor-message`, {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${supabaseAnonKey}`
         },
@@ -684,6 +962,12 @@
       });
       const data = await response.json();
       if (data.success && data.messages) {
+        // Sessão foi encerrada pela clínica enquanto o visitante estava fora
+        if (data.session_status === 'closed') {
+          endSession("Este atendimento foi encerrado. Se precisar, inicie uma nova conversa.", false);
+          return;
+        }
+        if (data.agent_name) setAgentName(data.agent_name);
         messagesList = data.messages;
         renderMessages();
       } else {
@@ -695,19 +979,45 @@
     }
   }
 
+  function unsubscribeRealtime() {
+    if (realtimeChannel && supabaseClient) {
+      supabaseClient.removeChannel(realtimeChannel);
+    }
+    realtimeChannel = null;
+  }
+
   // Inscrever-se via Supabase Realtime Broadcast
   function subscribeToRealtime() {
-    if (!supabaseClient) return;
+    if (!supabaseClient || !activeSessionId) return;
 
-    const channel = supabaseClient.channel(`livechat:${activeSessionId}`);
-    channel
+    unsubscribeRealtime();
+    realtimeChannel = supabaseClient.channel(`livechat:${activeSessionId}`);
+    realtimeChannel
       .on("broadcast", { event: "message" }, (payload) => {
         const msg = payload.payload;
         // Impedir duplicação de mensagens enviadas por si mesmo
         if (messagesList.some((m) => m.id === msg.id)) return;
 
+        if (msg.sender_name) setAgentName(msg.sender_name);
+        touchActivity();
         messagesList.push(msg);
         renderMessages();
+
+        // Badge de não lidas quando a janela está fechada
+        if (msg.role !== "user" && !windowEl.classList.contains("open")) {
+          setUnread(unreadCount + 1);
+        }
+      })
+      .on("broadcast", { event: "session_closed" }, (payload) => {
+        // Se o próprio visitante encerrou nesta aba, endSession já limpou o estado
+        if (!activeSessionId) return;
+        const closedByVisitor = payload && payload.payload && payload.payload.closed_by === 'visitor';
+        endSession(
+          closedByVisitor
+            ? "O atendimento foi encerrado. Obrigado pelo contato!"
+            : "O atendimento foi encerrado pela nossa equipe. Obrigado pelo contato!",
+          false
+        );
       })
       .subscribe();
   }
@@ -720,23 +1030,30 @@
       const bubbleEl = document.createElement("div");
       bubbleEl.className = `traffio-chat-bubble-msg ${isVisitor ? "visitor" : "agent"}`;
 
+      const mediaUrl = safeUrl(msg.media_url);
       let mediaMarkup = "";
-      if (msg.message_type === "image") {
-        mediaMarkup = `<img src="${msg.media_url}" alt="Mídia" onclick="window.open('${msg.media_url}', '_blank')" style="cursor:pointer;" />`;
-      } else if (msg.message_type === "video") {
-        mediaMarkup = `<video src="${msg.media_url}" controls style="max-width:100%; border-radius:8px; margin-top:4px;"></video>`;
-      } else if (msg.message_type === "document") {
+      if (msg.message_type === "image" && mediaUrl) {
+        mediaMarkup = `<a href="${mediaUrl}" target="_blank" rel="noopener"><img src="${mediaUrl}" alt="Mídia" style="cursor:pointer;" /></a>`;
+      } else if (msg.message_type === "video" && mediaUrl) {
+        mediaMarkup = `<video src="${mediaUrl}" controls style="max-width:100%; border-radius:8px; margin-top:4px;"></video>`;
+      } else if (msg.message_type === "document" && mediaUrl) {
         mediaMarkup = `
-          <a class="file-link" href="${msg.media_url}" target="_blank">
+          <a class="file-link" href="${mediaUrl}" target="_blank" rel="noopener">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            ${msg.file_name || "Baixar arquivo"}
+            ${escapeHtml(msg.file_name || "Baixar arquivo")}
           </a>`;
       }
 
       const timeString = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+      // Nome de quem enviou, acima das mensagens do atendente
+      const senderLabel = (!isVisitor && msg.role === "human" && (msg.sender_name || agentName))
+        ? `<div class="traffio-chat-agent-name">${escapeHtml(msg.sender_name || agentName)}</div>`
+        : "";
+
       bubbleEl.innerHTML = `
-        <div>${msg.content || ""}</div>
+        ${senderLabel}
+        <div>${escapeHtml(msg.content || "")}</div>
         ${mediaMarkup}
         <div class="traffio-chat-bubble-time">${timeString}</div>
       `;
@@ -785,6 +1102,7 @@
 
     chatInput.value = "";
     sendBtn.disabled = true;
+    touchActivity();
 
     // Limpar visual de anexo
     filePreview.style.display = "none";
@@ -826,7 +1144,7 @@
         // Envio JSON simples
         response = await fetch(`${supabaseUrl}/functions/v1/livechat-visitor-message`, {
           method: "POST",
-          headers: { 
+          headers: {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${supabaseAnonKey}`
           },
