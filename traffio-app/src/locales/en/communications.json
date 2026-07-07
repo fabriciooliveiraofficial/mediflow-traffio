@@ -245,6 +245,7 @@
       "all": "All",
       "toasts": {
         "alreadyClaimed": "Another agent is already claiming this conversation.",
+        "sessionClosedRemotely": "This conversation was ended by the visitor.",
         "genericError": "Error: {{reason}}",
         "editError": "Error editing: {{message}}",
         "linkPatientFirst": "Link the patient first to save notes to the Profile.",

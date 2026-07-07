@@ -2021,6 +2021,11 @@ export function HumanInboxPage() {
   const bottomRef      = useRef<HTMLDivElement>(null)
   const lastSelectedId = useRef<string | null>(null)
 
+  // Referência da sessão selecionada para uso dentro de callbacks realtime
+  // (evita closures com estado desatualizado)
+  const selectedRef = useRef<ConversationSession | null>(null)
+  useEffect(() => { selectedRef.current = selected }, [selected])
+
   // ── Upload para o bucket chat-media ──────────
   const uploadToStorage = useCallback(async (file: File) => {
     const ext      = file.name.split('.').pop()
@@ -2287,7 +2292,7 @@ export function HumanInboxPage() {
       }, (payload) => {
         // Silent refresh of the list to update counts and badges
         loadSessions(tenantId || undefined, userId || undefined, true)
-        
+
         // Handle audio alerts based on event type
         const newStatus = (payload.new as any)?.omnichannel_status;
         const oldStatus = (payload.old as any)?.omnichannel_status;
@@ -2297,6 +2302,20 @@ export function HumanInboxPage() {
              const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3')
              audio.play().catch(e => console.warn('Queue alert failed:', e))
            }
+        }
+
+        // Sessão aberta no painel foi encerrada pelo visitante (livechat):
+        // fecha a janela de conversa para impedir envio a uma sessão morta
+        const current = selectedRef.current
+        if (
+          payload.eventType === 'UPDATE' &&
+          newStatus === 'closed' &&
+          current &&
+          (payload.new as any)?.id === current.id &&
+          current.channel === 'livechat'
+        ) {
+          setSelected(null)
+          showToast('warning', t('humanInbox.main.toasts.sessionClosedRemotely'))
         }
       })
       .subscribe()
@@ -2722,6 +2741,9 @@ export function HumanInboxPage() {
   // ── Close ─────────────────────────────────────
   const handleClose = async () => {
     if (!selected) return
+    // Limpa a ref antes do update para o evento realtime do próprio fechamento
+    // não ser tratado como encerramento remoto
+    selectedRef.current = null
     await supabase.from('conversation_sessions')
       .update({ omnichannel_status: 'closed', closed_at: new Date().toISOString() })
       .eq('id', selected.id)
