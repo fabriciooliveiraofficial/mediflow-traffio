@@ -45,6 +45,39 @@ serve(async (req: Request) => {
       action = body.action;
     }
 
+    // Configuração do widget + localização do tenant (fonte de verdade de idioma/timezone)
+    if (action === 'get_config') {
+      if (!tenant_id) {
+        return new Response(
+          JSON.stringify({ error: 'tenant_id é obrigatório.' }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const [{ data: config }, { data: tenant }] = await Promise.all([
+        supabase
+          .from('tenant_livechat_configs')
+          .select('primary_color, welcome_title, welcome_subtitle, pill_text, header_title, header_subtitle, inactivity_timeout_minutes, is_active')
+          .eq('tenant_id', tenant_id)
+          .maybeSingle(),
+        supabase
+          .from('tenants')
+          .select('locale, timezone')
+          .eq('id', tenant_id)
+          .maybeSingle()
+      ]);
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          config: config ?? null,
+          locale: tenant?.locale ?? 'pt-BR',
+          timezone: tenant?.timezone ?? 'America/Sao_Paulo'
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Suporte para recuperar o histórico da conversa
     if (action === 'get_history') {
       if (!session_id || !tenant_id) {

@@ -592,7 +592,7 @@
     if (inactivityTimer) clearInterval(inactivityTimer);
     inactivityTimer = setInterval(() => {
       if (activeSessionId && isSessionStale()) {
-        endSession("Atendimento encerrado por inatividade.", true);
+        endSession(t('endedInactivity'), true);
       }
     }, 60 * 1000);
   }
@@ -639,8 +639,8 @@
   // Encerramento manual pelo visitante
   endBtn.addEventListener("click", () => {
     if (!activeSessionId) return;
-    if (window.confirm("Deseja encerrar este atendimento?")) {
-      endSession("Você encerrou o atendimento. Obrigado pelo contato!", true);
+    if (window.confirm(t('confirmEnd'))) {
+      endSession(t('endedByYou'), true);
     }
   });
 
@@ -660,6 +660,143 @@
     inactivity_timeout_minutes: 30,
     is_active: true
   };
+
+  // ── Localização: o idioma e o timezone do TENANT são a fonte de verdade ──
+  let tenantLocale = 'pt-BR';
+  let tenantTimezone = 'America/Sao_Paulo';
+
+  const I18N = {
+    pt: {
+      pill: 'Fale conosco',
+      header_title: 'Atendimento Online',
+      header_subtitle: 'Fale conosco',
+      welcome_title: 'Iniciar Atendimento',
+      welcome_subtitle: 'Preencha os campos abaixo para conversar em tempo real com a nossa equipe.',
+      nameLabel: 'Seu Nome *',
+      namePlaceholder: 'Digite seu nome completo',
+      emailLabel: 'E-mail *',
+      emailPlaceholder: 'exemplo@email.com',
+      phoneLabel: 'Telefone (Mobile) *',
+      phonePlaceholder: 'Ex: +55 11 90000-0000',
+      startChat: 'Começar Chat',
+      connecting: 'Conectando...',
+      initialMessage: 'Olá! Iniciei o atendimento no chat.',
+      inputPlaceholder: 'Digite sua mensagem...',
+      attachTitle: 'Anexar arquivo',
+      removeFile: 'Remover',
+      fileTooLarge: 'O arquivo excede o limite máximo de 5MB.',
+      endTitle: 'Encerrar atendimento',
+      minimizeTitle: 'Minimizar',
+      confirmEnd: 'Deseja encerrar este atendimento?',
+      endedByYou: 'Você encerrou o atendimento. Obrigado pelo contato!',
+      endedByAgent: 'O atendimento foi encerrado pela nossa equipe. Obrigado pelo contato!',
+      endedGeneric: 'O atendimento foi encerrado. Obrigado pelo contato!',
+      endedInactivity: 'Atendimento encerrado por inatividade.',
+      endedWhileAway: 'Este atendimento foi encerrado. Se precisar, inicie uma nova conversa.',
+      newChat: 'Iniciar novo atendimento',
+      talkingWith: 'Você está falando com {name}',
+      downloadFile: 'Baixar arquivo',
+      connectError: 'Erro ao conectar: ',
+      sendError: 'Erro ao enviar mensagem: '
+    },
+    en: {
+      pill: 'Chat with us',
+      header_title: 'Online Support',
+      header_subtitle: 'Chat with us',
+      welcome_title: 'Start a Conversation',
+      welcome_subtitle: 'Fill in the fields below to chat with our team in real time.',
+      nameLabel: 'Your Name *',
+      namePlaceholder: 'Enter your full name',
+      emailLabel: 'E-mail *',
+      emailPlaceholder: 'example@email.com',
+      phoneLabel: 'Phone (Mobile) *',
+      phonePlaceholder: 'e.g. +1 555 000 0000',
+      startChat: 'Start Chat',
+      connecting: 'Connecting...',
+      initialMessage: 'Hello! I just started a chat conversation.',
+      inputPlaceholder: 'Type your message...',
+      attachTitle: 'Attach file',
+      removeFile: 'Remove',
+      fileTooLarge: 'The file exceeds the 5MB size limit.',
+      endTitle: 'End chat',
+      minimizeTitle: 'Minimize',
+      confirmEnd: 'Do you want to end this chat?',
+      endedByYou: 'You ended the chat. Thank you for reaching out!',
+      endedByAgent: 'This chat was closed by our team. Thank you for reaching out!',
+      endedGeneric: 'This chat has ended. Thank you for reaching out!',
+      endedInactivity: 'Chat ended due to inactivity.',
+      endedWhileAway: 'This chat has been closed. Start a new conversation if you need anything else.',
+      newChat: 'Start a new chat',
+      talkingWith: 'You are talking to {name}',
+      downloadFile: 'Download file',
+      connectError: 'Connection error: ',
+      sendError: 'Error sending message: '
+    },
+    es: {
+      pill: 'Hable con nosotros',
+      header_title: 'Atención en Línea',
+      header_subtitle: 'Hable con nosotros',
+      welcome_title: 'Iniciar Atención',
+      welcome_subtitle: 'Complete los campos a continuación para conversar en tiempo real con nuestro equipo.',
+      nameLabel: 'Su Nombre *',
+      namePlaceholder: 'Escriba su nombre completo',
+      emailLabel: 'E-mail *',
+      emailPlaceholder: 'ejemplo@email.com',
+      phoneLabel: 'Teléfono (Móvil) *',
+      phonePlaceholder: 'Ej: +34 600 000 000',
+      startChat: 'Comenzar Chat',
+      connecting: 'Conectando...',
+      initialMessage: '¡Hola! Inicié la atención por chat.',
+      inputPlaceholder: 'Escriba su mensaje...',
+      attachTitle: 'Adjuntar archivo',
+      removeFile: 'Quitar',
+      fileTooLarge: 'El archivo supera el límite de 5MB.',
+      endTitle: 'Finalizar atención',
+      minimizeTitle: 'Minimizar',
+      confirmEnd: '¿Desea finalizar esta atención?',
+      endedByYou: 'Usted finalizó la atención. ¡Gracias por contactarnos!',
+      endedByAgent: 'La atención fue finalizada por nuestro equipo. ¡Gracias por contactarnos!',
+      endedGeneric: 'La atención ha finalizado. ¡Gracias por contactarnos!',
+      endedInactivity: 'Atención finalizada por inactividad.',
+      endedWhileAway: 'Esta atención fue finalizada. Si lo necesita, inicie una nueva conversación.',
+      newChat: 'Iniciar nueva atención',
+      talkingWith: 'Está hablando con {name}',
+      downloadFile: 'Descargar archivo',
+      connectError: 'Error al conectar: ',
+      sendError: 'Error al enviar el mensaje: '
+    }
+  };
+
+  function t(key) {
+    const lang = /^pt/i.test(tenantLocale) ? 'pt' : /^es/i.test(tenantLocale) ? 'es' : 'en';
+    return (I18N[lang] && I18N[lang][key]) || I18N.pt[key] || key;
+  }
+
+  // Textos que o banco preenche com seed em PT: se o tenant nunca personalizou
+  // (valor vazio ou igual ao seed), usar o default traduzido no idioma do tenant.
+  const PT_SEEDS = {
+    welcome_title: 'Iniciar Atendimento',
+    welcome_subtitle: 'Preencha os campos abaixo para conversar em tempo real com a nossa equipe.',
+    pill_text: 'Fale conosco',
+    header_title: 'Atendimento Online',
+    header_subtitle: 'Fale conosco'
+  };
+
+  function cfgText(key, i18nKey) {
+    const value = (chatConfig[key] || '').trim();
+    if (!value || value === PT_SEEDS[key]) return t(i18nKey);
+    return value;
+  }
+
+  // Horário no locale e timezone do tenant (fonte de verdade), com fallback
+  function formatTime(isoDate) {
+    const d = new Date(isoDate);
+    try {
+      return d.toLocaleTimeString(tenantLocale, { hour: '2-digit', minute: '2-digit', timeZone: tenantTimezone });
+    } catch (err) {
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+  }
 
   // Carregar biblioteca Supabase do CDN de forma assíncrona se não estiver disponível
   function loadSupabaseAndConnect() {
@@ -692,17 +829,21 @@
     }
     supabaseClient = window._traffioSupabaseClient;
 
-    // Buscar configurações do banco de dados (bypass RLS se ativo)
+    // Buscar configuração do widget + idioma/timezone do tenant (fonte de verdade)
     try {
-      const { data, error } = await supabaseClient
-        .from('tenant_livechat_configs')
-        .select('primary_color, welcome_title, welcome_subtitle, pill_text, header_title, header_subtitle, inactivity_timeout_minutes, is_active')
-        .eq('tenant_id', tenantId)
-        .maybeSingle();
-
-      if (error) throw error;
-      if (data) {
-        chatConfig = data;
+      const response = await fetch(`${supabaseUrl}/functions/v1/livechat-visitor-message`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${supabaseAnonKey}`
+        },
+        body: JSON.stringify({ action: "get_config", tenant_id: tenantId })
+      });
+      const data = await response.json();
+      if (data && data.success) {
+        if (data.config) chatConfig = data.config;
+        if (data.locale) tenantLocale = data.locale;
+        if (data.timezone) tenantTimezone = data.timezone;
       }
     } catch (err) {
       console.error("[Traffio LiveChat] Erro ao carregar configurações:", err);
@@ -747,31 +888,38 @@
 
     updateHeader();
 
+    // Traduzir os textos estáticos do widget para o idioma do tenant
+    chatInput.placeholder = t('inputPlaceholder');
+    attachBtn.title = t('attachTitle');
+    endBtn.title = t('endTitle');
+    closeBtn.title = t('minimizeTitle');
+    fileCancelBtn.textContent = t('removeFile');
+
     // Atualizar títulos no formulário de registro, se visível
     const formTitle = document.getElementById("traffio-form-title-el");
     if (formTitle) {
-      formTitle.textContent = chatConfig.welcome_title || 'Iniciar Atendimento';
+      formTitle.textContent = cfgText('welcome_title', 'welcome_title');
     }
     const formSubtitle = document.getElementById("traffio-form-subtitle-el");
     if (formSubtitle) {
-      formSubtitle.textContent = chatConfig.welcome_subtitle || 'Preencha os campos abaixo...';
+      formSubtitle.textContent = cfgText('welcome_subtitle', 'welcome_subtitle');
     }
     const chatPill = document.getElementById("traffio-pill");
     if (chatPill) {
-      chatPill.textContent = chatConfig.pill_text || 'Fale conosco';
+      chatPill.textContent = cfgText('pill_text', 'pill');
     }
   }
 
   // Cabeçalho dinâmico: título/subtítulo das configurações; quando um atendente
   // assume a conversa, o subtítulo e o avatar passam a exibir o nome dele
   function updateHeader() {
-    const title = chatConfig.header_title || 'Atendimento Online';
+    const title = cfgText('header_title', 'header_title');
     headerTitleEl.textContent = title;
     if (agentName) {
-      headerSubEl.textContent = `Você está falando com ${agentName}`;
+      headerSubEl.textContent = t('talkingWith').replace('{name}', agentName);
       avatarEl.textContent = agentName.trim().charAt(0).toUpperCase();
     } else {
-      headerSubEl.textContent = chatConfig.header_subtitle || 'Fale conosco';
+      headerSubEl.textContent = cfgText('header_subtitle', 'header_subtitle');
       avatarEl.textContent = (title.trim().charAt(0) || 'A').toUpperCase();
     }
   }
@@ -791,23 +939,23 @@
     endBtn.style.display = "none";
     chatBody.innerHTML = `
       <div class="traffio-chat-form-container">
-        <h3 class="traffio-chat-form-title" id="traffio-form-title-el">${escapeHtml(chatConfig.welcome_title || 'Iniciar Atendimento')}</h3>
-        <p class="traffio-chat-form-subtitle" id="traffio-form-subtitle-el">${escapeHtml(chatConfig.welcome_subtitle || 'Preencha os campos abaixo para conversar em tempo real com a nossa equipe.')}</p>
+        <h3 class="traffio-chat-form-title" id="traffio-form-title-el">${escapeHtml(cfgText('welcome_title', 'welcome_title'))}</h3>
+        <p class="traffio-chat-form-subtitle" id="traffio-form-subtitle-el">${escapeHtml(cfgText('welcome_subtitle', 'welcome_subtitle'))}</p>
 
         <form id="traffio-reg-form">
           <div class="traffio-chat-form-group">
-            <label for="traffio-reg-name">Seu Nome *</label>
-            <input type="text" id="traffio-reg-name" required placeholder="Digite seu nome completo" />
+            <label for="traffio-reg-name">${escapeHtml(t('nameLabel'))}</label>
+            <input type="text" id="traffio-reg-name" required placeholder="${escapeHtml(t('namePlaceholder'))}" />
           </div>
           <div class="traffio-chat-form-group" style="margin-top: 10px;">
-            <label for="traffio-reg-email">E-mail *</label>
-            <input type="email" id="traffio-reg-email" required placeholder="exemplo@email.com" />
+            <label for="traffio-reg-email">${escapeHtml(t('emailLabel'))}</label>
+            <input type="email" id="traffio-reg-email" required placeholder="${escapeHtml(t('emailPlaceholder'))}" />
           </div>
           <div class="traffio-chat-form-group" style="margin-top: 10px;">
-            <label for="traffio-reg-phone">Telefone (Mobile) *</label>
-            <input type="tel" id="traffio-reg-phone" required placeholder="Ex: +64 21 000 0000" />
+            <label for="traffio-reg-phone">${escapeHtml(t('phoneLabel'))}</label>
+            <input type="tel" id="traffio-reg-phone" required placeholder="${escapeHtml(t('phonePlaceholder'))}" />
           </div>
-          <button type="submit" class="traffio-chat-form-btn" id="traffio-reg-submit">Começar Chat</button>
+          <button type="submit" class="traffio-chat-form-btn" id="traffio-reg-submit">${escapeHtml(t('startChat'))}</button>
         </form>
       </div>
     `;
@@ -817,7 +965,7 @@
       e.preventDefault();
       const submitBtn = document.getElementById("traffio-reg-submit");
       submitBtn.disabled = true;
-      submitBtn.textContent = "Conectando...";
+      submitBtn.textContent = t('connecting');
 
       const nameVal = document.getElementById("traffio-reg-name").value;
       const emailVal = document.getElementById("traffio-reg-email").value;
@@ -836,7 +984,7 @@
             visitor_name: nameVal,
             visitor_email: emailVal,
             visitor_phone: phoneVal,
-            content: "Olá! Iniciei o atendimento no chat."
+            content: t('initialMessage')
           })
         });
 
@@ -856,9 +1004,9 @@
         startInactivityWatcher();
 
       } catch (error) {
-        alert("Erro ao conectar: " + error.message);
+        alert(t('connectError') + error.message);
         submitBtn.disabled = false;
-        submitBtn.textContent = "Começar Chat";
+        submitBtn.textContent = t('startChat');
       }
     });
   }
@@ -937,7 +1085,7 @@
       <div class="traffio-chat-ended-container">
         <div class="traffio-chat-ended-icon">✓</div>
         <p class="traffio-chat-ended-text">${escapeHtml(message)}</p>
-        <button class="traffio-chat-new-chat-btn" id="traffio-new-chat-btn">Iniciar novo atendimento</button>
+        <button class="traffio-chat-new-chat-btn" id="traffio-new-chat-btn">${escapeHtml(t('newChat'))}</button>
       </div>
     `;
     document.getElementById("traffio-new-chat-btn").addEventListener("click", () => {
@@ -964,7 +1112,7 @@
       if (data.success && data.messages) {
         // Sessão foi encerrada pela clínica enquanto o visitante estava fora
         if (data.session_status === 'closed') {
-          endSession("Este atendimento foi encerrado. Se precisar, inicie uma nova conversa.", false);
+          endSession(t('endedWhileAway'), false);
           return;
         }
         if (data.agent_name) setAgentName(data.agent_name);
@@ -1012,12 +1160,7 @@
         // Se o próprio visitante encerrou nesta aba, endSession já limpou o estado
         if (!activeSessionId) return;
         const closedByVisitor = payload && payload.payload && payload.payload.closed_by === 'visitor';
-        endSession(
-          closedByVisitor
-            ? "O atendimento foi encerrado. Obrigado pelo contato!"
-            : "O atendimento foi encerrado pela nossa equipe. Obrigado pelo contato!",
-          false
-        );
+        endSession(closedByVisitor ? t('endedGeneric') : t('endedByAgent'), false);
       })
       .subscribe();
   }
@@ -1040,11 +1183,11 @@
         mediaMarkup = `
           <a class="file-link" href="${mediaUrl}" target="_blank" rel="noopener">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            ${escapeHtml(msg.file_name || "Baixar arquivo")}
+            ${escapeHtml(msg.file_name || t('downloadFile'))}
           </a>`;
       }
 
-      const timeString = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const timeString = formatTime(msg.created_at);
 
       // Nome de quem enviou, acima das mensagens do atendente
       const senderLabel = (!isVisitor && msg.role === "human" && (msg.sender_name || agentName))
@@ -1077,7 +1220,7 @@
 
     // Validar tamanho máximo (5MB)
     if (file.size > 5 * 1024 * 1024) {
-      alert("O arquivo excede o limite máximo de 5MB.");
+      alert(t('fileTooLarge'));
       fileInput.value = "";
       return;
     }
@@ -1167,7 +1310,7 @@
       // Remover a mensagem temporária em caso de falha
       messagesList = messagesList.filter((m) => m.id !== tempMsg.id);
       renderMessages();
-      alert("Erro ao enviar mensagem: " + err.message);
+      alert(t('sendError') + err.message);
     }
   }
 
