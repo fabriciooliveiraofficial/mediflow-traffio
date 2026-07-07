@@ -539,6 +539,7 @@
     "mmsPlaceholder": "+1 555 123-4567",
     "emailIdLabel": "Email address",
     "emailPlaceholder": "example@email.com",
+    "emailRequired": "Enter a valid e-mail address to receive e-mail notifications.",
     "loading": "Loading...",
     "compactHeading": "Notification Channel",
     "manual": "Manual",

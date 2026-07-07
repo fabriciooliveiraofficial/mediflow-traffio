@@ -98,6 +98,7 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
   const [selectedChannels, setSelectedChannels] = useState<Channel[]>(['whatsapp']);
   const [whatsappPhone, setWhatsappPhone] = useState('');
   const [smsPhone,      setSmsPhone]      = useState('');
+  const [emailAddress,  setEmailAddress]  = useState('');
   const [updatedBy,     setUpdatedBy]     = useState<'auto' | 'manual'>('auto');
   const [saving,        setSaving]        = useState(false);
   const [saved,         setSaved]         = useState(false);
@@ -139,6 +140,7 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
       setSelectedChannels(activeChannels);
       setWhatsappPhone(data.whatsapp_phone ? formatNational(data.whatsapp_phone) : '');
       setSmsPhone(data.sms_phone ? formatNational(data.sms_phone) : '');
+      setEmailAddress(data.email ?? '');
       setUpdatedBy(data.updated_by ?? 'auto');
     }
     setLoading(false);
@@ -205,6 +207,7 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
 
     const cleanWhatsapp = whatsappPhone ? toE164(whatsappPhone, countryCode) : null;
     const cleanSms = smsPhone ? toE164(smsPhone, countryCode) : null;
+    const cleanEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailAddress.trim()) ? emailAddress.trim() : null;
 
     const activeChannelsToSave = selectedChannels.filter(id => {
       if (!enabledChannels) return true;
@@ -221,6 +224,7 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
       updated_at:       new Date().toISOString(),
       whatsapp_phone:   cleanWhatsapp,
       sms_phone:        cleanSms,
+      email:            cleanEmail,
     };
 
     await supabase
@@ -244,7 +248,11 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
 
   const showWhatsappInput = selectedChannels.includes('whatsapp');
   const showSmsInput = selectedChannels.includes('sms') || selectedChannels.includes('mms');
-  const hasInputs = showWhatsappInput || showSmsInput;
+  const showEmailInput = selectedChannels.includes('email');
+  const hasInputs = showWhatsappInput || showSmsInput || showEmailInput;
+
+  // E-mail é obrigatório quando o canal e-mail está selecionado
+  const emailValid = !showEmailInput || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailAddress.trim());
 
   const renderInputFields = (isCompact: boolean) => {
     if (!hasInputs) return null;
@@ -287,9 +295,29 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
           </div>
         )}
 
+        {showEmailInput && (
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-graphite-500 uppercase tracking-wider">
+              E-mail
+            </label>
+            <input
+              type="email"
+              value={emailAddress}
+              onChange={(e) => setEmailAddress(e.target.value)}
+              placeholder={t('channelPreferenceSelector.emailPlaceholder')}
+              className={`w-full ${isCompact ? 'text-xs px-2.5 py-1.5' : 'text-sm px-3 py-2'} bg-white border ${emailValid ? 'border-ice-200' : 'border-rose-300'} rounded-xl focus:outline-none focus:border-brand-primary font-medium`}
+            />
+            {!emailValid && (
+              <p className="text-[10px] text-rose-500 font-bold">
+                {t('channelPreferenceSelector.emailRequired', { defaultValue: 'Informe um e-mail válido para receber notificações por e-mail.' })}
+              </p>
+            )}
+          </div>
+        )}
+
         <button
           onClick={handleSaveDetails}
-          disabled={saving}
+          disabled={saving || !emailValid}
           className={`w-full mt-1 px-3 ${isCompact ? 'py-2 text-xs' : 'py-2.5 text-sm'} bg-brand-primary text-white font-bold rounded-xl disabled:opacity-40 border-none cursor-pointer flex items-center justify-center gap-1.5`}
         >
           {saving ? (

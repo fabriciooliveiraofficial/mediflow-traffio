@@ -142,6 +142,24 @@ interface ChannelInfo {
     recipientId: string;   // phone/email para whatsapp/sms/email; IGSID/PSID para instagram/facebook
 }
 
+// Interseção: preferência do paciente × Matriz de Canais do tenant.
+// - Canais fora da matriz (instagram/facebook) seguem a preferência do paciente;
+// - Canais presentes na matriz exigem a automação explicitamente habilitada;
+// - E-mail sem endereço válido é descartado.
+// NUNCA faz fallback silencioso para WhatsApp: sem canal elegível → não envia.
+function filterChannelsByMatrix(
+    channels: ChannelInfo[],
+    matrix: Record<string, any>,
+    automationKey: string,
+): ChannelInfo[] {
+    return channels.filter((c) => {
+        if (c.channel === "email" && !(c.recipientId || "").includes("@")) return false;
+        const row = matrix?.[c.channel];
+        if (row === undefined) return true;
+        return row?.[automationKey] === true;
+    });
+}
+
 // ─── Handler principal ───────────────────────────────────────────────────────
 
 serve(async (req: Request) => {
@@ -165,7 +183,7 @@ serve(async (req: Request) => {
             .from("appointments")
             .select(`
                 id, tenant_id, date, start_time, status, created_at, booked_by,
-                patients(phone, full_name, preferred_locale),
+                patients(phone, full_name, preferred_locale, email),
                 doctors(full_name),
                 locations(id, name, address, google_maps_url, latitude, longitude),
                 appointment_types(name)
@@ -330,11 +348,29 @@ serve(async (req: Request) => {
                 locale:            patientLocale,
             };
 
-            // Canal preferido deste paciente (ou fallback whatsapp)
-            const channelsInfo: ChannelInfo[] = channelMap[patientData.phone] ?? [{
+            // Canais preferidos do paciente ∩ Matriz de Canais do tenant.
+            // Sem canal elegível → lembretes NÃO são enfileirados (nunca cair
+            // silenciosamente para WhatsApp com o canal desligado na matriz).
+            const preferredChannels: ChannelInfo[] = channelMap[patientData.phone] ?? [{
                 channel:     "whatsapp",
                 recipientId: patientData.phone,
             }];
+            const channelMatrix = (botConfig.channel_automations ?? {}) as Record<string, any>;
+            let channelsInfo = filterChannelsByMatrix(preferredChannels, channelMatrix, "no_show");
+
+            // Matriz só-e-mail + paciente sem preferência salva: usar o e-mail do cadastro
+            if (
+                channelsInfo.length === 0 &&
+                channelMatrix.email?.no_show === true &&
+                (patientData.email || "").includes("@")
+            ) {
+                channelsInfo = [{ channel: "email", recipientId: patientData.email }];
+            }
+
+            if (channelsInfo.length === 0) {
+                console.log(`[schedule-reminders] Appt ${appt.id}: nenhum canal elegível (preferência × matriz) — lembretes não enfileirados`);
+                continue;
+            }
 
             const queueBatch: any[] = [];
 
@@ -502,7 +538,7 @@ serve(async (req: Request) => {
             .from("appointments")
             .select(`
                 id, tenant_id, patient_id,
-                patients(phone, full_name, preferred_locale)
+                patients(phone, full_name, preferred_locale, email)
             `)
             .eq("status", "completed")
             .gte("completed_at", completedSince);
@@ -527,15 +563,24 @@ serve(async (req: Request) => {
             let targetTime = now.getTime() + delayMinutes * 60 * 1000;
             const scheduledTime = getSafeScheduledTime(new Date(targetTime), "nps", timezone);
 
-            // Canal preferido
+            // Canais preferidos do paciente ∩ matriz do tenant (coluna NPS).
+            // Sem canal elegível → NPS não é enviado (sem fallback para WhatsApp).
             const channelsForPatient: ChannelInfo[] = channelMap[patientData.phone] ?? [{
                 channel:     "whatsapp",
                 recipientId: patientData.phone,
             }];
 
-            const npsChannel = channelsForPatient.find((c) =>
-                npsChannels[c.channel]?.nps
-            ) ?? { channel: "whatsapp" as const, recipientId: patientData.phone };
+            const eligibleNps = filterChannelsByMatrix(channelsForPatient, npsChannels, "nps");
+
+            let npsChannel = eligibleNps[0];
+            // Matriz só-e-mail + paciente sem preferência salva: e-mail do cadastro
+            if (!npsChannel && npsChannels.email?.nps === true && (patientData.email || "").includes("@")) {
+                npsChannel = { channel: "email", recipientId: patientData.email };
+            }
+            if (!npsChannel) {
+                console.log(`[schedule-reminders] NPS Appt ${appt.id}: nenhum canal elegível — não enviado`);
+                continue;
+            }
 
             const locale = (() => {
                 const l = (botConfig?.notification_locale || patientData.preferred_locale || "pt").toLowerCase();

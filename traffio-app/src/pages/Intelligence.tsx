@@ -164,7 +164,7 @@ export const Intelligence = () => {
             whatsapp: { no_show: true, videos: true, nps: true, recovery: true },
             sms: { no_show: true, videos: false, nps: true, recovery: false },
             mms: { no_show: true, videos: true, nps: false },
-            email: { no_show: false, videos: false, nps: true }
+            email: { no_show: false, videos: false, nps: true, recovery: false }
         },
         recovery_captions: DEFAULT_RECOVERY_CAPTIONS,
         custom_reminders: [
@@ -375,7 +375,8 @@ export const Intelligence = () => {
                         return {
                             ...base,
                             whatsapp: { recovery: true, ...(base.whatsapp || {}) },
-                            sms: { recovery: false, ...(base.sms || {}) }
+                            sms: { recovery: false, ...(base.sms || {}) },
+                            email: { recovery: false, ...(base.email || {}) }
                         };
                     })(),
                     recovery_captions: Object.fromEntries(
@@ -420,7 +421,7 @@ export const Intelligence = () => {
                 whatsapp: !!(config.channel_automations?.whatsapp?.no_show || config.channel_automations?.whatsapp?.videos || config.channel_automations?.whatsapp?.nps || config.channel_automations?.whatsapp?.recovery),
                 sms: !!(config.channel_automations?.sms?.no_show || config.channel_automations?.sms?.nps || config.channel_automations?.sms?.recovery),
                 mms: !!(config.channel_automations?.mms?.no_show || config.channel_automations?.mms?.videos || config.channel_automations?.mms?.nps),
-                email: !!(config.channel_automations?.email?.no_show || config.channel_automations?.email?.nps),
+                email: !!(config.channel_automations?.email?.no_show || config.channel_automations?.email?.nps || config.channel_automations?.email?.recovery),
                 instagram: false,
                 facebook: false
             };
@@ -762,7 +763,7 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
                                     label="E-mail"
                                     config={config}
                                     setConfig={setConfig}
-                                    supports={{ no_show: true, videos: false, nps: true, recovery: false }}
+                                    supports={{ no_show: true, videos: false, nps: true, recovery: true }}
                                     videoFallbackLabel={t('intelligence.matrixSection.linkOnly', { defaultValue: 'Apenas Link' })}
                                 />
                                 <MatrixRowMetaDisabled
@@ -1182,7 +1183,8 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
                 {/* ── Recuperação de Pacientes (Faltas — cadência D0/D2/D7 + Recall) ── */}
                 {!!(
                     config.channel_automations?.whatsapp?.recovery ||
-                    config.channel_automations?.sms?.recovery
+                    config.channel_automations?.sms?.recovery ||
+                    config.channel_automations?.email?.recovery
                 ) && (
                     <div className="space-y-5 bg-rose-50/30 p-8 rounded-3xl shadow-float animate-in fade-in duration-500">
                         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">

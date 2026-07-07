@@ -108,7 +108,7 @@ serve(async (req: Request) => {
             // 2. Buscar pacientes deste tenant com last_visit_at antiga
             const { data: patients, error: patientsErr } = await supabase
                 .from("patients")
-                .select("id, full_name, phone, preferred_locale")
+                .select("id, full_name, phone, preferred_locale, email")
                 .eq("tenant_id", tenant.id)
                 .lt("last_visit_at", cutoffDate.toISOString())
                 .not("phone", "is", null)
@@ -137,29 +137,46 @@ serve(async (req: Request) => {
                     continue;
                 }
 
-                // 4. Determinar canal preferido
-                let channel     = "whatsapp";
-                let recipientId = patient.phone;
-
+                // 4. Determinar canal: preferência do paciente ∩ matriz do tenant.
+                // Recall pertence à coluna "Recuperação" da matriz. Sem canal
+                // elegível → paciente é pulado (nunca fallback para WhatsApp).
                 const { data: pref } = await supabase
                     .from("patient_channel_preferences")
                     .select("preferred_channel, sms_phone, whatsapp_phone, email")
+                    .eq("tenant_id", tenant.id)
                     .eq("patient_phone", patient.phone)
                     .maybeSingle();
 
-                if (pref?.preferred_channel) {
-                    channel = pref.preferred_channel;
-                    if (channel === "sms")       recipientId = pref.sms_phone      ?? patient.phone;
-                    if (channel === "whatsapp")  recipientId = pref.whatsapp_phone ?? patient.phone;
-                    if (channel === "email")     recipientId = pref.email          ?? patient.phone;
+                // preferred_channel pode ser lista ("whatsapp,email")
+                const preferredList = (pref?.preferred_channel || "whatsapp")
+                    .split(",")
+                    .map((c: string) => c.trim())
+                    .filter(Boolean);
+
+                const resolveRecipient = (ch: string): string => {
+                    if (ch === "sms" || ch === "mms") return pref?.sms_phone ?? patient.phone;
+                    if (ch === "email")               return pref?.email ?? patient.email ?? "";
+                    return pref?.whatsapp_phone ?? patient.phone;
+                };
+
+                const channelAutomations = (botConfig.channel_automations ?? {}) as Record<string, any>;
+                const eligible = preferredList.filter((ch: string) => {
+                    if (ch === "email" && !resolveRecipient("email").includes("@")) return false;
+                    const row = channelAutomations[ch];
+                    if (row === undefined) return true; // canais fora da matriz (instagram/facebook)
+                    // WhatsApp: default ligado (configs antigas sem a chave 'recovery'),
+                    // mesma semântica do process-outbound
+                    if (ch === "whatsapp") return row?.recovery !== false;
+                    return row?.recovery === true;
+                });
+
+                if (eligible.length === 0) {
+                    console.log(`[check-recall] Sem canal elegível para ${patient.phone} (tenant ${tenant.id}) — recall não enviado`);
+                    continue;
                 }
 
-                // Verificar se o canal tem automações habilitadas
-                const channelAutomations = (botConfig.channel_automations ?? {}) as Record<string, any>;
-                const channelEnabled     = channelAutomations[channel]?.no_show === true
-                    || channelAutomations[channel]?.nps === true;
-
-                if (!channelEnabled) channel = "whatsapp"; // fallback
+                const channel     = eligible[0];
+                const recipientId = resolveRecipient(channel);
 
                 // 5. Calcular scheduled_at (próxima 9h local do tenant)
                 const scheduledAt = getRecallScheduledAt(timezone);

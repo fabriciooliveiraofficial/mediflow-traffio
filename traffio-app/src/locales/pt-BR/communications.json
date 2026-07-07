@@ -544,6 +544,7 @@
     "mmsPlaceholder": "+1 555-555-5555",
     "emailIdLabel": "Endereço de E-mail",
     "emailPlaceholder": "exemplo@email.com",
+    "emailRequired": "Informe um e-mail válido para receber notificações por e-mail.",
     "loading": "Carregando...",
     "compactHeading": "Canal de Notificação",
     "manual": "Manual",

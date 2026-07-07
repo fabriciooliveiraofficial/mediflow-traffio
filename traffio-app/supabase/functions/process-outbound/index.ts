@@ -23,6 +23,8 @@ import { getTelnyxApiKey } from "../_shared/masterConfig.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { getSmsPricing } from "../_shared/pricing.ts";
 import { logPlatform } from "../_shared/logger.ts";
+import { sendTenantEmail, isValidEmail } from "../_shared/emailClient.ts";
+import { getEmailSubject, renderEmailHtml, buildIcsAttachment } from "../_shared/emailTemplates.ts";
 
 console.log("process-outbound v4 — Fair-claim + paralelo Initialized");
 
@@ -158,7 +160,7 @@ serve(async (req: Request) => {
     const tenantIds = [...new Set(queue.map((m: any) => m.tenant_id))];
     const { data: tenants } = await supabase
       .from('tenants')
-      .select('id, name, zapi_instance_id, zapi_token, zapi_client_token, whatsapp_provider, cloud_api_phone_number_id, cloud_api_access_token, telnyx_api_key, sms_enabled, bot_config, timezone')
+      .select('id, name, zapi_instance_id, zapi_token, zapi_client_token, whatsapp_provider, cloud_api_phone_number_id, cloud_api_access_token, telnyx_api_key, sms_enabled, bot_config, timezone, smtp_host, smtp_port, smtp_user, smtp_pass, smtp_from')
       .in('id', tenantIds);
     const tenantMap: Record<string, any> = Object.fromEntries((tenants ?? []).map((t: any) => [t.id, t]));
 
@@ -170,7 +172,7 @@ serve(async (req: Request) => {
     const apptMap: Record<string, any> = {};
     if (apptIds.length > 0) {
       const { data: appts } = await supabase
-        .from('appointments').select('id, status, confirmation_status')
+        .from('appointments').select('id, status, confirmation_status, date, start_time')
         .in('id', apptIds);
       for (const a of appts ?? []) apptMap[a.id] = a;
     }
@@ -224,6 +226,27 @@ serve(async (req: Request) => {
     const outbox = new OutboxDispatcher(supabase);
     let processed = 0;
 
+    // Resolve o e-mail do paciente: preferência explícita → cadastro do paciente
+    const resolvePatientEmail = async (tenantId: string, patientPhone: string): Promise<string | null> => {
+      const { data: pref } = await supabase
+        .from('patient_channel_preferences')
+        .select('email')
+        .eq('tenant_id', tenantId)
+        .eq('patient_phone', patientPhone)
+        .maybeSingle();
+      if (isValidEmail(pref?.email)) return pref!.email;
+
+      const clean = (patientPhone || '').replace(/\D/g, '');
+      const { data: patients } = await supabase
+        .from('patients')
+        .select('email')
+        .eq('tenant_id', tenantId)
+        .or(`phone.eq.${clean},phone.eq.+${clean}`)
+        .limit(1);
+      const email = patients?.[0]?.email;
+      return isValidEmail(email) ? email : null;
+    };
+
     // 6. Processar o lote em paralelo (concorrência limitada)
     await runPool(queue, 15, async (msg: any) => {
       const tenant = tenantMap[msg.tenant_id];
@@ -261,19 +284,80 @@ serve(async (req: Request) => {
         return;
       }
 
+      const channelMatrix = tenant?.bot_config?.channel_automations ?? {};
+
+      // ── Guard da Matriz de Canais: NPS ────────────────────────────────────
+      // Cobre mensagens enfileiradas por trigger/engine com canal desatualizado:
+      // se o canal escolhido está desabilitado para NPS na matriz, re-roteia para
+      // o primeiro canal habilitado; sem canal elegível, cancela (nunca envia
+      // por um canal que o tenant desligou).
+      if (msg.message_type === 'nps_survey' || msg.template_key === 'nps_survey') {
+        const ch = msg.notification_channel ?? 'whatsapp';
+        const row = channelMatrix[ch];
+        if (row !== undefined && row?.nps !== true) {
+          if (channelMatrix.whatsapp?.nps === true) {
+            msg.notification_channel = 'whatsapp';
+            msg.channel_recipient_id = msg.patient_phone;
+          } else if (channelMatrix.sms?.nps === true) {
+            msg.notification_channel = 'sms';
+            msg.channel_recipient_id = msg.patient_phone;
+          } else if (channelMatrix.email?.nps === true) {
+            const email = await resolvePatientEmail(msg.tenant_id, msg.patient_phone);
+            if (!email) {
+              await supabase.from('outbound_message_queue')
+                .update({ status: 'cancelled', error_message: 'NPS by e-mail enabled but patient has no e-mail address' }).eq('id', msg.id);
+              return;
+            }
+            msg.notification_channel = 'email';
+            msg.channel_recipient_id = email;
+          } else {
+            await supabase.from('outbound_message_queue')
+              .update({ status: 'cancelled', error_message: `NPS disabled for channel '${ch}' in channel matrix` }).eq('id', msg.id);
+            return;
+          }
+        }
+      }
+
+      // ── Guard da Matriz de Canais: lembretes/no-show prevention ─────────
+      // O scheduler enfileira uma linha por canal elegível; linhas antigas com
+      // canal desabilitado na matriz são canceladas (sem re-roteio para evitar
+      // duplicidade com a linha do canal correto).
+      if (msg.template_key?.startsWith('appointment_reminder')) {
+        const ch = msg.notification_channel ?? 'whatsapp';
+        const row = channelMatrix[ch];
+        if (row !== undefined && row?.no_show !== true) {
+          await supabase.from('outbound_message_queue')
+            .update({ status: 'cancelled', error_message: `Reminders disabled for channel '${ch}' in channel matrix` }).eq('id', msg.id);
+          return;
+        }
+      }
+
       // ── Recuperação (CRM): canal definido na Matriz de Canais do tenant ──
       // A fila é populada pelo motor SQL sem notification_channel; o canal de
       // entrega é decidido aqui via bot_config.channel_automations.<canal>.recovery.
       if (msg.reference_type === 'crm_journey' && RECOVERY_TEMPLATE_KEYS.includes(msg.template_key)) {
-        const autos = tenant?.bot_config?.channel_automations ?? {};
-        const waOn  = autos.whatsapp?.recovery !== false; // default: WhatsApp ligado
-        const smsOn = autos.sms?.recovery === true;
-        if (!waOn && !smsOn) {
+        const waOn    = channelMatrix.whatsapp?.recovery !== false; // default: WhatsApp ligado
+        const smsOn   = channelMatrix.sms?.recovery === true;
+        const emailOn = channelMatrix.email?.recovery === true;
+        if (!waOn && !smsOn && !emailOn) {
           await supabase.from('outbound_message_queue')
             .update({ status: 'cancelled', error_message: 'Recovery automation disabled in channel matrix' }).eq('id', msg.id);
           return;
         }
-        msg.notification_channel = waOn ? 'whatsapp' : 'sms';
+        if (waOn) {
+          msg.notification_channel = 'whatsapp';
+        } else if (smsOn) {
+          msg.notification_channel = 'sms';
+        } else {
+          const email = await resolvePatientEmail(msg.tenant_id, msg.patient_phone);
+          if (!email) {
+            await supabase.from('outbound_message_queue')
+              .update({ status: 'cancelled', error_message: 'Recovery by e-mail enabled but patient has no e-mail address' }).eq('id', msg.id);
+            return;
+          }
+          msg.notification_channel = 'email';
+          msg.channel_recipient_id = email;
+        }
       }
 
       try {
@@ -392,6 +476,66 @@ serve(async (req: Request) => {
                 total_cost_usd:      pricing.unitCostUsd,
                 billing_period:      periodStr,
                 tenant_phone_number: senderRow.phone_number,
+              });
+            } catch {
+              // Ignore tracking error
+            }
+            break;
+          }
+
+          case 'email': {
+            const to = isValidEmail(recipient)
+              ? recipient
+              : await resolvePatientEmail(msg.tenant_id, msg.patient_phone);
+            if (!to) throw new Error(`No e-mail address found for patient ${msg.patient_phone}`);
+
+            const emailLocale = (msg.template_vars?.locale || tenant?.bot_config?.notification_locale || 'pt') as string;
+            const subject = getEmailSubject(msg.template_key, msg.template_vars, emailLocale);
+
+            const isReminder = !!msg.template_key?.startsWith('appointment_reminder');
+            const ctaUrl = isReminder ? (msg.template_vars?.checkin_link || msg.template_vars?.waiting_room_link || null) : null;
+            const ctaLang = emailLocale.startsWith('en') ? 'en' : emailLocale.startsWith('es') ? 'es' : 'pt';
+            const ctaLabel = ctaUrl
+              ? ({ pt: 'Confirmar presença', en: 'Confirm attendance', es: 'Confirmar asistencia' } as Record<string, string>)[ctaLang]
+              : null;
+
+            const html = renderEmailHtml({
+              clinicName: tenant?.name || msg.template_vars?.clinic_name || 'Clínica',
+              bodyText:   text,
+              locale:     emailLocale,
+              ctaUrl,
+              ctaLabel,
+            });
+
+            // Convite de calendário (.ics) para lembretes de agendamento
+            let attachments: { filename: string; content: string; contentType: string }[] | undefined;
+            if (isReminder && appt?.date && appt?.start_time) {
+              const ics = buildIcsAttachment({
+                uid:         appt.id,
+                date:        appt.date,
+                startTime:   appt.start_time,
+                timezone:    tenantTimezone,
+                summary:     `${msg.template_vars?.procedure_name || 'Consulta'} — ${tenant?.name || ''}`.replace(/ — $/, ''),
+                description: msg.template_vars?.doctor_name || undefined,
+                location:    msg.template_vars?.location_name || undefined,
+              });
+              if (ics) attachments = [ics];
+            }
+
+            await sendTenantEmail(tenant, { to, subject, text, html, attachments });
+
+            // Rastrear uso (não-bloqueante, custo zero — SMTP do próprio tenant)
+            const emailPeriod = new Date();
+            const emailPeriodStr = `${emailPeriod.getFullYear()}-${String(emailPeriod.getMonth() + 1).padStart(2, "0")}-01`;
+            try {
+              await supabase.from("tenant_usage_log").insert({
+                tenant_id:      msg.tenant_id,
+                resource_type:  "email_outbound",
+                resource_id:    msg.id,
+                quantity:       1,
+                unit_cost_usd:  0,
+                total_cost_usd: 0,
+                billing_period: emailPeriodStr,
               });
             } catch {
               // Ignore tracking error
