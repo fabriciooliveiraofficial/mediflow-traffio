@@ -214,13 +214,35 @@ serve(async (req: Request) => {
       if (sessionError) throw sessionError;
       console.log(`[livechat-visitor-message] Nova sessão de livechat criada: ${activeSessionId}`);
     } else {
-      // Reabrir ou atualizar a sessão existente, jogando-a de volta para a fila do painel se fechada
+      // Sessão existente: preservar o atendimento em andamento.
+      // Só volta para a fila ('queued') se a sessão estava FECHADA — se um
+      // atendente já está ativo (human_active), status e atribuição são mantidos
+      // para que a conversa continue na lista dele sem precisar "Assumir" de novo.
+      const { data: existingSession, error: fetchError } = await supabase
+        .from('conversation_sessions')
+        .select('omnichannel_status')
+        .eq('id', activeSessionId)
+        .eq('tenant_id', tenant_id)
+        .maybeSingle();
+
+      if (fetchError) throw fetchError;
+      if (!existingSession) {
+        return new Response(
+          JSON.stringify({ error: 'Sessão não encontrada.' }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+      if (existingSession.omnichannel_status === 'closed') {
+        updates.omnichannel_status = 'queued';
+        updates.closed_at = null;
+        updates.assigned_to_user_id = null;
+      }
+
       const { error: updateError } = await supabase
         .from('conversation_sessions')
-        .update({
-          omnichannel_status: 'queued',
-          updated_at: new Date().toISOString()
-        })
+        .update(updates)
         .eq('id', activeSessionId);
 
       if (updateError) throw updateError;
