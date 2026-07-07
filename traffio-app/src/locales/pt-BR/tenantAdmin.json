@@ -467,6 +467,18 @@
       "videoUploaded": "Vídeo carregado!",
       "videoUploadError": "Erro ao carregar vídeo."
     },
+    "health": {
+      "title": "Saúde do Motor de Notificações",
+      "statusOk": "Operacional",
+      "statusAlert": "Atenção",
+      "pending": "Mensagens Pendentes",
+      "sent24h": "Enviadas (24h)",
+      "failed24h": "Falhas (24h)",
+      "failureHint": "Há falhas de envio nas últimas 24h. Verifique as credenciais de WhatsApp/SMS nas Configurações.",
+      "byCategory": "Mensagens por Automação",
+      "categorySent": "Enviadas",
+      "categoryPending": "Pendentes"
+    },
     "matrixSection": {
       "title": "Matriz de Canais e Automações",
       "textOnly": "Apenas Texto",

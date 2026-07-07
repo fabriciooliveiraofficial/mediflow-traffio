@@ -467,6 +467,18 @@
       "videoUploaded": "Video uploaded!",
       "videoUploadError": "Error uploading video."
     },
+    "health": {
+      "title": "Notification Engine Health",
+      "statusOk": "Operational",
+      "statusAlert": "Attention",
+      "pending": "Pending Messages",
+      "sent24h": "Sent (24h)",
+      "failed24h": "Failures (24h)",
+      "failureHint": "There are delivery failures in the last 24h. Check your WhatsApp/SMS credentials in Settings.",
+      "byCategory": "Messages by Automation",
+      "categorySent": "Sent",
+      "categoryPending": "Pending"
+    },
     "matrixSection": {
       "title": "Channels and Automations Matrix",
       "textOnly": "Text Only",

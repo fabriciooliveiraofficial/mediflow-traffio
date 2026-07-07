@@ -1,30 +1,34 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Routes, Route, Navigate, useSearchParams } from 'react-router-dom'
 import { DashboardLayout } from './layouts/DashboardLayout'
-import { Dashboard } from './pages/Dashboard'
-import { AgendaMestra } from './pages/AgendaMestra'
-import { CrmLeads } from './pages/CrmLeads'
-import { FinancialDashboard } from './pages/FinancialDashboard'
-import { PatientDetails } from './pages/PatientDetails'
-import { Settings } from './pages/Settings'
-import { ReceptionDashboard } from './pages/ReceptionDashboard'
-import { AdminWhatsApp } from './pages/AdminWhatsApp'
-import { CommunicationsHub } from './pages/CommunicationsHub'
-import { Professionals } from './pages/admin/Professionals'
-import { Services } from './pages/admin/Services'
-import { OdontologyHub } from './pages/OdontologyHub'
-import { NutritionHub } from './pages/NutritionHub'
-import { Intelligence } from './pages/Intelligence'
-import { HumanInboxPage } from './pages/HumanInboxPage'
-import { FollowUpBoard } from './pages/FollowUpBoard'
-import { NotificationsPage } from './pages/NotificationsPage'
-import { PaymentsPage } from './pages/PaymentsPage'
-import { BillingPage } from './pages/BillingPage'
 import { PagarmeCallback } from './pages/PagarmeCallback'
-import { WaitingRoom } from './pages/patient/WaitingRoom'
-import { PreCheckin } from './pages/patient/PreCheckin'
-import { MedicalRecordsHub } from './pages/MedicalRecordsHub'
+
+// Lazy-loaded patient routes to prevent mobile devices from loading the entire admin bundle
+const WaitingRoom = lazy(() => import('./pages/patient/WaitingRoom').then(m => ({ default: m.WaitingRoom })));
+const PreCheckin = lazy(() => import('./pages/patient/PreCheckin').then(m => ({ default: m.PreCheckin })));
+
+// Lazy-loaded admin routes
+const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
+const AgendaMestra = lazy(() => import('./pages/AgendaMestra').then(m => ({ default: m.AgendaMestra })));
+const CrmLeads = lazy(() => import('./pages/CrmLeads').then(m => ({ default: m.CrmLeads })));
+const FinancialDashboard = lazy(() => import('./pages/FinancialDashboard').then(m => ({ default: m.FinancialDashboard })));
+const PatientDetails = lazy(() => import('./pages/PatientDetails').then(m => ({ default: m.PatientDetails })));
+const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
+const ReceptionDashboard = lazy(() => import('./pages/ReceptionDashboard').then(m => ({ default: m.ReceptionDashboard })));
+const AdminWhatsApp = lazy(() => import('./pages/AdminWhatsApp').then(m => ({ default: m.AdminWhatsApp })));
+const CommunicationsHub = lazy(() => import('./pages/CommunicationsHub').then(m => ({ default: m.CommunicationsHub })));
+const Professionals = lazy(() => import('./pages/admin/Professionals').then(m => ({ default: m.Professionals })));
+const Services = lazy(() => import('./pages/admin/Services').then(m => ({ default: m.Services })));
+const OdontologyHub = lazy(() => import('./pages/OdontologyHub').then(m => ({ default: m.OdontologyHub })));
+const NutritionHub = lazy(() => import('./pages/NutritionHub').then(m => ({ default: m.NutritionHub })));
+const Intelligence = lazy(() => import('./pages/Intelligence').then(m => ({ default: m.Intelligence })));
+const HumanInboxPage = lazy(() => import('./pages/HumanInboxPage').then(m => ({ default: m.HumanInboxPage })));
+const FollowUpBoard = lazy(() => import('./pages/FollowUpBoard').then(m => ({ default: m.FollowUpBoard })));
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage').then(m => ({ default: m.NotificationsPage })));
+const PaymentsPage = lazy(() => import('./pages/PaymentsPage').then(m => ({ default: m.PaymentsPage })));
+const BillingPage = lazy(() => import('./pages/BillingPage').then(m => ({ default: m.BillingPage })));
+const MedicalRecordsHub = lazy(() => import('./pages/MedicalRecordsHub').then(m => ({ default: m.MedicalRecordsHub })));
 import { LandingPage } from './pages/LandingPage'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
@@ -179,7 +183,13 @@ function TenantApp() {
             transition={{ duration: 0.3 }}
             className="h-full"
           >
-            {renderScreen()}
+            <Suspense fallback={
+              <div className="flex items-center justify-center h-full min-h-[300px]">
+                <Loader2 className="animate-spin text-brand-primary" size={32} />
+              </div>
+            }>
+              {renderScreen()}
+            </Suspense>
           </motion.div>
         </AnimatePresence>
       </SubscriptionGuard>
@@ -216,8 +226,24 @@ function AppRoutes() {
             <Route path="/termos" element={<TermsOfService />} />
 
             {/* Public Patient Routes */}
-            <Route path="/waiting-room" element={<WaitingRoom />} />
-            <Route path="/checkin" element={<PreCheckin />} />
+            <Route path="/waiting-room" element={
+              <Suspense fallback={
+                <div className="min-h-screen bg-ice-50 flex items-center justify-center p-4">
+                  <Loader2 className="animate-spin text-brand-primary" size={40} />
+                </div>
+              }>
+                <WaitingRoom />
+              </Suspense>
+            } />
+            <Route path="/checkin" element={
+              <Suspense fallback={
+                <div className="min-h-screen bg-ice-50 flex items-center justify-center p-4">
+                  <Loader2 className="animate-spin text-brand-primary" size={40} />
+                </div>
+              }>
+                <PreCheckin />
+              </Suspense>
+            } />
 
             {/* Protected Routes */}
             <Route

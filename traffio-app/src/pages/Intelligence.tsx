@@ -49,10 +49,16 @@ export interface CustomReminder {
     enabled: boolean;
 }
 
+export interface AutomationCategoryStats {
+    sent: number;
+    pending: number;
+}
+
 export interface MotorHealthStats {
     pending: number;
     sent24h: number;
     failed24h: number;
+    categories: Record<string, AutomationCategoryStats>;
     loading: boolean;
 }
 
@@ -127,7 +133,7 @@ export const Intelligence = () => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [healthStats, setHealthStats] = useState<MotorHealthStats>({
-        pending: 0, sent24h: 0, failed24h: 0, loading: true
+        pending: 0, sent24h: 0, failed24h: 0, categories: {}, loading: true
     });
     const [config, setConfig] = useState<BotConfig>({
         enabled: true,
@@ -216,7 +222,7 @@ export const Intelligence = () => {
         const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
         const fetchHealth = async () => {
-            const [pendingRes, sentRes, failedRes] = await Promise.all([
+            const [pendingRes, sentRes, failedRes, categoriesRes] = await Promise.all([
                 supabase.from('outbound_message_queue')
                     .select('*', { count: 'exact', head: true })
                     .eq('tenant_id', tenant.id).eq('status', 'pending'),
@@ -226,11 +232,22 @@ export const Intelligence = () => {
                 supabase.from('outbound_message_queue')
                     .select('*', { count: 'exact', head: true })
                     .eq('tenant_id', tenant.id).eq('status', 'failed').gte('created_at', since24h),
+                supabase.rpc('get_automation_hub_stats', { p_tenant_id: tenant.id }),
             ]);
+
+            const categories: Record<string, AutomationCategoryStats> = {};
+            for (const row of (categoriesRes.data as any[] | null) ?? []) {
+                categories[row.category] = {
+                    sent:    Number(row.sent_count)    || 0,
+                    pending: Number(row.pending_count) || 0,
+                };
+            }
+
             setHealthStats({
                 pending:  pendingRes.count  ?? 0,
                 sent24h:  sentRes.count     ?? 0,
                 failed24h: failedRes.count  ?? 0,
+                categories,
                 loading:  false,
             });
         };
@@ -521,6 +538,34 @@ export const Intelligence = () => {
 const MotorHealth = ({ stats }: { stats: MotorHealthStats }) => {
     const { t } = useTranslation('tenantAdmin');
 
+    // Categorias do Automation Hub — mesmos rótulos das colunas da Matriz de Canais
+    const categoryCards = [
+        {
+            key:   'no_show',
+            label: t('intelligence.matrixSection.headers.noShow', { defaultValue: 'Prevenção de No-Show' }),
+            icon:  Bell,
+            color: 'text-brand-primary',
+        },
+        {
+            key:   'videos',
+            label: t('intelligence.matrixSection.headers.videos', { defaultValue: 'Vídeos de Confirmação' }),
+            icon:  Video,
+            color: 'text-indigo-500',
+        },
+        {
+            key:   'nps',
+            label: t('intelligence.matrixSection.headers.nps', { defaultValue: 'Pesquisa NPS' }),
+            icon:  Star,
+            color: 'text-amber-500',
+        },
+        {
+            key:   'recovery',
+            label: t('intelligence.matrixSection.headers.recovery', { defaultValue: 'Recuperação de Faltas' }),
+            icon:  Clock,
+            color: 'text-rose-500',
+        },
+    ];
+
     const cards = [
         {
             label: t('intelligence.health.pending', { defaultValue: 'Mensagens Pendentes' }),
@@ -591,6 +636,47 @@ const MotorHealth = ({ stats }: { stats: MotorHealthStats }) => {
                     </p>
                 </div>
             )}
+
+            {/* ── Enviadas × Pendentes por categoria de automação ── */}
+            <div className="pt-2 border-t border-ice-100 space-y-3">
+                <h4 className="text-[10px] font-black text-graphite-400 uppercase tracking-wider">
+                    {t('intelligence.health.byCategory', { defaultValue: 'Mensagens por Automação' })}
+                </h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {categoryCards.map((card) => {
+                        const Icon = card.icon;
+                        const catStats = stats.categories[card.key] ?? { sent: 0, pending: 0 };
+                        return (
+                            <div key={card.key} className="bg-ice-50 rounded-2xl p-4 space-y-3">
+                                <div className="flex items-center gap-1.5">
+                                    <Icon size={14} className={card.color} />
+                                    <p className="text-[9px] font-black text-graphite-400 uppercase leading-tight">
+                                        {card.label}
+                                    </p>
+                                </div>
+                                <div className="flex items-end gap-5">
+                                    <div>
+                                        <p className="text-xl font-black text-graphite-900 tabular-nums">
+                                            {stats.loading ? '—' : catStats.sent}
+                                        </p>
+                                        <p className="text-[9px] font-bold text-emerald-600 uppercase">
+                                            {t('intelligence.health.categorySent', { defaultValue: 'Enviadas' })}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className={`text-xl font-black tabular-nums ${catStats.pending > 0 ? 'text-amber-600' : 'text-graphite-300'}`}>
+                                            {stats.loading ? '—' : catStats.pending}
+                                        </p>
+                                        <p className="text-[9px] font-bold text-graphite-400 uppercase">
+                                            {t('intelligence.health.categoryPending', { defaultValue: 'Pendentes' })}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
         </div>
     );
 };
