@@ -2390,6 +2390,31 @@ export function HumanInboxPage() {
       })
   }, [selected?.id])
 
+  // ── Realtime: patient updates ──────────────────
+  useEffect(() => {
+    if (!patient?.id) return;
+    
+    const channel = supabase
+      .channel(`inbox_patient_${patient.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'patients',
+          filter: `id=eq.${patient.id}`,
+        },
+        (payload) => {
+          setPatient(payload.new as PatientInfo);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [patient?.id]);
+
   // ── Realtime: messages ────────────────────────
   useEffect(() => {
     if (!selected) return

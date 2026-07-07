@@ -437,6 +437,86 @@
       border: none;
       background: transparent;
     }
+    .traffio-chat-confirm {
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+      padding: 24px;
+    }
+    .traffio-chat-confirm.open {
+      display: flex;
+    }
+    .traffio-chat-confirm-box {
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 20px;
+      width: 100%;
+      max-width: 280px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+      text-align: center;
+    }
+    .traffio-chat-confirm-text {
+      font-size: 13px;
+      color: #0f172a;
+      line-height: 1.5;
+      margin: 0 0 16px 0;
+      font-weight: 500;
+    }
+    .traffio-chat-confirm-actions {
+      display: flex;
+      gap: 10px;
+    }
+    .traffio-chat-confirm-ok, .traffio-chat-confirm-cancel {
+      flex: 1;
+      padding: 9px 0;
+      border-radius: 10px;
+      border: none;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: filter 0.2s;
+    }
+    .traffio-chat-confirm-ok {
+      background: var(--traffio-chat-primary, #1152d4);
+      color: #ffffff;
+    }
+    .traffio-chat-confirm-ok:hover {
+      filter: brightness(0.9);
+    }
+    .traffio-chat-confirm-cancel {
+      background: #f1f5f9;
+      color: #475569;
+    }
+    .traffio-chat-confirm-cancel:hover {
+      background: #e2e8f0;
+    }
+    .traffio-chat-toast {
+      position: absolute;
+      top: 74px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-8px);
+      background: var(--traffio-chat-primary, #1152d4);
+      color: #ffffff;
+      padding: 9px 18px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+      z-index: 21;
+      max-width: 85%;
+      text-align: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s ease;
+    }
+    .traffio-chat-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
     @media (max-width: 480px) {
       .traffio-chat-window {
         bottom: 0;
@@ -510,6 +590,16 @@
           </button>
         </div>
       </div>
+      <div class="traffio-chat-toast" id="traffio-toast"></div>
+      <div class="traffio-chat-confirm" id="traffio-confirm">
+        <div class="traffio-chat-confirm-box">
+          <p class="traffio-chat-confirm-text" id="traffio-confirm-text"></p>
+          <div class="traffio-chat-confirm-actions">
+            <button class="traffio-chat-confirm-cancel" id="traffio-confirm-cancel">Cancelar</button>
+            <button class="traffio-chat-confirm-ok" id="traffio-confirm-ok">Encerrar</button>
+          </div>
+        </div>
+      </div>
     </div>
   `;
   document.body.appendChild(widgetContainer);
@@ -533,6 +623,45 @@
   const filePreview = document.getElementById("traffio-file-preview");
   const fileNameSpan = document.getElementById("traffio-file-name");
   const fileCancelBtn = document.getElementById("traffio-file-cancel");
+  const toastEl = document.getElementById("traffio-toast");
+  const confirmEl = document.getElementById("traffio-confirm");
+  const confirmTextEl = document.getElementById("traffio-confirm-text");
+  const confirmOkBtn = document.getElementById("traffio-confirm-ok");
+  const confirmCancelBtn = document.getElementById("traffio-confirm-cancel");
+
+  // ── Toast e confirmação internos (substituem alert/confirm nativos) ──
+  let toastTimer = null;
+  function showWidgetToast(message) {
+    toastEl.textContent = message;
+    toastEl.classList.add("show");
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove("show"), 3500);
+  }
+
+  let confirmResolve = null;
+  function showWidgetConfirm(message) {
+    return new Promise((resolve) => {
+      confirmResolve = resolve;
+      confirmTextEl.textContent = message;
+      confirmOkBtn.textContent = t('confirmYes');
+      confirmCancelBtn.textContent = t('confirmNo');
+      confirmEl.classList.add("open");
+    });
+  }
+
+  function resolveConfirm(result) {
+    confirmEl.classList.remove("open");
+    if (confirmResolve) {
+      confirmResolve(result);
+      confirmResolve = null;
+    }
+  }
+
+  confirmOkBtn.addEventListener("click", () => resolveConfirm(true));
+  confirmCancelBtn.addEventListener("click", () => resolveConfirm(false));
+  confirmEl.addEventListener("click", (e) => {
+    if (e.target === confirmEl) resolveConfirm(false);
+  });
 
   const LS_SESSION = "traffio_livechat_session_id";
   const LS_NAME = "traffio_livechat_name";
@@ -639,9 +768,10 @@
   closeBtn.addEventListener("click", toggleChatWindow);
 
   // Encerramento manual pelo visitante
-  endBtn.addEventListener("click", () => {
+  endBtn.addEventListener("click", async () => {
     if (!activeSessionId) return;
-    if (window.confirm(t('confirmEnd'))) {
+    const confirmed = await showWidgetConfirm(t('confirmEnd'));
+    if (confirmed) {
       endSession(t('endedByYou'), true);
     }
   });
@@ -690,6 +820,8 @@
       endTitle: 'Encerrar atendimento',
       minimizeTitle: 'Minimizar',
       confirmEnd: 'Deseja encerrar este atendimento?',
+      confirmYes: 'Encerrar',
+      confirmNo: 'Cancelar',
       endedByYou: 'Você encerrou o atendimento. Obrigado pelo contato!',
       endedByAgent: 'O atendimento foi encerrado pela nossa equipe. Obrigado pelo contato!',
       endedGeneric: 'O atendimento foi encerrado. Obrigado pelo contato!',
@@ -723,6 +855,8 @@
       endTitle: 'End chat',
       minimizeTitle: 'Minimize',
       confirmEnd: 'Do you want to end this chat?',
+      confirmYes: 'End chat',
+      confirmNo: 'Cancel',
       endedByYou: 'You ended the chat. Thank you for reaching out!',
       endedByAgent: 'This chat was closed by our team. Thank you for reaching out!',
       endedGeneric: 'This chat has ended. Thank you for reaching out!',
@@ -756,6 +890,8 @@
       endTitle: 'Finalizar atención',
       minimizeTitle: 'Minimizar',
       confirmEnd: '¿Desea finalizar esta atención?',
+      confirmYes: 'Finalizar',
+      confirmNo: 'Cancelar',
       endedByYou: 'Usted finalizó la atención. ¡Gracias por contactarnos!',
       endedByAgent: 'La atención fue finalizada por nuestro equipo. ¡Gracias por contactarnos!',
       endedGeneric: 'La atención ha finalizado. ¡Gracias por contactarnos!',
@@ -1063,7 +1199,7 @@
         startInactivityWatcher();
 
       } catch (error) {
-        alert(t('connectError') + error.message);
+        showWidgetToast(t('connectError') + error.message);
         submitBtn.disabled = false;
         submitBtn.textContent = t('startChat');
       }
@@ -1279,7 +1415,7 @@
 
     // Validar tamanho máximo (5MB)
     if (file.size > 5 * 1024 * 1024) {
-      alert(t('fileTooLarge'));
+      showWidgetToast(t('fileTooLarge'));
       fileInput.value = "";
       return;
     }
@@ -1369,7 +1505,7 @@
       // Remover a mensagem temporária em caso de falha
       messagesList = messagesList.filter((m) => m.id !== tempMsg.id);
       renderMessages();
-      alert(t('sendError') + err.message);
+      showWidgetToast(t('sendError') + err.message);
     }
   }
 

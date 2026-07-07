@@ -91,6 +91,26 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
 
     useEffect(() => {
         fetchPatientData();
+
+        const channel = supabase
+            .channel(`patient_changes_${patientId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'patients',
+                    filter: `id=eq.${patientId}`,
+                },
+                (payload) => {
+                    setPatient(payload.new);
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, [patientId]);
 
     useEffect(() => {
