@@ -98,7 +98,6 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
   const [selectedChannels, setSelectedChannels] = useState<Channel[]>(['whatsapp']);
   const [whatsappPhone, setWhatsappPhone] = useState('');
   const [smsPhone,      setSmsPhone]      = useState('');
-  const [email,         setEmail]         = useState('');
   const [updatedBy,     setUpdatedBy]     = useState<'auto' | 'manual'>('auto');
   const [saving,        setSaving]        = useState(false);
   const [saved,         setSaved]         = useState(false);
@@ -140,7 +139,6 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
       setSelectedChannels(activeChannels);
       setWhatsappPhone(data.whatsapp_phone ? formatNational(data.whatsapp_phone) : '');
       setSmsPhone(data.sms_phone ? formatNational(data.sms_phone) : '');
-      setEmail(data.email ?? '');
       setUpdatedBy(data.updated_by ?? 'auto');
     }
     setLoading(false);
@@ -223,7 +221,6 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
       updated_at:       new Date().toISOString(),
       whatsapp_phone:   cleanWhatsapp,
       sms_phone:        cleanSms,
-      email:            email ? email.trim().toLowerCase() : null,
     };
 
     await supabase
@@ -247,10 +244,7 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
 
   const showWhatsappInput = selectedChannels.includes('whatsapp');
   const showSmsInput = selectedChannels.includes('sms') || selectedChannels.includes('mms');
-  const showEmailInput = selectedChannels.includes('email');
-  const hasInputs = showWhatsappInput || showSmsInput || showEmailInput;
-
-  const isValidEmail = !email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const hasInputs = showWhatsappInput || showSmsInput;
 
   const renderInputFields = (isCompact: boolean) => {
     if (!hasInputs) return null;
@@ -293,29 +287,9 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
           </div>
         )}
 
-        {showEmailInput && (
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-graphite-500 uppercase tracking-wider">
-              E-mail
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="exemplo@email.com"
-              className={`w-full ${isCompact ? 'text-xs px-2.5 py-1.5' : 'text-sm px-3 py-2'} bg-white border border-ice-200 rounded-xl focus:outline-none focus:border-brand-primary font-medium ${!isValidEmail ? 'border-red-300 focus:border-red-500' : ''}`}
-            />
-            {!isValidEmail && (
-              <span className="text-[9px] text-red-500 font-bold block">
-                {t('channelPreferenceSelector.invalidEmail', { defaultValue: 'E-mail inválido' })}
-              </span>
-            )}
-          </div>
-        )}
-
         <button
           onClick={handleSaveDetails}
-          disabled={saving || !isValidEmail}
+          disabled={saving}
           className={`w-full mt-1 px-3 ${isCompact ? 'py-2 text-xs' : 'py-2.5 text-sm'} bg-brand-primary text-white font-bold rounded-xl disabled:opacity-40 border-none cursor-pointer flex items-center justify-center gap-1.5`}
         >
           {saving ? (
