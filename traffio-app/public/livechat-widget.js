@@ -456,9 +456,11 @@
   `;
   document.head.appendChild(style);
 
-  // 3. Criar os elementos HTML do widget
+  // 3. Criar os elementos HTML do widget (oculto até a configuração ser aplicada,
+  // para não exibir cor/idioma padrão antes da personalização do tenant)
   const widgetContainer = document.createElement("div");
   widgetContainer.className = "traffio-chat-widget";
+  widgetContainer.style.display = "none";
   widgetContainer.innerHTML = `
     <div class="traffio-chat-pill" id="traffio-pill">Fale conosco</div>
     <div class="traffio-chat-bubble" id="traffio-bubble">
@@ -798,38 +800,27 @@
     }
   }
 
-  // Carregar biblioteca Supabase do CDN de forma assíncrona se não estiver disponível
-  function loadSupabaseAndConnect() {
-    if (window.supabase) {
-      initSupabase();
-    } else {
-      const script = document.createElement("script");
-      script.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
-      script.onload = () => initSupabase();
-      document.head.appendChild(script);
-    }
+  // Cache local da configuração: elimina o "flash" de cor/idioma padrão
+  // nas visitas seguintes, enquanto a config fresca é buscada em background
+  const CFG_CACHE_KEY = `traffio_livechat_cfg_${tenantId}`;
+
+  function applyCachedConfig() {
+    try {
+      const cached = JSON.parse(localStorage.getItem(CFG_CACHE_KEY) || "null");
+      if (cached && cached.config) {
+        chatConfig = cached.config;
+        if (cached.locale) tenantLocale = cached.locale;
+        if (cached.timezone) tenantTimezone = cached.timezone;
+        return true;
+      }
+    } catch (err) { /* cache corrompido é ignorado */ }
+    return false;
   }
 
-  async function initSupabase() {
-    if (!supabaseUrl || !supabaseAnonKey) {
-      console.warn("[Traffio LiveChat] Supabase URL ou Anon Key ausentes. O realtime pode não funcionar.");
-      // Exibe com defaults caso falhe
-      widgetContainer.style.display = "block";
-      updateHeader();
-      if (activeSessionId) {
-        showChatScreen();
-        loadHistory();
-      } else {
-        showRegistrationForm();
-      }
-      return;
-    }
-    if (!window._traffioSupabaseClient) {
-      window._traffioSupabaseClient = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
-    }
-    supabaseClient = window._traffioSupabaseClient;
-
-    // Buscar configuração do widget + idioma/timezone do tenant (fonte de verdade)
+  // Buscar configuração do widget + idioma/timezone do tenant (fonte de verdade).
+  // Usa fetch puro: não depende do carregamento da biblioteca Supabase via CDN.
+  async function fetchConfig() {
+    if (!supabaseUrl || !supabaseAnonKey) return false;
     try {
       const response = await fetch(`${supabaseUrl}/functions/v1/livechat-visitor-message`, {
         method: "POST",
@@ -844,29 +835,91 @@
         if (data.config) chatConfig = data.config;
         if (data.locale) tenantLocale = data.locale;
         if (data.timezone) tenantTimezone = data.timezone;
+        try {
+          localStorage.setItem(CFG_CACHE_KEY, JSON.stringify({
+            config: chatConfig,
+            locale: tenantLocale,
+            timezone: tenantTimezone
+          }));
+        } catch (err) { /* storage cheio/indisponível é ignorado */ }
+        return true;
       }
     } catch (err) {
       console.error("[Traffio LiveChat] Erro ao carregar configurações:", err);
     }
+    return false;
+  }
 
-    // Aplicar a configuração recebida
-    applyDynamicConfig();
+  // Renderiza o estado inicial (formulário ou conversa em andamento) uma única vez
+  let stateRendered = false;
+  function renderInitialState() {
+    if (!chatConfig.is_active || stateRendered) return;
+    stateRendered = true;
 
-    if (chatConfig.is_active) {
-      // Sessão antiga demais? Encerra silenciosamente antes de exibir
-      if (activeSessionId && isSessionStale()) {
-        endSession(null, true);
-        showRegistrationForm();
-        return;
-      }
-      if (activeSessionId) {
-        showChatScreen();
-        loadHistory();
-        subscribeToRealtime();
-        startInactivityWatcher();
-      } else {
-        showRegistrationForm();
-      }
+    // Sessão antiga demais? Encerra silenciosamente antes de exibir
+    if (activeSessionId && isSessionStale()) {
+      endSession(null, true);
+      showRegistrationForm();
+      return;
+    }
+    if (activeSessionId) {
+      showChatScreen();
+      loadHistory();
+      subscribeToRealtime();
+      startInactivityWatcher();
+    } else {
+      showRegistrationForm();
+    }
+  }
+
+  async function bootstrap() {
+    if (applyCachedConfig()) {
+      // Cache disponível: exibir imediatamente com a personalização correta
+      // e revalidar em background
+      applyDynamicConfig();
+      renderInitialState();
+      fetchConfig().then((ok) => {
+        if (ok) {
+          applyDynamicConfig();
+          renderInitialState();
+        }
+      });
+    } else {
+      // Primeira visita: aguardar a config antes de exibir (sem flash de padrão)
+      await fetchConfig();
+      applyDynamicConfig();
+      renderInitialState();
+    }
+
+    // Biblioteca Supabase (CDN) é necessária apenas para o realtime
+    loadSupabaseAndConnect();
+  }
+
+  // Carregar biblioteca Supabase do CDN de forma assíncrona se não estiver disponível
+  function loadSupabaseAndConnect() {
+    if (window.supabase) {
+      initSupabase();
+    } else {
+      const script = document.createElement("script");
+      script.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
+      script.onload = () => initSupabase();
+      document.head.appendChild(script);
+    }
+  }
+
+  function initSupabase() {
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.warn("[Traffio LiveChat] Supabase URL ou Anon Key ausentes. O realtime pode não funcionar.");
+      return;
+    }
+    if (!window._traffioSupabaseClient) {
+      window._traffioSupabaseClient = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+    }
+    supabaseClient = window._traffioSupabaseClient;
+
+    // Se já existe uma conversa em andamento, conectar o canal realtime
+    if (activeSessionId) {
+      subscribeToRealtime();
     }
   }
 
@@ -878,9 +931,15 @@
 
     widgetContainer.style.display = "block";
 
-    // Injetar variável CSS para a cor primária
+    // Injetar variável CSS para a cor primária (elemento dedicado e idempotente)
     const primaryColor = chatConfig.primary_color || '#1152d4';
-    style.textContent += `
+    let colorStyle = document.getElementById("traffio-chat-color-style");
+    if (!colorStyle) {
+      colorStyle = document.createElement("style");
+      colorStyle.id = "traffio-chat-color-style";
+      document.head.appendChild(colorStyle);
+    }
+    colorStyle.textContent = `
       :root {
         --traffio-chat-primary: ${primaryColor} !important;
       }
@@ -931,7 +990,7 @@
   }
 
   // Iniciar carregamento imediatamente
-  loadSupabaseAndConnect();
+  bootstrap();
 
   // ── Renderizador do Formulário de Registro ──
   function showRegistrationForm() {
