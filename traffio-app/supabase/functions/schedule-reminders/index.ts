@@ -208,9 +208,8 @@ serve(async (req: Request) => {
             const timeShort     = appt.start_time.substring(0, 5);
             
             const customAppUrl  = botConfig.app_url;
-            const appUrlEnv     = Deno.env.get("PUBLIC_APP_URL") || Deno.env.get("APP_URL") || "https://app.traffio.com.br";
-            const fallbackUrl   = tenantConfig?.slug ? "https://" + tenantConfig.slug + ".com" : appUrlEnv;
-            const publicUrl     = customAppUrl || fallbackUrl;
+            const appUrlEnv     = Deno.env.get("PUBLIC_APP_URL") || Deno.env.get("APP_URL") || "https://mediflow-traffio.com";
+            const publicUrl     = customAppUrl || appUrlEnv;
 
             // Fonte de verdade do idioma: bot_config.notification_locale (definido pelo
             // tenant na página Inteligência). Não há cadastro de idioma por paciente —

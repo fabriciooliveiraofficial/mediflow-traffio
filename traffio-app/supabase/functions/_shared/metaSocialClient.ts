@@ -38,6 +38,24 @@ export interface MetaSendResult {
 
 export class MetaSocialClient {
 
+  private static isWindowExpiredError(error: any): boolean {
+    if (!error) return false;
+    const code = error.code;
+    const subcode = error.error_subcode;
+    const message = String(error.message || "");
+
+    return (
+      code === 10 ||
+      code === 200 ||
+      code === 100 ||
+      subcode === 2018278 ||
+      subcode === 2018153 ||
+      message.includes("24-hour") ||
+      message.includes("outside of allowed window") ||
+      message.includes("outside the allowed window")
+    );
+  }
+
   /**
    * Envia mensagem via Facebook Messenger.
    * @param pageToken  Page Access Token da página do Facebook
@@ -63,7 +81,7 @@ export class MetaSocialClient {
     let data = await res.json();
 
     // Fallback: Se estiver fora da janela de 24h, tenta novamente com HUMAN_AGENT
-    if (data.error && (data.error.code === 10 || data.error.code === 200 || String(data.error.message).includes("24-hour"))) {
+    if (data.error && MetaSocialClient.isWindowExpiredError(data.error)) {
       const fallbackPayload = { ...payload, messaging_type: "MESSAGE_TAG", tag: "HUMAN_AGENT" };
       res = await fetch(`${GRAPH_API}/me/messages?access_token=${pageToken}`, {
         method: "POST",
@@ -106,7 +124,7 @@ export class MetaSocialClient {
     });
     let data = await res.json();
 
-    if (data.error && (data.error.code === 10 || data.error.code === 200 || String(data.error.message).includes("24-hour"))) {
+    if (data.error && MetaSocialClient.isWindowExpiredError(data.error)) {
       const fallbackPayload = { ...payload, messaging_type: "MESSAGE_TAG", tag: "HUMAN_AGENT" };
       res = await fetch(`${GRAPH_API}/me/messages?access_token=${pageToken}`, {
         method: "POST",
@@ -154,7 +172,7 @@ export class MetaSocialClient {
     });
     let data = await res.json();
 
-    if (data.error && (data.error.code === 10 || data.error.code === 200 || String(data.error.message).includes("24-hour"))) {
+    if (data.error && MetaSocialClient.isWindowExpiredError(data.error)) {
       const fallbackPayload = { ...payload, messaging_type: "MESSAGE_TAG", tag: "HUMAN_AGENT" };
       res = await fetch(`${GRAPH_API}/me/messages?access_token=${pageToken}`, {
         method: "POST",
@@ -202,7 +220,7 @@ export class MetaSocialClient {
     });
     let data = await res.json();
 
-    if (data.error && (data.error.code === 10 || data.error.code === 200 || String(data.error.message).includes("24-hour"))) {
+    if (data.error && MetaSocialClient.isWindowExpiredError(data.error)) {
       const fallbackPayload = { ...payload, messaging_type: "MESSAGE_TAG", tag: "HUMAN_AGENT" };
       res = await fetch(`${GRAPH_API}/me/messages?access_token=${pageToken}`, {
         method: "POST",
@@ -249,7 +267,14 @@ export class MetaSocialError extends Error {
 
   /** Janela de 24h expirada — o paciente não enviou mensagem nas últimas 24h */
   get isWindowExpired(): boolean {
-    return this.code === 10 || this.code === 200 || this.message.includes("24-hour");
+    return (
+      this.code === 10 ||
+      this.code === 200 ||
+      this.code === 100 ||
+      this.message.includes("24-hour") ||
+      this.message.includes("outside of allowed window") ||
+      this.message.includes("outside the allowed window")
+    );
   }
 
   /** Token de página inválido ou revogado */
