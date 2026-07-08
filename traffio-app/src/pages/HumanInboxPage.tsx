@@ -1493,12 +1493,13 @@ interface PatientPanelProps {
   preFill: any | null
   onPreFillChange: (data: any | null) => void
   enabledChannels?: Record<string, boolean>
+  defaultChannel?: 'whatsapp' | 'sms' | 'email'
 }
 
 function PatientPanel({
   session, patient, appointments, onClose, onUpdateStage, onTransferClick, isOwned, onNewPatient, onLookupPatient,
   view, onViewChange, onPatientSelected, onUnlink, onViewAppointments, onSendMessage, onSendConfirmation, onReschedule, onAddToWaitlist, onResetReschedule, rescheduleData,
-  preFill, onPreFillChange, enabledChannels
+  preFill, onPreFillChange, enabledChannels, defaultChannel
 }: PatientPanelProps) {
   const { t } = useTranslation('communications');
 
@@ -1726,6 +1727,7 @@ function PatientPanel({
           patientPhone={session.patient_phone}
           compact
           enabledChannels={enabledChannels}
+          defaultChannel={defaultChannel}
         />
       </div>
 
@@ -3357,6 +3359,7 @@ export function HumanInboxPage() {
               appointments={appointments}
               onClose={() => setShowPatientPanel(false)}
               enabledChannels={tenant?.bot_config?.enabled_channels}
+              defaultChannel={tenant?.bot_config?.default_notification_channel}
               onUpdateStage={async (stage: any) => {
                 // Update DB
                 await supabase.from('conversation_sessions').update({ kanban_stage: stage }).eq('id', selected.id);

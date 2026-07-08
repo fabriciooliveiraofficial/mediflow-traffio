@@ -479,6 +479,11 @@
       "categorySent": "Sent",
       "categoryPending": "Pending"
     },
+    "defaultChannelSection": {
+      "title": "Default Notification Channel",
+      "hint": "Used whenever a patient has no channel manually set in the Inbox. Pick the channel most used by your patients in this region.",
+      "disabledHint": "Enable at least one automation for this channel in the matrix below"
+    },
     "matrixSection": {
       "title": "Channels and Automations Matrix",
       "textOnly": "Text Only",

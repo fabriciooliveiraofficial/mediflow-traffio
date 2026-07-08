@@ -25,8 +25,10 @@ import { getSmsPricing } from "../_shared/pricing.ts";
 import { logPlatform } from "../_shared/logger.ts";
 import { sendTenantEmail, isValidEmail } from "../_shared/emailClient.ts";
 import { getEmailSubject, renderEmailHtml, buildIcsAttachment } from "../_shared/emailTemplates.ts";
+import { isBlockedByQuietHours } from "../_shared/tenantTime.ts";
+import { getDefaultChannel } from "../_shared/channelResolver.ts";
 
-console.log("process-outbound v4 — Fair-claim + paralelo Initialized");
+console.log("process-outbound v4.1 — Fair-claim + canal padrão do tenant Initialized");
 
 // Substitui {{placeholders}} pelo valor real das template_vars do agendamento
 function renderCustomCaptionFromVars(template: string, vars: any): string {
@@ -95,32 +97,6 @@ function resolveTenantCaption(
     text = captionObj[locale] || captionObj['pt'] || captionObj['en'] || captionObj['es'] || '';
   }
   return text || null;
-}
-
-function getLocalHourMinute(date: Date, timezone: string): { hour: number; minute: number } {
-  try {
-    const parts = new Intl.DateTimeFormat("en-US", {
-      timeZone: timezone, hour: "numeric", minute: "2-digit", hour12: false,
-    }).formatToParts(date);
-    return {
-      hour:   parseInt(parts.find((p) => p.type === "hour")!.value, 10),
-      minute: parseInt(parts.find((p) => p.type === "minute")!.value, 10),
-    };
-  } catch {
-    return { hour: date.getUTCHours(), minute: date.getUTCMinutes() };
-  }
-}
-
-// Quiet hours com grace window: mensagens já vencidas (scheduled_at <= now) que
-// caem nos primeiros 30min do silêncio ainda são enviadas — evita que um backlog
-// momentâneo empurre o lembrete para as 8h do dia seguinte, quando a consulta já
-// teria passado. Fora dessa margem, respeita o silêncio normalmente.
-function isBlockedByQuietHours(date: Date, timezone: string): boolean {
-  const { hour, minute } = getLocalHourMinute(date, timezone);
-  if (hour < 8) return true;
-  if (hour > 22) return true;
-  if (hour === 22 && minute >= 30) return true;
-  return false;
 }
 
 // Pool de concorrência limitada — sem dependências externas.
@@ -290,35 +266,49 @@ serve(async (req: Request) => {
 
       const channelMatrix = tenant?.bot_config?.channel_automations ?? {};
 
+      // Re-roteia uma mensagem com canal desabilitado na matriz para o primeiro
+      // canal ainda elegível, priorizando o canal padrão do tenant
+      // (bot_config.default_notification_channel) sobre a ordem fixa antiga
+      // (WhatsApp → SMS → E-mail) — é o que torna o canal padrão efetivo
+      // também para mensagens já enfileiradas com config desatualizada.
+      const defaultChannel = getDefaultChannel(tenant?.bot_config);
+      const pickFallbackChannel = async (
+        automationKey: 'nps' | 'recovery',
+      ): Promise<{ channel: string; recipientId: string } | null> => {
+        const candidates = [defaultChannel, 'whatsapp', 'sms', 'email'].filter((c, i, arr) => arr.indexOf(c) === i);
+        for (const ch of candidates) {
+          const row = channelMatrix[ch];
+          const enabled = (automationKey === 'recovery' && ch === 'whatsapp' && row?.recovery === undefined)
+            ? true
+            : row?.[automationKey] === true;
+          if (!enabled) continue;
+          if (ch === 'email') {
+            const email = await resolvePatientEmail(msg.tenant_id, msg.patient_phone);
+            if (!email) continue;
+            return { channel: 'email', recipientId: email };
+          }
+          return { channel: ch, recipientId: msg.patient_phone };
+        }
+        return null;
+      };
+
       // ── Guard da Matriz de Canais: NPS ────────────────────────────────────
       // Cobre mensagens enfileiradas por trigger/engine com canal desatualizado:
-      // se o canal escolhido está desabilitado para NPS na matriz, re-roteia para
-      // o primeiro canal habilitado; sem canal elegível, cancela (nunca envia
-      // por um canal que o tenant desligou).
+      // se o canal escolhido está desabilitado para NPS na matriz, re-roteia
+      // priorizando o canal padrão do tenant; sem canal elegível, cancela
+      // (nunca envia por um canal que o tenant desligou).
       if (msg.message_type === 'nps_survey' || msg.template_key === 'nps_survey') {
-        const ch = msg.notification_channel ?? 'whatsapp';
+        const ch = msg.notification_channel ?? defaultChannel;
         const row = channelMatrix[ch];
         if (row !== undefined && row?.nps !== true) {
-          if (channelMatrix.whatsapp?.nps === true) {
-            msg.notification_channel = 'whatsapp';
-            msg.channel_recipient_id = msg.patient_phone;
-          } else if (channelMatrix.sms?.nps === true) {
-            msg.notification_channel = 'sms';
-            msg.channel_recipient_id = msg.patient_phone;
-          } else if (channelMatrix.email?.nps === true) {
-            const email = await resolvePatientEmail(msg.tenant_id, msg.patient_phone);
-            if (!email) {
-              await supabase.from('outbound_message_queue')
-                .update({ status: 'cancelled', error_message: 'NPS by e-mail enabled but patient has no e-mail address' }).eq('id', msg.id);
-              return;
-            }
-            msg.notification_channel = 'email';
-            msg.channel_recipient_id = email;
-          } else {
+          const fallback = await pickFallbackChannel('nps');
+          if (!fallback) {
             await supabase.from('outbound_message_queue')
               .update({ status: 'cancelled', error_message: `NPS disabled for channel '${ch}' in channel matrix` }).eq('id', msg.id);
             return;
           }
+          msg.notification_channel = fallback.channel;
+          msg.channel_recipient_id = fallback.recipientId;
         }
       }
 
@@ -338,30 +328,16 @@ serve(async (req: Request) => {
 
       // ── Recuperação (CRM): canal definido na Matriz de Canais do tenant ──
       // A fila é populada pelo motor SQL sem notification_channel; o canal de
-      // entrega é decidido aqui via bot_config.channel_automations.<canal>.recovery.
+      // entrega é decidido aqui, priorizando o canal padrão do tenant.
       if (msg.reference_type === 'crm_journey' && RECOVERY_TEMPLATE_KEYS.includes(msg.template_key)) {
-        const waOn    = channelMatrix.whatsapp?.recovery !== false; // default: WhatsApp ligado
-        const smsOn   = channelMatrix.sms?.recovery === true;
-        const emailOn = channelMatrix.email?.recovery === true;
-        if (!waOn && !smsOn && !emailOn) {
+        const fallback = await pickFallbackChannel('recovery');
+        if (!fallback) {
           await supabase.from('outbound_message_queue')
             .update({ status: 'cancelled', error_message: 'Recovery automation disabled in channel matrix' }).eq('id', msg.id);
           return;
         }
-        if (waOn) {
-          msg.notification_channel = 'whatsapp';
-        } else if (smsOn) {
-          msg.notification_channel = 'sms';
-        } else {
-          const email = await resolvePatientEmail(msg.tenant_id, msg.patient_phone);
-          if (!email) {
-            await supabase.from('outbound_message_queue')
-              .update({ status: 'cancelled', error_message: 'Recovery by e-mail enabled but patient has no e-mail address' }).eq('id', msg.id);
-            return;
-          }
-          msg.notification_channel = 'email';
-          msg.channel_recipient_id = email;
-        }
+        msg.notification_channel = fallback.channel;
+        msg.channel_recipient_id = fallback.recipientId;
       }
 
       try {

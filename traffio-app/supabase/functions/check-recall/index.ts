@@ -15,63 +15,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { corsHeaders } from "../_shared/cors.ts";
+import { getNextLocalNineAM } from "../_shared/tenantTime.ts";
+import { resolveEligibleChannels } from "../_shared/channelResolver.ts";
 
-console.log("check-recall v2.0 initialized");
-
-function getLocalHour(date: Date, timezone: string): number {
-    try {
-        return parseInt(
-            new Intl.DateTimeFormat("en-US", {
-                timeZone: timezone,
-                hour:     "numeric",
-                hour12:   false,
-            }).format(date),
-            10
-        );
-    } catch {
-        return date.getUTCHours();
-    }
-}
-
-function getRecallScheduledAt(timezone: string): string {
-    const now = new Date();
-    const localHour = getLocalHour(now, timezone);
-
-    // Se já passou das 9h local, agenda para amanhã às 9h; caso contrário, hoje às 9h
-    const scheduledLocal = new Date();
-    scheduledLocal.setHours(0, 0, 0, 0);
-
-    // Calcula offset UTC do timezone
-    try {
-        const parts = new Intl.DateTimeFormat("en-US", {
-            timeZone:     timezone,
-            timeZoneName: "shortOffset",
-        }).formatToParts(now);
-        const tzStr = parts.find((p) => p.type === "timeZoneName")?.value ?? "GMT+0";
-        const match = tzStr.match(/GMT([+-]\d+(?::\d+)?)?/);
-        const raw   = match?.[1] ?? "+0";
-        const [hPart, mPart = "0"] = raw.replace("+", "").replace("-", "").split(":");
-        const sign  = raw.startsWith("-") ? 1 : -1;
-        const offsetMs = sign * (parseInt(hPart, 10) * 60 + parseInt(mPart, 10)) * 60 * 1000;
-
-        // 9h local em UTC
-        const nineAmUtcMs = Date.UTC(
-            scheduledLocal.getUTCFullYear(),
-            scheduledLocal.getUTCMonth(),
-            scheduledLocal.getUTCDate(),
-            9,
-            0, 0
-        ) + offsetMs;
-
-        const targetMs = nineAmUtcMs + (localHour >= 9 ? 24 * 60 * 60 * 1000 : 0);
-        return new Date(targetMs).toISOString();
-    } catch {
-        // Fallback: amanhã às 9h UTC
-        const fallback = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-        fallback.setUTCHours(9, 0, 0, 0);
-        return fallback.toISOString();
-    }
-}
+console.log("check-recall v2.1 (canal padrão do tenant) initialized");
 
 serve(async (req: Request) => {
     if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -137,9 +84,10 @@ serve(async (req: Request) => {
                     continue;
                 }
 
-                // 4. Determinar canal: preferência do paciente ∩ matriz do tenant.
-                // Recall pertence à coluna "Recuperação" da matriz. Sem canal
-                // elegível → paciente é pulado (nunca fallback para WhatsApp).
+                // 4. Determinar canal: preferência do paciente ∩ matriz do tenant,
+                // com fallback para o canal padrão do tenant. Recall pertence à
+                // coluna "Recuperação" da matriz. Sem canal elegível nem sequer
+                // no padrão → paciente é pulado (nunca fallback fixo p/ WhatsApp).
                 const { data: pref } = await supabase
                     .from("patient_channel_preferences")
                     .select("preferred_channel, sms_phone, whatsapp_phone, email")
@@ -147,27 +95,27 @@ serve(async (req: Request) => {
                     .eq("patient_phone", patient.phone)
                     .maybeSingle();
 
-                // preferred_channel pode ser lista ("whatsapp,email")
-                const preferredList = (pref?.preferred_channel || "whatsapp")
-                    .split(",")
-                    .map((c: string) => c.trim())
-                    .filter(Boolean);
-
                 const resolveRecipient = (ch: string): string => {
                     if (ch === "sms" || ch === "mms") return pref?.sms_phone ?? patient.phone;
                     if (ch === "email")               return pref?.email ?? patient.email ?? "";
                     return pref?.whatsapp_phone ?? patient.phone;
                 };
 
+                // preferred_channel pode ser lista ("whatsapp,email")
+                const preferredChannels = (pref?.preferred_channel || "")
+                    .split(",")
+                    .map((c: string) => c.trim())
+                    .filter(Boolean)
+                    .map((ch: string) => ({ channel: ch as any, recipientId: resolveRecipient(ch) }));
+
                 const channelAutomations = (botConfig.channel_automations ?? {}) as Record<string, any>;
-                const eligible = preferredList.filter((ch: string) => {
-                    if (ch === "email" && !resolveRecipient("email").includes("@")) return false;
-                    const row = channelAutomations[ch];
-                    if (row === undefined) return true; // canais fora da matriz (instagram/facebook)
-                    // WhatsApp: default ligado (configs antigas sem a chave 'recovery'),
-                    // mesma semântica do process-outbound
-                    if (ch === "whatsapp") return row?.recovery !== false;
-                    return row?.recovery === true;
+                const eligible = resolveEligibleChannels({
+                    preferredChannels,
+                    matrix:        channelAutomations,
+                    automationKey: "recovery",
+                    botConfig,
+                    patientPhone:  patient.phone,
+                    patientEmail:  patient.email,
                 });
 
                 if (eligible.length === 0) {
@@ -175,11 +123,11 @@ serve(async (req: Request) => {
                     continue;
                 }
 
-                const channel     = eligible[0];
-                const recipientId = resolveRecipient(channel);
+                const channel     = eligible[0].channel;
+                const recipientId = eligible[0].recipientId;
 
                 // 5. Calcular scheduled_at (próxima 9h local do tenant)
-                const scheduledAt = getRecallScheduledAt(timezone);
+                const scheduledAt = getNextLocalNineAM(timezone);
 
                 const locale = (() => {
                     const l = (botConfig.notification_locale || patient.preferred_locale || "pt").toLowerCase();

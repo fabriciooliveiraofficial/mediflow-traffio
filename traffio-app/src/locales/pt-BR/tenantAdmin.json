@@ -479,6 +479,11 @@
       "categorySent": "Enviadas",
       "categoryPending": "Pendentes"
     },
+    "defaultChannelSection": {
+      "title": "Canal Padrão de Notificação",
+      "hint": "Usado sempre que o paciente não tiver um canal definido manualmente no Atendimento. Escolha o canal mais usado pelos seus pacientes nesta região.",
+      "disabledHint": "Ative ao menos uma automação para este canal na matriz abaixo"
+    },
     "matrixSection": {
       "title": "Matriz de Canais e Automações",
       "textOnly": "Apenas Texto",

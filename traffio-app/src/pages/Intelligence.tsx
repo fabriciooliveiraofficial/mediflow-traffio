@@ -70,6 +70,7 @@ export interface BotConfig {
     nps_delay_minutes?: number;
     nps_captions?: { pt: string; en: string; es: string };
     notification_locale?: 'pt' | 'en' | 'es';
+    default_notification_channel?: 'whatsapp' | 'sms' | 'email';
     recall_enabled?: boolean;
     recall_days?: number;
     test_mode_15m?: boolean;
@@ -141,6 +142,7 @@ export const Intelligence = () => {
         no_show_prevention: true,
         nps_enabled: true,
         nps_delay_minutes: 180,
+        default_notification_channel: 'whatsapp',
         booking_confirmation_captions: DEFAULT_BOOKING_CAPTIONS,
         recall_enabled: false,
         recall_days: 180,
@@ -341,6 +343,7 @@ export const Intelligence = () => {
                     active_agent: 'human',
                     enabled: true,
                     nps_delay_minutes: savedConfig.nps_delay_minutes ?? 180,
+                    default_notification_channel: savedConfig.default_notification_channel ?? 'whatsapp',
                     booking_confirmation_captions: savedConfig.booking_confirmation_captions || DEFAULT_BOOKING_CAPTIONS,
                     recall_enabled: savedConfig.recall_enabled ?? false,
                     recall_days: savedConfig.recall_days ?? 180,
@@ -710,6 +713,14 @@ const RECOVERY_TEMPLATE_META: { key: string; chip: string; labelKey: string; def
     { key: 'recall_immediate',   chip: 'RECALL', labelKey: 'intelligence.recoverySection.cards.recall',    defaultLabel: 'Reativação — retorno do paciente' },
 ];
 
+// Canais elegíveis como padrão do tenant — mesmas cores da Matriz de Canais
+// (MatrixRow) para manter consistência visual entre as duas seções.
+const DEFAULT_CHANNEL_OPTIONS: { id: 'whatsapp' | 'sms' | 'email'; label: string; icon: React.ElementType; color: string; bgColor: string }[] = [
+    { id: 'whatsapp', label: 'WhatsApp', icon: MessageCircle, color: 'text-emerald-600', bgColor: 'bg-emerald-50' },
+    { id: 'sms',      label: 'SMS',      icon: Phone,         color: 'text-graphite-600', bgColor: 'bg-ice-100' },
+    { id: 'email',    label: 'E-mail',   icon: Mail,          color: 'text-violet-600',   bgColor: 'bg-violet-50' },
+];
+
 const DEFAULT_NPS_CAPTIONS = {
     pt: 'Olá {nome}! 😊 Como foi sua experiência na {clínica} hoje?\n\nDe *0 a 10*, o quanto você nos recomendaria? ⭐\n\nSó responda com um número — leva 5 segundos!',
     en: 'Hi {nome}! 😊 How was your experience at {clínica} today?\n\nOn a scale of *0 to 10*, how likely are you to recommend us? ⭐\n\nJust reply with a number — it only takes 5 seconds!',
@@ -792,6 +803,42 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
     return (
         <div className="bg-white rounded-3xl shadow-float overflow-hidden transition-all duration-300">
             <div className="p-8 space-y-8">
+                {/* ── Canal Padrão de Notificação ── */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-ice-50/50 p-6 rounded-3xl shadow-float">
+                    <div className="max-w-md">
+                        <h4 className="text-xs font-black text-graphite-400 uppercase flex items-center gap-2">
+                            <Settings size={14} className="text-brand-primary" />
+                            {t('intelligence.defaultChannelSection.title', { defaultValue: 'Canal Padrão de Notificação' })}
+                        </h4>
+                        <p className="text-[10px] font-bold text-graphite-400 mt-1.5 leading-relaxed">
+                            {t('intelligence.defaultChannelSection.hint', { defaultValue: 'Usado sempre que o paciente não tiver um canal definido manualmente no Atendimento. Escolha o canal mais usado pelos seus pacientes nesta região.' })}
+                        </p>
+                    </div>
+                    <div className="flex gap-2 flex-shrink-0">
+                        {DEFAULT_CHANNEL_OPTIONS.map((opt) => {
+                            const row = config.channel_automations?.[opt.id];
+                            const isActiveInMatrix = !!row && Object.values(row).some((v) => v === true);
+                            const isSelected = (config.default_notification_channel ?? 'whatsapp') === opt.id;
+                            return (
+                                <button
+                                    key={opt.id}
+                                    type="button"
+                                    disabled={!isActiveInMatrix}
+                                    title={!isActiveInMatrix ? t('intelligence.defaultChannelSection.disabledHint', { defaultValue: 'Ative ao menos uma automação para este canal na matriz abaixo' }) : undefined}
+                                    onClick={() => setConfig(prev => ({ ...prev, default_notification_channel: opt.id }))}
+                                    className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl border text-xs font-black transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                                        isSelected ? `${opt.bgColor} ${opt.color} border-transparent shadow-sm` : 'bg-white border-ice-200 text-graphite-400 hover:border-ice-300'
+                                    }`}
+                                >
+                                    <opt.icon size={14} />
+                                    {opt.label}
+                                    {isSelected && <Check size={12} />}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
                 {/* ── Matriz de Canais e Automações ── */}
                 <div className="space-y-5">
                     <h4 className="text-xs font-black text-graphite-400 uppercase flex items-center gap-2">

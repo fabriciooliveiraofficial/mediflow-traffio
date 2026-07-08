@@ -14,102 +14,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { corsHeaders } from "../_shared/cors.ts";
+import { getSafeScheduledTime } from "../_shared/tenantTime.ts";
+import { resolveEligibleChannels, type ChannelInfo as ResolvedChannelInfo } from "../_shared/channelResolver.ts";
 
-console.log("schedule-reminders v4.0 (multi-canal + multi-timezone) initialized");
-
-function getUTCOffsetString(timezone: string, refDate: Date): string {
-    try {
-        const parts = new Intl.DateTimeFormat("en-US", {
-            timeZone: timezone,
-            timeZoneName: "shortOffset",
-        }).formatToParts(refDate);
-        const tzName = parts.find((p) => p.type === "timeZoneName")?.value ?? "GMT+0";
-        const match = tzName.match(/GMT([+-]\d+(?::\d+)?)?/);
-        if (!match || !match[1]) return "+00:00";
-        const raw = match[1];
-        const [hourPart, minPart = "00"] = raw.split(":");
-        const sign = hourPart[0];
-        const absHours = Math.abs(parseInt(hourPart, 10));
-        return `${sign}${String(absHours).padStart(2, "0")}:${minPart.padStart(2, "0")}`;
-    } catch {
-        return "-03:00";
-    }
-}
-
-function getLocalHour(date: Date, timezone: string): number {
-    try {
-        return parseInt(
-            new Intl.DateTimeFormat("en-US", { timeZone: timezone, hour: "numeric", hour12: false }).format(date),
-            10
-        );
-    } catch {
-        return date.getUTCHours();
-    }
-}
-
-function getLocalTime(date: Date, timezone: string): { hour: number; minute: number } {
-    try {
-        const parts = new Intl.DateTimeFormat("en-US", {
-            timeZone: timezone,
-            hour:     "numeric",
-            minute:   "2-digit",
-            hour12:   false,
-        }).formatToParts(date);
-        return {
-            hour:   parseInt(parts.find((p) => p.type === "hour")!.value,   10),
-            minute: parseInt(parts.find((p) => p.type === "minute")!.value, 10),
-        };
-    } catch {
-        return { hour: date.getUTCHours(), minute: date.getUTCMinutes() };
-    }
-}
-
-function getSafeScheduledTime(target: Date, type: string, timezone: string): string {
-    const { hour: localHour, minute: localMinute } = getLocalTime(target, timezone);
-    const isQuiet = localHour >= 22 || localHour < 8;
-    if (!isQuiet) return target.toISOString();
-
-    const localParts = new Intl.DateTimeFormat("en-US", {
-        timeZone: timezone,
-        year: "numeric", month: "2-digit", day: "2-digit",
-    }).formatToParts(target);
-    const localYear  = parseInt(localParts.find((p) => p.type === "year")!.value, 10);
-    const localMonth = parseInt(localParts.find((p) => p.type === "month")!.value, 10) - 1;
-    const localDay   = parseInt(localParts.find((p) => p.type === "day")!.value, 10);
-
-    let targetHour   = 8;
-    let targetMinute = 0;
-    let dayOffset    = 0;
-
-    if (type.startsWith("reminder")) {
-        if (localHour < 8) {
-            // Distribuição proporcional: preserva o espaçamento relativo entre lembretes.
-            // minutesBefore8 = distância (min) entre o horário do lembrete e o início da janela segura (8h).
-            // Subtraímos essa distância de 21:00 da véspera → spread natural na tarde/noite anterior.
-            const minutesBefore8    = (8 * 60) - (localHour * 60 + localMinute);
-            const remappedTotalMins = Math.max(8 * 60, 21 * 60 - minutesBefore8);
-            targetHour   = Math.floor(remappedTotalMins / 60);
-            targetMinute = remappedTotalMins % 60;
-            dayOffset    = -1;
-        } else {
-            // Lembrete cai após 22h: empurra para 21h do mesmo dia (logo antes do silêncio).
-            targetHour   = 21;
-            targetMinute = 0;
-            dayOffset    = 0;
-        }
-    } else {
-        targetHour   = 8;
-        targetMinute = 0;
-        dayOffset    = localHour >= 22 ? 1 : 0;
-    }
-
-    const shiftedDate = new Date(Date.UTC(localYear, localMonth, localDay + dayOffset, targetHour, targetMinute, 0));
-    const offset = getUTCOffsetString(timezone, shiftedDate);
-    const sign    = offset[0] === "-" ? 1 : -1;
-    const [offH, offM] = offset.slice(1).split(":").map(Number);
-    const offsetMs = sign * (offH * 60 + offM) * 60 * 1000;
-    return new Date(shiftedDate.getTime() + offsetMs).toISOString();
-}
+console.log("schedule-reminders v4.1 (canal padrão do tenant + multi-timezone) initialized");
 
 function renderCustomCaption(template: string, vars: any): string {
     if (!template) return "";
@@ -137,28 +45,7 @@ function renderCustomCaption(template: string, vars: any): string {
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
-interface ChannelInfo {
-    channel:     "whatsapp" | "instagram" | "facebook" | "sms" | "email" | "mms";
-    recipientId: string;   // phone/email para whatsapp/sms/email; IGSID/PSID para instagram/facebook
-}
-
-// Interseção: preferência do paciente × Matriz de Canais do tenant.
-// - Canais fora da matriz (instagram/facebook) seguem a preferência do paciente;
-// - Canais presentes na matriz exigem a automação explicitamente habilitada;
-// - E-mail sem endereço válido é descartado.
-// NUNCA faz fallback silencioso para WhatsApp: sem canal elegível → não envia.
-function filterChannelsByMatrix(
-    channels: ChannelInfo[],
-    matrix: Record<string, any>,
-    automationKey: string,
-): ChannelInfo[] {
-    return channels.filter((c) => {
-        if (c.channel === "email" && !(c.recipientId || "").includes("@")) return false;
-        const row = matrix?.[c.channel];
-        if (row === undefined) return true;
-        return row?.[automationKey] === true;
-    });
-}
+type ChannelInfo = ResolvedChannelInfo;
 
 // ─── Handler principal ───────────────────────────────────────────────────────
 
@@ -349,24 +236,21 @@ serve(async (req: Request) => {
                 locale:            patientLocale,
             };
 
-            // Canais preferidos do paciente ∩ Matriz de Canais do tenant.
-            // Sem canal elegível → lembretes NÃO são enfileirados (nunca cair
+            // Canais preferidos do paciente ∩ Matriz de Canais do tenant, com
+            // fallback para o canal padrão do tenant (bot_config.default_notification_channel)
+            // quando o paciente não tem preferência elegível. Sem canal elegível
+            // nem sequer no padrão → lembretes NÃO são enfileirados (nunca cai
             // silenciosamente para WhatsApp com o canal desligado na matriz).
-            const preferredChannels: ChannelInfo[] = channelMap[patientData.phone] ?? [{
-                channel:     "whatsapp",
-                recipientId: patientData.phone,
-            }];
+            const preferredChannels: ChannelInfo[] = channelMap[patientData.phone] ?? [];
             const channelMatrix = (botConfig.channel_automations ?? {}) as Record<string, any>;
-            let channelsInfo = filterChannelsByMatrix(preferredChannels, channelMatrix, "no_show");
-
-            // Matriz só-e-mail + paciente sem preferência salva: usar o e-mail do cadastro
-            if (
-                channelsInfo.length === 0 &&
-                channelMatrix.email?.no_show === true &&
-                (patientData.email || "").includes("@")
-            ) {
-                channelsInfo = [{ channel: "email", recipientId: patientData.email }];
-            }
+            const channelsInfo = resolveEligibleChannels({
+                preferredChannels,
+                matrix:       channelMatrix,
+                automationKey: "no_show",
+                botConfig,
+                patientPhone: patientData.phone,
+                patientEmail: patientData.email,
+            });
 
             if (channelsInfo.length === 0) {
                 console.log(`[schedule-reminders] Appt ${appt.id}: nenhum canal elegível (preferência × matriz) — lembretes não enfileirados`);
@@ -512,12 +396,15 @@ serve(async (req: Request) => {
             }
 
             if (queueBatch.length > 0) {
-                // CRITICAL: onConflict must match the actual unique index:
-                // idx_outbound_queue_unique_msg ON (tenant_id, patient_phone, template_key, reference_id)
+                // onConflict deve casar com idx_outbound_queue_unique_msg:
+                // (tenant_id, patient_phone, message_type, reference_id, notification_channel).
+                // Inclui notification_channel para permitir fan-out multi-canal
+                // (ex.: WhatsApp + E-mail ambos ligados) sem que a 2ª linha seja
+                // descartada por colidir com a 1ª — bug corrigido em 2026-07-08.
                 const { error: upsertErr } = await supabase
                     .from("outbound_message_queue")
                     .upsert(queueBatch, {
-                        onConflict:       "tenant_id,patient_phone,template_key,reference_id",
+                        onConflict:       "tenant_id,patient_phone,message_type,reference_id,notification_channel",
                         ignoreDuplicates: true,
                     });
 
@@ -564,20 +451,20 @@ serve(async (req: Request) => {
             let targetTime = now.getTime() + delayMinutes * 60 * 1000;
             const scheduledTime = getSafeScheduledTime(new Date(targetTime), "nps", timezone);
 
-            // Canais preferidos do paciente ∩ matriz do tenant (coluna NPS).
-            // Sem canal elegível → NPS não é enviado (sem fallback para WhatsApp).
-            const channelsForPatient: ChannelInfo[] = channelMap[patientData.phone] ?? [{
-                channel:     "whatsapp",
-                recipientId: patientData.phone,
-            }];
+            // Canais preferidos do paciente ∩ matriz do tenant (coluna NPS), com
+            // fallback para o canal padrão do tenant. Sem canal elegível → NPS
+            // não é enviado (nunca cai silenciosamente para WhatsApp).
+            const channelsForPatient: ChannelInfo[] = channelMap[patientData.phone] ?? [];
+            const eligibleNps = resolveEligibleChannels({
+                preferredChannels: channelsForPatient,
+                matrix:       npsChannels,
+                automationKey: "nps",
+                botConfig,
+                patientPhone: patientData.phone,
+                patientEmail: patientData.email,
+            });
 
-            const eligibleNps = filterChannelsByMatrix(channelsForPatient, npsChannels, "nps");
-
-            let npsChannel = eligibleNps[0];
-            // Matriz só-e-mail + paciente sem preferência salva: e-mail do cadastro
-            if (!npsChannel && npsChannels.email?.nps === true && (patientData.email || "").includes("@")) {
-                npsChannel = { channel: "email", recipientId: patientData.email };
-            }
+            const npsChannel = eligibleNps[0];
             if (!npsChannel) {
                 console.log(`[schedule-reminders] NPS Appt ${appt.id}: nenhum canal elegível — não enviado`);
                 continue;
@@ -610,7 +497,7 @@ serve(async (req: Request) => {
                     channel_recipient_id: npsChannel.recipientId,
                     is_edited:            false,
                 }, {
-                    onConflict:       "tenant_id,patient_phone,template_key,reference_id",
+                    onConflict:       "tenant_id,patient_phone,message_type,reference_id,notification_channel",
                     ignoreDuplicates: true,
                 });
 

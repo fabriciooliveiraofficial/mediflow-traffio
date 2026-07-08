@@ -33,9 +33,12 @@ interface Props {
   patientPhone: string;
   compact?:     boolean;   // modo compacto para sidebar
   enabledChannels?: Record<string, boolean>;
+  /** Canal padrão do tenant (bot_config.default_notification_channel) — usado
+   *  para os envios automáticos quando o paciente não tem preferência manual. */
+  defaultChannel?: Channel;
 }
 
-export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = false, enabledChannels }: Props) {
+export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = false, enabledChannels, defaultChannel = 'whatsapp' }: Props) {
   const { t } = useTranslation('communications');
 
   const CHANNELS: ChannelOption[] = [
@@ -105,6 +108,7 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
   const [loading,       setLoading]       = useState(true);
 
   const countryCode = (phoneCountry(patientPhone) || 'BR') as CountryCode;
+  const defaultChannelLabel = CHANNELS.find(ch => ch.id === defaultChannel)?.label ?? 'WhatsApp';
 
   const filteredChannels = CHANNELS.filter(ch => {
     if (!enabledChannels) return true;
@@ -347,7 +351,7 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
           )}
           {updatedBy === 'auto' && (
             <span className="text-[9px] bg-ice-50 text-graphite-400 font-bold px-1.5 py-0.5 rounded-full border border-ice-100">
-              {t('channelPreferenceSelector.auto')}
+              {t('channelPreferenceSelector.auto')} · {defaultChannelLabel}
             </span>
           )}
         </div>
@@ -394,7 +398,7 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
             ? 'bg-amber-50 text-amber-600 border border-amber-100'
             : 'bg-ice-50 text-graphite-400 border border-ice-100'
         }`}>
-          {updatedBy === 'manual' ? t('channelPreferenceSelector.manuallySet') : t('channelPreferenceSelector.autoDetected')}
+          {updatedBy === 'manual' ? t('channelPreferenceSelector.manuallySet') : `${t('channelPreferenceSelector.autoDetected')} · ${defaultChannelLabel}`}
         </span>
       </div>
 

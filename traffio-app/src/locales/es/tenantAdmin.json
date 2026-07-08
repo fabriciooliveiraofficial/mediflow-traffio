@@ -479,6 +479,11 @@
       "categorySent": "Enviados",
       "categoryPending": "Pendientes"
     },
+    "defaultChannelSection": {
+      "title": "Canal Predeterminado de Notificación",
+      "hint": "Se usa cuando el paciente no tiene un canal definido manualmente en Atención. Elige el canal más usado por tus pacientes en esta región.",
+      "disabledHint": "Activa al menos una automatización para este canal en la matriz de abajo"
+    },
     "matrixSection": {
       "title": "Matriz de Canales y Automatizaciones",
       "textOnly": "Solo Texto",
