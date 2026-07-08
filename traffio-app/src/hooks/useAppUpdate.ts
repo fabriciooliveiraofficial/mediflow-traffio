@@ -135,22 +135,24 @@ export function useAppUpdate() {
         try {
             const response = await fetch(`/app-version.json?t=${Date.now()}`, {
                 cache: 'no-store',
+                credentials: 'omit',
                 headers: {
                     'Cache-Control': 'no-cache',
                     Pragma: 'no-cache',
                 },
             });
 
-            if (!response.ok) return;
+            if (!response.ok) {
+                console.warn('[AppUpdate] Version check response not ok:', response.status);
+                return;
+            }
 
             const manifest = await response.json() as VersionManifest;
             if (manifest.version && manifest.version !== CURRENT_APP_VERSION) {
                 markUpdateAvailable(manifest);
             }
         } catch (error) {
-            if (import.meta.env.DEV) {
-                console.debug('[AppUpdate] Version check skipped:', error);
-            }
+            console.error('[AppUpdate] Version check failed:', error);
         }
     }, [markUpdateAvailable]);
 
@@ -203,6 +205,15 @@ export function useAppUpdate() {
         if (import.meta.env.DEV || !('serviceWorker' in navigator)) return;
 
         let disposed = false;
+        let updateIntervalId: number | undefined;
+
+        const checkSWUpdate = (registration: ServiceWorkerRegistration) => {
+            if (!disposed) {
+                registration.update().catch((err) => {
+                    console.debug('[AppUpdate] SW auto-update check failed:', err);
+                });
+            }
+        };
 
         const watchRegistration = (registration: ServiceWorkerRegistration) => {
             registrationRef.current = registration;
@@ -221,14 +232,37 @@ export function useAppUpdate() {
                     }
                 });
             });
+
+            // Periodically check for service worker updates every 30 seconds
+            updateIntervalId = window.setInterval(() => checkSWUpdate(registration), VERSION_CHECK_INTERVAL_MS);
+
+            // Also check on window focus
+            const handleFocusUpdate = () => checkSWUpdate(registration);
+            window.addEventListener('focus', handleFocusUpdate);
+
+            // And on visibility changes
+            const handleVisibilityUpdate = () => {
+                if (document.visibilityState === 'visible') {
+                    checkSWUpdate(registration);
+                }
+            };
+            document.addEventListener('visibilitychange', handleVisibilityUpdate);
+
+            return () => {
+                window.clearInterval(updateIntervalId);
+                window.removeEventListener('focus', handleFocusUpdate);
+                document.removeEventListener('visibilitychange', handleVisibilityUpdate);
+            };
         };
+
+        let cleanupEvents: (() => void) | undefined;
 
         navigator.serviceWorker
             .register('/sw.js')
             .then((registration) => {
                 if (disposed) return;
-                watchRegistration(registration);
-                registration.update();
+                cleanupEvents = watchRegistration(registration);
+                registration.update().catch(() => {});
             })
             .catch((error) => {
                 console.error('[AppUpdate] Service worker registration failed:', error);
@@ -236,6 +270,9 @@ export function useAppUpdate() {
 
         return () => {
             disposed = true;
+            if (cleanupEvents) {
+                cleanupEvents();
+            }
         };
     }, [markUpdateAvailable]);
 
