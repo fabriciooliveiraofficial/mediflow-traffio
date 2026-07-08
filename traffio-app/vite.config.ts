@@ -39,11 +39,13 @@ export default defineConfig({
     __APP_BUILD_TIME__: JSON.stringify(buildTime),
   },
   plugins: [react(), tailwindcss(), appVersionPlugin(), VitePWA({
+    strategies: 'injectManifest',
+    srcDir: 'src',
+    filename: 'sw.ts',
     injectRegister: null,
     registerType: 'prompt',
-    workbox: {
+    injectManifest: {
       maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB
-      cleanupOutdatedCaches: true,
       globIgnores: ['**/app-version.json'],
     },
     includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],

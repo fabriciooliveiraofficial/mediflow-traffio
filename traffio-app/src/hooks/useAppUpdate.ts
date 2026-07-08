@@ -98,7 +98,13 @@ const waitForInstallingWorker = (registration: ServiceWorkerRegistration) => {
 };
 
 const reloadCurrentPage = () => {
-    window.location.reload();
+    try {
+        const url = new URL(window.location.href);
+        url.searchParams.set('__traffio_update', Date.now().toString());
+        window.location.replace(url.toString());
+    } catch {
+        window.location.reload();
+    }
 };
 
 export function useAppUpdate() {
