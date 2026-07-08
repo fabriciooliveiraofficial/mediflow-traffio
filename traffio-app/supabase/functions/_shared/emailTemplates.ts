@@ -36,6 +36,11 @@ const SUBJECTS: Record<string, Record<EmailLocale, string>> = {
     en: "How was your experience at {clinic}?",
     es: "¿Cómo fue su experiencia en {clinic}?",
   },
+  confirmation: {
+    pt: "Confirmação de Agendamento — {clinic}",
+    en: "Booking Confirmation — {clinic}",
+    es: "Confirmación de Cita — {clinic}",
+  },
   recovery: {
     pt: "Sentimos sua falta — {clinic}",
     en: "We missed you — {clinic}",
@@ -58,6 +63,7 @@ export function getEmailSubject(templateKey: string, vars: any, locale?: string)
   let group = "default";
   if (templateKey?.startsWith("appointment_reminder")) group = "reminder";
   else if (templateKey === "nps_survey") group = "nps_survey";
+  else if (templateKey === "booking_confirmed") group = "confirmation";
   else if (templateKey?.startsWith("recovery_")) group = "recovery";
   else if (templateKey === "recall_immediate") group = "recall";
 

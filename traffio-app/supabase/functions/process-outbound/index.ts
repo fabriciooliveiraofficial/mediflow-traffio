@@ -260,8 +260,12 @@ serve(async (req: Request) => {
       }
 
       // ── Guards (in-memory via apptMap — sem queries por mensagem) ──
-      // booking_confirmed: sempre enviado manualmente pelo agente
-      if (msg.message_type === 'booking_confirmed' || msg.template_key === 'booking_confirmed') {
+      // booking_confirmed automático (sem override) é duplicata da confirmação
+      // manual do agente e deve ser cancelado. Envios manuais explícitos
+      // (is_edited + override_message, ex.: modal "Enviar Resumo" da Agenda)
+      // são entregues normalmente pelo canal escolhido.
+      const isManualAgentSend = !!(msg.is_edited && msg.template_vars?.override_message);
+      if ((msg.message_type === 'booking_confirmed' || msg.template_key === 'booking_confirmed') && !isManualAgentSend) {
         await supabase.from('outbound_message_queue')
           .update({ status: 'cancelled', error_message: 'Duplicate of manual confirmation' }).eq('id', msg.id);
         return;

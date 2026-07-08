@@ -98,16 +98,41 @@ serve(async (req: Request) => {
       if (!session) {
         return new Response(JSON.stringify({ error: 'session_id é obrigatório para envio por e-mail' }), { status: 400, headers: corsHeaders });
       }
-      if (!session.patient_id) {
-        throw new Error('Vincule um paciente à conversa para enviar por e-mail.');
-      }
-      const { data: patientRow } = await supabase
-        .from('patients')
-        .select('email, full_name')
-        .eq('id', session.patient_id)
-        .maybeSingle();
 
-      const email = patientRow?.email?.trim();
+      // Resolver o e-mail do destinatário: paciente vinculado → paciente pelo
+      // telefone da sessão → preferência de canal. (A UI localiza o paciente por
+      // telefone mesmo sem vínculo formal na sessão — o envio deve acompanhar.)
+      let email: string | null = null;
+      if (session.patient_id) {
+        const { data: patientRow } = await supabase
+          .from('patients')
+          .select('email')
+          .eq('id', session.patient_id)
+          .maybeSingle();
+        email = patientRow?.email?.trim() || null;
+      }
+      if (!email) {
+        const cleanPhone = (session.patient_phone || '').replace(/\D/g, '');
+        if (cleanPhone) {
+          const { data: byPhone } = await supabase
+            .from('patients')
+            .select('email')
+            .eq('tenant_id', tenant_id)
+            .or(`phone.eq.${cleanPhone},phone.eq.+${cleanPhone}`)
+            .limit(1);
+          email = byPhone?.[0]?.email?.trim() || null;
+        }
+      }
+      if (!email) {
+        const { data: pref } = await supabase
+          .from('patient_channel_preferences')
+          .select('email')
+          .eq('tenant_id', tenant_id)
+          .eq('patient_phone', session.patient_phone)
+          .maybeSingle();
+        email = pref?.email?.trim() || null;
+      }
+
       if (!email) {
         throw new Error('Paciente não possui e-mail cadastrado.');
       }

@@ -829,19 +829,39 @@ export const AgendaMestra: React.FC = () => {
 
     const handleSendNotification = async () => {
         if (!bookingForm.selectedPatient || !selectedTenant) return;
-        
+
         try {
             const recipient = recipientId || bookingForm.selectedPatient.phone || bookingForm.selectedPatient.email || '';
+
+            // Validar o destinatário conforme o canal escolhido
+            if (notificationChannel === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient.trim())) {
+                showToast('error', 'Informe um endereço de e-mail válido para enviar por e-mail.');
+                return;
+            }
+            if (notificationChannel !== 'email' && !recipient.replace(/\D/g, '')) {
+                showToast('error', 'Informe um número de telefone válido para este canal.');
+                return;
+            }
+
+            const tenantInfo = tenants.find(t => t.id === selectedTenant);
+
+            // is_edited + override_message: o process-outbound envia o texto exatamente
+            // como está no preview, por qualquer canal (incl. e-mail)
             const { error } = await supabase.from('outbound_message_queue').insert({
                 tenant_id: selectedTenant,
                 patient_phone: bookingForm.selectedPatient.phone || recipient,
                 message_type: 'booking_confirmed',
-                template_key: 'custom',
-                template_vars: { message: notificationPreviewText },
+                template_key: 'booking_confirmed',
+                template_vars: {
+                    override_message: notificationPreviewText,
+                    clinic_name: tenantInfo?.name || '',
+                    locale: tenantInfo?.bot_config?.notification_locale || 'pt',
+                },
+                is_edited: true,
                 scheduled_at: new Date().toISOString(),
                 status: 'pending',
                 notification_channel: notificationChannel,
-                channel_recipient_id: recipient
+                channel_recipient_id: recipient.trim()
             });
 
             if (error) throw error;
