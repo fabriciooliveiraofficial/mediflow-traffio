@@ -338,6 +338,10 @@
       "title": "Clinic Services",
       "subtitle": "General / No Professional"
     },
+    "shared": {
+      "title": "Shared Services",
+      "subtitle": "Linked to multiple professionals"
+    },
     "card": {
       "activate": "Activate",
       "deactivate": "Deactivate",
@@ -347,6 +351,9 @@
       "tenantNotIdentified": "Error: Unable to identify your clinic. Make sure you are logged in correctly.",
       "saveSuccess": "Procedure saved successfully!",
       "saveErrorPrefix": "Failed to save: {{message}}",
+      "deleteSuccess": "Procedure deleted successfully!",
+      "deleteErrorPrefix": "Failed to delete: {{message}}",
+      "deleteBlockedWithAppointments": "This procedure has linked appointments. To preserve history, deactivate it instead of deleting it.",
       "linksWithoutDoctorWarning": "Warning: You added locations but didn't select a doctor for any of them. The locations will not be saved."
     },
     "deleteConfirm": "Remove this appointment type?",

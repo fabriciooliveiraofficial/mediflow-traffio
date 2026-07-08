@@ -461,6 +461,24 @@ export const AgendaMestra: React.FC = () => {
         };
     };
 
+    const getAllowedAppointmentTypesForDoctor = (doctorId: string, locationId?: string | null) => {
+        if (!doctorId) return [];
+
+        const mappedServices = doctorServices.filter(ds => {
+            if (ds.doctor_id !== doctorId) return false;
+            if (!locationId) return true;
+            return !ds.location_id || ds.location_id === locationId;
+        });
+
+        const mappedServiceIds = new Set(mappedServices.map(ds => ds.service_id));
+        const hasAnyMappings = new Set(doctorServices.map(ds => ds.service_id));
+
+        return appointmentTypes.filter(type => {
+            if (!hasAnyMappings.has(type.id)) return true;
+            return mappedServiceIds.has(type.id);
+        });
+    };
+
     const checkSlotAvailabilityLocal = (
         dateStr: string,
         startTime: string,
@@ -628,10 +646,50 @@ export const AgendaMestra: React.FC = () => {
         setSelectedDoctors(prev => prev.includes(id) ? prev.filter(d => d !== id) : [...prev, id]);
     };
 
+    const bookingAppointmentTypes = useMemo(() => {
+        if (!bookingModal.open || !bookingModal.doctorId) return [];
+        return getAllowedAppointmentTypesForDoctor(
+            bookingModal.doctorId,
+            bookingModal.slot?.location_id || selectedLocation
+        );
+    }, [
+        bookingModal.open,
+        bookingModal.doctorId,
+        bookingModal.slot?.location_id,
+        selectedLocation,
+        appointmentTypes,
+        doctorServices
+    ]);
+
+    useEffect(() => {
+        if (!bookingModal.open) return;
+
+        if (bookingAppointmentTypes.length === 0) {
+            if (bookingForm.typeId) {
+                setBookingForm(prev => ({ ...prev, typeId: '' }));
+            }
+            return;
+        }
+
+        if (!bookingAppointmentTypes.some(type => type.id === bookingForm.typeId)) {
+            setBookingForm(prev => ({ ...prev, typeId: bookingAppointmentTypes[0].id }));
+        }
+    }, [bookingModal.open, bookingAppointmentTypes, bookingForm.typeId]);
+
     // ── Booking ─────────────────────────────
     const openBookingModal = (doctorId: string, slot: SmartSlot | null) => {
+        const locationId = slot?.location_id || selectedLocation;
+        const allowedTypes = getAllowedAppointmentTypesForDoctor(doctorId, locationId);
+
         if (!reschedulingFromAppt) {
-            setBookingForm({ patientSearch: '', selectedPatient: null, patientType: 'private', insurancePlanId: '', typeId: appointmentTypes[0]?.id || '', notes: '' });
+            setBookingForm({
+                patientSearch: '',
+                selectedPatient: null,
+                patientType: 'private',
+                insurancePlanId: '',
+                typeId: allowedTypes[0]?.id || '',
+                notes: ''
+            });
             setPatientResults([]);
             setDoctorPlans([]);
         }
@@ -640,8 +698,17 @@ export const AgendaMestra: React.FC = () => {
     };
 
     const openBookingFromDrag = (doctorId: string, startMin: number, endMin: number) => {
+        const allowedTypes = getAllowedAppointmentTypesForDoctor(doctorId, selectedLocation);
+
         if (!reschedulingFromAppt) {
-            setBookingForm({ patientSearch: '', selectedPatient: null, patientType: 'private', insurancePlanId: '', typeId: appointmentTypes[0]?.id || '', notes: '' });
+            setBookingForm({
+                patientSearch: '',
+                selectedPatient: null,
+                patientType: 'private',
+                insurancePlanId: '',
+                typeId: allowedTypes[0]?.id || '',
+                notes: ''
+            });
             setPatientResults([]);
             setDoctorPlans([]);
         }
@@ -1810,7 +1877,7 @@ export const AgendaMestra: React.FC = () => {
                                         }}
                                             className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium cursor-pointer focus:outline-none focus:border-brand-primary transition-colors">
                                             <option value="">{t('mestra.bookingModal.selectTypePlaceholder')}</option>
-                                            {appointmentTypes.map(t => <option key={t.id} value={t.id}>{t.name} ({t.duration_minutes}min)</option>)}
+                                            {bookingAppointmentTypes.map(t => <option key={t.id} value={t.id}>{t.name} ({t.duration_minutes}min)</option>)}
                                         </select>
                                     </div>
 
@@ -1972,7 +2039,7 @@ export const AgendaMestra: React.FC = () => {
                                                                     value={occ.type_id}
                                                                     onChange={(e) => {
                                                                         const tId = e.target.value;
-                                                                        const typeObj = appointmentTypes.find(t => t.id === tId);
+                                                                        const typeObj = bookingAppointmentTypes.find(t => t.id === tId);
                                                                         const updated = [...generatedOccurrences];
                                                                         updated[idx] = {
                                                                             ...updated[idx],
@@ -1984,7 +2051,7 @@ export const AgendaMestra: React.FC = () => {
                                                                     }}
                                                                     className="flex-1 bg-ice-50 border border-ice-200 rounded-lg px-1.5 py-0.5 text-[9px] font-bold cursor-pointer"
                                                                 >
-                                                                    {appointmentTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                                                    {bookingAppointmentTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                                                                 </select>
                                                             </div>
                                                         </div>

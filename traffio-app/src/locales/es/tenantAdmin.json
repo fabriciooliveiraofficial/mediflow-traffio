@@ -338,6 +338,10 @@
       "title": "Servicios de la Clínica",
       "subtitle": "Generales / Sin Profesional"
     },
+    "shared": {
+      "title": "Servicios Compartidos",
+      "subtitle": "Vinculados a múltiples profesionales"
+    },
     "card": {
       "activate": "Activar",
       "deactivate": "Desactivar",
@@ -347,6 +351,9 @@
       "tenantNotIdentified": "Error: No fue posible identificar tu clínica. Verifica que hayas iniciado sesión correctamente.",
       "saveSuccess": "¡Procedimiento guardado con éxito!",
       "saveErrorPrefix": "No se pudo guardar: {{message}}",
+      "deleteSuccess": "¡Procedimiento eliminado con éxito!",
+      "deleteErrorPrefix": "No se pudo eliminar: {{message}}",
+      "deleteBlockedWithAppointments": "Este procedimiento tiene citas vinculadas. Para preservar el historial, desactívalo en lugar de eliminarlo.",
       "linksWithoutDoctorWarning": "Aviso: Agregaste sucursales pero no seleccionaste al médico en ninguna de ellas. Las sucursales no se guardarán."
     },
     "deleteConfirm": "¿Eliminar este tipo de consulta?",

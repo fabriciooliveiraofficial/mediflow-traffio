@@ -33,7 +33,7 @@ interface ServiceType {
     color_hex: string;
     preparation_instructions: string;
     is_active: boolean;
-    doctor_services?: { doctor_id: string }[];
+    doctor_services?: { doctor_id: string; location_id: string | null }[];
 }
 
 const EMPTY_FORM = {
@@ -47,7 +47,7 @@ const EMPTY_FORM = {
 
 export const Services = () => {
     const { t } = useTranslation('tenantAdmin');
-    const { showToast } = useToast();
+    const { showToast, showConfirm } = useToast();
     const [services, setServices] = useState<ServiceType[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -121,15 +121,44 @@ export const Services = () => {
     };
 
     const fetchServices = async () => {
-        const { data } = await supabase
+        const { data, error } = await supabase
             .from('appointment_types')
-            .select(`
-                *,
-                doctor_services(doctor_id)
-            `)
+            .select('*')
             .order('name', { ascending: true });
 
-        if (data) setServices(data as ServiceType[]);
+        if (error) {
+            console.error('Error fetching services:', error);
+            return;
+        }
+
+        const serviceIds = (data || []).map((service: any) => service.id);
+        if (serviceIds.length === 0) {
+            setServices([]);
+            return;
+        }
+
+        const { data: links, error: linksError } = await supabase
+            .from('doctor_services')
+            .select('service_id, doctor_id, location_id')
+            .in('service_id', serviceIds);
+
+        if (linksError) {
+            console.error('Error fetching service links:', linksError);
+        }
+
+        const linksByServiceId = (links || []).reduce<Record<string, { doctor_id: string; location_id: string | null }[]>>((acc, link: any) => {
+            if (!acc[link.service_id]) acc[link.service_id] = [];
+            acc[link.service_id].push({
+                doctor_id: link.doctor_id,
+                location_id: link.location_id
+            });
+            return acc;
+        }, {});
+
+        setServices((data || []).map((service: any) => ({
+            ...service,
+            doctor_services: linksByServiceId[service.id] || []
+        })) as ServiceType[]);
     };
 
     const handleSave = async () => {
@@ -262,10 +291,39 @@ export const Services = () => {
         setShowModal(true);
     };
 
+    const isForeignKeyDeleteError = (err: any) => {
+        const message = String(err?.message || '');
+        return err?.code === '23503' || message.includes('violates foreign key constraint');
+    };
+
     const handleDelete = async (id: string) => {
-        if (!confirm(t('services.deleteConfirm'))) return;
-        await supabase.from('appointment_types').delete().eq('id', id);
-        fetchServices();
+        const { count, error: countError } = await supabase
+            .from('appointments')
+            .select('id', { count: 'exact', head: true })
+            .eq('type_id', id);
+
+        if (!countError && (count || 0) > 0) {
+            showToast('warning', t('services.toasts.deleteBlockedWithAppointments'));
+            return;
+        }
+
+        const confirmed = await showConfirm(t('services.deleteConfirm'));
+        if (!confirmed) return;
+
+        try {
+            const { error } = await supabase.from('appointment_types').delete().eq('id', id);
+            if (error) throw error;
+
+            showToast('success', t('services.toasts.deleteSuccess'));
+            fetchServices();
+        } catch (err: any) {
+            if (isForeignKeyDeleteError(err)) {
+                showToast('warning', t('services.toasts.deleteBlockedWithAppointments'));
+                return;
+            }
+
+            showToast('error', t('services.toasts.deleteErrorPrefix', { message: err.message || JSON.stringify(err) }));
+        }
     };
 
     const handleToggle = async (id: string, current: boolean) => {
@@ -281,6 +339,7 @@ export const Services = () => {
     const groupedServices = useMemo(() => {
         const groups: { [key: string]: { doctor: DoctorType | null, services: ServiceType[] } } = {};
         
+        groups['shared'] = { doctor: null, services: [] };
         groups['unassigned'] = { doctor: null, services: [] };
         
         doctors.forEach(doc => {
@@ -288,24 +347,33 @@ export const Services = () => {
         });
 
         filtered.forEach(service => {
-            const links = service.doctor_services || [];
-            if (links.length === 0) {
-                // If no links, it's a general clinic service
-                groups['unassigned'].services.push(service);
+            const linkedDoctorIds = Array.from(new Set(
+                (service.doctor_services || [])
+                    .map(link => link.doctor_id)
+                    .filter(doctorId => groups[doctorId])
+            ));
+
+            if (linkedDoctorIds.length > 1) {
+                groups['shared'].services.push(service);
+            } else if (linkedDoctorIds.length === 1) {
+                groups[linkedDoctorIds[0]].services.push(service);
             } else {
-                // Service may belong to multiple doctors
-                const seenDoctors = new Set();
-                links.forEach(link => {
-                    if (groups[link.doctor_id] && !seenDoctors.has(link.doctor_id)) {
-                        groups[link.doctor_id].services.push(service);
-                        seenDoctors.add(link.doctor_id);
-                    }
-                });
+                groups['unassigned'].services.push(service);
             }
         });
 
         return groups;
     }, [filtered, doctors]);
+
+    const getServiceDoctorNames = (service: ServiceType) => {
+        const linkedDoctorIds = Array.from(new Set(
+            (service.doctor_services || []).map(link => link.doctor_id)
+        ));
+
+        return linkedDoctorIds
+            .map(doctorId => doctors.find(doc => doc.id === doctorId)?.full_name)
+            .filter(Boolean) as string[];
+    };
 
     const formatPrice = (cents: number) => {
         return (cents / 100).toLocaleString('pt-BR', {
@@ -316,58 +384,72 @@ export const Services = () => {
     };
 
     // Helper Component for Service Card to avoid logic duplication
-    const ServiceCard = ({ service: s }: { service: ServiceType }) => (
-        <div
-            key={s.id}
-            onClick={() => handleEdit(s)}
-            className="group bg-white rounded-2xl border border-transparent shadow-float p-5 hover:border-brand-primary/30 transition-all cursor-pointer relative overflow-hidden h-full"
-        >
-            {/* Color Indicator */}
-            <div
-                className="absolute top-0 left-0 w-1 h-full rounded-l-2xl"
-                style={{ backgroundColor: s.color_hex }}
-            />
+    const ServiceCard = ({ service: s, showProfessionals = false }: { service: ServiceType; showProfessionals?: boolean }) => {
+        const linkedDoctorNames = showProfessionals ? getServiceDoctorNames(s) : [];
 
-            <div className="flex items-start justify-between">
-                <div className="pl-3">
-                    <p className="font-black text-graphite-900 text-base leading-tight">{s.name}</p>
-                    <div className="flex items-center gap-3 mt-2">
-                        <span className="flex items-center gap-1 text-xs font-bold text-graphite-400">
-                            <Clock size={12} /> {s.duration_minutes} min
-                        </span>
-                        <span className="flex items-center gap-1 text-xs font-bold text-emerald-600">
-                            <DollarSign size={12} /> {formatPrice(s.price_cents)}
-                        </span>
+        return (
+            <div
+                key={s.id}
+                onClick={() => handleEdit(s)}
+                className="group bg-white rounded-2xl border border-transparent shadow-float p-5 hover:border-brand-primary/30 transition-all cursor-pointer relative overflow-hidden h-full"
+            >
+                {/* Color Indicator */}
+                <div
+                    className="absolute top-0 left-0 w-1 h-full rounded-l-2xl"
+                    style={{ backgroundColor: s.color_hex }}
+                />
+
+                <div className="flex items-start justify-between">
+                    <div className="pl-3">
+                        <p className="font-black text-graphite-900 text-base leading-tight">{s.name}</p>
+                        <div className="flex items-center gap-3 mt-2">
+                            <span className="flex items-center gap-1 text-xs font-bold text-graphite-400">
+                                <Clock size={12} /> {s.duration_minutes} min
+                            </span>
+                            <span className="flex items-center gap-1 text-xs font-bold text-emerald-600">
+                                <DollarSign size={12} /> {formatPrice(s.price_cents)}
+                            </span>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); handleToggle(s.id, s.is_active); }}
+                            className="p-1.5 rounded-lg border-none cursor-pointer transition-colors hover:bg-ice-50"
+                            title={s.is_active ? t('services.card.deactivate') : t('services.card.activate')}
+                        >
+                            {s.is_active ? (
+                                <ToggleRight size={20} className="text-emerald-500" />
+                            ) : (
+                                <ToggleLeft size={20} className="text-graphite-300" />
+                            )}
+                        </button>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); handleDelete(s.id); }}
+                            className="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg border-none cursor-pointer transition-all"
+                        >
+                            <Trash2 size={16} />
+                        </button>
                     </div>
                 </div>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                        onClick={(e) => { e.stopPropagation(); handleToggle(s.id, s.is_active); }}
-                        className="p-1.5 rounded-lg border-none cursor-pointer transition-colors hover:bg-ice-50"
-                        title={s.is_active ? t('services.card.deactivate') : t('services.card.activate')}
-                    >
-                        {s.is_active ? (
-                            <ToggleRight size={20} className="text-emerald-500" />
-                        ) : (
-                            <ToggleLeft size={20} className="text-graphite-300" />
-                        )}
-                    </button>
-                    <button
-                        onClick={(e) => { e.stopPropagation(); handleDelete(s.id); }}
-                        className="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg border-none cursor-pointer transition-all"
-                    >
-                        <Trash2 size={16} />
-                    </button>
-                </div>
-            </div>
 
-            {!s.is_active && (
-                <span className="mt-2 inline-block px-2 py-0.5 rounded-lg text-[10px] font-black uppercase bg-rose-100 text-rose-600 ml-3">
-                    {t('services.card.inactiveBadge')}
-                </span>
-            )}
-        </div>
-    );
+                {linkedDoctorNames.length > 0 && (
+                    <div className="mt-3 ml-3 flex flex-wrap gap-1.5">
+                        {linkedDoctorNames.map(name => (
+                            <span key={name} className="px-2 py-0.5 rounded-lg bg-ice-50 border border-ice-100 text-[10px] font-black text-graphite-500">
+                                {name}
+                            </span>
+                        ))}
+                    </div>
+                )}
+
+                {!s.is_active && (
+                    <span className="mt-2 inline-block px-2 py-0.5 rounded-lg text-[10px] font-black uppercase bg-rose-100 text-rose-600 ml-3">
+                        {t('services.card.inactiveBadge')}
+                    </span>
+                )}
+            </div>
+        );
+    };
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto">
@@ -414,7 +496,27 @@ export const Services = () => {
                     </div>
                 ) : (
                     <>
-                        {/* 1. Services by Professional */}
+                        {/* 1. Shared Services */}
+                        {groupedServices['shared'].services.length > 0 && (
+                            <div className="space-y-6">
+                                <div className="flex items-center gap-3 px-2">
+                                    <div className="w-10 h-10 rounded-xl bg-brand-primary/10 flex items-center justify-center text-brand-primary">
+                                        <Tag size={20} />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-xl font-black text-graphite-900 tracking-tight leading-none mb-1">{t('services.shared.title')}</h2>
+                                        <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest">{t('services.shared.subtitle')}</p>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {groupedServices['shared'].services.map(s => (
+                                        <ServiceCard key={`shared-${s.id}`} service={s} showProfessionals />
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 2. Services by Professional */}
                         {doctors.map(doc => {
                             const group = groupedServices[doc.id];
                             if (!group || group.services.length === 0) return null;
@@ -439,7 +541,7 @@ export const Services = () => {
                             );
                         })}
 
-                        {/* 2. Clinical General Services (Unassigned) */}
+                        {/* 3. Clinical General Services (Unassigned) */}
                         {groupedServices['unassigned'].services.length > 0 && (
                             <div className="space-y-6 pt-4">
                                 <div className="flex items-center gap-3 px-2">

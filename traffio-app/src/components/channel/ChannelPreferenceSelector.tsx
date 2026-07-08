@@ -106,8 +106,13 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
   const [saving,        setSaving]        = useState(false);
   const [saved,         setSaved]         = useState(false);
   const [loading,       setLoading]       = useState(true);
+  // Chave canônica em patients.phone (E.164) — pode divergir de patientPhone
+  // (ex.: conversation_sessions.patient_phone sem "+"). patient_channel_preferences
+  // é normalizado por trigger para casar com patients.phone; ler/gravar com a
+  // chave crua da sessão faz a preferência "sumir" após salvar.
+  const [resolvedPhone, setResolvedPhone] = useState(patientPhone);
 
-  const countryCode = (phoneCountry(patientPhone) || 'BR') as CountryCode;
+  const countryCode = (phoneCountry(resolvedPhone) || 'BR') as CountryCode;
   const defaultChannelLabel = CHANNELS.find(ch => ch.id === defaultChannel)?.label ?? 'WhatsApp';
 
   const filteredChannels = CHANNELS.filter(ch => {
@@ -119,16 +124,27 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
   // Carregar preferência existente
   useEffect(() => {
     if (!tenantId || !patientPhone) return;
-    loadPreference();
+    (async () => {
+      const digits = patientPhone.replace(/\D/g, '');
+      const { data: patientRow } = await supabase
+        .from('patients')
+        .select('phone')
+        .eq('tenant_id', tenantId)
+        .or(`phone.eq.${digits},phone.eq.+${digits}`)
+        .limit(1)
+        .maybeSingle();
+      await loadPreference(patientRow?.phone || patientPhone);
+    })();
   }, [tenantId, patientPhone]);
 
-  async function loadPreference() {
+  async function loadPreference(phoneKey: string) {
     setLoading(true);
+    setResolvedPhone(phoneKey);
     const { data } = await supabase
       .from('patient_channel_preferences')
       .select('preferred_channel, sms_phone, whatsapp_phone, email, updated_by')
       .eq('tenant_id', tenantId)
-      .eq('patient_phone', patientPhone)
+      .eq('patient_phone', phoneKey)
       .maybeSingle();
 
     if (data) {
@@ -187,7 +203,7 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
 
     const update: any = {
       tenant_id:        tenantId,
-      patient_phone:    patientPhone,
+      patient_phone:    resolvedPhone,
       preferred_channel: channelsString,
       updated_by:       'manual',
       last_manual_updated_at: new Date().toISOString(),
@@ -221,7 +237,7 @@ export function ChannelPreferenceSelector({ tenantId, patientPhone, compact = fa
 
     const update: any = {
       tenant_id:        tenantId,
-      patient_phone:    patientPhone,
+      patient_phone:    resolvedPhone,
       preferred_channel: activeChannelsToSave.join(','),
       updated_by:       'manual',
       last_manual_updated_at: new Date().toISOString(),
