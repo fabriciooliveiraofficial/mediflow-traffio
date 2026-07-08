@@ -15,7 +15,6 @@ interface AppUpdateState {
 const VERSION_CHECK_INTERVAL_MS = 30000;
 const SKIPPED_VERSION_KEY = 'traffio_skipped_app_update_version';
 const SKIPPED_SW_SESSION_KEY = 'traffio_skipped_service_worker_update';
-const RELOAD_PARAM = '__traffio_update';
 
 export const CURRENT_APP_VERSION = __APP_VERSION__;
 export const CURRENT_APP_BUILD_TIME = __APP_BUILD_TIME__;
@@ -98,17 +97,8 @@ const waitForInstallingWorker = (registration: ServiceWorkerRegistration) => {
     });
 };
 
-const clearCacheStorage = async () => {
-    if (!('caches' in window)) return;
-
-    const cacheNames = await caches.keys();
-    await Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)));
-};
-
-const reloadWithCacheBust = () => {
-    const url = new URL(window.location.href);
-    url.searchParams.set(RELOAD_PARAM, String(Date.now()));
-    window.location.replace(url.toString());
+const reloadCurrentPage = () => {
+    window.location.reload();
 };
 
 export function useAppUpdate() {
@@ -182,11 +172,10 @@ export function useAppUpdate() {
 
         try {
             await activateWaitingServiceWorker();
-            await clearCacheStorage();
         } catch (error) {
             console.error('[AppUpdate] Failed to apply update cleanly:', error);
         } finally {
-            reloadWithCacheBust();
+            reloadCurrentPage();
         }
     }, [activateWaitingServiceWorker]);
 
@@ -203,14 +192,6 @@ export function useAppUpdate() {
             updating: false,
         }));
     }, [state.version]);
-
-    useEffect(() => {
-        const url = new URL(window.location.href);
-        if (url.searchParams.has(RELOAD_PARAM)) {
-            url.searchParams.delete(RELOAD_PARAM);
-            window.history.replaceState(window.history.state, '', url.toString());
-        }
-    }, []);
 
     useEffect(() => {
         if (import.meta.env.DEV || !('serviceWorker' in navigator)) return;
