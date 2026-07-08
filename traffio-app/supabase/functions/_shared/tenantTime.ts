@@ -30,7 +30,7 @@ export function getLocalHour(date: Date, timezone: string): number {
   return getLocalTime(date, timezone).hour;
 }
 
-function getUTCOffsetString(timezone: string, refDate: Date): string {
+export function getUTCOffsetString(timezone: string, refDate: Date): string {
   try {
     const parts = new Intl.DateTimeFormat("en-US", {
       timeZone: timezone,

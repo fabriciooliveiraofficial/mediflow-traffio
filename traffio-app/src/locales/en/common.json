@@ -81,6 +81,15 @@
     "clear": "Clear",
     "useMyLocation": "Use my location"
   },
+  "appUpdate": {
+    "eyebrow": "Update available",
+    "title": "New version ready",
+    "description": "An update has been published. Refresh now to apply the latest changes.",
+    "cacheNote": "The update swaps the service worker, clears app caches, and reloads the platform with cache-busting.",
+    "update": "Update",
+    "skip": "Skip",
+    "updating": "Updating..."
+  },
   "tenantAddressForm": {
     "title": "Address and Contact",
     "streetPlaceholder": "Address (Street, Ave...)",

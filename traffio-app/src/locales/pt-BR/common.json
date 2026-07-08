@@ -81,6 +81,15 @@
     "clear": "Limpar",
     "useMyLocation": "Usar minha localização"
   },
+  "appUpdate": {
+    "eyebrow": "Atualiza\u00e7\u00e3o dispon\u00edvel",
+    "title": "Nova vers\u00e3o pronta",
+    "description": "Uma atualiza\u00e7\u00e3o foi publicada. Atualize agora para aplicar as altera\u00e7\u00f5es mais recentes.",
+    "cacheNote": "A atualiza\u00e7\u00e3o troca o service worker, limpa os caches do aplicativo e recarrega a plataforma com cache-bust.",
+    "update": "Atualizar",
+    "skip": "Pular",
+    "updating": "Atualizando..."
+  },
   "tenantAddressForm": {
     "title": "Endereço e Contato",
     "streetPlaceholder": "Endereço (Rua, Av...)",

@@ -14,7 +14,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { corsHeaders } from "../_shared/cors.ts";
-import { getSafeScheduledTime } from "../_shared/tenantTime.ts";
+import { getSafeScheduledTime, getUTCOffsetString } from "../_shared/tenantTime.ts";
 import { resolveEligibleChannels, type ChannelInfo as ResolvedChannelInfo } from "../_shared/channelResolver.ts";
 
 console.log("schedule-reminders v4.1 (canal padrão do tenant + multi-timezone) initialized");

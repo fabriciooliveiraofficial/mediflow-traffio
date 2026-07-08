@@ -40,6 +40,7 @@ import { PrivacyPolicy } from './pages/PrivacyPolicy'
 import { TermsOfService } from './pages/TermsOfService'
 import { MasterProtectedRoute } from './components/MasterProtectedRoute'
 import { AuthRedirector } from './components/AuthRedirector'
+import { AppUpdatePrompt } from './components/AppUpdatePrompt'
 import { SubscriptionGuard } from './components/billing/SubscriptionGuard'
 import { MasterApp } from './pages/master/MasterApp'
 import { ToastProvider } from './contexts/ToastContext'
@@ -212,6 +213,7 @@ function AppRoutes() {
       <ToastProvider>
         <NotificationProvider>
           <AuthRedirector />
+          <AppUpdatePrompt />
           <Routes>
             {/* ... other routes ... */}
             <Route path="/" element={<LandingPage />} />
