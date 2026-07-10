@@ -30,15 +30,11 @@ import {
     Link2,
     Check
 } from 'lucide-react';
-const DEFAULT_BOOKING_CAPTIONS = {
-    pt: 'Olá {{nome_paciente}}! 😊\nSeu agendamento foi realizado com sucesso!\n\n---------------------------------------------------------------------\n📝 Detalhes da Consulta:\n📅 Data: {{data_agendamento}}\n🕒 Horário: {{horario_agendamento}}\n👨‍⚕️ Profissional: {{nome_do_profissional}}\n📍 Local: {{nome_local}}\n🗺️ Como Chegar: {{link_endereco}}\n\n🔗 SALA DE ESPERA VIRTUAL:\nAcesse para fazer seu check-in na hora da consulta:\n{{link_sala_espera}}\n\n💳 PAGAMENTO / CONFIRMAÇÃO:\nPara garantir sua vaga, realize o pagamento no link:\n{{link_pagamento}}\n\nNos vemos em breve! 💙\n---------------------------------------------------------------------',
-    en: 'Hi {{nome_paciente}}! 😊\nYour appointment has been successfully booked!\n\n---------------------------------------------------------------------\n📝 Appointment Details:\n📅 Date: {{data_agendamento}}\n🕒 Time: {{horario_agendamento}}\n👨‍⚕️ Professional: {{nome_do_profissional}}\n📍 Location: {{nome_local}}\n🗺️ How to Get There: {{link_endereco}}\n\n🔗 VIRTUAL WAITING ROOM:\nAccess this link to check-in at the time of your appointment:\n{{link_sala_espera}}\n\n💳 PAYMENT / CONFIRMATION:\nTo secure your spot, please complete the payment here:\n{{link_pagamento}}\n\nSee you soon! 💙\n---------------------------------------------------------------------',
-    es: '¡Hola {{nome_paciente}}! 😊\n¡Tu cita ha sido reservada con éxito!\n\n---------------------------------------------------------------------\n📝 Detalles de la Cita:\n📅 Fecha: {{data_agendamento}}\n🕒 Hora: {{horario_agendamento}}\n👨‍⚕️ Profesional: {{nome_do_profissional}}\n📍 Lugar: {{nome_local}}\n🗺️ Cómo llegar: {{link_endereco}}\n\n🔗 SALA DE ESPERA VIRTUAL:\nAccede para fazer tu check-in a la hora de tu cita:\n{{link_sala_espera}}\n\n💳 PAGO / CONFIRMACIÓN:\nPara asegurar tu turno, realiza el pago en el siguiente enlace:\n{{link_pagamento}}\n\n¡Nos vemos pronto! 💙\n---------------------------------------------------------------------',
-};
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { getIntlLocale } from '../lib/i18n';
 import { supabase } from '../lib/supabase';
+import { DEFAULT_BOOKING_CAPTIONS } from '../lib/messageDefaults';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useToast } from '../contexts/ToastContext';
@@ -636,7 +632,7 @@ export const AgendaMestra: React.FC = () => {
             setGeneratedOccurrences(occurrences);
         } catch (err) {
             console.error("Error generating preview:", err);
-            showToast('error', 'Erro ao gerar preview de recorrência.');
+            showToast('error', t('mestra.toasts.recurrencePreviewError'));
         } finally {
             setRecurrenceLoading(false);
         }
@@ -762,11 +758,11 @@ export const AgendaMestra: React.FC = () => {
                 }));
                 setIsCreatingPatient(false);
                 setPatientResults([]);
-                showToast('success', 'Paciente cadastrado e selecionado com sucesso!');
+                showToast('success', t('mestra.toasts.patientRegisteredSuccess'));
             }
         } catch (err: any) {
             console.error("Error creating patient:", err);
-            showToast('error', `Erro ao cadastrar paciente: ${err.message}`);
+            showToast('error', t('mestra.toasts.patientRegisterError', { message: err.message }));
         }
     };
 
@@ -902,11 +898,11 @@ export const AgendaMestra: React.FC = () => {
 
             // Validar o destinatário conforme o canal escolhido
             if (notificationChannel === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient.trim())) {
-                showToast('error', 'Informe um endereço de e-mail válido para enviar por e-mail.');
+                showToast('error', t('mestra.toasts.invalidEmailForChannel'));
                 return;
             }
             if (notificationChannel !== 'email' && !recipient.replace(/\D/g, '')) {
-                showToast('error', 'Informe um número de telefone válido para este canal.');
+                showToast('error', t('mestra.toasts.invalidPhoneForChannel'));
                 return;
             }
 
@@ -933,11 +929,11 @@ export const AgendaMestra: React.FC = () => {
 
             if (error) throw error;
 
-            showToast('success', 'Lembrete de agendamentos enviado para a fila de processamento!');
+            showToast('success', t('mestra.toasts.reminderQueued'));
             closeNotificationModal();
         } catch (err: any) {
             console.error("Error sending notification:", err);
-            showToast('error', `Erro ao enviar notificação: ${err.message}`);
+            showToast('error', t('mestra.toasts.notificationSendError', { message: err.message }));
         }
     };
 
@@ -955,7 +951,7 @@ export const AgendaMestra: React.FC = () => {
                 // Check if any occurrence still has conflicts
                 const hasConflicts = generatedOccurrences.some(o => o.is_conflict);
                 if (hasConflicts) {
-                    showToast('error', 'Por favor, resolva todos os conflitos antes de confirmar.');
+                    showToast('error', t('mestra.toasts.resolveConflictsFirst'));
                     setBookingSaving(false);
                     return;
                 }
@@ -981,7 +977,7 @@ export const AgendaMestra: React.FC = () => {
                     payloads
                 );
 
-                showToast('success', `${occurrencesCount} agendamentos criados com sucesso!`);
+                showToast('success', t('mestra.toasts.occurrencesCreatedSuccess', { count: occurrencesCount }));
                 setBookingModal({ open: false, doctorId: '', slot: null });
 
                 // Open notification dispatch modal
@@ -1094,7 +1090,7 @@ export const AgendaMestra: React.FC = () => {
         });
 
         setEditingAppt(null);
-        showToast('info', 'Selecione um novo horário no calendário para reagendar.');
+        showToast('info', t('mestra.toasts.selectNewSlotToReschedule'));
     };
 
     const handleDelete = async (id: string) => {
@@ -1868,7 +1864,7 @@ export const AgendaMestra: React.FC = () => {
                                             if (linkedDocIds.length === 1) {
                                                 currentDocId = linkedDocIds[0];
                                                 setBookingModal(prev => ({ ...prev, doctorId: linkedDocIds[0] }));
-                                                showToast('info', 'Profissional auto-selecionado para este procedimento.');
+                                                showToast('info', t('mestra.toasts.autoSelectedProfessional'));
                                             }
                                             
                                             if (isRecurring) {

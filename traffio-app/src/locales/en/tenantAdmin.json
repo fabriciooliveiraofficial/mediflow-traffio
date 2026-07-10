@@ -576,7 +576,45 @@
       "captionPlaceholder_en": "Message in English...",
       "captionPlaceholder_es": "Message in Spanish...",
       "charCountLabel": "Approx. {{count}} characters",
-      "syncedLabel": "Synced"
+      "syncedLabel": "Synced",
+      "reminderTooClose": "This reminder is too close to another one already configured. Keep at least {{minutes}} minutes between reminders.",
+      "maxRemindersReached": "Limit of 3 reminders reached",
+      "maxRemindersHint": "Remove an existing reminder to add another",
+      "variablesButton": "Variables"
+    },
+    "bookingSection": {
+      "title": "Booking Confirmation",
+      "subtitle": "Sent as soon as the appointment is booked in the Inbox",
+      "description": "Customize the automatic message the patient will receive when booked. You can translate and adjust the message for each language your clinic serves.",
+      "varsHintText": "Use the variables on the side to automatically fill in data like patient name, date, location and links. Click to insert at the end of the message.",
+      "messageLabel": "Custom Message"
+    },
+    "npsSection": {
+      "title": "NPS Survey — Post-Appointment",
+      "subtitle": "Automatically triggered after the appointment is marked as \"completed\"",
+      "delayLabel": "Send NPS after",
+      "delayHint": "The message is sent automatically when the front desk marks the appointment as \"completed\". Quiet hours (10pm–8am) are always respected.",
+      "messageLabel": "Custom Message",
+      "variablesHint": "Available variables:",
+      "unitMinutes": "minutes",
+      "unitHours": "hours",
+      "unitDays": "days",
+      "afterCompletion": "after appointment completion"
+    },
+    "recallSection": {
+      "title": "Patient Reactivation",
+      "subtitle": "Automatic message for patients with no return visit",
+      "daysLabel": "Trigger recall after",
+      "days": "days",
+      "months": "months",
+      "year": "year",
+      "daysHint": "with no visit recorded in the system",
+      "hint": "The recall is sent once per period. The system waits half of the configured period before resending to the same patient."
+    },
+    "varsPanel": {
+      "title": "Available Variables",
+      "subtitle": "Click to insert at cursor — active language:",
+      "footer": "Variables are automatically filled with appointment data at the time of sending."
     },
     "testModeLabel": "Test Mode (5m)",
     "saveButton": "SAVE CHANGES"

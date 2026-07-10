@@ -576,7 +576,45 @@
       "captionPlaceholder_en": "Mensagem em inglês...",
       "captionPlaceholder_es": "Mensagem em espanhol...",
       "charCountLabel": "Aprox. {{count}} caracteres",
-      "syncedLabel": "Sincronizado"
+      "syncedLabel": "Sincronizado",
+      "reminderTooClose": "Esse lembrete está muito próximo de outro já configurado. Mantenha pelo menos {{minutes}} minutos de intervalo entre lembretes.",
+      "maxRemindersReached": "Limite de 3 lembretes atingido",
+      "maxRemindersHint": "Remova um lembrete existente para adicionar outro",
+      "variablesButton": "Variáveis"
+    },
+    "bookingSection": {
+      "title": "Confirmação de Agendamento",
+      "subtitle": "Enviada no momento em que o agendamento é realizado no atendimento",
+      "description": "Personalize a mensagem automática que o paciente receberá ao ser agendado. Você pode traduzir e ajustar a mensagem para cada idioma que sua clínica atende.",
+      "varsHintText": "Use as variáveis ao lado para preencher dados como nome do paciente, data, local e links automaticamente. Clique para inserir no final da mensagem.",
+      "messageLabel": "Mensagem Personalizada"
+    },
+    "npsSection": {
+      "title": "Pesquisa NPS — Pós-Consulta",
+      "subtitle": "Disparada automaticamente após o agendamento ser marcado como \"realizado\"",
+      "delayLabel": "Enviar NPS após",
+      "delayHint": "A mensagem é enviada automaticamente quando a recepção marca o agendamento como \"realizado\". Horário de silêncio (22h–8h) é sempre respeitado.",
+      "messageLabel": "Mensagem Personalizada",
+      "variablesHint": "Variáveis disponíveis:",
+      "unitMinutes": "minutos",
+      "unitHours": "horas",
+      "unitDays": "dias",
+      "afterCompletion": "após conclusão da consulta"
+    },
+    "recallSection": {
+      "title": "Reativação de Pacientes",
+      "subtitle": "Mensagem automática para pacientes sem retorno",
+      "daysLabel": "Disparar recall após",
+      "days": "dias",
+      "months": "meses",
+      "year": "ano",
+      "daysHint": "sem visita registrada no sistema",
+      "hint": "O recall é enviado uma vez por período. O sistema aguarda metade do período configurado antes de reenviar para o mesmo paciente."
+    },
+    "varsPanel": {
+      "title": "Variáveis Disponíveis",
+      "subtitle": "Clique para inserir no cursor — idioma ativo:",
+      "footer": "As variáveis são preenchidas automaticamente com os dados do agendamento no momento do envio."
     },
     "testModeLabel": "Modo Teste (5m)",
     "saveButton": "SALVAR ALTERAÇÕES"

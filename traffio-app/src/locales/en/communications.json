@@ -202,6 +202,7 @@
     "patientPanel": {
       "title": "Patient Info",
       "editProfileTitle": "Edit Profile",
+      "unlinkTitle": "Unlink Patient",
       "talkingTo": "Talking to:",
       "frontDeskNotes": "Front Desk Notes",
       "birthDatePrefix": "DOB:",
@@ -259,7 +260,11 @@
         "transferSuccess": "Conversation transferred successfully!",
         "transferError": "Error transferring: {{reason}}",
         "waitlistError": "Error adding to waitlist: {{message}}",
-        "waitlistSuccess": "Patient added to the waitlist successfully! ✅"
+        "waitlistSuccess": "Patient added to the waitlist successfully! ✅",
+        "channelLinkedSuccess": "Communication channel linked successfully! ✅",
+        "channelLinkedError": "Error linking channel: {{message}}",
+        "unlinkConfirm": "Are you sure you want to unlink this channel from the patient?",
+        "unlinkSuccess": "Channel unlinked successfully! ✅"
       },
       "forwardModal": {
         "title": "Forward Message",

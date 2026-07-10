@@ -74,6 +74,36 @@
           }
         }
       },
+      "metaIntegration": {
+        "title": "Integração com a Meta (Facebook e Instagram)",
+        "intro": {
+          "prefix": "Nosso aplicativo solicita acesso às permissões",
+          "code1": "pages_messaging",
+          "middle": "e",
+          "code2": "instagram_manage_messages",
+          "suffix": "para permitir que você gerencie as mensagens da sua página do Facebook e do seu perfil comercial do Instagram diretamente pela plataforma Traffio."
+        },
+        "usage": {
+          "heading": "Uso dos Dados (Finalidade)",
+          "body": {
+            "prefix": "O conteúdo das mensagens, bem como os dados de perfil públicos vinculados à conversa, são utilizados",
+            "strong": "exclusivamente",
+            "suffix": "para viabilizar o módulo de \"Atendimento\" (Inbox) da plataforma, permitindo que a sua equipe responda aos seus clientes em tempo real de forma centralizada."
+          }
+        },
+        "noSharing": {
+          "heading": "Proibição de Compartilhamento",
+          "body": "A Traffio não utiliza os dados das mensagens do Facebook ou Instagram para criar perfis de anúncios, e não compartilha, vende ou transfere esses dados para terceiros (incluindo redes de anúncios e data brokers). O acesso é estritamente limitado aos atendentes do seu próprio painel."
+        },
+        "dataRetention": {
+          "heading": "Retenção e Exclusão de Dados",
+          "body": {
+            "prefix": "Você pode desconectar suas contas e revogar o acesso a qualquer momento. Ao desvincular o canal ou solicitar a exclusão da sua conta Traffio, todos os tokens de acesso, históricos de mensagens sincronizadas e dados de usuários advindos da Meta serão permanentemente deletados dos nossos servidores em até 30 dias, em conformidade estrita com os",
+            "linkText": "Termos de Plataforma da Meta",
+            "suffix": "."
+          }
+        }
+      },
       "dataSharing": {
         "title": "Como Compartilhamos Dados",
         "intro": "Nós **não vendemos nem alugamos** dados pessoais de nossos clientes ou de seus pacientes. Compartilhamos informações com terceiros somente nas seguintes circunstâncias:",

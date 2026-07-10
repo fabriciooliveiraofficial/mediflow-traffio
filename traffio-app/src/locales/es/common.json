@@ -64,6 +64,15 @@
     "typeToSearch": "Escribe para buscar pacientes.",
     "idLabel": "ID: #{{id}}"
   },
+  "patientLookup": {
+    "title": "Buscar Paciente",
+    "subtitle": "Consulta por nombre, CPF o teléfono.",
+    "searchPlaceholder": "Escribe para buscar...",
+    "noResults": "Ningún paciente encontrado.",
+    "noCpf": "Sin CPF",
+    "noPhone": "Sin tel.",
+    "link": "Vincular"
+  },
   "calendar": {
     "weekdaysShort": ["D", "L", "M", "X", "J", "V", "S"]
   },

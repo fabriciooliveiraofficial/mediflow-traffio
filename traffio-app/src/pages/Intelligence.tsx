@@ -32,6 +32,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
 import { useTenant } from '../contexts/TenantContext';
+import { DEFAULT_BOOKING_CAPTIONS } from '../lib/messageDefaults';
 
 export interface ChannelAutomation {
     no_show: boolean;
@@ -754,12 +755,6 @@ export const DEFAULT_RECOVERY_CAPTIONS: Record<string, { pt: string; en: string;
     }
 };
 
-const DEFAULT_BOOKING_CAPTIONS = {
-    pt: 'Olá {{nome_paciente}}! 😊\nSeu agendamento foi realizado com sucesso!\n\n---------------------------------------------------------------------\n📝 Detalhes da Consulta:\n📅 Data: {{data_agendamento}}\n🕒 Horário: {{horario_agendamento}}\n👨‍⚕️ Profissional: {{nome_do_profissional}}\n📍 Local: {{nome_local}}\n🗺️ Como Chegar: {{link_endereco}}\n\n🔗 SALA DE ESPERA VIRTUAL:\nAcesse para fazer seu check-in na hora da consulta:\n{{link_sala_espera}}\n\n💳 PAGAMENTO / CONFIRMAÇÃO:\nPara garantir sua vaga, realize o pagamento no link:\n{{link_pagamento}}\n\nNos vemos em breve! 💙\n---------------------------------------------------------------------',
-    en: 'Hi {{nome_paciente}}! 😊\nYour appointment has been successfully booked!\n\n---------------------------------------------------------------------\n📝 Appointment Details:\n📅 Date: {{data_agendamento}}\n🕒 Time: {{horario_agendamento}}\n👨‍⚕️ Professional: {{nome_do_profissional}}\n📍 Location: {{nome_local}}\n🗺️ How to Get There: {{link_endereco}}\n\n🔗 VIRTUAL WAITING ROOM:\nAccess this link to check-in at the time of your appointment:\n{{link_sala_espera}}\n\n💳 PAYMENT / CONFIRMATION:\nTo secure your spot, please complete the payment here:\n{{link_pagamento}}\n\nSee you soon! 💙\n---------------------------------------------------------------------',
-    es: '¡Hola {{nome_paciente}}! 😊\n¡Tu cita ha sido reservada con éxito!\n\n---------------------------------------------------------------------\n📝 Detalles de la Cita:\n📅 Fecha: {{data_agendamento}}\n🕒 Hora: {{horario_agendamento}}\n👨‍⚕️ Profesional: {{nome_do_profissional}}\n📍 Lugar: {{nome_local}}\n🗺️ Cómo llegar: {{link_endereco}}\n\n🔗 SALA DE ESPERA VIRTUAL:\nAccede para hacer tu check-in a la hora de tu cita:\n{{link_sala_espera}}\n\n💳 PAGO / CONFIRMACIÓN:\nPara asegurar tu turno, realiza el pago en el siguiente enlace:\n{{link_pagamento}}\n\n¡Nos vemos pronto! 💙\n---------------------------------------------------------------------',
-};
-
 const AutomationSettings = ({ config, setConfig, onSave, saving }: {
     config: BotConfig,
     setConfig: React.Dispatch<React.SetStateAction<BotConfig>>,
@@ -1084,6 +1079,7 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
                                                 );
                                                 if (tooClose) {
                                                     showToast('error', t('intelligence.universalSection.reminderTooClose', {
+                                                        minutes: MIN_SPACING_MINUTES,
                                                         defaultValue: `Esse lembrete está muito próximo de outro já configurado. Mantenha pelo menos ${MIN_SPACING_MINUTES} minutos de intervalo entre lembretes.`
                                                     }));
                                                     return;

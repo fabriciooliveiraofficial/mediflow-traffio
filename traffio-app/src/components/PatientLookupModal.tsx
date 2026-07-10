@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Search, User, FileText, Link, Phone } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabase';
 import { useTenant } from '../contexts/TenantContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -12,6 +13,7 @@ interface PatientLookupModalProps {
 }
 
 export const PatientLookupModal: React.FC<PatientLookupModalProps> = ({ isOpen, onClose, onSelect }) => {
+    const { t } = useTranslation('common');
     const { tenant } = useTenant();
     const [search, setSearch] = useState('');
     const [loading, setLoading] = useState(false);
@@ -59,8 +61,8 @@ export const PatientLookupModal: React.FC<PatientLookupModalProps> = ({ isOpen, 
                             {/* Header */}
                             <div className="px-8 py-6 border-b border-ice-100 flex justify-between items-center bg-ice-50/50">
                                 <div>
-                                    <h3 className="text-xl font-black text-graphite-900 tracking-tight">Buscar Paciente</h3>
-                                    <p className="text-sm text-graphite-400 font-medium">Consulte por nome, CPF ou telefone.</p>
+                                    <h3 className="text-xl font-black text-graphite-900 tracking-tight">{t('patientLookup.title')}</h3>
+                                    <p className="text-sm text-graphite-400 font-medium">{t('patientLookup.subtitle')}</p>
                                 </div>
                                 <button onClick={onClose} className="w-10 h-10 rounded-xl bg-white border border-ice-200 flex items-center justify-center text-graphite-400 hover:text-brand-primary transition-all cursor-pointer">
                                     <X size={20} />
@@ -76,7 +78,7 @@ export const PatientLookupModal: React.FC<PatientLookupModalProps> = ({ isOpen, 
                                         type="text"
                                         value={search}
                                         onChange={e => setSearch(e.target.value)}
-                                        placeholder="Digite para pesquisar..."
+                                        placeholder={t('patientLookup.searchPlaceholder')}
                                         className="w-full bg-ice-50 border border-ice-200 rounded-2xl py-3.5 pl-12 pr-4 text-sm font-bold text-graphite-900 focus:outline-none focus:border-brand-primary/50 focus:ring-4 focus:ring-brand-primary/10 transition-all"
                                     />
                                     {loading && (
@@ -94,7 +96,7 @@ export const PatientLookupModal: React.FC<PatientLookupModalProps> = ({ isOpen, 
                                         <div className="w-12 h-12 bg-ice-100 rounded-full flex items-center justify-center mx-auto mb-3">
                                             <Search className="text-graphite-300" size={24} />
                                         </div>
-                                        <p className="text-sm font-bold text-graphite-400">Nenhum paciente encontrado.</p>
+                                        <p className="text-sm font-bold text-graphite-400">{t('patientLookup.noResults')}</p>
                                     </div>
                                 )}
 
@@ -112,17 +114,17 @@ export const PatientLookupModal: React.FC<PatientLookupModalProps> = ({ isOpen, 
                                                 <p className="text-sm font-black text-graphite-900">{patient.full_name}</p>
                                                 <div className="flex items-center gap-3 mt-1">
                                                     <span className="text-[11px] text-graphite-400 flex items-center gap-1">
-                                                        <FileText size={10} /> {patient.cpf || 'Sem CPF'}
+                                                        <FileText size={10} /> {patient.cpf || t('patientLookup.noCpf')}
                                                     </span>
                                                     <span className="text-[11px] text-graphite-400 flex items-center gap-1">
-                                                        <Phone size={10} /> {formatPhone(patient.phone) || 'Sem tel'}
+                                                        <Phone size={10} /> {formatPhone(patient.phone) || t('patientLookup.noPhone')}
                                                     </span>
                                                 </div>
                                             </div>
                                         </div>
                                         <div className="opacity-0 group-hover:opacity-100 transition-opacity">
                                             <div className="btn-vincular bg-brand-primary text-white text-[10px] font-black px-3 py-1.5 rounded-lg flex items-center gap-1.5 uppercase tracking-widest">
-                                                <Link size={12} /> Vincular
+                                                <Link size={12} /> {t('patientLookup.link')}
                                             </div>
                                         </div>
                                     </button>

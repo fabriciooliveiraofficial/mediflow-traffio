@@ -64,6 +64,15 @@
     "typeToSearch": "Type to search patients.",
     "idLabel": "ID: #{{id}}"
   },
+  "patientLookup": {
+    "title": "Search Patient",
+    "subtitle": "Search by name, CPF or phone.",
+    "searchPlaceholder": "Type to search...",
+    "noResults": "No patients found.",
+    "noCpf": "No CPF",
+    "noPhone": "No phone",
+    "link": "Link"
+  },
   "calendar": {
     "weekdaysShort": ["S", "M", "T", "W", "T", "F", "S"]
   },

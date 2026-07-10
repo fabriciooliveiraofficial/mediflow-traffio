@@ -411,5 +411,14 @@
       "keyCopied": "Chave copiada!",
       "snippetCopied": "Snippet copiado!"
     }
+  },
+  "liveChatConfig": {
+    "toasts": {
+      "saveSuccess": "Configurações do Live Chat salvas com sucesso!",
+      "saveError": "Erro ao salvar configurações: {{message}}",
+      "testWidgetRemoved": "Widget de teste do Live Chat removido.",
+      "testWidgetInjected": "Widget de teste do Live Chat injetado! Clique no balão para abrir.",
+      "snippetCopied": "Snippet do Live Chat copiado!"
+    }
   }
 }

@@ -1,4 +1,14 @@
 {
+  "liveChat": {
+    "toasts": {
+      "loadError": "Erro ao carregar configurações do Live Chat.",
+      "saveSuccess": "Configurações do Live Chat salvas com sucesso!",
+      "saveError": "Erro ao salvar configurações: {{message}}",
+      "testWidgetRemoved": "Widget de teste do Live Chat removido.",
+      "testWidgetInjected": "Widget de teste do Live Chat injetado! Clique no balão para abrir.",
+      "snippetCopied": "Snippet do Live Chat copiado!"
+    }
+  },
   "tabs": {
     "clinics": "Clínicas",
     "locations": "Unidades",

@@ -397,7 +397,7 @@ export function SidebarAvailabilityView({ onBack, onBookSlot }: SidebarAvailabil
       <div className="space-y-4 flex flex-col h-full justify-between">
         <div className="space-y-4">
           <p className="text-xs text-gray-500 font-medium">
-            Configure as opções abaixo para visualizar as datas e horários de atendimento disponíveis.
+            {t('sidebarAvailability.configHint')}
           </p>
 
           {/* Doctor Card */}
@@ -418,9 +418,9 @@ export function SidebarAvailabilityView({ onBack, onBookSlot }: SidebarAvailabil
                 <User className="w-5 h-5" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Profissional</p>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('sidebarAvailability.professionalLabel')}</p>
                 <p className={clsx("text-sm font-bold mt-0.5 truncate", selectedDoctor ? "text-gray-800" : "text-gray-500")}>
-                  {selectedDoctor ? selectedDoctor.full_name : "Selecionar Profissional..."}
+                  {selectedDoctor ? selectedDoctor.full_name : t('sidebarAvailability.selectDoctorPlaceholder')}
                 </p>
                 {selectedDoctor?.specialty && (
                   <p className="text-xs text-gray-500 mt-0.5 truncate">{selectedDoctor.specialty}</p>
@@ -461,9 +461,9 @@ export function SidebarAvailabilityView({ onBack, onBookSlot }: SidebarAvailabil
                 <Stethoscope className="w-5 h-5" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Procedimento</p>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('sidebarAvailability.procedureLabel')}</p>
                 <p className={clsx("text-sm font-bold mt-0.5 truncate", selectedProcedure ? "text-gray-800" : "text-gray-500")}>
-                  {selectedProcedure ? selectedProcedure.name : "Selecionar Procedimento..."}
+                  {selectedProcedure ? selectedProcedure.name : t('sidebarAvailability.selectProcedurePlaceholder')}
                 </p>
                 {selectedProcedure?.duration_minutes && (
                   <p className="text-xs text-gray-500 mt-0.5">{selectedProcedure.duration_minutes} min</p>
@@ -504,9 +504,9 @@ export function SidebarAvailabilityView({ onBack, onBookSlot }: SidebarAvailabil
                 <MapPin className="w-5 h-5" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Unidade</p>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('sidebarAvailability.locationLabel')}</p>
                 <p className={clsx("text-sm font-bold mt-0.5 truncate", selectedLocation ? "text-gray-800" : "text-gray-500")}>
-                  {selectedLocation ? selectedLocation.name : "Selecionar Unidade..."}
+                  {selectedLocation ? selectedLocation.name : t('sidebarAvailability.selectLocationPlaceholder')}
                 </p>
               </div>
             </div>
@@ -562,7 +562,7 @@ export function SidebarAvailabilityView({ onBack, onBookSlot }: SidebarAvailabil
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Pesquisar profissional..."
+            placeholder={t('sidebarAvailability.searchDoctorPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -580,7 +580,7 @@ export function SidebarAvailabilityView({ onBack, onBookSlot }: SidebarAvailabil
         {loadingDoctors ? (
           <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-indigo-600 w-6 h-6" /></div>
         ) : filteredDoctors.length === 0 ? (
-          <p className="text-xs text-gray-400 text-center py-8">Nenhum profissional encontrado.</p>
+          <p className="text-xs text-gray-400 text-center py-8">{t('sidebarAvailability.noDoctorsFound')}</p>
         ) : (
           <div className="space-y-2">
             {filteredDoctors.map(doc => (
@@ -628,7 +628,7 @@ export function SidebarAvailabilityView({ onBack, onBookSlot }: SidebarAvailabil
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Pesquisar unidade..."
+            placeholder={t('sidebarAvailability.searchLocationPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -646,7 +646,7 @@ export function SidebarAvailabilityView({ onBack, onBookSlot }: SidebarAvailabil
         {loadingLocations ? (
           <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-indigo-600 w-6 h-6" /></div>
         ) : filteredLocations.length === 0 ? (
-          <p className="text-xs text-gray-400 text-center py-8">Nenhuma unidade encontrada.</p>
+          <p className="text-xs text-gray-400 text-center py-8">{t('sidebarAvailability.noLocationsFound')}</p>
         ) : (
           <div className="space-y-2">
             {filteredLocations.map(loc => (
@@ -693,7 +693,7 @@ export function SidebarAvailabilityView({ onBack, onBookSlot }: SidebarAvailabil
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Pesquisar procedimento..."
+            placeholder={t('sidebarAvailability.searchProcedurePlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -711,7 +711,7 @@ export function SidebarAvailabilityView({ onBack, onBookSlot }: SidebarAvailabil
         {loadingProcedures ? (
           <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-indigo-600 w-6 h-6" /></div>
         ) : filteredProcedures.length === 0 ? (
-          <p className="text-xs text-gray-400 text-center py-8">Nenhum procedimento encontrado.</p>
+          <p className="text-xs text-gray-400 text-center py-8">{t('sidebarAvailability.noProceduresFound')}</p>
         ) : (
           <div className="space-y-2">
             {filteredProcedures.map(proc => (
@@ -762,12 +762,12 @@ export function SidebarAvailabilityView({ onBack, onBookSlot }: SidebarAvailabil
         {/* Summary card */}
         <div className="p-3 bg-indigo-50 rounded-2xl border border-indigo-100 space-y-1">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Resumo</span>
-            <button 
+            <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">{t('sidebarAvailability.summaryLabel')}</span>
+            <button
               onClick={() => setView('menu')}
               className="text-xs font-bold text-indigo-600 hover:text-indigo-800"
             >
-              Alterar
+              {t('sidebarAvailability.changeLabel')}
             </button>
           </div>
           <p className="text-xs font-bold text-gray-800">
@@ -793,9 +793,9 @@ export function SidebarAvailabilityView({ onBack, onBookSlot }: SidebarAvailabil
         {/* Slots list */}
         <div className="space-y-2">
           <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider ml-1">
-            {selectedDate 
-              ? `Horários Disponíveis (${slots.length})` 
-              : 'Selecione uma data no calendário'}
+            {selectedDate
+              ? t('sidebarAvailability.slotsAvailableCount', { count: slots.length })
+              : t('sidebarAvailability.selectDateHint')}
           </label>
           {selectedDate && (
             loadingSlots ? (
@@ -803,23 +803,23 @@ export function SidebarAvailabilityView({ onBack, onBookSlot }: SidebarAvailabil
             ) : slots.length === 0 ? (
               <div className="py-8 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
                 <Calendar className="w-8 h-8 mx-auto text-gray-300 mb-2" />
-                <p className="text-xs text-gray-400">Nenhum horário disponível para esta data.</p>
+                <p className="text-xs text-gray-400">{t('sidebarAvailability.noSlotsForDate')}</p>
               </div>
             ) : (
               <>
                 {/* Legend */}
                 <div className="flex items-center gap-3 text-[9px] text-gray-400 mb-1 px-1">
                   <span className="flex items-center gap-1">
-                    <span className="w-2.5 h-2.5 rounded-full bg-gray-300" /> 
-                    Regular
+                    <span className="w-2.5 h-2.5 rounded-full bg-gray-300" />
+                    {t('sidebarAvailability.legendRegular')}
                   </span>
                   <span className="flex items-center gap-1">
-                    <span className="w-2.5 h-2.5 rounded-full bg-yellow-400" /> 
-                    Prime
+                    <span className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
+                    {t('sidebarAvailability.legendPrime')}
                   </span>
                   <span className="flex items-center gap-1">
-                    <span className="w-2.5 h-2.5 rounded-full bg-amber-400" /> 
-                    Exclusivo
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+                    {t('sidebarAvailability.legendExclusive')}
                   </span>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
@@ -851,14 +851,14 @@ export function SidebarAvailabilityView({ onBack, onBookSlot }: SidebarAvailabil
         </button>
         <div className="text-white">
           <p className="text-xs font-bold opacity-80 uppercase tracking-tighter">
-            {view === 'menu' ? t('sidebarAvailability.headerLabel', 'Consultar') : 'Voltar ao Menu'}
+            {view === 'menu' ? t('sidebarAvailability.headerLabel', 'Consultar') : t('sidebarAvailability.backToMenu')}
           </p>
           <p className="text-sm font-bold">
             {view === 'menu' && t('sidebarAvailability.headerTitle', 'Disponibilidade')}
-            {view === 'select_doctor' && 'Escolher Profissional'}
-            {view === 'select_location' && 'Escolher Unidade'}
-            {view === 'select_procedure' && 'Escolher Procedimento'}
-            {view === 'calendar' && 'Calendário de Disponibilidade'}
+            {view === 'select_doctor' && t('sidebarAvailability.titleSelectDoctor')}
+            {view === 'select_location' && t('sidebarAvailability.titleSelectLocation')}
+            {view === 'select_procedure' && t('sidebarAvailability.titleSelectProcedure')}
+            {view === 'calendar' && t('sidebarAvailability.titleCalendar')}
           </p>
         </div>
       </div>

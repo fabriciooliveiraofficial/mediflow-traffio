@@ -74,6 +74,36 @@
           }
         }
       },
+      "metaIntegration": {
+        "title": "Integration with Meta (Facebook and Instagram)",
+        "intro": {
+          "prefix": "Our application requests access to the",
+          "code1": "pages_messaging",
+          "middle": "and",
+          "code2": "instagram_manage_messages",
+          "suffix": "permissions to let you manage your Facebook page and Instagram business profile messages directly from the Traffio platform."
+        },
+        "usage": {
+          "heading": "Data Use (Purpose)",
+          "body": {
+            "prefix": "The content of the messages, as well as the public profile data linked to the conversation, is used",
+            "strong": "exclusively",
+            "suffix": "to power the platform's \"Human Support\" (Inbox) module, allowing your team to respond to your patients in real time from a centralized place."
+          }
+        },
+        "noSharing": {
+          "heading": "No Sharing",
+          "body": "Traffio does not use Facebook or Instagram message data to build ad profiles, and does not share, sell, or transfer this data to third parties (including ad networks and data brokers). Access is strictly limited to the agents on your own account."
+        },
+        "dataRetention": {
+          "heading": "Data Retention and Deletion",
+          "body": {
+            "prefix": "You can disconnect your accounts and revoke access at any time. When you unlink the channel or request deletion of your Traffio account, all access tokens, synced message history, and user data originating from Meta will be permanently deleted from our servers within 30 days, in strict compliance with Meta's",
+            "linkText": "Platform Terms",
+            "suffix": "."
+          }
+        }
+      },
       "dataSharing": {
         "title": "How We Share Data",
         "intro": "We **do not sell or rent** the personal data of our customers or their patients. We share information with third parties only under the following circumstances:",

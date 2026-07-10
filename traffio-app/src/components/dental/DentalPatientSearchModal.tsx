@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, X, User, ChevronRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 
 interface DentalPatientSearchModalProps {
@@ -15,6 +16,7 @@ export const DentalPatientSearchModal: React.FC<DentalPatientSearchModalProps> =
     onSelect,
     title
 }) => {
+    const { t } = useTranslation('common');
     const [searchTerm, setSearchTerm] = useState('');
     const [patients, setPatients] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
@@ -56,7 +58,7 @@ export const DentalPatientSearchModal: React.FC<DentalPatientSearchModalProps> =
                         <input 
                             autoFocus
                             type="text"
-                            placeholder="Buscar paciente pelo nome..."
+                            placeholder={t('patientSearch.searchPlaceholder')}
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="w-full bg-ice-50 border border-ice-200 rounded-2xl py-4 pl-12 pr-4 text-sm font-bold text-graphite-900 focus:border-brand-primary outline-none transition-all"
@@ -65,10 +67,10 @@ export const DentalPatientSearchModal: React.FC<DentalPatientSearchModalProps> =
 
                     <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                         {loading ? (
-                            <div className="py-8 text-center text-xs font-bold text-graphite-400 uppercase tracking-widest">Buscando...</div>
+                            <div className="py-8 text-center text-xs font-bold text-graphite-400 uppercase tracking-widest">{t('patientSearch.searching')}</div>
                         ) : patients.length > 0 ? (
                             patients.map((patient) => (
-                                <button 
+                                <button
                                     key={patient.id}
                                     onClick={() => onSelect(patient)}
                                     className="w-full flex items-center justify-between p-4 bg-white border border-ice-100 rounded-2xl hover:border-brand-primary/30 hover:bg-brand-primary/5 transition-all text-left group border-none cursor-pointer"
@@ -79,16 +81,16 @@ export const DentalPatientSearchModal: React.FC<DentalPatientSearchModalProps> =
                                         </div>
                                         <div>
                                             <p className="font-black text-sm text-graphite-900">{patient.full_name}</p>
-                                            <p className="text-[10px] text-graphite-400 font-bold uppercase tracking-widest">ID: #{patient.id.slice(0, 8)}</p>
+                                            <p className="text-[10px] text-graphite-400 font-bold uppercase tracking-widest">{t('patientSearch.idLabel', { id: patient.id.slice(0, 8) })}</p>
                                         </div>
                                     </div>
                                     <ChevronRight size={18} className="text-graphite-300 group-hover:text-brand-primary transition-all" />
                                 </button>
                             ))
                         ) : searchTerm ? (
-                            <p className="py-8 text-center text-xs font-bold text-graphite-400 italic">Nenhum paciente encontrado.</p>
+                            <p className="py-8 text-center text-xs font-bold text-graphite-400 italic">{t('patientSearch.noResults')}</p>
                         ) : (
-                            <p className="py-8 text-center text-xs font-bold text-graphite-400 italic">Digite para buscar pacientes.</p>
+                            <p className="py-8 text-center text-xs font-bold text-graphite-400 italic">{t('patientSearch.typeToSearch')}</p>
                         )}
                     </div>
                 </div>

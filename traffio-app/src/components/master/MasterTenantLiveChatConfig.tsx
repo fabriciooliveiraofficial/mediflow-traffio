@@ -136,7 +136,7 @@ export const MasterTenantLiveChatConfig: React.FC<MasterTenantLiveChatConfigProp
 
             if (error) throw error;
 
-            showToast('success', 'Configurações do Live Chat salvas com sucesso!');
+            showToast('success', t('liveChatConfig.toasts.saveSuccess'));
             
             // If widget is currently injected, re-inject it to apply new config
             if (widgetInjected) {
@@ -146,7 +146,7 @@ export const MasterTenantLiveChatConfig: React.FC<MasterTenantLiveChatConfigProp
             
             fetchData();
         } catch (err: any) {
-            showToast('error', 'Erro ao salvar configurações: ' + err.message);
+            showToast('error', t('liveChatConfig.toasts.saveError', { message: err.message }));
         } finally {
             setSaving(false);
         }
@@ -168,10 +168,10 @@ export const MasterTenantLiveChatConfig: React.FC<MasterTenantLiveChatConfigProp
         if (widgetInjected) {
             cleanupWidget();
             setWidgetInjected(false);
-            showToast('success', 'Widget de teste do Live Chat removido.');
+            showToast('success', t('liveChatConfig.toasts.testWidgetRemoved'));
         } else {
             injectWidget();
-            showToast('success', 'Widget de teste do Live Chat injetado! Clique no balão para abrir.');
+            showToast('success', t('liveChatConfig.toasts.testWidgetInjected'));
         }
     };
 
@@ -192,7 +192,7 @@ export const MasterTenantLiveChatConfig: React.FC<MasterTenantLiveChatConfigProp
         navigator.clipboard.writeText(getSnippet());
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
-        showToast('success', 'Snippet do Live Chat copiado!');
+        showToast('success', t('liveChatConfig.toasts.snippetCopied'));
     };
 
     if (loading) {

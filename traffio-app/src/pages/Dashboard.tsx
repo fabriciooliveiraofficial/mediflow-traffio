@@ -1390,20 +1390,23 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                                             <div key={page.id} className="p-4 rounded-[20px] bg-ice-50/50 border border-ice-100 space-y-3">
                                                                 <div className="flex items-center justify-between group">
                                                                     <div className="flex items-center gap-3">
-                                                                        <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shrink-0 border border-ice-100 shadow-sm">
-                                                                            {page.instagram_username ? (
-                                                                                <Instagram size={18} className="text-[#E4405F]" />
-                                                                            ) : (
-                                                                                <Facebook size={18} className="text-[#0081FB]" />
-                                                                            )}
+                                                                        <div className="w-10 h-10 rounded-xl bg-blue-50/50 flex items-center justify-center shrink-0 border border-blue-100/50 text-[#0081FB]">
+                                                                            <Facebook size={18} fill="#0081FB" />
                                                                         </div>
                                                                         <div>
                                                                             <p className="text-xs font-black text-graphite-900 leading-tight">{page.page_name}</p>
-                                                                            {page.instagram_username && (
-                                                                                <p className="text-[10px] text-graphite-400 font-medium mt-0.5">
-                                                                                    @{page.instagram_username}
-                                                                                </p>
-                                                                            )}
+                                                                            <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                                                                <div className="flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-[#0081FB] rounded-lg text-[9px] font-black uppercase tracking-wider">
+                                                                                    <Facebook size={10} fill="#0081FB" />
+                                                                                    <span>Messenger</span>
+                                                                                </div>
+                                                                                {page.instagram_username && (
+                                                                                    <div className="flex items-center gap-1 px-2 py-0.5 bg-pink-50 text-[#E4405F] rounded-lg text-[9px] font-black uppercase tracking-wider">
+                                                                                        <Instagram size={10} />
+                                                                                        <span>Instagram (@{page.instagram_username})</span>
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
                                                                         </div>
                                                                     </div>
                                                                     <div className="flex items-center gap-3">

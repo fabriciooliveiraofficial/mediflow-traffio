@@ -202,6 +202,7 @@
     "patientPanel": {
       "title": "Info del Paciente",
       "editProfileTitle": "Editar Perfil",
+      "unlinkTitle": "Desvincular Paciente",
       "talkingTo": "Hablando con:",
       "frontDeskNotes": "Notas de Recepción",
       "birthDatePrefix": "Nac.:",
@@ -259,7 +260,11 @@
         "transferSuccess": "¡Conversación transferida con éxito!",
         "transferError": "Error al transferir: {{reason}}",
         "waitlistError": "Error al agregar a la lista de espera: {{message}}",
-        "waitlistSuccess": "¡Paciente agregado a la lista de espera con éxito! ✅"
+        "waitlistSuccess": "¡Paciente agregado a la lista de espera con éxito! ✅",
+        "channelLinkedSuccess": "¡Canal de comunicación vinculado con éxito! ✅",
+        "channelLinkedError": "Error al vincular canal: {{message}}",
+        "unlinkConfirm": "¿Deseas desvincular este canal del paciente?",
+        "unlinkSuccess": "¡Canal desvinculado con éxito! ✅"
       },
       "forwardModal": {
         "title": "Reenviar Mensaje",

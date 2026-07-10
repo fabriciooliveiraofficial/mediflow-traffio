@@ -107,7 +107,7 @@ export const TenantLiveChatConfig: React.FC<TenantLiveChatConfigProps> = ({ tena
             }
         } catch (err: any) {
             console.error('Error fetching livechat config:', err);
-            showToast('error', 'Erro ao carregar configurações do Live Chat.');
+            showToast('error', t('liveChat.toasts.loadError'));
         } finally {
             setLoading(false);
         }
@@ -134,14 +134,14 @@ export const TenantLiveChatConfig: React.FC<TenantLiveChatConfigProps> = ({ tena
 
             if (error) throw error;
 
-            showToast('success', 'Configurações do Live Chat salvas com sucesso!');
-            
+            showToast('success', t('liveChat.toasts.saveSuccess'));
+
             if (widgetInjected) {
                 cleanupWidget();
                 injectWidget();
             }
         } catch (err: any) {
-            showToast('error', 'Erro ao salvar configurações: ' + err.message);
+            showToast('error', t('liveChat.toasts.saveError', { message: err.message }));
         } finally {
             setSaving(false);
         }
@@ -163,10 +163,10 @@ export const TenantLiveChatConfig: React.FC<TenantLiveChatConfigProps> = ({ tena
         if (widgetInjected) {
             cleanupWidget();
             setWidgetInjected(false);
-            showToast('success', 'Widget de teste do Live Chat removido.');
+            showToast('success', t('liveChat.toasts.testWidgetRemoved'));
         } else {
             injectWidget();
-            showToast('success', 'Widget de teste do Live Chat injetado! Clique no balão para abrir.');
+            showToast('success', t('liveChat.toasts.testWidgetInjected'));
         }
     };
 
@@ -187,7 +187,7 @@ export const TenantLiveChatConfig: React.FC<TenantLiveChatConfigProps> = ({ tena
         navigator.clipboard.writeText(getSnippet());
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
-        showToast('success', 'Snippet do Live Chat copiado!');
+        showToast('success', t('liveChat.toasts.snippetCopied'));
     };
 
     if (loading) {

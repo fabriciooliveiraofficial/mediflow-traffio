@@ -142,36 +142,36 @@ export const PrivacyPolicy = () => {
           {/* Seção 3.1 - Meta (Facebook e Instagram) Integration */}
           <section className="space-y-4 bg-indigo-50/50 p-6 md:p-8 rounded-3xl border border-indigo-100/80">
             <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-              <span className="text-amber-500">3.1.</span> Integração com a Meta (Facebook e Instagram)
+              <span className="text-amber-500">3.1.</span> {t('privacyPolicy.sections.metaIntegration.title')}
             </h2>
             <p className="font-medium text-slate-800">
-              Nosso aplicativo solicita acesso às permissões <code>pages_messaging</code> e <code>instagram_manage_messages</code> para permitir que você gerencie as mensagens da sua página do Facebook e do seu perfil comercial do Instagram diretamente pela plataforma Traffio.
+              {t('privacyPolicy.sections.metaIntegration.intro.prefix')} <code>{t('privacyPolicy.sections.metaIntegration.intro.code1')}</code> {t('privacyPolicy.sections.metaIntegration.intro.middle')} <code>{t('privacyPolicy.sections.metaIntegration.intro.code2')}</code> {t('privacyPolicy.sections.metaIntegration.intro.suffix')}
             </p>
             <div className="space-y-4 text-sm mt-3">
               <div className="flex gap-3 items-start">
                 <CheckCircle size={18} className="text-emerald-500 shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="font-bold text-slate-900">Uso dos Dados (Finalidade)</h4>
+                  <h4 className="font-bold text-slate-900">{t('privacyPolicy.sections.metaIntegration.usage.heading')}</h4>
                   <p className="text-slate-600">
-                    O conteúdo das mensagens, bem como os dados de perfil públicos vinculados à conversa, são utilizados <strong>exclusivamente</strong> para viabilizar o módulo de "Atendimento" (Inbox) da plataforma, permitindo que a sua equipe responda aos seus clientes em tempo real de forma centralizada.
+                    {t('privacyPolicy.sections.metaIntegration.usage.body.prefix')} <strong>{t('privacyPolicy.sections.metaIntegration.usage.body.strong')}</strong> {t('privacyPolicy.sections.metaIntegration.usage.body.suffix')}
                   </p>
                 </div>
               </div>
               <div className="flex gap-3 items-start">
                 <CheckCircle size={18} className="text-emerald-500 shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="font-bold text-slate-900">Proibição de Compartilhamento</h4>
+                  <h4 className="font-bold text-slate-900">{t('privacyPolicy.sections.metaIntegration.noSharing.heading')}</h4>
                   <p className="text-slate-600">
-                    A Traffio não utiliza os dados das mensagens do Facebook ou Instagram para criar perfis de anúncios, e não compartilha, vende ou transfere esses dados para terceiros (incluindo redes de anúncios e data brokers). O acesso é estritamente limitado aos atendentes do seu próprio painel.
+                    {t('privacyPolicy.sections.metaIntegration.noSharing.body')}
                   </p>
                 </div>
               </div>
               <div className="flex gap-3 items-start">
                 <CheckCircle size={18} className="text-emerald-500 shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="font-bold text-slate-900">Retenção e Exclusão de Dados</h4>
+                  <h4 className="font-bold text-slate-900">{t('privacyPolicy.sections.metaIntegration.dataRetention.heading')}</h4>
                   <p className="text-slate-600 font-medium">
-                    Você pode desconectar suas contas e revogar o acesso a qualquer momento. Ao desvincular o canal ou solicitar a exclusão da sua conta Traffio, todos os tokens de acesso, históricos de mensagens sincronizadas e dados de usuários advindos da Meta serão permanentemente deletados dos nossos servidores em até 30 dias, em conformidade estrita com os <a href="https://developers.facebook.com/terms/" target="_blank" rel="noopener noreferrer" className="text-brand-primary underline hover:text-amber-500 transition-colors">Termos de Plataforma da Meta</a>.
+                    {t('privacyPolicy.sections.metaIntegration.dataRetention.body.prefix')} <a href="https://developers.facebook.com/terms/" target="_blank" rel="noopener noreferrer" className="text-brand-primary underline hover:text-amber-500 transition-colors">{t('privacyPolicy.sections.metaIntegration.dataRetention.body.linkText')}</a>{t('privacyPolicy.sections.metaIntegration.dataRetention.body.suffix')}
                   </p>
                 </div>
               </div>

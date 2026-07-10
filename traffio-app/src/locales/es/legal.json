@@ -74,6 +74,36 @@
           }
         }
       },
+      "metaIntegration": {
+        "title": "Integración con Meta (Facebook e Instagram)",
+        "intro": {
+          "prefix": "Nuestra aplicación solicita acceso a los permisos",
+          "code1": "pages_messaging",
+          "middle": "e",
+          "code2": "instagram_manage_messages",
+          "suffix": "para permitirte gestionar los mensajes de tu página de Facebook y de tu perfil comercial de Instagram directamente desde la plataforma Traffio."
+        },
+        "usage": {
+          "heading": "Uso de los Datos (Finalidad)",
+          "body": {
+            "prefix": "El contenido de los mensajes, así como los datos de perfil públicos vinculados a la conversación, se utilizan",
+            "strong": "exclusivamente",
+            "suffix": "para habilitar el módulo de \"Atención\" (Inbox) de la plataforma, permitiendo que tu equipo responda a tus pacientes en tiempo real de forma centralizada."
+          }
+        },
+        "noSharing": {
+          "heading": "Prohibición de Compartir Datos",
+          "body": "Traffio no utiliza los datos de los mensajes de Facebook o Instagram para crear perfiles publicitarios, y no comparte, vende ni transfiere estos datos a terceros (incluyendo redes de anuncios y data brokers). El acceso está estrictamente limitado a los agentes de tu propio panel."
+        },
+        "dataRetention": {
+          "heading": "Retención y Eliminación de Datos",
+          "body": {
+            "prefix": "Puedes desconectar tus cuentas y revocar el acceso en cualquier momento. Al desvincular el canal o solicitar la eliminación de tu cuenta Traffio, todos los tokens de acceso, historiales de mensajes sincronizados y datos de usuarios provenientes de Meta serán eliminados permanentemente de nuestros servidores en un plazo de hasta 30 días, en estricto cumplimiento con los",
+            "linkText": "Términos de Plataforma de Meta",
+            "suffix": "."
+          }
+        }
+      },
       "dataSharing": {
         "title": "Cómo Compartimos los Datos",
         "intro": "**No vendemos ni alquilamos** datos personales de nuestros clientes ni de sus pacientes. Compartimos información con terceros únicamente en las siguientes circunstancias:",
