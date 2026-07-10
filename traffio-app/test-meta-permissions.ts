@@ -63,11 +63,11 @@ await makeRequest(
 
 // Se houver conta do Instagram, testar as permissões de Instagram
 if (instagramAccountId) {
-  // 3. Testar instagram_business_manage_messages e instagram_business_basic
+  // 3. Testar instagram_manage_messages e instagram_basic
   await makeRequest(
     `${GRAPH_API}/${instagramAccountId}/conversations?limit=1&access_token=${pageAccessToken}`,
     `Obtendo conversas do Instagram (${instagramAccountId}/conversations)`,
-    "instagram_business_manage_messages, instagram_business_basic"
+    "instagram_manage_messages, instagram_basic"
   );
 
   // 4. Testar instagram_manage_comments
