@@ -75,6 +75,10 @@ serve(async (req: Request) => {
       "pages_manage_metadata",
       "instagram_basic",
       "business_management",
+      "instagram_manage_comments",
+      "instagram_business_manage_messages",
+      "instagram_business_basic",
+      "public_profile",
     ].join(",");
 
     const statePayload = {
@@ -180,6 +184,10 @@ serve(async (req: Request) => {
               "pages_messaging",
               "instagram_manage_messages",
               "pages_read_engagement",
+              "instagram_manage_comments",
+              "instagram_business_manage_messages",
+              "instagram_business_basic",
+              "public_profile"
             ],
             updated_at: new Date().toISOString(),
           },

@@ -58,7 +58,7 @@ serve(async (req: Request) => {
     // Combine scopes dynamically based on selected features
     const scopes: string[] = [];
     if (selectedFeatures.includes("ads")) {
-      scopes.push("ads_management", "ads_read");
+      scopes.push("ads_management", "ads_read", "pages_manage_ads");
     }
     if (selectedFeatures.includes("messaging")) {
       scopes.push(
@@ -68,7 +68,11 @@ serve(async (req: Request) => {
         "pages_read_engagement",
         "pages_manage_metadata",
         "instagram_basic",
-        "business_management"
+        "business_management",
+        "instagram_manage_comments",
+        "instagram_business_manage_messages",
+        "instagram_business_basic",
+        "public_profile"
       );
     }
 
@@ -217,6 +221,10 @@ serve(async (req: Request) => {
                     "pages_messaging",
                     "instagram_manage_messages",
                     "pages_read_engagement",
+                    "instagram_manage_comments",
+                    "instagram_business_manage_messages",
+                    "instagram_business_basic",
+                    "public_profile"
                   ],
                   updated_at: new Date().toISOString(),
                 },
