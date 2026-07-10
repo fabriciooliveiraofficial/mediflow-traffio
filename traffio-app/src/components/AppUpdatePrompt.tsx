@@ -2,14 +2,16 @@ import { useTranslation } from 'react-i18next';
 import { AnimatePresence, motion } from 'framer-motion';
 import { RefreshCw } from 'lucide-react';
 import { useAppUpdate } from '../hooks/useAppUpdate';
+import { useAuth } from '../contexts/AuthContext';
 
 export const AppUpdatePrompt = () => {
     const { t } = useTranslation('common');
+    const { session } = useAuth();
     const { updateAvailable, updating, applyUpdate, skipUpdate } = useAppUpdate();
 
     return (
         <AnimatePresence>
-            {updateAvailable && (
+            {session && updateAvailable && (
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}

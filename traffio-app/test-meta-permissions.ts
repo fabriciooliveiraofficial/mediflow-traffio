@@ -50,8 +50,8 @@ await makeRequest(
 
 // 2. Testar pages_manage_ads (Criar e gerenciar anúncios / Capturar Leads)
 await makeRequest(
-  `${GRAPH_API}/${pageId}/ads?limit=1&access_token=${pageAccessToken}`,
-  `Obtendo anúncios da página (${pageId}/ads)`,
+  `${GRAPH_API}/${pageId}/ads_posts?limit=1&access_token=${pageAccessToken}`,
+  `Obtendo posts de anúncios da página (${pageId}/ads_posts)`,
   "pages_manage_ads"
 );
 
@@ -65,8 +65,8 @@ await makeRequest(
 if (instagramAccountId) {
   // 3. Testar instagram_manage_messages e instagram_basic
   await makeRequest(
-    `${GRAPH_API}/${instagramAccountId}/conversations?limit=1&access_token=${pageAccessToken}`,
-    `Obtendo conversas do Instagram (${instagramAccountId}/conversations)`,
+    `${GRAPH_API}/${pageId}/conversations?platform=instagram&limit=1&access_token=${pageAccessToken}`,
+    `Obtendo conversas do Instagram via nó da Página (${pageId}/conversations?platform=instagram)`,
     "instagram_manage_messages, instagram_basic"
   );
 

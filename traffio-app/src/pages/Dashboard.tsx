@@ -249,7 +249,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
         if (!tenant?.id) return;
         const { data } = await supabase
             .from('tenant_meta_pages')
-            .select('id, page_id, page_name, page_category, instagram_account_id, instagram_username, is_active, last_refreshed_at')
+            .select('id, page_id, page_name, page_category, instagram_account_id, instagram_username, is_active, last_refreshed_at, scope_granted')
             .eq('tenant_id', tenant.id)
             .order('page_name');
         setMetaPages(data ?? []);
@@ -382,6 +382,21 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
             setManageLoading(false);
         }
     };
+
+    const metaScopes = useMemo(() => {
+        const scopesSet = new Set<string>();
+        metaPages.forEach(page => {
+            if (Array.isArray(page.scope_granted)) {
+                page.scope_granted.forEach((s: string) => scopesSet.add(s));
+            }
+        });
+        if (integrations.meta && manageData?.settings?.ad_account_id) {
+            scopesSet.add('ads_management');
+            scopesSet.add('ads_read');
+            scopesSet.add('pages_manage_ads');
+        }
+        return Array.from(scopesSet);
+    }, [metaPages, integrations.meta, manageData?.settings]);
 
     const closeManageModal = () => {
         setManageModal(null);
@@ -1319,7 +1334,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                     <Loader2 className="animate-spin text-brand-primary" size={28} />
                                 </div>
                             ) : (
-                                <div className="space-y-5">
+                                <div className="space-y-5 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
                                     {manageModal.platform === 'meta' && (
                                         <div className="space-y-6">
                                             {/* Conta de Anúncios */}
@@ -1328,7 +1343,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                                     <div className="w-6 h-6 rounded-lg bg-blue-50 text-[#0081FB] flex items-center justify-center">
                                                         <Target size={14} />
                                                     </div>
-                                                    <h4 className="text-sm font-black text-graphite-900 tracking-tight">Conta de Anúncios</h4>
+                                                    <h4 className="text-sm font-black text-graphite-900 tracking-tight">{t('manageModal.adAccountLabel')}</h4>
                                                 </div>
                                                 
                                                 <div className="bg-ice-50/50 border border-ice-100 rounded-[20px] p-4">
@@ -1350,13 +1365,13 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                                 </div>
                                             </div>
 
-                                            {/* Páginas do Meta (Messaging) */}
+                                            {/* Canais de Mensagem */}
                                             <div className="space-y-3">
                                                 <div className="flex items-center gap-2">
                                                     <div className="w-6 h-6 rounded-lg bg-pink-50 text-pink-500 flex items-center justify-center">
                                                         <MessageCircle size={14} />
                                                     </div>
-                                                    <h4 className="text-sm font-black text-graphite-900 tracking-tight">Canais de Mensagem</h4>
+                                                    <h4 className="text-sm font-black text-graphite-900 tracking-tight">{t('manageModal.channelsLabel')}</h4>
                                                 </div>
 
                                                 {metaPages.length === 0 ? (
@@ -1370,41 +1385,90 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                                                         </div>
                                                     </div>
                                                 ) : (
-                                                    <div className="grid grid-cols-1 gap-3 max-h-[220px] overflow-y-auto pr-2 custom-scrollbar">
+                                                    <div className="grid grid-cols-1 gap-3">
                                                         {metaPages.map((page) => (
-                                                            <div key={page.id} className="flex items-center justify-between p-4 rounded-[20px] bg-white border border-ice-100 shadow-sm transition-all hover:border-[#0081FB]/30 hover:shadow-md group">
-                                                                <div className="flex items-center gap-3.5">
-                                                                    <div className="w-10 h-10 rounded-xl bg-ice-50 flex items-center justify-center shrink-0 border border-ice-100/50 group-hover:bg-[#0081FB]/5 group-hover:border-[#0081FB]/20 transition-colors">
-                                                                        {page.instagram_username ? (
-                                                                            <Instagram size={18} className="text-[#E4405F]" />
-                                                                        ) : (
-                                                                            <Facebook size={18} className="text-[#0081FB]" />
-                                                                        )}
+                                                            <div key={page.id} className="p-4 rounded-[20px] bg-ice-50/50 border border-ice-100 space-y-3">
+                                                                <div className="flex items-center justify-between group">
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shrink-0 border border-ice-100 shadow-sm">
+                                                                            {page.instagram_username ? (
+                                                                                <Instagram size={18} className="text-[#E4405F]" />
+                                                                            ) : (
+                                                                                <Facebook size={18} className="text-[#0081FB]" />
+                                                                            )}
+                                                                        </div>
+                                                                        <div>
+                                                                            <p className="text-xs font-black text-graphite-900 leading-tight">{page.page_name}</p>
+                                                                            {page.instagram_username && (
+                                                                                <p className="text-[10px] text-graphite-400 font-medium mt-0.5">
+                                                                                    @{page.instagram_username}
+                                                                                </p>
+                                                                            )}
+                                                                        </div>
                                                                     </div>
-                                                                    <div>
-                                                                        <p className="text-xs font-black text-graphite-900 leading-tight">{page.page_name}</p>
-                                                                        {page.instagram_username && (
-                                                                            <p className="text-[10px] text-graphite-400 font-medium mt-0.5">
-                                                                                @{page.instagram_username}
-                                                                            </p>
-                                                                        )}
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className="flex items-center gap-1.5">
+                                                                            <div className={clsx("w-1.5 h-1.5 rounded-full", page.is_active ? "bg-green-500" : "bg-red-500")}></div>
+                                                                            <span className={clsx("text-[9px] font-black uppercase tracking-widest", page.is_active ? "text-green-600" : "text-red-600")}>
+                                                                                {page.is_active ? t('manageModal.active') : 'Inativo'}
+                                                                            </span>
+                                                                        </div>
+                                                                        <div className="w-px h-4 bg-ice-100"></div>
+                                                                        <button
+                                                                            onClick={() => disconnectMetaPage(page.id)}
+                                                                            className="p-1.5 text-graphite-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all border-none cursor-pointer"
+                                                                            title={tSettings('clinics.metaDisconnectTitle')}
+                                                                        >
+                                                                            <Unlink size={14} />
+                                                                        </button>
                                                                     </div>
                                                                 </div>
-                                                                <div className="flex items-center gap-3">
-                                                                    <div className="flex items-center gap-1.5">
-                                                                        <div className={clsx("w-1.5 h-1.5 rounded-full", page.is_active ? "bg-green-500" : "bg-red-500")}></div>
-                                                                        <span className={clsx("text-[9px] font-black uppercase tracking-widest hidden sm:inline-block", page.is_active ? "text-green-600" : "text-red-600")}>
-                                                                            {page.is_active ? tSettings('clinics.metaPageActive') : tSettings('clinics.metaPageInactive')}
-                                                                        </span>
-                                                                    </div>
-                                                                    <div className="w-px h-4 bg-ice-100"></div>
-                                                                    <button
-                                                                        onClick={() => disconnectMetaPage(page.id)}
-                                                                        className="p-1.5 text-graphite-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all border-none cursor-pointer"
-                                                                        title={tSettings('clinics.metaDisconnectTitle')}
-                                                                    >
-                                                                        <Unlink size={14} />
-                                                                    </button>
+                                                                
+                                                                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-ice-100/50 text-[10px] text-graphite-400 font-medium">
+                                                                    {page.page_category && (
+                                                                        <div>
+                                                                            <span className="block font-black text-graphite-500 uppercase tracking-wider">{t('manageModal.categoryLabel')}</span>
+                                                                            <span className="block text-graphite-600 mt-0.5">{page.page_category}</span>
+                                                                        </div>
+                                                                    )}
+                                                                    {page.last_refreshed_at && (
+                                                                        <div>
+                                                                            <span className="block font-black text-graphite-500 uppercase tracking-wider">{t('manageModal.tokenRefreshed')}</span>
+                                                                            <span className="block text-graphite-600 mt-0.5">{formatDateTime(page.last_refreshed_at)}</span>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Permissões Concedidas */}
+                                            <div className="space-y-3">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-6 h-6 rounded-lg bg-green-50 text-green-600 flex items-center justify-center">
+                                                        <ShieldCheck size={14} />
+                                                    </div>
+                                                    <h4 className="text-sm font-black text-graphite-900 tracking-tight">{t('manageModal.permissionsLabel')}</h4>
+                                                </div>
+
+                                                {metaScopes.length === 0 ? (
+                                                    <p className="text-xs text-graphite-400 font-medium leading-relaxed bg-ice-50/50 border border-ice-100 rounded-[20px] p-4">
+                                                        {t('manageModal.noPermissions')}
+                                                    </p>
+                                                ) : (
+                                                    <div className="grid grid-cols-1 gap-2 bg-ice-50/50 border border-ice-100 rounded-[20px] p-4">
+                                                        {metaScopes.map((scope) => (
+                                                            <div key={scope} className="flex items-center gap-2 px-3 py-2 bg-white border border-ice-100 rounded-xl text-graphite-700 shadow-sm">
+                                                                <ShieldCheck size={14} className="shrink-0 text-green-500" />
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-[10px] font-black text-graphite-900 tracking-tight">
+                                                                        {t(`manageModal.scopes.${scope}`)}
+                                                                    </span>
+                                                                    <span className="text-[9px] text-graphite-400 font-medium tracking-tight">
+                                                                        {scope}
+                                                                    </span>
                                                                 </div>
                                                             </div>
                                                         ))}

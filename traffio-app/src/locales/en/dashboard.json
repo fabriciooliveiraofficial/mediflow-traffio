@@ -133,7 +133,26 @@
     "lastSyncLabel": "Last Sync",
     "notSyncedYet": "Not synced yet",
     "syncNow": "Sync Now",
-    "disconnect": "Disconnect"
+    "disconnect": "Disconnect",
+    "permissionsLabel": "Granted Permissions",
+    "channelsLabel": "Message Channels",
+    "noPermissions": "No permissions registered.",
+    "categoryLabel": "Category",
+    "tokenRefreshed": "Last refreshed",
+    "scopes": {
+      "pages_messaging": "Send Messages (Messenger)",
+      "instagram_manage_messages": "Direct Messages (Instagram)",
+      "pages_read_engagement": "Read Engagement",
+      "pages_manage_metadata": "Manage Metadata",
+      "instagram_basic": "Instagram Basic Profile",
+      "business_management": "Business Manager Management",
+      "pages_show_list": "List Pages",
+      "ads_management": "Create/Edit Ads",
+      "ads_read": "Read Ad Performance",
+      "pages_manage_ads": "Manage Page Ads",
+      "instagram_manage_comments": "Manage Comments",
+      "public_profile": "Basic Public Profile"
+    }
   },
   "metaConnectModal": {
     "title": "Connect to Meta",
