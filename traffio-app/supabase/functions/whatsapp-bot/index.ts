@@ -370,6 +370,7 @@ function maybeRunCopilot(supabase: any, tenant: any, sessionId: string, phone: s
       phone,
       clinicName: tenant.name || "",
       botConfig,
+      currency: tenant.currency,
     }).catch((e: any) => console.warn(`[whatsapp-bot] copilot background falhou (non-fatal): ${e?.message}`)),
   );
 }

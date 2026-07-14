@@ -169,7 +169,7 @@ async function processConversationTurn(
      // 'human'/'copilot' este gate nunca adia nada (fluxo humano = latência baixa).
      const { data: tenantRow } = await supabase
        .from("tenants")
-       .select("name, bot_config")
+       .select("name, bot_config, currency")
        .eq("id", tenantId)
        .maybeSingle();
      const botConfig = tenantRow?.bot_config || {};
@@ -327,6 +327,7 @@ async function processConversationTurn(
          phone,
          clinicName: tenantRow?.name || "",
          botConfig,
+         currency: tenantRow?.currency,
        });
      }
 

@@ -20,6 +20,8 @@ interface CopilotParams {
     phone: string;
     clinicName: string;
     botConfig: any;
+    /** Moeda do tenant (ex.: BRL, USD) — usada ao exibir preços cadastrados */
+    currency?: string | null;
 }
 
 interface TriageResult {
@@ -29,9 +31,61 @@ interface TriageResult {
 }
 
 const MAX_HISTORY_TURNS = 12;
+const MAX_KB_ENTRIES = 20;
+const MAX_KB_CHARS = 400;
+
+/**
+ * Pacote de conhecimento da clínica para o rascunho responder DE VERDADE:
+ * serviços cadastrados (com preço), informações da clínica (clinic_info) e
+ * base de conhecimento. Sem isso, toda pergunta cai no "vou verificar".
+ */
+async function buildKnowledgePacket(supabase: SupabaseClient, tenantId: string, currency?: string | null): Promise<string> {
+    const [services, info, kb] = await Promise.all([
+        supabase.from("appointment_types")
+            .select("name, duration_minutes, price_cents")
+            .eq("tenant_id", tenantId)
+            .limit(50),
+        supabase.from("clinic_info")
+            .select("category, key, value")
+            .eq("tenant_id", tenantId)
+            .eq("is_active", true)
+            .limit(50),
+        supabase.from("knowledge_base")
+            .select("title, content")
+            .eq("tenant_id", tenantId)
+            .eq("is_active", true)
+            .limit(MAX_KB_ENTRIES),
+    ]);
+
+    const cur = currency || "BRL";
+    const parts: string[] = [];
+
+    const serviceRows = (services.data as any[]) || [];
+    if (serviceRows.length) {
+        parts.push("SERVIÇOS OFERECIDOS (nome | duração | preço cadastrado):\n" + serviceRows
+            .map(s => `- ${s.name} | ${s.duration_minutes ?? "?"}min | ${s.price_cents != null ? `${cur} ${(s.price_cents / 100).toFixed(2)}` : "preço sob consulta"}`)
+            .join("\n"));
+    }
+
+    const infoRows = (info.data as any[]) || [];
+    if (infoRows.length) {
+        parts.push("INFORMAÇÕES DA CLÍNICA:\n" + infoRows
+            .map(i => `- [${i.category}] ${i.key}: ${i.value}`)
+            .join("\n"));
+    }
+
+    const kbRows = (kb.data as any[]) || [];
+    if (kbRows.length) {
+        parts.push("BASE DE CONHECIMENTO:\n" + kbRows
+            .map(k => `## ${k.title}\n${String(k.content || "").substring(0, MAX_KB_CHARS)}`)
+            .join("\n"));
+    }
+
+    return parts.join("\n\n");
+}
 
 export async function runCopilot(supabase: SupabaseClient, params: CopilotParams): Promise<void> {
-    const { tenantId, sessionId, phone, clinicName, botConfig } = params;
+    const { tenantId, sessionId, phone, clinicName, botConfig, currency } = params;
 
     try {
         // Histórico + contexto atuais (a mensagem do paciente já foi logada)
@@ -57,9 +111,10 @@ export async function runCopilot(supabase: SupabaseClient, params: CopilotParams
         // ── 1+2. Triagem (Haiku) e rascunho (Sonnet) em PARALELO ───────────────
         // O rascunho não depende da triagem (o Sonnet espelha o idioma do
         // paciente sozinho) — rodar em série só somava latência.
-        const [routerModel, agentModel] = await Promise.all([
+        const [routerModel, agentModel, knowledgePacket] = await Promise.all([
             getAiModelRouter(supabase),
             getAiModelAgent(supabase),
+            buildKnowledgePacket(supabase, tenantId, currency),
         ]);
         const personality = botConfig?.personality || "acolhedor";
         const instructions = botConfig?.global_instructions || "";
@@ -90,11 +145,14 @@ export async function runCopilot(supabase: SupabaseClient, params: CopilotParams
                             `Você redige SUGESTÕES de resposta para a equipe da clínica "${clinicName}" — um humano revisa antes de enviar.`,
                             `Tom: ${personality}. Responda SEMPRE no mesmo idioma da última mensagem do paciente.`,
                             instructions ? `Instruções da clínica: ${instructions}` : "",
+                            knowledgePacket ? `### CONTEXTO DA CLÍNICA (única fonte de fatos permitida):\n${knowledgePacket}` : "",
                             "REGRAS INEGOCIÁVEIS:",
                             "- Escreva APENAS o texto da resposta sugerida, nada mais (sem aspas, sem prefixos).",
                             "- Curto: no máximo 2 parágrafos breves, adequado para WhatsApp.",
-                            "- NUNCA invente preço, horário disponível, endereço ou informação clínica. Se a resposta exige um dado que você não tem, escreva a resposta pedindo um momento para verificar.",
-                            "- Não prometa nada em nome da clínica além do que está nas instruções.",
+                            "- RESPONDA A DÚVIDA DIRETAMENTE quando a informação estiver no CONTEXTO DA CLÍNICA (incluindo preços cadastrados). Resposta genérica de 'vou verificar' quando o dado existe no contexto é ERRADA.",
+                            "- Se o dado necessário NÃO estiver no contexto, aí sim diga que vai confirmar com a equipe — e mesmo assim adiante o que o contexto permitir.",
+                            "- NUNCA invente fato que não esteja no contexto: preço, horário disponível, endereço, informação clínica.",
+                            "- Sempre que fizer sentido, termine conduzindo ao próximo passo (ex.: oferecer o agendamento de uma avaliação).",
                         ].filter(Boolean).join("\n"),
                         messages: [{ role: "user", content: `Conversa até agora:\n${transcript}\n\nRedija a sugestão de resposta da clínica para a última mensagem do paciente.` }],
                     });
