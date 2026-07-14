@@ -117,16 +117,24 @@ export async function claudeChat(supabase: SupabaseClient, req: LlmRequest): Pro
 
     console.log(`[llmProvider] ${req.purpose}: ${req.model} — in=${usage.inputTokens} out=${usage.outputTokens} tools=${toolCalls.length} ${Date.now() - started}ms`);
 
-    // Log de uso para o dashboard do painel master — best effort, nunca falha a chamada
+    // Log de uso para o dashboard do painel master — best effort, nunca falha a chamada.
+    // Colunas conforme o schema REAL de ai_usage_logs (tokens_input/tokens_output/
+    // cost_api_cents/price_tenant_cents/model/context) — validado em produção 07/2026.
     try {
         const price = PRICE_PER_MTOK[req.model] ?? PRICE_PER_MTOK["claude-sonnet-5"];
         const costUsd = (usage.inputTokens * price.input + usage.outputTokens * price.output) / 1_000_000;
-        await supabase.from("ai_usage_logs").insert({
+        const costCents = costUsd * 100;
+        const { error: logError } = await supabase.from("ai_usage_logs").insert({
             tenant_id: req.tenantId,
-            prompt_tokens: usage.inputTokens,
-            completion_tokens: usage.outputTokens,
-            estimated_cost_usd: costUsd,
+            model: req.model,
+            tokens_input: usage.inputTokens,
+            tokens_output: usage.outputTokens,
+            cost_api_cents: costCents,
+            // Convenção de markup da plataforma (ver _shared/pricing.ts): preço ao tenant = 2× o custo
+            price_tenant_cents: costCents * 2,
+            context: req.purpose,
         });
+        if (logError) console.warn(`[llmProvider] usage log failed (non-fatal): ${logError.message}`);
     } catch (logErr: any) {
         console.warn(`[llmProvider] usage log failed (non-fatal): ${logErr?.message}`);
     }

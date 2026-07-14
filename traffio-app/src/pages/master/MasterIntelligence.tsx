@@ -77,14 +77,16 @@ export const MasterIntelligence = () => {
             const thirtyDaysAgo = new Date();
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
+            // Colunas conforme o schema REAL de ai_usage_logs (validado em produção 07/2026)
             const { data: logs, error: logsError } = await supabase
                 .from('ai_usage_logs')
                 .select(`
                     id,
                     tenant_id,
-                    prompt_tokens,
-                    completion_tokens,
-                    estimated_cost_usd,
+                    tokens_input,
+                    tokens_output,
+                    cost_api_cents,
+                    price_tenant_cents,
                     tenants (name)
                 `)
                 .gte('created_at', thirtyDaysAgo.toISOString());
@@ -98,8 +100,9 @@ export const MasterIntelligence = () => {
             const tenantMap: Record<string, TenantUsage> = {};
 
             logs?.forEach(log => {
-                const tokens = (log.prompt_tokens || 0) + (log.completion_tokens || 0);
-                const cost = log.estimated_cost_usd || 0;
+                const tokens = (log.tokens_input || 0) + (log.tokens_output || 0);
+                const cost = (log.cost_api_cents || 0) / 100; // USD
+                const revenue = (log.price_tenant_cents || 0) / 100; // USD
 
                 totalTokens += tokens;
                 totalCost += cost;
@@ -120,9 +123,6 @@ export const MasterIntelligence = () => {
 
                     tenantMap[log.tenant_id].total_tokens += tokens;
                     tenantMap[log.tenant_id].total_cost += cost;
-                    // Mock Profit Logic: We charge R$0.0002 per token (approx) vs Cost
-                    // In real world, fetch plan price
-                    const revenue = tokens * 0.00004; // ~$40 per 1M tokens revenue example
                     tenantMap[log.tenant_id].profit_margin += (revenue - cost);
                 }
             });
