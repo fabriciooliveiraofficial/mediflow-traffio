@@ -292,9 +292,10 @@
       "conditions": {
         "caries": "Cárie",
         "restored": "Restaurado",
-        "missing": "Ausente"
+        "missing": "Ausente",
+        "eraser": "Borracha"
       },
-      "clearTitle": "Limpar seleção",
+      "clearTitle": "Descartar alterações",
       "saving": "Salvando...",
       "save": "Salvar Mapa",
       "legend": {

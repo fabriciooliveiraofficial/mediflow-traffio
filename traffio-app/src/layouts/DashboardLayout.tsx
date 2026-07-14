@@ -24,6 +24,7 @@ import {
     CreditCard,
     Crown,
     Phone,
+    Sunrise,
 } from 'lucide-react'
 // Phone used in navItems below
 import { FloatingCommunicationsButton } from '../components/softphone/FloatingCommunicationsButton'
@@ -72,6 +73,7 @@ interface NavItem {
 
 function buildNavItems(t: (key: string) => string): NavItem[] {
     return [
+        { id: 'today', label: t('nav.today'), icon: Sunrise },
         { id: 'agenda', label: t('nav.agenda'), icon: Calendar, badge: 'IA' },
         { id: 'reception', label: t('nav.reception'), icon: Users, badge: 'Staff' },
         { id: 'inbox', label: t('nav.inbox'), icon: Headphones, badge: 'Inbox' },

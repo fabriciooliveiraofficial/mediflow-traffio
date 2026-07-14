@@ -1,0 +1,70 @@
+{
+    "greeting": {
+        "morning": "Bom dia, {{name}}",
+        "afternoon": "Boa tarde, {{name}}",
+        "evening": "Boa noite, {{name}}"
+    },
+    "refresh": "Atualizar",
+    "viewAll": "Ver todos ({{count}})",
+    "allClear": "Tudo em dia",
+    "time": {
+        "minutes_one": "{{count}} min",
+        "minutes_other": "{{count}} min",
+        "hours_one": "{{count}} h",
+        "hours_other": "{{count}} h"
+    },
+    "channels": {
+        "whatsapp": "WhatsApp",
+        "instagram": "Instagram",
+        "facebook": "Messenger",
+        "livechat": "Chat do site",
+        "sms": "SMS",
+        "email": "E-mail"
+    },
+    "queues": {
+        "humanQueue": {
+            "title": "Aguardando atendimento"
+        },
+        "confirmations": {
+            "title": "Confirmações pendentes"
+        },
+        "recovery": {
+            "title": "Faltas a recuperar",
+            "reason_one": "{{count}} falta",
+            "reason_other": "{{count}} faltas"
+        },
+        "followUps": {
+            "title": "Follow-ups vencidos",
+            "score": "Prioridade {{score}}"
+        },
+        "waitlist": {
+            "title": "Lista de espera",
+            "noDoctor": "Atribuir profissional"
+        },
+        "agenda": {
+            "title": "Agenda de hoje",
+            "progress": "{{done}} de {{total}} realizadas",
+            "empty": "Sem consultas hoje",
+            "patientFallback": "Paciente"
+        }
+    },
+    "goals": {
+        "title": "Metas do mês",
+        "appointments": "Agendamentos",
+        "showRate": "Comparecimento",
+        "setup": "Definir metas",
+        "edit": "Editar",
+        "modalTitle": "Metas do mês",
+        "appointmentsLabel": "Meta de agendamentos por mês",
+        "showRateLabel": "Meta de comparecimento (%)",
+        "save": "Salvar metas",
+        "saved": "Metas atualizadas",
+        "saveError": "Não foi possível salvar as metas"
+    },
+    "pulse": {
+        "appointments": "consultas hoje",
+        "shows": "comparecimentos",
+        "newLeads": "novos leads",
+        "resolved": "conversas resolvidas"
+    }
+}

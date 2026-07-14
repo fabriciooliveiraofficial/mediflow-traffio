@@ -8,6 +8,7 @@ import { useTenant } from '../contexts/TenantContext';
 
 export const PERMISSION_MAP: Record<string, string[]> = {
   // Páginas
+  'page:today':         ['owner', 'admin', 'manager', 'doctor', 'attendant', 'staff'],
   'page:dashboard':     ['owner', 'admin', 'manager', 'doctor', 'attendant', 'staff'],
   'page:agenda':        ['owner', 'admin', 'manager', 'doctor', 'attendant'],
   'page:inbox':         ['owner', 'admin', 'manager', 'attendant'],

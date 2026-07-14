@@ -29,7 +29,14 @@
       "notesLabel": "Observações",
       "notesPlaceholder": "Observações opcionais...",
       "cancel": "Cancelar",
-      "confirm": "Confirmar"
+      "confirm": "Confirmar",
+      "newPatient": {
+        "heading": "Novo Cadastro de Paciente",
+        "fullNameLabel": "Nome Completo",
+        "phoneLabel": "Telefone",
+        "emailLabel": "E-mail",
+        "saveAndSelect": "Salvar e Selecionar"
+      }
     },
     "editModal": {
       "statusLabel": "Status",
@@ -139,6 +146,7 @@
     "slotsAvailableCount": "Horários Disponíveis ({{count}})",
     "selectDateHint": "Selecione uma data no calendário",
     "legendExclusive": "Exclusivo",
+    "continueToCalendar": "Continuar para Calendário",
     "dateLabel": "Data",
     "slotsLabel": "Horários",
     "noSlotsAvailable": "Nenhum horário disponível nesta data",
@@ -304,5 +312,35 @@
     "errors": {
       "paymentFailed": "Erro ao processar pagamento."
     }
+  },
+  "waitlistDrawer": {
+    "buttonLabel": "Espera",
+    "title": "Lista de Espera",
+    "subtitle_one": "{{count}} paciente aguardando vaga",
+    "subtitle_other": "{{count}} pacientes aguardando vaga",
+    "filterAll": "Todos",
+    "empty": "Ninguém na lista de espera",
+    "emptyHint": "Adicione pacientes pela conversa no Atendimento Humano (ação \"Espera\" no painel do paciente).",
+    "anyDoctor": "Qualquer profissional",
+    "anyDay": "Qualquer dia",
+    "status": {
+      "notified": "Notificado"
+    },
+    "waiting": {
+      "justNow": "agora mesmo",
+      "hours_one": "há {{count}}h",
+      "hours_other": "há {{count}}h",
+      "days_one": "há {{count}} dia",
+      "days_other": "há {{count}} dias"
+    },
+    "removeConfirm": "Remover {{name}} da lista de espera?",
+    "requeueTitle": "Voltar para a fila",
+    "removeTitle": "Remover da fila",
+    "toasts": {
+      "removed": "Removido da lista de espera.",
+      "requeued": "Paciente voltou para a fila de espera.",
+      "error": "Erro: {{message}}"
+    },
+    "footerHint": "Quando uma consulta é cancelada, o próximo paciente compatível da fila é notificado automaticamente por WhatsApp."
   }
 }

@@ -1,17 +1,20 @@
 /**
  * process-inbox — Edge Function (Supabase Cron, every 2 seconds)
  *
- * Inbox Worker: Debounce + Context Fusion + Conversation Lock + ClinicalAgent
+ * Inbox Worker: Debounce + Context Fusion + Conversation Lock
+ *
+ * Estado atual: NENHUM agente de IA é executado aqui — toda conversa é
+ * registrada e roteada para a fila humana (triggerHumanHandoff).
+ * A reativação da IA (família Claude, dial de autonomia) está especificada
+ * em docs/SPEC_AGENTE_IA_CLAUDE.md e entra nas fases F0/F1.
  *
  * Flow per conversation turn:
  *   1. Fetch all pending messages grouped by (tenant_id, phone)
  *   2. Debounce: skip phones whose last message arrived < DEBOUNCE_MS ago
  *   3. Acquire PostgreSQL advisory lock per phone (prevents parallel runs)
  *   4. Context Fusion: concatenate all pending messages into one user turn
- *   5. Send typing indicator via Z-API
- *   6. Run ClinicalAgent once with the fused turn
- *   7. Send response
- *   8. Mark messages as done, release lock
+ *   5. Log message + route to human queue
+ *   6. Mark messages as done, release lock
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -20,10 +23,17 @@ import { TenantResolver } from "../_shared/tenantResolver.ts";
 import { SessionManager } from "../_shared/sessionManager.ts";
 import { OutboxDispatcher } from "../_shared/outboxDispatcher.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { runCopilot } from "../_shared/copilot.ts";
 
 // How long to wait after the last message before processing (ms).
 // Gives the patient time to finish typing multiple messages.
 const DEBOUNCE_MS = 1200;
+
+// F0 (docs/SPEC_AGENTE_IA_CLAUDE.md) — debounce estendido quando a IA vai
+// responder: pacientes reais fragmentam o pensamento em várias mensagens com
+// pausas de 3–5s; a IA só deve gerar resposta após silêncio real. O fluxo
+// humano continua no debounce curto (latência importa para o atendente).
+const AI_DEBOUNCE_MS = 10_000;
 
 console.log("process-inbox v1 — Debounce + Fusion Worker — Initialized");
 
@@ -151,6 +161,35 @@ async function processConversationTurn(
  
      const session = await sessionManager.getOrCreateSession(tenantId, phone);
      let lastMessageSnippet = "";
+
+     // --- 4b. F0: debounce estendido para conversas tratadas por IA autônoma ---
+     // Se o agente de IA vai responder este turno, exigir AI_DEBOUNCE_MS de
+     // silêncio do paciente antes de processar — absorve a "enxurrada" de
+     // mensagens fragmentadas em um único turno coerente. Com o dial em
+     // 'human'/'copilot' este gate nunca adia nada (fluxo humano = latência baixa).
+     const { data: tenantRow } = await supabase
+       .from("tenants")
+       .select("name, bot_config")
+       .eq("id", tenantId)
+       .maybeSingle();
+     const botConfig = tenantRow?.bot_config || {};
+     const activeAgent = botConfig.active_agent ?? (botConfig.enabled ? "ai_assistant" : "human");
+     const aiWillRespond =
+       ["ai_assistant", "flow_bot"].includes(activeAgent) &&
+       session.omnichannel_status !== "human_active" &&
+       session.omnichannel_status !== "queued" &&
+       !session.human_handoff;
+
+     if (aiWillRespond) {
+       const newestArrival = Math.max(...messages.map((m: any) => new Date(m.received_at).getTime()));
+       if (Date.now() - newestArrival < AI_DEBOUNCE_MS) {
+         // Paciente ainda pode estar digitando — devolve o batch para a fila;
+         // o próximo ciclo do cron reprocessa com a rajada completa fundida.
+         console.log(`[process-inbox] [${phone}] AI debounce: last msg ${Date.now() - newestArrival}ms ago (< ${AI_DEBOUNCE_MS}ms) — deferring`);
+         await markMessages(supabase, messageIds, "pending");
+         return;
+       }
+     }
  
      if (session.omnichannel_status === "human_active" || session.omnichannel_status === "queued") {
        console.log(`[process-inbox] [${phone}] Session status is ${session.omnichannel_status}. Logging ${messages.length} message(s) individually.`);
@@ -278,6 +317,19 @@ async function processConversationTurn(
            .eq('patient_phone', phone);
      }
  
+     // --- 11. F1: Copiloto (Nível 0) — rascunho + triagem para o atendente ---
+     // Roda DEPOIS de logar/rotear (o fluxo humano nunca depende disto) e
+     // dentro do advisory lock. Falhas são isoladas dentro de runCopilot.
+     if (activeAgent === "copilot") {
+       await runCopilot(supabase, {
+         tenantId,
+         sessionId: session.id,
+         phone,
+         clinicName: tenantRow?.name || "",
+         botConfig,
+       });
+     }
+
      // --- 12. Mark inbox messages as done ---
      await markMessages(supabase, messageIds, "done");
 

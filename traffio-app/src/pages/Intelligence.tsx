@@ -65,7 +65,7 @@ export interface MotorHealthStats {
 
 export interface BotConfig {
     enabled: boolean;
-    active_agent: 'human' | 'ai_assistant' | 'flow_bot';
+    active_agent: 'human' | 'copilot' | 'ai_assistant' | 'flow_bot';
     no_show_prevention?: boolean;
     nps_enabled?: boolean;
     nps_delay_minutes?: number;
@@ -74,7 +74,6 @@ export interface BotConfig {
     default_notification_channel?: 'whatsapp' | 'sms' | 'email';
     recall_enabled?: boolean;
     recall_days?: number;
-    test_mode_15m?: boolean;
     reminder_videos_enabled?: boolean;
     reminder_videos?: {
         '48h'?: string | null;
@@ -147,7 +146,6 @@ export const Intelligence = () => {
         booking_confirmation_captions: DEFAULT_BOOKING_CAPTIONS,
         recall_enabled: false,
         recall_days: 180,
-        test_mode_15m: false,
         reminder_videos_enabled: false,
         reminder_captions: {
             '48h': { pt: 'Olá! Passando para confirmar seu agendamento em 48 horas.', en: 'Hello! Just confirming your appointment in 48 hours.', es: '¡Hola! Confirmamos tu cita en 48 horas.' },
@@ -341,7 +339,10 @@ export const Intelligence = () => {
 
                 setConfig({
                     ...savedConfig,
-                    active_agent: 'human',
+                    // Dial de autonomia: só 'human' e 'copilot' são válidos na F1.
+                    // Valores autônomos legados (ai_assistant/flow_bot) caem para
+                    // 'human' até os níveis F2/F3 serem reativados com evals.
+                    active_agent: savedConfig.active_agent === 'copilot' ? 'copilot' : 'human',
                     enabled: true,
                     nps_delay_minutes: savedConfig.nps_delay_minutes ?? 180,
                     default_notification_channel: savedConfig.default_notification_channel ?? 'whatsapp',
@@ -513,7 +514,7 @@ export const Intelligence = () => {
     if (loading) return <div className="h-full flex items-center justify-center"><Loader2 className="animate-spin text-brand-primary" size={32} /></div>;
 
     return (
-        <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
+        <div className="w-full space-y-8 animate-in fade-in duration-500 pb-20">
             {/* Header */}
             <div className="flex items-center gap-4 mb-8">
                 <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/20 text-white">
@@ -522,6 +523,36 @@ export const Intelligence = () => {
                 <div>
                     <h1 className="text-3xl font-black text-graphite-900 tracking-tight">{t('intelligence.header.title')}</h1>
                     <p className="text-graphite-400 font-medium tracking-tight">{t('intelligence.header.subtitle')}</p>
+                </div>
+            </div>
+
+            {/* Dial de autonomia da IA — F1: humano ou copiloto (docs/SPEC_AGENTE_IA_CLAUDE.md) */}
+            <div className="bg-white border border-ice-100 rounded-3xl shadow-sm p-6 flex flex-wrap items-center gap-6">
+                <div className="min-w-0 flex-1">
+                    <h3 className="text-sm font-black text-graphite-900">{t('intelligence.aiDial.title')}</h3>
+                    <p className="text-xs font-medium text-graphite-400 mt-1">
+                        {config.active_agent === 'copilot'
+                            ? t('intelligence.aiDial.copilotHint')
+                            : t('intelligence.aiDial.humanHint')}
+                    </p>
+                </div>
+                <div className="flex bg-ice-100 p-1 rounded-xl border border-ice-200/60 shrink-0">
+                    {([
+                        { key: 'human', label: t('intelligence.aiDial.human') },
+                        { key: 'copilot', label: t('intelligence.aiDial.copilot') },
+                    ] as { key: 'human' | 'copilot'; label: string }[]).map(mode => (
+                        <button
+                            key={mode.key}
+                            onClick={() => setConfig(prev => ({ ...prev, active_agent: mode.key }))}
+                            className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all border-0 cursor-pointer ${
+                                config.active_agent === mode.key
+                                    ? 'bg-white text-brand-primary shadow-sm'
+                                    : 'bg-transparent text-graphite-500 hover:text-graphite-800'
+                            }`}
+                        >
+                            {mode.label}
+                        </button>
+                    ))}
                 </div>
             </div>
 
@@ -1444,21 +1475,8 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
                     )}
                 </div>
 
-                {/* ── Teste e Salvar ── */}
-                <div className="flex flex-col md:flex-row items-center justify-between gap-6 pt-8 border-t border-ice-100">
-                    <div className="flex items-center gap-4 bg-ice-50 px-5 py-3 rounded-2xl shadow-float">
-                        <div className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                            <p className="text-[10px] font-black text-graphite-400 uppercase">{t('intelligence.testModeLabel')}</p>
-                        </div>
-                        <button
-                            onClick={() => setConfig(prev => ({ ...prev, test_mode_15m: !prev.test_mode_15m }))}
-                            className={`relative w-10 h-5 rounded-full transition-all border-none cursor-pointer flex-shrink-0 ${config.test_mode_15m ? 'bg-amber-500' : 'bg-ice-200'}`}
-                        >
-                            <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${config.test_mode_15m ? 'left-5' : 'left-0.5'}`} />
-                        </button>
-                    </div>
-
+                {/* ── Salvar ── */}
+                <div className="flex flex-col md:flex-row items-center justify-end gap-6 pt-8 border-t border-ice-100">
                     <button
                         onClick={() => onSave()}
                         disabled={saving}

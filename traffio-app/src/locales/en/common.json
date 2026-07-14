@@ -18,6 +18,7 @@
     "es": "Spanish"
   },
   "nav": {
+    "today": "Today",
     "agenda": "Schedule",
     "reception": "Reception",
     "inbox": "Inbox",

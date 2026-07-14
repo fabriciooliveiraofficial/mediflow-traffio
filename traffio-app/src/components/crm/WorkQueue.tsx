@@ -9,6 +9,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { useLocaleFormat } from '../../hooks/useLocaleFormat';
 import { Badge, Button, IconButton, EmptyState } from '../ui';
 import { CRM_STAGE_LABEL_KEYS, NEXT_ACTION_LABEL_KEYS, type CrmStageId } from '../../lib/crmStages';
+import { stratifyJourneys, type Stratum } from '../../lib/workQueueStrata';
 import type { CrmJourney } from '../../pages/FollowUpBoard';
 
 type QueueMode = 'action' | 'all';
@@ -54,27 +55,8 @@ export function WorkQueue({
 
     const now = Date.now();
 
-    // Estratificação visual por importância operacional:
-    //   due       → para agir agora (topo, ordenado por score)
-    //   scheduled → adiados/compromisso futuro (meio, ordenado pelo vencimento
-    //               mais próximo; ao vencer, sobem sozinhos para "due")
-    //   quiet     → tratados/em dia (fundo, esmaecidos, ordenados por recência)
-    type Stratum = 'due' | 'scheduled' | 'quiet';
-
-    const strata = useMemo(() => {
-        const open = journeys.filter(j => !['won', 'lost'].includes(j.stage_id));
-        const isDue = (j: CrmJourney) =>
-            j.needs_action || (!!j.next_action_at && new Date(j.next_action_at).getTime() <= now);
-
-        const due = open.filter(isDue)
-            .sort((a, b) => b.priority_score - a.priority_score);
-        const scheduled = open.filter(j => !isDue(j) && j.next_action_at)
-            .sort((a, b) => new Date(a.next_action_at!).getTime() - new Date(b.next_action_at!).getTime());
-        const quiet = open.filter(j => !isDue(j) && !j.next_action_at)
-            .sort((a, b) => new Date(b.last_event_at).getTime() - new Date(a.last_event_at).getTime());
-
-        return { due, scheduled, quiet };
-    }, [journeys, now]);
+    // Estratificação compartilhada com a tela Hoje — ver lib/workQueueStrata.ts
+    const strata = useMemo(() => stratifyJourneys(journeys, now), [journeys, now]);
 
     const actionCount = strata.due.length;
 

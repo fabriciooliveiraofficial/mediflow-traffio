@@ -41,6 +41,7 @@ import { TenantAddressForm } from '../components/TenantAddressForm';
 import { TeamManagement } from '../components/settings/TeamManagement';
 import { useTenant } from '../contexts/TenantContext';
 import { listCountries, getCountry, DEFAULT_COUNTRY, type CountryCode } from '../lib/i18n/countryFormats';
+import { listCurrencies } from '../lib/i18n/currencies';
 import { formatPhone, phoneFlag } from '../lib/formatPhone';
 import { clsx } from 'clsx';
 import { BuyNumberModal } from '../components/numbers/BuyNumberModal';
@@ -937,6 +938,30 @@ export const Settings = () => {
                                                         </select>
                                                         <p className="text-[10px] text-graphite-400 mt-1">
                                                             {t('clinics.countryHint')}
+                                                        </p>
+                                                    </div>
+                                                    <div className="mt-4">
+                                                        <label className="text-[10px] font-bold text-graphite-400 block mb-1">{t('clinics.currencyLabel')}</label>
+                                                        <select
+                                                            key={`currency-${tenant.id}`}
+                                                            defaultValue={tenant.currency || ''}
+                                                            onChange={(e) => {
+                                                                const currency = e.target.value || null;
+                                                                setTenants(prev => prev.map(tn => tn.id === tenant.id ? { ...tn, currency } : tn));
+                                                                handleSaveTenant(tenant.id, { currency });
+                                                                if (currentTenant?.id === tenant.id) updateTenantContext({ currency });
+                                                            }}
+                                                            className="w-full bg-ice-50 border border-transparent focus:border-brand-primary shadow-float rounded-xl px-3 py-2 text-sm font-medium text-graphite-700 focus:outline-none transition-colors"
+                                                        >
+                                                            <option value="">
+                                                                {t('clinics.currencyAuto', { currency: getCountry(tenant.country || DEFAULT_COUNTRY).currency })}
+                                                            </option>
+                                                            {listCurrencies(language).map(c => (
+                                                                <option key={c.code} value={c.code}>{c.code} — {c.name}</option>
+                                                            ))}
+                                                        </select>
+                                                        <p className="text-[10px] text-graphite-400 mt-1">
+                                                            {t('clinics.currencyHint')}
                                                         </p>
                                                     </div>
                                                 </div>

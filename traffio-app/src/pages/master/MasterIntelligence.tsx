@@ -59,7 +59,19 @@ export const MasterIntelligence = () => {
                 .from('master_config')
                 .select('*');
             if (configError) throw configError;
-            setConfigs(configData || []);
+
+            // Chaves obrigatórias da stack Claude aparecem no painel mesmo antes
+            // de existirem no banco (a linha é criada no primeiro save via upsert)
+            const required: MasterConfig[] = [
+                { key: 'ANTHROPIC_API_KEY', value: '', description: 'Claude API (agente conversacional + router)' },
+                { key: 'AI_MODEL_AGENT', value: 'claude-sonnet-5', description: 'Modelo do agente conversacional' },
+                { key: 'AI_MODEL_ROUTER', value: 'claude-haiku-4-5-20251001', description: 'Modelo de triagem/extração' },
+            ];
+            const merged = [...(configData || [])];
+            for (const req of required) {
+                if (!merged.some(c => c.key === req.key)) merged.push(req);
+            }
+            setConfigs(merged);
 
             // 2. Fetch Usage Logs (Last 30 days)
             const thirtyDaysAgo = new Date();
@@ -134,10 +146,11 @@ export const MasterIntelligence = () => {
     const handleUpdateConfig = async (key: string, value: string) => {
         setSaving(key);
         try {
+            // upsert: cria a linha na primeira gravação (chaves novas da stack Claude)
+            const description = configs.find(c => c.key === key)?.description || '';
             const { error } = await supabase
                 .from('master_config')
-                .update({ value, updated_at: new Date().toISOString() })
-                .eq('key', key);
+                .upsert({ key, value, description, updated_at: new Date().toISOString() }, { onConflict: 'key' });
 
             if (error) throw error;
 
@@ -203,39 +216,35 @@ export const MasterIntelligence = () => {
                                 <div className="py-12 flex justify-center"><Zap className="animate-spin text-indigo-500" /></div>
                             ) : (
                                 <>
-                                    {/* AI Configuration Section */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 rounded-2xl bg-[#131B31] border border-[#1E293B]">
+                                    {/* AI Configuration — família Claude (ver docs/SPEC_AGENTE_IA_CLAUDE.md) */}
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-6 rounded-2xl bg-[#131B31] border border-[#1E293B]">
                                         <div className="space-y-2">
                                             <label className="text-xs font-black text-indigo-400 uppercase tracking-widest">{t('intelligence.credentialsSection.aiProviderLabel')}</label>
+                                            <div className="w-full bg-[#1A2035] border border-[#2D3B55] rounded-xl px-4 py-3 text-white flex items-center gap-2">
+                                                <ShieldCheck className="text-emerald-500" size={14} />
+                                                Anthropic Claude
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-black text-indigo-400 uppercase tracking-widest">{t('intelligence.credentialsSection.agentModelLabel')}</label>
                                             <select
-                                                value={configs.find(c => c.key === 'AI_MODEL_PROVIDER')?.value || 'google'}
-                                                onChange={(e) => handleUpdateConfig('AI_MODEL_PROVIDER', e.target.value)}
+                                                value={configs.find(c => c.key === 'AI_MODEL_AGENT')?.value || 'claude-sonnet-5'}
+                                                onChange={(e) => handleUpdateConfig('AI_MODEL_AGENT', e.target.value)}
                                                 className="w-full bg-[#1A2035] border border-[#2D3B55] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500"
                                             >
-                                                <option value="google">Google Gemini</option>
-                                                <option value="openai">OpenAI ChatGPT</option>
+                                                <option value="claude-sonnet-5">Claude Sonnet 5</option>
+                                                <option value="claude-opus-4-8">Claude Opus 4.8</option>
                                             </select>
                                         </div>
                                         <div className="space-y-2">
-                                            <label className="text-xs font-black text-indigo-400 uppercase tracking-widest">{t('intelligence.credentialsSection.activeModelLabel')}</label>
+                                            <label className="text-xs font-black text-indigo-400 uppercase tracking-widest">{t('intelligence.credentialsSection.routerModelLabel')}</label>
                                             <select
-                                                value={configs.find(c => c.key === 'AI_MODEL_NAME')?.value || ''}
-                                                onChange={(e) => handleUpdateConfig('AI_MODEL_NAME', e.target.value)}
+                                                value={configs.find(c => c.key === 'AI_MODEL_ROUTER')?.value || 'claude-haiku-4-5-20251001'}
+                                                onChange={(e) => handleUpdateConfig('AI_MODEL_ROUTER', e.target.value)}
                                                 className="w-full bg-[#1A2035] border border-[#2D3B55] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500"
                                             >
-                                                {configs.find(c => c.key === 'AI_MODEL_PROVIDER')?.value === 'openai' ? (
-                                                    <>
-                                                        <option value="gpt-4o">GPT-4o (Standard)</option>
-                                                        <option value="gpt-4o-2024-08-06">GPT-4o (Structured Outputs)</option>
-                                                        <option value="gpt-4o-mini">GPT-4o Mini</option>
-                                                        <option value="gpt-5-mini">GPT-5 Mini</option>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
-                                                        <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
-                                                    </>
-                                                )}
+                                                <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5</option>
+                                                <option value="claude-sonnet-5">Claude Sonnet 5</option>
                                             </select>
                                         </div>
                                     </div>
@@ -347,7 +356,7 @@ export const MasterIntelligence = () => {
                                     )}
 
                                     {/* Global Switch */}
-                                    {configs.filter(c => !c.key.includes('_API_KEY') && !c.key.startsWith('TELNYX_') && !c.key.startsWith('META_') && !['AI_MODEL_PROVIDER', 'AI_MODEL_NAME'].includes(c.key)).map((config) => (
+                                    {configs.filter(c => !c.key.includes('_API_KEY') && !c.key.startsWith('TELNYX_') && !c.key.startsWith('META_') && !['AI_MODEL_PROVIDER', 'AI_MODEL_NAME', 'AI_MODEL_AGENT', 'AI_MODEL_ROUTER'].includes(c.key)).map((config) => (
                                         <div key={config.key} className="flex items-center justify-between p-4 rounded-xl bg-[#1A2035]/50 border border-[#2D3B55]">
                                             <div>
                                                 <p className="text-xs font-black text-slate-400 uppercase tracking-widest">{config.key}</p>

@@ -464,6 +464,13 @@
       "title": "Central de Automações",
       "subtitle": "Gestão de Lembretes, NPS e Confirmações Audiovisuais."
     },
+    "aiDial": {
+      "title": "Assistente de IA nas conversas",
+      "human": "Desligado",
+      "copilot": "Copiloto",
+      "humanHint": "A IA não participa das conversas. Sua equipe responde tudo manualmente.",
+      "copilotHint": "A IA sugere respostas e classifica leads, mas NUNCA envia nada — sua equipe revisa e decide. Lembre-se de salvar."
+    },
     "toasts": {
       "loadConfigError": "Erro ao carregar configuração: {{message}}",
       "tenantNotFound": "Tenant não encontrado",
@@ -616,7 +623,6 @@
       "subtitle": "Clique para inserir no cursor — idioma ativo:",
       "footer": "As variáveis são preenchidas automaticamente com os dados do agendamento no momento do envio."
     },
-    "testModeLabel": "Modo Teste (5m)",
     "saveButton": "SALVAR ALTERAÇÕES"
   }
 }

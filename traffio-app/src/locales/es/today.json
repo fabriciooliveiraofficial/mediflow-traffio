@@ -1,0 +1,70 @@
+{
+    "greeting": {
+        "morning": "Buenos días, {{name}}",
+        "afternoon": "Buenas tardes, {{name}}",
+        "evening": "Buenas noches, {{name}}"
+    },
+    "refresh": "Actualizar",
+    "viewAll": "Ver todos ({{count}})",
+    "allClear": "Todo al día",
+    "time": {
+        "minutes_one": "{{count}} min",
+        "minutes_other": "{{count}} min",
+        "hours_one": "{{count}} h",
+        "hours_other": "{{count}} h"
+    },
+    "channels": {
+        "whatsapp": "WhatsApp",
+        "instagram": "Instagram",
+        "facebook": "Messenger",
+        "livechat": "Chat del sitio",
+        "sms": "SMS",
+        "email": "Correo"
+    },
+    "queues": {
+        "humanQueue": {
+            "title": "Esperando atención"
+        },
+        "confirmations": {
+            "title": "Confirmaciones pendientes"
+        },
+        "recovery": {
+            "title": "Ausencias por recuperar",
+            "reason_one": "{{count}} ausencia",
+            "reason_other": "{{count}} ausencias"
+        },
+        "followUps": {
+            "title": "Seguimientos vencidos",
+            "score": "Prioridad {{score}}"
+        },
+        "waitlist": {
+            "title": "Lista de espera",
+            "noDoctor": "Asignar profesional"
+        },
+        "agenda": {
+            "title": "Agenda de hoy",
+            "progress": "{{done}} de {{total}} realizadas",
+            "empty": "Sin citas hoy",
+            "patientFallback": "Paciente"
+        }
+    },
+    "goals": {
+        "title": "Metas del mes",
+        "appointments": "Citas",
+        "showRate": "Asistencia",
+        "setup": "Definir metas",
+        "edit": "Editar",
+        "modalTitle": "Metas del mes",
+        "appointmentsLabel": "Meta de citas por mes",
+        "showRateLabel": "Meta de asistencia (%)",
+        "save": "Guardar metas",
+        "saved": "Metas actualizadas",
+        "saveError": "No se pudieron guardar las metas"
+    },
+    "pulse": {
+        "appointments": "citas hoy",
+        "shows": "asistencias",
+        "newLeads": "nuevos leads",
+        "resolved": "conversaciones resueltas"
+    }
+}

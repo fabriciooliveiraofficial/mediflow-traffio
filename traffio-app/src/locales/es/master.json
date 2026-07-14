@@ -269,6 +269,8 @@
       "title": "Configuración de Credenciales",
       "aiProviderLabel": "Proveedor de IA",
       "activeModelLabel": "Modelo Activo",
+      "agentModelLabel": "Modelo del Agente",
+      "routerModelLabel": "Modelo de Triaje",
       "apiKeyPlaceholder": "Ingresar clave de API...",
       "genericKeyPlaceholder": "Ingresar {{key}}...",
       "telnyxTitle": "Comunicaciones (Telnyx)",
@@ -419,6 +421,30 @@
       "testWidgetRemoved": "Widget de prueba del Live Chat eliminado.",
       "testWidgetInjected": "¡Widget de prueba del Live Chat inyectado! Haz clic en la burbuja para abrirlo.",
       "snippetCopied": "¡Snippet del Live Chat copiado!"
+    },
+    "form": {
+      "loading": "Cargando configuración del Live Chat...",
+      "generalHeading": "Live Chat General",
+      "generalHint": "Activa o desactiva el widget del chat en tiempo real y define las credenciales básicas.",
+      "statusLabel": "Estado del Chat",
+      "statusActive": "Activo (Mostrar widget)",
+      "statusInactive": "Inactivo (Widget oculto)",
+      "primaryColorLabel": "Color Primario (Hex)",
+      "personalizationHeading": "Personalización de la Atención",
+      "headerTitleLabel": "Título del Encabezado del Chat",
+      "headerSubtitleLabel": "Subtítulo del Encabezado",
+      "inactivityTimeoutLabel": "Finalizar por Inactividad (minutos)",
+      "inactivityTimeoutHint": "Tiempo sin mensajes del visitante hasta que la atención finalice automáticamente. Usa 0 para nunca finalizar.",
+      "formTitleLabel": "Título del Formulario",
+      "formSubtitleLabel": "Subtítulo del Formulario",
+      "pillTextLabel": "Texto del Botón / Burbuja (Pill)",
+      "installTestHeading": "Instalación y Prueba",
+      "installTestHint": "Copia el script a continuación e insértalo al final de la etiqueta <body> de tu sitio o landing page.",
+      "removeTestWidget": "Eliminar Widget de Prueba",
+      "testOnThisPage": "Probar en esta Página",
+      "copied": "¡Copiado!",
+      "copy": "Copiar",
+      "saveButton": "Guardar Configuración del Live Chat"
     }
   }
 }

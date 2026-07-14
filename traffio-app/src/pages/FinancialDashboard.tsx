@@ -30,13 +30,14 @@ import { BillingService } from '../services/billingService';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
 import { useLocaleFormat } from '../hooks/useLocaleFormat';
-import { useTenantCurrency } from '../hooks/useTenantCurrency';
+import { useTenantMoney } from '../hooks/useTenantMoney';
 import { getTenantTodayString } from '../lib/timezoneUtils';
 
 export const FinancialDashboard = () => {
     const { t } = useTranslation('tenantAdmin');
-    const { formatDate, formatDateTime } = useLocaleFormat();
-    const { formatDual, rateFetchedAt } = useTenantCurrency();
+    const { formatDate } = useLocaleFormat();
+    // Caixa = domínio operacional: valores já estão na moeda do tenant, sem conversão
+    const { formatCents, formatCentsIn } = useTenantMoney();
     const [records, setRecords] = useState<any[]>([]);
     const [summary, setSummary] = useState({ total: 0, paid: 0, pending: 0, overdue: 0 });
     const [analytics, setAnalytics] = useState<any>(null);
@@ -92,25 +93,7 @@ export const FinancialDashboard = () => {
         fetchData();
     };
 
-    const formatCurrency = (cents: number) =>
-        `R$ ${(cents / 100).toFixed(2).replace('.', ',')}`;
-
-    // KPI cards de receita: valor convertido grande + valor BRL original pequeno abaixo.
-    const dualKpiNode = (cents: number) => {
-        const d = formatDual(cents / 100);
-        if (!d.secondary) return d.primary;
-        return (
-            <span>
-                {d.primary}
-                <span
-                    className="block text-xs font-medium text-graphite-400 mt-0.5"
-                    title={rateFetchedAt ? `Cotação de ${formatDateTime(rateFetchedAt)}` : undefined}
-                >
-                    ({d.secondary})
-                </span>
-            </span>
-        );
-    };
+    const formatCurrency = formatCents;
 
     const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
         paid: { label: t('financialDashboard.transactions.statusLabels.paid'), color: 'text-emerald-600', bg: 'bg-emerald-100' },
@@ -153,21 +136,21 @@ export const FinancialDashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <KPICard
                     title={t('financialDashboard.kpis.totalRevenue')}
-                    value={dualKpiNode(summary.total)}
+                    value={formatCents(summary.total)}
                     icon={DollarSign}
                     color="text-emerald-500"
                     bg="bg-emerald-500/10"
                 />
                 <KPICard
                     title={t('financialDashboard.kpis.received')}
-                    value={dualKpiNode(summary.paid)}
+                    value={formatCents(summary.paid)}
                     icon={TrendingUp}
                     color="text-brand-primary"
                     bg="bg-brand-primary/10"
                 />
                 <KPICard
                     title={t('financialDashboard.kpis.toReceive')}
-                    value={dualKpiNode(summary.pending)}
+                    value={formatCents(summary.pending)}
                     icon={CreditCard}
                     color="text-amber-500"
                     bg="bg-amber-500/10"
@@ -232,7 +215,7 @@ export const FinancialDashboard = () => {
                             <h4 className="text-3xl font-black text-graphite-900">
                                 {formatCurrency(
                                     ((analytics.mix.card + analytics.mix.financing) || 0) / 
-                                    (Math.max(1, records.filter(r => r.method === 'credit_card').length + (analytics.activeProposals || 1)))
+                                    (Math.max(1, records.filter(r => ['credit_card', 'card_machine', 'stripe'].includes(r.payment_method)).length + (analytics.activeProposals || 1)))
                                 )}
                             </h4>
                         </div>
@@ -342,13 +325,13 @@ export const FinancialDashboard = () => {
                                         <div>
                                             <p className="text-sm font-bold text-graphite-900">{rec.patients?.full_name || t('financialDashboard.transactions.patientFallback')}</p>
                                             <p className="text-[10px] text-graphite-400 font-bold uppercase">
-                                                {rec.method || t('financialDashboard.transactions.methodFallback')} · {formatDate(rec.due_date || rec.created_at)}
+                                                {rec.payment_method || t('financialDashboard.transactions.methodFallback')} · {formatDate(rec.due_date || rec.created_at)}
                                             </p>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-4">
                                         <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase ${st.bg} ${st.color}`}>{st.label}</span>
-                                        <p className="text-sm font-black text-graphite-900 w-28 text-right">{formatCurrency(rec.amount_cents)}</p>
+                                        <p className="text-sm font-black text-graphite-900 w-28 text-right">{formatCentsIn(rec.amount_cents, rec.currency)}</p>
 
                                         {/* Actions */}
                                         {rec.status === 'pending' && (
@@ -420,7 +403,7 @@ const NewBillingModal = ({ tenantId, timezone, onClose, onSuccess }: { tenantId:
                 patient_id: form.patient_id,
                 amount_cents: Math.round(parseFloat(form.amount) * 100),
                 due_date: form.due_date || getTenantTodayString(timezone),
-                method: form.method,
+                payment_method: form.method,
                 notes: form.notes,
             });
             onSuccess();

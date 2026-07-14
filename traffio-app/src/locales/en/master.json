@@ -269,6 +269,8 @@
       "title": "Credentials Configuration",
       "aiProviderLabel": "AI Provider",
       "activeModelLabel": "Active Model",
+      "agentModelLabel": "Agent Model",
+      "routerModelLabel": "Triage Model",
       "apiKeyPlaceholder": "Enter API key...",
       "genericKeyPlaceholder": "Enter {{key}}...",
       "telnyxTitle": "Communications (Telnyx)",
@@ -419,6 +421,30 @@
       "testWidgetRemoved": "Live Chat test widget removed.",
       "testWidgetInjected": "Live Chat test widget injected! Click the bubble to open it.",
       "snippetCopied": "Live Chat snippet copied!"
+    },
+    "form": {
+      "loading": "Loading Live Chat settings...",
+      "generalHeading": "General Live Chat",
+      "generalHint": "Enable or disable the real-time chat widget and set the basic credentials.",
+      "statusLabel": "Chat Status",
+      "statusActive": "Active (Show widget)",
+      "statusInactive": "Inactive (Widget hidden)",
+      "primaryColorLabel": "Primary Color (Hex)",
+      "personalizationHeading": "Support Personalization",
+      "headerTitleLabel": "Chat Header Title",
+      "headerSubtitleLabel": "Header Subtitle",
+      "inactivityTimeoutLabel": "End on Inactivity (minutes)",
+      "inactivityTimeoutHint": "Time without visitor messages before the conversation ends automatically. Use 0 to never end it.",
+      "formTitleLabel": "Form Title",
+      "formSubtitleLabel": "Form Subtitle",
+      "pillTextLabel": "Button / Pill Text",
+      "installTestHeading": "Installation & Testing",
+      "installTestHint": "Copy the script below and insert it at the end of the <body> tag on your site or landing page.",
+      "removeTestWidget": "Remove Test Widget",
+      "testOnThisPage": "Test on This Page",
+      "copied": "Copied!",
+      "copy": "Copy",
+      "saveButton": "Save Live Chat Settings"
     }
   }
 }

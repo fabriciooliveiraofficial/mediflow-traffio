@@ -269,6 +269,8 @@
       "title": "Configuração de Credenciais",
       "aiProviderLabel": "IA Provider",
       "activeModelLabel": "Modelo Ativo",
+      "agentModelLabel": "Modelo do Agente",
+      "routerModelLabel": "Modelo de Triagem",
       "apiKeyPlaceholder": "Inserir chave de API...",
       "genericKeyPlaceholder": "Inserir {{key}}...",
       "telnyxTitle": "Comunicações (Telnyx)",
@@ -419,6 +421,30 @@
       "testWidgetRemoved": "Widget de teste do Live Chat removido.",
       "testWidgetInjected": "Widget de teste do Live Chat injetado! Clique no balão para abrir.",
       "snippetCopied": "Snippet do Live Chat copiado!"
+    },
+    "form": {
+      "loading": "Carregando configurações do Live Chat...",
+      "generalHeading": "Live Chat Geral",
+      "generalHint": "Ative ou desative o widget do chat em tempo real e defina as credenciais básicas.",
+      "statusLabel": "Status do Chat",
+      "statusActive": "Ativo (Exibir widget)",
+      "statusInactive": "Inativo (Widget ocultado)",
+      "primaryColorLabel": "Cor Primária (Hex)",
+      "personalizationHeading": "Personalização do Atendimento",
+      "headerTitleLabel": "Título do Cabeçalho do Chat",
+      "headerSubtitleLabel": "Subtítulo do Cabeçalho",
+      "inactivityTimeoutLabel": "Encerrar por Inatividade (minutos)",
+      "inactivityTimeoutHint": "Tempo sem mensagens do visitante até o atendimento ser encerrado automaticamente. Use 0 para nunca encerrar.",
+      "formTitleLabel": "Título do Formulário",
+      "formSubtitleLabel": "Subtítulo do Formulário",
+      "pillTextLabel": "Texto do Botão / Balão (Pill)",
+      "installTestHeading": "Instalação e Teste",
+      "installTestHint": "Copie o script abaixo e insira no final da tag <body> do seu site ou landing page.",
+      "removeTestWidget": "Remover Widget de Teste",
+      "testOnThisPage": "Testar nesta Página",
+      "copied": "Copiado!",
+      "copy": "Copiar",
+      "saveButton": "Salvar Configurações do Live Chat"
     }
   }
 }

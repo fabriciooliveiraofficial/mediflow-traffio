@@ -9,6 +9,7 @@ const WaitingRoom = lazy(() => import('./pages/patient/WaitingRoom').then(m => (
 const PreCheckin = lazy(() => import('./pages/patient/PreCheckin').then(m => ({ default: m.PreCheckin })));
 
 // Lazy-loaded admin routes
+const TodayPage = lazy(() => import('./pages/TodayPage').then(m => ({ default: m.TodayPage })));
 const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
 const AgendaMestra = lazy(() => import('./pages/AgendaMestra').then(m => ({ default: m.AgendaMestra })));
 const CrmLeads = lazy(() => import('./pages/CrmLeads').then(m => ({ default: m.CrmLeads })));
@@ -68,7 +69,8 @@ import { PortalProfile } from './pages/portal/PortalProfile'
 // --- Tenant Application Wrapper (Legacy State Navigation) ---
 function TenantApp() {
   const { t } = useTranslation('billing')
-  const [activeScreen, setActiveScreen] = useState('agenda')
+  // ?screen=... permite deep-link em fluxos de retorno externo (ex.: onboarding Stripe Connect)
+  const [activeScreen, setActiveScreen] = useState(() => new URLSearchParams(window.location.search).get('screen') || 'today')
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null)
   const [searchParams, setSearchParams] = useSearchParams()
   const { tenant, refresh } = useTenant()
@@ -98,11 +100,7 @@ function TenantApp() {
       return
     }
 
-    let attempts = 0
-    const maxAttempts = 10 // 20 segundos total
-
     const interval = setInterval(async () => {
-      attempts++
       await refresh()
     }, 2000)
 
@@ -118,6 +116,7 @@ function TenantApp() {
 
   const renderScreen = () => {
     switch (activeScreen) {
+      case 'today': return <TodayPage key="today" onNavigate={setActiveScreen} />
       case 'dashboard': return <Dashboard key="dashboard" onNavigate={setActiveScreen} />
       case 'agenda': return <AgendaMestra key="agenda" />
       case 'leads': return <CrmLeads key="leads" onSelectPatient={handlePatientSelect} />
@@ -150,7 +149,7 @@ function TenantApp() {
             onBack={() => setActiveScreen('leads')}
           />
         ) : <CrmLeads key="leads-fallback" onSelectPatient={handlePatientSelect} />
-      default: return <Dashboard key="dashboard" />
+      default: return <TodayPage key="today" onNavigate={setActiveScreen} />
     }
   }
 

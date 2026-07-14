@@ -194,85 +194,61 @@
   },
   "paymentsPage": {
     "header": {
-      "title": "Centro de Pagos",
-      "subtitle": "Configura cómo tu clínica recibe pagos y ofrece financiamiento.",
+      "title": "Pagos en Línea",
+      "subtitle": "Conecta tu cuenta de Stripe para enviar links de pago — y configura los métodos que tu clínica acepta en caja.",
       "secureBadge": "Entorno Seguro PCI-DSS"
     },
-    "toasts": {
-      "asaasSaved": "¡Clave de Asaas guardada con éxito!",
-      "asaasError": "Error al guardar la configuración de Asaas.",
-      "drcashSaved": "¡Configuración de Dr. Cash guardada!",
-      "drcashError": "Error al guardar la configuración de financiamiento."
-    },
-    "connectionStatus": {
-      "active": "Activo",
-      "notConnected": "No conectado"
-    },
-    "asaasCard": {
-      "badge": "Tarjeta de Crédito",
-      "title": "Asaas",
-      "description": {
-        "prefix": "Cuenta digital completa para clínicas. Acepta tarjetas con cuotas de",
-        "strong": "hasta 21x",
-        "suffix": "(Visa/Mastercard) con subcuentas independientes por clínica vía API."
+    "stripe": {
+      "title": "Stripe",
+      "description": "Recibe pagos de pacientes por link en tu moneda ({{currency}}), con tarjetas y métodos locales. La cuenta es tuya: los fondos llegan directo a ella y Stripe cobra sus propias comisiones.",
+      "features": [
+        "Tarjetas de crédito y débito",
+        "Métodos locales (Pix, OXXO, SEPA...)",
+        "Cobro en tu moneda",
+        "Disputas y recibos en el panel de Stripe"
+      ],
+      "status": {
+        "not_connected": "No conectado",
+        "onboarding": "Registro incompleto",
+        "active": "Activo",
+        "disabled": "Restringido"
       },
-      "features": ["21x Visa/Mastercard", "Subcuentas API", "White Label", "Pix nativo", "Boleto"],
-      "apiKeyLabel": "Clave de API de Asaas",
-      "saving": "Guardando...",
-      "updateKey": "Actualizar Clave",
-      "activate": "Activar Asaas",
-      "createFreeAccount": "Crear cuenta gratuita en Asaas"
-    },
-    "drcashCard": {
-      "badge": "Boleto en Cuotas",
-      "title": "Dr. Cash / Dr. Parcela",
-      "description": {
-        "prefix": "Especialista en salud. Ofrece financiamiento en",
-        "strong": "hasta 24 cuotas en boleto",
-        "suffix": "sin afectar el límite de la tarjeta del paciente."
-      },
-      "features": ["24x en boleto", "Especializado en salud", "No afecta la tarjeta", "Aprobación facilitada"],
-      "apiKeyLabel": "Clave API / Identificador",
-      "apiKeyPlaceholder": "Ingresa tu Clave de Dr. Cash",
-      "saving": "Guardando...",
-      "updateKey": "Actualizar Clave",
-      "activate": "Activar Financiamiento",
-      "approvalNote": "Necesitarás una cuenta aprobada con Dr. Cash para activarlo."
-    },
-    "asaasInfoNote": {
-      "strong": "Cómo funciona la integración con Asaas:",
-      "prefix": "al guardar tu clave de API, Traffio crea automáticamente una",
-      "subaccount": "subcuenta de Asaas",
-      "middle": "para cada clínica registrada. Los cobros se emiten a nombre de la clínica (white label), sin exponer la marca Asaas al paciente. Obtén tu clave en",
-      "menuPath": "Mi Cuenta → Configuración → Claves de API",
-      "suffix": "en el panel de Asaas."
-    },
-    "proposalsHistory": {
-      "title": "Historial de Propuestas",
-      "subtitle": "Últimas solicitudes de financiamiento vía Dr. Cash.",
-      "viewAll": "Ver Todo",
-      "table": {
-        "patient": "Paciente",
-        "amount": "Monto",
-        "installments": "Cuotas",
-        "status": "Estado",
-        "date": "Fecha"
-      },
-      "externalPatient": "Paciente Externo"
-    },
-    "infoCards": {
-      "autoSubaccounts": {
-        "title": "Subcuentas Automáticas",
-        "description": "Cada clínica registrada en Traffio recibe su propia subcuenta de Asaas creada vía API — sin trámites manuales."
-      },
-      "installments21x": {
-        "title": "Cuotas de hasta 21x",
-        "description": "Las tarjetas Visa y Mastercard aceptan hasta 21 cuotas. Combínalo con Dr. Cash para ofrecer 24 cuotas en boleto sin depender del límite de la tarjeta."
-      },
-      "whiteLabel": {
-        "title": "White Label Nativo",
-        "description": "Los cobros se emiten siempre a nombre de la clínica. El paciente ve la marca de la clínica — nunca la marca de Asaas ni de Traffio."
+      "connectButton": "Conectar Stripe",
+      "resumeButton": "Continuar registro",
+      "checkStatusButton": "Verificar estado",
+      "dashboardButton": "Abrir panel de Stripe",
+      "disconnectButton": "Desconectar",
+      "redirecting": "Redirigiendo...",
+      "onboardingNote": "Tu registro en Stripe aún no está completo. Continúa donde lo dejaste — toma pocos minutos.",
+      "disabledNote": "Stripe restringió los cobros de esta cuenta. Abre el panel de Stripe para resolver los pendientes.",
+      "activeFootnote": "Links de pago disponibles en Finanzas para cualquier cobro pendiente.",
+      "inactiveFootnote": "¿Sin Stripe? No hay problema — registra pagos de terminal, efectivo y transferencia directamente en Finanzas.",
+      "confirmDisconnect": "¿Desconectar la cuenta de Stripe? Los links de pago dejarán de ofrecerse. La cuenta sigue existiendo en Stripe.",
+      "toasts": {
+        "connected": "¡Stripe conectada! Links de pago habilitados.",
+        "onboardingIncomplete": "Registro de Stripe aún incompleto. Continúa cuando quieras.",
+        "synced": "Estado de la conexión actualizado.",
+        "syncError": "Error al verificar el estado de la conexión.",
+        "startError": "Error al iniciar la conexión con Stripe.",
+        "disconnected": "Cuenta de Stripe desconectada.",
+        "disconnectError": "Error al desconectar la cuenta de Stripe."
       }
+    },
+    "manualMethods": {
+      "title": "Métodos aceptados en caja",
+      "subtitle": "Tu clínica es libre de acordar el pago con cada paciente. Activa los métodos que aceptas — aparecen al registrar cobros en Finanzas.",
+      "methods": {
+        "cash": "Efectivo",
+        "card_machine": "Terminal de tarjeta",
+        "bank_transfer": "Transferencia bancaria",
+        "insurance": "Seguro médico",
+        "financing": "Financiamiento",
+        "check": "Cheque",
+        "other": "Otro"
+      },
+      "labelPlaceholder": "Apodo opcional (ej.: Terminal Clip)",
+      "footnote": "Estos métodos son registro manual — el pago ocurre fuera de la plataforma y tú lo registras en caja.",
+      "saveError": "Error al guardar los métodos de pago."
     }
   },
   "paymentPolling": {

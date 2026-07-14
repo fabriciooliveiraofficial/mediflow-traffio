@@ -460,6 +460,13 @@
     }
   },
   "intelligence": {
+    "aiDial": {
+      "title": "Asistente de IA en las conversaciones",
+      "human": "Apagado",
+      "copilot": "Copiloto",
+      "humanHint": "La IA no participa en las conversaciones. Tu equipo responde todo manualmente.",
+      "copilotHint": "La IA sugiere respuestas y clasifica leads, pero NUNCA envía nada — tu equipo revisa y decide. Recuerda guardar."
+    },
     "header": {
       "title": "Centro de Automatizaciones",
       "subtitle": "Gestión de Recordatorios, NPS y Confirmaciones Audiovisuales."
@@ -614,9 +621,8 @@
     "varsPanel": {
       "title": "Variables Disponibles",
       "subtitle": "Haz clic para insertar en el cursor — idioma activo:",
-      "footer": "Las variables se completan automáticamente con los datos de la cita en el momento del envío."
+      "footer": "Las variables se completan automáticamente con los datos de la cita al momento del envío."
     },
-    "testModeLabel": "Modo de Prueba (5m)",
     "saveButton": "GUARDAR CAMBIOS"
   }
 }

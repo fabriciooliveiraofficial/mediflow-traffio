@@ -178,7 +178,7 @@ serve(async (req: Request) => {
             const tenantConfig  = tenantConfigMap[appt.tenant_id] ?? { bot_config: {}, name: "Clínica", timezone: "America/Sao_Paulo", slug: null };
             const { bot_config: botConfig, name: clinicName, timezone } = tenantConfig;
 
-            if (!botConfig.no_show_prevention && !botConfig.test_mode_15m) continue;
+            if (!botConfig.no_show_prevention) continue;
 
             // Normalizar start_time: PostgreSQL retorna "HH:MM:SS", precisamos de "HH:MM:SS"
             // Evitar duplicar os segundos se já estiverem presentes
@@ -266,11 +266,6 @@ serve(async (req: Request) => {
                     const offsetMinutes = r.offset_minutes;
                     let targetTime = apptTimestamp + (offsetMinutes * 60 * 1000);
                     let type = `reminder_custom_${offsetMinutes}`;
-
-                    // Match legacy test mode behavior for 15m offset
-                    if (botConfig.test_mode_15m && offsetMinutes === -15) {
-                        targetTime = apptTimestamp - (5 * 60 * 1000);
-                    }
 
                     if (targetTime < now.getTime()) return;
 
@@ -389,9 +384,7 @@ serve(async (req: Request) => {
                 if (botConfig.active_reminders?.["48h"] !== false) addMessage("reminder_48h", apptTimestamp - (48 * 60 * 60 * 1000), "48h");
                 if (botConfig.active_reminders?.["24h"] !== false) addMessage("reminder_24h", apptTimestamp - (24 * 60 * 60 * 1000), "24h");
                 if (botConfig.active_reminders?.["2h"]  !== false) addMessage("reminder_2h",  apptTimestamp - (2 * 60 * 60 * 1000),  "2h");
-                if (botConfig.test_mode_15m && botConfig.active_reminders?.["15m"] !== false) {
-                    addMessage("reminder_15m", apptTimestamp - (5 * 60 * 1000), "15m");
-                }
+
             }
 
             if (queueBatch.length > 0) {

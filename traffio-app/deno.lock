@@ -28,6 +28,7 @@
     "https://deno.land/std@0.177.0/encoding/base64.ts": "7de04c2f8aeeb41453b09b186480be90f2ff357613b988e99fabb91d2eeceba1",
     "https://deno.land/std@0.177.0/encoding/base64url.ts": "3f1178f6446834457b16bfde8b559c1cd3481727fe384d3385e4a9995dc2d851",
     "https://deno.land/std@0.177.0/encoding/hex.ts": "50f8c95b52eae24395d3dfcb5ec1ced37c5fe7610ef6fffdcc8b0fdc38e3b32f",
+    "https://deno.land/std@0.208.0/dotenv/mod.ts": "039468f5c87d39b69d7ca6c3d68ebca82f206ec0ff5e011d48205eea292ea5a6",
     "https://deno.land/x/denomailer@1.6.0/client/basic/QUE.ts": "5af1dfcc5814bf4542f098908ac1fdd8a1a1c2b1597138a121c95eaa791315d0",
     "https://deno.land/x/denomailer@1.6.0/client/basic/client.ts": "462e4db45ae218647812ceae720d55ea33e0e928f9138fee9da5913cbb1e20f9",
     "https://deno.land/x/denomailer@1.6.0/client/basic/connection.ts": "68de68d7551d8303629905c2b7581cb09b45646e530ce93a5786ca1aba61055c",

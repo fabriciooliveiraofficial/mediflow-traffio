@@ -29,7 +29,14 @@
       "notesLabel": "Notas",
       "notesPlaceholder": "Notas opcionales...",
       "cancel": "Cancelar",
-      "confirm": "Confirmar"
+      "confirm": "Confirmar",
+      "newPatient": {
+        "heading": "Nuevo Registro de Paciente",
+        "fullNameLabel": "Nombre Completo",
+        "phoneLabel": "Teléfono",
+        "emailLabel": "Correo electrónico",
+        "saveAndSelect": "Guardar y Seleccionar"
+      }
     },
     "editModal": {
       "statusLabel": "Estado",
@@ -139,6 +146,7 @@
     "slotsAvailableCount": "Horarios Disponibles ({{count}})",
     "selectDateHint": "Selecciona una fecha en el calendario",
     "legendExclusive": "Exclusivo",
+    "continueToCalendar": "Continuar al Calendario",
     "dateLabel": "Fecha",
     "slotsLabel": "Horarios",
     "noSlotsAvailable": "No hay horarios disponibles en esta fecha",
@@ -304,5 +312,35 @@
     "errors": {
       "paymentFailed": "Error al procesar el pago."
     }
+  },
+  "waitlistDrawer": {
+    "buttonLabel": "Espera",
+    "title": "Lista de Espera",
+    "subtitle_one": "{{count}} paciente esperando un cupo",
+    "subtitle_other": "{{count}} pacientes esperando un cupo",
+    "filterAll": "Todos",
+    "empty": "Nadie en la lista de espera",
+    "emptyHint": "Agregue pacientes desde una conversación en la Atención Humana (acción \"Espera\" en el panel del paciente).",
+    "anyDoctor": "Cualquier profesional",
+    "anyDay": "Cualquier día",
+    "status": {
+      "notified": "Notificado"
+    },
+    "waiting": {
+      "justNow": "ahora mismo",
+      "hours_one": "hace {{count}}h",
+      "hours_other": "hace {{count}}h",
+      "days_one": "hace {{count}} día",
+      "days_other": "hace {{count}} días"
+    },
+    "removeConfirm": "¿Quitar a {{name}} de la lista de espera?",
+    "requeueTitle": "Volver a la fila",
+    "removeTitle": "Quitar de la fila",
+    "toasts": {
+      "removed": "Quitado de la lista de espera.",
+      "requeued": "El paciente volvió a la fila de espera.",
+      "error": "Error: {{message}}"
+    },
+    "footerHint": "Cuando se cancela una cita, el siguiente paciente compatible de la fila es notificado automáticamente por WhatsApp."
   }
 }

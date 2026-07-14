@@ -7,6 +7,32 @@
       "testWidgetRemoved": "Widget de teste do Live Chat removido.",
       "testWidgetInjected": "Widget de teste do Live Chat injetado! Clique no balão para abrir.",
       "snippetCopied": "Snippet do Live Chat copiado!"
+    },
+    "form": {
+      "loading": "Carregando configurações do Live Chat...",
+      "title": "Live Chat",
+      "subtitle": "Personalize e ative o chat em tempo real para atendimento ao cliente no seu site.",
+      "statusAppearanceHeading": "Status & Aparência",
+      "statusAppearanceHint": "Ative o widget na sua página e escolha a cor de destaque que combina com sua marca.",
+      "activateWidget": "Ativar Chat Widget",
+      "visibleOnSite": "Visível no site",
+      "hiddenFromSite": "Ocultado do site",
+      "primaryColor": "Cor Primária",
+      "personalizationHeading": "Personalização do Atendimento",
+      "headerTitleLabel": "Título do Cabeçalho do Chat",
+      "headerSubtitleLabel": "Subtítulo do Cabeçalho",
+      "inactivityTimeoutLabel": "Encerrar por Inatividade (min)",
+      "inactivityTimeoutHint": "0 = nunca encerrar automaticamente.",
+      "formTitleLabel": "Título do Formulário",
+      "pillTextLabel": "Texto do Balão (Pill)",
+      "formSubtitleLabel": "Subtítulo do Formulário",
+      "installTestHeading": "Instalação e Teste",
+      "installTestHint": "Copie o script abaixo e insira antes do fechamento da tag </body> do seu site.",
+      "removeTestWidget": "Remover Widget de Teste",
+      "testOnThisPage": "Testar nesta Página",
+      "copied": "Copiado!",
+      "copy": "Copiar",
+      "saveButton": "Salvar Configurações do Live Chat"
     }
   },
   "tabs": {
@@ -119,7 +145,10 @@
     "metaPageActive": "Ativo",
     "metaPageInactive": "Inativo",
     "metaDisconnectTitle": "Desconectar",
-    "metaReconnectHint": "Clique em \"Conectar Páginas\" novamente para adicionar mais páginas ou renovar o acesso."
+    "metaReconnectHint": "Clique em \"Conectar Páginas\" novamente para adicionar mais páginas ou renovar o acesso.",
+    "currencyLabel": "Moeda da clínica",
+    "currencyAuto": "Automática pelo país ({{currency}})",
+    "currencyHint": "Moeda usada no caixa, propostas e recibos. Cobranças já criadas mantêm a moeda original."
   },
   "locations": {
     "title": "Locais de Atendimento",
@@ -139,7 +168,15 @@
     "latitudeLabel": "Latitude",
     "longitudeLabel": "Longitude",
     "operatingHoursSectionTitle": "Horário de Funcionamento",
-    "weekdaysShort": ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"],
+    "weekdaysShort": [
+      "Dom",
+      "Seg",
+      "Ter",
+      "Qua",
+      "Qui",
+      "Sex",
+      "Sáb"
+    ],
     "until": "até",
     "open": "Aberto",
     "closed": "Fechado",
@@ -325,6 +362,8 @@
     "toastCreated": "Cargo criado com sucesso!",
     "toastUpdated": "Cargo atualizado com sucesso!",
     "toastDeleted": "Cargo excluído com sucesso!",
-    "toastSaveError": "Erro ao salvar cargo."
+    "toastSaveError": "Erro ao salvar cargo.",
+    "cancel": "Cancelar",
+    "save": "Salvar"
   }
 }

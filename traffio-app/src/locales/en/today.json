@@ -1,0 +1,70 @@
+{
+    "greeting": {
+        "morning": "Good morning, {{name}}",
+        "afternoon": "Good afternoon, {{name}}",
+        "evening": "Good evening, {{name}}"
+    },
+    "refresh": "Refresh",
+    "viewAll": "View all ({{count}})",
+    "allClear": "All caught up",
+    "time": {
+        "minutes_one": "{{count}} min",
+        "minutes_other": "{{count}} min",
+        "hours_one": "{{count}} hr",
+        "hours_other": "{{count}} hrs"
+    },
+    "channels": {
+        "whatsapp": "WhatsApp",
+        "instagram": "Instagram",
+        "facebook": "Messenger",
+        "livechat": "Website chat",
+        "sms": "SMS",
+        "email": "Email"
+    },
+    "queues": {
+        "humanQueue": {
+            "title": "Waiting for a human"
+        },
+        "confirmations": {
+            "title": "Pending confirmations"
+        },
+        "recovery": {
+            "title": "No-shows to recover",
+            "reason_one": "{{count}} no-show",
+            "reason_other": "{{count}} no-shows"
+        },
+        "followUps": {
+            "title": "Overdue follow-ups",
+            "score": "Priority {{score}}"
+        },
+        "waitlist": {
+            "title": "Waitlist",
+            "noDoctor": "Assign a professional"
+        },
+        "agenda": {
+            "title": "Today's schedule",
+            "progress": "{{done}} of {{total}} completed",
+            "empty": "No appointments today",
+            "patientFallback": "Patient"
+        }
+    },
+    "goals": {
+        "title": "Monthly goals",
+        "appointments": "Appointments",
+        "showRate": "Show rate",
+        "setup": "Set goals",
+        "edit": "Edit",
+        "modalTitle": "Monthly goals",
+        "appointmentsLabel": "Appointments target per month",
+        "showRateLabel": "Show-rate target (%)",
+        "save": "Save goals",
+        "saved": "Goals updated",
+        "saveError": "Could not save goals"
+    },
+    "pulse": {
+        "appointments": "appointments today",
+        "shows": "shows",
+        "newLeads": "new leads",
+        "resolved": "conversations resolved"
+    }
+}

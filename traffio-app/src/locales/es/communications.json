@@ -62,15 +62,30 @@
     }
   },
   "humanInbox": {
-    "sla": { "now": "ahora" },
+    "aiDraft": {
+      "title": "Sugerido por la IA",
+      "use": "Usar"
+    },
+    "sla": {
+      "now": "ahora"
+    },
     "statusBadge": {
       "botActive": "Bot Activo",
       "queued": "En espera",
       "humanActive": "En Atención",
       "closed": "Cerrado"
     },
-    "temperature": { "cold": "Frío", "warm": "Tibio", "hot": "Caliente" },
-    "priority": { "low": "Baja", "medium": "Media", "high": "Alta", "urgent": "Urgente" },
+    "temperature": {
+      "cold": "Frío",
+      "warm": "Tibio",
+      "hot": "Caliente"
+    },
+    "priority": {
+      "low": "Baja",
+      "medium": "Media",
+      "high": "Alta",
+      "urgent": "Urgente"
+    },
     "channels": {
       "liveChat": "Chat en Vivo",
       "instagram": "Instagram",
@@ -115,7 +130,9 @@
       "noMessages": "Sin mensajes",
       "waiting": "en espera"
     },
-    "audioPlayer": { "label": "Audio de WhatsApp" },
+    "audioPlayer": {
+      "label": "Audio de WhatsApp"
+    },
     "messageBubble": {
       "mediaAlt": "Medio",
       "gifAlt": "GIF",
@@ -223,13 +240,23 @@
       },
       "kanbanClassification": "Clasificación Kanban",
       "kanbanHint": "Cambia la etapa del embudo aquí para reflejarlo en el Panel de Seguimiento (Kanban).",
-      "transferAction": "Transferir Conversación"
+      "transferAction": "Transferir Conversación",
+      "onWaitlist_one": "En lista de espera ({{count}} fila)",
+      "onWaitlist_other": "En lista de espera ({{count}} filas)"
     },
     "main": {
       "headerTitle": "Atención Humana",
       "searchPlaceholder": "Buscar paciente...",
-      "tabs": { "all": "Todos", "queue": "Cola", "mine": "Mías" },
-      "list": { "noResults": "Sin resultados", "queueEmpty": "Cola vacía", "noActiveConversations": "Sin conversaciones activas" },
+      "tabs": {
+        "all": "Todos",
+        "queue": "Cola",
+        "mine": "Mías"
+      },
+      "list": {
+        "noResults": "Sin resultados",
+        "queueEmpty": "Cola vacía",
+        "noActiveConversations": "Sin conversaciones activas"
+      },
       "backToList": "Volver a la lista",
       "claim": "Tomar",
       "close": "Cerrar",
@@ -381,9 +408,18 @@
       "searchByCity": "Ciudad/Región",
       "searchByState": "Estado/Provincia",
       "searchByConfig": {
-        "area_code": { "label": "Código de área", "placeholder": "Ej: 11, 415, 21..." },
-        "city": { "label": "Ciudad / Región", "placeholder": "Ej: São Paulo, Auckland..." },
-        "state": { "label": "Estado / Provincia", "placeholder": "Ej: SP, CA, ON..." }
+        "area_code": {
+          "label": "Código de área",
+          "placeholder": "Ej: 11, 415, 21..."
+        },
+        "city": {
+          "label": "Ciudad / Región",
+          "placeholder": "Ej: São Paulo, Auckland..."
+        },
+        "state": {
+          "label": "Estado / Provincia",
+          "placeholder": "Ej: SP, CA, ON..."
+        }
       },
       "validationRequired": "Validación requerida:",
       "validationDocsNeeded": "Deberás enviar documentos antes de la activación.",
@@ -636,6 +672,42 @@
       "rejected": "Rechazado",
       "completed": "Activo",
       "cancelled": "Cancelado"
+    }
+  },
+  "sidebarWaitlistView": {
+    "headerLabel": "Lista de Espera",
+    "currentTitle": "En la fila",
+    "empty": "Este paciente no está en ninguna lista de espera.",
+    "anyDoctor": "Cualquier profesional",
+    "anyDay": "Cualquier día",
+    "removeTitle": "Quitar de la fila",
+    "addTitle": "Agregar a la fila",
+    "status": {
+      "waiting": "En espera",
+      "notified": "Notificado"
+    },
+    "waiting": {
+      "justNow": "ahora mismo",
+      "hours_one": "hace {{count}} hora",
+      "hours_other": "hace {{count}} horas",
+      "days_one": "hace {{count}} día",
+      "days_other": "hace {{count}} días"
+    },
+    "form": {
+      "doctorLabel": "Profesional",
+      "doctorPlaceholder": "Seleccione el profesional...",
+      "daysLabel": "Días preferidos",
+      "daysHint": "Opcional — sin selección, cualquier día sirve.",
+      "timeStartLabel": "Desde",
+      "timeEndLabel": "Hasta",
+      "submit": "Agregar a la lista de espera"
+    },
+    "toasts": {
+      "added": "¡Paciente agregado a la lista de espera! ✅",
+      "duplicate": "Este paciente ya está en la fila de este profesional.",
+      "addError": "Error al agregar a la lista de espera: {{message}}",
+      "removed": "Quitado de la lista de espera.",
+      "removeError": "Error al quitar: {{message}}"
     }
   }
 }

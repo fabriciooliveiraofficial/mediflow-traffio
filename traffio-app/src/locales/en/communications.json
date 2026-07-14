@@ -62,15 +62,30 @@
     }
   },
   "humanInbox": {
-    "sla": { "now": "now" },
+    "aiDraft": {
+      "title": "AI suggestion",
+      "use": "Use"
+    },
+    "sla": {
+      "now": "now"
+    },
     "statusBadge": {
       "botActive": "Bot Active",
       "queued": "Waiting",
       "humanActive": "In Progress",
       "closed": "Closed"
     },
-    "temperature": { "cold": "Cold", "warm": "Warm", "hot": "Hot" },
-    "priority": { "low": "Low", "medium": "Medium", "high": "High", "urgent": "Urgent" },
+    "temperature": {
+      "cold": "Cold",
+      "warm": "Warm",
+      "hot": "Hot"
+    },
+    "priority": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "urgent": "Urgent"
+    },
     "channels": {
       "liveChat": "Live Chat",
       "instagram": "Instagram",
@@ -115,7 +130,9 @@
       "noMessages": "No messages",
       "waiting": "waiting"
     },
-    "audioPlayer": { "label": "WhatsApp Audio" },
+    "audioPlayer": {
+      "label": "WhatsApp Audio"
+    },
     "messageBubble": {
       "mediaAlt": "Media",
       "gifAlt": "GIF",
@@ -223,13 +240,23 @@
       },
       "kanbanClassification": "Kanban Classification",
       "kanbanHint": "Change the funnel stage here to reflect it on the Follow-up Board (Kanban).",
-      "transferAction": "Transfer Conversation"
+      "transferAction": "Transfer Conversation",
+      "onWaitlist_one": "On the waitlist ({{count}} queue)",
+      "onWaitlist_other": "On the waitlist ({{count}} queues)"
     },
     "main": {
       "headerTitle": "Human Support",
       "searchPlaceholder": "Search patient...",
-      "tabs": { "all": "All", "queue": "Queue", "mine": "Mine" },
-      "list": { "noResults": "No results", "queueEmpty": "Queue empty", "noActiveConversations": "No active conversations" },
+      "tabs": {
+        "all": "All",
+        "queue": "Queue",
+        "mine": "Mine"
+      },
+      "list": {
+        "noResults": "No results",
+        "queueEmpty": "Queue empty",
+        "noActiveConversations": "No active conversations"
+      },
       "backToList": "Back to list",
       "claim": "Claim",
       "close": "Close",
@@ -381,9 +408,18 @@
       "searchByCity": "City/Region",
       "searchByState": "State/Province",
       "searchByConfig": {
-        "area_code": { "label": "Area code", "placeholder": "Ex: 11, 415, 21..." },
-        "city": { "label": "City / Region", "placeholder": "Ex: São Paulo, Auckland..." },
-        "state": { "label": "State / Province", "placeholder": "Ex: SP, CA, ON..." }
+        "area_code": {
+          "label": "Area code",
+          "placeholder": "Ex: 11, 415, 21..."
+        },
+        "city": {
+          "label": "City / Region",
+          "placeholder": "Ex: São Paulo, Auckland..."
+        },
+        "state": {
+          "label": "State / Province",
+          "placeholder": "Ex: SP, CA, ON..."
+        }
       },
       "validationRequired": "Validation required:",
       "validationDocsNeeded": "You will need to submit documents before activation.",
@@ -636,6 +672,42 @@
       "rejected": "Rejected",
       "completed": "Active",
       "cancelled": "Cancelled"
+    }
+  },
+  "sidebarWaitlistView": {
+    "headerLabel": "Waitlist",
+    "currentTitle": "In queue",
+    "empty": "This patient is not on any waitlist.",
+    "anyDoctor": "Any professional",
+    "anyDay": "Any day",
+    "removeTitle": "Remove from queue",
+    "addTitle": "Add to queue",
+    "status": {
+      "waiting": "Waiting",
+      "notified": "Notified"
+    },
+    "waiting": {
+      "justNow": "just now",
+      "hours_one": "{{count}} hour ago",
+      "hours_other": "{{count}} hours ago",
+      "days_one": "{{count}} day ago",
+      "days_other": "{{count}} days ago"
+    },
+    "form": {
+      "doctorLabel": "Professional",
+      "doctorPlaceholder": "Select the professional...",
+      "daysLabel": "Preferred days",
+      "daysHint": "Optional — with no selection, any day works.",
+      "timeStartLabel": "From",
+      "timeEndLabel": "Until",
+      "submit": "Add to waitlist"
+    },
+    "toasts": {
+      "added": "Patient added to the waitlist! ✅",
+      "duplicate": "This patient is already in this professional's queue.",
+      "addError": "Error adding to waitlist: {{message}}",
+      "removed": "Removed from waitlist.",
+      "removeError": "Error removing: {{message}}"
     }
   }
 }

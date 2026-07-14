@@ -460,6 +460,13 @@
     }
   },
   "intelligence": {
+    "aiDial": {
+      "title": "AI assistant in conversations",
+      "human": "Off",
+      "copilot": "Copilot",
+      "humanHint": "AI does not take part in conversations. Your team replies to everything manually.",
+      "copilotHint": "AI suggests replies and classifies leads, but NEVER sends anything — your team reviews and decides. Remember to save."
+    },
     "header": {
       "title": "Automation Hub",
       "subtitle": "Manage Reminders, NPS, and Audiovisual Confirmations."
@@ -616,7 +623,6 @@
       "subtitle": "Click to insert at cursor — active language:",
       "footer": "Variables are automatically filled with appointment data at the time of sending."
     },
-    "testModeLabel": "Test Mode (5m)",
     "saveButton": "SAVE CHANGES"
   }
 }

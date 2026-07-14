@@ -404,26 +404,26 @@ export const BotConfigWizard = ({ isOpen, onClose, currentConfig, onSave, saving
                                 onClick={handleBack}
                                 className="flex items-center gap-2 text-sm font-black text-graphite-400 hover:text-graphite-900 transition-colors bg-transparent border-none cursor-pointer"
                             >
-                                <ChevronLeft size={18} /> Voltar
+                                <ChevronLeft size={18} /> {t('botConfigWizard.footer.back')}
                             </button>
                         ) : <div />}
 
                         {step < 4 ? (
-                            <button 
+                            <button
                                 onClick={handleNext}
                                 disabled={isNextDisabled()}
                                 className="flex items-center gap-2 bg-brand-primary text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-brand-primary/20 hover:scale-105 transition-all border-none cursor-pointer disabled:opacity-30 disabled:hover:scale-100"
                             >
-                                Próximo <ChevronRight size={18} />
+                                {t('botConfigWizard.footer.next')} <ChevronRight size={18} />
                             </button>
                         ) : (
-                            <button 
+                            <button
                                 onClick={handleSave}
                                 disabled={saving}
                                 className="flex items-center gap-2 bg-emerald-500 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-emerald-500/20 hover:scale-105 transition-all border-none cursor-pointer disabled:opacity-50"
                             >
                                 {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                                Salvar e Ativar Perfil
+                                {t('botConfigWizard.footer.save')}
                             </button>
                         )}
                     </div>

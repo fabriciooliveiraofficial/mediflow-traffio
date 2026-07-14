@@ -15,7 +15,7 @@ import {
   UserPlus, UserMinus, Users, Building2, Tag, CalendarSearch, DollarSign,
   Mic, Paperclip, Camera, Smile, Play, Pause,
   FileText, Download, Reply, Pencil, Copy, Forward, Trash2, Zap, ArrowRight, Instagram, Facebook, ChevronDown, ArrowLeft, Settings, Plus,
-  MessageSquare
+  MessageSquare, Sparkles
 } from 'lucide-react'
 import data from '@emoji-mart/data'
 import Picker from '@emoji-mart/react'
@@ -32,6 +32,8 @@ import { SidebarPaymentView } from '../components/SidebarPaymentView'
 import { SidebarDirectoryView } from '../components/SidebarDirectoryView'
 import { SidebarLeadClassifyView } from '../components/SidebarLeadClassifyView'
 import { SidebarPatientEditView } from '../components/SidebarPatientEditView'
+import { SidebarWaitlistView } from '../components/SidebarWaitlistView'
+import { waitlistService } from '../services/waitlistService'
 import { ChannelPreferenceSelector } from '../components/channel/ChannelPreferenceSelector'
 import { ConfirmationChannelModal, type ConfirmationChannelId, type ConfirmationChannelOption } from '../components/channel/ConfirmationChannelModal'
 import { salesScriptService, type SalesScript } from '../services/salesScriptService'
@@ -613,6 +615,9 @@ interface ChatInputProps {
   onDeleteScript?: (id: string) => Promise<void>
   metaWindowTimeLeft?: number | null
   metaWindowExpired?: boolean
+  /** F1 Copiloto — rascunho sugerido pela IA (context.ai_draft da sessão) */
+  aiDraft?: { text: string; created_at: string } | null
+  onDiscardAiDraft?: () => void
 }
 
 export const ChatInput = memo(({ 
@@ -621,7 +626,9 @@ export const ChatInput = memo(({
   salesScripts = [], patient, currentUserName = '', clinicName = '',
   onOpenScriptManager, onDeleteScript,
   metaWindowTimeLeft = null,
-  metaWindowExpired = false
+  metaWindowExpired = false,
+  aiDraft = null,
+  onDiscardAiDraft
 }: ChatInputProps) => {
   const { t } = useTranslation('communications')
   const { showToast } = useToast()
@@ -1333,6 +1340,32 @@ export const ChatInput = memo(({
           )}
         </AnimatePresence>
 
+        {/* F1 Copiloto — rascunho sugerido pela IA (o humano decide; nada é enviado automaticamente) */}
+        {aiDraft?.text && !isClosed && (
+          <div className="flex items-start gap-2 px-3 py-2 rounded-xl border-l-4 text-xs bg-violet-50 border-violet-400">
+            <Sparkles size={13} className="text-violet-500 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="font-bold uppercase tracking-tight text-violet-600" style={{ fontSize: 10 }}>
+                {t('humanInbox.aiDraft.title')}
+              </p>
+              <p className="text-gray-600 whitespace-pre-wrap">{aiDraft.text}</p>
+            </div>
+            <button
+              onClick={() => {
+                setInput(aiDraft.text)
+                inputRef.current?.focus()
+                onDiscardAiDraft?.()
+              }}
+              className="shrink-0 px-2.5 py-1 rounded-lg bg-violet-600 text-white font-bold hover:bg-violet-500 transition-colors border-0 cursor-pointer"
+            >
+              {t('humanInbox.aiDraft.use')}
+            </button>
+            <button onClick={() => onDiscardAiDraft?.()} className="text-gray-400 hover:text-gray-600 bg-transparent border-0 cursor-pointer shrink-0">
+              <X size={13} />
+            </button>
+          </div>
+        )}
+
         {/* Reply / Edit context bar */}
         {(replyingTo || editingMsg) && (
           <div className={clsx('flex items-center gap-2 px-3 py-2 rounded-xl border-l-4 text-xs',
@@ -1482,12 +1515,11 @@ interface PatientPanelProps {
   onSendMessage: (text: string) => Promise<void>
   onSendConfirmation: (text: string) => void
   isOwned: boolean
-  view: 'profile' | 'register' | 'lookup' | 'booking' | 'appointments' | 'edit' | 'availability' | 'payment' | 'directory' | 'classify'
-  onViewChange: (view: 'profile' | 'register' | 'lookup' | 'booking' | 'appointments' | 'edit' | 'availability' | 'payment' | 'directory' | 'classify') => void
+  view: 'profile' | 'register' | 'lookup' | 'booking' | 'appointments' | 'edit' | 'availability' | 'payment' | 'directory' | 'classify' | 'waitlist'
+  onViewChange: (view: 'profile' | 'register' | 'lookup' | 'booking' | 'appointments' | 'edit' | 'availability' | 'payment' | 'directory' | 'classify' | 'waitlist') => void
   onPatientSelected: (p: any) => void
   onUnlink: () => Promise<void>
   onReschedule: (appt: any) => void
-  onAddToWaitlist: () => void
   onResetReschedule: () => void
   rescheduleData: any | null
   preFill: any | null
@@ -1498,10 +1530,23 @@ interface PatientPanelProps {
 
 function PatientPanel({
   session, patient, appointments, onClose, onUpdateStage, onTransferClick, isOwned, onNewPatient, onLookupPatient,
-  view, onViewChange, onPatientSelected, onUnlink, onViewAppointments, onSendMessage, onSendConfirmation, onReschedule, onAddToWaitlist, onResetReschedule, rescheduleData,
+  view, onViewChange, onPatientSelected, onUnlink, onViewAppointments, onSendMessage, onSendConfirmation, onReschedule, onResetReschedule, rescheduleData,
   preFill, onPreFillChange, enabledChannels, defaultChannel
 }: PatientPanelProps) {
   const { t } = useTranslation('communications');
+  const [waitlistCount, setWaitlistCount] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    if (!patient?.id || !session.tenant_id) {
+      setWaitlistCount(0);
+      return;
+    }
+    waitlistService.listByPatient(session.tenant_id, patient.id)
+      .then(list => { if (active) setWaitlistCount(list.length); })
+      .catch(() => { if (active) setWaitlistCount(0); });
+    return () => { active = false; };
+  }, [patient?.id, session.tenant_id, view]);
 
   if (view === 'register') {
     const isWhatsApp = !['instagram', 'facebook', 'livechat'].includes(session.channel || '');
@@ -1634,6 +1679,18 @@ function PatientPanel({
     );
   }
 
+  if (view === 'waitlist' && patient) {
+    return (
+      <div className="w-full flex flex-col h-full border-l border-ice-100">
+        <SidebarWaitlistView
+          onBack={() => onViewChange('profile')}
+          patientId={patient.id}
+          patientName={patient.full_name || t('humanInbox.fallbackNames.patient')}
+        />
+      </div>
+    );
+  }
+
   if (view === 'classify') {
     return (
       <div className="w-full flex flex-col h-full border-l border-ice-100">
@@ -1705,6 +1762,19 @@ function PatientPanel({
             {t('humanInbox.patientPanel.talkingTo')} <span className="font-bold">{session.context.interlocutor.name}</span> ({session.context.interlocutor.relationship})
           </p>
         </div>
+      )}
+
+      {/* Waitlist indicator */}
+      {patient && waitlistCount > 0 && (
+        <button
+          onClick={() => onViewChange('waitlist')}
+          className="w-full px-4 py-2 bg-brand-primary/5 border-0 border-b border-ice-100 flex items-center gap-2 hover:bg-brand-primary/10 transition-colors cursor-pointer text-left"
+        >
+          <Clock className="w-3.5 h-3.5 text-brand-primary shrink-0" />
+          <p className="text-[10px] text-brand-primary font-bold">
+            {t('humanInbox.patientPanel.onWaitlist', { count: waitlistCount })}
+          </p>
+        </button>
       )}
 
       {/* Sticky Notes Section */}
@@ -1820,9 +1890,14 @@ function PatientPanel({
             <span className="text-[9px] font-bold uppercase tracking-tight">{t('humanInbox.patientPanel.actions.classify')}</span>
           </button>
           {patient && (
-            <button onClick={onAddToWaitlist} className="flex flex-col items-center gap-1 p-2 rounded-xl transition-all bg-purple-50 text-purple-600 hover:bg-purple-100">
+            <button onClick={() => onViewChange('waitlist')} className="relative flex flex-col items-center gap-1 p-2 rounded-xl transition-all bg-purple-50 text-purple-600 hover:bg-purple-100">
               <Clock size={18} />
               <span className="text-[9px] font-bold uppercase tracking-tight">{t('humanInbox.patientPanel.actions.waitlist')}</span>
+              {waitlistCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-purple-600 text-white text-[9px] font-black rounded-full flex items-center justify-center">
+                  {waitlistCount}
+                </span>
+              )}
             </button>
           )}
         </div>
@@ -1924,7 +1999,7 @@ export function HumanInboxPage() {
   const [editingScriptId, setEditingScriptId] = useState<string | null>(null);
 
   // CRM Inline Sidebar Views
-  const [sidebarView, setSidebarView] = useState<'profile' | 'register' | 'lookup' | 'booking' | 'appointments' | 'edit' | 'availability' | 'payment' | 'directory' | 'classify'>('profile');
+  const [sidebarView, setSidebarView] = useState<'profile' | 'register' | 'lookup' | 'booking' | 'appointments' | 'edit' | 'availability' | 'payment' | 'directory' | 'classify' | 'waitlist'>('profile');
   const [, setTick] = useState(0)
   const [replyingTo, setReplyingTo] = useState<Message | null>(null)
 
@@ -2304,6 +2379,13 @@ export function HumanInboxPage() {
              const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3')
              audio.play().catch(e => console.warn('Queue alert failed:', e))
            }
+        }
+
+        // F1 Copiloto: se a sessão aberta ganhou contexto novo (ai_draft,
+        // lead_temperature, intake), refletir na conversa selecionada
+        const updatedRow = payload.new as any
+        if (payload.eventType === 'UPDATE' && updatedRow?.context && updatedRow?.id === selectedRef.current?.id) {
+          setSelected(prev => prev && prev.id === updatedRow.id ? { ...prev, context: updatedRow.context } : prev)
         }
 
         // Sessão aberta no painel foi encerrada pelo visitante (livechat):
@@ -3287,6 +3369,14 @@ export function HumanInboxPage() {
             isOwned={isOwned}
             canClaim={canClaim}
             isClosed={isClosed}
+            aiDraft={selected?.context?.ai_draft ?? null}
+            onDiscardAiDraft={async () => {
+              if (!selected) return
+              const newContext = { ...(selected.context || {}) }
+              delete newContext.ai_draft
+              setSelected(prev => prev ? { ...prev, context: newContext } : prev)
+              await supabase.from('conversation_sessions').update({ context: newContext }).eq('id', selected.id)
+            }}
             replyingTo={replyingTo}
             editingMsg={editingMsg}
             onCancelContext={() => { setReplyingTo(null); setEditingMsg(null) }}
@@ -3495,19 +3585,6 @@ export function HumanInboxPage() {
               rescheduleData={rescheduleData}
               preFill={bookingPreFill}
               onPreFillChange={setBookingPreFill}
-              onAddToWaitlist={async () => {
-                if (!patient || !tenantId) return;
-                const { error } = await supabase.from('waitlist').insert({
-                  tenant_id: tenantId,
-                  patient_id: patient.id,
-                  status: 'active'
-                });
-                if (error) {
-                  showToast('error', t('humanInbox.main.toasts.waitlistError', { message: error.message }));
-                } else {
-                  showToast('success', t('humanInbox.main.toasts.waitlistSuccess'));
-                }
-              }}
             />
           </motion.div>
         )}

@@ -292,9 +292,10 @@
       "conditions": {
         "caries": "Cavity",
         "restored": "Restored",
-        "missing": "Missing"
+        "missing": "Missing",
+        "eraser": "Eraser"
       },
-      "clearTitle": "Clear selection",
+      "clearTitle": "Discard changes",
       "saving": "Saving...",
       "save": "Save Chart",
       "legend": {

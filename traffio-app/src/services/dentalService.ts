@@ -34,11 +34,38 @@ export interface DentalBudgetItem {
 
 export const dentalService = {
     async saveRecords(records: DentalRecord[]) {
+        if (records.length === 0) return;
+        
+        // Delete existing records for these planes to prevent duplicates
+        for (const record of records) {
+            await supabase
+                .from('dental_records')
+                .delete()
+                .eq('patient_id', record.patient_id)
+                .eq('tooth_number', record.tooth_number)
+                .eq('plane', record.plane);
+        }
+
+        // Insert new records
         const { data, error } = await supabase
             .from('dental_records')
-            .upsert(records);
+            .insert(records.map(({ id, ...r }) => r));
         if (error) throw error;
         return data;
+    },
+
+    async deleteRecords(records: { patient_id: string; tooth_number: number; plane: string }[]) {
+        if (records.length === 0) return;
+        
+        for (const record of records) {
+            const { error } = await supabase
+                .from('dental_records')
+                .delete()
+                .eq('patient_id', record.patient_id)
+                .eq('tooth_number', record.tooth_number)
+                .eq('plane', record.plane);
+            if (error) throw error;
+        }
     },
 
     async getRecords(patientId: string) {

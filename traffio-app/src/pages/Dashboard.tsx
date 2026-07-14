@@ -790,7 +790,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
     const selectedChartMetricLabel = CHART_METRICS.find(m => m.key === chartMetric)?.label || t('chartMetrics.leads');
 
     return (
-        <div className="px-2 space-y-10 pb-20 max-w-[1440px] mx-auto">
+        <div className="w-full px-2 space-y-10 pb-20">
             {/* ── COMMAND CENTER HEADER ────────────────────────────────────────── */}
             <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 pt-4">
                 <div className="space-y-2">

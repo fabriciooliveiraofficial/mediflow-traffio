@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronLeft, Loader2, Copy, Check, Send, CreditCard, DollarSign } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabase';
@@ -39,7 +39,7 @@ export function SidebarPaymentView({ onBack, patientId, patientName, onSendLink 
 
   // Result
   const [paymentLink, setPaymentLink] = useState<string | null>(null);
-  const [billingId, setBillingId] = useState<string | null>(null);
+  const [, setBillingId] = useState<string | null>(null);
 
   useEffect(() => {
     loadRecentBillings();
@@ -80,7 +80,7 @@ export function SidebarPaymentView({ onBack, patientId, patientName, onSendLink 
         patient_id: patientId,
         amount_cents: cents,
         due_date: dueDate.toISOString().split('T')[0],
-        method: method,
+        payment_method: method,
         notes: description || t('sidebarPaymentView.defaultNote', { patientName }),
       });
 

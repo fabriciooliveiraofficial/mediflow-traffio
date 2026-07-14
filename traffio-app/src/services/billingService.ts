@@ -6,9 +6,17 @@ export interface BillingRecord {
     patient_id: string;
     appointment_id?: string;
     amount_cents: number;
+    /** ISO 4217 — snapshot da moeda do tenant na criação (trigger no banco preenche se omitido). */
+    currency?: string;
     status: 'pending' | 'paid' | 'overdue' | 'canceled' | 'refunded';
-    method?: 'pix' | 'credit_card' | 'boleto' | 'cash';
-    asaas_payment_id?: string;
+    payment_method?: string;
+    asaas_billing_id?: string;
+    stripe_checkout_session_id?: string;
+    stripe_payment_intent_id?: string;
+    payment_link_url?: string;
+    receipt_number?: number;
+    installment_no?: number;
+    installment_count?: number;
     due_date: string;
     paid_at?: string;
     notes?: string;
@@ -21,7 +29,7 @@ interface CreateBillingPayload {
     appointment_id?: string;
     amount_cents: number;
     due_date: string;
-    method?: string;
+    payment_method?: string;
     notes?: string;
 }
 
@@ -94,10 +102,10 @@ export const BillingService = {
         return data as BillingRecord;
     },
 
-    async markPaid(id: string, method: string = 'cash') {
+    async markPaid(id: string, paymentMethod: string = 'cash') {
         return this.update(id, {
             status: 'paid',
-            method: method as any,
+            payment_method: paymentMethod,
             paid_at: new Date().toISOString(),
         });
     },
@@ -114,21 +122,21 @@ export const BillingService = {
     async getSummary(tenantId: string) {
         const { data: billing } = await supabase
             .from('billing_records')
-            .select('amount_cents, status, paid_at')
+            .select('amount_cents, status, due_date')
             .eq('tenant_id', tenantId);
 
         if (!billing) return { total: 0, paid: 0, pending: 0, overdue: 0 };
 
-        const now = new Date();
+        const today = new Date().toISOString().slice(0, 10);
         return {
             total: billing.reduce((sum, b) => sum + b.amount_cents, 0),
             paid: billing.filter(b => b.status === 'paid').reduce((sum, b) => sum + b.amount_cents, 0),
             pending: billing.filter(b => b.status === 'pending').reduce((sum, b) => sum + b.amount_cents, 0),
-            overdue: billing.filter(b => b.status === 'pending' && new Date(b.paid_at || now) < now).reduce((sum, b) => sum + b.amount_cents, 0),
+            overdue: billing.filter(b => b.status === 'pending' && b.due_date && b.due_date < today).reduce((sum, b) => sum + b.amount_cents, 0),
         };
     },
 
-    // ---- Asaas Integration ----
+    // ---- Asaas Integration (LEGADO — em remoção; ver plano Financeiro/Stripe Connect) ----
 
     async createAsaasCharge(tenantId: string, billingId: string, customerAsaasId: string) {
         const config = await getAsaasConfig(tenantId);
@@ -166,7 +174,7 @@ export const BillingService = {
             throw new Error(result.errors?.[0]?.description || 'Erro ao criar cobrança no Asaas');
         }
 
-        await this.update(billingId, { asaas_payment_id: result.id });
+        await this.update(billingId, { asaas_billing_id: result.id });
 
         return result;
     },
@@ -177,7 +185,7 @@ export const BillingService = {
         const { data: billing } = await supabase
             .from('billing_records')
             .select('id')
-            .eq('asaas_payment_id', paymentId)
+            .eq('asaas_billing_id', paymentId)
             .single();
 
         if (billing) {
@@ -190,7 +198,7 @@ export const BillingService = {
 
     async getDetailedAnalytics(tenantId: string) {
         const [billingRes, proposalsRes] = await Promise.all([
-            supabase.from('billing_records').select('method, amount_cents').eq('tenant_id', tenantId),
+            supabase.from('billing_records').select('payment_method, amount_cents').eq('tenant_id', tenantId),
             supabase.from('financing_proposals').select('status, amount').eq('tenant_id', tenantId)
         ]);
 
@@ -199,13 +207,12 @@ export const BillingService = {
 
         // Mix Distribution
         const mix = {
-            pix: billing.filter(b => b.method === 'pix').reduce((s, b) => s + b.amount_cents, 0),
-            card: billing.filter(b => b.method === 'credit_card').reduce((s, b) => s + b.amount_cents, 0),
+            pix: billing.filter(b => b.payment_method === 'pix').reduce((s, b) => s + b.amount_cents, 0),
+            card: billing.filter(b => ['credit_card', 'card_machine', 'stripe'].includes(b.payment_method || '')).reduce((s, b) => s + b.amount_cents, 0),
             financing: proposals.filter(p => p.status === 'signed').reduce((s, p) => s + (p.amount * 100), 0),
-            others: billing.filter(b => !['pix', 'credit_card'].includes(b.method || '')).reduce((s, b) => s + b.amount_cents, 0)
+            others: billing.filter(b => !['pix', 'credit_card', 'card_machine', 'stripe'].includes(b.payment_method || '')).reduce((s, b) => s + b.amount_cents, 0)
         };
 
-        // Dr. Cash Approval Stats
         const totalProposals = proposals.length;
         const approvedProposals = proposals.filter(p => ['approved', 'signed'].includes(p.status)).length;
         const approvalRate = totalProposals > 0 ? (approvedProposals / totalProposals) * 100 : 0;

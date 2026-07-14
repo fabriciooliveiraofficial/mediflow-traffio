@@ -42,6 +42,7 @@ import { useTenant } from '../contexts/TenantContext';
 import { smartSchedulingService } from '../services/smartSchedulingService';
 import { locationService } from '../services/locationService';
 import { CheckoutModal } from '../components/CheckoutModal';
+import { WaitlistDrawer } from '../components/WaitlistDrawer';
 import type { SmartSlot, BookAppointmentPayload } from '../services/smartSchedulingService';
 import { formatSlot as formatSlotI18n } from '../lib/i18n/formatDateTime';
 import { getCountry, DEFAULT_COUNTRY } from '../lib/i18n/countryFormats';
@@ -184,6 +185,8 @@ export const AgendaMestra: React.FC = () => {
     const [editingAppt, setEditingAppt] = useState<any>(null);
     const [editNotes, setEditNotes] = useState('');
     const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
+    const [waitlistOpen, setWaitlistOpen] = useState(false);
+    const [waitlistCount, setWaitlistCount] = useState(0);
     const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
     const [patientNoShowStats, setPatientNoShowStats] = useState<{ total: number; noShows: number; rate: number } | null>(null);
     const [reschedulingFromAppt, setReschedulingFromAppt] = useState<any | null>(null);
@@ -1451,6 +1454,17 @@ export const AgendaMestra: React.FC = () => {
                 <div className="flex items-center gap-2 shrink-0 text-[10px] font-bold text-graphite-400">
                     <span className="bg-brand-primary/10 text-brand-primary px-2 py-1 rounded-lg">{t('mestra.appointmentsCount', { count: totalAppts })}</span>
                     <span className="bg-emerald-50 text-emerald-600 px-2 py-1 rounded-lg">{t('mestra.freeSlotsCount', { count: totalSlots })}</span>
+                    <button
+                        onClick={() => setWaitlistOpen(true)}
+                        className="flex items-center gap-1.5 bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20 px-2 py-1 rounded-lg transition-colors border-none cursor-pointer text-[10px] font-bold"
+                        title={t('waitlistDrawer.title')}
+                    >
+                        <Clock size={12} />
+                        {t('waitlistDrawer.buttonLabel')}
+                        {waitlistCount > 0 && (
+                            <span className="bg-brand-primary text-white text-[9px] font-black px-1.5 py-0.5 rounded-md min-w-[18px] text-center">{waitlistCount}</span>
+                        )}
+                    </button>
                 </div>
             </div>
 
@@ -1733,9 +1747,9 @@ export const AgendaMestra: React.FC = () => {
                                             </div>
                                         ) : isCreatingPatient ? (
                                             <div className="p-4 bg-ice-50/50 border border-ice-200 rounded-2xl space-y-3">
-                                                <p className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">Novo Cadastro de Paciente</p>
+                                                <p className="text-[10px] font-black text-graphite-400 uppercase tracking-wide">{t('mestra.bookingModal.newPatient.heading')}</p>
                                                 <div>
-                                                    <label className="text-[10px] text-graphite-400 font-bold block mb-1">Nome Completo</label>
+                                                    <label className="text-[10px] text-graphite-400 font-bold block mb-1">{t('mestra.bookingModal.newPatient.fullNameLabel')}</label>
                                                     <input
                                                         type="text"
                                                         value={bookingForm.patientSearch}
@@ -1745,7 +1759,7 @@ export const AgendaMestra: React.FC = () => {
                                                 </div>
                                                 <div className="grid grid-cols-2 gap-3">
                                                     <div>
-                                                        <label className="text-[10px] text-graphite-400 font-bold block mb-1">Telefone</label>
+                                                        <label className="text-[10px] text-graphite-400 font-bold block mb-1">{t('mestra.bookingModal.newPatient.phoneLabel')}</label>
                                                         <input
                                                             type="text"
                                                             value={newPatientData.phone}
@@ -1755,7 +1769,7 @@ export const AgendaMestra: React.FC = () => {
                                                         />
                                                     </div>
                                                     <div>
-                                                        <label className="text-[10px] text-graphite-400 font-bold block mb-1">E-mail</label>
+                                                        <label className="text-[10px] text-graphite-400 font-bold block mb-1">{t('mestra.bookingModal.newPatient.emailLabel')}</label>
                                                         <input
                                                             type="email"
                                                             value={newPatientData.email}
@@ -1771,14 +1785,14 @@ export const AgendaMestra: React.FC = () => {
                                                         onClick={() => setIsCreatingPatient(false)}
                                                         className="flex-1 py-2 bg-white border border-ice-200 rounded-xl text-xs font-bold text-graphite-600 hover:bg-ice-50 transition-all cursor-pointer"
                                                     >
-                                                        Cancelar
+                                                        {t('mestra.bookingModal.cancel')}
                                                     </button>
                                                     <button
                                                         type="button"
                                                         onClick={handleSaveNewPatient}
                                                         className="flex-1 py-2 bg-brand-primary text-white border border-brand-primary rounded-xl text-xs font-bold hover:bg-brand-primary-dark transition-all cursor-pointer"
                                                     >
-                                                        Salvar e Selecionar
+                                                        {t('mestra.bookingModal.newPatient.saveAndSelect')}
                                                     </button>
                                                 </div>
                                             </div>
@@ -2345,6 +2359,13 @@ export const AgendaMestra: React.FC = () => {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            <WaitlistDrawer
+                open={waitlistOpen}
+                onClose={() => setWaitlistOpen(false)}
+                tenantId={selectedTenant}
+                onCountChange={setWaitlistCount}
+            />
 
             {editingAppt && (
                 <CheckoutModal

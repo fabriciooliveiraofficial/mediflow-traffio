@@ -21,6 +21,7 @@ export const DEFAULT_LANGUAGE: AppLanguage = 'pt-BR';
 
 export const NAMESPACES = [
     'common',
+    'today',
     'auth',
     'settings',
     'agenda',

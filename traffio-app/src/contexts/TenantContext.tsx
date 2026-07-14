@@ -15,6 +15,12 @@ interface Tenant {
     country?: CountryCode;
     locale?: string;
     time_format?: '12h' | '24h' | null;
+    // Financeiro (domínio operacional do tenant — ver useTenantMoney)
+    currency?: string | null;
+    stripe_account_id?: string | null;
+    stripe_charges_enabled?: boolean;
+    stripe_connect_status?: 'not_connected' | 'onboarding' | 'active' | 'disabled';
+    payment_config?: any;
     whatsapp_provider?: 'zapi' | 'cloud_api';
     zapi_instance_id?: string;
     zapi_token?: string;

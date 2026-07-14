@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Eraser, Info, MousePointer2 } from 'lucide-react';
+import { Save, Eraser, Info, MousePointer2, RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { dentalService } from '../../services/dentalService';
 import type { DentalRecord } from '../../services/dentalService';
@@ -21,6 +21,7 @@ export const Odontogram: React.FC<OdontogramProps> = ({ patientId, onSuccess }) 
     const [persistedRecords, setPersistedRecords] = useState<DentalRecord[]>([]);
     const [selectedItems, setSelectedItems] = useState<Array<{ tooth: number, plane: ToothPlane, condition: string }>>([]);
     const [activeCondition, setActiveCondition] = useState<string>('caries');
+    const [pendingDeletes, setPendingDeletes] = useState<Array<{ tooth: number, plane: ToothPlane }>>([]);
 
     useEffect(() => {
         if (patientId) {
@@ -39,11 +40,33 @@ export const Odontogram: React.FC<OdontogramProps> = ({ patientId, onSuccess }) 
     };
 
     const handlePlaneClick = (tooth: number, plane: ToothPlane) => {
-        const isSelected = selectedItems.find(item => item.tooth === tooth && item.plane === plane);
-        if (isSelected) {
-            setSelectedItems(prev => prev.filter(item => !(item.tooth === tooth && item.plane === plane)));
+        if (activeCondition === 'eraser') {
+            const isSelected = selectedItems.find(item => item.tooth === tooth && item.plane === plane);
+            if (isSelected) {
+                setSelectedItems(prev => prev.filter(item => !(item.tooth === tooth && item.plane === plane)));
+            } else {
+                const isPersisted = persistedRecords.some(r => r.tooth_number === tooth && r.plane === plane);
+                const isAlreadyPendingDelete = pendingDeletes.some(d => d.tooth === tooth && d.plane === plane);
+                if (isPersisted && !isAlreadyPendingDelete) {
+                    setPendingDeletes(prev => [...prev, { tooth, plane }]);
+                }
+            }
         } else {
-            setSelectedItems(prev => [...prev, { tooth, plane, condition: activeCondition }]);
+            const isSelected = selectedItems.find(item => item.tooth === tooth && item.plane === plane);
+            if (isSelected) {
+                if (isSelected.condition === activeCondition) {
+                    setSelectedItems(prev => prev.filter(item => !(item.tooth === tooth && item.plane === plane)));
+                } else {
+                    setSelectedItems(prev => prev.map(item => 
+                        (item.tooth === tooth && item.plane === plane) 
+                            ? { ...item, condition: activeCondition } 
+                            : item
+                    ));
+                }
+            } else {
+                setSelectedItems(prev => [...prev, { tooth, plane, condition: activeCondition }]);
+                setPendingDeletes(prev => prev.filter(d => !(d.tooth === tooth && d.plane === plane)));
+            }
         }
     };
 
@@ -53,25 +76,37 @@ export const Odontogram: React.FC<OdontogramProps> = ({ patientId, onSuccess }) 
             return;
         }
 
-        if (selectedItems.length === 0) {
+        if (selectedItems.length === 0 && pendingDeletes.length === 0) {
             showToast('info', t('dentalModals.odontogram.toasts.selectAtLeastOne'));
             return;
         }
 
         setLoading(true);
         try {
-            const recordsToSave: DentalRecord[] = selectedItems.map(item => ({
-                patient_id: patientId,
-                tenant_id: tenant.id,
-                tooth_number: item.tooth,
-                plane: item.plane,
-                condition: item.condition
-            }));
+            if (selectedItems.length > 0) {
+                const recordsToSave: DentalRecord[] = selectedItems.map(item => ({
+                    patient_id: patientId,
+                    tenant_id: tenant.id,
+                    tooth_number: item.tooth,
+                    plane: item.plane,
+                    condition: item.condition
+                }));
+                await dentalService.saveRecords(recordsToSave);
+            }
 
-            await dentalService.saveRecords(recordsToSave);
+            if (pendingDeletes.length > 0) {
+                const deletesToExecute = pendingDeletes.map(d => ({
+                    patient_id: patientId,
+                    tooth_number: d.tooth,
+                    plane: d.plane
+                }));
+                await dentalService.deleteRecords(deletesToExecute);
+            }
+
             showToast('success', t('dentalModals.odontogram.toasts.saved'));
-            setSelectedItems([]);
             await fetchRecords();
+            setSelectedItems([]);
+            setPendingDeletes([]);
             if (onSuccess) onSuccess();
         } catch (error: any) {
             console.error('Error saving dental records:', error);
@@ -88,14 +123,17 @@ export const Odontogram: React.FC<OdontogramProps> = ({ patientId, onSuccess }) 
         lowerRight: [31, 32, 33, 34, 35, 36, 37, 38],
     };
 
-    const clearSelection = () => setSelectedItems([]);
+    const clearSelection = () => {
+        setSelectedItems([]);
+        setPendingDeletes([]);
+    };
 
     const getToothConditions = (toothNumber: number) => {
         const conditions: Record<string, string> = {};
         
-        // Load persisted conditions first
+        // Load persisted conditions first, excluding those marked for deletion
         persistedRecords
-            .filter(r => r.tooth_number === toothNumber)
+            .filter(r => r.tooth_number === toothNumber && !pendingDeletes.some(d => d.tooth === toothNumber && d.plane === r.plane))
             .forEach(r => {
                 conditions[r.plane] = r.condition;
             });
@@ -122,7 +160,7 @@ export const Odontogram: React.FC<OdontogramProps> = ({ patientId, onSuccess }) 
                     
                     {/* Condition Selector */}
                     <div className="hidden md:flex items-center gap-2 p-1 bg-white rounded-xl border border-ice-100">
-                        {['caries', 'restored', 'missing'].map((condition) => (
+                        {['caries', 'restored', 'missing', 'eraser'].map((condition) => (
                             <button
                                 key={condition}
                                 onClick={() => setActiveCondition(condition)}
@@ -130,7 +168,13 @@ export const Odontogram: React.FC<OdontogramProps> = ({ patientId, onSuccess }) 
                                     ? 'bg-brand-primary text-white shadow-md' 
                                     : 'text-graphite-400 hover:text-brand-primary'}`}
                             >
-                                {condition === 'caries' ? t('dentalModals.odontogram.conditions.caries') : condition === 'restored' ? t('dentalModals.odontogram.conditions.restored') : t('dentalModals.odontogram.conditions.missing')}
+                                {condition === 'caries' 
+                                    ? t('dentalModals.odontogram.conditions.caries') 
+                                    : condition === 'restored' 
+                                        ? t('dentalModals.odontogram.conditions.restored') 
+                                        : condition === 'missing'
+                                            ? t('dentalModals.odontogram.conditions.missing')
+                                            : t('dentalModals.odontogram.conditions.eraser')}
                             </button>
                         ))}
                     </div>
@@ -139,14 +183,15 @@ export const Odontogram: React.FC<OdontogramProps> = ({ patientId, onSuccess }) 
                 <div className="flex items-center gap-2">
                     <button 
                         onClick={clearSelection}
-                        className="p-2 text-graphite-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all border-none cursor-pointer"
+                        disabled={selectedItems.length === 0 && pendingDeletes.length === 0}
+                        className="p-2 text-graphite-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all border-none cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                         title={t('dentalModals.odontogram.clearTitle')}
                     >
-                        <Eraser size={20} />
+                        <RotateCcw size={20} />
                     </button>
                     <button
                         onClick={handleSave}
-                        disabled={loading || selectedItems.length === 0}
+                        disabled={loading || (selectedItems.length === 0 && pendingDeletes.length === 0)}
                         className="flex items-center gap-2 bg-brand-primary text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-brand-primary/20 hover:scale-105 transition-transform border-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save size={18} />}
@@ -168,6 +213,7 @@ export const Odontogram: React.FC<OdontogramProps> = ({ patientId, onSuccess }) 
                                     selectedPlanes={selectedItems.filter(i => i.tooth === num).map(i => i.plane)}
                                     conditions={getToothConditions(num)}
                                     onPlaneClick={handlePlaneClick}
+                                    isEraserActive={activeCondition === 'eraser'}
                                 />
                             ))}
                             <div className="w-px h-12 bg-ice-200 mx-2" />
@@ -178,6 +224,7 @@ export const Odontogram: React.FC<OdontogramProps> = ({ patientId, onSuccess }) 
                                     selectedPlanes={selectedItems.filter(i => i.tooth === num).map(i => i.plane)}
                                     conditions={getToothConditions(num)}
                                     onPlaneClick={handlePlaneClick}
+                                    isEraserActive={activeCondition === 'eraser'}
                                 />
                             ))}
                         </div>
@@ -195,6 +242,7 @@ export const Odontogram: React.FC<OdontogramProps> = ({ patientId, onSuccess }) 
                                     selectedPlanes={selectedItems.filter(i => i.tooth === num).map(i => i.plane)}
                                     conditions={getToothConditions(num)}
                                     onPlaneClick={handlePlaneClick}
+                                    isEraserActive={activeCondition === 'eraser'}
                                 />
                             ))}
                             <div className="w-px h-12 bg-ice-200 mx-2" />
@@ -205,6 +253,7 @@ export const Odontogram: React.FC<OdontogramProps> = ({ patientId, onSuccess }) 
                                     selectedPlanes={selectedItems.filter(i => i.tooth === num).map(i => i.plane)}
                                     conditions={getToothConditions(num)}
                                     onPlaneClick={handlePlaneClick}
+                                    isEraserActive={activeCondition === 'eraser'}
                                 />
                             ))}
                         </div>
@@ -225,6 +274,12 @@ export const Odontogram: React.FC<OdontogramProps> = ({ patientId, onSuccess }) 
                 <div className="flex items-center gap-2 text-[10px] font-bold text-graphite-400">
                     <div className="w-3 h-3 rounded border border-ice-300" />
                     {t('dentalModals.odontogram.legend.healthyNormal')}
+                </div>
+                <div className="flex items-center gap-2 text-[10px] font-bold text-graphite-400 relative">
+                    <div className="w-3 h-3 rounded bg-graphite-100 border border-graphite-300 flex items-center justify-center overflow-hidden">
+                        <span className="text-[8px] font-black text-graphite-400 leading-none">X</span>
+                    </div>
+                    {t('dentalModals.odontogram.conditions.missing')}
                 </div>
                 <div className="flex items-center gap-2 text-[10px] font-bold text-graphite-400 italic">
                     <Info size={12} className="text-brand-primary" />

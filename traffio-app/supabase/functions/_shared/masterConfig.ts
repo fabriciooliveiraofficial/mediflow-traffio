@@ -89,6 +89,22 @@ export async function getMetaClientSecret(supabase: SupabaseClient): Promise<str
   return getMasterConfig(supabase, "META_CLIENT_SECRET");
 }
 
+// ─── Anthropic Claude (docs/SPEC_AGENTE_IA_CLAUDE.md) ─────────────────────────
+
+export async function getAnthropicApiKey(supabase: SupabaseClient): Promise<string> {
+  return getMasterConfig(supabase, "ANTHROPIC_API_KEY");
+}
+
+/** Modelo do agente conversacional / copiloto (default: Sonnet 5). */
+export async function getAiModelAgent(supabase: SupabaseClient): Promise<string> {
+  return getMasterConfig(supabase, "AI_MODEL_AGENT", "claude-sonnet-5");
+}
+
+/** Modelo de triagem/extração — papéis estruturados (default: Haiku 4.5). */
+export async function getAiModelRouter(supabase: SupabaseClient): Promise<string> {
+  return getMasterConfig(supabase, "AI_MODEL_ROUTER", "claude-haiku-4-5-20251001");
+}
+
 // ─── Cache management ─────────────────────────────────────────────────────────
 
 /** Invalida o cache de uma chave específica (útil após update via UI) */

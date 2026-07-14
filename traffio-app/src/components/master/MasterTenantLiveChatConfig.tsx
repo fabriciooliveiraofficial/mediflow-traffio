@@ -199,7 +199,7 @@ export const MasterTenantLiveChatConfig: React.FC<MasterTenantLiveChatConfigProp
         return (
             <div className="py-8 flex flex-col items-center justify-center gap-3 text-slate-500">
                 <Loader2 className="animate-spin text-emerald-500" size={24} />
-                <p className="text-xs font-semibold">Carregando configurações do Live Chat...</p>
+                <p className="text-xs font-semibold">{t('liveChatConfig.form.loading')}</p>
             </div>
         );
     }
@@ -211,10 +211,10 @@ export const MasterTenantLiveChatConfig: React.FC<MasterTenantLiveChatConfigProp
                 <div className="flex items-center justify-between">
                     <div>
                         <h4 className="font-bold text-sm text-white flex items-center gap-1.5">
-                            <MessageSquare className="text-emerald-500" size={16} /> Live Chat Geral
+                            <MessageSquare className="text-emerald-500" size={16} /> {t('liveChatConfig.form.generalHeading')}
                         </h4>
                         <p className="text-[10px] text-slate-500">
-                            Ative ou desative o widget do chat em tempo real e defina as credenciais básicas.
+                            {t('liveChatConfig.form.generalHint')}
                         </p>
                     </div>
                 </div>
@@ -222,7 +222,7 @@ export const MasterTenantLiveChatConfig: React.FC<MasterTenantLiveChatConfigProp
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
                         <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
-                            Status do Chat
+                            {t('liveChatConfig.form.statusLabel')}
                         </label>
                         <div className="flex items-center gap-3">
                             <button
@@ -239,14 +239,14 @@ export const MasterTenantLiveChatConfig: React.FC<MasterTenantLiveChatConfigProp
                                 />
                             </button>
                             <span className="text-xs font-bold text-slate-300">
-                                {formData.is_active ? 'Ativo (Exibir widget)' : 'Inativo (Widget ocultado)'}
+                                {formData.is_active ? t('liveChatConfig.form.statusActive') : t('liveChatConfig.form.statusInactive')}
                             </span>
                         </div>
                     </div>
 
                     <div className="space-y-1">
                         <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
-                            Cor Primária (Hex)
+                            {t('liveChatConfig.form.primaryColorLabel')}
                         </label>
                         <div className="flex items-center gap-2">
                             <input
@@ -270,14 +270,14 @@ export const MasterTenantLiveChatConfig: React.FC<MasterTenantLiveChatConfigProp
             {/* Custom Welcome Message */}
             <div className="bg-[#10172A] border border-[#1E293B] rounded-2xl p-5 space-y-4">
                 <h4 className="font-bold text-sm text-white flex items-center gap-1.5">
-                    <Sliders className="text-indigo-400" size={16} /> Personalização do Atendimento
+                    <Sliders className="text-indigo-400" size={16} /> {t('liveChatConfig.form.personalizationHeading')}
                 </h4>
 
                 <div className="space-y-3">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div className="space-y-1.5">
                             <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
-                                Título do Cabeçalho do Chat
+                                {t('liveChatConfig.form.headerTitleLabel')}
                             </label>
                             <input
                                 type="text"
@@ -289,7 +289,7 @@ export const MasterTenantLiveChatConfig: React.FC<MasterTenantLiveChatConfigProp
                         </div>
                         <div className="space-y-1.5">
                             <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
-                                Subtítulo do Cabeçalho
+                                {t('liveChatConfig.form.headerSubtitleLabel')}
                             </label>
                             <input
                                 type="text"
@@ -303,7 +303,7 @@ export const MasterTenantLiveChatConfig: React.FC<MasterTenantLiveChatConfigProp
 
                     <div className="space-y-1.5">
                         <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
-                            Encerrar por Inatividade (minutos)
+                            {t('liveChatConfig.form.inactivityTimeoutLabel')}
                         </label>
                         <input
                             type="number"
@@ -314,13 +314,13 @@ export const MasterTenantLiveChatConfig: React.FC<MasterTenantLiveChatConfigProp
                             className="w-full bg-[#1A2035] border border-[#2D3B55] rounded-xl px-3.5 py-2 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500"
                         />
                         <p className="text-[10px] text-slate-500">
-                            Tempo sem mensagens do visitante até o atendimento ser encerrado automaticamente. Use 0 para nunca encerrar.
+                            {t('liveChatConfig.form.inactivityTimeoutHint')}
                         </p>
                     </div>
 
                     <div className="space-y-1.5">
                         <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
-                            Título do Formulário
+                            {t('liveChatConfig.form.formTitleLabel')}
                         </label>
                         <input
                             type="text"
@@ -333,7 +333,7 @@ export const MasterTenantLiveChatConfig: React.FC<MasterTenantLiveChatConfigProp
 
                     <div className="space-y-1.5">
                         <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
-                            Subtítulo do Formulário
+                            {t('liveChatConfig.form.formSubtitleLabel')}
                         </label>
                         <textarea
                             value={formData.welcome_subtitle}
@@ -346,7 +346,7 @@ export const MasterTenantLiveChatConfig: React.FC<MasterTenantLiveChatConfigProp
 
                     <div className="space-y-1.5">
                         <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
-                            Texto do Botão / Balão (Pill)
+                            {t('liveChatConfig.form.pillTextLabel')}
                         </label>
                         <input
                             type="text"
@@ -364,23 +364,23 @@ export const MasterTenantLiveChatConfig: React.FC<MasterTenantLiveChatConfigProp
                 <div className="flex items-center justify-between">
                     <div>
                         <h4 className="font-bold text-sm text-white flex items-center gap-1.5">
-                            <Settings className="text-amber-500" size={16} /> Instalação e Teste
+                            <Settings className="text-amber-500" size={16} /> {t('liveChatConfig.form.installTestHeading')}
                         </h4>
                         <p className="text-[10px] text-slate-500">
-                            Copie o script abaixo e insira no final da tag &lt;body&gt; do seu site ou landing page.
+                            {t('liveChatConfig.form.installTestHint')}
                         </p>
                     </div>
                     <button
                         type="button"
                         onClick={toggleLiveTest}
                         className={`px-3 py-1.5 rounded-lg border-none cursor-pointer transition-all flex items-center gap-1.5 text-xs font-bold ${
-                            widgetInjected 
-                                ? 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-400' 
+                            widgetInjected
+                                ? 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-400'
                                 : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400'
                         }`}
                     >
                         {widgetInjected ? <EyeOff size={14} /> : <Eye size={14} />}
-                        {widgetInjected ? 'Remover Widget de Teste' : 'Testar nesta Página'}
+                        {widgetInjected ? t('liveChatConfig.form.removeTestWidget') : t('liveChatConfig.form.testOnThisPage')}
                     </button>
                 </div>
 
@@ -394,7 +394,7 @@ export const MasterTenantLiveChatConfig: React.FC<MasterTenantLiveChatConfigProp
                             onClick={copySnippet}
                             className="absolute top-3 right-3 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white p-2 rounded-lg border-none cursor-pointer transition-all flex items-center gap-1 text-[11px] font-semibold"
                         >
-                            {copied ? 'Copiado!' : 'Copiar'}
+                            {copied ? t('liveChatConfig.form.copied') : t('liveChatConfig.form.copy')}
                         </button>
                     </div>
                 </div>
@@ -408,7 +408,7 @@ export const MasterTenantLiveChatConfig: React.FC<MasterTenantLiveChatConfigProp
                     className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs px-6 py-2.5 rounded-xl transition-all flex items-center gap-2 cursor-pointer border-none disabled:opacity-50"
                 >
                     {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                    Salvar Configurações do Live Chat
+                    {t('liveChatConfig.form.saveButton')}
                 </button>
             </div>
         </form>

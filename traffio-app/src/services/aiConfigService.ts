@@ -5,7 +5,12 @@ export interface BotConfig {
     personality: 'formal' | 'acolhedor' | 'objetivo';
     global_instructions: string;
     interactive_mode: boolean;
-    active_agent: 'human' | 'ai_assistant' | 'flow_bot';
+    /**
+     * Dial de autonomia da IA (docs/SPEC_AGENTE_IA_CLAUDE.md):
+     * human = IA desligada · copilot = IA sugere, humano envia (Nível 0)
+     * ai_assistant/flow_bot = níveis autônomos (F2/F3 — ainda não reativados)
+     */
+    active_agent: 'human' | 'copilot' | 'ai_assistant' | 'flow_bot';
 }
 
 export const aiConfigService = {

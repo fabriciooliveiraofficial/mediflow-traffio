@@ -7,6 +7,32 @@
       "testWidgetRemoved": "Live Chat test widget removed.",
       "testWidgetInjected": "Live Chat test widget injected! Click the bubble to open it.",
       "snippetCopied": "Live Chat snippet copied!"
+    },
+    "form": {
+      "loading": "Loading Live Chat settings...",
+      "title": "Live Chat",
+      "subtitle": "Customize and enable real-time chat for customer support on your site.",
+      "statusAppearanceHeading": "Status & Appearance",
+      "statusAppearanceHint": "Enable the widget on your page and choose the accent color that matches your brand.",
+      "activateWidget": "Enable Chat Widget",
+      "visibleOnSite": "Visible on site",
+      "hiddenFromSite": "Hidden from site",
+      "primaryColor": "Primary Color",
+      "personalizationHeading": "Support Personalization",
+      "headerTitleLabel": "Chat Header Title",
+      "headerSubtitleLabel": "Header Subtitle",
+      "inactivityTimeoutLabel": "End on Inactivity (min)",
+      "inactivityTimeoutHint": "0 = never end automatically.",
+      "formTitleLabel": "Form Title",
+      "pillTextLabel": "Pill Text",
+      "formSubtitleLabel": "Form Subtitle",
+      "installTestHeading": "Installation & Testing",
+      "installTestHint": "Copy the script below and insert it before the closing </body> tag on your site.",
+      "removeTestWidget": "Remove Test Widget",
+      "testOnThisPage": "Test on This Page",
+      "copied": "Copied!",
+      "copy": "Copy",
+      "saveButton": "Save Live Chat Settings"
     }
   },
   "tabs": {
@@ -119,7 +145,10 @@
     "metaPageActive": "Active",
     "metaPageInactive": "Inactive",
     "metaDisconnectTitle": "Disconnect",
-    "metaReconnectHint": "Click \"Connect Pages\" again to add more pages or renew access."
+    "metaReconnectHint": "Click \"Connect Pages\" again to add more pages or renew access.",
+    "currencyLabel": "Clinic currency",
+    "currencyAuto": "Automatic from country ({{currency}})",
+    "currencyHint": "Currency used for the front desk, proposals and receipts. Existing charges keep their original currency."
   },
   "locations": {
     "title": "Service Locations",
@@ -139,7 +168,15 @@
     "latitudeLabel": "Latitude",
     "longitudeLabel": "Longitude",
     "operatingHoursSectionTitle": "Operating Hours",
-    "weekdaysShort": ["S", "M", "T", "W", "T", "F", "S"],
+    "weekdaysShort": [
+      "S",
+      "M",
+      "T",
+      "W",
+      "T",
+      "F",
+      "S"
+    ],
     "until": "to",
     "open": "Open",
     "closed": "Closed",
@@ -325,6 +362,8 @@
     "toastCreated": "Role created successfully!",
     "toastUpdated": "Role updated successfully!",
     "toastDeleted": "Role deleted successfully!",
-    "toastSaveError": "Error saving role."
+    "toastSaveError": "Error saving role.",
+    "cancel": "Cancel",
+    "save": "Save"
   }
 }

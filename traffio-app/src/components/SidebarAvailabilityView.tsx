@@ -429,15 +429,24 @@ export function SidebarAvailabilityView({ onBack, onBookSlot }: SidebarAvailabil
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               {selectedDoctor && (
-                <button
+                <span
+                  role="button"
+                  tabIndex={0}
                   onClick={(e) => {
                     e.stopPropagation();
                     clearDoctor();
                   }}
-                  className="p-1.5 rounded-lg hover:bg-emerald-100 text-emerald-600 transition-colors"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      clearDoctor();
+                    }
+                  }}
+                  className="p-1.5 rounded-lg hover:bg-emerald-100 text-emerald-600 transition-colors cursor-pointer"
                 >
                   <X className="w-4 h-4" />
-                </button>
+                </span>
               )}
               <ChevronRight className={clsx("w-5 h-5 text-gray-400", selectedDoctor && "text-emerald-500")} />
             </div>
@@ -472,15 +481,24 @@ export function SidebarAvailabilityView({ onBack, onBookSlot }: SidebarAvailabil
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               {selectedProcedure && (
-                <button
+                <span
+                  role="button"
+                  tabIndex={0}
                   onClick={(e) => {
                     e.stopPropagation();
                     clearProcedure();
                   }}
-                  className="p-1.5 rounded-lg hover:bg-emerald-100 text-emerald-600 transition-colors"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      clearProcedure();
+                    }
+                  }}
+                  className="p-1.5 rounded-lg hover:bg-emerald-100 text-emerald-600 transition-colors cursor-pointer"
                 >
                   <X className="w-4 h-4" />
-                </button>
+                </span>
               )}
               <ChevronRight className={clsx("w-5 h-5 text-gray-400", selectedProcedure && "text-emerald-500")} />
             </div>
@@ -512,15 +530,24 @@ export function SidebarAvailabilityView({ onBack, onBookSlot }: SidebarAvailabil
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               {selectedLocation && (
-                <button
+                <span
+                  role="button"
+                  tabIndex={0}
                   onClick={(e) => {
                     e.stopPropagation();
                     clearLocation();
                   }}
-                  className="p-1.5 rounded-lg hover:bg-emerald-100 text-emerald-600 transition-colors"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      clearLocation();
+                    }
+                  }}
+                  className="p-1.5 rounded-lg hover:bg-emerald-100 text-emerald-600 transition-colors cursor-pointer"
                 >
                   <X className="w-4 h-4" />
-                </button>
+                </span>
               )}
               <ChevronRight className={clsx("w-5 h-5 text-gray-400", selectedLocation && "text-emerald-500")} />
             </div>
@@ -543,7 +570,7 @@ export function SidebarAvailabilityView({ onBack, onBookSlot }: SidebarAvailabil
             )}
           >
             <Calendar className="w-4 h-4" />
-            Continuar para Calendário
+            {t('sidebarAvailability.continueToCalendar')}
           </button>
         </div>
       </div>

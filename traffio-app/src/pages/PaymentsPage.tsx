@@ -1,106 +1,159 @@
-import { useState, useEffect } from 'react';
-import { CreditCard, Building2, Shield, Key, Check, ExternalLink, Info } from 'lucide-react';
+/**
+ * PaymentsPage — conexão de pagamentos online do tenant (Stripe-only).
+ *
+ * Decisão de produto: a plataforma integra um único gateway online (Stripe,
+ * via Stripe Connect Standard) porque opera globalmente. Todos os demais
+ * meios (maquininha, dinheiro, transferência, financiamento local) são
+ * registrados manualmente no Financeiro — aqui o tenant apenas configura
+ * quais aceita. Links de pagamento só existem com charges_enabled.
+ */
+import { useEffect, useMemo, useState } from 'react';
+import {
+    CreditCard,
+    Shield,
+    Check,
+    ExternalLink,
+    Banknote,
+    Landmark,
+    HandCoins,
+    FileText,
+    Wallet,
+    CircleDollarSign,
+    RefreshCw,
+    Unlink,
+    ArrowRight,
+    AlertTriangle,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
-import { useLocaleFormat } from '../hooks/useLocaleFormat';
+import { useTenant } from '../contexts/TenantContext';
+import { useStripeConnection } from '../hooks/useStripeConnection';
+import { useTenantMoney } from '../hooks/useTenantMoney';
+
+// Métodos manuais padrão do caixa. `label` custom por tenant cobre variações
+// locais ("Yape", "Maquininha Stone", "Transferencia Bancolombia"...).
+const MANUAL_METHODS = [
+    { id: 'cash', icon: Banknote },
+    { id: 'card_machine', icon: CreditCard },
+    { id: 'bank_transfer', icon: Landmark },
+    { id: 'insurance', icon: Shield },
+    { id: 'financing', icon: HandCoins },
+    { id: 'check', icon: FileText },
+    { id: 'other', icon: Wallet },
+] as const;
+
+type ManualMethodId = typeof MANUAL_METHODS[number]['id'];
+
+interface AcceptedMethod {
+    id: ManualMethodId;
+    enabled: boolean;
+    label: string | null;
+}
+
+const DEFAULT_ENABLED: ManualMethodId[] = ['cash', 'card_machine', 'bank_transfer'];
 
 export const PaymentsPage = () => {
     const { t } = useTranslation('billing');
     const { showToast } = useToast();
-    const { formatDate } = useLocaleFormat();
-    const [tenants, setTenants] = useState<any[]>([]);
-    const [paymentConfig, setPaymentConfig] = useState({
-        asaas_api_key: '',
-        drcash_api_key: '',
-        enable_cc: false,
-        enable_financing: false,
-    });
-    const [proposals, setProposals] = useState<any[]>([]);
-    const [savingAsaas, setSavingAsaas] = useState(false);
-    const [savingDrcash, setSavingDrcash] = useState(false);
+    const { tenant, refresh } = useTenant();
+    const stripe = useStripeConnection();
+    const { currency } = useTenantMoney();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const [savingMethods, setSavingMethods] = useState(false);
 
+    const acceptedMethods: AcceptedMethod[] = useMemo(() => {
+        const saved: AcceptedMethod[] = tenant?.payment_config?.accepted_methods ?? [];
+        return MANUAL_METHODS.map(m => {
+            const found = saved.find(s => s.id === m.id);
+            return found ?? { id: m.id, enabled: DEFAULT_ENABLED.includes(m.id), label: null };
+        });
+    }, [tenant?.payment_config]);
+
+    // Retorno do onboarding Stripe (?stripe_connect=return|refresh) → sincronizar
     useEffect(() => {
-        fetchData();
+        const flag = searchParams.get('stripe_connect');
+        if (!flag) return;
+
+        const params = new URLSearchParams(window.location.search);
+        params.delete('stripe_connect');
+        params.delete('screen');
+        setSearchParams(params, { replace: true });
+
+        stripe.sync()
+            .then((res) => {
+                if (res?.charges_enabled) {
+                    showToast('success', t('paymentsPage.stripe.toasts.connected'));
+                } else {
+                    showToast('info', t('paymentsPage.stripe.toasts.onboardingIncomplete'));
+                }
+            })
+            .catch(() => showToast('error', t('paymentsPage.stripe.toasts.syncError')));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const fetchData = async () => {
-        const { data: tenantsData } = await supabase.from('tenants').select('*');
-        if (!tenantsData) return;
-        setTenants(tenantsData);
-
-        if (tenantsData.length > 0) {
-            const tenant0 = tenantsData[0];
-            setPaymentConfig({
-                asaas_api_key: tenant0.asaas_api_key || '',
-                drcash_api_key: tenant0.drcash_api_key || '',
-                enable_cc: tenant0.payment_config?.enable_cc || false,
-                enable_financing: tenant0.payment_config?.enable_financing || false,
-            });
-
-            const { data: propData } = await supabase
-                .from('financing_proposals')
-                .select('*, patients(full_name)')
-                .eq('tenant_id', tenant0.id)
-                .order('created_at', { ascending: false })
-                .limit(5);
-            setProposals(propData || []);
+    const handleConnect = async () => {
+        try {
+            await stripe.startOnboarding();
+        } catch {
+            showToast('error', t('paymentsPage.stripe.toasts.startError'));
         }
     };
 
-    const handleSaveAsaas = async () => {
-        if (!tenants[0]?.id || !paymentConfig.asaas_api_key) return;
-        setSavingAsaas(true);
+    const handleSync = async () => {
+        try {
+            await stripe.sync();
+            showToast('success', t('paymentsPage.stripe.toasts.synced'));
+        } catch {
+            showToast('error', t('paymentsPage.stripe.toasts.syncError'));
+        }
+    };
+
+    const handleDisconnect = async () => {
+        if (!confirm(t('paymentsPage.stripe.confirmDisconnect'))) return;
+        try {
+            await stripe.disconnect();
+            showToast('success', t('paymentsPage.stripe.toasts.disconnected'));
+        } catch {
+            showToast('error', t('paymentsPage.stripe.toasts.disconnectError'));
+        }
+    };
+
+    const saveMethods = async (methods: AcceptedMethod[]) => {
+        if (!tenant) return;
+        setSavingMethods(true);
         try {
             const { error } = await supabase
                 .from('tenants')
-                .update({
-                    asaas_api_key: paymentConfig.asaas_api_key,
-                    payment_config: {
-                        enable_cc: true,
-                        enable_financing: !!paymentConfig.drcash_api_key,
-                    },
-                })
-                .eq('id', tenants[0].id);
+                .update({ payment_config: { ...(tenant.payment_config ?? {}), accepted_methods: methods } })
+                .eq('id', tenant.id);
             if (error) throw error;
-            showToast('success', t('paymentsPage.toasts.asaasSaved'));
-            fetchData();
+            await refresh(undefined, false);
         } catch {
-            showToast('error', t('paymentsPage.toasts.asaasError'));
+            showToast('error', t('paymentsPage.manualMethods.saveError'));
         } finally {
-            setSavingAsaas(false);
+            setSavingMethods(false);
         }
     };
 
-    const handleSaveDrcash = async () => {
-        if (!tenants[0]?.id || !paymentConfig.drcash_api_key) return;
-        setSavingDrcash(true);
-        try {
-            const { error } = await supabase
-                .from('tenants')
-                .update({
-                    drcash_api_key: paymentConfig.drcash_api_key,
-                    payment_config: {
-                        enable_cc: !!paymentConfig.asaas_api_key,
-                        enable_financing: true,
-                    },
-                })
-                .eq('id', tenants[0].id);
-            if (error) throw error;
-            showToast('success', t('paymentsPage.toasts.drcashSaved'));
-            fetchData();
-        } catch {
-            showToast('error', t('paymentsPage.toasts.drcashError'));
-        } finally {
-            setSavingDrcash(false);
-        }
+    const toggleMethod = (id: ManualMethodId) => {
+        saveMethods(acceptedMethods.map(m => m.id === id ? { ...m, enabled: !m.enabled } : m));
     };
 
-    const isAsaasConnected = !!paymentConfig.asaas_api_key;
-    const isDrcashConnected = !!paymentConfig.drcash_api_key;
+    const setMethodLabel = (id: ManualMethodId, label: string) => {
+        saveMethods(acceptedMethods.map(m => m.id === id ? { ...m, label: label.trim() || null } : m));
+    };
+
+    const statusBadge = {
+        not_connected: { cls: 'text-graphite-400 bg-ice-100', dot: 'bg-graphite-300' },
+        onboarding:    { cls: 'text-amber-500 bg-amber-50', dot: 'bg-amber-500 animate-pulse' },
+        active:        { cls: 'text-emerald-600 bg-emerald-50', dot: 'bg-emerald-600' },
+        disabled:      { cls: 'text-rose-500 bg-rose-50', dot: 'bg-rose-500' },
+    }[stripe.status];
 
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto">
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl mx-auto">
 
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -114,233 +167,188 @@ export const PaymentsPage = () => {
                 </div>
             </div>
 
-            {/* Gateway Cards */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Stripe Connect Card */}
+            <div className={`bg-white border-2 rounded-[32px] p-8 space-y-6 relative overflow-hidden transition-all ${stripe.chargesEnabled ? 'border-[#635BFF] shadow-xl shadow-[#635BFF]/10' : 'border-transparent shadow-float'}`}>
+                <div className={`absolute top-0 left-0 w-full h-1.5 ${stripe.chargesEnabled ? 'bg-[#635BFF]' : 'bg-[#635BFF]/10'}`} />
 
-                {/* Asaas Card */}
-                <div className={`group bg-white border-2 rounded-[32px] p-8 space-y-6 transition-all relative overflow-hidden ${isAsaasConnected ? 'border-blue-500 shadow-xl shadow-blue-500/10' : 'border-transparent hover:border-blue-200 shadow-float hover:shadow-lg'}`}>
-                    <div className={`absolute top-0 left-0 w-full h-1.5 transition-colors ${isAsaasConnected ? 'bg-blue-500' : 'bg-blue-500/10'}`} />
-
-                    <div className="flex justify-between items-start">
-                        <div className={`p-4 rounded-2xl ${isAsaasConnected ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'bg-blue-50 text-blue-500'}`}>
-                            <CreditCard size={32} />
-                        </div>
-                        <div className="flex flex-col items-end gap-1.5">
-                            <span className="bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider">{t('paymentsPage.asaasCard.badge')}</span>
-                            {isAsaasConnected ? (
-                                <span className="flex items-center gap-1.5 text-emerald-600 font-black uppercase text-[10px] bg-emerald-50 px-2 py-1 rounded-md">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                                    {t('paymentsPage.connectionStatus.active')}
-                                </span>
-                            ) : (
-                                <span className="flex items-center gap-1.5 text-amber-500 font-black uppercase text-[10px] bg-amber-50 px-2 py-1 rounded-md">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                                    {t('paymentsPage.connectionStatus.notConnected')}
-                                </span>
-                            )}
-                        </div>
+                <div className="flex justify-between items-start">
+                    <div className={`p-4 rounded-2xl ${stripe.chargesEnabled ? 'bg-[#635BFF] text-white shadow-lg shadow-[#635BFF]/20' : 'bg-[#635BFF]/10 text-[#635BFF]'}`}>
+                        <CircleDollarSign size={32} />
                     </div>
-
-                    <div className="space-y-1">
-                        <h4 className="text-xl font-black text-graphite-900">{t('paymentsPage.asaasCard.title')}</h4>
-                        <p className="text-sm text-graphite-500 leading-relaxed font-medium">
-                            {t('paymentsPage.asaasCard.description.prefix')} <strong>{t('paymentsPage.asaasCard.description.strong')}</strong> {t('paymentsPage.asaasCard.description.suffix')}
-                        </p>
-                    </div>
-
-                    {/* Feature pills */}
-                    <div className="flex flex-wrap gap-2">
-                        {(t('paymentsPage.asaasCard.features', { returnObjects: true }) as string[]).map((f) => (
-                            <span key={f} className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full">{f}</span>
-                        ))}
-                    </div>
-
-                    <div className="space-y-3 pt-4 border-t border-ice-50">
-                        <label className="text-[10px] font-black text-graphite-400 uppercase tracking-tighter block">
-                            {t('paymentsPage.asaasCard.apiKeyLabel')}
-                        </label>
-                        <div className="relative">
-                            <Key size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-graphite-300 pointer-events-none" />
-                            <input
-                                type="password"
-                                value={paymentConfig.asaas_api_key}
-                                onChange={(e) => setPaymentConfig({ ...paymentConfig, asaas_api_key: e.target.value })}
-                                placeholder="$aact_prod_..."
-                                className="w-full bg-ice-50 border border-transparent focus:border-blue-500 shadow-float rounded-xl pl-9 pr-4 py-3 text-sm font-mono focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all"
-                            />
-                        </div>
-                        <button
-                            onClick={handleSaveAsaas}
-                            disabled={!paymentConfig.asaas_api_key || savingAsaas}
-                            className={`w-full py-3.5 rounded-2xl font-black transition-all flex items-center justify-center gap-2 border-none ${
-                                paymentConfig.asaas_api_key
-                                    ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20 hover:scale-[1.02] active:scale-[0.98] cursor-pointer'
-                                    : 'bg-ice-100 text-graphite-400 cursor-not-allowed'
-                            }`}
-                        >
-                            {isAsaasConnected ? <Check size={18} /> : <Key size={18} />}
-                            <span>{savingAsaas ? t('paymentsPage.asaasCard.saving') : isAsaasConnected ? t('paymentsPage.asaasCard.updateKey') : t('paymentsPage.asaasCard.activate')}</span>
-                        </button>
-                        <a
-                            href="https://www.asaas.com/cadastrarConta"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center justify-center gap-1.5 text-[10px] text-blue-500 font-bold hover:underline"
-                        >
-                            <ExternalLink size={11} />
-                            {t('paymentsPage.asaasCard.createFreeAccount')}
-                        </a>
-                    </div>
+                    <span className={`flex items-center gap-1.5 font-black uppercase text-[10px] px-2.5 py-1 rounded-md ${statusBadge.cls}`}>
+                        <div className={`w-1.5 h-1.5 rounded-full ${statusBadge.dot}`} />
+                        {t(`paymentsPage.stripe.status.${stripe.status}`)}
+                    </span>
                 </div>
 
-                {/* Dr. Cash Card */}
-                <div className={`group bg-white border-2 rounded-[32px] p-8 space-y-6 transition-all relative overflow-hidden ${isDrcashConnected ? 'border-emerald-500 shadow-xl shadow-emerald-500/10' : 'border-transparent hover:border-emerald-200 shadow-float hover:shadow-lg'}`}>
-                    <div className={`absolute top-0 left-0 w-full h-1.5 transition-colors ${isDrcashConnected ? 'bg-emerald-500' : 'bg-emerald-500/10'}`} />
+                <div className="space-y-1">
+                    <h4 className="text-xl font-black text-graphite-900">{t('paymentsPage.stripe.title')}</h4>
+                    <p className="text-sm text-graphite-500 leading-relaxed font-medium">
+                        {t('paymentsPage.stripe.description', { currency })}
+                    </p>
+                </div>
 
-                    <div className="flex justify-between items-start">
-                        <div className={`p-4 rounded-2xl ${isDrcashConnected ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-emerald-50 text-emerald-600'}`}>
-                            <Building2 size={32} />
-                        </div>
-                        <div className="flex flex-col items-end gap-1.5">
-                            <span className="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider">{t('paymentsPage.drcashCard.badge')}</span>
-                            {isDrcashConnected ? (
-                                <span className="flex items-center gap-1.5 text-emerald-600 font-black uppercase text-[10px] bg-emerald-50 px-2 py-1 rounded-md">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                                    {t('paymentsPage.connectionStatus.active')}
-                                </span>
-                            ) : (
-                                <span className="flex items-center gap-1.5 text-amber-500 font-black uppercase text-[10px] bg-amber-50 px-2 py-1 rounded-md">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                                    {t('paymentsPage.connectionStatus.notConnected')}
-                                </span>
-                            )}
-                        </div>
-                    </div>
+                <div className="flex flex-wrap gap-2">
+                    {(t('paymentsPage.stripe.features', { returnObjects: true }) as string[]).map((f) => (
+                        <span key={f} className="text-[10px] font-bold text-[#635BFF] bg-[#635BFF]/10 px-2.5 py-1 rounded-full">{f}</span>
+                    ))}
+                </div>
 
-                    <div className="space-y-1">
-                        <h4 className="text-xl font-black text-graphite-900">{t('paymentsPage.drcashCard.title')}</h4>
-                        <p className="text-sm text-graphite-500 leading-relaxed font-medium">
-                            {t('paymentsPage.drcashCard.description.prefix')} <strong>{t('paymentsPage.drcashCard.description.strong')}</strong> {t('paymentsPage.drcashCard.description.suffix')}
-                        </p>
-                    </div>
-
-                    {/* Feature pills */}
-                    <div className="flex flex-wrap gap-2">
-                        {(t('paymentsPage.drcashCard.features', { returnObjects: true }) as string[]).map((f) => (
-                            <span key={f} className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">{f}</span>
-                        ))}
-                    </div>
-
-                    <div className="space-y-3 pt-4 border-t border-ice-50">
-                        <label className="text-[10px] font-black text-graphite-400 uppercase tracking-tighter block">
-                            {t('paymentsPage.drcashCard.apiKeyLabel')}
-                        </label>
-                        <div className="relative">
-                            <Key size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-graphite-300 pointer-events-none" />
-                            <input
-                                type="password"
-                                value={paymentConfig.drcash_api_key}
-                                onChange={(e) => setPaymentConfig({ ...paymentConfig, drcash_api_key: e.target.value })}
-                                placeholder={t('paymentsPage.drcashCard.apiKeyPlaceholder')}
-                                className="w-full bg-ice-50 border border-transparent focus:border-emerald-500 shadow-float rounded-xl pl-9 pr-4 py-3 text-sm font-mono focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
-                            />
-                        </div>
+                {/* Ações conforme estado */}
+                <div className="pt-4 border-t border-ice-50 space-y-3">
+                    {stripe.status === 'not_connected' && (
                         <button
-                            onClick={handleSaveDrcash}
-                            disabled={!paymentConfig.drcash_api_key || savingDrcash}
-                            className={`w-full py-3.5 rounded-2xl font-black transition-all flex items-center justify-center gap-2 border-none ${
-                                paymentConfig.drcash_api_key
-                                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98] cursor-pointer'
-                                    : 'bg-ice-100 text-graphite-400 cursor-not-allowed'
-                            }`}
+                            onClick={handleConnect}
+                            disabled={stripe.busy}
+                            className="w-full py-3.5 rounded-2xl font-black bg-[#635BFF] text-white shadow-lg shadow-[#635BFF]/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 border-none cursor-pointer disabled:opacity-60"
                         >
-                            {isDrcashConnected ? <Check size={18} /> : <Shield size={18} />}
-                            <span>{savingDrcash ? t('paymentsPage.drcashCard.saving') : isDrcashConnected ? t('paymentsPage.drcashCard.updateKey') : t('paymentsPage.drcashCard.activate')}</span>
+                            <ArrowRight size={18} />
+                            {stripe.busy ? t('paymentsPage.stripe.redirecting') : t('paymentsPage.stripe.connectButton')}
                         </button>
-                        <p className="text-[10px] text-center text-graphite-400 font-bold">
-                            {t('paymentsPage.drcashCard.approvalNote')}
-                        </p>
-                    </div>
+                    )}
+
+                    {stripe.status === 'onboarding' && (
+                        <>
+                            <div className="flex items-start gap-3 p-4 bg-amber-50/70 rounded-2xl">
+                                <AlertTriangle size={16} className="text-amber-500 shrink-0 mt-0.5" />
+                                <p className="text-xs text-graphite-600 font-medium leading-relaxed">{t('paymentsPage.stripe.onboardingNote')}</p>
+                            </div>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={handleConnect}
+                                    disabled={stripe.busy}
+                                    className="flex-[2] py-3.5 rounded-2xl font-black bg-[#635BFF] text-white shadow-lg shadow-[#635BFF]/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 border-none cursor-pointer disabled:opacity-60"
+                                >
+                                    <ArrowRight size={18} />
+                                    {t('paymentsPage.stripe.resumeButton')}
+                                </button>
+                                <button
+                                    onClick={handleSync}
+                                    disabled={stripe.busy}
+                                    className="flex-1 py-3.5 rounded-2xl font-bold text-graphite-600 bg-ice-50 hover:bg-ice-100 transition-colors flex items-center justify-center gap-2 border-none cursor-pointer disabled:opacity-60"
+                                >
+                                    <RefreshCw size={16} className={stripe.busy ? 'animate-spin' : ''} />
+                                    {t('paymentsPage.stripe.checkStatusButton')}
+                                </button>
+                            </div>
+                        </>
+                    )}
+
+                    {stripe.status === 'active' && (
+                        <div className="flex flex-col sm:flex-row gap-3">
+                            <a
+                                href="https://dashboard.stripe.com"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-[2] py-3.5 rounded-2xl font-black bg-[#635BFF] text-white shadow-lg shadow-[#635BFF]/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 no-underline"
+                            >
+                                <ExternalLink size={16} />
+                                {t('paymentsPage.stripe.dashboardButton')}
+                            </a>
+                            <button
+                                onClick={handleSync}
+                                disabled={stripe.busy}
+                                className="flex-1 py-3.5 rounded-2xl font-bold text-graphite-600 bg-ice-50 hover:bg-ice-100 transition-colors flex items-center justify-center gap-2 border-none cursor-pointer disabled:opacity-60"
+                            >
+                                <RefreshCw size={16} className={stripe.busy ? 'animate-spin' : ''} />
+                                {t('paymentsPage.stripe.checkStatusButton')}
+                            </button>
+                            <button
+                                onClick={handleDisconnect}
+                                disabled={stripe.busy}
+                                className="py-3.5 px-4 rounded-2xl font-bold text-rose-400 bg-rose-50 hover:bg-rose-100 transition-colors flex items-center justify-center gap-2 border-none cursor-pointer disabled:opacity-60"
+                                title={t('paymentsPage.stripe.disconnectButton')}
+                            >
+                                <Unlink size={16} />
+                            </button>
+                        </div>
+                    )}
+
+                    {stripe.status === 'disabled' && (
+                        <>
+                            <div className="flex items-start gap-3 p-4 bg-rose-50/70 rounded-2xl">
+                                <AlertTriangle size={16} className="text-rose-500 shrink-0 mt-0.5" />
+                                <p className="text-xs text-graphite-600 font-medium leading-relaxed">{t('paymentsPage.stripe.disabledNote')}</p>
+                            </div>
+                            <div className="flex gap-3">
+                                <a
+                                    href="https://dashboard.stripe.com"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex-[2] py-3.5 rounded-2xl font-black bg-[#635BFF] text-white shadow-lg shadow-[#635BFF]/20 transition-all flex items-center justify-center gap-2 no-underline"
+                                >
+                                    <ExternalLink size={16} />
+                                    {t('paymentsPage.stripe.dashboardButton')}
+                                </a>
+                                <button
+                                    onClick={handleSync}
+                                    disabled={stripe.busy}
+                                    className="flex-1 py-3.5 rounded-2xl font-bold text-graphite-600 bg-ice-50 hover:bg-ice-100 transition-colors flex items-center justify-center gap-2 border-none cursor-pointer disabled:opacity-60"
+                                >
+                                    <RefreshCw size={16} className={stripe.busy ? 'animate-spin' : ''} />
+                                    {t('paymentsPage.stripe.checkStatusButton')}
+                                </button>
+                            </div>
+                        </>
+                    )}
+
+                    <p className="text-[10px] text-center text-graphite-400 font-bold">
+                        {stripe.chargesEnabled
+                            ? t('paymentsPage.stripe.activeFootnote')
+                            : t('paymentsPage.stripe.inactiveFootnote')}
+                    </p>
                 </div>
             </div>
 
-            {/* Asaas info note */}
-            <div className="flex items-start gap-3 p-5 bg-blue-50/60 rounded-2xl shadow-float">
-                <Info size={18} className="text-blue-500 shrink-0 mt-0.5" />
-                <p className="text-sm text-graphite-600 font-medium leading-relaxed">
-                    <strong className="text-blue-600">{t('paymentsPage.asaasInfoNote.strong')}</strong> {t('paymentsPage.asaasInfoNote.prefix')} <strong>{t('paymentsPage.asaasInfoNote.subaccount')}</strong> {t('paymentsPage.asaasInfoNote.middle')} <strong>{t('paymentsPage.asaasInfoNote.menuPath')}</strong> {t('paymentsPage.asaasInfoNote.suffix')}
+            {/* Métodos manuais do caixa */}
+            <div className="bg-white rounded-[32px] shadow-float p-8 space-y-6">
+                <div>
+                    <h4 className="text-xl font-black text-graphite-900">{t('paymentsPage.manualMethods.title')}</h4>
+                    <p className="text-sm text-graphite-500 font-medium leading-relaxed">
+                        {t('paymentsPage.manualMethods.subtitle')}
+                    </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {MANUAL_METHODS.map(({ id, icon: Icon }) => {
+                        const method = acceptedMethods.find(m => m.id === id)!;
+                        return (
+                            <div
+                                key={id}
+                                className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all ${method.enabled ? 'border-brand-primary/30 bg-brand-primary/[0.03]' : 'border-ice-100 bg-ice-50/40'}`}
+                            >
+                                <button
+                                    onClick={() => toggleMethod(id)}
+                                    disabled={savingMethods}
+                                    className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border-none cursor-pointer transition-colors ${method.enabled ? 'bg-brand-primary text-white' : 'bg-ice-100 text-graphite-300'}`}
+                                    title={t(`paymentsPage.manualMethods.methods.${id}`)}
+                                >
+                                    {method.enabled ? <Check size={18} /> : <Icon size={18} />}
+                                </button>
+                                <div className="min-w-0 flex-1">
+                                    <p className={`text-sm font-bold ${method.enabled ? 'text-graphite-900' : 'text-graphite-400'}`}>
+                                        {t(`paymentsPage.manualMethods.methods.${id}`)}
+                                    </p>
+                                    {method.enabled && (
+                                        <input
+                                            type="text"
+                                            defaultValue={method.label ?? ''}
+                                            placeholder={t('paymentsPage.manualMethods.labelPlaceholder')}
+                                            onBlur={(e) => {
+                                                if ((e.target.value.trim() || null) !== method.label) setMethodLabel(id, e.target.value);
+                                            }}
+                                            className="w-full mt-1 bg-transparent border-none text-xs text-graphite-500 font-medium focus:outline-none placeholder:text-graphite-300 p-0"
+                                        />
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                <p className="text-[10px] text-graphite-400 font-bold">
+                    {t('paymentsPage.manualMethods.footnote')}
                 </p>
-            </div>
-
-            {/* Proposals History */}
-            {proposals.length > 0 && (
-                <div className="bg-white rounded-[32px] shadow-float p-8 space-y-6">
-                    <div className="flex justify-between items-center">
-                        <div>
-                            <h4 className="text-xl font-black text-graphite-900">{t('paymentsPage.proposalsHistory.title')}</h4>
-                            <p className="text-sm text-graphite-400 font-medium tracking-tight">{t('paymentsPage.proposalsHistory.subtitle')}</p>
-                        </div>
-                        <button className="text-xs font-black text-brand-primary uppercase tracking-widest hover:underline px-4 py-2 bg-ice-50 rounded-full">{t('paymentsPage.proposalsHistory.viewAll')}</button>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left">
-                            <thead>
-                                <tr className="border-b border-ice-50">
-                                    <th className="pb-4 text-[10px] font-black text-graphite-400 uppercase tracking-tighter">{t('paymentsPage.proposalsHistory.table.patient')}</th>
-                                    <th className="pb-4 text-[10px] font-black text-graphite-400 uppercase tracking-tighter">{t('paymentsPage.proposalsHistory.table.amount')}</th>
-                                    <th className="pb-4 text-[10px] font-black text-graphite-400 uppercase tracking-tighter">{t('paymentsPage.proposalsHistory.table.installments')}</th>
-                                    <th className="pb-4 text-[10px] font-black text-graphite-400 uppercase tracking-tighter">{t('paymentsPage.proposalsHistory.table.status')}</th>
-                                    <th className="pb-4 text-[10px] font-black text-graphite-400 uppercase tracking-tighter">{t('paymentsPage.proposalsHistory.table.date')}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {proposals.map((prop) => (
-                                    <tr key={prop.id} className="border-b border-ice-100 last:border-0">
-                                        <td className="py-4">
-                                            <div className="font-bold text-graphite-700 text-sm">{prop.patients?.full_name || t('paymentsPage.proposalsHistory.externalPatient')}</div>
-                                            <div className="text-[10px] text-graphite-400 font-mono">#{prop.id.slice(0, 8)}</div>
-                                        </td>
-                                        <td className="py-4 font-black text-graphite-900 text-sm">
-                                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(prop.amount)}
-                                        </td>
-                                        <td className="py-4">
-                                            <span className="bg-ice-50 text-graphite-500 px-2.5 py-1 rounded-lg text-[10px] font-black">{prop.installments}x</span>
-                                        </td>
-                                        <td className="py-4">
-                                            <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${
-                                                prop.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-600' :
-                                                prop.status === 'PENDING'  ? 'bg-amber-50 text-amber-600' :
-                                                prop.status === 'REJECTED' ? 'bg-rose-50 text-rose-600' :
-                                                'bg-ice-100 text-graphite-400'
-                                            }`}>
-                                                {prop.status}
-                                            </span>
-                                        </td>
-                                        <td className="py-4 text-xs font-bold text-graphite-400 whitespace-nowrap">
-                                            {formatDate(prop.created_at)}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            )}
-
-            {/* Info Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-ice-50 p-6 rounded-2xl shadow-float">
-                    <h5 className="text-sm font-bold text-graphite-900 mb-2">{t('paymentsPage.infoCards.autoSubaccounts.title')}</h5>
-                    <p className="text-xs text-graphite-500 leading-relaxed font-medium">{t('paymentsPage.infoCards.autoSubaccounts.description')}</p>
-                </div>
-                <div className="bg-ice-50 p-6 rounded-2xl shadow-float">
-                    <h5 className="text-sm font-bold text-graphite-900 mb-2">{t('paymentsPage.infoCards.installments21x.title')}</h5>
-                    <p className="text-xs text-graphite-500 leading-relaxed font-medium">{t('paymentsPage.infoCards.installments21x.description')}</p>
-                </div>
-                <div className="bg-ice-50 p-6 rounded-2xl shadow-float">
-                    <h5 className="text-sm font-bold text-graphite-900 mb-2">{t('paymentsPage.infoCards.whiteLabel.title')}</h5>
-                    <p className="text-xs text-graphite-500 leading-relaxed font-medium">{t('paymentsPage.infoCards.whiteLabel.description')}</p>
-                </div>
             </div>
         </div>
     );

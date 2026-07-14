@@ -132,6 +132,8 @@ export function useAppUpdate() {
     }, []);
 
     const checkPublishedVersion = useCallback(async () => {
+        if (import.meta.env.DEV) return;
+
         try {
             const response = await fetch(`/app-version.json?t=${Date.now()}`, {
                 cache: 'no-store',
@@ -144,6 +146,12 @@ export function useAppUpdate() {
 
             if (!response.ok) {
                 console.warn('[AppUpdate] Version check response not ok:', response.status);
+                return;
+            }
+
+            const contentType = response.headers.get('content-type') ?? '';
+            if (!contentType.includes('application/json')) {
+                console.warn('[AppUpdate] Version check response is not JSON:', contentType);
                 return;
             }
 

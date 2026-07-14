@@ -29,7 +29,14 @@
       "notesLabel": "Notes",
       "notesPlaceholder": "Optional notes...",
       "cancel": "Cancel",
-      "confirm": "Confirm"
+      "confirm": "Confirm",
+      "newPatient": {
+        "heading": "New Patient Registration",
+        "fullNameLabel": "Full Name",
+        "phoneLabel": "Phone",
+        "emailLabel": "Email",
+        "saveAndSelect": "Save and Select"
+      }
     },
     "editModal": {
       "statusLabel": "Status",
@@ -139,6 +146,7 @@
     "slotsAvailableCount": "Available Times ({{count}})",
     "selectDateHint": "Select a date on the calendar",
     "legendExclusive": "Exclusive",
+    "continueToCalendar": "Continue to Calendar",
     "dateLabel": "Date",
     "slotsLabel": "Time Slots",
     "noSlotsAvailable": "No time slots available on this date",
@@ -304,5 +312,35 @@
     "errors": {
       "paymentFailed": "Error processing payment."
     }
+  },
+  "waitlistDrawer": {
+    "buttonLabel": "Waitlist",
+    "title": "Waitlist",
+    "subtitle_one": "{{count}} patient waiting for a slot",
+    "subtitle_other": "{{count}} patients waiting for a slot",
+    "filterAll": "All",
+    "empty": "No one on the waitlist",
+    "emptyHint": "Add patients from a conversation in the Human Inbox (\"Waitlist\" action on the patient panel).",
+    "anyDoctor": "Any professional",
+    "anyDay": "Any day",
+    "status": {
+      "notified": "Notified"
+    },
+    "waiting": {
+      "justNow": "just now",
+      "hours_one": "{{count}}h ago",
+      "hours_other": "{{count}}h ago",
+      "days_one": "{{count}} day ago",
+      "days_other": "{{count}} days ago"
+    },
+    "removeConfirm": "Remove {{name}} from the waitlist?",
+    "requeueTitle": "Return to queue",
+    "removeTitle": "Remove from queue",
+    "toasts": {
+      "removed": "Removed from the waitlist.",
+      "requeued": "Patient returned to the waiting queue.",
+      "error": "Error: {{message}}"
+    },
+    "footerHint": "When an appointment is canceled, the next matching patient in the queue is automatically notified via WhatsApp."
   }
 }

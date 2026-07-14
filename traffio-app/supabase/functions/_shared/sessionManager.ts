@@ -165,6 +165,81 @@ export class SessionManager {
     }
 
     /**
+     * F0 (docs/SPEC_AGENTE_IA_CLAUDE.md) — Ficha de estado (slot-filling).
+     * Merge raso em context.intake: mensagens fragmentadas ACUMULAM informação
+     * em vez de substituí-la. A próxima pergunta do agente é sempre o campo
+     * que falta ({ procedure, for_whom, preferred_window, doctor_pref, ... }).
+     */
+    async updateIntake(sessionId: string, patch: Record<string, unknown>): Promise<Record<string, unknown>> {
+        const { data: session } = await this.supabase
+            .from('conversation_sessions')
+            .select('context')
+            .eq('id', sessionId)
+            .single();
+
+        const context = session?.context || {};
+        context.intake = { ...(context.intake || {}), ...patch };
+
+        const { error } = await this.supabase
+            .from('conversation_sessions')
+            .update({ context })
+            .eq('id', sessionId);
+        if (error) console.error('updateIntake failed:', error);
+        return context.intake;
+    }
+
+    /**
+     * F0 — Disjuntor de incompreensão: na N-ésima falha consecutiva (default 2),
+     * transfere para humano com o contexto preservado e zera o contador.
+     * Retorna true se o disjuntor disparou — o chamador NÃO deve responder de novo
+     * (o loop de "desculpe, não entendi" é proibido por construção).
+     */
+    async registerMisunderstanding(sessionId: string, threshold: number = 2): Promise<boolean> {
+        const { data: session } = await this.supabase
+            .from('conversation_sessions')
+            .select('context')
+            .eq('id', sessionId)
+            .single();
+
+        const context = session?.context || {};
+        const count = (context.misunderstand_count || 0) + 1;
+
+        if (count >= threshold) {
+            context.misunderstand_count = 0;
+            await this.triggerHumanHandoff(sessionId, context);
+            console.warn(`[SessionManager] Misunderstanding circuit breaker tripped (${count}/${threshold}) — session ${sessionId} handed to human`);
+            return true;
+        }
+
+        context.misunderstand_count = count;
+        const { error } = await this.supabase
+            .from('conversation_sessions')
+            .update({ context })
+            .eq('id', sessionId);
+        if (error) console.error('registerMisunderstanding failed:', error);
+        return false;
+    }
+
+    /** F0 — Turno compreendido: zera o contador do disjuntor (se necessário). */
+    async resetMisunderstanding(sessionId: string): Promise<void> {
+        const { data: session } = await this.supabase
+            .from('conversation_sessions')
+            .select('context')
+            .eq('id', sessionId)
+            .single();
+
+        const context = session?.context || {};
+        if (!context.misunderstand_count) return; // nada a zerar — evita write inútil
+
+        context.misunderstand_count = 0;
+        const { error } = await this.supabase
+            .from('conversation_sessions')
+            .update({ context })
+            .eq('id', sessionId);
+        if (error) console.error('resetMisunderstanding failed:', error);
+    }
+
+    /**
      * Fetches history context from Rolling Memory (Fast).
      */
     async getHistory(sessionId: string, limit: number = 10): Promise<{ role: string, content: string }[]> {

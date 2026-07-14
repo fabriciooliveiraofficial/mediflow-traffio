@@ -194,7 +194,7 @@ export const TenantLiveChatConfig: React.FC<TenantLiveChatConfigProps> = ({ tena
         return (
             <div className="py-12 flex flex-col items-center justify-center gap-3 text-graphite-400">
                 <Loader2 className="animate-spin text-brand-primary" size={24} />
-                <p className="text-xs font-semibold">Carregando configurações do Live Chat...</p>
+                <p className="text-xs font-semibold">{t('liveChat.form.loading')}</p>
             </div>
         );
     }
@@ -202,9 +202,9 @@ export const TenantLiveChatConfig: React.FC<TenantLiveChatConfigProps> = ({ tena
     return (
         <form onSubmit={handleSave} className="p-8 space-y-8 animate-in fade-in duration-300">
             <div>
-                <h3 className="text-xl font-black text-graphite-900">Live Chat</h3>
+                <h3 className="text-xl font-black text-graphite-900">{t('liveChat.form.title')}</h3>
                 <p className="text-sm text-graphite-400">
-                    Personalize e ative o chat em tempo real para atendimento ao cliente no seu site.
+                    {t('liveChat.form.subtitle')}
                 </p>
             </div>
 
@@ -213,10 +213,10 @@ export const TenantLiveChatConfig: React.FC<TenantLiveChatConfigProps> = ({ tena
                 <div className="flex items-center justify-between">
                     <div>
                         <h4 className="font-bold text-sm text-graphite-700 flex items-center gap-1.5">
-                            <MessageSquare className="text-brand-primary" size={16} /> Status & Aparência
+                            <MessageSquare className="text-brand-primary" size={16} /> {t('liveChat.form.statusAppearanceHeading')}
                         </h4>
                         <p className="text-[10px] text-graphite-400 mt-0.5">
-                            Ative o widget na sua página e escolha a cor de destaque que combina com sua marca.
+                            {t('liveChat.form.statusAppearanceHint')}
                         </p>
                     </div>
                 </div>
@@ -226,10 +226,10 @@ export const TenantLiveChatConfig: React.FC<TenantLiveChatConfigProps> = ({ tena
                     <div className="flex items-center justify-between bg-ice-50/50 p-4 rounded-xl">
                         <div className="space-y-0.5">
                             <label className="text-xs font-black uppercase text-graphite-500 tracking-wider">
-                                Ativar Chat Widget
+                                {t('liveChat.form.activateWidget')}
                             </label>
                             <span className="text-[11px] text-graphite-400 block">
-                                {formData.is_active ? 'Visível no site' : 'Ocultado do site'}
+                                {formData.is_active ? t('liveChat.form.visibleOnSite') : t('liveChat.form.hiddenFromSite')}
                             </span>
                         </div>
                         <button
@@ -247,7 +247,7 @@ export const TenantLiveChatConfig: React.FC<TenantLiveChatConfigProps> = ({ tena
                     <div className="flex items-center justify-between bg-ice-50/50 p-4 rounded-xl">
                         <div className="space-y-1 w-full mr-4">
                             <label className="text-xs font-black uppercase text-graphite-500 tracking-wider">
-                                Cor Primária
+                                {t('liveChat.form.primaryColor')}
                             </label>
                             <input
                                 type="text"
@@ -272,13 +272,13 @@ export const TenantLiveChatConfig: React.FC<TenantLiveChatConfigProps> = ({ tena
             {/* Custom Welcome Message */}
             <div className="bg-white rounded-2xl p-6 border border-ice-100 shadow-float space-y-6">
                 <h4 className="font-bold text-sm text-graphite-700 flex items-center gap-1.5">
-                    <Sliders className="text-brand-primary" size={16} /> Personalização do Atendimento
+                    <Sliders className="text-brand-primary" size={16} /> {t('liveChat.form.personalizationHeading')}
                 </h4>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="space-y-1">
                         <label className="text-xs font-bold text-graphite-500">
-                            Título do Cabeçalho do Chat
+                            {t('liveChat.form.headerTitleLabel')}
                         </label>
                         <input
                             type="text"
@@ -290,7 +290,7 @@ export const TenantLiveChatConfig: React.FC<TenantLiveChatConfigProps> = ({ tena
                     </div>
                     <div className="space-y-1">
                         <label className="text-xs font-bold text-graphite-500">
-                            Subtítulo do Cabeçalho
+                            {t('liveChat.form.headerSubtitleLabel')}
                         </label>
                         <input
                             type="text"
@@ -302,7 +302,7 @@ export const TenantLiveChatConfig: React.FC<TenantLiveChatConfigProps> = ({ tena
                     </div>
                     <div className="space-y-1">
                         <label className="text-xs font-bold text-graphite-500">
-                            Encerrar por Inatividade (min)
+                            {t('liveChat.form.inactivityTimeoutLabel')}
                         </label>
                         <input
                             type="number"
@@ -312,7 +312,7 @@ export const TenantLiveChatConfig: React.FC<TenantLiveChatConfigProps> = ({ tena
                             placeholder="30"
                             className="w-full bg-ice-50 border border-transparent focus:border-brand-primary shadow-float rounded-xl px-3.5 py-2.5 text-sm font-medium text-graphite-700 focus:outline-none transition-colors"
                         />
-                        <p className="text-[10px] text-graphite-400">0 = nunca encerrar automaticamente.</p>
+                        <p className="text-[10px] text-graphite-400">{t('liveChat.form.inactivityTimeoutHint')}</p>
                     </div>
                 </div>
 
@@ -320,7 +320,7 @@ export const TenantLiveChatConfig: React.FC<TenantLiveChatConfigProps> = ({ tena
                     <div className="space-y-4">
                         <div className="space-y-1">
                             <label className="text-xs font-bold text-graphite-500">
-                                Título do Formulário
+                                {t('liveChat.form.formTitleLabel')}
                             </label>
                             <input
                                 type="text"
@@ -333,7 +333,7 @@ export const TenantLiveChatConfig: React.FC<TenantLiveChatConfigProps> = ({ tena
 
                         <div className="space-y-1">
                             <label className="text-xs font-bold text-graphite-500">
-                                Texto do Balão (Pill)
+                                {t('liveChat.form.pillTextLabel')}
                             </label>
                             <input
                                 type="text"
@@ -347,7 +347,7 @@ export const TenantLiveChatConfig: React.FC<TenantLiveChatConfigProps> = ({ tena
 
                     <div className="space-y-1">
                         <label className="text-xs font-bold text-graphite-500">
-                            Subtítulo do Formulário
+                            {t('liveChat.form.formSubtitleLabel')}
                         </label>
                         <textarea
                             value={formData.welcome_subtitle}
@@ -365,23 +365,23 @@ export const TenantLiveChatConfig: React.FC<TenantLiveChatConfigProps> = ({ tena
                 <div className="flex items-center justify-between flex-wrap gap-4">
                     <div>
                         <h4 className="font-bold text-sm text-graphite-700 flex items-center gap-1.5">
-                            <Settings className="text-brand-primary" size={16} /> Instalação e Teste
+                            <Settings className="text-brand-primary" size={16} /> {t('liveChat.form.installTestHeading')}
                         </h4>
                         <p className="text-[10px] text-graphite-400 mt-0.5">
-                            Copie o script abaixo e insira antes do fechamento da tag &lt;/body&gt; do seu site.
+                            {t('liveChat.form.installTestHint')}
                         </p>
                     </div>
                     <button
                         type="button"
                         onClick={toggleLiveTest}
                         className={`px-4 py-2 rounded-xl border-none cursor-pointer transition-all flex items-center gap-1.5 text-xs font-black uppercase tracking-wide ${
-                            widgetInjected 
-                                ? 'bg-rose-50 hover:bg-rose-100 text-rose-500 shadow-float' 
+                            widgetInjected
+                                ? 'bg-rose-50 hover:bg-rose-100 text-rose-500 shadow-float'
                                 : 'bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary shadow-float'
                         }`}
                     >
                         {widgetInjected ? <EyeOff size={14} /> : <Eye size={14} />}
-                        {widgetInjected ? 'Remover Widget de Teste' : 'Testar nesta Página'}
+                        {widgetInjected ? t('liveChat.form.removeTestWidget') : t('liveChat.form.testOnThisPage')}
                     </button>
                 </div>
 
@@ -394,7 +394,7 @@ export const TenantLiveChatConfig: React.FC<TenantLiveChatConfigProps> = ({ tena
                         onClick={copySnippet}
                         className="absolute top-3 right-3 bg-white hover:bg-ice-100 border border-ice-100 text-graphite-500 p-2 rounded-lg cursor-pointer transition-all flex items-center gap-1 text-[11px] font-bold shadow-float"
                     >
-                        {copied ? 'Copiado!' : 'Copiar'}
+                        {copied ? t('liveChat.form.copied') : t('liveChat.form.copy')}
                     </button>
                 </div>
             </div>
@@ -407,7 +407,7 @@ export const TenantLiveChatConfig: React.FC<TenantLiveChatConfigProps> = ({ tena
                     className="bg-brand-primary hover:bg-brand-primary/95 text-white font-bold text-xs px-6 py-3 rounded-xl transition-all flex items-center gap-2 cursor-pointer border-none disabled:opacity-50 shadow-float"
                 >
                     {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                    Salvar Configurações do Live Chat
+                    {t('liveChat.form.saveButton')}
                 </button>
             </div>
         </form>

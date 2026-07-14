@@ -194,85 +194,61 @@
   },
   "paymentsPage": {
     "header": {
-      "title": "Payments Hub",
-      "subtitle": "Configure how your clinic receives payments and offers financing.",
+      "title": "Online Payments",
+      "subtitle": "Connect your Stripe account to send payment links — and set up the methods your clinic accepts at the front desk.",
       "secureBadge": "PCI-DSS Secure Environment"
     },
-    "toasts": {
-      "asaasSaved": "Asaas key saved successfully!",
-      "asaasError": "Error saving Asaas settings.",
-      "drcashSaved": "Dr. Cash settings saved!",
-      "drcashError": "Error saving financing settings."
-    },
-    "connectionStatus": {
-      "active": "Active",
-      "notConnected": "Not connected"
-    },
-    "asaasCard": {
-      "badge": "Credit Card",
-      "title": "Asaas",
-      "description": {
-        "prefix": "Complete digital account for clinics. Accept cards with installments of",
-        "strong": "up to 21x",
-        "suffix": "(Visa/Mastercard) with independent sub-accounts per clinic via API."
+    "stripe": {
+      "title": "Stripe",
+      "description": "Get paid by patients through payment links in your currency ({{currency}}), with cards and local methods. The account is yours: funds settle directly to it and Stripe charges its own fees.",
+      "features": [
+        "Credit & debit cards",
+        "Local methods (Pix, OXXO, SEPA...)",
+        "Settlement in your currency",
+        "Disputes & receipts in the Stripe dashboard"
+      ],
+      "status": {
+        "not_connected": "Not connected",
+        "onboarding": "Setup incomplete",
+        "active": "Active",
+        "disabled": "Restricted"
       },
-      "features": ["21x Visa/Mastercard", "API Sub-accounts", "White Label", "Native Pix", "Boleto"],
-      "apiKeyLabel": "Asaas API Key",
-      "saving": "Saving...",
-      "updateKey": "Update Key",
-      "activate": "Activate Asaas",
-      "createFreeAccount": "Create a free Asaas account"
-    },
-    "drcashCard": {
-      "badge": "Installment Boleto",
-      "title": "Dr. Cash / Dr. Parcela",
-      "description": {
-        "prefix": "Healthcare specialist. Offer financing in",
-        "strong": "up to 24 boleto installments",
-        "suffix": "without affecting the patient's card limit."
-      },
-      "features": ["24x on boleto", "Healthcare specialist", "Doesn't affect card limit", "Easier approval"],
-      "apiKeyLabel": "API Key / Identifier",
-      "apiKeyPlaceholder": "Enter your Dr. Cash Key",
-      "saving": "Saving...",
-      "updateKey": "Update Key",
-      "activate": "Activate Financing",
-      "approvalNote": "You'll need an approved Dr. Cash account to activate this."
-    },
-    "asaasInfoNote": {
-      "strong": "How the Asaas integration works:",
-      "prefix": "when you save your API key, Traffio automatically creates a",
-      "subaccount": "Asaas sub-account",
-      "middle": "for each registered clinic. Charges are issued under the clinic's name (white label), without exposing the Asaas brand to the patient. Get your key at",
-      "menuPath": "My Account → Settings → API Keys",
-      "suffix": "in the Asaas dashboard."
-    },
-    "proposalsHistory": {
-      "title": "Proposal History",
-      "subtitle": "Latest financing requests via Dr. Cash.",
-      "viewAll": "View All",
-      "table": {
-        "patient": "Patient",
-        "amount": "Amount",
-        "installments": "Installments",
-        "status": "Status",
-        "date": "Date"
-      },
-      "externalPatient": "External Patient"
-    },
-    "infoCards": {
-      "autoSubaccounts": {
-        "title": "Automatic Sub-accounts",
-        "description": "Every clinic registered on Traffio gets its own Asaas sub-account created via API — no manual paperwork."
-      },
-      "installments21x": {
-        "title": "Installments up to 21x",
-        "description": "Visa and Mastercard cards accept up to 21 installments. Combine with Dr. Cash to offer 24 boleto installments without relying on the card limit."
-      },
-      "whiteLabel": {
-        "title": "Native White Label",
-        "description": "Charges are always issued under the clinic's name. The patient sees the clinic's brand — never the Asaas or Traffio brand."
+      "connectButton": "Connect Stripe",
+      "resumeButton": "Resume setup",
+      "checkStatusButton": "Check status",
+      "dashboardButton": "Open Stripe dashboard",
+      "disconnectButton": "Disconnect",
+      "redirecting": "Redirecting...",
+      "onboardingNote": "Your Stripe setup isn't finished yet. Pick up where you left off — it only takes a few minutes.",
+      "disabledNote": "Stripe has restricted payments on this account. Open the Stripe dashboard to resolve the pending requirements.",
+      "activeFootnote": "Payment links are available in Finance for any pending charge.",
+      "inactiveFootnote": "No Stripe? No problem — record card machine, cash and bank transfer payments directly in Finance.",
+      "confirmDisconnect": "Disconnect the Stripe account? Payment links will no longer be offered. The account itself keeps existing on Stripe.",
+      "toasts": {
+        "connected": "Stripe connected! Payment links enabled.",
+        "onboardingIncomplete": "Stripe setup still incomplete. Resume anytime.",
+        "synced": "Connection status updated.",
+        "syncError": "Error checking the connection status.",
+        "startError": "Error starting the Stripe connection.",
+        "disconnected": "Stripe account disconnected.",
+        "disconnectError": "Error disconnecting the Stripe account."
       }
+    },
+    "manualMethods": {
+      "title": "Methods accepted at the front desk",
+      "subtitle": "Your clinic is free to agree on payment with each patient. Enable the methods you accept — they show up when recording payments in Finance.",
+      "methods": {
+        "cash": "Cash",
+        "card_machine": "Card machine",
+        "bank_transfer": "Bank transfer",
+        "insurance": "Insurance",
+        "financing": "Financing",
+        "check": "Check",
+        "other": "Other"
+      },
+      "labelPlaceholder": "Optional nickname (e.g. Square terminal)",
+      "footnote": "These methods are manual records — the payment happens outside the platform and you log it at the front desk.",
+      "saveError": "Error saving payment methods."
     }
   },
   "paymentPolling": {

@@ -6,7 +6,7 @@ export interface BotConfig {
     personality: 'formal' | 'acolhedor' | 'objetivo';
     global_instructions: string;
     interactive_mode: boolean;
-    active_agent: 'human' | 'ai_assistant' | 'flow_bot';
+    active_agent: 'human' | 'copilot' | 'ai_assistant' | 'flow_bot';
 }
 
 export interface TimeSlot {

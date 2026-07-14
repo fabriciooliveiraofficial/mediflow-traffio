@@ -237,7 +237,7 @@ export function RoleManagement({ tenantId }: RoleManagementProps) {
                                     onClick={() => setShowModal(false)}
                                     className="px-5 py-2.5 rounded-xl text-sm font-bold text-graphite-500 hover:bg-ice-50 transition-colors border-none cursor-pointer"
                                 >
-                                    Cancelar
+                                    {t('roles.cancel')}
                                 </button>
                                 <button
                                     type="submit"
@@ -249,7 +249,7 @@ export function RoleManagement({ tenantId }: RoleManagementProps) {
                                     ) : (
                                         <Check size={16} />
                                     )}
-                                    <span>Salvar</span>
+                                    <span>{t('roles.save')}</span>
                                 </button>
                             </div>
                         </form>

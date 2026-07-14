@@ -8,18 +8,29 @@ interface ToothProps {
     selectedPlanes: ToothPlane[];
     onPlaneClick: (toothNumber: number, plane: ToothPlane) => void;
     conditions?: Record<ToothPlane, string>;
+    isEraserActive?: boolean;
 }
 
-export const Tooth: React.FC<ToothProps> = ({ number, selectedPlanes, onPlaneClick, conditions = {} }) => {
+export const Tooth: React.FC<ToothProps> = ({ number, selectedPlanes, onPlaneClick, conditions = {}, isEraserActive = false }) => {
     // Determine if the entire tooth is selected or just specific planes
     const isPlaneSelected = (plane: ToothPlane) => selectedPlanes.includes(plane);
 
+    const isMissing = Object.values(conditions).includes('missing');
+
     const getPlaneColor = (plane: ToothPlane) => {
         const condition = conditions[plane];
-        if (isPlaneSelected(plane)) return 'fill-brand-primary stroke-brand-primary/20';
+        if (isPlaneSelected(plane)) {
+            return isEraserActive 
+                ? 'fill-rose-200 stroke-rose-400' 
+                : 'fill-brand-primary stroke-brand-primary/20';
+        }
         if (condition === 'caries') return 'fill-rose-500 stroke-rose-600/20';
         if (condition === 'restored') return 'fill-emerald-500 stroke-emerald-600/20';
-        return 'fill-transparent stroke-ice-300 hover:fill-ice-50';
+        if (condition === 'missing' || isMissing) return 'fill-graphite-100 stroke-graphite-300';
+        
+        return isEraserActive 
+            ? 'fill-transparent stroke-ice-300 hover:fill-rose-50 hover:stroke-rose-300' 
+            : 'fill-transparent stroke-ice-300 hover:fill-ice-50';
     };
 
     return (
@@ -63,6 +74,13 @@ export const Tooth: React.FC<ToothProps> = ({ number, selectedPlanes, onPlaneCli
                     className={clsx("transition-colors duration-200 cursor-pointer", getPlaneColor('occlusal'))}
                     onClick={() => onPlaneClick(number, 'occlusal')}
                 />
+
+                {isMissing && (
+                    <g className="pointer-events-none">
+                        <line x1="6" y1="6" x2="34" y2="34" stroke="var(--color-graphite-400)" strokeWidth="2" strokeLinecap="round" />
+                        <line x1="34" y1="6" x2="6" y2="34" stroke="var(--color-graphite-400)" strokeWidth="2" strokeLinecap="round" />
+                    </g>
+                )}
 
                 {/* Tooth Frame */}
                 <rect
