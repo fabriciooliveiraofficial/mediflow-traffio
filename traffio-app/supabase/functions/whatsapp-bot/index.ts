@@ -184,6 +184,7 @@ async function handleZapi(supabase: any, body: any): Promise<Response> {
   }
 
   console.log(`[whatsapp-bot] Z-API: [${phone}] Queued: "${content.substring(0, 60)}" (${messageType})`);
+  triggerInboxProcessing();
   return new Response(JSON.stringify({ status: "queued" }), { headers: corsHeaders });
 }
 
@@ -341,7 +342,37 @@ async function handleCloudApi(supabase: any, body: any): Promise<Response> {
     console.log(`[whatsapp-bot] Cloud API: [${phone}] Queued: "${content.substring(0, 60)}" (${messageType})`);
   }
 
+  if (inserted > 0) triggerInboxProcessing();
   return new Response(JSON.stringify({ status: "queued", inserted }), { headers: corsHeaders });
+}
+
+// =============================================================================
+// Latência (F1): aciona o process-inbox por push logo após enfileirar — o cron
+// de ~20s vira apenas vassoura de segurança. O delay de 1,5s deixa a mensagem
+// vencer o debounce curto e absorve rajadas imediatas; o advisory lock e a
+// checagem de pendências no process-inbox garantem que invocações concorrentes
+// são inofensivas.
+// =============================================================================
+function triggerInboxProcessing() {
+  const url = Deno.env.get("SUPABASE_URL");
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !key) return;
+
+  const task = (async () => {
+    await new Promise((r) => setTimeout(r, 1500));
+    await fetch(`${url}/functions/v1/process-inbox`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: "{}",
+    }).catch((e) => console.warn("[whatsapp-bot] push trigger failed (cron cobre):", e?.message));
+  })();
+
+  try {
+    // @ts-ignore — disponível no runtime das Edge Functions da Supabase
+    EdgeRuntime.waitUntil(task);
+  } catch {
+    /* runtime sem waitUntil — a task segue em fire-and-forget */
+  }
 }
 
 // =============================================================================

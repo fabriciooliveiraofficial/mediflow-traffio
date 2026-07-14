@@ -54,57 +54,62 @@ export async function runCopilot(supabase: SupabaseClient, params: CopilotParams
         const context = session.context || {};
         const knownIntake = context.intake || {};
 
-        // ── 1. Triagem + ficha (Haiku — papel estruturado, temperatura 0) ──────
-        const routerModel = await getAiModelRouter(supabase);
-        const triage = await claudeJson<TriageResult>(supabase, {
-            tenantId,
-            purpose: "copilot_triage",
-            model: routerModel,
-            maxTokens: 400,
-            system: [
-                "Você classifica conversas de pacientes de uma clínica e extrai dados objetivos.",
-                "Responda APENAS com JSON válido, sem comentários, neste formato:",
-                '{"temperature":"hot|warm|cold","language":"pt|en|es","intake":{"procedure":string|null,"for_whom":string|null,"preferred_window":string|null,"doctor_pref":string|null}}',
-                "temperature: hot = quer agendar/comprar agora; warm = interessado explorando; cold = sem intenção clara.",
-                "intake: extraia SOMENTE o que o paciente disse explicitamente; use null para o que não foi dito.",
-            ].join("\n"),
-            messages: [{ role: "user", content: `Ficha já conhecida: ${JSON.stringify(knownIntake)}\n\nConversa:\n${transcript}` }],
-        });
-
-        // ── 2. Rascunho de resposta (Sonnet — só texto, sem ferramentas) ───────
-        const agentModel = await getAiModelAgent(supabase);
+        // ── 1+2. Triagem (Haiku) e rascunho (Sonnet) em PARALELO ───────────────
+        // O rascunho não depende da triagem (o Sonnet espelha o idioma do
+        // paciente sozinho) — rodar em série só somava latência.
+        const [routerModel, agentModel] = await Promise.all([
+            getAiModelRouter(supabase),
+            getAiModelAgent(supabase),
+        ]);
         const personality = botConfig?.personality || "acolhedor";
         const instructions = botConfig?.global_instructions || "";
-        const language = triage?.language || "pt";
 
-        let draftText = "";
-        try {
-            const draft = await claudeChat(supabase, {
+        const [triage, draftText] = await Promise.all([
+            claudeJson<TriageResult>(supabase, {
                 tenantId,
-                purpose: "copilot_draft",
-                model: agentModel,
-                maxTokens: 500,
-                temperature: 0.4,
+                purpose: "copilot_triage",
+                model: routerModel,
+                maxTokens: 400,
                 system: [
-                    `Você redige SUGESTÕES de resposta para a equipe da clínica "${clinicName}" — um humano revisa antes de enviar.`,
-                    `Tom: ${personality}. Idioma da resposta: ${language}.`,
-                    instructions ? `Instruções da clínica: ${instructions}` : "",
-                    "REGRAS INEGOCIÁVEIS:",
-                    "- Escreva APENAS o texto da resposta sugerida, nada mais (sem aspas, sem prefixos).",
-                    "- Curto: no máximo 2 parágrafos breves, adequado para WhatsApp.",
-                    "- NUNCA invente preço, horário disponível, endereço ou informação clínica. Se a resposta exige um dado que você não tem, escreva a resposta pedindo um momento para verificar.",
-                    "- Não prometa nada em nome da clínica além do que está nas instruções.",
-                ].filter(Boolean).join("\n"),
-                messages: [{ role: "user", content: `Conversa até agora:\n${transcript}\n\nRedija a sugestão de resposta da clínica para a última mensagem do paciente.` }],
-            });
-            draftText = draft.text.trim();
-        } catch (draftErr: any) {
-            console.warn(`[copilot] draft falhou (non-fatal): ${draftErr?.message}`);
-        }
+                    "Você classifica conversas de pacientes de uma clínica e extrai dados objetivos.",
+                    "Responda APENAS com JSON válido, sem comentários, neste formato:",
+                    '{"temperature":"hot|warm|cold","language":"pt|en|es","intake":{"procedure":string|null,"for_whom":string|null,"preferred_window":string|null,"doctor_pref":string|null}}',
+                    "temperature: hot = quer agendar/comprar agora; warm = interessado explorando; cold = sem intenção clara.",
+                    "intake: extraia SOMENTE o que o paciente disse explicitamente; use null para o que não foi dito.",
+                ].join("\n"),
+                messages: [{ role: "user", content: `Ficha já conhecida: ${JSON.stringify(knownIntake)}\n\nConversa:\n${transcript}` }],
+            }),
+            (async () => {
+                try {
+                    const draft = await claudeChat(supabase, {
+                        tenantId,
+                        purpose: "copilot_draft",
+                        model: agentModel,
+                        maxTokens: 500,
+                        system: [
+                            `Você redige SUGESTÕES de resposta para a equipe da clínica "${clinicName}" — um humano revisa antes de enviar.`,
+                            `Tom: ${personality}. Responda SEMPRE no mesmo idioma da última mensagem do paciente.`,
+                            instructions ? `Instruções da clínica: ${instructions}` : "",
+                            "REGRAS INEGOCIÁVEIS:",
+                            "- Escreva APENAS o texto da resposta sugerida, nada mais (sem aspas, sem prefixos).",
+                            "- Curto: no máximo 2 parágrafos breves, adequado para WhatsApp.",
+                            "- NUNCA invente preço, horário disponível, endereço ou informação clínica. Se a resposta exige um dado que você não tem, escreva a resposta pedindo um momento para verificar.",
+                            "- Não prometa nada em nome da clínica além do que está nas instruções.",
+                        ].filter(Boolean).join("\n"),
+                        messages: [{ role: "user", content: `Conversa até agora:\n${transcript}\n\nRedija a sugestão de resposta da clínica para a última mensagem do paciente.` }],
+                    });
+                    return draft.text.trim();
+                } catch (draftErr: any) {
+                    console.warn(`[copilot] draft falhou (non-fatal): ${draftErr?.message}`);
+                    return "";
+                }
+            })(),
+        ]);
 
         // ── 3. Guard anti-rascunho obsoleto (cancelar-e-regenerar do copiloto) ─
         // Se o paciente mandou mensagem nova enquanto gerávamos, este rascunho já
         // nasceu velho — descarta; o próximo ciclo gera outro com o contexto novo.
+        let finalDraft = draftText;
         const { count: newerPending } = await supabase
             .from("message_inbox")
             .select("id", { count: "exact", head: true })
@@ -113,7 +118,7 @@ export async function runCopilot(supabase: SupabaseClient, params: CopilotParams
             .eq("status", "pending");
         if ((newerPending ?? 0) > 0) {
             console.log(`[copilot] [${phone}] rascunho descartado — ${newerPending} msg(s) nova(s) chegaram durante a geração`);
-            draftText = "";
+            finalDraft = "";
         }
 
         // ── 4. Persistência única do contexto (ficha + temperatura + rascunho) ─
@@ -121,8 +126,8 @@ export async function runCopilot(supabase: SupabaseClient, params: CopilotParams
             ...context,
             intake: { ...knownIntake, ...pruneNulls(triage?.intake) },
             ...(triage?.temperature ? { lead_temperature: triage.temperature } : {}),
-            ...(draftText
-                ? { ai_draft: { text: draftText, created_at: new Date().toISOString() } }
+            ...(finalDraft
+                ? { ai_draft: { text: finalDraft, created_at: new Date().toISOString() } }
                 : {}),
         };
         const { error } = await supabase

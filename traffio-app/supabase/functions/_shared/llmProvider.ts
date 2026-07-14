@@ -163,7 +163,9 @@ export async function claudeChat(supabase: SupabaseClient, req: LlmRequest): Pro
  */
 export async function claudeJson<T>(supabase: SupabaseClient, req: LlmRequest): Promise<T | null> {
     try {
-        const result = await claudeChat(supabase, { ...req, temperature: req.temperature ?? 0 });
+        // Sem `temperature` por padrão — modelos novos rejeitam o parâmetro
+        // (há auto-retry sem ele, mas não vale pagar a viagem extra)
+        const result = await claudeChat(supabase, req);
         // Aceita JSON puro ou cercado de texto/markdown
         const match = result.text.match(/\{[\s\S]*\}/);
         if (!match) return null;
