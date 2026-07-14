@@ -272,7 +272,7 @@ const AUTONOMOUS_ADDENDUM = `
 - Se não entender a mensagem, peça esclarecimento com gentileza UMA única vez; na segunda vez, use transfer_to_human.
 `.trim();
 
-const TRANSFER_TOOL: LlmTool = {
+export const TRANSFER_TOOL: LlmTool = {
     name: "transfer_to_human",
     description: "Transfere a conversa para a equipe humana da clínica. Use quando o paciente pedir uma pessoa, quando a pergunta estiver além do contexto disponível, em caso de insistência em preço, irritação, urgência ou impossibilidade de ajudar.",
     input_schema: {
@@ -300,6 +300,34 @@ interface AutonomousParams extends CopilotParams {
 }
 
 const MAX_TOOL_ROUNDS = 4;
+
+/**
+ * System prompt do agente autônomo — FONTE ÚNICA, usada em produção e na
+ * suíte de evals (_tests/evals). Mudou aqui? Rode os evals antes de subir.
+ */
+export function buildAutonomousSystemPrompt(opts: {
+    clinicName: string;
+    personality: string;
+    instructions: string;
+    knowledgePacket: string;
+    todayStr: string;
+}): string {
+    return [
+        `Você é a assistente da clínica "${opts.clinicName}" e responde os pacientes pelo WhatsApp.`,
+        SALES_PERSONA,
+        AUTONOMOUS_ADDENDUM,
+        `Data de hoje: ${opts.todayStr} (fuso da clínica). Use-a para converter datas relativas ("amanhã", "semana que vem") ao chamar ferramentas.`,
+        `Ajuste de tom desta clínica: ${opts.personality}. Responda SEMPRE no mesmo idioma da última mensagem do paciente.`,
+        opts.instructions ? `### INSTRUÇÕES DA CLÍNICA (prioridade máxima — sobrepõem qualquer regra acima):\n${opts.instructions}` : "",
+        opts.knowledgePacket ? `### CONTEXTO DA CLÍNICA (única fonte de fatos permitida):\n${opts.knowledgePacket}` : "",
+        "### REGRAS INEGOCIÁVEIS:",
+        "- Escreva APENAS o texto da mensagem ao paciente, sem prefixos.",
+        "- Curto: no máximo 2 parágrafos breves, adequado para WhatsApp.",
+        "- RESPONDA A DÚVIDA DIRETAMENTE quando a informação estiver no CONTEXTO DA CLÍNICA.",
+        "- NUNCA invente fato que não esteja no contexto ou em retorno de ferramenta: horário disponível, endereço, informação clínica.",
+        "- PREÇO: nunca informar por mensagem, em nenhuma hipótese — siga a POLÍTICA DE PREÇO.",
+    ].filter(Boolean).join("\n");
+}
 
 export async function runAutonomousAgent(supabase: SupabaseClient, params: AutonomousParams): Promise<AutonomousStatus> {
     const { tenantId, sessionId, phone, clinicName, botConfig, tenant, sessionManager, timezone } = params;
@@ -372,21 +400,13 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
         const personality = botConfig?.personality || "acolhedor";
         const instructions = botConfig?.global_instructions || "";
 
-        const systemPrompt = [
-            `Você é a assistente da clínica "${clinicName}" e responde os pacientes pelo WhatsApp.`,
-            SALES_PERSONA,
-            AUTONOMOUS_ADDENDUM,
-            `Data de hoje: ${todayInTz(timezone || undefined)} (fuso da clínica). Use-a para converter datas relativas ("amanhã", "semana que vem") ao chamar ferramentas.`,
-            `Ajuste de tom desta clínica: ${personality}. Responda SEMPRE no mesmo idioma da última mensagem do paciente.`,
-            instructions ? `### INSTRUÇÕES DA CLÍNICA (prioridade máxima — sobrepõem qualquer regra acima):\n${instructions}` : "",
-            knowledgePacket ? `### CONTEXTO DA CLÍNICA (única fonte de fatos permitida):\n${knowledgePacket}` : "",
-            "### REGRAS INEGOCIÁVEIS:",
-            "- Escreva APENAS o texto da mensagem ao paciente, sem prefixos.",
-            "- Curto: no máximo 2 parágrafos breves, adequado para WhatsApp.",
-            "- RESPONDA A DÚVIDA DIRETAMENTE quando a informação estiver no CONTEXTO DA CLÍNICA.",
-            "- NUNCA invente fato que não esteja no contexto ou em retorno de ferramenta: horário disponível, endereço, informação clínica.",
-            "- PREÇO: nunca informar por mensagem, em nenhuma hipótese — siga a POLÍTICA DE PREÇO.",
-        ].filter(Boolean).join("\n");
+        const systemPrompt = buildAutonomousSystemPrompt({
+            clinicName,
+            personality,
+            instructions,
+            knowledgePacket,
+            todayStr: todayInTz(timezone || undefined),
+        });
 
         // Triagem em paralelo com o loop (não bloqueia a resposta)
         const triagePromise = claudeJson<TriageResult>(supabase, {

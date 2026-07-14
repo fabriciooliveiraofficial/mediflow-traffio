@@ -52,9 +52,24 @@ Alterações no **process-inbox**:
 - **Prompt novo: máx. 1.500 tokens**, regras críticas no início e no fim, RAG resumido (não colar a base inteira). O prompt de 5.000 tokens não volta.
 - Escopo bloqueado: preço, questões clínicas e reclamações → `transfer_to_human` imediato (regra reforçada por verificação pós-geração: resposta que contém padrão de preço sem tool-result correspondente é descartada → handoff).
 
-## Suíte de evals (gate obrigatório entre fases)
+## Suíte de evals (gate obrigatório entre fases) — *implementada*
 
-`supabase/functions/_tests/evals/` — cenários em JSONL + runner (Deno) que simula conversas contra o agente com ferramentas mockadas:
+`supabase/functions/_tests/evals/` — runner (Deno) que roda o MODELO REAL com o
+PROMPT DE PRODUÇÃO (`buildAutonomousSystemPrompt`, fonte única) contra
+ferramentas mockadas. Nada é enviado, nenhum banco é tocado.
+
+**Como rodar** (na pasta `supabase/functions`):
+
+```powershell
+# Integração (modelo real — precisa da chave):
+$env:ANTHROPIC_API_KEY="sk-ant-..."; npx deno run -A _tests/evals/run.ts
+
+# Unitários (puros, sem chave):
+npx deno test -A _tests/evals/unit_test.ts
+```
+
+Saída: ✅/❌ por cenário + veredito final (exit 1 se vermelho — trava CI futuramente).
+Cenários em `scenarios.ts`; mocks em `mockTools.ts`. Cenários atuais:
 
 | Cenário obrigatório | Aprovação |
 |---|---|
