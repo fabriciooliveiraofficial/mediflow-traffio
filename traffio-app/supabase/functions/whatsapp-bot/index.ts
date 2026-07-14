@@ -19,6 +19,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { TenantResolver } from "../_shared/tenantResolver.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { runCopilot } from "../_shared/copilot.ts";
 
 console.log("whatsapp-bot v6 — Inbox Pattern + Dual Provider — Initialized");
 
@@ -155,6 +156,11 @@ async function handleZapi(supabase: any, body: any): Promise<Response> {
     recentMessages.push({ role: "user", content, timestamp: new Date().toISOString() });
     const trimmed = recentMessages.length > 20 ? recentMessages.slice(-20) : recentMessages;
     await supabase.from("conversation_sessions").update({ recent_messages: trimmed }).eq("id", session.id);
+
+    // F1 Copiloto: com humano ativo a mensagem NÃO passa pelo message_inbox,
+    // então o rascunho é gerado daqui, em background — é justamente na conversa
+    // assumida que o atendente mais precisa da sugestão.
+    maybeRunCopilot(supabase, tenant, session.id, phone);
 
     return new Response(JSON.stringify({ status: "human_active_logged" }), { headers: corsHeaders });
   }
@@ -309,6 +315,7 @@ async function handleCloudApi(supabase: any, body: any): Promise<Response> {
       recentMessages.push({ role: "user", content, timestamp: new Date().toISOString() });
       const trimmed = recentMessages.length > 20 ? recentMessages.slice(-20) : recentMessages;
       await supabase.from("conversation_sessions").update({ recent_messages: trimmed }).eq("id", session.id);
+      maybeRunCopilot(supabase, tenant, session.id, phone);
       inserted++;
       continue;
     }
@@ -347,6 +354,37 @@ async function handleCloudApi(supabase: any, body: any): Promise<Response> {
 }
 
 // =============================================================================
+// F1 Copiloto no caminho human_active: as mensagens de conversas assumidas por
+// humano não passam pelo message_inbox, então o rascunho é disparado daqui.
+// Roda em background (waitUntil) — o webhook nunca espera a IA.
+// =============================================================================
+function maybeRunCopilot(supabase: any, tenant: any, sessionId: string, phone: string) {
+  const botConfig = tenant?.bot_config || {};
+  const activeAgent = botConfig.active_agent ?? (botConfig.enabled ? "ai_assistant" : "human");
+  if (activeAgent !== "copilot") return;
+
+  runInBackground(
+    runCopilot(supabase, {
+      tenantId: tenant.id,
+      sessionId,
+      phone,
+      clinicName: tenant.name || "",
+      botConfig,
+    }).catch((e: any) => console.warn(`[whatsapp-bot] copilot background falhou (non-fatal): ${e?.message}`)),
+  );
+}
+
+/** Mantém a task viva após a resposta do webhook (fire-and-forget se não houver waitUntil). */
+function runInBackground(task: Promise<unknown>) {
+  try {
+    // @ts-ignore — disponível no runtime das Edge Functions da Supabase
+    EdgeRuntime.waitUntil(task);
+  } catch {
+    /* runtime sem waitUntil — a task segue em fire-and-forget */
+  }
+}
+
+// =============================================================================
 // Latência (F1): aciona o process-inbox por push logo após enfileirar — o cron
 // de ~20s vira apenas vassoura de segurança. O delay de 1,5s deixa a mensagem
 // vencer o debounce curto e absorve rajadas imediatas; o advisory lock e a
@@ -367,12 +405,7 @@ function triggerInboxProcessing() {
     }).catch((e) => console.warn("[whatsapp-bot] push trigger failed (cron cobre):", e?.message));
   })();
 
-  try {
-    // @ts-ignore — disponível no runtime das Edge Functions da Supabase
-    EdgeRuntime.waitUntil(task);
-  } catch {
-    /* runtime sem waitUntil — a task segue em fire-and-forget */
-  }
+  runInBackground(task);
 }
 
 // =============================================================================
