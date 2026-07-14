@@ -75,8 +75,9 @@ export async function claudeChat(supabase: SupabaseClient, req: LlmRequest): Pro
 
     const started = Date.now();
     let res: Response | null = null;
+    let retried = false;
 
-    for (let attempt = 0; attempt < 2; attempt++) {
+    for (let attempt = 0; attempt < 3; attempt++) {
         res = await fetch(ANTHROPIC_URL, {
             method: "POST",
             headers: {
@@ -89,15 +90,29 @@ export async function claudeChat(supabase: SupabaseClient, req: LlmRequest): Pro
 
         if (res.ok) break;
 
-        // Retry único em rate-limit/instabilidade; 4xx de request não se repete
-        if ((res.status === 429 || res.status >= 500) && attempt === 0) {
+        const errText = await res.text();
+
+        // Modelos mais novos rejeitam `temperature` (deprecated) — remover e repetir.
+        // Compatibilidade por modelo muda com o tempo; nunca falhar por parâmetro opcional.
+        if (res.status === 400 && errText.includes("temperature") && "temperature" in body) {
+            console.warn(`[llmProvider] ${req.purpose}: modelo rejeitou 'temperature' — repetindo sem o parâmetro`);
+            delete body.temperature;
+            continue;
+        }
+
+        // Retry único em rate-limit/instabilidade; demais 4xx não se repetem
+        if ((res.status === 429 || res.status >= 500) && !retried) {
+            retried = true;
             const waitMs = 1500;
             console.warn(`[llmProvider] ${req.purpose}: HTTP ${res.status} — retry em ${waitMs}ms`);
             await new Promise(r => setTimeout(r, waitMs));
             continue;
         }
-        const errText = await res.text();
         throw new Error(`[llmProvider] ${req.purpose}: Anthropic HTTP ${res.status} — ${errText.substring(0, 300)}`);
+    }
+
+    if (!res || !res.ok) {
+        throw new Error(`[llmProvider] ${req.purpose}: esgotou tentativas sem resposta OK`);
     }
 
     const data = await res!.json();
