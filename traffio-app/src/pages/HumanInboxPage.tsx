@@ -1967,7 +1967,9 @@ export function HumanInboxPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [tenantId, setTenantId]       = useState<string | null>(null)
   const [userId, setUserId]           = useState<string | null>(null)
-  const [tab, setTab]                 = useState<'all' | 'queued' | 'mine'>('queued')
+  // Padrão 'all': com a IA atendendo (bot_active), a Fila não é mais o quadro
+  // completo — conversas da IA precisam estar visíveis ao abrir o Inbox
+  const [tab, setTab]                 = useState<'all' | 'queued' | 'mine'>('all')
   const [search, setSearch]           = useState('')
   const [sessions, setSessions]       = useState<ConversationSession[]>([])
   const [queuedCount, setQueuedCount] = useState(0)

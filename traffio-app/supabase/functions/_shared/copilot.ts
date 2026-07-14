@@ -352,9 +352,17 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
 
         // ── Caminho 100% determinístico: clique em botão de slot (sem LLM) ─────
         // O clique chega como content = id do botão ("slot|doctor|location|...").
+        // Fallback numerado: se os botões degradaram para texto, o paciente
+        // responde "1"/"2"/... — mapeia para context.pending_slots na mesma ordem.
         // Agendamento sai direto pelo RPC anti-double-booking — zero ambiguidade.
         const lastUserMsg = [...history].reverse().find((m: any) => m.role === "user");
-        const slotClick = parseSlotClick(lastUserMsg?.content);
+        let clickContent: string | undefined = lastUserMsg?.content;
+        const digitMatch = String(clickContent || "").trim().match(/^([1-9])[.)]?$/);
+        if (digitMatch && Array.isArray(context.pending_slots) && context.pending_slots.length > 0) {
+            const idx = parseInt(digitMatch[1], 10) - 1;
+            if (idx < context.pending_slots.length) clickContent = context.pending_slots[idx];
+        }
+        const slotClick = parseSlotClick(clickContent);
         if (slotClick) {
             const patient = await ensurePatient(supabase, tenantId, phone, session.platform_display_name);
             if (!patient) return "failed";

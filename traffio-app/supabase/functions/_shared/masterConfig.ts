@@ -19,8 +19,10 @@ async function getMasterConfig(
   key: string,
   defaultValue = ""
 ): Promise<string> {
-  // 1. Supabase Secret (env var) — preferido, sem latência
-  const envValue = Deno.env.get(key);
+  // 1. Supabase Secret (env var) — preferido, sem latência.
+  // trim(): chaves coladas manualmente costumam vir com espaço/quebra de linha,
+  // o que gera 401 "invalid x-api-key" difícil de diagnosticar.
+  const envValue = Deno.env.get(key)?.trim();
   if (envValue) return envValue;
 
   // 2. Cache em memória
@@ -37,7 +39,7 @@ async function getMasterConfig(
       .eq("key", key)
       .maybeSingle();
 
-    const value = data?.value ?? "";
+    const value = (data?.value ?? "").trim();
     cache[key] = { value, expiresAt: Date.now() + CACHE_TTL_MS };
     return value || defaultValue;
   } catch {

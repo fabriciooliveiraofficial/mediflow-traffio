@@ -209,43 +209,67 @@ async function sendZapiMessage(tenant: any, phone: string, payload: any, typingD
     const baseUrl = `https://api.z-api.io/instances/${tenant.zapi_instance_id}/token/${tenant.zapi_token}`;
     const clientToken = tenant.zapi_client_token;
 
-    // Try interactive (button/list) first; fall back to plain text on any error
+    // Try interactive (button/list) first; fall back to numbered text on any error.
+    // Payloads conforme a doc oficial da Z-API (validado 14/07/2026):
+    //   /send-button-list  → { phone, message, buttonList: { buttons: [{id, label}] } }
+    //   /send-option-list  → { phone, message, optionList: { title, buttonLabel, options: [{id, title, description}] } }
     if (interactive?.type === 'button') {
         try {
             const resBody = await zapiPost(baseUrl, clientToken, '/send-button-list', {
                 phone,
                 message: text,
-                buttonText: interactive.body || "Escolha uma opção:",
-                buttons: interactive.buttons?.map((b: any) => ({ id: b.id, label: b.title })),
-                delay: 0
+                buttonList: {
+                    buttons: interactive.buttons?.map((b: any) => ({ id: b.id, label: b.title })),
+                },
             });
             return resBody?.messageId;
         } catch (e) {
-            console.warn('[OutboxDispatcher] button endpoint failed, falling back to text:', e);
+            console.warn('[OutboxDispatcher] button endpoint failed, falling back to numbered text:', e);
         }
     } else if (interactive?.type === 'list') {
         try {
+            const rows = (interactive.sections || []).flatMap((s: any) => s.rows || []);
             const resBody = await zapiPost(baseUrl, clientToken, '/send-option-list', {
                 phone,
                 message: text,
-                buttonText: interactive.header || "Ver Opções",
-                sections: interactive.sections?.map((s: any) => ({
-                    title: s.title,
-                    rows: s.rows.map((r: any) => ({ id: r.id, title: r.title, description: r.description }))
-                })),
-                delay: 0
+                optionList: {
+                    title: interactive.header || 'Opções',
+                    buttonLabel: interactive.buttonText || 'Ver opções',
+                    options: rows.map((r: any) => ({ id: r.id, title: r.title, description: r.description })),
+                },
             });
             return resBody?.messageId;
         } catch (e) {
-            console.warn('[OutboxDispatcher] list endpoint failed, falling back to text:', e);
+            console.warn('[OutboxDispatcher] list endpoint failed, falling back to numbered text:', e);
         }
     }
 
-    // Plain text — with optional quoted reply
-    const body: any = { phone, message: text, delay: typingDelayMs };
+    // Plain text — com opções numeradas quando o interativo falhou (as opções
+    // NUNCA se perdem; o paciente responde com o número)
+    const finalText = interactiveAsNumberedText(text, interactive);
+    const body: any = { phone, message: finalText, delay: typingDelayMs };
     if (finalQuotedMsgId) body.messageId = finalQuotedMsgId; // Z-API quoted reply field
     const resBody = await zapiPost(baseUrl, clientToken, '/send-text', body);
     return resBody?.messageId;
+}
+
+/**
+ * Degrada um payload interativo para texto numerado — a rede de segurança da
+ * instabilidade de botões da Z-API. "1️⃣ 16/07 · 09:00" etc.; quem processa a
+ * resposta aceita o dígito (ver runAutonomousAgent → pending_slots).
+ */
+function interactiveAsNumberedText(text: string, interactive: any): string {
+    const options: any[] = interactive?.type === 'button'
+        ? (interactive.buttons || [])
+        : interactive?.type === 'list'
+            ? (interactive.sections || []).flatMap((s: any) => s.rows || [])
+            : [];
+    if (!options.length) return text;
+
+    const digits = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣'];
+    const lines = options.map((o: any, i: number) =>
+        `${digits[i] || `${i + 1}.`} ${o.title}${o.description ? ` — ${o.description}` : ''}`);
+    return `${text}\n\n${lines.join('\n')}`;
 }
 
 async function sendCloudApiMessage(tenant: any, phone: string, payload: any, quotedMsgId?: string): Promise<string | undefined> {

@@ -146,11 +146,19 @@ function check(s: EvalScenario, r: RunResult): string[] {
 
 // ─── Main ────────────────────────────────────────────────────────────────────
 
-if (!Deno.env.get("ANTHROPIC_API_KEY")) {
+const apiKey = Deno.env.get("ANTHROPIC_API_KEY")?.trim() ?? "";
+if (!apiKey) {
     console.error("❌ ANTHROPIC_API_KEY não definida no ambiente. Ex.:");
     console.error('   PowerShell: $env:ANTHROPIC_API_KEY="sk-ant-..."; npx deno run -A _tests/evals/run.ts');
     Deno.exit(2);
 }
+// Sanidade da chave antes de gastar 11 chamadas: prefixo/tamanho + placeholder
+if (!apiKey.startsWith("sk-ant-") || apiKey.includes("SUA-CHAVE") || apiKey.length < 40) {
+    console.error(`❌ ANTHROPIC_API_KEY suspeita: "${apiKey.substring(0, 10)}…" (${apiKey.length} chars).`);
+    console.error("   Cole a chave real (console.anthropic.com → API Keys) — a mesma que está no painel master.");
+    Deno.exit(2);
+}
+console.log(`🔑 Chave carregada: ${apiKey.substring(0, 14)}…${apiKey.slice(-4)} (${apiKey.length} chars)`);
 
 console.log(`\n═══ Evals do agente autônomo — modelo: ${MODEL} — ${SCENARIOS.length} cenários ═══\n`);
 
