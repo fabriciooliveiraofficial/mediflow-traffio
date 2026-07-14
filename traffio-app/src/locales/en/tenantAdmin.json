@@ -464,8 +464,10 @@
       "title": "AI assistant in conversations",
       "human": "Off",
       "copilot": "Copilot",
+      "aiAlways": "AI Answers",
       "humanHint": "AI does not take part in conversations. Your team replies to everything manually.",
-      "copilotHint": "AI suggests replies and classifies leads, but NEVER sends anything — your team reviews and decides. Remember to save."
+      "copilotHint": "AI suggests replies and classifies leads, but NEVER sends anything — your team reviews and decides. Remember to save.",
+      "aiAlwaysHint": "AI replies to patients within seconds, 24/7, and transfers to your team when needed (patient request, clinical question, pricing). You can take over any conversation at any time — and switch this off whenever you want. Remember to save."
     },
     "header": {
       "title": "Automation Hub",

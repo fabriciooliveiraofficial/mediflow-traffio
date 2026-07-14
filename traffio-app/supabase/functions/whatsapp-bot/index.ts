@@ -361,7 +361,9 @@ async function handleCloudApi(supabase: any, body: any): Promise<Response> {
 function maybeRunCopilot(supabase: any, tenant: any, sessionId: string, phone: string) {
   const botConfig = tenant?.bot_config || {};
   const activeAgent = botConfig.active_agent ?? (botConfig.enabled ? "ai_assistant" : "human");
-  if (activeAgent !== "copilot") return;
+  // copilot: sempre rascunho. ai_always: aqui a sessão está human_active
+  // (a IA nunca responde por cima do humano) — então também vira rascunho.
+  if (activeAgent !== "copilot" && activeAgent !== "ai_always") return;
 
   runInBackground(
     runCopilot(supabase, {
@@ -370,7 +372,6 @@ function maybeRunCopilot(supabase: any, tenant: any, sessionId: string, phone: s
       phone,
       clinicName: tenant.name || "",
       botConfig,
-      currency: tenant.currency,
     }).catch((e: any) => console.warn(`[whatsapp-bot] copilot background falhou (non-fatal): ${e?.message}`)),
   );
 }

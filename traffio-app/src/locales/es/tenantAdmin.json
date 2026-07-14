@@ -464,8 +464,10 @@
       "title": "Asistente de IA en las conversaciones",
       "human": "Apagado",
       "copilot": "Copiloto",
+      "aiAlways": "IA Atiende",
       "humanHint": "La IA no participa en las conversaciones. Tu equipo responde todo manualmente.",
-      "copilotHint": "La IA sugiere respuestas y clasifica leads, pero NUNCA envía nada — tu equipo revisa y decide. Recuerda guardar."
+      "copilotHint": "La IA sugiere respuestas y clasifica leads, pero NUNCA envía nada — tu equipo revisa y decide. Recuerda guardar.",
+      "aiAlwaysHint": "La IA responde a los pacientes en segundos, 24/7, y transfiere a tu equipo cuando es necesario (solicitud del paciente, duda clínica, precio). Puedes tomar cualquier conversación en cualquier momento — y apagarla aquí cuando quieras. Recuerda guardar."
     },
     "header": {
       "title": "Centro de Automatizaciones",

@@ -65,7 +65,7 @@ export interface MotorHealthStats {
 
 export interface BotConfig {
     enabled: boolean;
-    active_agent: 'human' | 'copilot' | 'ai_assistant' | 'flow_bot';
+    active_agent: 'human' | 'copilot' | 'ai_always' | 'ai_assistant' | 'flow_bot';
     no_show_prevention?: boolean;
     nps_enabled?: boolean;
     nps_delay_minutes?: number;
@@ -339,10 +339,11 @@ export const Intelligence = () => {
 
                 setConfig({
                     ...savedConfig,
-                    // Dial de autonomia: só 'human' e 'copilot' são válidos na F1.
-                    // Valores autônomos legados (ai_assistant/flow_bot) caem para
-                    // 'human' até os níveis F2/F3 serem reativados com evals.
-                    active_agent: savedConfig.active_agent === 'copilot' ? 'copilot' : 'human',
+                    // Dial de autonomia: 'human', 'copilot' e 'ai_always' são válidos.
+                    // Valores autônomos legados (ai_assistant/flow_bot) caem para 'human'.
+                    active_agent: ['copilot', 'ai_always'].includes(savedConfig.active_agent)
+                        ? savedConfig.active_agent
+                        : 'human',
                     enabled: true,
                     nps_delay_minutes: savedConfig.nps_delay_minutes ?? 180,
                     default_notification_channel: savedConfig.default_notification_channel ?? 'whatsapp',
@@ -533,14 +534,17 @@ export const Intelligence = () => {
                     <p className="text-xs font-medium text-graphite-400 mt-1">
                         {config.active_agent === 'copilot'
                             ? t('intelligence.aiDial.copilotHint')
-                            : t('intelligence.aiDial.humanHint')}
+                            : config.active_agent === 'ai_always'
+                                ? t('intelligence.aiDial.aiAlwaysHint')
+                                : t('intelligence.aiDial.humanHint')}
                     </p>
                 </div>
                 <div className="flex bg-ice-100 p-1 rounded-xl border border-ice-200/60 shrink-0">
                     {([
                         { key: 'human', label: t('intelligence.aiDial.human') },
                         { key: 'copilot', label: t('intelligence.aiDial.copilot') },
-                    ] as { key: 'human' | 'copilot'; label: string }[]).map(mode => (
+                        { key: 'ai_always', label: t('intelligence.aiDial.aiAlways') },
+                    ] as { key: 'human' | 'copilot' | 'ai_always'; label: string }[]).map(mode => (
                         <button
                             key={mode.key}
                             onClick={() => setConfig(prev => ({ ...prev, active_agent: mode.key }))}

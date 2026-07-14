@@ -23,7 +23,7 @@ import { TenantResolver } from "../_shared/tenantResolver.ts";
 import { SessionManager } from "../_shared/sessionManager.ts";
 import { OutboxDispatcher } from "../_shared/outboxDispatcher.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { runCopilot } from "../_shared/copilot.ts";
+import { runCopilot, runAutonomousAgent } from "../_shared/copilot.ts";
 
 // How long to wait after the last message before processing (ms).
 // Gives the patient time to finish typing multiple messages.
@@ -167,15 +167,16 @@ async function processConversationTurn(
      // silêncio do paciente antes de processar — absorve a "enxurrada" de
      // mensagens fragmentadas em um único turno coerente. Com o dial em
      // 'human'/'copilot' este gate nunca adia nada (fluxo humano = latência baixa).
+     // Linha completa: o modo autônomo precisa das credenciais de envio (Z-API/Cloud API)
      const { data: tenantRow } = await supabase
        .from("tenants")
-       .select("name, bot_config, currency")
+       .select("*")
        .eq("id", tenantId)
        .maybeSingle();
      const botConfig = tenantRow?.bot_config || {};
      const activeAgent = botConfig.active_agent ?? (botConfig.enabled ? "ai_assistant" : "human");
      const aiWillRespond =
-       ["ai_assistant", "flow_bot"].includes(activeAgent) &&
+       ["ai_always", "ai_assistant", "flow_bot"].includes(activeAgent) &&
        session.omnichannel_status !== "human_active" &&
        session.omnichannel_status !== "queued" &&
        !session.human_handoff;
@@ -271,10 +272,36 @@ async function processConversationTurn(
          whatsapp_message_id: messages[0]?.message_id
        });
  
-       // --- 8. Ensure Human Visibility (Trigger Handoff/Queue) ---
-       console.log(`[process-inbox] [${phone}] Routing message to human queue.`);
-       if (session.omnichannel_status !== "human_active" && session.omnichannel_status !== "queued") {
-         await sessionManager.triggerHumanHandoff(session.id);
+       // --- 8. Roteamento: IA autônoma ou fila humana ---
+       if (activeAgent === "ai_always") {
+         // A IA responde diretamente. Fail-safe: qualquer resultado que não seja
+         // uma resposta entregue termina com o paciente na fila humana.
+         const status = await runAutonomousAgent(supabase, {
+           tenantId,
+           sessionId: session.id,
+           phone,
+           clinicName: tenantRow?.name || "",
+           botConfig,
+           tenant: tenantRow,
+           sessionManager,
+         });
+
+         if (status === "defer") {
+           // Mensagem nova chegou durante a geração — devolve o batch e regenera
+           await markMessages(supabase, messageIds, "pending");
+           return;
+         }
+         if (status === "failed") {
+           console.warn(`[process-inbox] [${phone}] agente autônomo falhou — fail-safe para fila humana`);
+           await sessionManager.triggerHumanHandoff(session.id);
+         }
+         // 'replied': paciente respondido, sessão continua com a IA
+         // 'transferred': handoff já feito dentro do agente
+       } else {
+         console.log(`[process-inbox] [${phone}] Routing message to human queue.`);
+         if (session.omnichannel_status !== "human_active" && session.omnichannel_status !== "queued") {
+           await sessionManager.triggerHumanHandoff(session.id);
+         }
        }
      }
  
@@ -320,14 +347,16 @@ async function processConversationTurn(
      // --- 11. F1: Copiloto (Nível 0) — rascunho + triagem para o atendente ---
      // Roda DEPOIS de logar/rotear (o fluxo humano nunca depende disto) e
      // dentro do advisory lock. Falhas são isoladas dentro de runCopilot.
-     if (activeAgent === "copilot") {
+     // No modo ai_always, conversas já transferidas ao humano também recebem
+     // rascunhos — a IA vira copiloto do atendente depois do handoff.
+     const humanHolds = session.omnichannel_status === "human_active" || session.omnichannel_status === "queued";
+     if (activeAgent === "copilot" || (activeAgent === "ai_always" && humanHolds)) {
        await runCopilot(supabase, {
          tenantId,
          sessionId: session.id,
          phone,
          clinicName: tenantRow?.name || "",
          botConfig,
-         currency: tenantRow?.currency,
        });
      }
 

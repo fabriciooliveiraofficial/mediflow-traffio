@@ -468,8 +468,10 @@
       "title": "Assistente de IA nas conversas",
       "human": "Desligado",
       "copilot": "Copiloto",
+      "aiAlways": "IA Atende",
       "humanHint": "A IA não participa das conversas. Sua equipe responde tudo manualmente.",
-      "copilotHint": "A IA sugere respostas e classifica leads, mas NUNCA envia nada — sua equipe revisa e decide. Lembre-se de salvar."
+      "copilotHint": "A IA sugere respostas e classifica leads, mas NUNCA envia nada — sua equipe revisa e decide. Lembre-se de salvar.",
+      "aiAlwaysHint": "A IA responde os pacientes em segundos, 24/7, e transfere para sua equipe quando necessário (pedido do paciente, dúvida clínica, preço). Você pode assumir qualquer conversa a qualquer momento — e desligar aqui quando quiser. Lembre-se de salvar."
     },
     "toasts": {
       "loadConfigError": "Erro ao carregar configuração: {{message}}",

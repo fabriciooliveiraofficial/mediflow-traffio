@@ -8,9 +8,10 @@ export interface BotConfig {
     /**
      * Dial de autonomia da IA (docs/SPEC_AGENTE_IA_CLAUDE.md):
      * human = IA desligada · copilot = IA sugere, humano envia (Nível 0)
-     * ai_assistant/flow_bot = níveis autônomos (F2/F3 — ainda não reativados)
+     * ai_always = IA atende e decide quando transferir (fail-safe → fila humana)
+     * ai_assistant/flow_bot = valores legados (mapeados para human na UI)
      */
-    active_agent: 'human' | 'copilot' | 'ai_assistant' | 'flow_bot';
+    active_agent: 'human' | 'copilot' | 'ai_always' | 'ai_assistant' | 'flow_bot';
 }
 
 export const aiConfigService = {
