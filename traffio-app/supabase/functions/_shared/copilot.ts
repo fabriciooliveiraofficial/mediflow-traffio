@@ -14,6 +14,20 @@ import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { claudeChat, claudeJson, type LlmTool } from "./llmProvider.ts";
 import { getAiModelAgent, getAiModelRouter } from "./masterConfig.ts";
 import { OutboxDispatcher } from "./outboxDispatcher.ts";
+import {
+    SCHEDULING_TOOLS,
+    executeSchedulingTool,
+    ensurePatient,
+    parseSlotClick,
+    buildSlotInteractive,
+    isWithinBusinessHours,
+    todayInTz,
+    formatDateForPatient,
+    SLOT_CONFIRM_MSG,
+    SLOT_TAKEN_MSG,
+    AFTER_HOURS_CANCEL_MSG,
+    type SlotOption,
+} from "./schedulingTools.ts";
 
 interface CopilotParams {
     tenantId: string;
@@ -253,7 +267,8 @@ const AUTONOMOUS_ADDENDUM = `
 - Você conversa em nome da clínica. Na primeira interação da conversa, apresente-se com naturalidade como assistente da clínica. NUNCA finja ser humano nem negue ser assistente virtual se perguntarem.
 - Use a ferramenta transfer_to_human SEMPRE que: o paciente pedir para falar com uma pessoa; a pergunta for clínica além do CONTEXTO (diagnóstico, medicação, dor, urgência); o paciente insistir em preço após sua explicação; houver irritação ou reclamação; ou você não tiver como ajudar de verdade.
 - Ao transferir, escreva também uma mensagem curta e acolhedora avisando que a equipe assume em instantes, no mesmo chat.
-- NÃO marque nem confirme horários por conta própria: desperte o interesse, colete a preferência (dia/período) e diga que a equipe confirma o horário em seguida.
+- AGENDAMENTO (autônomo, SÓ via ferramentas): use listar_profissionais quando o paciente não indicou profissional; use ver_disponibilidade para obter horários REAIS — os horários retornados são enviados ao paciente como botões clicáveis automaticamente, então apresente-os em uma frase curta e convide a escolher. Use agendar/remarcar apenas com valores vindos das ferramentas. Use buscar_meus_agendamentos para consultar ou preparar remarcação. NUNCA cite um horário que não veio de ferramenta.
+- CANCELAMENTO: você NUNCA cancela — use a ferramenta encaminhar_cancelamento sempre que o paciente quiser cancelar.
 - Se não entender a mensagem, peça esclarecimento com gentileza UMA única vez; na segunda vez, use transfer_to_human.
 `.trim();
 
@@ -280,16 +295,20 @@ interface AutonomousParams extends CopilotParams {
     tenant: any;
     /** SessionManager do chamador (log + handoff atômicos) */
     sessionManager: any;
+    /** Fuso do tenant — datas relativas ("amanhã") e horário de atendimento */
+    timezone?: string | null;
 }
 
+const MAX_TOOL_ROUNDS = 4;
+
 export async function runAutonomousAgent(supabase: SupabaseClient, params: AutonomousParams): Promise<AutonomousStatus> {
-    const { tenantId, sessionId, phone, clinicName, botConfig, tenant, sessionManager } = params;
+    const { tenantId, sessionId, phone, clinicName, botConfig, tenant, sessionManager, timezone } = params;
     const dispatcher = new OutboxDispatcher(supabase);
 
     try {
         const { data: session } = await supabase
             .from("conversation_sessions")
-            .select("context, recent_messages")
+            .select("context, recent_messages, platform_display_name")
             .eq("id", sessionId)
             .single();
         if (!session) return "failed";
@@ -299,11 +318,51 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             .filter((m: any) => m.role !== "internal");
         if (history.length === 0) return "failed";
 
+        const context = session.context || {};
+        const knownIntake = context.intake || {};
+        const storedLanguage = context.language || "pt";
+
+        // ── Caminho 100% determinístico: clique em botão de slot (sem LLM) ─────
+        // O clique chega como content = id do botão ("slot|doctor|location|...").
+        // Agendamento sai direto pelo RPC anti-double-booking — zero ambiguidade.
+        const lastUserMsg = [...history].reverse().find((m: any) => m.role === "user");
+        const slotClick = parseSlotClick(lastUserMsg?.content);
+        if (slotClick) {
+            const patient = await ensurePatient(supabase, tenantId, phone, session.platform_display_name);
+            if (!patient) return "failed";
+
+            const { data: booked, error: bookErr } = await supabase.rpc("book_appointment", {
+                p_tenant_id: tenantId,
+                p_patient_id: patient.id,
+                p_doctor_id: slotClick.doctor_id,
+                p_location_id: slotClick.location_id,
+                p_type_id: slotClick.type_id,
+                p_date: slotClick.date,
+                p_start_time: slotClick.time,
+                p_booked_by: "ai_agent",
+            });
+
+            const ok = !bookErr && (booked as any)?.success;
+            const msg = ok
+                ? (SLOT_CONFIRM_MSG[storedLanguage] || SLOT_CONFIRM_MSG.pt)(formatDateForPatient(slotClick.date, storedLanguage), slotClick.time)
+                : (SLOT_TAKEN_MSG[storedLanguage] || SLOT_TAKEN_MSG.pt);
+            if (!ok) console.warn(`[agent] [${phone}] slot click não agendou: ${bookErr?.message || JSON.stringify(booked)}`);
+
+            await sendWithFallback(dispatcher, tenant, tenantId, phone, msg);
+            await sessionManager.logMessage(sessionId, "assistant", msg);
+
+            const ctx = { ...context };
+            delete ctx.pending_slots;
+            await supabase
+                .from("conversation_sessions")
+                .update({ context: ctx, omnichannel_status: "bot_active", human_handoff: false })
+                .eq("id", sessionId);
+            return "replied";
+        }
+
         const transcript = history
             .map((m: any) => `${m.role === "user" ? "PACIENTE" : "CLÍNICA"}: ${m.content}`)
             .join("\n");
-        const context = session.context || {};
-        const knownIntake = context.intake || {};
 
         const [routerModel, agentModel, knowledgePacket] = await Promise.all([
             getAiModelRouter(supabase),
@@ -313,47 +372,79 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
         const personality = botConfig?.personality || "acolhedor";
         const instructions = botConfig?.global_instructions || "";
 
-        const [triage, reply] = await Promise.all([
-            claudeJson<TriageResult>(supabase, {
-                tenantId,
-                purpose: "agent_triage",
-                model: routerModel,
-                maxTokens: 400,
-                system: [
-                    "Você classifica conversas de pacientes de uma clínica e extrai dados objetivos.",
-                    "Responda APENAS com JSON válido, sem comentários, neste formato:",
-                    '{"temperature":"hot|warm|cold","language":"pt|en|es","intake":{"procedure":string|null,"for_whom":string|null,"preferred_window":string|null,"doctor_pref":string|null}}',
-                    "temperature: hot = quer agendar/comprar agora; warm = interessado explorando; cold = sem intenção clara.",
-                    "intake: extraia SOMENTE o que o paciente disse explicitamente; use null para o que não foi dito.",
-                ].join("\n"),
-                messages: [{ role: "user", content: `Ficha já conhecida: ${JSON.stringify(knownIntake)}\n\nConversa:\n${transcript}` }],
-            }),
-            claudeChat(supabase, {
-                tenantId,
-                purpose: "agent_reply",
-                model: agentModel,
-                maxTokens: 500,
-                tools: [TRANSFER_TOOL],
-                system: [
-                    `Você é a assistente da clínica "${clinicName}" e responde os pacientes pelo WhatsApp.`,
-                    SALES_PERSONA,
-                    AUTONOMOUS_ADDENDUM,
-                    `Ajuste de tom desta clínica: ${personality}. Responda SEMPRE no mesmo idioma da última mensagem do paciente.`,
-                    instructions ? `### INSTRUÇÕES DA CLÍNICA (prioridade máxima — sobrepõem qualquer regra acima):\n${instructions}` : "",
-                    knowledgePacket ? `### CONTEXTO DA CLÍNICA (única fonte de fatos permitida):\n${knowledgePacket}` : "",
-                    "### REGRAS INEGOCIÁVEIS:",
-                    "- Escreva APENAS o texto da mensagem ao paciente, sem prefixos.",
-                    "- Curto: no máximo 2 parágrafos breves, adequado para WhatsApp.",
-                    "- RESPONDA A DÚVIDA DIRETAMENTE quando a informação estiver no CONTEXTO DA CLÍNICA.",
-                    "- NUNCA invente fato que não esteja no contexto: horário disponível, endereço, informação clínica.",
-                    "- PREÇO: nunca informar por mensagem, em nenhuma hipótese — siga a POLÍTICA DE PREÇO.",
-                ].filter(Boolean).join("\n"),
-                messages: [{ role: "user", content: `Conversa até agora:\n${transcript}\n\nResponda à última mensagem do paciente.` }],
-            }),
-        ]);
+        const systemPrompt = [
+            `Você é a assistente da clínica "${clinicName}" e responde os pacientes pelo WhatsApp.`,
+            SALES_PERSONA,
+            AUTONOMOUS_ADDENDUM,
+            `Data de hoje: ${todayInTz(timezone || undefined)} (fuso da clínica). Use-a para converter datas relativas ("amanhã", "semana que vem") ao chamar ferramentas.`,
+            `Ajuste de tom desta clínica: ${personality}. Responda SEMPRE no mesmo idioma da última mensagem do paciente.`,
+            instructions ? `### INSTRUÇÕES DA CLÍNICA (prioridade máxima — sobrepõem qualquer regra acima):\n${instructions}` : "",
+            knowledgePacket ? `### CONTEXTO DA CLÍNICA (única fonte de fatos permitida):\n${knowledgePacket}` : "",
+            "### REGRAS INEGOCIÁVEIS:",
+            "- Escreva APENAS o texto da mensagem ao paciente, sem prefixos.",
+            "- Curto: no máximo 2 parágrafos breves, adequado para WhatsApp.",
+            "- RESPONDA A DÚVIDA DIRETAMENTE quando a informação estiver no CONTEXTO DA CLÍNICA.",
+            "- NUNCA invente fato que não esteja no contexto ou em retorno de ferramenta: horário disponível, endereço, informação clínica.",
+            "- PREÇO: nunca informar por mensagem, em nenhuma hipótese — siga a POLÍTICA DE PREÇO.",
+        ].filter(Boolean).join("\n");
 
-        const language = triage?.language || "pt";
-        const transferCall = reply.toolCalls.find(t => t.name === "transfer_to_human");
+        // Triagem em paralelo com o loop (não bloqueia a resposta)
+        const triagePromise = claudeJson<TriageResult>(supabase, {
+            tenantId,
+            purpose: "agent_triage",
+            model: routerModel,
+            maxTokens: 400,
+            system: [
+                "Você classifica conversas de pacientes de uma clínica e extrai dados objetivos.",
+                "Responda APENAS com JSON válido, sem comentários, neste formato:",
+                '{"temperature":"hot|warm|cold","language":"pt|en|es","intake":{"procedure":string|null,"for_whom":string|null,"preferred_window":string|null,"doctor_pref":string|null}}',
+                "temperature: hot = quer agendar/comprar agora; warm = interessado explorando; cold = sem intenção clara.",
+                "intake: extraia SOMENTE o que o paciente disse explicitamente; use null para o que não foi dito.",
+            ].join("\n"),
+            messages: [{ role: "user", content: `Ficha já conhecida: ${JSON.stringify(knownIntake)}\n\nConversa:\n${transcript}` }],
+        });
+
+        // ── Loop agentic: modelo decide ferramenta → executamos → devolvemos ───
+        const tools = [TRANSFER_TOOL, ...SCHEDULING_TOOLS];
+        const convo: { role: "user" | "assistant"; content: string | any[] }[] = [
+            { role: "user", content: `Conversa até agora:\n${transcript}\n\nResponda à última mensagem do paciente.` },
+        ];
+
+        let reply = await claudeChat(supabase, {
+            tenantId, purpose: "agent_reply", model: agentModel, maxTokens: 600, tools, system: systemPrompt, messages: convo,
+        });
+
+        let lastSlots: SlotOption[] | null = null;
+        let transferReason: string | null = null;
+        let cancelRequested = false;
+
+        for (let round = 0; round < MAX_TOOL_ROUNDS && reply.toolCalls.length > 0; round++) {
+            const transferCall = reply.toolCalls.find(t => t.name === "transfer_to_human");
+            if (transferCall) {
+                transferReason = (transferCall.input as any)?.reason || "solicitado pelo modelo";
+                break;
+            }
+            if (reply.toolCalls.some(t => t.name === "encaminhar_cancelamento")) {
+                cancelRequested = true;
+                break;
+            }
+
+            convo.push({ role: "assistant", content: reply.rawContent });
+            const results: any[] = [];
+            for (const call of reply.toolCalls) {
+                const outcome = await executeSchedulingTool(supabase, tenantId, phone, session.platform_display_name, call);
+                if (outcome.slots?.length) lastSlots = outcome.slots;
+                results.push({ type: "tool_result", tool_use_id: call.id, content: JSON.stringify(outcome.data) });
+            }
+            convo.push({ role: "user", content: results });
+
+            reply = await claudeChat(supabase, {
+                tenantId, purpose: "agent_reply", model: agentModel, maxTokens: 600, tools, system: systemPrompt, messages: convo,
+            });
+        }
+
+        const triage = await triagePromise;
+        const language = triage?.language || storedLanguage;
         const text = reply.text.trim();
 
         // Cancelar-e-regenerar: mensagem nova durante a geração → a resposta
@@ -370,28 +461,55 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             return "defer";
         }
 
-        // Persistência do contexto (ficha + temperatura; modo autônomo não usa rascunho)
-        const merged = {
+        // Persistência do contexto (ficha + temperatura + idioma + slots pendentes)
+        const merged: any = {
             ...context,
             intake: { ...knownIntake, ...pruneNulls(triage?.intake) },
             ...(triage?.temperature ? { lead_temperature: triage.temperature } : {}),
+            language,
         };
-        delete (merged as any).ai_draft;
+        delete merged.ai_draft;
+        if (lastSlots?.length && !transferReason && !cancelRequested && text) {
+            merged.pending_slots = lastSlots.map(s => s.id);
+        } else {
+            delete merged.pending_slots;
+        }
         await supabase.from("conversation_sessions").update({ context: merged }).eq("id", sessionId);
 
-        // ── Transferência (decisão do modelo ou resposta vazia = incapacidade) ──
-        if (transferCall || !text) {
+        // ── Cancelamento: regra de negócio por horário de atendimento ──────────
+        // No expediente → transfere direto (momento de retenção é do humano).
+        // Fora do expediente → acolhe e promete retorno; entra na fila do mesmo jeito.
+        if (cancelRequested) {
+            const within = isWithinBusinessHours(botConfig, timezone || undefined);
+            const msg = within
+                ? (text || HANDOFF_MSG[language] || HANDOFF_MSG.pt)
+                : (AFTER_HOURS_CANCEL_MSG[language] || AFTER_HOURS_CANCEL_MSG.pt);
+            await sendWithFallback(dispatcher, tenant, tenantId, phone, msg);
+            await sessionManager.logMessage(sessionId, "assistant", msg);
+            await sessionManager.triggerHumanHandoff(sessionId, merged);
+            console.log(`[agent] [${phone}] cancelamento encaminhado (expediente=${within})`);
+            return "transferred";
+        }
+
+        // ── Transferência (decisão do modelo, rounds esgotados ou resposta vazia) ──
+        if (transferReason || !text) {
             const bye = text || HANDOFF_MSG[language] || HANDOFF_MSG.pt;
             await sendWithFallback(dispatcher, tenant, tenantId, phone, bye);
             await sessionManager.logMessage(sessionId, "assistant", bye);
             await sessionManager.triggerHumanHandoff(sessionId, merged);
-            console.log(`[agent] [${phone}] transferido para humano — motivo: ${(transferCall?.input as any)?.reason || "resposta vazia"}`);
+            console.log(`[agent] [${phone}] transferido para humano — motivo: ${transferReason || "resposta vazia/rounds esgotados"}`);
             return "transferred";
         }
 
-        // ── Resposta normal ──
-        await sendWithFallback(dispatcher, tenant, tenantId, phone, text);
+        // ── Resposta normal (com botões de horário quando houver slots) ────────
+        const interactive = lastSlots?.length ? buildSlotInteractive(lastSlots) : undefined;
+        await sendWithFallback(dispatcher, tenant, tenantId, phone, text, interactive);
         await sessionManager.logMessage(sessionId, "assistant", text);
+        // Sinaliza no Inbox que a IA está conduzindo esta conversa (badge "IA atendendo")
+        await supabase
+            .from("conversation_sessions")
+            .update({ omnichannel_status: "bot_active", human_handoff: false })
+            .eq("id", sessionId);
         return "replied";
 
     } catch (err: any) {
@@ -402,11 +520,11 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
 }
 
 /** Envio com typing delay curto; se o envio síncrono falhar, cai para a fila com retry. */
-async function sendWithFallback(dispatcher: OutboxDispatcher, tenant: any, tenantId: string, phone: string, text: string): Promise<void> {
+async function sendWithFallback(dispatcher: OutboxDispatcher, tenant: any, tenantId: string, phone: string, text: string, interactive?: any): Promise<void> {
     try {
-        await dispatcher.sendNow(tenant, phone, { text }, 1200);
+        await dispatcher.sendNow(tenant, phone, { text, interactive }, 1200);
     } catch (sendErr: any) {
         console.warn(`[agent] sendNow falhou (${sendErr?.message}) — enfileirando com retry`);
-        await dispatcher.enqueue(tenantId, phone, { text });
+        await dispatcher.enqueue(tenantId, phone, { text, interactive });
     }
 }

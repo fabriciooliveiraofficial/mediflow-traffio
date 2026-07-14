@@ -12,6 +12,8 @@ export interface BotConfig {
      * ai_assistant/flow_bot = valores legados (mapeados para human na UI)
      */
     active_agent: 'human' | 'copilot' | 'ai_always' | 'ai_assistant' | 'flow_bot';
+    /** Horário da equipe humana (fuso do tenant) — roteia cancelamentos no modo ai_always */
+    business_hours?: { start: string; end: string; days: number[] };
 }
 
 export const aiConfigService = {

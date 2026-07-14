@@ -471,7 +471,10 @@
       "aiAlways": "IA Atende",
       "humanHint": "A IA não participa das conversas. Sua equipe responde tudo manualmente.",
       "copilotHint": "A IA sugere respostas e classifica leads, mas NUNCA envia nada — sua equipe revisa e decide. Lembre-se de salvar.",
-      "aiAlwaysHint": "A IA responde os pacientes em segundos, 24/7, e transfere para sua equipe quando necessário (pedido do paciente, dúvida clínica, preço). Você pode assumir qualquer conversa a qualquer momento — e desligar aqui quando quiser. Lembre-se de salvar."
+      "aiAlwaysHint": "A IA responde os pacientes em segundos, 24/7, agenda e remarca com horários reais, e transfere para sua equipe quando necessário (pedido do paciente, dúvida clínica, preço, cancelamento). Você pode assumir qualquer conversa a qualquer momento — e desligar aqui quando quiser. Lembre-se de salvar.",
+      "hoursTitle": "Horário da equipe (cancelamentos neste horário vão direto ao atendente)",
+      "dayLetters": { "0": "D", "1": "S", "2": "T", "3": "Q", "4": "Q", "5": "S", "6": "S" },
+      "dayNames": { "0": "Domingo", "1": "Segunda", "2": "Terça", "3": "Quarta", "4": "Quinta", "5": "Sexta", "6": "Sábado" }
     },
     "toasts": {
       "loadConfigError": "Erro ao carregar configuração: {{message}}",

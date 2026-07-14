@@ -467,7 +467,10 @@
       "aiAlways": "IA Atiende",
       "humanHint": "La IA no participa en las conversaciones. Tu equipo responde todo manualmente.",
       "copilotHint": "La IA sugiere respuestas y clasifica leads, pero NUNCA envía nada — tu equipo revisa y decide. Recuerda guardar.",
-      "aiAlwaysHint": "La IA responde a los pacientes en segundos, 24/7, y transfiere a tu equipo cuando es necesario (solicitud del paciente, duda clínica, precio). Puedes tomar cualquier conversación en cualquier momento — y apagarla aquí cuando quieras. Recuerda guardar."
+      "aiAlwaysHint": "La IA responde a los pacientes en segundos, 24/7, agenda y reagenda con horarios reales, y transfiere a tu equipo cuando es necesario (solicitud del paciente, duda clínica, precio, cancelaciones). Puedes tomar cualquier conversación en cualquier momento — y apagarla aquí cuando quieras. Recuerda guardar.",
+      "hoursTitle": "Horario del equipo (cancelaciones en este horario van directo a un asistente)",
+      "dayLetters": { "0": "D", "1": "L", "2": "M", "3": "X", "4": "J", "5": "V", "6": "S" },
+      "dayNames": { "0": "Domingo", "1": "Lunes", "2": "Martes", "3": "Miércoles", "4": "Jueves", "5": "Viernes", "6": "Sábado" }
     },
     "header": {
       "title": "Centro de Automatizaciones",

@@ -284,6 +284,7 @@ async function processConversationTurn(
            botConfig,
            tenant: tenantRow,
            sessionManager,
+           timezone: tenantRow?.timezone,
          });
 
          if (status === "defer") {

@@ -155,16 +155,19 @@ function slaLabel(updatedAt: string, nowLabel: string) {
 
 function StatusBadge({ status }: { status: OmnichannelStatus }) {
   const { t } = useTranslation('communications')
-  const map: Record<OmnichannelStatus, { label: string; className: string }> = {
-    bot_active:   { label: t('humanInbox.statusBadge.botActive'),     className: 'bg-blue-100 text-blue-700' },
+  const map: Record<OmnichannelStatus, { label: string; className: string; icon?: any }> = {
+    bot_active:   { label: t('humanInbox.statusBadge.botActive'),     className: 'bg-violet-100 text-violet-700', icon: Sparkles },
     queued:       { label: t('humanInbox.statusBadge.queued'),        className: 'bg-amber-100 text-amber-700 animate-pulse' },
     human_active: { label: t('humanInbox.statusBadge.humanActive'),   className: 'bg-green-100 text-green-700' },
     closed:       { label: t('humanInbox.statusBadge.closed'),        className: 'bg-gray-100 text-gray-500' },
   }
-  const { label, className } = map[status]
+  // Sessões recém-criadas podem chegar sem status — tratar como fila (precisa de gente)
+  const entry = map[status] ?? map['queued']
+  const Icon = entry.icon
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${className}`}>
-      {label}
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${entry.className}`}>
+      {Icon && <Icon className="w-3 h-3" />}
+      {entry.label}
     </span>
   )
 }
@@ -200,6 +203,11 @@ function ConversationRow({
   const lastMsg = session.recent_messages?.at(-1)
   const isQueued = session.omnichannel_status === 'queued'
   const unreadCount = session.unread_count ?? 0
+  // Última palavra é do paciente: ou a IA está gerando (bot_active), ou é
+  // responsabilidade HUMANA e precisa ficar visualmente inescapável
+  const lastFromPatient = lastMsg?.role === 'user'
+  const aiWorking = lastFromPatient && session.omnichannel_status === 'bot_active'
+  const needsReply = lastFromPatient && session.omnichannel_status !== 'bot_active' && session.omnichannel_status !== 'closed'
 
   return (
     <motion.div
@@ -215,7 +223,7 @@ function ConversationRow({
         className={clsx(
           'w-full text-left px-4 py-3 border-b border-ice-100 hover:bg-ice-50 transition-colors flex items-start gap-3 relative',
           selected && 'bg-blue-50 border-l-[3px] border-l-blue-500',
-          isQueued && !selected && 'border-l-[3px] border-l-amber-400',
+          (isQueued || needsReply) && !selected && 'border-l-[3px] border-l-amber-400 bg-amber-50/40',
         )}
       >
         <div className={clsx(
@@ -321,9 +329,16 @@ function ConversationRow({
                 ? t('humanInbox.channels.sms')
                 : t('humanInbox.channels.whatsapp')}
             </span>
-            {isQueued && (
-              <span className="flex items-center gap-0.5 text-[10px] text-amber-600 font-medium shrink-0">
-                <AlertTriangle className="w-3 h-3" /> {t('humanInbox.conversationRow.waiting')}
+            {needsReply && (
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-[10px] font-bold shrink-0 animate-pulse">
+                <AlertTriangle className="w-3 h-3" />
+                {t('humanInbox.conversationRow.needsReply')} · {slaLabel(session.updated_at, t('humanInbox.sla.now'))}
+              </span>
+            )}
+            {aiWorking && (
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-bold shrink-0">
+                <Sparkles className="w-3 h-3 animate-pulse" />
+                {t('humanInbox.conversationRow.aiReplying')}
               </span>
             )}
           </div>
@@ -549,7 +564,7 @@ const MessageBubble = memo(function MessageBubble({
             'px-3.5 py-2.5 rounded-2xl text-sm whitespace-pre-wrap shadow-sm',
             isUser     && 'bg-white border border-gray-200 text-gray-800 rounded-tl-none',
             isHuman    && 'bg-blue-600 text-white rounded-tr-none',
-            isBot      && 'bg-gray-700 text-white rounded-tr-none',
+            isBot      && 'bg-violet-600 text-white rounded-tr-none',
             isInternal && 'bg-amber-50 border border-amber-200 text-amber-900 rounded-tr-none italic',
             (msg.message_type === 'image' || msg.message_type === 'video') && 'p-1',
           )}
@@ -579,7 +594,12 @@ const MessageBubble = memo(function MessageBubble({
           {renderContent()}
         </div>
         <div className={clsx('flex items-center gap-1 mt-1', isOutgoing ? 'justify-end' : 'justify-start')}>
-          {isBot      && <Bot       className="w-3 h-3 text-gray-400" />}
+          {isBot      && (
+            <span className="flex items-center gap-0.5">
+              <Bot className="w-3 h-3 text-violet-400" />
+              <span className="text-[9px] font-bold text-violet-400 uppercase">{t('humanInbox.messageBubble.aiLabel')}</span>
+            </span>
+          )}
           {isHuman    && <PhoneCall className="w-3 h-3 text-blue-400" />}
           {isInternal && <StickyNote className="w-3 h-3 text-amber-400" />}
           {msg.is_edited && <span className="text-[9px] text-gray-400 italic">{t('humanInbox.messageBubble.edited')}</span>}

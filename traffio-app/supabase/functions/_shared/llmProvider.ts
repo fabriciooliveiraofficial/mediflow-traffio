@@ -25,7 +25,8 @@ const PRICE_PER_MTOK: Record<string, { input: number; output: number }> = {
 
 export interface LlmMessage {
     role: "user" | "assistant";
-    content: string;
+    /** string simples OU array de content blocks (tool_use/tool_result no loop agentic) */
+    content: string | any[];
 }
 
 export interface LlmTool {
@@ -45,6 +46,8 @@ export interface LlmResult {
     toolCalls: LlmToolCall[];
     stopReason: string;
     usage: { inputTokens: number; outputTokens: number };
+    /** Content blocks crus da resposta — necessários para devolver tool_result no loop agentic */
+    rawContent: any[];
 }
 
 export interface LlmRequest {
@@ -154,7 +157,7 @@ export async function claudeChat(supabase: SupabaseClient, req: LlmRequest): Pro
         console.warn(`[llmProvider] usage log failed (non-fatal): ${logErr?.message}`);
     }
 
-    return { text, toolCalls, stopReason: data.stop_reason ?? "end_turn", usage };
+    return { text, toolCalls, stopReason: data.stop_reason ?? "end_turn", usage, rawContent: data.content || [] };
 }
 
 /**

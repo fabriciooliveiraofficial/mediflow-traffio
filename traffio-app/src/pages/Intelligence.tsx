@@ -66,6 +66,8 @@ export interface MotorHealthStats {
 export interface BotConfig {
     enabled: boolean;
     active_agent: 'human' | 'copilot' | 'ai_always' | 'ai_assistant' | 'flow_bot';
+    /** Horário da equipe humana (fuso do tenant) — roteia cancelamentos no modo IA Atende */
+    business_hours?: { start: string; end: string; days: number[] };
     no_show_prevention?: boolean;
     nps_enabled?: boolean;
     nps_delay_minutes?: number;
@@ -558,6 +560,49 @@ export const Intelligence = () => {
                         </button>
                     ))}
                 </div>
+
+                {/* Horário da equipe — cancelamentos no expediente vão direto ao humano;
+                    fora dele a IA acolhe e promete retorno (SPEC F3) */}
+                {config.active_agent === 'ai_always' && (() => {
+                    const bh = config.business_hours || { start: '08:00', end: '18:00', days: [1, 2, 3, 4, 5] };
+                    const patch = (p: Partial<typeof bh>) => setConfig(prev => ({ ...prev, business_hours: { ...bh, ...p } }));
+                    return (
+                        <div className="w-full flex flex-wrap items-center gap-x-5 gap-y-3 pt-4 mt-1 border-t border-ice-100">
+                            <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest w-full sm:w-auto">
+                                {t('intelligence.aiDial.hoursTitle')}
+                            </p>
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="time" value={bh.start}
+                                    onChange={e => patch({ start: e.target.value })}
+                                    className="px-3 py-1.5 rounded-xl bg-ice-50 border border-ice-100 text-xs font-bold text-graphite-800 focus:outline-none focus:border-brand-primary"
+                                />
+                                <span className="text-graphite-300 font-bold">—</span>
+                                <input
+                                    type="time" value={bh.end}
+                                    onChange={e => patch({ end: e.target.value })}
+                                    className="px-3 py-1.5 rounded-xl bg-ice-50 border border-ice-100 text-xs font-bold text-graphite-800 focus:outline-none focus:border-brand-primary"
+                                />
+                            </div>
+                            <div className="flex items-center gap-1">
+                                {[0, 1, 2, 3, 4, 5, 6].map(d => (
+                                    <button
+                                        key={d}
+                                        onClick={() => patch({ days: bh.days.includes(d) ? bh.days.filter(x => x !== d) : [...bh.days, d].sort() })}
+                                        title={t(`intelligence.aiDial.dayNames.${d}`)}
+                                        className={`w-7 h-7 rounded-lg text-[10px] font-black transition-all border-0 cursor-pointer ${
+                                            bh.days.includes(d)
+                                                ? 'bg-brand-primary text-white shadow-sm'
+                                                : 'bg-ice-100 text-graphite-400 hover:text-graphite-700'
+                                        }`}
+                                    >
+                                        {t(`intelligence.aiDial.dayLetters.${d}`)}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    );
+                })()}
             </div>
 
             <MotorHealth stats={healthStats} />

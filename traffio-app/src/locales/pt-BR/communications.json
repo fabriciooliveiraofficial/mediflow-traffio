@@ -70,7 +70,7 @@
       "now": "agora"
     },
     "statusBadge": {
-      "botActive": "Bot Ativo",
+      "botActive": "IA atendendo",
       "queued": "Aguardando",
       "humanActive": "Em Atendimento",
       "closed": "Encerrado"
@@ -128,12 +128,15 @@
     "conversationRow": {
       "stageTitlePrefix": "Estágio:",
       "noMessages": "Sem mensagens",
-      "waiting": "aguardando"
+      "waiting": "aguardando",
+      "needsReply": "Aguardando resposta",
+      "aiReplying": "IA respondendo…"
     },
     "audioPlayer": {
       "label": "WhatsApp Audio"
     },
     "messageBubble": {
+      "aiLabel": "IA",
       "mediaAlt": "Mídia",
       "gifAlt": "GIF",
       "documentFallback": "Documento",
