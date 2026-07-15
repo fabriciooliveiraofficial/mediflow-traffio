@@ -37,7 +37,7 @@ export function mockExecuteTool(call: LlmToolCall, opts: MockOptions = {}): { da
             return {
                 data: {
                     available: [{ date: MOCK_DATE, location: "Unidade Centro", slots: MOCK_SLOT_TIMES }],
-                    note: "Os horários acima serão enviados como botões clicáveis — apresente-os brevemente e convide o paciente a escolher.",
+                    note: "The time slots above will be sent to the patient as clickable buttons automatically — present them briefly and invite the patient to pick one. Reply in the PATIENT'S language.",
                 },
             };
 

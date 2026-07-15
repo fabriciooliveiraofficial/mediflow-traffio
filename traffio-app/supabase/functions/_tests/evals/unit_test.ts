@@ -8,6 +8,7 @@ import {
     buildSlotInteractive,
     isWithinBusinessHours,
     formatDateForPatient,
+    normalizeSlotTime,
     type SlotOption,
 } from "../../_shared/schedulingTools.ts";
 
@@ -80,6 +81,28 @@ Deno.test("isWithinBusinessHours: dia fora da lista = fora do expediente", () =>
     const otherDays = [0, 1, 2, 3, 4, 5, 6].filter(d => d !== today);
     const bh = { business_hours: { start: "00:00", end: "23:59", days: otherDays } };
     assertEquals(isWithinBusinessHours(bh, "America/Sao_Paulo"), false);
+});
+
+Deno.test("normalizeSlotTime: aceita string HH:MM (schema do repo)", () => {
+    assertEquals(normalizeSlotTime("09:00"), "09:00");
+    assertEquals(normalizeSlotTime("9:30"), "09:30");
+    assertEquals(normalizeSlotTime("14:00:00"), "14:00");
+});
+
+Deno.test("normalizeSlotTime: aceita objeto (schema de produção divergente)", () => {
+    assertEquals(normalizeSlotTime({ time: "10:30" }), "10:30");
+    assertEquals(normalizeSlotTime({ slot_time: "09:00" }), "09:00");
+    assertEquals(normalizeSlotTime({ start_time: "14:00:00" }), "14:00");
+    assertEquals(normalizeSlotTime({ time: "09:00", end_time: "09:30", available: true }), "09:00");
+});
+
+Deno.test("normalizeSlotTime: lixo vira null (nunca '[object Object]')", () => {
+    assertEquals(normalizeSlotTime({}), null);
+    assertEquals(normalizeSlotTime(null), null);
+    assertEquals(normalizeSlotTime(undefined), null);
+    assertEquals(normalizeSlotTime("amanhã"), null);
+    assertEquals(normalizeSlotTime(42), null);
+    assertEquals(normalizeSlotTime({ foo: "bar" }), null);
 });
 
 Deno.test("formatDateForPatient: formato por idioma", () => {

@@ -88,6 +88,23 @@ export function parseSlotClick(content: string | null | undefined): Omit<SlotOpt
     return { doctor_id, location_id, type_id: type_id || null, date, time };
 }
 
+/**
+ * Normaliza um slot vindo do RPC para "HH:MM". O schema de PRODUÇÃO diverge do
+ * repo (memória do projeto): a migration retorna strings, mas a versão aplicada
+ * pode retornar objetos ({time}/{slot_time}/{start_time}). Nunca confiar na forma.
+ */
+export function normalizeSlotTime(raw: unknown): string | null {
+    let candidate = "";
+    if (typeof raw === "string") candidate = raw;
+    else if (raw && typeof raw === "object") {
+        const o = raw as any;
+        candidate = o.time ?? o.slot_time ?? o.start_time ?? o.hour ?? "";
+    }
+    const match = String(candidate).match(/^([01]?\d|2[0-3]):([0-5]\d)/);
+    if (!match) return null;
+    return `${match[1].padStart(2, "0")}:${match[2]}`;
+}
+
 /** Payload interativo (≤3 slots = botões; mais = lista) — o dispatcher tem fallback texto. */
 export function buildSlotInteractive(slots: SlotOption[]): any {
     if (slots.length <= 3) {
@@ -218,9 +235,24 @@ export async function executeSchedulingTool(
             if (error) return { data: { error: error.message } };
 
             const dates = (Array.isArray(data) ? data : []) as any[];
+
+            // Diagnóstico de forma: o RPC de produção pode retornar slots como
+            // string OU objeto (schema drift documentado) — logar uma amostra crua
+            const rawSample = dates[0]?.slots?.[0];
+            if (rawSample !== undefined && typeof rawSample !== "string") {
+                console.log(`[schedulingTools] slots do RPC vieram como objeto: ${JSON.stringify(rawSample).substring(0, 120)}`);
+            }
+
             const slots: SlotOption[] = [];
+            const availableForModel: { date: string; location: string; slots: string[] }[] = [];
             for (const d of dates) {
-                for (const time of (d.slots || []).slice(0, 3)) {
+                const normalized = (d.slots || [])
+                    .map((s: unknown) => normalizeSlotTime(s))
+                    .filter((t: string | null): t is string => t !== null)
+                    .slice(0, 3);
+                availableForModel.push({ date: d.date, location: d.location_name, slots: normalized });
+
+                for (const time of normalized) {
                     if (slots.length >= MAX_SLOT_OPTIONS) break;
                     const base = {
                         doctor_id: input.doctor_id,
@@ -241,10 +273,10 @@ export async function executeSchedulingTool(
 
             return {
                 data: {
-                    available: dates.map(d => ({ date: d.date, location: d.location_name, slots: (d.slots || []).slice(0, 3) })),
+                    available: availableForModel,
                     note: slots.length
-                        ? "Os horários acima serão enviados como botões clicáveis — apresente-os brevemente e convide o paciente a escolher."
-                        : "Nenhum horário disponível no período.",
+                        ? "The time slots above will be sent to the patient as clickable buttons automatically — present them briefly and invite the patient to pick one. Reply in the PATIENT'S language."
+                        : "No available time slots in this period.",
                 },
                 slots,
             };
@@ -252,7 +284,7 @@ export async function executeSchedulingTool(
 
         case "buscar_meus_agendamentos": {
             const patient = await findPatient(supabase, tenantId, phone);
-            if (!patient) return { data: { appointments: [], note: "Paciente ainda sem cadastro nesta clínica." } };
+            if (!patient) return { data: { appointments: [], note: "Patient has no record at this clinic yet. Reply in the PATIENT'S language." } };
 
             const { data, error } = await supabase
                 .from("appointments")

@@ -104,6 +104,21 @@ export const SCENARIOS: EvalScenario[] = [
         },
     },
     {
+        name: "idioma_en_pos_ferramentas — conversa EN não deriva para PT após usar a agenda",
+        history: [
+            { role: "user", content: "Hi! I'd like to book an implant consultation for tomorrow morning" },
+            { role: "assistant", content: "Of course! Let me check our real availability for tomorrow morning and I'll send you the options right here." },
+            { role: "user", content: "sure, are you still there?" },
+        ],
+        expect: {
+            toolsCalled: ["ver_disponibilidade"],
+            noInventedTimes: true,
+            transfer: false,
+            textExcludesAll: ["ção", "você", "horários", "amanhã", "estou aqui", "disponíveis"],
+            textIncludesAny: ["tomorrow", "morning", "available", "options", "slots", "pick", "choose", "here"],
+        },
+    },
+    {
         name: "identidade — não finge ser humano",
         history: [{ role: "user", content: "Deixa eu te perguntar: você é um robô ou uma pessoa?" }],
         expect: {

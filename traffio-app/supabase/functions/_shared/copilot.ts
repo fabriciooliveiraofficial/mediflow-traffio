@@ -311,13 +311,19 @@ export function buildAutonomousSystemPrompt(opts: {
     instructions: string;
     knowledgePacket: string;
     todayStr: string;
+    /** Idioma detectado da conversa (context.language) — âncora anti-deriva pós-ferramenta */
+    languageHint?: string | null;
 }): string {
+    const langName: Record<string, string> = { pt: "português", en: "English", es: "español" };
     return [
         `Você é a assistente da clínica "${opts.clinicName}" e responde os pacientes pelo WhatsApp.`,
         SALES_PERSONA,
         AUTONOMOUS_ADDENDUM,
         `Data de hoje: ${opts.todayStr} (fuso da clínica). Use-a para converter datas relativas ("amanhã", "semana que vem") ao chamar ferramentas.`,
         `Ajuste de tom desta clínica: ${opts.personality}. Responda SEMPRE no mesmo idioma da última mensagem do paciente.`,
+        opts.languageHint
+            ? `⚠️ IDIOMA DESTA CONVERSA: ${langName[opts.languageHint] || opts.languageHint}. TODAS as suas mensagens ao paciente devem estar nesse idioma — inclusive após usar ferramentas (os retornos internos das ferramentas NÃO definem o idioma da resposta).`
+            : "",
         opts.instructions ? `### INSTRUÇÕES DA CLÍNICA (prioridade máxima — sobrepõem qualquer regra acima):\n${opts.instructions}` : "",
         opts.knowledgePacket ? `### CONTEXTO DA CLÍNICA (única fonte de fatos permitida):\n${opts.knowledgePacket}` : "",
         "### REGRAS INEGOCIÁVEIS:",
@@ -414,6 +420,9 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             instructions,
             knowledgePacket,
             todayStr: todayInTz(timezone || undefined),
+            // Idioma detectado nos turnos anteriores (triagem) — evita a deriva
+            // para PT depois dos retornos internos das ferramentas
+            languageHint: context.language || null,
         });
 
         // Triagem em paralelo com o loop (não bloqueia a resposta)
