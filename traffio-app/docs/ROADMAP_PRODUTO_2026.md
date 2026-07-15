@@ -280,17 +280,19 @@ o piloto validar a base atual.
 ## Ordem recomendada dos próximos passos
 
 1. **Validar o piloto do F3** (agendamento autônomo) na Dental Test 4 — mais
-   testes reais, rodar a suíte a cada ajuste.
+   testes reais, rodar a suíte a cada ajuste. *(contínuo, depende de uso real — não é uma tarefa de código isolada)*
 2. **Módulo de Orçamentos + caixa gateway-agnóstico** (item 3) — é o maior
    buraco: sem ele a metade financeira da frase-norte não existe em nenhum
-   tenant.
+   tenant. **← próximo passo de construção recomendado.**
 3. **Reorganização visual do menu em 5 grupos** (item 2) — baixo custo,
    resolve a sensação original de "plataforma solta" que motivou toda essa
-   tese.
+   tese. Parcialmente destravado pelo item 6a (conteúdo das páginas já
+   coerente); falta agrupar visualmente, renomear Dashboard→Marketing e
+   remover badges técnicos (Z-API/Softphone/AI Hub).
 4. **F2 — fluxos estruturados com `chatAgent.ts`** para reduzir custo de
    IA em confirmações/recovery simples (não precisa de LLM completo).
-5. **Esconder Nutrição, remover Notificações do menu, consolidar Relatórios**
-   (item 7) — limpeza rápida de posicionamento.
+5. **Esconder Nutrição, consolidar Relatórios** (item 7) — limpeza rápida
+   de posicionamento (a remoção de Notificações do menu foi revertida, ver 6a).
 6. **IA consciente de jornada** (item 6) — depois que o volume de dados do
    piloto existir para justificar.
 7. **Meta Cloud API como tier Pro** com UI de upgrade e billing metered
@@ -299,5 +301,6 @@ o piloto validar a base atual.
 
 ---
 
-*Última atualização: 15/07/2026. Ao concluir qualquer item, mover para a
-seção correspondente com ✅ e a data/PR relevante.*
+*Última atualização: 15/07/2026 (reorganização Inteligência↔Notificações
+concluída — item 6a). Ao concluir qualquer item, mover para a seção
+correspondente com ✅ e a data/PR relevante.*
