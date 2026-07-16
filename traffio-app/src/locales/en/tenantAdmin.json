@@ -521,6 +521,8 @@
       "subtitle": "Automatic cadence after a no-show (immediate, 2 days, 7 days) and follow-up reactivation",
       "defaultLangLabel": "Default sending language",
       "hint": "Triggered when the patient misses an appointment (card moved to \"No-Show\" in the CRM). The cadence stops automatically if the patient replies, books or pays. The language selected above is used when sending all automatic messages.",
+      "structuredFlowsTitle": "Automatic replies (no AI)",
+      "structuredFlowsHint": "When the patient replies \"RESCHEDULE\" or \"Yes\" (waitlist), it offers times and confirms on its own — works even with AI turned off.",
       "variablesHint": "Available variables:",
       "cards": {
         "immediate": "Immediate — right after the no-show",
@@ -629,5 +631,118 @@
       "footer": "Variables are automatically filled with appointment data at the time of sending."
     },
     "saveButton": "SAVE CHANGES"
+  },
+  "proposals": {
+    "title": "Proposals",
+    "subtitle": "Commercial proposals sent to patients — from draft to payment.",
+    "newButton": "New Proposal",
+    "searchPlaceholder": "Search patient or title...",
+    "emptyState": "No proposals found",
+    "emptyStateHint": "Create the first proposal to start tracking the sales pipeline.",
+    "kpis": {
+      "open": "Open",
+      "approvedPending": "Approved (awaiting payment)",
+      "paidThisMonth": "Received this month",
+      "approvalRate": "Approval rate"
+    },
+    "status": {
+      "all": "All",
+      "draft": "Draft",
+      "sent": "Sent",
+      "viewed": "Viewed",
+      "approved": "Approved",
+      "paid": "Paid",
+      "lost": "Lost"
+    },
+    "table": {
+      "patientFallback": "Patient"
+    },
+    "modal": {
+      "newTitle": "New Proposal",
+      "editTitle": "Edit Proposal",
+      "patientLabel": "Patient",
+      "patientPlaceholder": "Select a patient",
+      "titleLabel": "Proposal title",
+      "titlePlaceholder": "E.g.: Orthodontic treatment",
+      "validUntilLabel": "Valid until",
+      "itemsTitle": "Items",
+      "addItem": "Add item",
+      "descriptionLabel": "Description",
+      "quantityLabel": "Quantity",
+      "unitPriceLabel": "Unit price",
+      "notesLabel": "Notes",
+      "totalLabel": "Total",
+      "cancel": "Cancel",
+      "save": "Save"
+    },
+    "detail": {
+      "back": "Back",
+      "timeline": "History",
+      "linkedPayments": "Linked payments",
+      "paidSoFar": "Paid so far",
+      "remaining": "Remaining",
+      "lostReasonLabel": "Reason for losing",
+      "confirmLost": "Confirm",
+      "editButton": "Edit",
+      "sendButton": "Send",
+      "markViewed": "Mark as viewed",
+      "approve": "Approve",
+      "markLost": "Mark as lost",
+      "registerPayment": "Register payment",
+      "readOnlyHint": "This proposal is closed and can no longer be changed.",
+      "paymentNoteTemplate": "Proposal: {{title}}",
+      "paymentMethodLabel": "Payment method",
+      "paymentMethods": {
+        "cash": "Cash",
+        "pix": "Pix",
+        "card_machine": "Card machine",
+        "bank_transfer": "Bank transfer",
+        "other": "Other"
+      },
+      "paymentDateLabel": "Payment date"
+    },
+    "lostReasons": {
+      "price": "Price",
+      "competitor": "Competitor",
+      "no_response": "No response",
+      "gave_up": "Gave up",
+      "other": "Other"
+    },
+    "sendModal": {
+      "title": "Send proposal",
+      "subtitle": "Choose the channel to send to the patient",
+      "previewLabel": "Message preview",
+      "skip": "Cancel",
+      "send": "Send",
+      "messageTemplate": "Hi {{patientName}}! Here's the proposal \"{{title}}\" from {{clinicName}}: total {{total}}. Let us know if you have any questions! 😊",
+      "channels": {
+        "whatsapp": "WhatsApp",
+        "sms": "SMS",
+        "email": "Email"
+      },
+      "reasons": {
+        "noPhone": "Patient has no phone on file",
+        "noEmail": "Patient has no email on file",
+        "smsDisabled": "SMS not enabled for this clinic"
+      }
+    },
+    "toasts": {
+      "loadError": "Error loading proposals: {{message}}",
+      "deleteSuccess": "Proposal deleted",
+      "deleteError": "Error deleting: {{message}}",
+      "validationError": "Fill in patient, title and at least one valid item",
+      "noItemsError": "Add at least one item with description and price",
+      "createSuccess": "Proposal created",
+      "updateSuccess": "Proposal updated",
+      "saveError": "Error saving: {{message}}",
+      "sentSuccess": "Proposal sent to patient",
+      "sendError": "Error sending: {{message}}",
+      "approvedSuccess": "Proposal approved",
+      "approveError": "Error approving: {{message}}",
+      "lostSuccess": "Proposal marked as lost",
+      "lostError": "Error: {{message}}",
+      "paymentSuccess": "Payment registered",
+      "paymentError": "Error registering payment: {{message}}"
+    }
   }
 }

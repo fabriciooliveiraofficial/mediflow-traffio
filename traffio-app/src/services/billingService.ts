@@ -17,6 +17,8 @@ export interface BillingRecord {
     receipt_number?: number;
     installment_no?: number;
     installment_count?: number;
+    /** Vincula este recebimento a um orçamento (commercial_proposals) — ver ProposalService. */
+    proposal_id?: string;
     due_date: string;
     paid_at?: string;
     notes?: string;

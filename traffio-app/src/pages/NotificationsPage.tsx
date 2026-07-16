@@ -1069,6 +1069,27 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
                             </p>
                         </div>
 
+                        <div className="flex items-center justify-between bg-white/80 rounded-2xl p-4 shadow-float">
+                            <div>
+                                <p className="text-xs font-black text-graphite-900">
+                                    {t('intelligence.recoverySection.structuredFlowsTitle', { defaultValue: 'Respostas automáticas (sem IA)' })}
+                                </p>
+                                <p className="text-[10px] font-bold text-graphite-400">
+                                    {t('intelligence.recoverySection.structuredFlowsHint', { defaultValue: 'Quando o paciente responder "REMARCAR" ou "Sim" (lista de espera), oferece horários e confirma sozinho — funciona mesmo com a IA desligada.' })}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setConfig(prev => ({
+                                    ...prev,
+                                    structured_flows_enabled: prev.structured_flows_enabled === false ? true : false,
+                                }))}
+                                className={`relative inline-block w-12 h-6 rounded-full transition-all border-none cursor-pointer flex-shrink-0 ${config.structured_flows_enabled !== false ? 'bg-brand-primary' : 'bg-ice-200'}`}
+                            >
+                                <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-all ${config.structured_flows_enabled !== false ? 'left-6' : 'left-0.5'}`} />
+                            </button>
+                        </div>
+
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             {RECOVERY_TEMPLATE_META.map(({ key, chip, labelKey, defaultLabel }) => (
                                 <div key={key} className="bg-white/80 rounded-2xl p-4 shadow-float space-y-3">

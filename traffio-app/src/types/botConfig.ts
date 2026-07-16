@@ -83,6 +83,10 @@ export interface BotConfig {
         es: string;
     };
     recovery_captions?: Record<string, { pt: string; en: string; es: string }>;
+    /** F2 (docs/ROADMAP_PRODUTO_2026.md) — kill-switch das respostas automáticas
+     * determinísticas a recovery/waitlist (clique de horário, "REMARCAR", "Sim").
+     * Default ligado quando ausente. */
+    structured_flows_enabled?: boolean;
 
     // Mantendo estes campos para compatibilidade de schema, mas não serão editáveis
     personality?: string;

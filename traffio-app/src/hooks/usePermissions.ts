@@ -14,6 +14,7 @@ export const PERMISSION_MAP: Record<string, string[]> = {
   'page:inbox':         ['owner', 'admin', 'manager', 'attendant'],
   'page:followup':      ['owner', 'admin', 'manager', 'attendant'],
   'page:leads':         ['owner', 'admin', 'manager', 'attendant'],
+  'page:proposals':     ['owner', 'admin', 'manager', 'attendant'],
   'page:reception':     ['owner', 'admin', 'manager', 'attendant', 'staff'],
   'page:financial':     ['owner', 'admin', 'manager'],
   'page:professionals': ['owner', 'admin', 'manager'],

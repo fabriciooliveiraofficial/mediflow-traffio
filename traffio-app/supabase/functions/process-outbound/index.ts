@@ -27,6 +27,7 @@ import { sendTenantEmail, isValidEmail } from "../_shared/emailClient.ts";
 import { getEmailSubject, renderEmailHtml, buildIcsAttachment } from "../_shared/emailTemplates.ts";
 import { isBlockedByQuietHours } from "../_shared/tenantTime.ts";
 import { getDefaultChannel } from "../_shared/channelResolver.ts";
+import { SessionManager } from "../_shared/sessionManager.ts";
 
 console.log("process-outbound v4.1 — Fair-claim + canal padrão do tenant Initialized");
 
@@ -57,6 +58,11 @@ function renderCustomCaptionFromVars(template: string, vars: any): string {
 
 // Cadência de recuperação do CRM (Faltou → D0/D2/D7) + reativação (recall_due)
 const RECOVERY_TEMPLATE_KEYS = ['recovery_immediate', 'recovery_48h', 'recovery_7d', 'recall_immediate'];
+
+// F2 (docs/ROADMAP_PRODUTO_2026.md) — subconjunto de RECOVERY_TEMPLATE_KEYS elegível
+// à resposta determinística automática (REMARCAR/RESCHEDULE/REAGENDAR). recall_immediate
+// fica de fora: reativação não está ligada a um médico/horário específico como o recovery.
+const STRUCTURED_RECOVERY_KEYS = ['recovery_immediate', 'recovery_48h', 'recovery_7d'];
 
 // Resolve a caption personalizada do bot_config do tenant para um lembrete.
 // Retorna null se não houver caption configurada para este template/idioma.
@@ -200,6 +206,7 @@ serve(async (req: Request) => {
     };
 
     const outbox = new OutboxDispatcher(supabase);
+    const sessionManager = new SessionManager(supabase);
     let processed = 0;
 
     // Resolve o e-mail do paciente: preferência explícita → cadastro do paciente
@@ -538,6 +545,29 @@ serve(async (req: Request) => {
             .update({ confirmation_status: 'awaiting' })
             .eq('id', msg.reference_id)
             .is('confirmation_status', null);
+        }
+
+        // F2 — marca a correlação para o pré-filtro determinístico de process-inbox
+        // reconhecer a resposta (REMARCAR/RESCHEDULE/REAGENDAR). Só WhatsApp: é o
+        // único canal com pipeline de resposta automática (SMS/e-mail não têm).
+        if (channel === 'whatsapp' && msg.reference_type === 'crm_journey' && STRUCTURED_RECOVERY_KEYS.includes(msg.template_key)) {
+          try {
+            const { data: journey } = await supabase.from('crm_journeys')
+              .select('patient_id').eq('id', msg.reference_id).maybeSingle();
+            if (journey?.patient_id) {
+              const patientSession = await sessionManager.getOrCreateSession(msg.tenant_id, msg.patient_phone);
+              await sessionManager.updateContext(patientSession.id, {
+                pending_recovery: {
+                  template_key: msg.template_key,
+                  crm_journey_id: msg.reference_id,
+                  patient_id: journey.patient_id,
+                  sent_at: new Date().toISOString(),
+                },
+              });
+            }
+          } catch (markErr: any) {
+            console.warn(`[process-outbound] F2 marker falhou (non-fatal): ${markErr?.message}`);
+          }
         }
 
         processed++;

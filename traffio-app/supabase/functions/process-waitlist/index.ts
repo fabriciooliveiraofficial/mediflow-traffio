@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { OutboxDispatcher } from "../_shared/outboxDispatcher.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { SessionManager } from "../_shared/sessionManager.ts";
 
 /**
  * process-waitlist — Edge Function
@@ -89,6 +90,44 @@ serve(async (req: Request) => {
       .from("waitlist")
       .update({ status: "notified", updated_at: new Date().toISOString() })
       .eq("id", eligibleMatch.id);
+
+    // 7. F2 — marca a correlação para o pré-filtro determinístico de process-inbox
+    // reconhecer a resposta "Sim". waitlist não tem location_id — resolve a partir
+    // do agendamento cancelado que disparou esta notificação.
+    try {
+      const { data: canceledAppt } = await supabase
+        .from("appointments")
+        .select("location_id")
+        .eq("tenant_id", tenant_id)
+        .eq("doctor_id", doctor_id)
+        .eq("date", date)
+        .eq("start_time", start_time)
+        .eq("status", "canceled")
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (canceledAppt?.location_id) {
+        const sessionManager = new SessionManager(supabase);
+        const waitlistSession = await sessionManager.getOrCreateSession(tenant_id, patient.phone);
+        await sessionManager.updateContext(waitlistSession.id, {
+          pending_waitlist: {
+            waitlist_id: eligibleMatch.id,
+            patient_id: (eligibleMatch as any).patient_id,
+            doctor_id,
+            location_id: canceledAppt.location_id,
+            type_id: (eligibleMatch as any).type_id || null,
+            date,
+            start_time,
+            sent_at: new Date().toISOString(),
+          },
+        });
+      } else {
+        console.warn(`[waitlist] location_id não resolvido para o agendamento cancelado — F2 não poderá auto-confirmar esta oferta`);
+      }
+    } catch (markErr: any) {
+      console.warn(`[waitlist] F2 marker falhou (non-fatal): ${markErr?.message}`);
+    }
 
     console.log(`[waitlist] Notification sent to ${patient.full_name} (${patient.phone})`);
 

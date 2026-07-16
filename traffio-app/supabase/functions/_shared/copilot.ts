@@ -17,14 +17,9 @@ import { OutboxDispatcher } from "./outboxDispatcher.ts";
 import {
     SCHEDULING_TOOLS,
     executeSchedulingTool,
-    ensurePatient,
-    parseSlotClick,
     buildSlotInteractive,
     isWithinBusinessHours,
     todayInTz,
-    formatDateForPatient,
-    SLOT_CONFIRM_MSG,
-    SLOT_TAKEN_MSG,
     AFTER_HOURS_CANCEL_MSG,
     type SlotOption,
 } from "./schedulingTools.ts";
@@ -356,51 +351,10 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
         const knownIntake = context.intake || {};
         const storedLanguage = context.language || "pt";
 
-        // ── Caminho 100% determinístico: clique em botão de slot (sem LLM) ─────
-        // O clique chega como content = id do botão ("slot|doctor|location|...").
-        // Fallback numerado: se os botões degradaram para texto, o paciente
-        // responde "1"/"2"/... — mapeia para context.pending_slots na mesma ordem.
-        // Agendamento sai direto pelo RPC anti-double-booking — zero ambiguidade.
-        const lastUserMsg = [...history].reverse().find((m: any) => m.role === "user");
-        let clickContent: string | undefined = lastUserMsg?.content;
-        const digitMatch = String(clickContent || "").trim().match(/^([1-9])[.)]?$/);
-        if (digitMatch && Array.isArray(context.pending_slots) && context.pending_slots.length > 0) {
-            const idx = parseInt(digitMatch[1], 10) - 1;
-            if (idx < context.pending_slots.length) clickContent = context.pending_slots[idx];
-        }
-        const slotClick = parseSlotClick(clickContent);
-        if (slotClick) {
-            const patient = await ensurePatient(supabase, tenantId, phone, session.platform_display_name);
-            if (!patient) return "failed";
-
-            const { data: booked, error: bookErr } = await supabase.rpc("book_appointment", {
-                p_tenant_id: tenantId,
-                p_patient_id: patient.id,
-                p_doctor_id: slotClick.doctor_id,
-                p_location_id: slotClick.location_id,
-                p_type_id: slotClick.type_id,
-                p_date: slotClick.date,
-                p_start_time: slotClick.time,
-                p_booked_by: "ai_agent",
-            });
-
-            const ok = !bookErr && (booked as any)?.success;
-            const msg = ok
-                ? (SLOT_CONFIRM_MSG[storedLanguage] || SLOT_CONFIRM_MSG.pt)(formatDateForPatient(slotClick.date, storedLanguage), slotClick.time)
-                : (SLOT_TAKEN_MSG[storedLanguage] || SLOT_TAKEN_MSG.pt);
-            if (!ok) console.warn(`[agent] [${phone}] slot click não agendou: ${bookErr?.message || JSON.stringify(booked)}`);
-
-            await sendWithFallback(dispatcher, tenant, tenantId, phone, msg);
-            await sessionManager.logMessage(sessionId, "assistant", msg);
-
-            const ctx = { ...context };
-            delete ctx.pending_slots;
-            await supabase
-                .from("conversation_sessions")
-                .update({ context: ctx, omnichannel_status: "bot_active", human_handoff: false })
-                .eq("id", sessionId);
-            return "replied";
-        }
+        // Nota: o clique em botão de slot (parseSlotClick/context.pending_slots) NÃO
+        // é mais verificado aqui — o pré-filtro universal do F2 (structuredFlow.ts)
+        // intercepta isso ANTES de runAutonomousAgent ser chamado, para qualquer dial
+        // (não só ai_always). Ver process-inbox/index.ts.
 
         const transcript = history
             .map((m: any) => `${m.role === "user" ? "PACIENTE" : "CLÍNICA"}: ${m.content}`)
@@ -557,7 +511,7 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
 }
 
 /** Envio com typing delay curto; se o envio síncrono falhar, cai para a fila com retry. */
-async function sendWithFallback(dispatcher: OutboxDispatcher, tenant: any, tenantId: string, phone: string, text: string, interactive?: any): Promise<void> {
+export async function sendWithFallback(dispatcher: OutboxDispatcher, tenant: any, tenantId: string, phone: string, text: string, interactive?: any): Promise<void> {
     try {
         await dispatcher.sendNow(tenant, phone, { text, interactive }, 1200);
     } catch (sendErr: any) {

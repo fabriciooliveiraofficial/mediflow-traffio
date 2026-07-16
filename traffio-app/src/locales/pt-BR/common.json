@@ -24,13 +24,14 @@
     "inbox": "Atendimento",
     "followup": "Follow-up (CRM)",
     "leads": "Pacientes",
+    "proposals": "Orçamentos",
     "analytics": "Financeiro",
     "professionals": "Corpo Clínico",
     "services": "Procedimentos",
     "whatsapp": "WhatsApp",
     "communications": "Comunicações",
     "intelligence": "Inteligência",
-    "dashboard": "Analytics Pro",
+    "dashboard": "Marketing",
     "notifications": "Notificações",
     "payments": "Pagamentos",
     "billing": "Assinatura",
@@ -41,7 +42,14 @@
     "nutrition": "Nutrição",
     "nutritionPlan": "Plano Nutricional",
     "signOut": "Sair",
-    "signOutAccount": "Sair da Conta"
+    "signOutAccount": "Sair da Conta",
+    "groups": {
+      "atendimento": "Atendimento",
+      "comercial": "Comercial",
+      "clinico": "Clínico",
+      "financeiro": "Financeiro",
+      "gestao": "Gestão"
+    }
   },
   "layout": {
     "userFallback": "Usuário",

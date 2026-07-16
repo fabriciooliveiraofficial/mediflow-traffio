@@ -109,10 +109,9 @@ export async function getTodaySnapshot(tenantId: string, timezone?: string): Pro
     const monthStartStr = `${todayStr.slice(0, 7)}-01`;
 
     const startOfToday = localDateTimeToUTC(todayStr, '00:00', tz).toISOString();
-    const endOfToday = new Date(localDateTimeToUTC(todayStr, '23:59', tz).getTime() + 59999).toISOString();
-    const endOfTomorrow = new Date(localDateTimeToUTC(tomorrowStr, '23:59', tz).getTime() + 59999).toISOString();
-    const startOfMonth = localDateTimeToUTC(monthStartStr, '00:00', tz).toISOString();
-    const nowIso = new Date().toISOString();
+    const nowTimeStr = new Intl.DateTimeFormat('en-GB', {
+        timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+    }).format(new Date());
 
     const [
         queuedSessions,
@@ -139,8 +138,7 @@ export async function getTodaySnapshot(tenantId: string, timezone?: string): Pro
             .from('appointments')
             .select('id, start_time, status, patients(full_name)')
             .eq('tenant_id', tenantId)
-            .gte('start_time', startOfToday)
-            .lte('start_time', endOfToday)
+            .eq('date', todayStr)
             .order('start_time', { ascending: true })
             .limit(300),
         // F2 — agendados sem confirmação (hoje + amanhã)
@@ -149,8 +147,8 @@ export async function getTodaySnapshot(tenantId: string, timezone?: string): Pro
             .select('id, start_time, status, patients(full_name)', { count: 'exact' })
             .eq('tenant_id', tenantId)
             .eq('status', 'scheduled')
-            .gte('start_time', startOfToday)
-            .lte('start_time', endOfTomorrow)
+            .gte('date', todayStr)
+            .lte('date', tomorrowStr)
             .order('start_time', { ascending: true })
             .limit(3),
         // F3/F4 — jornadas abertas, estratificadas pela mesma lib do WorkQueue
@@ -173,21 +171,21 @@ export async function getTodaySnapshot(tenantId: string, timezone?: string): Pro
             .from('appointments')
             .select('id', { count: 'exact', head: true })
             .eq('tenant_id', tenantId)
-            .gte('start_time', startOfMonth)
+            .gte('date', monthStartStr)
             .not('status', 'in', `("${CANCELLED_STATUSES.join('","')}")`),
         supabase
             .from('appointments')
             .select('id', { count: 'exact', head: true })
             .eq('tenant_id', tenantId)
-            .gte('start_time', startOfMonth)
-            .lte('start_time', nowIso)
+            .gte('date', monthStartStr)
+            .lte('date', todayStr)
             .eq('status', 'completed'),
         supabase
             .from('appointments')
             .select('id', { count: 'exact', head: true })
             .eq('tenant_id', tenantId)
-            .gte('start_time', startOfMonth)
-            .lte('start_time', nowIso)
+            .gte('date', monthStartStr)
+            .lte('date', todayStr)
             .in('status', NO_SHOW_STATUSES),
         // Pulso — novos leads hoje
         supabase
@@ -225,7 +223,7 @@ export async function getTodaySnapshot(tenantId: string, timezone?: string): Pro
     const activeToday = todayRows.filter(a => !CANCELLED_STATUSES.includes(a.status));
     const doneToday = activeToday.filter(a => a.status === 'completed');
     const upcomingToday = activeToday.filter(a =>
-        !NO_SHOW_STATUSES.includes(a.status) && a.status !== 'completed' && a.start_time >= nowIso);
+        !NO_SHOW_STATUSES.includes(a.status) && a.status !== 'completed' && a.start_time >= nowTimeStr);
 
     const apptItem = (a: any): QueuePreviewItem => ({
         id: a.id,

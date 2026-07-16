@@ -50,32 +50,108 @@ Legenda: ✅ Implementado e em produção · 🟡 Decidido/especificado, não co
 - Fila de **orçamentos parados** dentro de F4 — depende do módulo de Orçamentos
 - Rotas react-router (deep-link, botão voltar) — hoje navegação é por `activeScreen` em memória
 
+**Bug corrigido pós-lançamento (16/07/2026):** `todayService.ts` comparava
+`appointments.start_time`/`.end_time` (tipo `time without time zone`) contra
+timestamps ISO completos nas filas F2 (confirmações) e F6 (agenda do dia) e
+nas metas/pulso do mês — causava 400 silencioso (cada query falha
+isoladamente e degrada para vazio) desde que a tela foi construída. Corrigido
+para filtrar pela coluna `date` (tipo `date`), mesmo padrão já usado em
+`AgendaMestra.tsx`; comparação client-side de "próximos horários de hoje"
+também corrigida para comparar hora-do-dia (`Intl.DateTimeFormat` no fuso do
+tenant) em vez de ISO completo.
+
 ---
 
 ### 2. Reorganização do menu por papel
 
-**Status: 🟡 Parcialmente feito.**
+**Status: ✅ Implementado e em produção (16/07/2026).**
 
-Decidido: 5 grupos — **Atendimento** (Hoje, Agenda, Conversas, Recepção) ·
-**Comercial** (Funil, Follow-up, Orçamentos) · **Clínico** (Prontuário,
-Odontograma — só perfil clínico) · **Financeiro** (Pagamentos, Caixa) ·
-**Gestão** (Relatórios, Marketing/Ads, IA/Automações, Configurações).
+5 grupos visuais no menu (cabeçalho discreto acima do primeiro item de cada
+grupo, no sidebar desktop e no drawer mobile), mapeando **todos** os itens
+existentes (não só os citados na decisão original):
 
-**O que foi feito:** item "Hoje" adicionado no topo do menu
-([DashboardLayout.tsx](../src/layouts/DashboardLayout.tsx)); "Dashboard" segue
-sendo o painel de ads (não foi renomeado).
+- **Atendimento**: Hoje, Agenda, Conversas (Inbox), Recepção
+- **Comercial**: Follow-up (CRM), Pacientes, Orçamentos
+- **Clínico**: Corpo Clínico, Procedimentos + módulos dinâmicos por
+  especialidade (Odontologia/Odontograma, Prontuário, Nutrição/Plano)
+- **Financeiro**: Financeiro (FinancialDashboard), Pagamentos
+- **Gestão**: WhatsApp, Comunicações, Inteligência, Marketing (ads),
+  Notificações, Assinatura, Configurações
 
-**O que falta:**
-- Agrupar visualmente os itens do menu nos 5 grupos acima
-- Renomear "Dashboard" → "Marketing" dentro do grupo Gestão
-- Remover badges técnicos do menu: `Z-API`, `Softphone`, `AI Hub` (nomear pelo valor, não pela tecnologia)
-- Consolidar múltiplas telas de analytics (Dashboard de ads + FinancialDashboard + Intelligence) em uma seção "Relatórios"
+`DashboardLayout.tsx`: `NavItem` ganhou campo `group`; `buildNavItems()`
+reordenado para agrupar contiguamente; header de grupo renderizado via
+`t('nav.groups.<id>')` sempre que o grupo muda em relação ao item anterior
+(oculto quando o sidebar está recolhido). Chaves `nav.groups.*` novas em
+`common.json` (3 idiomas).
+
+**Também executado nesta entrega** (itens que já estavam na lista de
+pendências deste tópico):
+- Renomeado "Dashboard" → **"Marketing"** em `nav.dashboard` (3 idiomas) —
+  o rótulo antigo "Analytics Pro" não deixava claro que a tela é o painel de
+  ads/campanhas
+- Removidos os badges técnicos `Z-API` (WhatsApp), `Softphone`
+  (Comunicações) e `AI Hub` (Inteligência) — mantidos apenas badges que
+  comunicam valor (`IA` na Agenda, `Staff` na Recepção, `New` nos módulos de
+  especialidade)
+
+**🟡 Ainda pendente desta frente:**
+- Consolidar múltiplas telas de analytics (Marketing/ads + FinancialDashboard
+  + Intelligence) em uma seção "Relatórios" única — não fazia parte do
+  agrupamento visual, é uma fusão de páginas mais profunda (ver item 7)
 
 ---
 
 ### 3. Financeiro gateway-agnóstico / módulo de Orçamentos
 
-**Status: 🟡 Decidido, nada implementado.**
+**Status: ✅ Implementado e em produção (16/07/2026).**
+
+- Migration `20260716_commercial_proposals.sql`: tabelas `commercial_proposals` +
+  `commercial_proposal_items` (pipeline `draft→sent→viewed→approved→paid/lost`,
+  moeda snapshot por trigger, `total_cents` mantido por trigger/generated column),
+  RPC `commercial_proposals_create` (transação atômica), RLS inline (padrão
+  recente do projeto), coluna `billing_records.proposal_id` (link opcional
+  recebimento↔orçamento), expansão de `crm_stage_transitions` (`new_lead`/
+  `in_contact`/`scheduled` → `proposal`) para viabilizar a sincronização.
+- `src/services/proposalService.ts`: CRUD + transições de status + sincronização
+  **automática e best-effort** com o funil de CRM via `crm_ensure_journey()` +
+  `crm_move_stage()` (porta única — nunca UPDATE direto); integração com
+  `BillingService` para registrar recebimentos vinculados e auto-marcar `paid`
+  quando a soma bate o total.
+- `src/pages/ProposalsPage.tsx`: nova página própria (menu "Orçamentos"), KPIs
+  (em aberto/aprovado aguardando pagamento/recebido no mês/taxa de aprovação),
+  lista filtrável, modal de criação/edição com itens de linha, drawer de detalhe
+  com timeline e ações por status.
+- `src/components/channel/SendProposalChannelModal.tsx`: seletor de canal
+  (WhatsApp/SMS/E-mail) desacoplado do Inbox, envia via `send-human-message`
+  já existente.
+- Verificado contra o schema real de produção **antes** de aplicar a migration
+  (3ª vez que este projeto confere isso — nenhuma divergência desta vez).
+
+**Bugs corrigidos pós-lançamento (16/07/2026)**, achados via console do
+navegador no primeiro teste manual da página nova:
+1. `proposalService.ts` usava sintaxe de embed PostgREST inválida
+   (`patients:patient_id(...)` — `patient_id` é coluna, não nome de
+   relacionamento) → 400 em toda query de `commercial_proposals`. Corrigido
+   para `patients(...)`, mesmo padrão de `billingService.ts`.
+2. Mesmo após corrigir a sintaxe, a query ainda 400ava: o select pedia a
+   coluna `patients.mobile`, que **não existe** em produção (`patients` só
+   tem `id, full_name, phone, email` — confirmado via
+   `information_schema.columns`). Removida de `LIST_SELECT`/`DETAIL_SELECT`,
+   da interface `ProposalPatient` e dos fallbacks `phone || mobile` em
+   `resolveChannelAvailability()`/`send()`.
+
+**🟡 Ainda pendente desta frente:**
+- **Recebimento como "Recibo"**: `billing_records`/`FinancialDashboard` continuam
+  sendo o livro-caixa geral; o "Registrar recebimento" do orçamento é um modal
+  fino próprio (v1 enxuta) que ainda não foi unificado com o `NewBillingModal`
+  existente — possível follow-up, não bloqueante.
+- **`approved→paid` automático via trigger de banco**: hoje a reconciliação é
+  acionada pelo client (`syncPaidStatus` após registrar um recebimento pelo
+  próprio módulo); se o recebimento for registrado por outro caminho, o
+  auto-`paid` pode não disparar. Fast-follow: trigger em `billing_records`.
+- **Geração de link de pagamento Stripe** a partir de um orçamento aprovado —
+  Fase 4 do plano Financeiro original, ainda não construída (`useStripeConnection`
+  já existe e está pronto para isso).
 
 Decisão de arquitetura (por causa de tenants multi-país sem integração de
 gateway viável): **3 objetos separados**
@@ -196,12 +272,49 @@ na memória do projeto)
 4. Inbox escondia conversas em `bot_active` — aba padrão trocada de "Fila"
    para "Todos"
 
+**F2 — fluxos estruturados determinísticos (recovery + waitlist)** ✅ (16/07/2026)
+- Pré-filtro **universal**: `_shared/structuredFlow.ts` roda em `process-inbox`
+  ANTES do roteamento por dial (linha ~276), para QUALQUER `active_agent`
+  (`human`/`copilot`/`ai_always`) — zero LLM, zero fila humana quando reconhece
+  o padrão; senão cai no roteamento de sempre, sem regressão.
+- Reconhece 3 padrões: (1) clique em botão de horário/fallback numérico —
+  migrado de dentro de `runAutonomousAgent` para o pré-filtro, então agora
+  funciona em qualquer dial, não só `ai_always`; (2) resposta "Sim" a uma
+  oferta de vaga de `waitlist` — **reserva automaticamente** via
+  `book_appointment`, com apologia + handoff humano se a vaga já foi
+  preenchida; (3) resposta REMARCAR/RESCHEDULE/REAGENDAR a um
+  `recovery_immediate/48h/7d` — oferece horários do médico faltado (RPC
+  `find_next_available_dates`) via botões clicáveis.
+- Correlação envio→resposta: `process-outbound` grava
+  `context.pending_recovery` (via `crm_journeys.patient_id` +
+  `outbound_message_queue.reference_id`) e `process-waitlist` grava
+  `context.pending_waitlist` (resolvendo `location_id`, ausente em `waitlist`,
+  a partir do agendamento cancelado que disparou a notificação) — novo helper
+  genérico `sessionManager.updateContext()`.
+- `chatAgent.ts` **não foi usado** (código morto confirmado — zero call sites
+  em produção; só implementava triagem de agendamento do zero, não parsing de
+  resposta a recovery/waitlist). Reaproveitado 100% de `schedulingTools.ts`
+  (`fetchAvailableSlots` extraído de `ver_disponibilidade` para reuso fora do
+  formato tool-call, nova `WAITLIST_TAKEN_MSG`).
+- Escopo explícito: `recall_immediate` e confirmação de agendamento
+  (reminder_48h etc.) ficam de fora — ver riscos assumidos abaixo.
+- Kill-switch de segurança: `bot_config.structured_flows_enabled` (default
+  ligado), toggle em Notificações → Recuperação de Pacientes.
+- `deno check` limpo nos 7 arquivos tocados + 13/13 testes unitários do F3
+  passando (suíte de evals com modelo real não re-executada nesta entrega —
+  a mudança não tocou prompt/modelo/ferramentas do F3, só moveu o slot-click
+  para fora de `runAutonomousAgent`).
+
+**Riscos assumidos do F2 (documentados, não resolvidos agora):**
+- Caption de recovery customizada pelo tenant (`bot_config.recovery_captions`)
+  pode divergir da palavra-chave canônica — nesse caso o F2 simplesmente não
+  casa (fallback seguro, sem regressão, só perde a otimização).
+- Sem cascata automática de waitlist: vaga já preenchida → transfere para
+  humano em vez de notificar o próximo da fila automaticamente.
+- Mensagem de waitlist (`process-waitlist/index.ts`) continua só em PT —
+  limitação pré-existente, não introduzida por este trabalho.
+
 **🟡 Pendente desta frente:**
-- **F2 — fluxos estruturados determinísticos** (confirmação/recovery/waitlist
-  via `chatAgent.ts`, o motor determinístico que já existe no repo, sem LLM
-  no caminho crítico) — foi *planejado* na spec original mas o trabalho real
-  pulou direto para o F3 (agendamento autônomo com LLM+ferramentas). O
-  `chatAgent.ts` segue sem integração com o pipeline novo.
 - **Camada de provedor Meta Cloud API para o agente** — hoje o envio já
   suporta os dois provedores (dispatcher), mas o agente não foi testado/
   validado especificamente rodando sobre Cloud API em vez de Z-API
@@ -281,18 +394,17 @@ o piloto validar a base atual.
 
 1. **Validar o piloto do F3** (agendamento autônomo) na Dental Test 4 — mais
    testes reais, rodar a suíte a cada ajuste. *(contínuo, depende de uso real — não é uma tarefa de código isolada)*
-2. **Módulo de Orçamentos + caixa gateway-agnóstico** (item 3) — é o maior
-   buraco: sem ele a metade financeira da frase-norte não existe em nenhum
-   tenant. **← próximo passo de construção recomendado.**
-3. **Reorganização visual do menu em 5 grupos** (item 2) — baixo custo,
-   resolve a sensação original de "plataforma solta" que motivou toda essa
-   tese. Parcialmente destravado pelo item 6a (conteúdo das páginas já
-   coerente); falta agrupar visualmente, renomear Dashboard→Marketing e
-   remover badges técnicos (Z-API/Softphone/AI Hub).
-4. **F2 — fluxos estruturados com `chatAgent.ts`** para reduzir custo de
-   IA em confirmações/recovery simples (não precisa de LLM completo).
+2. ~~**Módulo de Orçamentos + caixa gateway-agnóstico** (item 3)~~ **✅ Concluído
+   em 16/07/2026.**
+3. ~~**Reorganização visual do menu em 5 grupos** (item 2)~~ **✅ Concluído em
+   16/07/2026.**
+4. ~~**F2 — fluxos estruturados determinísticos** (recovery + waitlist)~~ **✅
+   Concluído em 16/07/2026.** Teste ponta a ponta pendente com WhatsApp real
+   (ver seção do item 5 acima) — próxima vez que mexer no pipeline de
+   inbox/outbound, validar contra o tenant de teste.
 5. **Esconder Nutrição, consolidar Relatórios** (item 7) — limpeza rápida
    de posicionamento (a remoção de Notificações do menu foi revertida, ver 6a).
+   **← próximo passo de construção recomendado.**
 6. **IA consciente de jornada** (item 6) — depois que o volume de dados do
    piloto existir para justificar.
 7. **Meta Cloud API como tier Pro** com UI de upgrade e billing metered
@@ -301,6 +413,8 @@ o piloto validar a base atual.
 
 ---
 
-*Última atualização: 15/07/2026 (reorganização Inteligência↔Notificações
-concluída — item 6a). Ao concluir qualquer item, mover para a seção
-correspondente com ✅ e a data/PR relevante.*
+*Última atualização: 16/07/2026 (bugs pós-lançamento do módulo de Orçamentos
+e da Tela Hoje corrigidos — ver itens 1 e 3; reorganização visual do menu em
+5 grupos concluída — item 2; F2 fluxos estruturados determinísticos
+recovery+waitlist concluído — item 5). Ao concluir qualquer item, mover para
+a seção correspondente com ✅ e a data/PR relevante.*

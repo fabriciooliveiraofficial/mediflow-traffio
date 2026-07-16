@@ -521,6 +521,8 @@
       "subtitle": "Cadencia automática tras una inasistencia (inmediata, 2 días, 7 días) y reactivación de seguimiento",
       "defaultLangLabel": "Idioma predeterminado de envío",
       "hint": "Se activa cuando el paciente falta a su cita (tarjeta movida a \"Faltó\" en el CRM). La cadencia se detiene automáticamente si el paciente responde, agenda o paga. El idioma seleccionado arriba se usa al enviar todos los mensajes automáticos.",
+      "structuredFlowsTitle": "Respuestas automáticas (sin IA)",
+      "structuredFlowsHint": "Cuando el paciente responde \"REAGENDAR\" o \"Sí\" (lista de espera), ofrece horarios y confirma solo — funciona incluso con la IA apagada.",
       "variablesHint": "Variables disponibles:",
       "cards": {
         "immediate": "Inmediata — justo después de la inasistencia",
@@ -629,5 +631,118 @@
       "footer": "Las variables se completan automáticamente con los datos de la cita al momento del envío."
     },
     "saveButton": "GUARDAR CAMBIOS"
+  },
+  "proposals": {
+    "title": "Presupuestos",
+    "subtitle": "Propuestas comerciales enviadas a los pacientes — del borrador al pago.",
+    "newButton": "Nuevo Presupuesto",
+    "searchPlaceholder": "Buscar paciente o título...",
+    "emptyState": "No se encontraron presupuestos",
+    "emptyStateHint": "Crea el primer presupuesto para empezar a seguir el embudo comercial.",
+    "kpis": {
+      "open": "En curso",
+      "approvedPending": "Aprobado (esperando pago)",
+      "paidThisMonth": "Recibido este mes",
+      "approvalRate": "Tasa de aprobación"
+    },
+    "status": {
+      "all": "Todos",
+      "draft": "Borrador",
+      "sent": "Enviado",
+      "viewed": "Visto",
+      "approved": "Aprobado",
+      "paid": "Pagado",
+      "lost": "Perdido"
+    },
+    "table": {
+      "patientFallback": "Paciente"
+    },
+    "modal": {
+      "newTitle": "Nuevo Presupuesto",
+      "editTitle": "Editar Presupuesto",
+      "patientLabel": "Paciente",
+      "patientPlaceholder": "Selecciona un paciente",
+      "titleLabel": "Título del presupuesto",
+      "titlePlaceholder": "Ej.: Tratamiento de ortodoncia",
+      "validUntilLabel": "Válido hasta",
+      "itemsTitle": "Ítems",
+      "addItem": "Agregar ítem",
+      "descriptionLabel": "Descripción",
+      "quantityLabel": "Cantidad",
+      "unitPriceLabel": "Precio unitario",
+      "notesLabel": "Notas",
+      "totalLabel": "Total",
+      "cancel": "Cancelar",
+      "save": "Guardar"
+    },
+    "detail": {
+      "back": "Volver",
+      "timeline": "Historial",
+      "linkedPayments": "Pagos vinculados",
+      "paidSoFar": "Recibido hasta ahora",
+      "remaining": "Restante",
+      "lostReasonLabel": "Motivo de la pérdida",
+      "confirmLost": "Confirmar",
+      "editButton": "Editar",
+      "sendButton": "Enviar",
+      "markViewed": "Marcar como visto",
+      "approve": "Aprobar",
+      "markLost": "Marcar como perdido",
+      "registerPayment": "Registrar pago",
+      "readOnlyHint": "Este presupuesto está cerrado y ya no puede modificarse.",
+      "paymentNoteTemplate": "Presupuesto: {{title}}",
+      "paymentMethodLabel": "Forma de pago",
+      "paymentMethods": {
+        "cash": "Efectivo",
+        "pix": "Pix",
+        "card_machine": "Terminal de tarjeta",
+        "bank_transfer": "Transferencia bancaria",
+        "other": "Otro"
+      },
+      "paymentDateLabel": "Fecha del pago"
+    },
+    "lostReasons": {
+      "price": "Precio",
+      "competitor": "Competidor",
+      "no_response": "Sin respuesta",
+      "gave_up": "Desistió",
+      "other": "Otro"
+    },
+    "sendModal": {
+      "title": "Enviar presupuesto",
+      "subtitle": "Elige el canal para enviar al paciente",
+      "previewLabel": "Vista previa del mensaje",
+      "skip": "Cancelar",
+      "send": "Enviar",
+      "messageTemplate": "¡Hola {{patientName}}! Aquí está el presupuesto \"{{title}}\" de {{clinicName}}: total {{total}}. ¡Cualquier duda, estamos a su disposición! 😊",
+      "channels": {
+        "whatsapp": "WhatsApp",
+        "sms": "SMS",
+        "email": "Correo"
+      },
+      "reasons": {
+        "noPhone": "Paciente sin teléfono registrado",
+        "noEmail": "Paciente sin correo registrado",
+        "smsDisabled": "SMS no habilitado para esta clínica"
+      }
+    },
+    "toasts": {
+      "loadError": "Error al cargar presupuestos: {{message}}",
+      "deleteSuccess": "Presupuesto eliminado",
+      "deleteError": "Error al eliminar: {{message}}",
+      "validationError": "Complete el paciente, título y al menos un ítem válido",
+      "noItemsError": "Agregue al menos un ítem con descripción y valor",
+      "createSuccess": "Presupuesto creado",
+      "updateSuccess": "Presupuesto actualizado",
+      "saveError": "Error al guardar: {{message}}",
+      "sentSuccess": "Presupuesto enviado al paciente",
+      "sendError": "Error al enviar: {{message}}",
+      "approvedSuccess": "Presupuesto aprobado",
+      "approveError": "Error al aprobar: {{message}}",
+      "lostSuccess": "Presupuesto marcado como perdido",
+      "lostError": "Error: {{message}}",
+      "paymentSuccess": "Pago registrado",
+      "paymentError": "Error al registrar el pago: {{message}}"
+    }
   }
 }

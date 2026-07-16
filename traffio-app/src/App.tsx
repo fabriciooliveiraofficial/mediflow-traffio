@@ -13,6 +13,7 @@ const TodayPage = lazy(() => import('./pages/TodayPage').then(m => ({ default: m
 const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
 const AgendaMestra = lazy(() => import('./pages/AgendaMestra').then(m => ({ default: m.AgendaMestra })));
 const CrmLeads = lazy(() => import('./pages/CrmLeads').then(m => ({ default: m.CrmLeads })));
+const ProposalsPage = lazy(() => import('./pages/ProposalsPage').then(m => ({ default: m.ProposalsPage })));
 const FinancialDashboard = lazy(() => import('./pages/FinancialDashboard').then(m => ({ default: m.FinancialDashboard })));
 const PatientDetails = lazy(() => import('./pages/PatientDetails').then(m => ({ default: m.PatientDetails })));
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
@@ -120,6 +121,7 @@ function TenantApp() {
       case 'dashboard': return <Dashboard key="dashboard" onNavigate={setActiveScreen} />
       case 'agenda': return <AgendaMestra key="agenda" />
       case 'leads': return <CrmLeads key="leads" onSelectPatient={handlePatientSelect} />
+      case 'proposals': return <ProposalsPage key="proposals" onSelectPatient={handlePatientSelect} />
       case 'analytics': return <FinancialDashboard key="analytics" />
       case 'intelligence': return <Intelligence key="intelligence" />
       case 'settings': return <Settings key="settings" />

@@ -25,6 +25,7 @@ import {
     Crown,
     Phone,
     Sunrise,
+    FileText,
 } from 'lucide-react'
 // Phone used in navItems below
 import { FloatingCommunicationsButton } from '../components/softphone/FloatingCommunicationsButton'
@@ -62,6 +63,8 @@ function playHandoffSound() {
     } catch { /* AudioContext not available */ }
 }
 
+type NavGroup = 'atendimento' | 'comercial' | 'clinico' | 'financeiro' | 'gestao'
+
 interface NavItem {
     id: string
     label: string
@@ -69,27 +72,34 @@ interface NavItem {
     badge?: string
     isSubItem?: boolean
     parentId?: string
+    group: NavGroup
 }
 
 function buildNavItems(t: (key: string) => string): NavItem[] {
     return [
-        { id: 'today', label: t('nav.today'), icon: Sunrise },
-        { id: 'agenda', label: t('nav.agenda'), icon: Calendar, badge: 'IA' },
-        { id: 'reception', label: t('nav.reception'), icon: Users, badge: 'Staff' },
-        { id: 'inbox', label: t('nav.inbox'), icon: Headphones, badge: 'Inbox' },
-        { id: 'followup', label: t('nav.followup'), icon: LayoutDashboard },
-        { id: 'leads', label: t('nav.leads'), icon: Users },
-        { id: 'analytics', label: t('nav.analytics'), icon: BarChart3 },
-        { id: 'professionals', label: t('nav.professionals'), icon: Stethoscope },
-        { id: 'services', label: t('nav.services'), icon: Tag },
-        { id: 'whatsapp', label: t('nav.whatsapp'), icon: MessageCircle, badge: 'Z-API' },
-        { id: 'communications', label: t('nav.communications'), icon: Phone, badge: 'Softphone' },
-        { id: 'intelligence', label: t('nav.intelligence'), icon: Brain, badge: 'AI Hub' },
-        { id: 'dashboard', label: t('nav.dashboard'), icon: LayoutDashboard },
-        { id: 'notifications', label: t('nav.notifications'), icon: Bell },
-        { id: 'payments', label: t('nav.payments'), icon: CreditCard },
-        { id: 'billing', label: t('nav.billing'), icon: Crown },
-        { id: 'settings', label: t('nav.settings'), icon: Settings },
+        // Atendimento
+        { id: 'today', label: t('nav.today'), icon: Sunrise, group: 'atendimento' },
+        { id: 'agenda', label: t('nav.agenda'), icon: Calendar, badge: 'IA', group: 'atendimento' },
+        { id: 'inbox', label: t('nav.inbox'), icon: Headphones, group: 'atendimento' },
+        { id: 'reception', label: t('nav.reception'), icon: Users, badge: 'Staff', group: 'atendimento' },
+        // Comercial
+        { id: 'followup', label: t('nav.followup'), icon: LayoutDashboard, group: 'comercial' },
+        { id: 'leads', label: t('nav.leads'), icon: Users, group: 'comercial' },
+        { id: 'proposals', label: t('nav.proposals'), icon: FileText, group: 'comercial' },
+        // Clínico
+        { id: 'professionals', label: t('nav.professionals'), icon: Stethoscope, group: 'clinico' },
+        { id: 'services', label: t('nav.services'), icon: Tag, group: 'clinico' },
+        // Financeiro
+        { id: 'analytics', label: t('nav.analytics'), icon: BarChart3, group: 'financeiro' },
+        { id: 'payments', label: t('nav.payments'), icon: CreditCard, group: 'financeiro' },
+        // Gestão
+        { id: 'whatsapp', label: t('nav.whatsapp'), icon: MessageCircle, group: 'gestao' },
+        { id: 'communications', label: t('nav.communications'), icon: Phone, group: 'gestao' },
+        { id: 'intelligence', label: t('nav.intelligence'), icon: Brain, group: 'gestao' },
+        { id: 'dashboard', label: t('nav.dashboard'), icon: LayoutDashboard, group: 'gestao' },
+        { id: 'notifications', label: t('nav.notifications'), icon: Bell, group: 'gestao' },
+        { id: 'billing', label: t('nav.billing'), icon: Crown, group: 'gestao' },
+        { id: 'settings', label: t('nav.settings'), icon: Settings, group: 'gestao' },
     ];
 }
 
@@ -233,8 +243,8 @@ export const DashboardLayout = ({ children, activeScreen, onNavigate }: {
         // 2. Injetar Odontologia se aplicável
         if (specialties.includes('dental')) {
             const dentalItems: NavItem[] = [
-                { id: 'odontology', label: t('nav.odontology'), icon: Activity, badge: 'New' },
-                { id: 'odontogram', label: t('nav.odontogram'), icon: Activity, isSubItem: true, parentId: 'odontology' }
+                { id: 'odontology', label: t('nav.odontology'), icon: Activity, badge: 'New', group: 'clinico' },
+                { id: 'odontogram', label: t('nav.odontogram'), icon: Activity, isSubItem: true, parentId: 'odontology', group: 'clinico' }
             ];
             items.splice(insertionPoint, 0, ...dentalItems);
             insertionPoint += dentalItems.length;
@@ -242,7 +252,7 @@ export const DashboardLayout = ({ children, activeScreen, onNavigate }: {
 
         // 3. Injetar Prontuário se aplicável
         if (specialties.includes('general')) {
-            const medicalRecordItem: NavItem = { id: 'medical-records', label: t('nav.medicalRecords'), icon: Stethoscope, badge: 'New' };
+            const medicalRecordItem: NavItem = { id: 'medical-records', label: t('nav.medicalRecords'), icon: Stethoscope, badge: 'New', group: 'clinico' };
             items.splice(insertionPoint, 0, medicalRecordItem);
             insertionPoint += 1;
         }
@@ -250,8 +260,8 @@ export const DashboardLayout = ({ children, activeScreen, onNavigate }: {
         // 4. Injetar Nutrição se aplicável
         if (specialties.includes('nutrition')) {
             const nutritionItems: NavItem[] = [
-                { id: 'nutrition', label: t('nav.nutrition'), icon: Apple, badge: 'New' },
-                { id: 'nutrition-plan', label: t('nav.nutritionPlan'), icon: Apple, isSubItem: true, parentId: 'nutrition' }
+                { id: 'nutrition', label: t('nav.nutrition'), icon: Apple, badge: 'New', group: 'clinico' },
+                { id: 'nutrition-plan', label: t('nav.nutritionPlan'), icon: Apple, isSubItem: true, parentId: 'nutrition', group: 'clinico' }
             ];
             items.splice(insertionPoint, 0, ...nutritionItems);
             insertionPoint += nutritionItems.length;
@@ -342,8 +352,8 @@ export const DashboardLayout = ({ children, activeScreen, onNavigate }: {
                                     </div>
                                 ))}
                             </>
-                        ) : (
-                            filteredNavItems.map((item) => {
+        ) : (
+                            filteredNavItems.map((item, index) => {
                                 const isActive = activeScreen === item.id;
                                 const hasSubItems = filteredNavItems.some(i => i.parentId === item.id);
                                 const isSubItem = !!item.isSubItem;
@@ -351,9 +361,20 @@ export const DashboardLayout = ({ children, activeScreen, onNavigate }: {
                                 // Only show sub-item if its parent is expanded
                                 if (isSubItem && !expandedMenus.includes(item.parentId || '')) return null;
 
+                                const showGroupHeader = !isSubItem && item.group !== filteredNavItems[index - 1]?.group;
+
                                 return (
-                                    <motion.div
-                                        key={item.id}
+                                    <React.Fragment key={item.id}>
+                                        {showGroupHeader && (
+                                            <div className={clsx(
+                                                "px-4 pt-4 pb-1 text-[10px] font-black uppercase tracking-widest text-graphite-300 transition-all duration-300",
+                                                index === 0 && "pt-0",
+                                                !isSidebarOpen && "opacity-0 h-0 overflow-hidden py-0"
+                                            )}>
+                                                {t(`nav.groups.${item.group}`)}
+                                            </div>
+                                        )}
+                                        <motion.div
                                         layout
                                         initial={isSubItem ? { opacity: 0, height: 0 } : { opacity: 0 }}
                                         animate={isSubItem ? { opacity: 1, height: 'auto' } : { opacity: 1 }}
@@ -424,7 +445,8 @@ export const DashboardLayout = ({ children, activeScreen, onNavigate }: {
                                                 </div>
                                             )}
                                         </button>
-                                    </motion.div>
+                                        </motion.div>
+                                    </React.Fragment>
                                 );
                             })
                         )}
@@ -687,28 +709,37 @@ export const DashboardLayout = ({ children, activeScreen, onNavigate }: {
                             </div>
 
                             <nav className="flex-1 space-y-4">
-                                {filteredNavItems.map((item) => (
-                                    <button
-                                        key={item.id}
-                                        onClick={() => {
-                                            onNavigate(item.id)
-                                            setIsMobileMenuOpen(false)
-                                        }}
-                                        className={clsx(
-                                            "w-full flex items-center gap-5 px-6 py-5 rounded-3xl transition-all border-none bg-transparent cursor-pointer",
-                                            activeScreen === item.id
-                                                ? "bg-brand-primary text-white shadow-xl shadow-brand-primary/20"
-                                                : "text-graphite-400 hover:bg-ice-50"
+                                {filteredNavItems.map((item, index) => (
+                                    <React.Fragment key={item.id}>
+                                        {item.group !== filteredNavItems[index - 1]?.group && (
+                                            <div className={clsx(
+                                                "px-6 text-[11px] font-black uppercase tracking-widest text-graphite-300",
+                                                index > 0 && "pt-2"
+                                            )}>
+                                                {t(`nav.groups.${item.group}`)}
+                                            </div>
                                         )}
-                                    >
-                                        <item.icon size={24} className={activeScreen === item.id ? "text-white" : "text-brand-primary"} />
-                                        <span className="font-bold text-lg">{item.label}</span>
-                                        {item.badge && (
-                                            <span className="ml-auto px-2 py-0.5 bg-brand-secondary text-[10px] font-black rounded-lg text-graphite-900">
-                                                {item.badge}
-                                            </span>
-                                        )}
-                                    </button>
+                                        <button
+                                            onClick={() => {
+                                                onNavigate(item.id)
+                                                setIsMobileMenuOpen(false)
+                                            }}
+                                            className={clsx(
+                                                "w-full flex items-center gap-5 px-6 py-5 rounded-3xl transition-all border-none bg-transparent cursor-pointer",
+                                                activeScreen === item.id
+                                                    ? "bg-brand-primary text-white shadow-xl shadow-brand-primary/20"
+                                                    : "text-graphite-400 hover:bg-ice-50"
+                                            )}
+                                        >
+                                            <item.icon size={24} className={activeScreen === item.id ? "text-white" : "text-brand-primary"} />
+                                            <span className="font-bold text-lg">{item.label}</span>
+                                            {item.badge && (
+                                                <span className="ml-auto px-2 py-0.5 bg-brand-secondary text-[10px] font-black rounded-lg text-graphite-900">
+                                                    {item.badge}
+                                                </span>
+                                            )}
+                                        </button>
+                                    </React.Fragment>
                                 ))}
                             </nav>
 

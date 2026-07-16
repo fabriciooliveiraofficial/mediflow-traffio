@@ -121,6 +121,66 @@ export function buildSlotInteractive(slots: SlotOption[]): any {
     };
 }
 
+/**
+ * Consulta o RPC find_next_available_dates e monta os SlotOption clicáveis.
+ * Extraído do case 'ver_disponibilidade' para ser reutilizável fora do formato
+ * de tool-call do LLM (usado também pelo F2 — respostas determinísticas de recovery).
+ */
+export async function fetchAvailableSlots(
+    supabase: SupabaseClient,
+    doctorId: string,
+    fromDate: string | undefined,
+    durationMinutes: number,
+    typeId: string | null = null,
+): Promise<{ slots: SlotOption[]; availableForModel: { date: string; location: string; slots: string[] }[]; error?: string }> {
+    const { data, error } = await supabase.rpc("find_next_available_dates", {
+        p_doctor_id: doctorId,
+        p_from_date: fromDate,
+        p_limit: 2,
+        p_duration_minutes: durationMinutes,
+    });
+    if (error) return { slots: [], availableForModel: [], error: error.message };
+
+    const dates = (Array.isArray(data) ? data : []) as any[];
+
+    // Diagnóstico de forma: o RPC de produção pode retornar slots como
+    // string OU objeto (schema drift documentado) — logar uma amostra crua
+    const rawSample = dates[0]?.slots?.[0];
+    if (rawSample !== undefined && typeof rawSample !== "string") {
+        console.log(`[schedulingTools] slots do RPC vieram como objeto: ${JSON.stringify(rawSample).substring(0, 120)}`);
+    }
+
+    const slots: SlotOption[] = [];
+    const availableForModel: { date: string; location: string; slots: string[] }[] = [];
+    for (const d of dates) {
+        const normalized = (d.slots || [])
+            .map((s: unknown) => normalizeSlotTime(s))
+            .filter((t: string | null): t is string => t !== null)
+            .slice(0, 3);
+        availableForModel.push({ date: d.date, location: d.location_name, slots: normalized });
+
+        for (const time of normalized) {
+            if (slots.length >= MAX_SLOT_OPTIONS) break;
+            const base = {
+                doctor_id: doctorId,
+                location_id: d.location_id,
+                type_id: typeId,
+                date: d.date,
+                time,
+            };
+            const [, m, day] = String(d.date).split("-");
+            slots.push({
+                ...base,
+                id: slotId(base),
+                title: `${day}/${m} · ${time}`,
+                description: d.location_name || undefined,
+            });
+        }
+    }
+
+    return { slots, availableForModel };
+}
+
 // ─── Definições das ferramentas ──────────────────────────────────────────────
 
 export const SCHEDULING_TOOLS: LlmTool[] = [
@@ -226,50 +286,10 @@ export async function executeSchedulingTool(
                 if (svc?.duration_minutes) duration = svc.duration_minutes;
             }
 
-            const { data, error } = await supabase.rpc("find_next_available_dates", {
-                p_doctor_id: input.doctor_id,
-                p_from_date: input.from_date || undefined,
-                p_limit: 2,
-                p_duration_minutes: duration,
-            });
-            if (error) return { data: { error: error.message } };
-
-            const dates = (Array.isArray(data) ? data : []) as any[];
-
-            // Diagnóstico de forma: o RPC de produção pode retornar slots como
-            // string OU objeto (schema drift documentado) — logar uma amostra crua
-            const rawSample = dates[0]?.slots?.[0];
-            if (rawSample !== undefined && typeof rawSample !== "string") {
-                console.log(`[schedulingTools] slots do RPC vieram como objeto: ${JSON.stringify(rawSample).substring(0, 120)}`);
-            }
-
-            const slots: SlotOption[] = [];
-            const availableForModel: { date: string; location: string; slots: string[] }[] = [];
-            for (const d of dates) {
-                const normalized = (d.slots || [])
-                    .map((s: unknown) => normalizeSlotTime(s))
-                    .filter((t: string | null): t is string => t !== null)
-                    .slice(0, 3);
-                availableForModel.push({ date: d.date, location: d.location_name, slots: normalized });
-
-                for (const time of normalized) {
-                    if (slots.length >= MAX_SLOT_OPTIONS) break;
-                    const base = {
-                        doctor_id: input.doctor_id,
-                        location_id: d.location_id,
-                        type_id: input.type_id || null,
-                        date: d.date,
-                        time,
-                    };
-                    const [, m, day] = String(d.date).split("-");
-                    slots.push({
-                        ...base,
-                        id: slotId(base),
-                        title: `${day}/${m} · ${time}`,
-                        description: d.location_name || undefined,
-                    });
-                }
-            }
+            const { slots, availableForModel, error } = await fetchAvailableSlots(
+                supabase, input.doctor_id, input.from_date || undefined, duration, input.type_id || null,
+            );
+            if (error) return { data: { error } };
 
             return {
                 data: {
@@ -396,6 +416,13 @@ export const SLOT_TAKEN_MSG: Record<string, string> = {
     pt: "Poxa, esse horário acabou de ser preenchido! 😅 Me diga qual período prefere que eu já verifico outras opções para você.",
     en: "Oh no, that time slot was just taken! 😅 Let me know your preferred time of day and I'll check other options for you.",
     es: "¡Vaya, ese horario acaba de ocuparse! 😅 Dígame qué período prefiere y ya le busco otras opciones.",
+};
+
+/** Vaga de lista de espera confirmada por outro paciente antes desta resposta. */
+export const WAITLIST_TAKEN_MSG: Record<string, string> = {
+    pt: "Poxa, essa vaga acabou de ser confirmada por outra pessoa da fila! 😅 Nossa equipe já vai te avisar assim que surgir outra oportunidade.",
+    en: "Oh no, that spot was just confirmed by someone else on the waitlist! 😅 Our team will let you know as soon as another opening comes up.",
+    es: "¡Vaya, ese cupo acaba de ser confirmado por otra persona de la lista! 😅 Nuestro equipo le avisará en cuanto surja otra oportunidad.",
 };
 
 export const AFTER_HOURS_CANCEL_MSG: Record<string, string> = {

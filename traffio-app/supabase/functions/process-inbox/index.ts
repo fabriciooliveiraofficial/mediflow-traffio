@@ -3,10 +3,10 @@
  *
  * Inbox Worker: Debounce + Context Fusion + Conversation Lock
  *
- * Estado atual: NENHUM agente de IA é executado aqui — toda conversa é
- * registrada e roteada para a fila humana (triggerHumanHandoff).
- * A reativação da IA (família Claude, dial de autonomia) está especificada
- * em docs/SPEC_AGENTE_IA_CLAUDE.md e entra nas fases F0/F1.
+ * Roteamento por turno (docs/SPEC_AGENTE_IA_CLAUDE.md, docs/ROADMAP_PRODUTO_2026.md):
+ *   F2 (pré-filtro determinístico, QUALQUER dial) > F3 (agente autônomo, dial
+ *   'ai_always') > fila humana. F1 (copiloto) roda depois, gerando rascunho
+ *   para o atendente quando nenhum dos anteriores resolveu.
  *
  * Flow per conversation turn:
  *   1. Fetch all pending messages grouped by (tenant_id, phone)
@@ -24,6 +24,7 @@ import { SessionManager } from "../_shared/sessionManager.ts";
 import { OutboxDispatcher } from "../_shared/outboxDispatcher.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { runCopilot, runAutonomousAgent } from "../_shared/copilot.ts";
+import { tryStructuredFlow } from "../_shared/structuredFlow.ts";
 
 // How long to wait after the last message before processing (ms).
 // Gives the patient time to finish typing multiple messages.
@@ -161,6 +162,9 @@ async function processConversationTurn(
  
      const session = await sessionManager.getOrCreateSession(tenantId, phone);
      let lastMessageSnippet = "";
+     // F2 — resultado do pré-filtro determinístico (permanece 'unmatched' quando a
+     // conversa está em human_active/queued, onde nenhum bot deve responder)
+     let structuredFlowResult: Awaited<ReturnType<typeof tryStructuredFlow>> = { matched: false };
 
      // --- 4b. F0: debounce estendido para conversas tratadas por IA autônoma ---
      // Se o agente de IA vai responder este turno, exigir AI_DEBOUNCE_MS de
@@ -271,9 +275,29 @@ async function processConversationTurn(
        await sessionManager.logMessage(session.id, "user", fusedContent, {
          whatsapp_message_id: messages[0]?.message_id
        });
- 
-       // --- 8. Roteamento: IA autônoma ou fila humana ---
-       if (activeAgent === "ai_always") {
+
+       // --- 7b. F2: pré-filtro determinístico universal — roda para QUALQUER dial.
+       // Reconhece clique de horário / resposta a recovery / resposta a waitlist
+       // sem gastar LLM. Se não reconhecer nada, cai no roteamento normal abaixo
+       // sem nenhuma mudança de comportamento.
+       structuredFlowResult = await tryStructuredFlow(supabase, {
+         tenantId,
+         sessionId: session.id,
+         phone,
+         tenant: tenantRow,
+         botConfig,
+         sessionManager,
+         timezone: tenantRow?.timezone,
+       });
+
+       // --- 8. Roteamento: fluxo estruturado > IA autônoma > fila humana ---
+       if (structuredFlowResult.matched) {
+         if (structuredFlowResult.status === "failed") {
+           console.warn(`[process-inbox] [${phone}] fluxo estruturado falhou — fail-safe para fila humana`);
+           await sessionManager.triggerHumanHandoff(session.id);
+         }
+         // 'replied'/'transferred': a própria função já enviou a mensagem e atualizou o estado
+       } else if (activeAgent === "ai_always") {
          // A IA responde diretamente. Fail-safe: qualquer resultado que não seja
          // uma resposta entregue termina com o paciente na fila humana.
          const status = await runAutonomousAgent(supabase, {
@@ -350,8 +374,10 @@ async function processConversationTurn(
      // dentro do advisory lock. Falhas são isoladas dentro de runCopilot.
      // No modo ai_always, conversas já transferidas ao humano também recebem
      // rascunhos — a IA vira copiloto do atendente depois do handoff.
+     // O F2 pula o rascunho quando já resolveu deterministicamente: gerar um
+     // draft sobre um assunto já encerrado só confundiria o atendente.
      const humanHolds = session.omnichannel_status === "human_active" || session.omnichannel_status === "queued";
-     if (activeAgent === "copilot" || (activeAgent === "ai_always" && humanHolds)) {
+     if (!structuredFlowResult.matched && (activeAgent === "copilot" || (activeAgent === "ai_always" && humanHolds))) {
        await runCopilot(supabase, {
          tenantId,
          sessionId: session.id,

@@ -165,6 +165,28 @@ export class SessionManager {
     }
 
     /**
+     * Shallow-merge genérico em context (read-modify-write). Usado pelos
+     * marcadores de correlação do F2 (pending_recovery/pending_waitlist) e por
+     * qualquer chamador que precise gravar uma fatia de context sem sobrescrever
+     * o resto (mesmo padrão de updateIntake, generalizado).
+     */
+    async updateContext(sessionId: string, patch: Record<string, unknown>): Promise<void> {
+        const { data: session } = await this.supabase
+            .from('conversation_sessions')
+            .select('context')
+            .eq('id', sessionId)
+            .single();
+
+        const context = { ...(session?.context || {}), ...patch };
+
+        const { error } = await this.supabase
+            .from('conversation_sessions')
+            .update({ context })
+            .eq('id', sessionId);
+        if (error) console.error('updateContext failed:', error);
+    }
+
+    /**
      * F0 (docs/SPEC_AGENTE_IA_CLAUDE.md) — Ficha de estado (slot-filling).
      * Merge raso em context.intake: mensagens fragmentadas ACUMULAM informação
      * em vez de substituí-la. A próxima pergunta do agente é sempre o campo

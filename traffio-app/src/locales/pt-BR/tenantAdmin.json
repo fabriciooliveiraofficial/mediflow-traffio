@@ -521,6 +521,8 @@
       "subtitle": "Cadência automática após falta (imediata, 2 dias, 7 dias) e reativação de retorno",
       "defaultLangLabel": "Idioma padrão de envio",
       "hint": "Disparada quando o paciente falta à consulta (cartão movido para \"Faltou\" no CRM). A cadência para automaticamente se o paciente responder, agendar ou pagar. O idioma selecionado acima é o usado no envio de todas as mensagens automáticas.",
+      "structuredFlowsTitle": "Respostas automáticas (sem IA)",
+      "structuredFlowsHint": "Quando o paciente responder \"REMARCAR\" ou \"Sim\" (lista de espera), oferece horários e confirma sozinho — funciona mesmo com a IA desligada.",
       "variablesHint": "Variáveis disponíveis:",
       "cards": {
         "immediate": "Imediata — logo após a falta",
@@ -629,5 +631,118 @@
       "footer": "As variáveis são preenchidas automaticamente com os dados do agendamento no momento do envio."
     },
     "saveButton": "SALVAR ALTERAÇÕES"
+  },
+  "proposals": {
+    "title": "Orçamentos",
+    "subtitle": "Propostas comerciais enviadas aos pacientes — do rascunho ao pagamento.",
+    "newButton": "Novo Orçamento",
+    "searchPlaceholder": "Buscar paciente ou título...",
+    "emptyState": "Nenhum orçamento encontrado",
+    "emptyStateHint": "Crie o primeiro orçamento para começar a acompanhar o funil comercial.",
+    "kpis": {
+      "open": "Em aberto",
+      "approvedPending": "Aprovado (aguardando pagamento)",
+      "paidThisMonth": "Recebido no mês",
+      "approvalRate": "Taxa de aprovação"
+    },
+    "status": {
+      "all": "Todos",
+      "draft": "Rascunho",
+      "sent": "Enviado",
+      "viewed": "Visualizado",
+      "approved": "Aprovado",
+      "paid": "Pago",
+      "lost": "Perdido"
+    },
+    "table": {
+      "patientFallback": "Paciente"
+    },
+    "modal": {
+      "newTitle": "Novo Orçamento",
+      "editTitle": "Editar Orçamento",
+      "patientLabel": "Paciente",
+      "patientPlaceholder": "Selecione um paciente",
+      "titleLabel": "Título do orçamento",
+      "titlePlaceholder": "Ex.: Tratamento ortodôntico",
+      "validUntilLabel": "Válido até",
+      "itemsTitle": "Itens",
+      "addItem": "Adicionar item",
+      "descriptionLabel": "Descrição",
+      "quantityLabel": "Quantidade",
+      "unitPriceLabel": "Valor unitário",
+      "notesLabel": "Notas",
+      "totalLabel": "Total",
+      "cancel": "Cancelar",
+      "save": "Salvar"
+    },
+    "detail": {
+      "back": "Voltar",
+      "timeline": "Histórico",
+      "linkedPayments": "Recebimentos vinculados",
+      "paidSoFar": "Recebido até agora",
+      "remaining": "Restante",
+      "lostReasonLabel": "Motivo da perda",
+      "confirmLost": "Confirmar",
+      "editButton": "Editar",
+      "sendButton": "Enviar",
+      "markViewed": "Marcar como visualizado",
+      "approve": "Aprovar",
+      "markLost": "Marcar como perdido",
+      "registerPayment": "Registrar recebimento",
+      "readOnlyHint": "Este orçamento está encerrado e não pode mais ser alterado.",
+      "paymentNoteTemplate": "Orçamento: {{title}}",
+      "paymentMethodLabel": "Forma de recebimento",
+      "paymentMethods": {
+        "cash": "Dinheiro",
+        "pix": "Pix",
+        "card_machine": "Maquininha (cartão)",
+        "bank_transfer": "Transferência bancária",
+        "other": "Outro"
+      },
+      "paymentDateLabel": "Data do recebimento"
+    },
+    "lostReasons": {
+      "price": "Preço",
+      "competitor": "Concorrente",
+      "no_response": "Sem resposta",
+      "gave_up": "Desistiu",
+      "other": "Outro"
+    },
+    "sendModal": {
+      "title": "Enviar orçamento",
+      "subtitle": "Escolha o canal para enviar ao paciente",
+      "previewLabel": "Prévia da mensagem",
+      "skip": "Cancelar",
+      "send": "Enviar",
+      "messageTemplate": "Olá {{patientName}}! Segue o orçamento \"{{title}}\" da {{clinicName}}: total de {{total}}. Qualquer dúvida, estamos à disposição! 😊",
+      "channels": {
+        "whatsapp": "WhatsApp",
+        "sms": "SMS",
+        "email": "E-mail"
+      },
+      "reasons": {
+        "noPhone": "Paciente sem telefone cadastrado",
+        "noEmail": "Paciente sem e-mail cadastrado",
+        "smsDisabled": "SMS não habilitado para esta clínica"
+      }
+    },
+    "toasts": {
+      "loadError": "Erro ao carregar orçamentos: {{message}}",
+      "deleteSuccess": "Orçamento excluído",
+      "deleteError": "Erro ao excluir: {{message}}",
+      "validationError": "Preencha o paciente, título e ao menos um item válido",
+      "noItemsError": "Adicione ao menos um item com descrição e valor",
+      "createSuccess": "Orçamento criado",
+      "updateSuccess": "Orçamento atualizado",
+      "saveError": "Erro ao salvar: {{message}}",
+      "sentSuccess": "Orçamento enviado ao paciente",
+      "sendError": "Erro ao enviar: {{message}}",
+      "approvedSuccess": "Orçamento aprovado",
+      "approveError": "Erro ao aprovar: {{message}}",
+      "lostSuccess": "Orçamento marcado como perdido",
+      "lostError": "Erro: {{message}}",
+      "paymentSuccess": "Recebimento registrado",
+      "paymentError": "Erro ao registrar recebimento: {{message}}"
+    }
   }
 }
