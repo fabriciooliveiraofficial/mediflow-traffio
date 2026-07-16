@@ -46,7 +46,8 @@
     "rangeSeparator": "to",
     "pdfButton": "PDF",
     "excelButton": "Excel",
-    "newAppointmentButton": "New Appointment"
+    "newAppointmentButton": "New Appointment",
+    "viewFullReportButton": "View full report"
   },
   "filters": {
     "allPlatforms": "All Platforms",
@@ -84,6 +85,7 @@
   },
   "integrations": {
     "title": "Ad Connections",
+    "pageSubtitle": "Connect and manage your Meta and Google Ads accounts. Performance KPIs live in Reports → Marketing.",
     "metaHubName": "Meta Hub (Ads & Messaging)",
     "active": "Active",
     "recommended": "Recommended",

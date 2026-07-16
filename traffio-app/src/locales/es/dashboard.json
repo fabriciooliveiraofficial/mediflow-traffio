@@ -46,7 +46,8 @@
     "rangeSeparator": "hasta",
     "pdfButton": "PDF",
     "excelButton": "Excel",
-    "newAppointmentButton": "Nueva Cita"
+    "newAppointmentButton": "Nueva Cita",
+    "viewFullReportButton": "Ver informe completo"
   },
   "filters": {
     "allPlatforms": "Todas las Plataformas",
@@ -84,6 +85,7 @@
   },
   "integrations": {
     "title": "Conexiones de Ads",
+    "pageSubtitle": "Conecte y gestione sus cuentas de Meta y Google Ads. Los KPIs de desempeño están en Informes → Marketing.",
     "metaHubName": "Meta Hub (Ads y Mensajes)",
     "active": "Activo",
     "recommended": "Recomendado",

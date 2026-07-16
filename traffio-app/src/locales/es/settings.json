@@ -116,6 +116,8 @@
     "specialtyDentalSub": "Panel Dental Activado",
     "specialtyNutrition": "Nutrición",
     "specialtyNutritionSub": "Panel de Nutrición Activado",
+    "specialtyRecommended": "Recomendado",
+    "moreSpecialties": "Otras especialidades",
     "countrySectionTitle": "País de la Clínica",
     "countryLabel": "País Predeterminado",
     "countryHint": "Define el formato predeterminado de teléfono, código postal y documento. Cada campo puede personalizarse individualmente.",

@@ -260,6 +260,8 @@
     "header": {
       "title": "Financial",
       "subtitle": "Consolidated view of all your locations and hub conversion.",
+      "subtitleTransactions": "List of charges and payments across all your locations.",
+      "viewFullReportButton": "View full report",
       "filterAll": "All",
       "filterPaid": "Paid",
       "filterPending": "Pending",
@@ -631,6 +633,15 @@
       "footer": "Variables are automatically filled with appointment data at the time of sending."
     },
     "saveButton": "SAVE CHANGES"
+  },
+  "reports": {
+    "title": "Reports",
+    "subtitle": "Marketing, Financial and Commercial KPIs and performance in one place.",
+    "tabs": {
+      "marketing": "Marketing",
+      "financeiro": "Financial",
+      "comercial": "Commercial"
+    }
   },
   "proposals": {
     "title": "Proposals",

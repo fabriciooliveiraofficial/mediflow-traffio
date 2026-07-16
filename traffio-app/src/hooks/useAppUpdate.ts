@@ -12,9 +12,9 @@ interface AppUpdateState {
     buildTime: string | null;
 }
 
-const VERSION_CHECK_INTERVAL_MS = 30000;
+const VERSION_CHECK_INTERVAL_MS = 5000;
 const SKIPPED_VERSION_KEY = 'traffio_skipped_app_update_version';
-const SKIPPED_SW_SESSION_KEY = 'traffio_skipped_service_worker_update';
+const UPDATE_CHANNEL_NAME = 'traffio_app_update';
 
 export const CURRENT_APP_VERSION = __APP_VERSION__;
 export const CURRENT_APP_BUILD_TIME = __APP_BUILD_TIME__;
@@ -110,16 +110,13 @@ const reloadCurrentPage = () => {
 export function useAppUpdate() {
     const [state, setState] = useState<AppUpdateState>(initialState);
     const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
+    const updateChannelRef = useRef<BroadcastChannel | null>(null);
 
     const markUpdateAvailable = useCallback((manifest?: VersionManifest) => {
         const version = manifest?.version ?? null;
         const buildTime = manifest?.buildTime ?? null;
 
         if (version && safeReadStorage(window.localStorage, SKIPPED_VERSION_KEY) === version) {
-            return;
-        }
-
-        if (!version && safeReadStorage(window.sessionStorage, SKIPPED_SW_SESSION_KEY) === CURRENT_APP_VERSION) {
             return;
         }
 
@@ -158,6 +155,7 @@ export function useAppUpdate() {
             const manifest = await response.json() as VersionManifest;
             if (manifest.version && manifest.version !== CURRENT_APP_VERSION) {
                 markUpdateAvailable(manifest);
+                updateChannelRef.current?.postMessage(manifest);
             }
         } catch (error) {
             console.error('[AppUpdate] Version check failed:', error);
@@ -184,7 +182,6 @@ export function useAppUpdate() {
     const applyUpdate = useCallback(async () => {
         setState((current) => ({ ...current, updating: true }));
         safeRemoveStorage(window.localStorage, SKIPPED_VERSION_KEY);
-        safeRemoveStorage(window.sessionStorage, SKIPPED_SW_SESSION_KEY);
 
         try {
             await activateWaitingServiceWorker();
@@ -198,8 +195,6 @@ export function useAppUpdate() {
     const skipUpdate = useCallback(() => {
         if (state.version) {
             safeWriteStorage(window.localStorage, SKIPPED_VERSION_KEY, state.version);
-        } else {
-            safeWriteStorage(window.sessionStorage, SKIPPED_SW_SESSION_KEY, CURRENT_APP_VERSION);
         }
 
         setState((current) => ({
@@ -266,7 +261,7 @@ export function useAppUpdate() {
         let cleanupEvents: (() => void) | undefined;
 
         navigator.serviceWorker
-            .register('/sw.js')
+            .register('/sw.js', { updateViaCache: 'none' })
             .then((registration) => {
                 if (disposed) return;
                 cleanupEvents = watchRegistration(registration);
@@ -281,6 +276,23 @@ export function useAppUpdate() {
             if (cleanupEvents) {
                 cleanupEvents();
             }
+        };
+    }, [markUpdateAvailable]);
+
+    useEffect(() => {
+        if (!('BroadcastChannel' in window)) return;
+
+        const channel = new BroadcastChannel(UPDATE_CHANNEL_NAME);
+        updateChannelRef.current = channel;
+        channel.onmessage = (event: MessageEvent<VersionManifest>) => {
+            if (event.data?.version && event.data.version !== CURRENT_APP_VERSION) {
+                markUpdateAvailable(event.data);
+            }
+        };
+
+        return () => {
+            updateChannelRef.current = null;
+            channel.close();
         };
     }, [markUpdateAvailable]);
 

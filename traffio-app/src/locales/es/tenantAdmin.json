@@ -260,6 +260,8 @@
     "header": {
       "title": "Finanzas",
       "subtitle": "Vista consolidada de todas tus sucursales y conversión del hub.",
+      "subtitleTransactions": "Lista de cobros y pagos de todas tus sucursales.",
+      "viewFullReportButton": "Ver informe completo",
       "filterAll": "Todos",
       "filterPaid": "Pagados",
       "filterPending": "Pendientes",
@@ -631,6 +633,15 @@
       "footer": "Las variables se completan automáticamente con los datos de la cita al momento del envío."
     },
     "saveButton": "GUARDAR CAMBIOS"
+  },
+  "reports": {
+    "title": "Informes",
+    "subtitle": "KPIs y desempeño de Marketing, Finanzas y Comercial en un solo lugar.",
+    "tabs": {
+      "marketing": "Marketing",
+      "financeiro": "Finanzas",
+      "comercial": "Comercial"
+    }
   },
   "proposals": {
     "title": "Presupuestos",

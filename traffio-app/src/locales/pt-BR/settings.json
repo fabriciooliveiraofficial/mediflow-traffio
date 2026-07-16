@@ -116,6 +116,8 @@
     "specialtyDentalSub": "Painel Odonto Ativado",
     "specialtyNutrition": "Nutrição",
     "specialtyNutritionSub": "Painel Nutri Ativado",
+    "specialtyRecommended": "Recomendado",
+    "moreSpecialties": "Outras especialidades",
     "countrySectionTitle": "País da Clínica",
     "countryLabel": "País Padrão",
     "countryHint": "Define o formato padrão de telefone, CEP/ZIP e documento. Cada campo pode ser sobrescrito individualmente.",

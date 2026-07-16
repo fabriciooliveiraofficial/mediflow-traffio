@@ -14,6 +14,7 @@
 import { claudeChat, type LlmMessage } from "../../_shared/llmProvider.ts";
 import { buildAutonomousSystemPrompt, TRANSFER_TOOL } from "../../_shared/copilot.ts";
 import { SCHEDULING_TOOLS } from "../../_shared/schedulingTools.ts";
+import { STAGE_GUIDANCE } from "../../_shared/journeyStage.ts";
 import { mockExecuteTool, MOCK_SLOT_TIMES } from "./mockTools.ts";
 import { SCENARIOS, type EvalScenario } from "./scenarios.ts";
 
@@ -55,6 +56,8 @@ async function runScenario(s: EvalScenario): Promise<RunResult> {
         instructions: "",
         knowledgePacket: KNOWLEDGE_PACKET,
         todayStr: "2026-07-15",
+        stageGuidance: s.stage ? STAGE_GUIDANCE[s.stage] ?? null : null,
+        languageHint: s.language ?? null,
     });
 
     const transcript = s.history

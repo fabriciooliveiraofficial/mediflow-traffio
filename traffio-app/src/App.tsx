@@ -15,6 +15,7 @@ const AgendaMestra = lazy(() => import('./pages/AgendaMestra').then(m => ({ defa
 const CrmLeads = lazy(() => import('./pages/CrmLeads').then(m => ({ default: m.CrmLeads })));
 const ProposalsPage = lazy(() => import('./pages/ProposalsPage').then(m => ({ default: m.ProposalsPage })));
 const FinancialDashboard = lazy(() => import('./pages/FinancialDashboard').then(m => ({ default: m.FinancialDashboard })));
+const ReportsPage = lazy(() => import('./pages/ReportsPage').then(m => ({ default: m.ReportsPage })));
 const PatientDetails = lazy(() => import('./pages/PatientDetails').then(m => ({ default: m.PatientDetails })));
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
 const ReceptionDashboard = lazy(() => import('./pages/ReceptionDashboard').then(m => ({ default: m.ReceptionDashboard })));
@@ -73,6 +74,9 @@ function TenantApp() {
   // ?screen=... permite deep-link em fluxos de retorno externo (ex.: onboarding Stripe Connect)
   const [activeScreen, setActiveScreen] = useState(() => new URLSearchParams(window.location.search).get('screen') || 'today')
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null)
+  // Relatórios (roadmap item 7): aba inicial ao navegar a partir do link
+  // "Ver relatório completo" em Dashboard.tsx/FinancialDashboard.tsx
+  const [reportsInitialTab, setReportsInitialTab] = useState<'marketing' | 'financeiro' | 'comercial'>('marketing')
   const [searchParams, setSearchParams] = useSearchParams()
   const { tenant, refresh } = useTenant()
   const { kicked, deactivateCurrentSession } = useSessionGuard()
@@ -115,14 +119,28 @@ function TenantApp() {
     setActiveScreen('patient-details')
   }
 
+  // Dashboard.tsx/FinancialDashboard.tsx chamam onNavigate('reports') a partir
+  // do botão "Ver relatório completo" — estes wrappers setam a aba certa antes
+  // de navegar, sem sobrecarregar a assinatura onNavigate: (id: string) => void
+  // já usada em todo o app.
+  const handleDashboardNavigate = (id: string) => {
+    if (id === 'reports') setReportsInitialTab('marketing')
+    setActiveScreen(id)
+  }
+  const handleAnalyticsNavigate = (id: string) => {
+    if (id === 'reports') setReportsInitialTab('financeiro')
+    setActiveScreen(id)
+  }
+
   const renderScreen = () => {
     switch (activeScreen) {
       case 'today': return <TodayPage key="today" onNavigate={setActiveScreen} />
-      case 'dashboard': return <Dashboard key="dashboard" onNavigate={setActiveScreen} />
+      case 'dashboard': return <Dashboard key="dashboard" onNavigate={handleDashboardNavigate} />
+      case 'reports': return <ReportsPage key="reports" initialTab={reportsInitialTab} />
       case 'agenda': return <AgendaMestra key="agenda" />
       case 'leads': return <CrmLeads key="leads" onSelectPatient={handlePatientSelect} />
       case 'proposals': return <ProposalsPage key="proposals" onSelectPatient={handlePatientSelect} />
-      case 'analytics': return <FinancialDashboard key="analytics" />
+      case 'analytics': return <FinancialDashboard key="analytics" onNavigate={handleAnalyticsNavigate} />
       case 'intelligence': return <Intelligence key="intelligence" />
       case 'settings': return <Settings key="settings" />
       case 'reception': return <ReceptionDashboard key="reception" />

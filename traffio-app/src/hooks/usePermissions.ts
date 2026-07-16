@@ -17,6 +17,11 @@ export const PERMISSION_MAP: Record<string, string[]> = {
   'page:proposals':     ['owner', 'admin', 'manager', 'attendant'],
   'page:reception':     ['owner', 'admin', 'manager', 'attendant', 'staff'],
   'page:financial':     ['owner', 'admin', 'manager'],
+  // Chave real do nav id da FinancialDashboard (page:financial acima é órfã,
+  // nenhum item de menu usa esse id) — gap encontrado no reorg de Relatórios
+  // (roadmap item 7, 16/07/2026): sem isto, qualquer role via faturamento.
+  'page:analytics':     ['owner', 'admin', 'manager'],
+  'page:reports':       ['owner', 'admin', 'manager'],
   'page:professionals': ['owner', 'admin', 'manager'],
   'page:services':      ['owner', 'admin', 'manager'],
   'page:automations':   ['owner', 'admin', 'manager'],

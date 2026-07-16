@@ -116,6 +116,8 @@
     "specialtyDentalSub": "Dental Panel Enabled",
     "specialtyNutrition": "Nutrition",
     "specialtyNutritionSub": "Nutrition Panel Enabled",
+    "specialtyRecommended": "Recommended",
+    "moreSpecialties": "Other specialties",
     "countrySectionTitle": "Clinic Country",
     "countryLabel": "Default Country",
     "countryHint": "Defines the default format for phone, postal code, and document fields. Each field can be overridden individually.",

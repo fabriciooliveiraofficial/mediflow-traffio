@@ -94,10 +94,8 @@ pendências deste tópico):
   comunicam valor (`IA` na Agenda, `Staff` na Recepção, `New` nos módulos de
   especialidade)
 
-**🟡 Ainda pendente desta frente:**
-- Consolidar múltiplas telas de analytics (Marketing/ads + FinancialDashboard
-  + Intelligence) em uma seção "Relatórios" única — não fazia parte do
-  agrupamento visual, é uma fusão de páginas mais profunda (ver item 7)
+~~**🟡 Ainda pendente desta frente:** Consolidar múltiplas telas de analytics
+em "Relatórios" (ver item 7)~~ **✅ Concluído em 16/07/2026** — ver item 7.
 
 ---
 
@@ -354,38 +352,142 @@ dedicada, agora com nome e conteúdo coerentes.
 
 ### 6. IA consciente de jornada (CRM stage-aware) — a fronteira competitiva
 
-**Status: ⚪ Ideia validada em conversa, sem spec nem código.**
+**Status: ✅ Implementado e verificado (16/07/2026) — suíte de evals 16/16 verde, liberado para produção.**
 
-Proposta (a que build o "fosso competitivo" que nenhum concorrente tem): o
-agente recebe o `crm_journeys.stage_id` da conversa e troca a **abordagem**
-por estágio —
+O agente (F1 rascunho + F3 autônomo) agora lê `crm_journeys.stage_id` da
+conversa (via `crm_journeys.session_id`, FK já populada pelo trigger
+`crm_trg_conversation_sessions`/`crm_ensure_journey` — nenhuma tabela nova)
+e ajusta a **abordagem** por estágio, nunca a política de preço:
 
-| Estágio | Abordagem |
+| Estágio | Abordagem injetada |
 |---|---|
-| Lead novo | Acolher + vender a avaliação (comportamento atual) |
-| Paciente que faltou | Zero culpa, remarcar em 1 toque |
-| Recall (6+ meses) | Reconhecimento + cuidado, sem venda agressiva |
-| Orçamento parado | Reancorar valor, remover obstáculo |
-| Paciente ativo | Só servir, não vender |
+| `new_lead`, `in_contact` | Nenhuma — a persona padrão já vende a avaliação |
+| `scheduled` | Não reabre convite de agendar; confirma detalhes |
+| `showed_up` | Acolhedora, sem empurrar nova venda |
+| `proposal` | Reancora valor, remove objeção, sem urgência falsa |
+| `recovery` (faltou) | Zero culpa/cobrança, oferece remarcar |
+| `recall_due` (6+ meses) | Reconhecimento + cuidado, sem venda agressiva |
+| `won` (paciente ativo) | Só serve, não vende |
+| `lost` | Trata como novo começo, sem mencionar histórico |
 
-Também proposto: usar as edições/descartes do atendente no copiloto como
-sinal de aprendizado por tenant (loop de gabarito humano). **Nada disso foi
-desenhado tecnicamente ainda** — é a recomendação de próximo incremento após
-o piloto validar a base atual.
+- **`supabase/functions/_shared/journeyStage.ts`** (novo): `CRM_STAGES`/
+  `CrmStageId` (espelha `src/lib/crmStages.ts`, edge functions não importam
+  de `src/`), `STAGE_GUIDANCE` (texto por estágio), `fetchStageGuidance()`
+  (query best-effort `crm_journeys` por `session_id` — falha ou jornada
+  ainda inexistente → `guidance: null`, comportamento idêntico ao atual,
+  fail-safe).
+- **`_shared/copilot.ts`**: `buildAutonomousSystemPrompt()` ganhou campo
+  `stageGuidance` (injetado após `AUTONOMOUS_ADDENDUM`); `runAutonomousAgent`
+  e `runCopilot` buscam a guidance em paralelo com as outras chamadas já
+  existentes (zero latência extra) e injetam no prompt de cada um — **mesmo
+  mapeamento nos dois níveis** (F1 e F3), conforme decidido.
+- **Suíte de evals**: `EvalScenario` ganhou campo opcional `stage`; 4
+  cenários novos (`estagio_recovery_zero_culpa`, `estagio_proposal_reancorar`,
+  `estagio_won_so_servir`, `estagio_recall_sem_pressao`) — **16 cenários no
+  total**. Os 12 antigos não setam `stage` → comportamento idêntico ao
+  anterior, sem risco de regressão. `deno check` limpo + 13/13 testes
+  unitários passando; **suíte com modelo real (16/16 esperado) ainda não
+  rodada nesta sessão** — não há `ANTHROPIC_API_KEY` disponível aqui; rodar
+  antes do deploy (`$env:ANTHROPIC_API_KEY="..."; npx deno run -A
+  _tests/evals/run.ts`, pasta `supabase/functions`).
+
+**Fora de escopo desta entrega (decisão explícita)**: usar as edições/
+descartes do atendente no rascunho do copiloto como sinal de aprendizado —
+confirmado que **não existe nenhuma instrumentação hoje** (o botão Usar/
+Descartar só apaga `context.ai_draft`, sem log de qual ação foi tomada).
+Sem gancho de dado nem definição de "o que fazer com o sinal depois" —
+fica como item futuro separado, a desenhar do zero.
 
 ---
 
 ### 7. O que foi decidido **não fazer** (ou tirar)
 
-- **Módulo de Nutrição** — esconder/descontinuar (dilui posicionamento
-  dental). *Não executado ainda — segue visível na plataforma.*
+- **GTM focado em Odontologia** ✅ implementado (16/07/2026). A entrada
+  original deste item ("esconder módulo de Nutrição") era uma decisão de
+  **posicionamento de marketing/GTM** (vender a Traffio como *a* plataforma
+  para clínicas odontológicas, mensagem afiada vs. concorrentes dental-only
+  como Simples Dental/Clinicorp) — **não** uma crítica ao seletor de
+  especialidade em Configurações (`tenants.specialty`), que continua sendo
+  arquitetura multi-vertical válida (permite reabrir Clínica Geral/Nutrição
+  no futuro sem retrabalho).
+  - **Verificado contra o schema real** (não os arquivos de migration
+    rastreados, que estão desatualizados — mais um caso de drift documentado):
+    `tenants.specialty` é `text[]` em produção (migrations tracked mostram
+    `TEXT` escalar — divergência, não a primeira neste projeto). Dados reais:
+    de 3 tenants, 1 é só `['dental']`, 1 está vazio `[]`, e 1 (o tenant MVP de
+    desenvolvimento/QA, não cliente real) tem as três specialties ativas —
+    então "100% da base são clientes odonto" é preciso, mas **não é
+    literalmente zero uso de Clínica Geral/Nutrição no banco** (só não há
+    cliente real usando).
+  - **Migration `20260716a_tenants_default_specialty_dental.sql`**: novo
+    `DEFAULT` da coluna passa de `'{}'::text[]` para `ARRAY['dental']::text[]`
+    — só afeta tenants novos (via RPC `register_tenant`, que não especifica
+    `specialty` no INSERT); nenhum tenant existente foi alterado. Fecha um gap
+    real de onboarding: antes, um tenant novo nascia com specialty vazia e só
+    via os itens de menu de Odontologia/Odontograma depois de passar por
+    Configurações manualmente.
+  - **`src/pages/Settings.tsx`** (seletor de especialidade, aba Clínicas):
+    Odontologia virou o card único e em destaque (badge "Recomendado"),
+    largura cheia; Clínica Geral e Nutrição foram para trás de um disclosure
+    "Outras especialidades" — **aberto automaticamente** se o tenant já usa
+    uma delas (não esconde nada de quem já configurou, ex.: o tenant MVP),
+    fechado por padrão para todo o resto. Lógica de toggle/gravação
+    (`handleSaveTenant`, array em `tenants.specialty`) inalterada — só a
+    apresentação visual mudou.
+  - `tsc`/`vite build` limpos, i18n `clinics.specialtyRecommended`/
+    `clinics.moreSpecialties` em pt-BR/en/es.
 - ~~**Notificações como página no menu** — deveria virar só sino~~ **REVERTIDO
   em 15/07/2026** (ver item 6a): a página ganhou conteúdo operacional real
   demais para virar dropdown; continua como página dedicada.
 - **ERP clínico completo** (protético, NF-e, estoque, multi-unidade) — fora
   de escopo permanente, é terreno da Clinicorp.
-- **Múltiplas telas de analytics soltas** — consolidar em "Relatórios".
-  *Não executado.*
+- **Múltiplas telas de analytics soltas → "Relatórios"** ✅ implementado
+  (16/07/2026). Mapeamento confirmado por leitura direta: `Dashboard.tsx`
+  (nav "Marketing", 1582 linhas) e `FinancialDashboard.tsx` (nav "Financeiro",
+  471 linhas) cada um misturava KPIs/gráficos com uma responsabilidade
+  operacional bem distinta (gestão de integração OAuth Meta/Google Ads; lista
+  de transações/cobranças). Decisão: "Relatórios" é um **hub de leitura**
+  (abas Marketing/Financeiro/Comercial) — a parte operacional continua nas
+  telas originais, sem misturar com o relatório.
+  - **`src/components/reports/MarketingReport.tsx`** (novo): KPIs/gráfico
+    `AreaChart`/tabela de campanhas/export PDF+Excel extraídos verbatim de
+    `Dashboard.tsx` — mesma query `ad_performance_daily`, mesmo
+    `useTenantCurrency` (moeda intocada). `StatCard` local trocado pelo
+    `KpiCard` compartilhado (`src/components/ui`); badges de tendência
+    (`+12%` etc., decorativos e não calculados) removidos na conversão.
+  - **`src/pages/Dashboard.tsx`** (enxuta): só a gestão de integração OAuth
+    (conectar/gerenciar/desconectar Meta e Google Ads) + o feed de leads
+    recentes (legado, mantido). Header novo (era "Analytics Pro", não fazia
+    mais sentido numa página só de integração) + botão "Ver relatório
+    completo" → Relatórios, aba Marketing.
+  - **`src/components/reports/FinanceiroReport.tsx`** (novo): KPIs + seção
+    "Payment Hub Analytics" (aprovação/volume/ticket médio + `PieChart` de
+    mix + pipeline) extraídos de `FinancialDashboard.tsx`. `KPICard` local
+    trocado pelo `KpiCard` compartilhado nos 4 cards de topo. Usa `useTenant()`
+    (padrão normal — `FinancialDashboard.tsx` mantém a query direta antiga,
+    não copiada para código novo) + `useTenantMoney` inalterado.
+  - **`src/pages/FinancialDashboard.tsx`** (enxuta): só a lista de transações
+    (filtro/marcar pago/cancelar) + modal "Nova Cobrança" + botão "Ver
+    relatório completo".
+  - **`src/pages/ReportsPage.tsx`** (novo): abas via `Badge accent/onClick`
+    (mesmo padrão de `ProposalsPage.tsx`, não existe `Tabs` genérico no
+    projeto). Aba Comercial reusa `PerformanceStats` **verbatim** (componente
+    já puramente apresentacional, dados de `useFollowUpMetrics()`) — sem
+    tirar do quadro de Follow-up, que continua exibindo os mesmos stats.
+  - **Gap de permissão corrigido**: `PERMISSION_MAP` tinha `page:financial`
+    (chave morta, nenhum nav id usa) mas **não tinha `page:analytics`** (a
+    chave real da FinancialDashboard) — qualquer role, incluindo `staff`,
+    via faturamento. Agora `page:analytics`/`page:reports` restritos a
+    `owner/admin/manager`.
+  - Nav: item "Relatórios" no grupo Gestão, antes de "Marketing" (ordem já
+    antecipada numa decisão de produto anterior).
+  - `tsc`/`vite build` limpos; i18n mínimo (`nav.reports`, bloco
+    `reports.*`, 2 chaves novas em `dashboard.json`, 2 em
+    `tenantAdmin.financialDashboard.header`) em pt-BR/en/es.
+  - **Não tocado** (fora de escopo, decisão explícita): `Intelligence.tsx`
+    (já sem analytics desde o reorg anterior) e
+    `src/components/automacoes/DesempenhoAutomacoes.tsx` (órfão, dados
+    mockados, zero call sites — não virou aba "Automações").
 - **Religar os agentes antigos (OpenAI/Gemini)** — removidos permanentemente.
 
 ---
@@ -402,19 +504,30 @@ o piloto validar a base atual.
    Concluído em 16/07/2026.** Teste ponta a ponta pendente com WhatsApp real
    (ver seção do item 5 acima) — próxima vez que mexer no pipeline de
    inbox/outbound, validar contra o tenant de teste.
-5. **Esconder Nutrição, consolidar Relatórios** (item 7) — limpeza rápida
-   de posicionamento (a remoção de Notificações do menu foi revertida, ver 6a).
-   **← próximo passo de construção recomendado.**
-6. **IA consciente de jornada** (item 6) — depois que o volume de dados do
-   piloto existir para justificar.
+5. ~~**GTM em Odontologia** (seletor de especialidade simplificado) +
+   **consolidar Relatórios** (item 7)~~ **✅ Concluído em 16/07/2026.** Falta
+   só a decisão de copy de marketing/onboarding externo (site, discurso
+   comercial), que fica fora deste repositório.
+6. ~~**IA consciente de jornada** (item 6)~~ **✅ Implementado em 16/07/2026.**
+   **Pendente antes do deploy: rodar a suíte de evals com API key real**
+   (16 cenários — 12 antigos + 4 novos de estágio) — não há chave disponível
+   neste ambiente. **← próximo passo imediato, mesmo sem ser tarefa de
+   código.**
 7. **Meta Cloud API como tier Pro** com UI de upgrade e billing metered
    (item 4) — quando houver demanda real de tenant que precise de botões
-   garantidos ou volume de campanha.
+   garantidos ou volume de campanha. Depois disso, resta só o loop de
+   aprendizado com edições do copiloto (fora de escopo do item 6, sem
+   plumbing hoje) como próxima grande aposta em aberto.
 
 ---
 
 *Última atualização: 16/07/2026 (bugs pós-lançamento do módulo de Orçamentos
 e da Tela Hoje corrigidos — ver itens 1 e 3; reorganização visual do menu em
 5 grupos concluída — item 2; F2 fluxos estruturados determinísticos
-recovery+waitlist concluído — item 5). Ao concluir qualquer item, mover para
-a seção correspondente com ✅ e a data/PR relevante.*
+recovery+waitlist concluído — item 5; GTM em Odontologia implementado —
+item 7, default de tenant novo + seletor de especialidade simplificado;
+consolidação de Relatórios concluída — item 7, Marketing/Financeiro/
+Comercial; IA consciente de jornada implementada — item 6, F1+F3 ajustam
+abordagem por estágio do CRM, suíte de evals com API key ainda pendente de
+rodar). Ao concluir qualquer item, mover para a seção correspondente com ✅
+e a data/PR relevante.*

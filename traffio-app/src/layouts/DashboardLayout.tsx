@@ -26,6 +26,7 @@ import {
     Phone,
     Sunrise,
     FileText,
+    TrendingUp,
 } from 'lucide-react'
 // Phone used in navItems below
 import { FloatingCommunicationsButton } from '../components/softphone/FloatingCommunicationsButton'
@@ -96,6 +97,7 @@ function buildNavItems(t: (key: string) => string): NavItem[] {
         { id: 'whatsapp', label: t('nav.whatsapp'), icon: MessageCircle, group: 'gestao' },
         { id: 'communications', label: t('nav.communications'), icon: Phone, group: 'gestao' },
         { id: 'intelligence', label: t('nav.intelligence'), icon: Brain, group: 'gestao' },
+        { id: 'reports', label: t('nav.reports'), icon: TrendingUp, group: 'gestao' },
         { id: 'dashboard', label: t('nav.dashboard'), icon: LayoutDashboard, group: 'gestao' },
         { id: 'notifications', label: t('nav.notifications'), icon: Bell, group: 'gestao' },
         { id: 'billing', label: t('nav.billing'), icon: Crown, group: 'gestao' },

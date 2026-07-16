@@ -260,6 +260,8 @@
     "header": {
       "title": "Financeiro",
       "subtitle": "Visão consolidada de todas as suas unidades e conversão de hub.",
+      "subtitleTransactions": "Lista de cobranças e recebimentos de todas as suas unidades.",
+      "viewFullReportButton": "Ver relatório completo",
       "filterAll": "Todos",
       "filterPaid": "Pagos",
       "filterPending": "Pendentes",
@@ -631,6 +633,15 @@
       "footer": "As variáveis são preenchidas automaticamente com os dados do agendamento no momento do envio."
     },
     "saveButton": "SALVAR ALTERAÇÕES"
+  },
+  "reports": {
+    "title": "Relatórios",
+    "subtitle": "KPIs e desempenho de Marketing, Financeiro e Comercial num só lugar.",
+    "tabs": {
+      "marketing": "Marketing",
+      "financeiro": "Financeiro",
+      "comercial": "Comercial"
+    }
   },
   "proposals": {
     "title": "Orçamentos",

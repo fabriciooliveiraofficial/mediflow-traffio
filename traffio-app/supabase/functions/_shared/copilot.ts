@@ -23,6 +23,7 @@ import {
     AFTER_HOURS_CANCEL_MSG,
     type SlotOption,
 } from "./schedulingTools.ts";
+import { fetchStageGuidance } from "./journeyStage.ts";
 
 interface CopilotParams {
     tenantId: string;
@@ -153,13 +154,15 @@ export async function runCopilot(supabase: SupabaseClient, params: CopilotParams
         // ── 1+2. Triagem (Haiku) e rascunho (Sonnet) em PARALELO ───────────────
         // O rascunho não depende da triagem (o Sonnet espelha o idioma do
         // paciente sozinho) — rodar em série só somava latência.
-        const [routerModel, agentModel, knowledgePacket] = await Promise.all([
+        const [routerModel, agentModel, knowledgePacket, journeyStage] = await Promise.all([
             getAiModelRouter(supabase),
             getAiModelAgent(supabase),
             buildKnowledgePacket(supabase, tenantId),
+            fetchStageGuidance(supabase, sessionId),
         ]);
         const personality = botConfig?.personality || "acolhedor";
         const instructions = botConfig?.global_instructions || "";
+        const stageGuidance = journeyStage.guidance;
 
         const [triage, draftText] = await Promise.all([
             claudeJson<TriageResult>(supabase, {
@@ -186,7 +189,9 @@ export async function runCopilot(supabase: SupabaseClient, params: CopilotParams
                         system: [
                             `Você redige SUGESTÕES de resposta para a equipe da clínica "${clinicName}" — um humano revisa antes de enviar.`,
                             SALES_PERSONA,
-                            `Ajuste de tom desta clínica: ${personality}. Responda SEMPRE no mesmo idioma da última mensagem do paciente.`,
+                            stageGuidance ? `### CONTEXTO DA JORNADA DESTE PACIENTE (ajusta a abordagem, nunca a política de preço):\n${stageGuidance}` : "",
+                            `Ajuste de tom desta clínica: ${personality}.`,
+                            `⚠️ IDIOMA: identifique o idioma da ÚLTIMA mensagem do paciente e escreva a sugestão 100% nesse idioma — nenhuma palavra solta de outro idioma (nem termos como "avaliação"/"agendamento" em português dentro de uma resposta em espanhol/inglês). Se não souber o termo exato, parafraseie; nunca deixe a palavra em português.`,
                             instructions ? `### INSTRUÇÕES DA CLÍNICA (prioridade máxima — sobrepõem qualquer regra acima):\n${instructions}` : "",
                             knowledgePacket ? `### CONTEXTO DA CLÍNICA (única fonte de fatos permitida):\n${knowledgePacket}` : "",
                             "### REGRAS INEGOCIÁVEIS:",
@@ -196,6 +201,7 @@ export async function runCopilot(supabase: SupabaseClient, params: CopilotParams
                             "- Se o dado necessário NÃO estiver no contexto, aí sim diga que vai confirmar com a equipe — e mesmo assim adiante o que o contexto permitir.",
                             "- NUNCA invente fato que não esteja no contexto: horário disponível, endereço, informação clínica.",
                             "- PREÇO: nunca informar por mensagem, em nenhuma hipótese — siga a POLÍTICA DE PREÇO.",
+                            "- IDIOMA: releia a sugestão antes de responder — se houver qualquer palavra fora do idioma do paciente, reescreva-a.",
                         ].filter(Boolean).join("\n"),
                         messages: [{ role: "user", content: `Conversa até agora:\n${transcript}\n\nRedija a sugestão de resposta da clínica para a última mensagem do paciente.` }],
                     });
@@ -308,16 +314,20 @@ export function buildAutonomousSystemPrompt(opts: {
     todayStr: string;
     /** Idioma detectado da conversa (context.language) — âncora anti-deriva pós-ferramenta */
     languageHint?: string | null;
+    /** IA consciente de jornada (roadmap item 6) — ajusta abordagem por estágio do CRM, nunca a política de preço */
+    stageGuidance?: string | null;
 }): string {
     const langName: Record<string, string> = { pt: "português", en: "English", es: "español" };
     return [
         `Você é a assistente da clínica "${opts.clinicName}" e responde os pacientes pelo WhatsApp.`,
         SALES_PERSONA,
         AUTONOMOUS_ADDENDUM,
+        opts.stageGuidance ? `### CONTEXTO DA JORNADA DESTE PACIENTE (ajusta a abordagem, nunca a política de preço):\n${opts.stageGuidance}` : "",
         `Data de hoje: ${opts.todayStr} (fuso da clínica). Use-a para converter datas relativas ("amanhã", "semana que vem") ao chamar ferramentas.`,
-        `Ajuste de tom desta clínica: ${opts.personality}. Responda SEMPRE no mesmo idioma da última mensagem do paciente.`,
+        `Ajuste de tom desta clínica: ${opts.personality}.`,
+        `⚠️ IDIOMA: identifique o idioma da ÚLTIMA mensagem do paciente e responda 100% nesse idioma — nenhuma palavra solta de outro idioma (nem termos como "avaliação"/"agendamento" em português dentro de uma resposta em espanhol/inglês). Se não souber o termo exato no idioma do paciente, parafraseie; nunca deixe a palavra em português.`,
         opts.languageHint
-            ? `⚠️ IDIOMA DESTA CONVERSA: ${langName[opts.languageHint] || opts.languageHint}. TODAS as suas mensagens ao paciente devem estar nesse idioma — inclusive após usar ferramentas (os retornos internos das ferramentas NÃO definem o idioma da resposta).`
+            ? `IDIOMA JÁ DETECTADO NESTA CONVERSA: ${langName[opts.languageHint] || opts.languageHint}. Mantenha esse idioma em TODAS as mensagens, inclusive após usar ferramentas (os retornos internos das ferramentas NÃO definem o idioma da resposta).`
             : "",
         opts.instructions ? `### INSTRUÇÕES DA CLÍNICA (prioridade máxima — sobrepõem qualquer regra acima):\n${opts.instructions}` : "",
         opts.knowledgePacket ? `### CONTEXTO DA CLÍNICA (única fonte de fatos permitida):\n${opts.knowledgePacket}` : "",
@@ -327,6 +337,7 @@ export function buildAutonomousSystemPrompt(opts: {
         "- RESPONDA A DÚVIDA DIRETAMENTE quando a informação estiver no CONTEXTO DA CLÍNICA.",
         "- NUNCA invente fato que não esteja no contexto ou em retorno de ferramenta: horário disponível, endereço, informação clínica.",
         "- PREÇO: nunca informar por mensagem, em nenhuma hipótese — siga a POLÍTICA DE PREÇO.",
+        "- IDIOMA: releia sua resposta antes de enviar — se houver qualquer palavra fora do idioma do paciente, reescreva-a.",
     ].filter(Boolean).join("\n");
 }
 
@@ -360,10 +371,11 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             .map((m: any) => `${m.role === "user" ? "PACIENTE" : "CLÍNICA"}: ${m.content}`)
             .join("\n");
 
-        const [routerModel, agentModel, knowledgePacket] = await Promise.all([
+        const [routerModel, agentModel, knowledgePacket, journeyStage] = await Promise.all([
             getAiModelRouter(supabase),
             getAiModelAgent(supabase),
             buildKnowledgePacket(supabase, tenantId),
+            fetchStageGuidance(supabase, sessionId),
         ]);
         const personality = botConfig?.personality || "acolhedor";
         const instructions = botConfig?.global_instructions || "";
@@ -377,6 +389,8 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             // Idioma detectado nos turnos anteriores (triagem) — evita a deriva
             // para PT depois dos retornos internos das ferramentas
             languageHint: context.language || null,
+            // IA consciente de jornada (roadmap item 6)
+            stageGuidance: journeyStage.guidance,
         });
 
         // Triagem em paralelo com o loop (não bloqueia a resposta)

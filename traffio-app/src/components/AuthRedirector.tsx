@@ -25,7 +25,7 @@ export const AuthRedirector = () => {
                 // 1. Super Admin Redirection Rules
                 if (role === 'super_admin') {
                     // Prevent access to standard dashboard, redirect to master
-                    if (path.startsWith('/dashboard') || path === '/' || path === '/login') {
+                    if (path.startsWith('/dashboard') || path === '/') {
                         console.log('🛡️ [AuthRedirector] Super Admin detected on wrong route. Redirecting to Master...');
                         navigate('/master/dashboard', { replace: true });
                     }
@@ -37,8 +37,8 @@ export const AuthRedirector = () => {
                         console.warn('🛡️ [AuthRedirector] Unauthorized access to Master. Redirecting to Tenant Dashboard...');
                         navigate('/dashboard', { replace: true });
                     }
-                    // Redirect from root/login to dashboard if logged in
-                    if (path === '/' || path === '/login') {
+                    // Redirect from root to dashboard if logged in
+                    if (path === '/') {
                         navigate('/dashboard', { replace: true });
                     }
                 }

@@ -29,6 +29,7 @@ import {
     Apple,
     Briefcase,
     Settings as SettingsIcon,
+    ChevronDown,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { TIMEZONE_OPTIONS, TIMEZONE_REGIONS } from '../lib/timezoneUtils';
@@ -175,6 +176,13 @@ export const Settings = () => {
     const [loading, setLoading] = useState(true);
     const [tenants, setTenants] = useState<any[]>([]);
     const [profile, setProfile] = useState<any>(null);
+    // GTM em Odontologia (roadmap item 7, 16/07/2026): Clínica Geral/Nutrição ficam
+    // atrás de um disclosure, aberto por padrão só se o tenant já usa uma delas.
+    const [expandedSpecialty, setExpandedSpecialty] = useState<Record<string, boolean>>({});
+    const isSpecialtyExpanded = (tenant: any): boolean => {
+        if (expandedSpecialty[tenant.id] !== undefined) return expandedSpecialty[tenant.id];
+        return !!(tenant.specialty?.includes?.('general') || tenant.specialty?.includes?.('nutrition'));
+    };
 
     // Locations state
     const [locations, setLocations] = useState<ClinicLocation[]>([]);
@@ -825,82 +833,101 @@ export const Settings = () => {
                                                         />
                                                     </div>
 
-                                                    {/* Specialty Selector */}
+                                                    {/* Specialty Selector — Odontologia é o foco de GTM (item 7 do roadmap,
+                                                        16/07/2026); Clínica Geral/Nutrição ficam atrás de um disclosure
+                                                        (aberto de cara se o tenant já usa uma delas). */}
                                                     <div>
                                                         <label className="text-xs font-black text-graphite-400 uppercase mb-2 block">{t('clinics.specialtyLabel')}</label>
-                                                        <div className="flex gap-3">
-                                                            <button
-                                                                onClick={() => {
-                                                                    const currentSpecs = Array.isArray(tenant.specialty) ? tenant.specialty : [tenant.specialty].filter(Boolean) as string[];
-                                                                    const newSpecs = currentSpecs.includes('general') 
-                                                                        ? currentSpecs.filter((s: string) => s !== 'general') 
-                                                                        : [...currentSpecs, 'general'];
-                                                                    handleSaveTenant(tenant.id, { specialty: newSpecs });
-                                                                    if (currentTenant?.id === tenant.id) updateTenantContext({ specialty: newSpecs });
-                                                                }}
-                                                                className={clsx(
-                                                                    "flex-1 flex items-center justify-center gap-3 p-4 rounded-2xl border-2 transition-all cursor-pointer bg-white",
-                                                                    tenant.specialty?.includes?.('general') 
-                                                                        ? 'border-brand-primary bg-brand-primary/5 text-brand-primary shadow-sm' 
-                                                                        : 'border-ice-100 text-graphite-400 hover:border-ice-200'
-                                                                )}
-                                                            >
-                                                                <Stethoscope size={20} />
-                                                                <div className="text-left">
-                                                                    <p className="font-black text-sm leading-none">{t('clinics.specialtyGeneral')}</p>
-                                                                    <p className="text-[10px] font-bold opacity-60">{t('clinics.specialtyGeneralSub')}</p>
-                                                                </div>
-                                                                {tenant.specialty?.includes?.('general') && <Check size={16} className="ml-auto" />}
-                                                            </button>
-                                                            
-                                                             <button
-                                                                onClick={() => {
-                                                                    const currentSpecs = Array.isArray(tenant.specialty) ? tenant.specialty : [tenant.specialty].filter(Boolean) as string[];
-                                                                    const newSpecs = currentSpecs.includes('dental') 
-                                                                        ? currentSpecs.filter((s: string) => s !== 'dental') 
-                                                                        : [...currentSpecs, 'dental'];
-                                                                    handleSaveTenant(tenant.id, { specialty: newSpecs });
-                                                                    if (currentTenant?.id === tenant.id) updateTenantContext({ specialty: newSpecs });
-                                                                }}
-                                                                className={clsx(
-                                                                    "flex-1 flex items-center justify-center gap-3 p-4 rounded-2xl border-2 transition-all cursor-pointer bg-white",
-                                                                    tenant.specialty?.includes?.('dental') 
-                                                                        ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm' 
-                                                                        : 'border-ice-100 text-graphite-400 hover:border-ice-200'
-                                                                )}
-                                                            >
-                                                                <Activity size={20} />
-                                                                <div className="text-left">
-                                                                    <p className="font-black text-sm leading-none">{t('clinics.specialtyDental')}</p>
-                                                                    <p className="text-[10px] font-bold opacity-60">{t('clinics.specialtyDentalSub')}</p>
-                                                                </div>
-                                                                {tenant.specialty?.includes?.('dental') && <Check size={16} className="ml-auto" />}
-                                                            </button>
-                                                            
-                                                            <button
-                                                                onClick={() => {
-                                                                    const currentSpecs = Array.isArray(tenant.specialty) ? tenant.specialty : [tenant.specialty].filter(Boolean) as string[];
-                                                                    const newSpecs = currentSpecs.includes('nutrition') 
-                                                                        ? currentSpecs.filter((s: string) => s !== 'nutrition') 
-                                                                        : [...currentSpecs, 'nutrition'];
-                                                                    handleSaveTenant(tenant.id, { specialty: newSpecs });
-                                                                    if (currentTenant?.id === tenant.id) updateTenantContext({ specialty: newSpecs });
-                                                                }}
-                                                                className={clsx(
-                                                                    "flex-1 flex items-center justify-center gap-3 p-4 rounded-2xl border-2 transition-all cursor-pointer bg-white",
-                                                                    tenant.specialty?.includes?.('nutrition') 
-                                                                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700 shadow-sm' 
-                                                                        : 'border-ice-100 text-graphite-400 hover:border-ice-200'
-                                                                )}
-                                                            >
-                                                                <Apple size={20} />
-                                                                <div className="text-left">
-                                                                    <p className="font-black text-sm leading-none">{t('clinics.specialtyNutrition')}</p>
-                                                                    <p className="text-[10px] font-bold opacity-60">{t('clinics.specialtyNutritionSub')}</p>
-                                                                </div>
-                                                                {tenant.specialty?.includes?.('nutrition') && <Check size={16} className="ml-auto" />}
-                                                            </button>
-                                                        </div>
+
+                                                        <button
+                                                            onClick={() => {
+                                                                const currentSpecs = Array.isArray(tenant.specialty) ? tenant.specialty : [tenant.specialty].filter(Boolean) as string[];
+                                                                const newSpecs = currentSpecs.includes('dental')
+                                                                    ? currentSpecs.filter((s: string) => s !== 'dental')
+                                                                    : [...currentSpecs, 'dental'];
+                                                                handleSaveTenant(tenant.id, { specialty: newSpecs });
+                                                                if (currentTenant?.id === tenant.id) updateTenantContext({ specialty: newSpecs });
+                                                            }}
+                                                            className={clsx(
+                                                                "w-full flex items-center gap-3 p-4 rounded-2xl border-2 transition-all cursor-pointer bg-white",
+                                                                tenant.specialty?.includes?.('dental')
+                                                                    ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm'
+                                                                    : 'border-ice-100 text-graphite-400 hover:border-ice-200'
+                                                            )}
+                                                        >
+                                                            <Activity size={22} />
+                                                            <div className="text-left flex-1">
+                                                                <p className="font-black text-sm leading-none flex items-center gap-2">
+                                                                    {t('clinics.specialtyDental')}
+                                                                    <span className="px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-700 text-[9px] font-black uppercase tracking-wide">
+                                                                        {t('clinics.specialtyRecommended', { defaultValue: 'Recomendado' })}
+                                                                    </span>
+                                                                </p>
+                                                                <p className="text-[10px] font-bold opacity-60">{t('clinics.specialtyDentalSub')}</p>
+                                                            </div>
+                                                            {tenant.specialty?.includes?.('dental') && <Check size={16} />}
+                                                        </button>
+
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setExpandedSpecialty(prev => ({ ...prev, [tenant.id]: !isSpecialtyExpanded(tenant) }))}
+                                                            className="mt-2 flex items-center gap-1.5 text-[10px] font-black text-graphite-400 uppercase hover:text-graphite-600 bg-transparent border-none cursor-pointer p-0"
+                                                        >
+                                                            <ChevronDown size={12} className={clsx("transition-transform", isSpecialtyExpanded(tenant) && "rotate-180")} />
+                                                            {t('clinics.moreSpecialties', { defaultValue: 'Outras especialidades' })}
+                                                        </button>
+
+                                                        {isSpecialtyExpanded(tenant) && (
+                                                            <div className="flex gap-3 mt-3">
+                                                                <button
+                                                                    onClick={() => {
+                                                                        const currentSpecs = Array.isArray(tenant.specialty) ? tenant.specialty : [tenant.specialty].filter(Boolean) as string[];
+                                                                        const newSpecs = currentSpecs.includes('general')
+                                                                            ? currentSpecs.filter((s: string) => s !== 'general')
+                                                                            : [...currentSpecs, 'general'];
+                                                                        handleSaveTenant(tenant.id, { specialty: newSpecs });
+                                                                        if (currentTenant?.id === tenant.id) updateTenantContext({ specialty: newSpecs });
+                                                                    }}
+                                                                    className={clsx(
+                                                                        "flex-1 flex items-center justify-center gap-3 p-4 rounded-2xl border-2 transition-all cursor-pointer bg-white",
+                                                                        tenant.specialty?.includes?.('general')
+                                                                            ? 'border-brand-primary bg-brand-primary/5 text-brand-primary shadow-sm'
+                                                                            : 'border-ice-100 text-graphite-400 hover:border-ice-200'
+                                                                    )}
+                                                                >
+                                                                    <Stethoscope size={20} />
+                                                                    <div className="text-left">
+                                                                        <p className="font-black text-sm leading-none">{t('clinics.specialtyGeneral')}</p>
+                                                                        <p className="text-[10px] font-bold opacity-60">{t('clinics.specialtyGeneralSub')}</p>
+                                                                    </div>
+                                                                    {tenant.specialty?.includes?.('general') && <Check size={16} className="ml-auto" />}
+                                                                </button>
+
+                                                                <button
+                                                                    onClick={() => {
+                                                                        const currentSpecs = Array.isArray(tenant.specialty) ? tenant.specialty : [tenant.specialty].filter(Boolean) as string[];
+                                                                        const newSpecs = currentSpecs.includes('nutrition')
+                                                                            ? currentSpecs.filter((s: string) => s !== 'nutrition')
+                                                                            : [...currentSpecs, 'nutrition'];
+                                                                        handleSaveTenant(tenant.id, { specialty: newSpecs });
+                                                                        if (currentTenant?.id === tenant.id) updateTenantContext({ specialty: newSpecs });
+                                                                    }}
+                                                                    className={clsx(
+                                                                        "flex-1 flex items-center justify-center gap-3 p-4 rounded-2xl border-2 transition-all cursor-pointer bg-white",
+                                                                        tenant.specialty?.includes?.('nutrition')
+                                                                            ? 'border-indigo-500 bg-indigo-50 text-indigo-700 shadow-sm'
+                                                                            : 'border-ice-100 text-graphite-400 hover:border-ice-200'
+                                                                    )}
+                                                                >
+                                                                    <Apple size={20} />
+                                                                    <div className="text-left">
+                                                                        <p className="font-black text-sm leading-none">{t('clinics.specialtyNutrition')}</p>
+                                                                        <p className="text-[10px] font-bold opacity-60">{t('clinics.specialtyNutritionSub')}</p>
+                                                                    </div>
+                                                                    {tenant.specialty?.includes?.('nutrition') && <Check size={16} className="ml-auto" />}
+                                                                </button>
+                                                            </div>
+                                                        )}
                                                     </div>
 
                                                     <TenantAddressForm
