@@ -423,7 +423,12 @@
       "techConfigBody": "To use the Official API, your Meta Business Suite account must be verified.",
       "metaDevelopersLink": "Meta Developers",
       "activateButton": "Activate Cloud API",
-      "testConnectionButton": "Test connection"
+      "testConnectionButton": "Test connection",
+      "upsell": {
+        "title": "Cloud API is a Clínica and Rede plan feature",
+        "body": "Official Meta connection with guaranteed clickable buttons — ideal for high-volume campaigns. Upgrade your plan to activate it.",
+        "cta": "View plans"
+      }
     },
     "zapiContent": {
       "syncingMessage": "Syncing with WhatsApp in real time...",

@@ -149,7 +149,7 @@ function TenantApp() {
       case 'notifications': return <NotificationsPage key="notifications" />
       case 'payments': return <PaymentsPage key="payments" />
       case 'billing': return <BillingPage key="billing" />
-      case 'whatsapp': return <AdminWhatsApp key="whatsapp" />
+      case 'whatsapp': return <AdminWhatsApp key="whatsapp" onNavigate={setActiveScreen} />
       case 'communications': return <CommunicationsHub key="communications" />
       case 'professionals': return <Professionals key="professionals" />
       case 'services': return <Services key="services" />

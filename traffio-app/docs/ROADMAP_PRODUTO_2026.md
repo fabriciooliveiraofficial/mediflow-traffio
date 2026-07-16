@@ -171,7 +171,7 @@ está gerando") para qualquer tenant, em qualquer país.
 
 ### 4. Canais — Z-API + Meta Cloud API como tier Pro
 
-**Status: 🟡 Decisão de produto tomada; parte técnica (botões Z-API) corrigida como efeito colateral do trabalho de IA.**
+**Status: 🟡 Parcialmente implementado (16/07/2026) — 2 das 3 peças construídas; a 3ª está bloqueada num processo externo (não-código) que o usuário ainda não iniciou.**
 
 Decidido:
 - **Z-API** = default (custo fixo ~R$55–99/mês, número existente da clínica).
@@ -184,14 +184,55 @@ Decidido:
 - Marketing em massa vira **recurso metered** nos planos, independente do
   canal, para proteger a margem da plataforma do comportamento de disparo dos tenants.
 
-**O que foi de fato construído:** o formato correto de botões e o fallback
-numerado no `outboxDispatcher.ts` (Z-API) — corrigido durante o trabalho do
-agente autônomo, não como projeto de canais em si.
+**Investigação (16/07/2026) corrigiu o que se sabia sobre o estado real:**
+- `outboxDispatcher.ts`/`cloudApiClient.ts` **já enviam de verdade via Cloud
+  API** (Graph API v21 — texto/mídia/botões/listas), não é stub.
+- `tenants.whatsapp_provider`/`cloud_api_*` **já existem em produção**
+  (confirmado via `information_schema`) — schema não documentado em
+  migration, mas funciona (mesmo padrão de drift já visto neste projeto,
+  desta vez sem quebra).
+- `AdminWhatsApp.tsx` **já tinha** uma aba Cloud API funcional, mas
+  "traga suas próprias credenciais" (o tenant cria a WABA sozinho no Meta
+  dele e cola `phone_number_id`/`access_token`) — **sem nenhuma trava de
+  plano**, qualquer tenant já podia ativar.
+- Onboarding de verdade (Embedded Signup) **não existe em nenhuma forma** —
+  exigiria o Meta App da própria Traffio (já existe, usado hoje só para
+  OAuth de Ads e Messenger/Instagram DM) com o produto WhatsApp habilitado
+  **e** Business Verification da Traffio aprovada pela Meta — processo
+  externo que o usuário confirmou não ter iniciado.
 
-**O que falta:**
-- UI de upgrade de canal (tenant escolher/migrar para Cloud API)
-- Metered billing de mensagens de marketing nos planos
-- Onboarding de número na Cloud API dentro da plataforma
+**✅ Construído nesta entrega** (as 2 peças que dá pra fazer 100% em código):
+1. **Billing medido**: `_shared/pricing.ts` ganhou `getCloudApiPricing(category)`
+   (mesmo shape de `getSmsPricing`); migration alargou o CHECK de
+   `tenant_usage_log.resource_type` (`whatsapp_marketing`/`whatsapp_utility`);
+   `outboxDispatcher.ts` (`sendNow`/`sendMedia`) ganhou parâmetro
+   `category` — grava linha em `tenant_usage_log` (débito automático via
+   `tenant_wallets`, trigger já existente, reaproveitado) só quando o envio
+   é via Cloud API e a categoria não é `service` (conversa ao vivo = grátis,
+   correto). `process-outbound/index.ts` classifica `template_key` →
+   categoria (`RECOVERY_TEMPLATE_KEYS`→marketing, `appointment_reminder*`/
+   `booking_confirmed`/`nps_survey`→utility); réplicas do agente/copiloto
+   (`sendWithFallback`, `structuredFlow.ts`) não passam categoria, caem no
+   default `service` (grátis) — correto, são conversa, não campanha.
+2. **UI de upgrade de verdade**: `cloud_api` virou feature de plano
+   (`planConfig.ts` — `false` no Essencial, `true` em Clínica/Rede, mesmo
+   corte de `whatsapp_inbox`/`marketing_ads`); `AdminWhatsApp.tsx` mostra um
+   card de upsell (ícone+título+CTA "Ver planos" → Billing) no lugar do
+   formulário quando o tenant não tem a feature — comportamento do
+   formulário em si inalterado para quem já tem acesso.
+
+**🔴 Não construído — bloqueado em processo externo, não é tarefa de código:**
+3. **Onboarding real (Embedded Signup)** dentro da plataforma — precisa que
+   o usuário **primeiro** habilite o produto WhatsApp no Meta App da
+   Traffio e complete a Business Verification no Meta Business Manager.
+   Sem isso aprovado pela Meta, não há como construir o fluxo de verdade
+   (só simular/mockar, o que não teria valor real). Próximo passo depende
+   do usuário iniciar esse processo fora daqui.
+
+**Riscos assumidos**: billing por mensagem enviada, não por janela de
+conversa-24h da Meta (mesma simplificação já usada para SMS neste projeto
+— superestima custo, não subestima); `message_outbox`/`enqueue`/
+`processBatch` (fila que parece legada) ficam sem instrumentação.
 
 ---
 
@@ -386,10 +427,25 @@ e ajusta a **abordagem** por estágio, nunca a política de preço:
   `estagio_won_so_servir`, `estagio_recall_sem_pressao`) — **16 cenários no
   total**. Os 12 antigos não setam `stage` → comportamento idêntico ao
   anterior, sem risco de regressão. `deno check` limpo + 13/13 testes
-  unitários passando; **suíte com modelo real (16/16 esperado) ainda não
-  rodada nesta sessão** — não há `ANTHROPIC_API_KEY` disponível aqui; rodar
-  antes do deploy (`$env:ANTHROPIC_API_KEY="..."; npx deno run -A
-  _tests/evals/run.ts`, pasta `supabase/functions`).
+  unitários. **Rodada com modelo real pelo Fabricio: 1ª tentativa 15/16**
+  (reprovou `idioma_es` — resposta em espanhol vazou uma palavra em
+  português; não era regressão desta entrega, o prompt desse cenário não
+  mudou — variação do próprio modelo, agravada pela âncora de idioma ser
+  fraca/condicional). **Reforço aplicado** (ver "Bug corrigido" abaixo) →
+  **2ª rodada: 16/16 verde, liberado para produção.**
+
+**Bug corrigido (mesma entrega, 16/07/2026): âncora de idioma reforçada em
+F1 e F3.** A instrução "responda no idioma do paciente" era uma frase única
+condicionada a `languageHint` (só preenchido depois da 1ª triagem) —
+insuficiente para o 1º contato. Agora é sempre incondicional em ambos os
+prompts: idioma detectado na própria mensagem, proibição explícita de
+misturar palavra de outro idioma (ex.: "avaliação" vazando em resposta
+EN/ES), e uma regra final de autorrevisão ("releia antes de responder").
+`EvalScenario` ganhou campo `language`, usado em
+`idioma_en_pos_ferramentas` (simula `context.language` já detectado em
+conversa multi-turno, mais fiel à produção); `idioma_en`/`idioma_es`
+continuam sem o hint de propósito — testam a instrução base sozinha,
+sem "colar a resposta".
 
 **Fora de escopo desta entrega (decisão explícita)**: usar as edições/
 descartes do atendente no rascunho do copiloto como sinal de aprendizado —
@@ -508,16 +564,19 @@ fica como item futuro separado, a desenhar do zero.
    **consolidar Relatórios** (item 7)~~ **✅ Concluído em 16/07/2026.** Falta
    só a decisão de copy de marketing/onboarding externo (site, discurso
    comercial), que fica fora deste repositório.
-6. ~~**IA consciente de jornada** (item 6)~~ **✅ Implementado em 16/07/2026.**
-   **Pendente antes do deploy: rodar a suíte de evals com API key real**
-   (16 cenários — 12 antigos + 4 novos de estágio) — não há chave disponível
-   neste ambiente. **← próximo passo imediato, mesmo sem ser tarefa de
-   código.**
-7. **Meta Cloud API como tier Pro** com UI de upgrade e billing metered
-   (item 4) — quando houver demanda real de tenant que precise de botões
-   garantidos ou volume de campanha. Depois disso, resta só o loop de
-   aprendizado com edições do copiloto (fora de escopo do item 6, sem
-   plumbing hoje) como próxima grande aposta em aberto.
+6. ~~**IA consciente de jornada** (item 6)~~ **✅ Implementado e verificado em
+   16/07/2026** — suíte de evals 16/16 verde (incluiu de brinde um reforço
+   na âncora de idioma F1/F3, achado durante a própria rodada de evals).
+7. ~~**Meta Cloud API como tier Pro** — UI de upgrade + billing metered
+   (item 4)~~ **✅ Construído em 16/07/2026** (as 2 peças que dependiam só de
+   código). **🔴 Falta 1 peça, não é tarefa de código**: onboarding real
+   (Embedded Signup) exige que o usuário habilite o produto WhatsApp no
+   Meta App da Traffio + Business Verification aprovada pela Meta —
+   processo externo, iniciar quando fizer sentido. **← próximo passo real
+   agora é essa ação do usuário, não uma tarefa de construção.** Depois
+   disso, resta o loop de aprendizado com edições do copiloto (fora de
+   escopo do item 6, sem plumbing hoje) como próxima grande aposta em
+   aberto.
 
 ---
 
@@ -527,7 +586,11 @@ e da Tela Hoje corrigidos — ver itens 1 e 3; reorganização visual do menu em
 recovery+waitlist concluído — item 5; GTM em Odontologia implementado —
 item 7, default de tenant novo + seletor de especialidade simplificado;
 consolidação de Relatórios concluída — item 7, Marketing/Financeiro/
-Comercial; IA consciente de jornada implementada — item 6, F1+F3 ajustam
-abordagem por estágio do CRM, suíte de evals com API key ainda pendente de
-rodar). Ao concluir qualquer item, mover para a seção correspondente com ✅
-e a data/PR relevante.*
+Comercial; IA consciente de jornada implementada e verificada — item 6,
+F1+F3 ajustam abordagem por estágio do CRM, suíte de evals 16/16 verde,
+âncora de idioma F1/F3 reforçada como efeito colateral; Meta Cloud API tier
+Pro parcialmente implementado — item 4, billing medido + UI de upgrade
+prontos, onboarding real via Embedded Signup bloqueado em Business
+Verification que o usuário ainda precisa iniciar no Meta Business Manager).
+Ao concluir qualquer item, mover para a seção correspondente com ✅ e a
+data/PR relevante.*

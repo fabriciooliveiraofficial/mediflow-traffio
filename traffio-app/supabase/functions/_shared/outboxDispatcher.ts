@@ -14,6 +14,15 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { CloudApiClient } from "./cloudApiClient.ts";
+import { getCloudApiPricing } from "./pricing.ts";
+
+/**
+ * Categoria de billing Cloud API (Meta) do envio — roadmap item 4, 16/07/2026.
+ * "service" (conversa iniciada pelo paciente) é grátis e é o default — só
+ * marketing/utility geram linha em tenant_usage_log. Z-API nunca é medido
+ * (o tenant paga a mensalidade fixa direto pra Z-API, fora da Traffio).
+ */
+export type CloudApiBillingCategory = "marketing" | "utility" | "service";
 
 export class OutboxDispatcher {
     constructor(private supabase: SupabaseClient) {}
@@ -23,11 +32,29 @@ export class OutboxDispatcher {
      * Usar no webhook handler para resposta instantânea ao paciente.
      * Se falhar, lança exceção (quem chama decide se faz enqueue como fallback).
      */
-    async sendNow(tenant: any, phone: string, payload: { text: string; interactive?: any }, typingDelayMs = 0, quotedMsgId?: string): Promise<string | undefined> {
+    async sendNow(tenant: any, phone: string, payload: { text: string; interactive?: any }, typingDelayMs = 0, quotedMsgId?: string, category: CloudApiBillingCategory = "service"): Promise<string | undefined> {
         if (tenant.whatsapp_provider === 'cloud_api' && tenant.cloud_api_phone_number_id && tenant.cloud_api_access_token) {
-            return await sendCloudApiMessage(tenant, phone, payload, quotedMsgId);
+            const result = await sendCloudApiMessage(tenant, phone, payload, quotedMsgId);
+            await this.trackCloudApiUsage(tenant.id, category);
+            return result;
         } else {
             return await sendZapiMessage(tenant, phone, payload, typingDelayMs, quotedMsgId);
+        }
+    }
+
+    /** Billing medido de mensagens Cloud API (roadmap item 4) — non-blocking, nunca derruba o envio. */
+    private async trackCloudApiUsage(tenantId: string, category: CloudApiBillingCategory): Promise<void> {
+        if (category === "service") return;
+        try {
+            const pricing = getCloudApiPricing(category);
+            await this.supabase.from("tenant_usage_log").insert({
+                tenant_id: tenantId,
+                resource_type: category === "marketing" ? "whatsapp_marketing" : "whatsapp_utility",
+                quantity: 1,
+                unit_cost_usd: pricing.unitCostUsd,
+            });
+        } catch (err: any) {
+            console.warn(`[OutboxDispatcher] Cloud API usage tracking falhou (non-fatal): ${err?.message}`);
         }
     }
 
@@ -66,12 +93,15 @@ export class OutboxDispatcher {
             caption?:    string;
             file_name?:  string;
         },
-        quotedMsgId?: string
+        quotedMsgId?: string,
+        category: CloudApiBillingCategory = "service"
     ): Promise<string | undefined> {
         if (tenant.whatsapp_provider === 'cloud_api' &&
             tenant.cloud_api_phone_number_id &&
             tenant.cloud_api_access_token) {
-            return await sendCloudApiMedia(tenant, phone, payload, quotedMsgId);
+            const result = await sendCloudApiMedia(tenant, phone, payload, quotedMsgId);
+            await this.trackCloudApiUsage(tenant.id, category);
+            return result;
         } else {
             return await sendZapiMedia(tenant, phone, payload, quotedMsgId);
         }

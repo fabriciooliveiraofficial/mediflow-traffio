@@ -69,6 +69,26 @@ export function getSmsPricing(countryCode: string, type: "sms" | "mms" = "sms"):
 }
 
 /**
+ * Retorna os valores para mensagens de WhatsApp Cloud API (Meta, Tech Provider
+ * direto — sem margem de BSP). Meta já cota em BRL (não USD como a Telnyx), então
+ * o "custo" parte direto do BRL; unitCostUsd é um equivalente sintético só para o
+ * trigger calculate_tenant_usage_profit() recalcular telnyx_cost_brl/total_price_brl
+ * com a mesma fórmula (unit_cost_usd × quantity × EXCHANGE_RATE_USD_BRL × MARKUP).
+ * Categoria "service" (conversa iniciada pelo paciente) é gratuita — não chamar esta
+ * função para ela.
+ */
+export function getCloudApiPricing(category: "marketing" | "utility"): ResourcePricing {
+  const costBrl = category === "marketing" ? 0.31 : 0.03;
+  const priceBrl = costBrl * MARKUP_MULTIPLIER;
+
+  return {
+    unitCostUsd: parseFloat((costBrl / EXCHANGE_RATE_USD_BRL).toFixed(6)),
+    telnyxCostBrl: costBrl,
+    totalPriceBrl: parseFloat(priceBrl.toFixed(6)),
+  };
+}
+
+/**
  * Retorna os valores de Voz por minuto (inclui $0.0025/min de gravação)
  */
 export function getCallPricing(phoneNumber: string | undefined, direction: "inbound" | "outbound" = "inbound"): ResourcePricing {

@@ -15,7 +15,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
-import { OutboxDispatcher } from "../_shared/outboxDispatcher.ts";
+import { OutboxDispatcher, type CloudApiBillingCategory } from "../_shared/outboxDispatcher.ts";
 import { getRenderedMessage, getSmsTemplate } from "../_shared/messageTemplates.ts";
 import { MetaSocialClient, MetaSocialError } from "../_shared/metaSocialClient.ts";
 import { TelnyxSmsClient } from "../_shared/telnyxSmsClient.ts";
@@ -63,6 +63,16 @@ const RECOVERY_TEMPLATE_KEYS = ['recovery_immediate', 'recovery_48h', 'recovery_
 // à resposta determinística automática (REMARCAR/RESCHEDULE/REAGENDAR). recall_immediate
 // fica de fora: reativação não está ligada a um médico/horário específico como o recovery.
 const STRUCTURED_RECOVERY_KEYS = ['recovery_immediate', 'recovery_48h', 'recovery_7d'];
+
+// Cloud API tier Pro (docs/ROADMAP_PRODUTO_2026.md, item 4) — categoria de billing Meta
+// por template_key. Envios sem template (réplica de conversa ao vivo) ficam de fora
+// desta função e caem no default "service" (grátis) do OutboxDispatcher.
+function classifyCloudApiCategory(templateKey: string | undefined | null): CloudApiBillingCategory {
+  if (!templateKey) return 'service';
+  if (RECOVERY_TEMPLATE_KEYS.includes(templateKey)) return 'marketing';
+  if (templateKey.startsWith('appointment_reminder') || templateKey === 'booking_confirmed' || templateKey === 'nps_survey') return 'utility';
+  return 'service';
+}
 
 // Resolve a caption personalizada do bot_config do tenant para um lembrete.
 // Retorna null se não houver caption configurada para este template/idioma.
@@ -405,14 +415,15 @@ serve(async (req: Request) => {
             if (!tenant?.zapi_instance_id && !tenant?.cloud_api_phone_number_id) {
               throw new Error(`WhatsApp credentials missing for tenant ${msg.tenant_id}`);
             }
+            const billingCategory: CloudApiBillingCategory = classifyCloudApiCategory(msg.template_key);
             if (msg.media_url) {
               await outbox.sendMedia(tenant, recipient, {
                 media_url:  msg.media_url,
                 media_type: msg.media_type || 'video',
                 caption:    text,
-              });
+              }, undefined, billingCategory);
             } else {
-              await outbox.sendNow(tenant, recipient, { text });
+              await outbox.sendNow(tenant, recipient, { text }, 0, undefined, billingCategory);
             }
             break;
           }

@@ -423,7 +423,12 @@
       "techConfigBody": "Para usar a API Oficial, sua conta no Meta Business Suite deve estar verificada.",
       "metaDevelopersLink": "Meta Developers",
       "activateButton": "Ativar Cloud API",
-      "testConnectionButton": "Testar conexão"
+      "testConnectionButton": "Testar conexão",
+      "upsell": {
+        "title": "Cloud API é um recurso dos planos Clínica e Rede",
+        "body": "Conexão oficial via Meta com botões clicáveis garantidos, ideal para quem faz volume de campanhas. Faça upgrade do plano para ativar.",
+        "cta": "Ver planos"
+      }
     },
     "zapiContent": {
       "syncingMessage": "Sincronizando com WhatsApp em tempo real...",

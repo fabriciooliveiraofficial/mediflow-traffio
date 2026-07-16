@@ -13,13 +13,15 @@ import {
     RefreshCw,
     ExternalLink,
     Lock,
-    Globe
+    Globe,
+    Crown
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useTenant } from '../contexts/TenantContext';
 import { zapiService } from '../services/zapiService';
 import { cloudApiService } from '../services/cloudApiService';
 import { useToast } from '../contexts/ToastContext';
+import { usePlan } from '../hooks/usePlan';
 
 type ConnectionStatus = 'loading' | 'no_instance' | 'configured' | 'connecting' | 'connected';
 
@@ -27,10 +29,11 @@ type ConnectionStatus = 'loading' | 'no_instance' | 'configured' | 'connecting' 
  * Tenant-facing WhatsApp connection page.
  * Real Z-API integration.
  */
-export const AdminWhatsApp = () => {
+export const AdminWhatsApp = ({ onNavigate }: { onNavigate?: (id: string) => void } = {}) => {
     const { t } = useTranslation('tenantAdmin');
     const { tenant, loading: tenantLoading, updateTenant } = useTenant();
     const { showToast } = useToast();
+    const { can } = usePlan();
     const [status, setStatus] = useState<ConnectionStatus>('loading');
     const [qrCode, setQrCode] = useState<string | null>(null);
     const [connectedPhone, setConnectedPhone] = useState<string | null>(null);
@@ -360,6 +363,23 @@ export const AdminWhatsApp = () => {
                         onCheckStatus={checkInstanceStatus} 
                         tenantName={tenant?.name}
                     />
+                ) : !can('cloud_api') ? (
+                    /* Cloud API é feature de plano — tenant no Essencial vê upsell, não o formulário */
+                    <div className="p-12 text-center space-y-6">
+                        <div className="w-20 h-20 rounded-full bg-amber-50 flex items-center justify-center mx-auto">
+                            <Crown size={36} className="text-amber-500" />
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-black text-graphite-900">{t('adminWhatsApp.cloudApi.upsell.title')}</h3>
+                            <p className="text-sm text-graphite-400 mt-2 max-w-md mx-auto leading-relaxed">{t('adminWhatsApp.cloudApi.upsell.body')}</p>
+                        </div>
+                        <button
+                            onClick={() => onNavigate?.('billing')}
+                            className="bg-amber-500 text-white rounded-2xl px-8 py-3.5 font-black hover:bg-amber-600 transition-all shadow-lg shadow-amber-500/20 border-none cursor-pointer"
+                        >
+                            {t('adminWhatsApp.cloudApi.upsell.cta')}
+                        </button>
+                    </div>
                 ) : (
                     /* New Cloud API Content */
                     <div className="p-12 space-y-8">

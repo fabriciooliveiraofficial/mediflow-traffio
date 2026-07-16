@@ -15,6 +15,8 @@ export interface PlanFeatures {
     whatsapp_lembretes: boolean;
     whatsapp_inbox: boolean;
     whatsapp_midia: boolean;
+    /** Upgrade de canal para WhatsApp Cloud API (Meta) — botões garantidos, tier Pro */
+    cloud_api: boolean;
     crm_kanban: boolean;
     marketing_ads: boolean;
     financeiro_completo: boolean;
@@ -65,6 +67,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
             whatsapp_lembretes: true,
             whatsapp_inbox: false,
             whatsapp_midia: false,
+            cloud_api: false,
             crm_kanban: false,
             marketing_ads: false,
             financeiro_completo: false,
@@ -107,6 +110,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
             whatsapp_lembretes: true,
             whatsapp_inbox: true,
             whatsapp_midia: true,
+            cloud_api: true,
             crm_kanban: true,
             marketing_ads: true,
             financeiro_completo: true,
@@ -150,6 +154,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
             whatsapp_lembretes: true,
             whatsapp_inbox: true,
             whatsapp_midia: true,
+            cloud_api: true,
             crm_kanban: true,
             marketing_ads: true,
             financeiro_completo: true,
