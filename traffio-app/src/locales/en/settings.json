@@ -43,7 +43,69 @@
     "communications": "Communications",
     "profile": "My Profile",
     "logs": "Logs",
-    "roles": "Roles & Functions"
+    "roles": "Roles & Functions",
+    "knowledge": "AI Knowledge",
+    "livechat": "Live Chat"
+  },
+  "knowledge": {
+    "title": "AI Knowledge Base",
+    "subtitle": "Record reliable answers about the clinic so the AI can give patients accurate information. Each fact is used only after it is saved.",
+    "canonicalBadge": "Canonical profile",
+    "loading": "Loading the knowledge base...",
+    "accessDenied": {
+      "title": "Restricted access",
+      "description": "Only owners and administrators can edit the AI knowledge base."
+    },
+    "loadError": {
+      "title": "Facts could not be loaded",
+      "description": "The knowledge base was not changed. Check your connection and try again.",
+      "retry": "Try again"
+    },
+    "completion": {
+      "title": "Profile completion",
+      "hint": "The more facts you fill in, the more questions the AI can answer without transferring the conversation.",
+      "count": "{{completed}} of {{total}} facts",
+      "sectionCount": "{{completed}}/{{total}} completed",
+      "ariaLabel": "Knowledge base completion progress"
+    },
+    "sections": {
+      "commercial": {
+        "title": "Sales and conversion",
+        "description": "Consultations, payments, insurance, and estimates."
+      },
+      "logistics": {
+        "title": "Logistics and access",
+        "description": "Location, hours, accessibility, and contact channels."
+      },
+      "clinical": {
+        "title": "Clinical service",
+        "description": "Operational service information, without diagnosis."
+      },
+      "policies": {
+        "title": "Clinic policies",
+        "description": "Cancellations, late arrivals, rescheduling, and companions."
+      }
+    },
+    "status": {
+      "filled": "Filled",
+      "empty": "Empty"
+    },
+    "fields": {
+      "notInformed": "Not provided",
+      "example": "Example:",
+      "save": "Save fact",
+      "saving": "Saving...",
+      "saved": "Saved",
+      "unsaved": "Unsaved change",
+      "saveError": "Failed to save",
+      "characters": "{{current}} of {{maximum}} characters"
+    },
+    "toasts": {
+      "loadError": "Error loading the knowledge base.",
+      "saved": "{{fact}} was saved successfully.",
+      "removed": "{{fact}} was removed from the knowledge base.",
+      "saveError": "Could not save {{fact}}."
+    }
   },
   "header": {
     "title": "Settings",

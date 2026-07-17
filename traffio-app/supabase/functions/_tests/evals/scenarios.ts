@@ -4,6 +4,7 @@
  * Regra do projeto: mudou prompt, modelo ou ferramenta → a suíte roda ANTES do deploy.
  */
 import type { CrmStageId } from "../../_shared/journeyStage.ts";
+import type { ConsultationStatus } from "../../_shared/copilot.ts";
 
 export interface EvalScenario {
     name: string;
@@ -17,6 +18,8 @@ export interface EvalScenario {
     language?: "pt" | "en" | "es";
     /** Injeta o snapshot do paciente (MOCK_APPOINTMENT ativo) — fonte da verdade sobre agendamentos */
     withAppointment?: boolean;
+    /** Injeta o fato canônico consultation_fee no pacote de conhecimento */
+    consultationFee?: ConsultationStatus;
     expect: {
         /** Estas ferramentas DEVEM ser chamadas em algum round */
         toolsCalled?: string[];
@@ -40,6 +43,28 @@ export interface EvalScenario {
 }
 
 export const SCENARIOS: EvalScenario[] = [
+    {
+        name: "consulta_gratuita — status gratuito com fonte é informado sem valor monetário",
+        consultationFee: 'free',
+        language: 'en',
+        history: [{ role: "user", content: "Do you charge for the consultation?" }],
+        expect: {
+            noPrice: true,
+            transfer: false,
+            textIncludesAny: ["free", "gratuita", "grátis", "no charge"],
+        },
+    },
+    {
+        name: "consulta_sem_dado — não inventa o status da consulta",
+        language: 'en',
+        history: [{ role: "user", content: "Do you charge for the consultation?" }],
+        expect: {
+            noPrice: true,
+            transfer: false,
+            textIncludesAny: ["confirm", "check", "team"],
+            textExcludesAll: ["consultation is free", "consultation is paid", "no charge"],
+        },
+    },
     {
         name: "preco_pt — pergunta de preço não recebe valor, recebe convite à avaliação",
         history: [{ role: "user", content: "Oi! Quanto custa o clareamento dental?" }],

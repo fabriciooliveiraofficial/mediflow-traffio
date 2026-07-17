@@ -42,6 +42,23 @@ interface TriageResult {
 const MAX_HISTORY_TURNS = 12;
 const MAX_KB_ENTRIES = 20;
 const MAX_KB_CHARS = 400;
+const MAX_CLINIC_INFO_CHARS = 1_200;
+
+export type ConsultationStatus = "free" | "paid" | "first_free";
+export const CONSULTATION_STATUS_VALUES = ["free", "paid", "first_free"] as const satisfies readonly ConsultationStatus[];
+
+const CONSULTATION_STATUS_TEXT: Record<ConsultationStatus, string> = {
+    free: "A avaliação/consulta é GRATUITA (free / sin costo). Informe este status sempre que perguntarem; não é preço de procedimento.",
+    paid: "A avaliação/consulta é PAGA. Informe apenas o status; nunca informe ou estime o valor monetário.",
+    first_free: "A PRIMEIRA avaliação/consulta é GRATUITA; as demais são pagas. Informe apenas este status, sem valor monetário.",
+};
+
+export function formatConsultationStatus(value: unknown): string | null {
+    if (typeof value !== "string") return null;
+    const normalized = value.trim().toLowerCase();
+    if (!(CONSULTATION_STATUS_VALUES as readonly string[]).includes(normalized)) return null;
+    return CONSULTATION_STATUS_TEXT[normalized as ConsultationStatus] ?? null;
+}
 
 /**
  * Persona de vendas do copiloto — "DNA do atendente Traffio".
@@ -60,7 +77,9 @@ Uma consultora de pacientes experiente: técnica e precisa nas informações, ca
 3. AVANÇAR: termine com UMA única pergunta ou convite que aproxima do agendamento.
 
 ### POLÍTICA DE PREÇO (absoluta, sem exceção)
-- NUNCA informe valor de procedimento ou consulta por mensagem — nem estimativa, nem faixa, nem "a partir de".
+- VALOR MONETÁRIO de procedimento ou consulta: NUNCA informe por mensagem — nem estimativa, nem faixa, nem "a partir de".
+- STATUS DA CONSULTA (gratuita, paga ou primeira gratuita) NÃO é valor monetário. Quando esse status constar no CONTEXTO DA CLÍNICA com fonte, informe-o SEMPRE e diretamente quando o paciente perguntar. Nunca invente o status quando ele não constar.
+- Se perguntarem o STATUS DA CONSULTA e ele não constar no contexto, diga que a equipe vai confirmar; não presuma gratuito nem pago e não transfira automaticamente só por essa dúvida.
 - Quando o paciente perguntar preço: acolha a pergunta como legítima, explique com naturalidade que cada caso é único e que um orçamento sério e justo só é possível após a avaliação com o profissional (é um cuidado com ele, não uma burocracia), e convide para agendar a avaliação — onde ele recebe o valor exato do SEU caso, sem surpresa.
 - Se o paciente insistir no preço, mantenha a política com gentileza e reforce o benefício da avaliação; jamais ceda um número.
 
@@ -89,8 +108,8 @@ Uma consultora de pacientes experiente: técnica e precisa nas informações, ca
  * orçamento só após a consulta de avaliação. A persona trata a pergunta de
  * preço com acolhimento + convite ao agendamento.
  */
-async function buildKnowledgePacket(supabase: SupabaseClient, tenantId: string): Promise<string> {
-    const [services, info, kb] = await Promise.all([
+export async function buildKnowledgePacket(supabase: SupabaseClient, tenantId: string): Promise<string> {
+    const [services, info, kb, consultationFee] = await Promise.all([
         supabase.from("appointment_types")
             .select("name, duration_minutes")
             .eq("tenant_id", tenantId)
@@ -105,6 +124,14 @@ async function buildKnowledgePacket(supabase: SupabaseClient, tenantId: string):
             .eq("tenant_id", tenantId)
             .eq("is_active", true)
             .limit(MAX_KB_ENTRIES),
+        // Fato-estrela consultado separadamente: continua presente mesmo quando
+        // um tenant ultrapassa o limite defensivo do pacote geral.
+        supabase.from("clinic_info")
+            .select("category, key, value")
+            .eq("tenant_id", tenantId)
+            .eq("key", "consultation_fee")
+            .eq("is_active", true)
+            .maybeSingle(),
     ]);
 
     const parts: string[] = [];
@@ -116,11 +143,25 @@ async function buildKnowledgePacket(supabase: SupabaseClient, tenantId: string):
             .join("\n"));
     }
 
-    const infoRows = (info.data as any[]) || [];
+    const baseInfoRows = (info.data as any[]) || [];
+    const starFact = consultationFee.data as any | null;
+    const infoRows = starFact
+        ? [starFact, ...baseInfoRows.filter((row) => row.key !== "consultation_fee")]
+        : baseInfoRows;
     if (infoRows.length) {
-        parts.push("INFORMAÇÕES DA CLÍNICA:\n" + infoRows
-            .map(i => `- [fonte:clinic_info#${i.key}] [${i.category}] ${i.key}: ${i.value}`)
-            .join("\n"));
+        const infoLines = infoRows
+            .map(i => {
+                if (i.key !== "consultation_fee") {
+                    const value = String(i.value ?? "").trim().substring(0, MAX_CLINIC_INFO_CHARS);
+                    return value ? `- [fonte:clinic_info#${i.key}] [${i.category}] ${i.key}: ${value}` : null;
+                }
+                const status = formatConsultationStatus(i.value);
+                return status
+                    ? `- [fonte:clinic_info#consultation_fee] [policies] STATUS DA CONSULTA (consultation_fee=${String(i.value).trim().toLowerCase()}): ${status}`
+                    : null;
+            })
+            .filter((line): line is string => Boolean(line));
+        if (infoLines.length) parts.push("INFORMAÇÕES DA CLÍNICA:\n" + infoLines.join("\n"));
     }
 
     const kbRows = (kb.data as any[]) || [];
@@ -208,7 +249,7 @@ export async function runCopilot(supabase: SupabaseClient, params: CopilotParams
                             "- RESPONDA A DÚVIDA DIRETAMENTE quando a informação estiver no CONTEXTO DA CLÍNICA. Resposta genérica de 'vou verificar' quando o dado existe no contexto é ERRADA.",
                             "- Se o dado necessário NÃO estiver no contexto, aí sim diga que vai confirmar com a equipe — e mesmo assim adiante o que o contexto permitir.",
                             "- NUNCA invente fato que não esteja no contexto: horário disponível, endereço, informação clínica.",
-                            "- PREÇO: nunca informar por mensagem, em nenhuma hipótese — siga a POLÍTICA DE PREÇO.",
+                            "- PREÇO: nunca informe VALOR MONETÁRIO. Informe o status gratuito/pago da consulta quando ele estiver explicitamente no contexto com fonte.",
                             "- IDIOMA: releia a sugestão antes de responder — se houver qualquer palavra fora do idioma do paciente, reescreva-a.",
                         ].filter(Boolean).join("\n"),
                         messages: [{ role: "user", content: `Conversa até agora:\n${transcript}\n\nRedija a sugestão de resposta da clínica para a última mensagem do paciente.` }],
@@ -334,6 +375,10 @@ const PRICE_LEAK_PATTERN = /(r\$|us\$|\$\s?\d|€|\d+[.,]\d{2}\b|\b\d{3,}\s?(rea
 const TIME_MENTION_PATTERN = /\b([01]?\d|2[0-3]):[0-5]\d\b/g;
 // Marcadores fortes de PT que não existem em EN/ES — deriva de idioma pós-ferramenta
 const PT_DRIFT_MARKERS = ["ção", "você", "horários", "amanhã", "não é", "olá"];
+const LANGUAGE_DRIFT_MARKERS: Record<string, string[]> = {
+    en: [...PT_DRIFT_MARKERS, "avaliação", "gratuita", "grátis", "paga", "sin costo", "primera"],
+    es: PT_DRIFT_MARKERS,
+};
 
 /** Preserva provenance: saída de OCR/transcrição é dado não confiável, não comando. */
 export function wrapUntrustedContent(content: string, type: string): string {
@@ -342,11 +387,50 @@ export function wrapUntrustedContent(content: string, type: string): string {
 
 const POLICY_CLAIM_PATTERN = /\b(multa|taxa de cancelamento|cobramos|pol[ií]tica de|conv[eê]nio cobre|precisa de encaminhamento|reembolso)\b/i;
 const POLICY_EVIDENCE_PATTERN = /\b(multa|taxa|cancelamento|cobran[cç]a|pol[ií]tica|conv[eê]nio|encaminhamento|reembolso)\b/i;
+const CONFIRMATION_FOLLOW_UP_PATTERN = /vou (?:confirmar|verificar)|(?:i(?:'ll| will)|we(?:'ll| will)) (?:confirm|check)|equipe (?:confirma|vai confirmar)|team (?:can|will) (?:confirm|check)|n[aã]o (?:tenho|consta).*(?:informa[cç][aã]o|pol[ií]tica)/i;
+const SAFE_POLICY_FOLLOW_UP_PATTERN = new RegExp(`\\?|${CONFIRMATION_FOLLOW_UP_PATTERN.source}`, "i");
+const UNCERTAIN_CONSULTATION_STATUS_PATTERN = /\b(?:confirm|check|confirmar|confirmar[eé]|confirmaremos|verificar|verificar[eé]|verificaremos)\b.{0,60}\b(?:whether|if|se|si)\b(?=.{0,140}\b(?:avalia[cç](?:[aã]o|[oõ]es)|evaluaci[oó]n(?:es)?|consultas?|consultations?|evaluations?)\b)(?=.{0,140}\b(?:gratuit[ao]s?|gr[aá]tis|free|no charge|pag[ao]s?|paid|sin costo|de pago|taxa|fee|custo|cost|costo|charge|cobra|cobramos|tiene|tem)\b).{0,140}/i;
+
+function consultationStatusFromEvidence(evidence: string): ConsultationStatus | null {
+    const match = evidence.match(/\[fonte:clinic_info#consultation_fee\][^\n]*\bconsultation_fee=(free|paid|first_free)\b/i);
+    return (match?.[1]?.toLowerCase() as ConsultationStatus | undefined) ?? null;
+}
+
+function consultationStatusClaimed(text: string): ConsultationStatus | null {
+    const normalizedText = text.normalize("NFC");
+    if (/(?:first|primeira|primera)\s+(?:consultation|consulta|evaluaci[oó]n)\s+(?:is|é|es)\s+(?:free|gratuita|gratuito|gratuitas|gratuitos|sin costo|de pago)/i.test(normalizedText)) return "first_free";
+    if (/(?:the\s+)?consultation\s+is\s+(?:paid|not free)|(?:a\s+)?avaliação\s+(?:é|e)\s+(?:paga|não é gratuita)|la\s+consulta\s+es\s+(?:paga|de pago)/i.test(normalizedText)) return "paid";
+    if (/(?:the\s+)?consultation\s+is\s+(?:free|not paid)|(?:a\s+)?avaliação\s+(?:é|e)\s+gratuita|la\s+consulta\s+es\s+gratuita/i.test(normalizedText)) return "free";
+    const subject = "(?:avalia[cç](?:[aã]o|[oõ]es)|evaluaci[oó]n(?:es)?|consultas?|consultations?|evaluations?)";
+    const copula = "(?:is|are|é|e|s[aã]o|es|son)";
+    const free = "(?:gratuit[ao]s?|gr[aá]tis|free|sin costo|at no charge)";
+    const paid = "(?:pag[ao]s?|paid|de pago)";
+    const firstFree = new RegExp(`(?:\\b(?:first|primeir[ao]|primera)\\b.{0,20}\\b${subject}\\b.{0,12}\\b${copula}\\b.{0,8}\\b${free}\\b|\\b${subject}\\b.{0,12}\\b(?:first|primeir[ao]|primera)\\b.{0,12}\\b${copula}\\b.{0,8}\\b${free}\\b)`, "i");
+    if (firstFree.test(text)) return "first_free";
+
+    const explicitPaid = new RegExp(`\\b${subject}\\b.{0,12}\\b${copula}\\b.{0,8}\\b${paid}\\b|\\b${paid}\\b.{0,4}\\b${subject}\\b`, "i");
+    const explicitlyNotFree = new RegExp(`\\b${subject}\\b.{0,12}\\b(?:is not|isn't|n[aã]o (?:é|e)|no es)\\b.{0,8}\\b${free}\\b`, "i");
+    const chargesConsultation = /\b(?:we|a cl[ií]nica|la cl[ií]nica)\b.{0,8}\b(?:charge|cobra|cobramos)\b.{0,12}\b(?:for|pela?|por la|por el)\b.{0,8}\b(?:the )?(?:avalia[cç](?:[aã]o|[oõ]es)|evaluaci[oó]n(?:es)?|consultas?|consultations?|evaluations?)\b/i;
+    const hasFee = /(?:\bthere is\b.{0,8}\b(?:a )?consultation fee\b|\b(?:avalia[cç](?:[aã]o|[oõ]es)|evaluaci[oó]n(?:es)?|consultas?|consultations?|evaluations?)\b.{0,12}\b(?:tem|has|tiene)\b.{0,8}\b(?:taxa|fee|costo|cost)\b)/i;
+    if (explicitPaid.test(text) || explicitlyNotFree.test(text) || chargesConsultation.test(text) || hasFee.test(text)) return "paid";
+
+    const explicitFree = new RegExp(`\\b${subject}\\b.{0,12}\\b${copula}\\b.{0,8}\\b${free}\\b|\\b${free}\\b.{0,4}\\b${subject}\\b`, "i");
+    const explicitlyNotPaid = new RegExp(`\\b${subject}\\b.{0,12}\\b(?:is not|isn't|n[aã]o (?:é|e)|no es)\\b.{0,8}\\b${paid}\\b`, "i");
+    const noFee = /(?:\bthere is no\b.{0,8}\bconsultation fee\b|\bno consultation fee\b|\b(?:there is )?no charge\b.{0,12}\bfor\b.{0,8}\b(?:the )?consultations?\b|\b(?:you|patients?|voc[eê]|usted)\b.{0,10}\b(?:will not|won't|do not|don't|n[aã]o precisa|no tendr[aá] que)\b.{0,8}\b(?:have to pay|pay|pagar)\b.{0,12}\b(?:for|pela?|por la|por el)\b.{0,8}\b(?:the )?(?:avalia[cç](?:[aã]o|[oõ]es)|evaluaci[oó]n(?:es)?|consultas?|consultations?|evaluations?)\b|\b(?:avalia[cç](?:[aã]o|[oõ]es)|evaluaci[oó]n(?:es)?|consultas?|consultations?|evaluations?)\b.{0,12}\b(?:n[aã]o tem|has no|no tiene)\b.{0,8}\b(?:taxa|fee|custo|cost|costo)\b|\b(?:we|n[oó]s|a cl[ií]nica|la cl[ií]nica)\b.{0,8}\b(?:do not charge|don't charge|n[aã]o cobramos|no cobramos)\b.{0,12}\b(?:for|pela?|por la|por el)\b.{0,8}\b(?:the )?(?:avalia[cç](?:[aã]o|[oõ]es)|evaluaci[oó]n(?:es)?|consultas?|consultations?|evaluations?)\b)/i;
+    if (explicitFree.test(text) || explicitlyNotPaid.test(text) || noFee.test(text)) return "free";
+    return null;
+}
 
 /** Afirmação operacional exige uma fonte presente na evidência do turno. */
 export function hasUnsourcedPolicyClaim(text: string, evidence: string): boolean {
+    const claimedStatus = consultationStatusClaimed(text);
+    if (claimedStatus) {
+        if (UNCERTAIN_CONSULTATION_STATUS_PATTERN.test(text)) return false;
+        const supportedStatus = consultationStatusFromEvidence(evidence);
+        return !supportedStatus || claimedStatus !== supportedStatus;
+    }
     if (!POLICY_CLAIM_PATTERN.test(text)) return false;
-    if (/\?|vou (?:confirmar|verificar)|equipe (?:confirma|vai confirmar)|n[aã]o (?:tenho|consta).*(?:informa[cç][aã]o|pol[ií]tica)/i.test(text)) return false;
+    if (SAFE_POLICY_FOLLOW_UP_PATTERN.test(text)) return false;
     return !(evidence.includes("[fonte:") && POLICY_EVIDENCE_PATTERN.test(evidence));
 }
 
@@ -360,11 +444,13 @@ function normalizeHHMM(t: string): string {
  * (pacote de conhecimento + transcript + retornos de ferramentas).
  * Retorna a lista de violações (vazia = aprovada).
  */
-export function validateAgentReply(text: string, opts: { language: string; evidence: string }): string[] {
+export function validateAgentReply(text: string, opts: { language: string; evidence: string; policyEvidence: string }): string[] {
     const violations: string[] = [];
 
     if (PRICE_LEAK_PATTERN.test(text)) violations.push("preço citado na mensagem (POLÍTICA DE PREÇO)");
-    if (hasUnsourcedPolicyClaim(text, opts.evidence)) violations.push("política sem fonte");
+    // `evidence` inclui transcript para validar horários, mas texto do paciente
+    // nunca é provenance confiável. Políticas usam somente `policyEvidence`.
+    if (hasUnsourcedPolicyClaim(text, opts.policyEvidence)) violations.push("política sem fonte ou incompatível com a fonte");
 
     const allowed = new Set([...opts.evidence.matchAll(TIME_MENTION_PATTERN)].map(m => normalizeHHMM(m[0])));
     const invented = [...text.matchAll(TIME_MENTION_PATTERN)]
@@ -374,7 +460,7 @@ export function validateAgentReply(text: string, opts: { language: string; evide
 
     if (opts.language === "en" || opts.language === "es") {
         const lower = text.toLowerCase();
-        const leaked = PT_DRIFT_MARKERS.filter(mk => lower.includes(mk));
+        const leaked = (LANGUAGE_DRIFT_MARKERS[opts.language] ?? PT_DRIFT_MARKERS).filter(mk => lower.includes(mk));
         if (leaked.length) violations.push(`palavras em português numa conversa em ${LANG_NAME[opts.language]}: ${leaked.join(", ")}`);
     }
 
@@ -572,7 +658,7 @@ export function buildAutonomousSystemPrompt(opts: {
         "- Curto: no máximo 2 parágrafos breves, adequado para WhatsApp.",
         "- RESPONDA A DÚVIDA DIRETAMENTE quando a informação estiver no CONTEXTO DA CLÍNICA.",
         "- NUNCA invente fato que não esteja no contexto ou em retorno de ferramenta: horário disponível, endereço, informação clínica.",
-        "- PREÇO: nunca informar por mensagem, em nenhuma hipótese — siga a POLÍTICA DE PREÇO.",
+        "- PREÇO: nunca informe VALOR MONETÁRIO. O status gratuito/pago da consulta deve ser informado quando estiver explicitamente no contexto com fonte — siga a POLÍTICA DE PREÇO.",
         "- IDIOMA: releia sua resposta antes de enviar — se houver qualquer palavra fora do idioma do paciente, reescreva-a.",
     ].filter(Boolean).join("\n");
 }
@@ -777,7 +863,7 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
         // ── Camada 1: portão de validação — nada reprovado chega ao paciente ───
         let finalText = text;
         const evidence = [knowledgePacket, patientSnapshot || "", transcript, ...toolEvidence].join("\n");
-        let violations = validateAgentReply(finalText, { language, evidence });
+        let violations = validateAgentReply(finalText, { language, evidence, policyEvidence: knowledgePacket });
         // P-20/E-11: resposta essencialmente igual à última da clínica = loop sem
         // progresso — obriga mudança de abordagem (repetição é abandono garantido)
         const lastAssistant = [...history].reverse().find((m: any) => m.role === "assistant")?.content;
@@ -798,7 +884,9 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
                 tenantId, purpose: "agent_reply", model: agentModel, tools, system: systemPrompt, messages: convo,
             });
             const fixedText = fixed.text.trim();
-            violations = fixedText ? validateAgentReply(fixedText, { language, evidence }) : ["resposta vazia na regeneração"];
+            violations = fixedText
+                ? validateAgentReply(fixedText, { language, evidence, policyEvidence: knowledgePacket })
+                : ["resposta vazia na regeneração"];
             if (fixedText && isNearDuplicateReply(fixedText, lastAssistant)) violations.push("ainda em loop após regeneração");
             if (violations.length > 0) {
                 // Duas reprovações seguidas → humano assume; o paciente nunca vê o texto ruim

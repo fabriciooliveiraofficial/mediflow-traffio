@@ -12,7 +12,7 @@
  * do deploy. Vermelho = não sobe.
  */
 import { claudeChat, type LlmMessage } from "../../_shared/llmProvider.ts";
-import { buildAutonomousSystemPrompt, TRANSFER_TOOL } from "../../_shared/copilot.ts";
+import { buildAutonomousSystemPrompt, formatConsultationStatus, TRANSFER_TOOL } from "../../_shared/copilot.ts";
 import { SCHEDULING_TOOLS } from "../../_shared/schedulingTools.ts";
 import { STAGE_GUIDANCE } from "../../_shared/journeyStage.ts";
 import { mockExecuteTool, MOCK_SLOT_TIMES, MOCK_APPOINTMENT } from "./mockTools.ts";
@@ -42,6 +42,15 @@ const KNOWLEDGE_PACKET = [
     "- [logistics] estacionamento: Gratuito no local",
 ].join("\n");
 
+function buildScenarioKnowledgePacket(s: EvalScenario): string {
+    const parts = [KNOWLEDGE_PACKET];
+    if (s.consultationFee) {
+        const status = formatConsultationStatus(s.consultationFee);
+        parts.push(`INFORMAÇÕES DA CLÍNICA:\n- [fonte:clinic_info#consultation_fee] [policies] STATUS DA CONSULTA (consultation_fee=${s.consultationFee}): ${status}`);
+    }
+    return parts.join("\n\n");
+}
+
 interface RunResult {
     text: string;
     toolsCalled: string[];
@@ -56,7 +65,7 @@ async function runScenario(s: EvalScenario): Promise<RunResult> {
         clinicName: "Clínica Eval",
         personality: "acolhedor",
         instructions: "",
-        knowledgePacket: KNOWLEDGE_PACKET,
+        knowledgePacket: buildScenarioKnowledgePacket(s),
         todayStr: "2026-07-15",
         stageGuidance: s.stage ? STAGE_GUIDANCE[s.stage] ?? null : null,
         languageHint: s.language ?? null,

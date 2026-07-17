@@ -43,7 +43,69 @@
     "communications": "Comunicações",
     "profile": "Meu Perfil",
     "logs": "Logs",
-    "roles": "Cargos e Funções"
+    "roles": "Cargos e Funções",
+    "knowledge": "Conhecimento da IA",
+    "livechat": "Live Chat"
+  },
+  "knowledge": {
+    "title": "Base de Conhecimento da IA",
+    "subtitle": "Registre respostas confiáveis sobre a clínica para que a IA informe pacientes com precisão. Cada fato só entra em uso depois de ser salvo.",
+    "canonicalBadge": "Ficha canônica",
+    "loading": "Carregando a base de conhecimento...",
+    "accessDenied": {
+      "title": "Acesso restrito",
+      "description": "Somente proprietários e administradores podem editar a base de conhecimento da IA."
+    },
+    "loadError": {
+      "title": "Não foi possível carregar os fatos",
+      "description": "A base de conhecimento não foi alterada. Verifique sua conexão e tente novamente.",
+      "retry": "Tentar novamente"
+    },
+    "completion": {
+      "title": "Completude da ficha",
+      "hint": "Quanto mais fatos preenchidos, mais perguntas a IA consegue responder sem transferir o atendimento.",
+      "count": "{{completed}} de {{total}} fatos",
+      "sectionCount": "{{completed}}/{{total}} preenchidos",
+      "ariaLabel": "Progresso de preenchimento da base de conhecimento"
+    },
+    "sections": {
+      "commercial": {
+        "title": "Comercial e conversão",
+        "description": "Consulta, pagamentos, convênios e orçamento."
+      },
+      "logistics": {
+        "title": "Logística e acesso",
+        "description": "Localização, horários, acessibilidade e canais de contato."
+      },
+      "clinical": {
+        "title": "Atendimento clínico",
+        "description": "Informações operacionais de atendimento, sem diagnóstico."
+      },
+      "policies": {
+        "title": "Políticas da clínica",
+        "description": "Cancelamento, atrasos, reagendamento e acompanhantes."
+      }
+    },
+    "status": {
+      "filled": "Preenchido",
+      "empty": "Vazio"
+    },
+    "fields": {
+      "notInformed": "Não informado",
+      "example": "Exemplo:",
+      "save": "Salvar fato",
+      "saving": "Salvando...",
+      "saved": "Salvo",
+      "unsaved": "Alteração não salva",
+      "saveError": "Falha ao salvar",
+      "characters": "{{current}} de {{maximum}} caracteres"
+    },
+    "toasts": {
+      "loadError": "Erro ao carregar a base de conhecimento.",
+      "saved": "{{fact}} foi salvo com sucesso.",
+      "removed": "{{fact}} foi removido da base de conhecimento.",
+      "saveError": "Não foi possível salvar {{fact}}."
+    }
   },
   "header": {
     "title": "Configurações",

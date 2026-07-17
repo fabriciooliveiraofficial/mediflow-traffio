@@ -30,6 +30,7 @@ import {
     Briefcase,
     Settings as SettingsIcon,
     ChevronDown,
+    BookOpen,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { TIMEZONE_OPTIONS, TIMEZONE_REGIONS } from '../lib/timezoneUtils';
@@ -52,6 +53,8 @@ import { decimalToDMS, parseDMSToDecimal } from '../lib/geoUtils';
 import { TimeInput } from '../components/shared/TimeInput';
 import { Button, Badge, EmptyState, PageHeader } from '../components/ui';
 import { TenantLiveChatConfig } from '../components/settings/TenantLiveChatConfig';
+import { ClinicKnowledgeSettings } from '../components/settings/ClinicKnowledgeSettings';
+import { usePermissions } from '../hooks/usePermissions';
 
 
 
@@ -170,9 +173,11 @@ export const Settings = () => {
     const { t } = useTranslation('settings');
     const { t: tCommon } = useTranslation('common');
     const { tenant: currentTenant, updateTenant: updateTenantContext, userRole } = useTenant();
+    const { can } = usePermissions();
     const { showToast } = useToast();
     const { language, setLanguage, supportedLanguages } = useLang();
     const [activeTab, setActiveTab] = useState('clinics');
+    const canEditKnowledge = can('action:edit_config') && (userRole === 'owner' || userRole === 'admin');
     const [loading, setLoading] = useState(true);
     const [tenants, setTenants] = useState<any[]>([]);
     const [profile, setProfile] = useState<any>(null);
@@ -234,6 +239,10 @@ export const Settings = () => {
     const [recharging, setRecharging] = useState(false);
     const [stripeClientSecret, setStripeClientSecret] = useState<string | null>(null);
     const checkoutRef = useRef<any>(null);
+
+    useEffect(() => {
+        if (activeTab === 'knowledge' && !canEditKnowledge) setActiveTab('clinics');
+    }, [activeTab, canEditKnowledge]);
 
     useEffect(() => {
         let active = true;
@@ -769,29 +778,32 @@ export const Settings = () => {
             <PageHeader icon={SettingsIcon} title={t('header.title')} subtitle={t('header.subtitle')} />
 
             {/* Tabs */}
-            <div className="flex bg-white p-1.5 rounded-2xl shadow-float w-full">
-                {[
-                    { id: 'clinics', label: t('tabs.clinics'), icon: Building2 },
-                    { id: 'locations', label: t('tabs.locations'), icon: MapPin },
-                    { id: 'insurance', label: t('tabs.insurance'), icon: Shield },
-                    { id: 'team', label: t('tabs.team'), icon: Users },
-                    { id: 'roles', label: t('tabs.roles', 'Cargos'), icon: Briefcase },
-                    { id: 'communications', label: t('tabs.communications'), icon: Phone },
-                    { id: 'livechat', label: t('tabs.livechat', 'Live Chat'), icon: MessageSquare },
-                    { id: 'profile', label: t('tabs.profile'), icon: User },
-                ].map((tab) => (
-                    <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold transition-all border-none cursor-pointer ${activeTab === tab.id
-                            ? 'bg-brand-primary text-white shadow-md'
-                            : 'text-graphite-400 hover:text-brand-primary hover:bg-ice-50'
-                            }`}
-                    >
-                        <tab.icon size={18} />
-                        <span>{tab.label}</span>
-                    </button>
-                ))}
+            <div className="w-full overflow-x-auto pb-1">
+                <div className="flex min-w-max rounded-2xl bg-white p-1.5 shadow-float lg:min-w-full">
+                    {[
+                        { id: 'clinics', label: t('tabs.clinics'), icon: Building2 },
+                        { id: 'locations', label: t('tabs.locations'), icon: MapPin },
+                        { id: 'insurance', label: t('tabs.insurance'), icon: Shield },
+                        ...(canEditKnowledge ? [{ id: 'knowledge', label: t('tabs.knowledge'), icon: BookOpen }] : []),
+                        { id: 'team', label: t('tabs.team'), icon: Users },
+                        { id: 'roles', label: t('tabs.roles'), icon: Briefcase },
+                        { id: 'communications', label: t('tabs.communications'), icon: Phone },
+                        { id: 'livechat', label: t('tabs.livechat'), icon: MessageSquare },
+                        { id: 'profile', label: t('tabs.profile'), icon: User },
+                    ].map((tab) => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border-none px-4 py-3 font-bold transition-all cursor-pointer lg:flex-1 lg:px-6 ${activeTab === tab.id
+                                ? 'bg-brand-primary text-white shadow-md'
+                                : 'text-graphite-400 hover:text-brand-primary hover:bg-ice-50'
+                                }`}
+                        >
+                            <tab.icon size={18} />
+                            <span>{tab.label}</span>
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {/* Content */}
@@ -1901,6 +1913,15 @@ export const Settings = () => {
                 {/* Roles Tab */}
                 {activeTab === 'roles' && currentTenant && (
                     <RoleManagement tenantId={currentTenant.id} />
+                )}
+
+                {/* AI Knowledge Base Tab */}
+                {activeTab === 'knowledge' && currentTenant && (
+                    <ClinicKnowledgeSettings
+                        tenantId={currentTenant.id}
+                        canEdit={canEditKnowledge}
+                        userRole={userRole}
+                    />
                 )}
 
                 {/* Live Chat Tab */}

@@ -1,4 +1,11 @@
 import { supabase } from '../lib/supabase';
+import {
+    CLINIC_FACTS,
+    getClinicFactValueLimit,
+    type ClinicFactCategory,
+} from '../config/clinicFactsSchema';
+
+const MAX_NON_CANONICAL_VALUE_LENGTH = 4_000;
 
 export interface ClinicInfo {
     id: string;
@@ -6,7 +13,7 @@ export interface ClinicInfo {
     location_id?: string | null;
     key: string;
     value: string;
-    category: 'logistics' | 'amenities' | 'policies' | 'faq' | 'general';
+    category: ClinicFactCategory;
     is_active: boolean;
 }
 
@@ -24,12 +31,28 @@ export const clinicInfoService = {
     },
 
     async upsert(info: Omit<ClinicInfo, 'id' | 'is_active'> & { id?: string }): Promise<ClinicInfo> {
+        const canonicalFact = CLINIC_FACTS.find((fact) => fact.key === info.key);
+        const value = info.value.trim();
+        const maxLength = canonicalFact
+            ? getClinicFactValueLimit(canonicalFact)
+            : MAX_NON_CANONICAL_VALUE_LENGTH;
+
+        if (!value || value.length > maxLength) {
+            throw new Error(`Invalid clinic_info value length for ${info.key}`);
+        }
+        if ((canonicalFact?.type === 'enum' || canonicalFact?.type === 'boolean')
+            && !canonicalFact.options?.some((option) => option.value === value)) {
+            throw new Error(`Invalid canonical option for ${info.key}`);
+        }
+
         const { data, error } = await supabase
             .from('clinic_info')
             .upsert({
                 ...info,
+                value,
+                ...(canonicalFact ? { category: canonicalFact.category } : {}),
                 is_active: true
-            })
+            }, { onConflict: 'tenant_id,key' })
             .select()
             .single();
 
