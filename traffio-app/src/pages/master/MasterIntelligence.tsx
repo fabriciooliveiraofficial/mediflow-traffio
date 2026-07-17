@@ -143,7 +143,34 @@ export const MasterIntelligence = () => {
         }
     };
 
+    // Prefixo esperado por slot de credencial — impede salvar a chave de um
+    // provedor no campo de outro (ver incidente 17/07/2026 em handleUpdateConfig).
+    const validateKeyFormat = (key: string, value: string): string | null => {
+        if (!value) return null; // limpar um campo é permitido
+        const rule: Record<string, { prefix: string; label: string }> = {
+            ANTHROPIC_API_KEY: { prefix: 'sk-ant-', label: 'Anthropic (sk-ant-…)' },
+            OPENAI_API_KEY:    { prefix: 'sk-',     label: 'OpenAI (sk-…)' },
+        };
+        const r = rule[key];
+        if (!r) return null;
+        // OpenAI aceita sk- mas NÃO sk-ant- (que é Anthropic)
+        if (key === 'OPENAI_API_KEY' && value.startsWith('sk-ant-')) {
+            return `Esta é uma chave Anthropic (sk-ant-…). O campo ${key} espera uma chave ${r.label}.`;
+        }
+        if (!value.startsWith(r.prefix)) {
+            return `Formato inválido para ${key}: esperado ${r.label}.`;
+        }
+        return null;
+    };
+
     const handleUpdateConfig = async (key: string, value: string) => {
+        // Guard de formato (incidente 17/07/2026): uma chave Anthropic (sk-ant-)
+        // foi salva no slot OPENAI_API_KEY, deixando a produção na chave antiga
+        // e cobrando a errada. Cada slot só aceita o prefixo do seu provedor.
+        const trimmed = value.trim();
+        const mismatch = validateKeyFormat(key, trimmed);
+        if (mismatch) { showToast('error', mismatch); return; }
+
         setSaving(key);
         try {
             // upsert: cria a linha na primeira gravação (chaves novas da stack Claude)
