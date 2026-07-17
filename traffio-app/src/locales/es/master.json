@@ -20,6 +20,7 @@
       "whatsappBadge": "Estado",
       "intelligence": "Orquestador de IA",
       "intelligenceBadge": "Nuevo",
+      "knowledge": "Conocimiento global",
       "logs": "Registros del Sistema",
       "billing": "Finanzas",
       "settings": "Configuración de Plataforma"
@@ -298,6 +299,21 @@
       "saveSuccess": "¡Configuración guardada!",
       "saveError": "Error al guardar: {{message}}"
     }
+  },
+  "knowledge": {
+    "sectionLabel": "Curaduria clinica",
+    "headerTitle": "Conocimiento dental global",
+    "headerSubtitle": "{{count}} temas heredados por cada clinica.",
+    "warning": "Contenido informativo — nunca prometa resultados.",
+    "guardrail": "Los datos especificos de la clinica prevalecen. El contenido global debe ser generico y sin precios.",
+    "loading": "Cargando conocimiento...",
+    "loadError": "No se pudo cargar el conocimiento.",
+    "saved": "Conocimiento guardado.",
+    "saveError": "No se pudo guardar el conocimiento.",
+    "active": "Activo",
+    "inactive": "Inactivo",
+    "saving": "Guardando...",
+    "save": "Guardar"
   },
   "logs": {
     "sectionLabel": "Observabilidad",

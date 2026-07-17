@@ -20,6 +20,8 @@ export interface EvalScenario {
     withAppointment?: boolean;
     /** Injeta o fato canônico consultation_fee no pacote de conhecimento */
     consultationFee?: ConsultationStatus;
+    /** Conteudo global simulado para o cenario de heranca sem fatos locais. */
+    globalKnowledgePacket?: string;
     expect: {
         /** Estas ferramentas DEVEM ser chamadas em algum round */
         toolsCalled?: string[];
@@ -43,6 +45,18 @@ export interface EvalScenario {
 }
 
 export const SCENARIOS: EvalScenario[] = [
+    {
+        name: "conhecimento_global — implante sem fatos do tenant responde com informacao segura",
+        globalKnowledgePacket: "CONHECIMENTO GERAL DE ODONTOLOGIA (informativo):\n## Dental implants [fonte:global#implant_overview]\nA dental implant is commonly made of titanium and is placed in the jawbone to replace the root of a missing tooth. The dentist evaluates the case and defines the plan.",
+        language: "en",
+        history: [{ role: "user", content: "How does a dental implant work?" }],
+        expect: {
+            textIncludesAny: ["implant", "titanium", "root", "replace"],
+            textExcludesAll: ["guarantee", "painless", "100%", "cure"],
+            noPrice: true,
+            transfer: false,
+        },
+    },
     {
         name: "consulta_gratuita — status gratuito com fonte é informado sem valor monetário",
         consultationFee: 'free',

@@ -43,6 +43,33 @@ const MAX_HISTORY_TURNS = 12;
 const MAX_KB_ENTRIES = 20;
 const MAX_KB_CHARS = 400;
 const MAX_CLINIC_INFO_CHARS = 1_200;
+const MAX_GLOBAL_KNOWLEDGE_ENTRIES = 12;
+
+export type GlobalKnowledgeLanguage = "pt-BR" | "en" | "es";
+
+export interface GlobalKnowledgeEntry {
+    topic_key: string;
+    language: GlobalKnowledgeLanguage;
+    title: string;
+    content: string;
+}
+
+export function normalizeGlobalKnowledgeLanguage(language?: string | null): GlobalKnowledgeLanguage {
+    if (language?.toLowerCase().startsWith("en")) return "en";
+    if (language?.toLowerCase().startsWith("es")) return "es";
+    return "pt-BR";
+}
+
+/** Pure merge: active clinic facts win over global topics with the same key. */
+export function mergeGlobalKnowledge(
+    globalEntries: readonly GlobalKnowledgeEntry[],
+    tenantFactKeys: ReadonlySet<string>,
+    maxEntries = MAX_GLOBAL_KNOWLEDGE_ENTRIES,
+): GlobalKnowledgeEntry[] {
+    return globalEntries
+        .filter((entry) => !tenantFactKeys.has(entry.topic_key))
+        .slice(0, maxEntries);
+}
 
 export type ConsultationStatus = "free" | "paid" | "first_free";
 export const CONSULTATION_STATUS_VALUES = ["free", "paid", "first_free"] as const satisfies readonly ConsultationStatus[];
@@ -108,8 +135,13 @@ Uma consultora de pacientes experiente: técnica e precisa nas informações, ca
  * orçamento só após a consulta de avaliação. A persona trata a pergunta de
  * preço com acolhimento + convite ao agendamento.
  */
-export async function buildKnowledgePacket(supabase: SupabaseClient, tenantId: string): Promise<string> {
-    const [services, info, kb, consultationFee] = await Promise.all([
+export async function buildKnowledgePacket(
+    supabase: SupabaseClient,
+    tenantId: string,
+    language: string = "pt-BR",
+): Promise<string> {
+    const globalLanguage = normalizeGlobalKnowledgeLanguage(language);
+    const [services, info, globalKnowledge, kb, consultationFee] = await Promise.all([
         supabase.from("appointment_types")
             .select("name, duration_minutes")
             .eq("tenant_id", tenantId)
@@ -119,6 +151,12 @@ export async function buildKnowledgePacket(supabase: SupabaseClient, tenantId: s
             .eq("tenant_id", tenantId)
             .eq("is_active", true)
             .limit(50),
+        supabase.from("global_knowledge")
+            .select("topic_key, language, title, content")
+            .eq("language", globalLanguage)
+            .eq("is_active", true)
+            .order("topic_key")
+            .limit(MAX_GLOBAL_KNOWLEDGE_ENTRIES),
         supabase.from("knowledge_base")
             .select("id, title, content")
             .eq("tenant_id", tenantId)
@@ -164,6 +202,14 @@ export async function buildKnowledgePacket(supabase: SupabaseClient, tenantId: s
         if (infoLines.length) parts.push("INFORMAÇÕES DA CLÍNICA:\n" + infoLines.join("\n"));
     }
 
+    const tenantFactKeys = new Set(baseInfoRows.filter((row) => String(row.value ?? "").trim()).map((row) => row.key));
+    const globalRows = mergeGlobalKnowledge((globalKnowledge.data as GlobalKnowledgeEntry[]) || [], tenantFactKeys);
+    if (globalRows.length) {
+        parts.push("CONHECIMENTO GERAL DE ODONTOLOGIA (informativo; o específico da clínica acima prevalece):\n" + globalRows
+            .map(k => `## ${k.title} [fonte:global#${k.topic_key}]\n${String(k.content || "").substring(0, MAX_CLINIC_INFO_CHARS)}`)
+            .join("\n"));
+    }
+
     const kbRows = (kb.data as any[]) || [];
     if (kbRows.length) {
         parts.push("BASE DE CONHECIMENTO:\n" + kbRows
@@ -204,7 +250,7 @@ export async function runCopilot(supabase: SupabaseClient, params: CopilotParams
         const [routerModel, agentModel, knowledgePacket, journeyStage, patientSnapshot] = await Promise.all([
             getAiModelRouter(supabase),
             getAiModelAgent(supabase),
-            buildKnowledgePacket(supabase, tenantId),
+            buildKnowledgePacket(supabase, tenantId, normalizeGlobalKnowledgeLanguage(context.language)),
             fetchStageGuidance(supabase, sessionId),
             buildPatientSnapshot(supabase, tenantId, phone, null),
         ]);
@@ -756,7 +802,7 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
         const [routerModel, agentModel, knowledgePacket, journeyStage, patientSnapshot] = await Promise.all([
             getAiModelRouter(supabase),
             getAiModelAgent(supabase),
-            buildKnowledgePacket(supabase, tenantId),
+            buildKnowledgePacket(supabase, tenantId, normalizeGlobalKnowledgeLanguage(storedLanguage)),
             fetchStageGuidance(supabase, sessionId),
             buildPatientSnapshot(supabase, tenantId, phone, timezone),
         ]);

@@ -11,7 +11,8 @@ import {
     Server,
     ShieldAlert,
     BrainCircuit,
-    CreditCard
+    CreditCard,
+    BookOpen,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { MasterDashboard } from './MasterDashboard';
@@ -19,6 +20,7 @@ import { MasterTenants } from './MasterTenants';
 import { MasterWhatsApp } from './MasterWhatsApp';
 import { MasterIntelligence } from './MasterIntelligence';
 import { MasterBilling } from './MasterBilling';
+import { MasterKnowledge } from './MasterKnowledge';
 import { clsx } from 'clsx';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -35,6 +37,7 @@ export const MasterApp = () => {
         { id: 'tenants', label: t('app.nav.tenants'), icon: Building2, path: '/master/tenants' },
         { id: 'whatsapp', label: t('app.nav.whatsapp'), icon: MessageSquare, path: '/master/whatsapp', badge: t('app.nav.whatsappBadge') },
         { id: 'intelligence', label: t('app.nav.intelligence'), icon: BrainCircuit, path: '/master/intelligence', badge: t('app.nav.intelligenceBadge') },
+        { id: 'knowledge', label: t('app.nav.knowledge'), icon: BookOpen, path: '/master/knowledge' },
         { id: 'billing', label: t('app.nav.billing'), icon: CreditCard, path: '/master/billing' },
         { id: 'logs', label: t('app.nav.logs'), icon: Server, path: '/master/logs' },
         { id: 'settings', label: t('app.nav.settings'), icon: Settings, path: '/master/settings' },
@@ -137,6 +140,7 @@ export const MasterApp = () => {
                         <Route path="tenants" element={<MasterTenants />} />
                         <Route path="whatsapp" element={<MasterWhatsApp />} />
                         <Route path="intelligence" element={<MasterIntelligence />} />
+                        <Route path="knowledge" element={<MasterKnowledge />} />
                         <Route path="billing" element={<MasterBilling />} />
                         <Route path="logs" element={<div className="p-8 text-center text-slate-500">{t('app.logsPlaceholder')}</div>} />
                         <Route path="settings" element={<div className="p-8 text-center text-slate-500">{t('app.settingsPlaceholder')}</div>} />

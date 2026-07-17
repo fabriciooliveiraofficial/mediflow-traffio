@@ -20,6 +20,7 @@
       "whatsappBadge": "Status",
       "intelligence": "AI Orchestrator",
       "intelligenceBadge": "New",
+      "knowledge": "Conhecimento Global",
       "logs": "System Logs",
       "billing": "Financeiro",
       "settings": "Platform Config"
@@ -298,6 +299,21 @@
       "saveSuccess": "Configuração salva!",
       "saveError": "Erro ao salvar: {{message}}"
     }
+  },
+  "knowledge": {
+    "sectionLabel": "Curadoria clínica",
+    "headerTitle": "Conhecimento odontológico global",
+    "headerSubtitle": "{{count}} tópicos herdados por todas as clínicas.",
+    "warning": "Conteúdo informativo — nunca prometa resultados.",
+    "guardrail": "Os fatos específicos da clínica prevalecem. O conteúdo global deve ser genérico e sem preços.",
+    "loading": "Carregando conhecimento...",
+    "loadError": "Não foi possível carregar o conhecimento.",
+    "saved": "Conhecimento salvo.",
+    "saveError": "Não foi possível salvar o conhecimento.",
+    "active": "Ativo",
+    "inactive": "Inativo",
+    "saving": "Salvando...",
+    "save": "Salvar"
   },
   "logs": {
     "sectionLabel": "Observability",

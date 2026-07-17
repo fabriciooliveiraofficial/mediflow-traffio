@@ -20,6 +20,7 @@
       "whatsappBadge": "Status",
       "intelligence": "AI Orchestrator",
       "intelligenceBadge": "New",
+      "knowledge": "Global Knowledge",
       "logs": "System Logs",
       "billing": "Billing",
       "settings": "Platform Config"
@@ -298,6 +299,21 @@
       "saveSuccess": "Settings saved!",
       "saveError": "Error saving: {{message}}"
     }
+  },
+  "knowledge": {
+    "sectionLabel": "Clinical curation",
+    "headerTitle": "Global dental knowledge",
+    "headerSubtitle": "{{count}} topics inherited by every clinic.",
+    "warning": "Informational content — never promise outcomes.",
+    "guardrail": "Clinic-specific facts take precedence. Global content must remain generic, clinical, and price-free.",
+    "loading": "Loading knowledge...",
+    "loadError": "Could not load knowledge.",
+    "saved": "Knowledge saved.",
+    "saveError": "Could not save knowledge.",
+    "active": "Active",
+    "inactive": "Inactive",
+    "saving": "Saving...",
+    "save": "Save"
   },
   "logs": {
     "sectionLabel": "Observability",

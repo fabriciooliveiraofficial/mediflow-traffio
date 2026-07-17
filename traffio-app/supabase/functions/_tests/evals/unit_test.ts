@@ -303,7 +303,27 @@ Deno.test("isNearDuplicateReply: pega repetição, ignora resposta nova", () => 
 
 // ── Onda 2: confirmação, política com fonte e provenance multimodal ──────────
 import { isAffirmativeChoice } from "../../_shared/schedulingTools.ts";
-import { CONSULTATION_STATUS_VALUES, formatConsultationStatus, hasUnsourcedPolicyClaim, wrapUntrustedContent } from "../../_shared/copilot.ts";
+import { CONSULTATION_STATUS_VALUES, formatConsultationStatus, hasUnsourcedPolicyClaim, mergeGlobalKnowledge, normalizeGlobalKnowledgeLanguage, wrapUntrustedContent } from "../../_shared/copilot.ts";
+
+Deno.test("global knowledge: idioma normalizado e tenant prevalece", () => {
+    assertEquals(normalizeGlobalKnowledgeLanguage("pt"), "pt-BR");
+    assertEquals(normalizeGlobalKnowledgeLanguage("en-US"), "en");
+    assertEquals(normalizeGlobalKnowledgeLanguage("es"), "es");
+    const merged = mergeGlobalKnowledge([
+        { topic_key: "implant_overview", language: "en", title: "Implant", content: "global" },
+        { topic_key: "root_canal", language: "en", title: "Root canal", content: "global" },
+    ], new Set(["implant_overview"]));
+    assertEquals(merged.map((entry) => entry.topic_key), ["root_canal"]);
+});
+
+Deno.test("global knowledge: limite defensivo e marcador de fonte", () => {
+    const entries = Array.from({ length: 13 }, (_, i) => ({
+        topic_key: `topic_${i}`, language: "pt-BR" as const, title: `Topic ${i}`, content: `Conteudo [fonte:global#topic_${i}]`,
+    }));
+    const merged = mergeGlobalKnowledge(entries, new Set(), 12);
+    assertEquals(merged.length, 12);
+    assert(merged[0].content.includes(`[fonte:global#${merged[0].topic_key}]`));
+});
 
 Deno.test("isAffirmativeChoice: afirmativos concretos em pt/en/es", () => {
     for (const value of ["sim", "confirmo", "fechado", "pode ser 9:00", "esse", "o das 10:30", "2", "yes", "book it", "9am", "sí", "confirm"]) {

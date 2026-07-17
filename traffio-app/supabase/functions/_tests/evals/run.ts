@@ -44,6 +44,7 @@ const KNOWLEDGE_PACKET = [
 
 function buildScenarioKnowledgePacket(s: EvalScenario): string {
     const parts = [KNOWLEDGE_PACKET];
+    if (s.globalKnowledgePacket) parts.push(s.globalKnowledgePacket);
     if (s.consultationFee) {
         const status = formatConsultationStatus(s.consultationFee);
         parts.push(`INFORMAÇÕES DA CLÍNICA:\n- [fonte:clinic_info#consultation_fee] [policies] STATUS DA CONSULTA (consultation_fee=${s.consultationFee}): ${status}`);
