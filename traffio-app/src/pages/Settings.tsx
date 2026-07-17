@@ -30,7 +30,6 @@ import {
     Briefcase,
     Settings as SettingsIcon,
     ChevronDown,
-    BookOpen,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { TIMEZONE_OPTIONS, TIMEZONE_REGIONS } from '../lib/timezoneUtils';
@@ -53,7 +52,6 @@ import { decimalToDMS, parseDMSToDecimal } from '../lib/geoUtils';
 import { TimeInput } from '../components/shared/TimeInput';
 import { Button, Badge, EmptyState, PageHeader } from '../components/ui';
 import { TenantLiveChatConfig } from '../components/settings/TenantLiveChatConfig';
-import { ClinicKnowledgeSettings } from '../components/settings/ClinicKnowledgeSettings';
 import { usePermissions } from '../hooks/usePermissions';
 
 
@@ -177,7 +175,6 @@ export const Settings = () => {
     const { showToast } = useToast();
     const { language, setLanguage, supportedLanguages } = useLang();
     const [activeTab, setActiveTab] = useState('clinics');
-    const canEditKnowledge = can('action:edit_config') && (userRole === 'owner' || userRole === 'admin');
     const [loading, setLoading] = useState(true);
     const [tenants, setTenants] = useState<any[]>([]);
     const [profile, setProfile] = useState<any>(null);
@@ -240,9 +237,6 @@ export const Settings = () => {
     const [stripeClientSecret, setStripeClientSecret] = useState<string | null>(null);
     const checkoutRef = useRef<any>(null);
 
-    useEffect(() => {
-        if (activeTab === 'knowledge' && !canEditKnowledge) setActiveTab('clinics');
-    }, [activeTab, canEditKnowledge]);
 
     useEffect(() => {
         let active = true;
@@ -784,7 +778,6 @@ export const Settings = () => {
                         { id: 'clinics', label: t('tabs.clinics'), icon: Building2 },
                         { id: 'locations', label: t('tabs.locations'), icon: MapPin },
                         { id: 'insurance', label: t('tabs.insurance'), icon: Shield },
-                        ...(canEditKnowledge ? [{ id: 'knowledge', label: t('tabs.knowledge'), icon: BookOpen }] : []),
                         { id: 'team', label: t('tabs.team'), icon: Users },
                         { id: 'roles', label: t('tabs.roles'), icon: Briefcase },
                         { id: 'communications', label: t('tabs.communications'), icon: Phone },
@@ -1913,15 +1906,6 @@ export const Settings = () => {
                 {/* Roles Tab */}
                 {activeTab === 'roles' && currentTenant && (
                     <RoleManagement tenantId={currentTenant.id} />
-                )}
-
-                {/* AI Knowledge Base Tab */}
-                {activeTab === 'knowledge' && currentTenant && (
-                    <ClinicKnowledgeSettings
-                        tenantId={currentTenant.id}
-                        canEdit={canEditKnowledge}
-                        userRole={userRole}
-                    />
                 )}
 
                 {/* Live Chat Tab */}

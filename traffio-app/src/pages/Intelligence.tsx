@@ -2,7 +2,11 @@ import { useTranslation } from 'react-i18next';
 import { Zap, Save, Loader2 } from 'lucide-react';
 import { useBotConfig } from '../hooks/useBotConfig';
 import { useLocaleFormat } from '../hooks/useLocaleFormat';
+import { useTenant } from '../contexts/TenantContext';
+import { usePermissions } from '../hooks/usePermissions';
 import { TimeInput } from '../components/shared/TimeInput';
+import { ClinicKnowledgeSettings } from '../components/settings/ClinicKnowledgeSettings';
+import { KnowledgeGapsPanel } from '../components/settings/KnowledgeGapsPanel';
 import { getUTCOffsetString } from '../lib/timezoneUtils';
 
 // Re-exportado para compatibilidade — BotConfigWizard.tsx importa este type
@@ -13,6 +17,10 @@ export const Intelligence = () => {
     const { t } = useTranslation('tenantAdmin');
     const { config, setConfig, loading, saving, saveConfig } = useBotConfig();
     const { timezone } = useLocaleFormat();
+    const { tenant: currentTenant, userRole } = useTenant();
+    const { can } = usePermissions();
+    // Base de conhecimento pertence à Inteligência (cérebro do agente), não a Configurações.
+    const canEditKnowledge = can('action:edit_config') && (userRole === 'owner' || userRole === 'admin');
 
     if (loading) return <div className="h-full flex items-center justify-center"><Loader2 className="animate-spin text-brand-primary" size={32} /></div>;
 
@@ -113,7 +121,7 @@ export const Intelligence = () => {
                 })()}
             </div>
 
-            {/* ── Salvar ── */}
+            {/* ── Salvar (dial + horário da equipe) ── */}
             <div className="flex justify-end pt-2">
                 <button
                     onClick={() => saveConfig()}
@@ -124,6 +132,20 @@ export const Intelligence = () => {
                     {t('intelligence.saveButton')}
                 </button>
             </div>
+
+            {/* ── Base de conhecimento do agente (auto-salva por fato) ── */}
+            {canEditKnowledge && currentTenant && (
+                <div className="pt-8 mt-2 border-t border-ice-100">
+                    <ClinicKnowledgeSettings
+                        tenantId={currentTenant.id}
+                        canEdit={canEditKnowledge}
+                        userRole={userRole || 'staff'}
+                    />
+                    <div className="mt-8">
+                        <KnowledgeGapsPanel tenantId={currentTenant.id} />
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

@@ -387,8 +387,68 @@ export function wrapUntrustedContent(content: string, type: string): string {
 
 const POLICY_CLAIM_PATTERN = /\b(multa|taxa de cancelamento|cobramos|pol[ií]tica de|conv[eê]nio cobre|precisa de encaminhamento|reembolso)\b/i;
 const POLICY_EVIDENCE_PATTERN = /\b(multa|taxa|cancelamento|cobran[cç]a|pol[ií]tica|conv[eê]nio|encaminhamento|reembolso)\b/i;
-const CONFIRMATION_FOLLOW_UP_PATTERN = /vou (?:confirmar|verificar)|(?:i(?:'ll| will)|we(?:'ll| will)) (?:confirm|check)|equipe (?:confirma|vai confirmar)|team (?:can|will) (?:confirm|check)|n[aã]o (?:tenho|consta).*(?:informa[cç][aã]o|pol[ií]tica)/i;
+export const CONFIRMATION_FOLLOW_UP_PATTERN = /vou (?:confirmar|verificar)|(?:i(?:'ll| will)|we(?:'ll| will)) (?:confirm|check)|equipe (?:confirma|vai confirmar)|team (?:can|will) (?:confirm|check)|(?:voy|vamos) a (?:confirmar|verificar)|el equipo (?:confirmar[aá]|va a (?:confirmar|verificar))|n[aã]o (?:tenho|consta).*(?:informa[cç][aã]o|pol[ií]tica)/i;
 const SAFE_POLICY_FOLLOW_UP_PATTERN = new RegExp(`\\?|${CONFIRMATION_FOLLOW_UP_PATTERN.source}`, "i");
+
+export interface KnowledgeGapFlags {
+    cancelRequested?: boolean;
+    reconciliationNeeded?: boolean;
+    emergency?: boolean;
+    clinicalQuestion?: boolean;
+    explicitHumanRequest?: boolean;
+    priceInsistence?: boolean;
+}
+
+const NON_GAP_REASON_PATTERN = /\b(?:humano|human|persona|atendente|attendant|agent|emerg[eê]ncia|emergency|urgencia|urg[êe]ncia|diagn[oó]stic|diagnos|medica[cç][aã]o|medication|medicine|dolor|dor|pain|pre[cç]o|price|precio|valor|cost|custo|cancel|remarc|reschedul|reconcil)\b/i;
+const SENSITIVE_OR_NON_GAP_QUESTION_PATTERN = /\b(?:emerg[eê]ncia|emergency|urgencia|urg[êe]ncia|diagn[oó]stic|diagnos|medica[cç][aã]o|medication|medicine|rem[eé]dio|dolor|dor|pain|sangramento|bleeding|pre[cç]o|price|precio|quanto custa|how much|cu[aá]nto cuesta|humano|human|atendente|attendant|persona|cancel|remarc|reschedul)\b/i;
+const KNOWLEDGE_REASON_PATTERN = /\b(?:n[aã]o sei|sem informa[cç][aã]o|falta (?:de )?informa[cç][aã]o|n[aã]o consta|unknown|don'?t know|missing information|no information|not in (?:the )?(?:context|knowledge)|no s[eé]|sin informaci[oó]n|falta informaci[oó]n|no consta)\b/i;
+const MEDIA_WRAPPER_PATTERN = /\[(?:CONTE[ÚU]DO DE M[ÍI]DIA DO PACIENTE|PATIENT MEDIA CONTENT|CONTENIDO MULTIMEDIA DEL PACIENTE)[\s\S]*?\]/gi;
+
+export function normalizeKnowledgeGapQuestion(value: string): string {
+    return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+        .replace(/[^a-z0-9\s]/g, " ").replace(/\b(?:por favor|please)\b/g, " ")
+        .replace(/\s+/g, " ").trim();
+}
+
+export function sanitizeKnowledgeGapQuestion(value: string): string | null {
+    const clean = String(value || "").replace(MEDIA_WRAPPER_PATTERN, " ")
+        .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[removido]")
+        .replace(/(?:\+?\d[\s().-]*){8,15}/g, "[removido]")
+        .replace(/\b(?:meu nome [ée]|me chamo|my name is|i am|soy|me llamo)\s+[\p{L}'-]+(?:\s+[\p{L}'-]+){0,3}/giu, "[removido]")
+        .replace(/\s+/g, " ").trim();
+    return clean.length >= 4 ? clean.substring(0, 500) : null;
+}
+
+export function classifyKnowledgeGap(input: {
+    transferReason: string | null; replyText: string; lastPatientMessage: string; flags?: KnowledgeGapFlags;
+}): { isGap: boolean; question: string | null } {
+    const flags = input.flags || {};
+    if (flags.cancelRequested || flags.reconciliationNeeded || flags.emergency || flags.clinicalQuestion
+        || flags.explicitHumanRequest || flags.priceInsistence) return { isGap: false, question: null };
+    if (input.transferReason && NON_GAP_REASON_PATTERN.test(input.transferReason)) return { isGap: false, question: null };
+    if (SENSITIVE_OR_NON_GAP_QUESTION_PATTERN.test(input.lastPatientMessage)) return { isGap: false, question: null };
+    const isGap = (!input.replyText.trim() && !input.transferReason)
+        || Boolean(input.transferReason && KNOWLEDGE_REASON_PATTERN.test(input.transferReason))
+        || CONFIRMATION_FOLLOW_UP_PATTERN.test(input.replyText);
+    if (!isGap) return { isGap: false, question: null };
+    const question = sanitizeKnowledgeGapQuestion(input.lastPatientMessage);
+    return question ? { isGap: true, question } : { isGap: false, question: null };
+}
+
+async function recordKnowledgeGap(supabase: SupabaseClient, tenantId: string, result: { isGap: boolean; question: string | null }, language: string): Promise<void> {
+    if (!result.isGap || !result.question) return;
+    const normalized = normalizeKnowledgeGapQuestion(result.question);
+    if (!normalized) return;
+    try {
+        const { error } = await supabase.rpc("record_knowledge_gap", {
+            p_tenant_id: tenantId, p_patient_question: result.question,
+            p_normalized_question: normalized, p_sample_language: language || null,
+        });
+        if (error) throw error;
+    } catch (error: any) {
+        console.warn(`[agent] knowledge gap não registrado (non-fatal): ${error?.message || error}`);
+    }
+}
 const UNCERTAIN_CONSULTATION_STATUS_PATTERN = /\b(?:confirm|check|confirmar|confirmar[eé]|confirmaremos|verificar|verificar[eé]|verificaremos)\b.{0,60}\b(?:whether|if|se|si)\b(?=.{0,140}\b(?:avalia[cç](?:[aã]o|[oõ]es)|evaluaci[oó]n(?:es)?|consultas?|consultations?|evaluations?)\b)(?=.{0,140}\b(?:gratuit[ao]s?|gr[aá]tis|free|no charge|pag[ao]s?|paid|sin costo|de pago|taxa|fee|custo|cost|costo|charge|cobra|cobramos|tiene|tem)\b).{0,140}/i;
 
 function consultationStatusFromEvidence(evidence: string): ConsultationStatus | null {
@@ -856,6 +916,10 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             await sendWithFallback(dispatcher, tenant, tenantId, phone, bye);
             await sessionManager.logMessage(sessionId, "assistant", bye);
             await sessionManager.triggerHumanHandoff(sessionId, merged);
+            await recordKnowledgeGap(supabase, tenantId, classifyKnowledgeGap({
+                transferReason, replyText: text, lastPatientMessage,
+                flags: { cancelRequested, reconciliationNeeded },
+            }), language);
             console.log(`[agent] [${phone}] transferido para humano — motivo: ${transferReason || "resposta vazia/rounds esgotados"}`);
             return "transferred";
         }
@@ -911,6 +975,10 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             console.error(`[RECONCILE] [${phone}] handoff acionado após confirmação da remarcação`);
             return "transferred";
         }
+        await recordKnowledgeGap(supabase, tenantId, classifyKnowledgeGap({
+            transferReason: null, replyText: finalText, lastPatientMessage,
+            flags: { reconciliationNeeded },
+        }), language);
         // Sinaliza no Inbox que a IA está conduzindo esta conversa (badge "IA atendendo")
         await supabase
             .from("conversation_sessions")

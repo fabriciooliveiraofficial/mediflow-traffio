@@ -112,7 +112,62 @@ Deno.test("formatDateForPatient: formato por idioma", () => {
 });
 
 // ── Camadas 1 e 2 (copilot.ts): validadores de runtime + estado do fluxo ────
-import { validateAgentReply, buildFlowStateHint } from "../../_shared/copilot.ts";
+import {
+    validateAgentReply,
+    buildFlowStateHint,
+    classifyKnowledgeGap,
+    normalizeKnowledgeGapQuestion,
+    sanitizeKnowledgeGapQuestion,
+} from "../../_shared/copilot.ts";
+
+const gapInput = (patch: Partial<Parameters<typeof classifyKnowledgeGap>[0]> = {}) => ({
+    transferReason: null, replyText: "", lastPatientMessage: "Qual é o horário de sábado?", flags: {}, ...patch,
+});
+
+Deno.test("knowledge gap: resposta vazia/rounds esgotados", () => {
+    assertEquals(classifyKnowledgeGap(gapInput()).isGap, true);
+});
+Deno.test("knowledge gap: confirmação em português", () => {
+    assertEquals(classifyKnowledgeGap(gapInput({ replyText: "Vou verificar com a equipe." })).isGap, true);
+});
+Deno.test("knowledge gap: confirmação em inglês", () => {
+    assertEquals(classifyKnowledgeGap(gapInput({ replyText: "We'll check with the team." })).isGap, true);
+});
+Deno.test("knowledge gap: confirmação em espanhol", () => {
+    assertEquals(classifyKnowledgeGap(gapInput({ replyText: "Voy a confirmar con el equipo." })).isGap, true);
+});
+Deno.test("knowledge gap: transferência explícita por falta de informação", () => {
+    assertEquals(classifyKnowledgeGap(gapInput({ transferReason: "informação não consta no contexto", replyText: "A equipe assume." })).isGap, true);
+});
+Deno.test("knowledge gap: preço não é lacuna", () => {
+    assertEquals(classifyKnowledgeGap(gapInput({ transferReason: "paciente insistiu no preço" })).isGap, false);
+});
+Deno.test("knowledge gap: emergência não é lacuna", () => {
+    assertEquals(classifyKnowledgeGap(gapInput({ transferReason: "emergência com dor intensa" })).isGap, false);
+});
+Deno.test("knowledge gap: pedido de humano não é lacuna", () => {
+    assertEquals(classifyKnowledgeGap(gapInput({ transferReason: "paciente pediu atendente humano" })).isGap, false);
+});
+Deno.test("knowledge gap: cancelamento não é lacuna", () => {
+    assertEquals(classifyKnowledgeGap(gapInput({ flags: { cancelRequested: true } })).isGap, false);
+});
+Deno.test("knowledge gap: reconciliação não é lacuna", () => {
+    assertEquals(classifyKnowledgeGap(gapInput({ flags: { reconciliationNeeded: true } })).isGap, false);
+});
+Deno.test("knowledge gap: dúvida clínica sinalizada não é lacuna", () => {
+    assertEquals(classifyKnowledgeGap(gapInput({ flags: { clinicalQuestion: true } })).isGap, false);
+});
+Deno.test("knowledge gap: conteúdo clínico sensível é barrado mesmo com confirmação", () => {
+    assertEquals(classifyKnowledgeGap(gapInput({ lastPatientMessage: "Estou com dor e sangramento, qual remédio tomo?", replyText: "Vou verificar com a equipe." })).isGap, false);
+});
+Deno.test("knowledge gap: sanitiza mídia, email, telefone e nome declarado", () => {
+    const clean = sanitizeKnowledgeGapQuestion("[CONTEÚDO DE MÍDIA DO PACIENTE: foto] Meu nome é Maria Silva, email maria@x.com, telefone +55 11 99999-8888. Vocês abrem sábado?");
+    assert(clean?.includes("Vocês abrem sábado?"));
+    assert(!clean?.includes("Maria") && !clean?.includes("maria@") && !clean?.includes("99999"));
+});
+Deno.test("knowledge gap: normalização agrega variações textuais", () => {
+    assertEquals(normalizeKnowledgeGapQuestion("Vocês abrem sábado?"), normalizeKnowledgeGapQuestion("VOCES abrem sábado!!!"));
+});
 
 Deno.test("validateAgentReply: aprova resposta limpa", () => {
     const v = validateAgentReply("Claro! Nossa avaliação inicial leva 30 minutos. Quer agendar?", {

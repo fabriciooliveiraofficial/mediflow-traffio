@@ -107,6 +107,22 @@
       "saveError": "No se pudo guardar {{fact}}."
     }
   },
+  "knowledgeGaps": {
+    "title": "Preguntas sin respuesta ({{count}})",
+    "subtitle": "Preguntas reales que el agente no pudo responder. Conviértelas en conocimiento permanente.",
+    "loadError": "No se pudieron cargar las preguntas sin respuesta.",
+    "retry": "Intentar de nuevo",
+    "empty": { "title": "Sin lagunas — tu agente está bien informado", "description": "Las nuevas preguntas factuales aparecerán aquí automáticamente." },
+    "meta": "{{count}} incidencia(s) · última el {{date}}",
+    "factLabel": "Dónde guardar esta respuesta",
+    "newFaq": "Nuevo dato libre (FAQ)",
+    "answerPlaceholder": "Escribe la respuesta factual que podrá usar el agente...",
+    "answer": "Responder",
+    "dismiss": "Descartar",
+    "cancel": "Cancelar",
+    "save": "Guardar respuesta",
+    "toasts": { "answered": "Respuesta añadida al conocimiento del agente.", "dismissed": "Pregunta descartada.", "saveError": "No se pudo guardar la respuesta.", "dismissError": "No se pudo descartar la pregunta." }
+  },
   "header": {
     "title": "Configuración",
     "subtitle": "Administre sus sucursales, horarios y perfil."

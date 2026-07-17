@@ -107,6 +107,22 @@
       "saveError": "Could not save {{fact}}."
     }
   },
+  "knowledgeGaps": {
+    "title": "Unanswered questions ({{count}})",
+    "subtitle": "Real questions the agent could not answer. Turn them into permanent knowledge.",
+    "loadError": "The unanswered questions could not be loaded.",
+    "retry": "Try again",
+    "empty": { "title": "No gaps — your agent is well informed", "description": "New factual questions will appear here automatically." },
+    "meta": "{{count}} occurrence(s) · last on {{date}}",
+    "factLabel": "Where to save this answer",
+    "newFaq": "New free-form fact (FAQ)",
+    "answerPlaceholder": "Write the factual answer the agent can use...",
+    "answer": "Answer",
+    "dismiss": "Dismiss",
+    "cancel": "Cancel",
+    "save": "Save answer",
+    "toasts": { "answered": "Answer added to the agent's knowledge.", "dismissed": "Question dismissed.", "saveError": "The answer could not be saved.", "dismissError": "The question could not be dismissed." }
+  },
   "header": {
     "title": "Settings",
     "subtitle": "Manage your locations, hours, and profile."

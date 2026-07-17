@@ -107,6 +107,22 @@
       "saveError": "Não foi possível salvar {{fact}}."
     }
   },
+  "knowledgeGaps": {
+    "title": "Perguntas sem resposta ({{count}})",
+    "subtitle": "Dúvidas reais que o agente não conseguiu responder. Transforme-as em conhecimento permanente.",
+    "loadError": "Não foi possível carregar as perguntas sem resposta.",
+    "retry": "Tentar novamente",
+    "empty": { "title": "Nenhuma lacuna — seu agente está bem informado", "description": "Novas dúvidas factuais aparecerão aqui automaticamente." },
+    "meta": "{{count}} ocorrência(s) · última em {{date}}",
+    "factLabel": "Onde salvar esta resposta",
+    "newFaq": "Novo fato livre (FAQ)",
+    "answerPlaceholder": "Escreva a resposta factual que o agente poderá usar...",
+    "answer": "Responder",
+    "dismiss": "Dispensar",
+    "cancel": "Cancelar",
+    "save": "Salvar resposta",
+    "toasts": { "answered": "Resposta adicionada ao conhecimento do agente.", "dismissed": "Pergunta dispensada.", "saveError": "Não foi possível salvar a resposta.", "dismissError": "Não foi possível dispensar a pergunta." }
+  },
   "header": {
     "title": "Configurações",
     "subtitle": "Gerencie suas unidades, horários e perfil."
