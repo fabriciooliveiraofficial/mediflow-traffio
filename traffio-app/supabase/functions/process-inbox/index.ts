@@ -23,7 +23,7 @@ import { TenantResolver } from "../_shared/tenantResolver.ts";
 import { SessionManager } from "../_shared/sessionManager.ts";
 import { OutboxDispatcher } from "../_shared/outboxDispatcher.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { runCopilot, runAutonomousAgent } from "../_shared/copilot.ts";
+import { runCopilot, runAutonomousAgent, wrapUntrustedContent } from "../_shared/copilot.ts";
 import { tryStructuredFlow } from "../_shared/structuredFlow.ts";
 
 // How long to wait after the last message before processing (ms).
@@ -124,11 +124,14 @@ async function processConversationTurn(
   // --- CRITICAL FIX: Instantiate SessionManager ---
   const sessionManager = new SessionManager(supabase);
 
-  // --- 2. Acquire advisory lock (per-phone, prevents parallel processing) ---
-  // Lock key: hash of phone string to fit int8 range
-  const lockKey = phoneToLockKey(phone);
-
-  const { data: lockResult } = await supabase.rpc("pg_try_advisory_lock", { key: lockKey });
+  // --- 2. Acquire per-phone lease lock (prevents parallel processing) ---
+  // NÃO usar pg_try_advisory_lock aqui: advisory lock é de SESSÃO e, via RPC
+  // REST com pooling, o unlock pode cair em outra conexão e falhar silencioso —
+  // lock ficava preso ~2-3 min travando a fila (visto em produção 2026-07-16).
+  // O lease tem TTL: se o worker morrer, expira sozinho e a fila se recupera.
+  const { data: lockResult } = await supabase.rpc("try_conversation_lock", {
+    p_tenant: tenantId, p_phone: phone, p_ttl_seconds: 120,
+  });
   if (!lockResult) {
     // Another worker is already processing this conversation — skip
     console.log(`[process-inbox] [${phone}] Lock busy, skipping`);
@@ -221,9 +224,11 @@ async function processConversationTurn(
  
      } else {
        // --- 5. Context Fusion: merge multiple messages into one coherent user turn ---
-       let fusedContent = messages.length === 1
-         ? messages[0].content
-         : messages.map((m: any) => m.content).join("\n");
+       const fusedContent = messages.map((m: any) => {
+         const type = String(m.message_type || "text").toLowerCase();
+         const content = m.caption || m.content || `[${type}]`;
+         return type === "text" ? content : wrapUntrustedContent(content, type);
+       }).join("\n");
  
        console.log(`[process-inbox] [${phone}] Fused ${messages.length} msg(s): "${fusedContent.substring(0, 80)}"`);
        lastMessageSnippet = fusedContent;
@@ -231,8 +236,11 @@ async function processConversationTurn(
        // --- 5b. Media/voice guard — categorizar e salvar mídia para visibilidade humana ---
        // Z-API e Cloud API entregam mídia com content vazio ou markers tipo [áudio].
        // Categorizamos para que o atendente veja no chat, mesmo que o bot não processe.
-       const mediaMatch = fusedContent?.trim().match(/^\[(áudio|audio|imagem|image|vídeo|video|documento|document|sticker|figurinha)\]$/i);
-       const isMediaOnly = !fusedContent?.trim() || !!mediaMatch;
+       const mediaMatch = messages.length === 1
+         ? messages[0]?.content?.trim().match(/^\[(áudio|audio|imagem|image|vídeo|video|documento|document|sticker|figurinha)\]$/i)
+         : null;
+       const hasTypedText = messages.some((m: any) => String(m.message_type || "text").toLowerCase() === "text" && !!m.content?.trim() && !/^\[(áudio|audio|imagem|image|vídeo|video|documento|document|sticker|figurinha)\]$/i.test(m.content.trim()));
+       const isMediaOnly = !hasTypedText;
  
        if (isMediaOnly) {
          const typeMap: Record<string, string> = {
@@ -240,7 +248,9 @@ async function processConversationTurn(
            video: 'video', vídeo: 'video', document: 'document', documento: 'document',
            sticker: 'sticker', figurinha: 'sticker'
          };
-         const detectedType = mediaMatch ? typeMap[mediaMatch[1].toLowerCase()] : 'text';
+         const detectedType = mediaMatch
+           ? typeMap[mediaMatch[1].toLowerCase()]
+           : String(messages[0]?.message_type || 'text').toLowerCase();
  
          console.log(`[process-inbox] [${phone}] Media detected (${detectedType}) — saving for human visibility`);
          
@@ -391,11 +401,10 @@ async function processConversationTurn(
      await markMessages(supabase, messageIds, "done");
 
   } finally {
-    // Always release the advisory lock
-    await supabase.rpc("pg_advisory_unlock", { key: lockKey });
+    // Always release the lease (se falhar, o TTL de 120s expira sozinho)
+    await supabase.rpc("release_conversation_lock", { p_tenant: tenantId, p_phone: phone });
   }
 }
-
 // =============================================================================
 // Helpers
 // =============================================================================
@@ -406,13 +415,3 @@ async function markMessages(supabase: any, ids: string[], status: string) {
     .update({ status })
     .in("id", ids);
 }
-
-/**
- * Converts a phone number string to a stable int8 lock key.
- * Uses the last 9 digits of the phone (avoids country code collisions).
- */
-function phoneToLockKey(phone: string): number {
-  const digits = phone.replace(/\D/g, "").slice(-9);
-  return parseInt(digits, 10) || 0;
-}
-

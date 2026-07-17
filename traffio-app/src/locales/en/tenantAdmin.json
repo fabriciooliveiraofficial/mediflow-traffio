@@ -476,6 +476,7 @@
       "copilotHint": "AI suggests replies and classifies leads, but NEVER sends anything — your team reviews and decides. Remember to save.",
       "aiAlwaysHint": "AI replies to patients within seconds, 24/7, books and reschedules with real time slots, and transfers to your team when needed (patient request, clinical question, pricing, cancellations). You can take over any conversation at any time — and switch this off whenever you want. Remember to save.",
       "hoursTitle": "Team hours (cancellations during these hours go straight to an attendant)",
+      "hoursTimezoneHint": "Tenant timezone: {{timezone}} ({{offset}}) — set in Settings",
       "dayLetters": { "0": "S", "1": "M", "2": "T", "3": "W", "4": "T", "5": "F", "6": "S" },
       "dayNames": { "0": "Sunday", "1": "Monday", "2": "Tuesday", "3": "Wednesday", "4": "Thursday", "5": "Friday", "6": "Saturday" }
     },

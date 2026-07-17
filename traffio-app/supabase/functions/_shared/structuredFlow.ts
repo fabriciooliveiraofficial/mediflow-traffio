@@ -22,10 +22,14 @@ import { OutboxDispatcher } from "./outboxDispatcher.ts";
 import { sendWithFallback } from "./copilot.ts";
 import {
     parseSlotClick,
-    ensurePatient,
+    resolvePatientForBooking,
+    plausiblePersonName,
     fetchAvailableSlots,
     buildSlotInteractive,
     formatDateForPatient,
+    doctorDisplayName,
+    validateSchedulingReferences,
+    getTenantClock,
     SLOT_CONFIRM_MSG,
     SLOT_TAKEN_MSG,
     WAITLIST_TAKEN_MSG,
@@ -102,7 +106,18 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
         }
         const slotClick = parseSlotClick(clickContent);
         if (slotClick) {
-            const patient = await ensurePatient(supabase, tenantId, phone, session.platform_display_name);
+            // slot_id é texto controlável pelo cliente: reautorizar antes do RPC.
+            if (await validateSchedulingReferences(supabase, tenantId, slotClick.doctor_id, slotClick.location_id, slotClick.type_id)) {
+                console.error(`[structuredFlow] [${phone}] slot recusado por escopo de tenant`);
+                return { matched: true, status: "failed" };
+            }
+            // Se a conversa era para um terceiro (intake.for_whom = nome plausível),
+            // o clique agenda na ficha do terceiro — nunca na do titular do telefone
+            const forWhom = context?.intake?.for_whom;
+            const { patient } = await resolvePatientForBooking(
+                supabase, tenantId, phone,
+                plausiblePersonName(forWhom) ? forWhom : null,
+                session.platform_display_name);
             if (!patient) return { matched: true, status: "failed" };
 
             const { data: booked, error: bookErr } = await supabase.rpc("book_appointment", {
@@ -118,7 +133,9 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
 
             const ok = !bookErr && (booked as any)?.success;
             const msg = ok
-                ? (SLOT_CONFIRM_MSG[language] || SLOT_CONFIRM_MSG.pt)(formatDateForPatient(slotClick.date, language), slotClick.time)
+                ? (SLOT_CONFIRM_MSG[language] || SLOT_CONFIRM_MSG.pt)(
+                    formatDateForPatient(slotClick.date, language), slotClick.time,
+                    await doctorDisplayName(supabase, tenantId, slotClick.doctor_id))
                 : (SLOT_TAKEN_MSG[language] || SLOT_TAKEN_MSG.pt);
             if (!ok) console.warn(`[structuredFlow] [${phone}] slot click não agendou: ${bookErr?.message || JSON.stringify(booked)}`);
 
@@ -156,7 +173,8 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
 
             if (ok) {
                 const msg = (SLOT_CONFIRM_MSG[language] || SLOT_CONFIRM_MSG.pt)(
-                    formatDateForPatient(pendingWaitlist.date, language), pendingWaitlist.start_time);
+                    formatDateForPatient(pendingWaitlist.date, language), pendingWaitlist.start_time,
+                    await doctorDisplayName(supabase, tenantId, pendingWaitlist.doctor_id));
                 await sendWithFallback(dispatcher, tenant, tenantId, phone, msg);
                 await sessionManager.logMessage(sessionId, "assistant", msg);
                 await supabase.from("waitlist").update({ status: "confirmed", updated_at: new Date().toISOString() }).eq("id", pendingWaitlist.waitlist_id);
@@ -201,12 +219,15 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
                 const { data: svc } = await supabase
                     .from("appointment_types")
                     .select("duration_minutes")
+                    .eq("tenant_id", tenantId)
                     .eq("id", lastAppt.type_id)
                     .maybeSingle();
                 if (svc?.duration_minutes) duration = svc.duration_minutes;
             }
 
-            const { slots } = await fetchAvailableSlots(supabase, lastAppt.doctor_id, undefined, duration, lastAppt.type_id || null);
+            const { slots } = await fetchAvailableSlots(
+                supabase, tenantId, lastAppt.doctor_id, undefined, duration, lastAppt.type_id || null,
+                await getTenantClock(supabase, tenantId));
 
             const ctx = { ...context };
             delete ctx.pending_recovery;
@@ -220,7 +241,7 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
             }
 
             const msg = RECOVERY_OFFER_MSG[language] || RECOVERY_OFFER_MSG.pt;
-            const interactive = buildSlotInteractive(slots);
+            const interactive = buildSlotInteractive(slots, language);
             await sendWithFallback(dispatcher, tenant, tenantId, phone, msg, interactive);
             await sessionManager.logMessage(sessionId, "assistant", msg);
             ctx.pending_slots = slots.map((s: SlotOption) => s.id);

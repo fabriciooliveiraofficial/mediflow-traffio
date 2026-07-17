@@ -59,6 +59,8 @@ export interface LlmRequest {
     system: string;
     messages: LlmMessage[];
     tools?: LlmTool[];
+    /** tool_choice da API (ex.: {type:"none"} para forçar resposta em texto) */
+    toolChoice?: { type: "auto" | "any" | "none" } | { type: "tool"; name: string };
     maxTokens?: number;
     temperature?: number;
 }
@@ -74,6 +76,7 @@ export async function claudeChat(supabase: SupabaseClient, req: LlmRequest): Pro
         messages: req.messages,
     };
     if (req.tools?.length) body.tools = req.tools;
+    if (req.toolChoice) body.tool_choice = req.toolChoice;
     if (req.temperature !== undefined) body.temperature = req.temperature;
 
     const started = Date.now();

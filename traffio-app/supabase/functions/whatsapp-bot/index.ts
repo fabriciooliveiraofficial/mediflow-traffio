@@ -86,8 +86,14 @@ async function handleZapi(supabase: any, body: any): Promise<Response> {
 
   // --- LOOP & GROUP GUARD ---
   const isSelf = fromMe || body.sender?.isMe || body.sender?.fromMe;
-  if (isGroup) return new Response(JSON.stringify({ ignored: true, reason: "group_message"  }), { status: 200 });
-  if (isSelf)  return new Response(JSON.stringify({ ignored: true, reason: "self_message"   }), { status: 200 });
+  if (isGroup) {
+    console.log(`[whatsapp-bot] Z-API: [${phone}] ignored=group_message | isGroup=${body.isGroup} payload=${JSON.stringify(body).substring(0, 900)}`);
+    return new Response(JSON.stringify({ ignored: true, reason: "group_message"  }), { status: 200 });
+  }
+  if (isSelf) {
+    console.log(`[whatsapp-bot] Z-API: [${phone}] ignored=self_message | fromMe=${fromMe} payload=${JSON.stringify(body).substring(0, 900)}`);
+    return new Response(JSON.stringify({ ignored: true, reason: "self_message"   }), { status: 200 });
+  }
 
   // --- EXTRACT TEXT ---
   const inputContent =
@@ -111,6 +117,7 @@ async function handleZapi(supabase: any, body: any): Promise<Response> {
   const content = inputContent || caption || (mediaUrl ? `[${messageType}]` : null);
 
   if (!instanceId || !phone || !content) {
+    console.log(`[whatsapp-bot] Z-API: [${phone}] ignored=empty_event | content=${content} type=${body.type} payload=${JSON.stringify(body).substring(0, 900)}`);
     return new Response(JSON.stringify({ ignored: "Empty event" }), { status: 200 });
   }
 

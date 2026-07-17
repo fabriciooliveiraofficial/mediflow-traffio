@@ -39,6 +39,7 @@ import { useTenant } from '../contexts/TenantContext'
 import { useAuth } from '../contexts/AuthContext'
 import { usePermissions, PERMISSION_MAP } from '../hooks/usePermissions'
 import { Activity } from 'lucide-react'
+import { TenantClock } from '../components/ui/TenantClock'
 
 // ─── Sound alert via Web Audio API (no external files needed) ───────────────
 function playHandoffSound() {
@@ -529,6 +530,7 @@ export const DashboardLayout = ({ children, activeScreen, onNavigate }: {
                                 <Search size={20} />
                             </button>
                         )}
+                        <TenantClock />
                         <button className="w-12 h-12 flex items-center justify-center bg-white rounded-2xl shadow-sm group hover:scale-105 transition-all border-none relative cursor-pointer">
                             <Bell size={20} className="group-hover:text-brand-primary" />
                             <span className="absolute top-3 right-3 w-2 h-2 bg-brand-primary rounded-full border-2 border-white"></span>

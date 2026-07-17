@@ -28,16 +28,24 @@ export interface MockOptions {
 export function mockExecuteTool(call: LlmToolCall, opts: MockOptions = {}): { data: any } {
     switch (call.name) {
         case "listar_profissionais":
-            return { data: { professionals: [MOCK_DOCTOR] } };
+            return { data: { professionals: [{ ...MOCK_DOCTOR, specialty: "Odontologia", performs: ["Limpeza dental", "Clareamento dental", "Avaliação inicial"] }] } };
 
         case "ver_disponibilidade":
             if (opts.availabilityFails) {
                 return { data: { error: "timeout: agenda indisponível no momento" } };
             }
+            // Espelha o executor procedure-first de produção: o sistema resolve o
+            // profissional sozinho e instrui a não citar nomes sem ser perguntado.
             return {
                 data: {
-                    available: [{ date: MOCK_DATE, location: "Unidade Centro", slots: MOCK_SLOT_TIMES }],
-                    note: "The time slots above will be sent to the patient as clickable buttons automatically — present them briefly and invite the patient to pick one. Reply in the PATIENT'S language.",
+                    service: "Avaliação inicial",
+                    available: [{
+                        date: MOCK_DATE,
+                        location: "Unidade Centro",
+                        professional: MOCK_DOCTOR.full_name,
+                        slots: MOCK_SLOT_TIMES.map(t => ({ time: t, slot_id: `slot|${MOCK_DOCTOR.id}|${MOCK_LOCATION_ID}||${MOCK_DATE}|${t}` })),
+                    }],
+                    note: "The time slots above will be sent to the patient as clickable buttons automatically — present them briefly and invite the patient to pick one. If the patient chooses a time by TEXT, call `agendar` immediately with that option's exact slot_id. Do NOT mention professional names unless the patient explicitly asked about professionals (the booking confirmation will include the professional's name). Reply in the PATIENT'S language.",
                 },
             };
 
@@ -45,7 +53,7 @@ export function mockExecuteTool(call: LlmToolCall, opts: MockOptions = {}): { da
             return { data: { appointments: [MOCK_APPOINTMENT] } };
 
         case "agendar":
-            return { data: { success: true, appointment_id: "novo-agendamento-mock" } };
+            return { data: { success: true, appointment_id: "novo-agendamento-mock", professional: MOCK_DOCTOR.full_name, note: "Confirm the booking to the patient including date, time and professional name. Reply in the PATIENT'S language." } };
 
         case "remarcar":
             return { data: { success: true, rescheduled: true } };

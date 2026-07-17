@@ -1,6 +1,9 @@
 import { useTranslation } from 'react-i18next';
 import { Zap, Save, Loader2 } from 'lucide-react';
 import { useBotConfig } from '../hooks/useBotConfig';
+import { useLocaleFormat } from '../hooks/useLocaleFormat';
+import { TimeInput } from '../components/shared/TimeInput';
+import { getUTCOffsetString } from '../lib/timezoneUtils';
 
 // Re-exportado para compatibilidade — BotConfigWizard.tsx importa este type
 // a partir deste módulo. Fonte real: src/types/botConfig.ts
@@ -9,6 +12,7 @@ export type { BotConfig, ChannelAutomation, CustomReminder, AutomationCategorySt
 export const Intelligence = () => {
     const { t } = useTranslation('tenantAdmin');
     const { config, setConfig, loading, saving, saveConfig } = useBotConfig();
+    const { timezone } = useLocaleFormat();
 
     if (loading) return <div className="h-full flex items-center justify-center"><Loader2 className="animate-spin text-brand-primary" size={32} /></div>;
 
@@ -64,18 +68,26 @@ export const Intelligence = () => {
                     const patch = (p: Partial<typeof bh>) => setConfig(prev => ({ ...prev, business_hours: { ...bh, ...p } }));
                     return (
                         <div className="w-full flex flex-wrap items-center gap-x-5 gap-y-3 pt-4 mt-1 border-t border-ice-100">
-                            <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest w-full sm:w-auto">
-                                {t('intelligence.aiDial.hoursTitle')}
-                            </p>
+                            <div className="w-full sm:w-auto">
+                                <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest">
+                                    {t('intelligence.aiDial.hoursTitle')}
+                                </p>
+                                <p className="text-[10px] font-medium text-graphite-300 mt-0.5">
+                                    {t('intelligence.aiDial.hoursTimezoneHint', {
+                                        timezone,
+                                        offset: `UTC${getUTCOffsetString(timezone || 'America/Sao_Paulo')}`,
+                                    })}
+                                </p>
+                            </div>
                             <div className="flex items-center gap-2">
-                                <input
-                                    type="time" value={bh.start}
+                                <TimeInput
+                                    value={bh.start}
                                     onChange={e => patch({ start: e.target.value })}
                                     className="px-3 py-1.5 rounded-xl bg-ice-50 border border-ice-100 text-xs font-bold text-graphite-800 focus:outline-none focus:border-brand-primary"
                                 />
                                 <span className="text-graphite-300 font-bold">—</span>
-                                <input
-                                    type="time" value={bh.end}
+                                <TimeInput
+                                    value={bh.end}
                                     onChange={e => patch({ end: e.target.value })}
                                     className="px-3 py-1.5 rounded-xl bg-ice-50 border border-ice-100 text-xs font-bold text-graphite-800 focus:outline-none focus:border-brand-primary"
                                 />

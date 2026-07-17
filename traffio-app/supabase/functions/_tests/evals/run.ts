@@ -15,7 +15,7 @@ import { claudeChat, type LlmMessage } from "../../_shared/llmProvider.ts";
 import { buildAutonomousSystemPrompt, TRANSFER_TOOL } from "../../_shared/copilot.ts";
 import { SCHEDULING_TOOLS } from "../../_shared/schedulingTools.ts";
 import { STAGE_GUIDANCE } from "../../_shared/journeyStage.ts";
-import { mockExecuteTool, MOCK_SLOT_TIMES } from "./mockTools.ts";
+import { mockExecuteTool, MOCK_SLOT_TIMES, MOCK_APPOINTMENT } from "./mockTools.ts";
 import { SCENARIOS, type EvalScenario } from "./scenarios.ts";
 
 const MAX_TOOL_ROUNDS = 4;
@@ -45,6 +45,8 @@ const KNOWLEDGE_PACKET = [
 interface RunResult {
     text: string;
     toolsCalled: string[];
+    /** Inputs JSON de cada chamada de agendar (asserções finas, ex.: terceiro) */
+    agendarInputs: string[];
     transferred: boolean;
     rounds: number;
 }
@@ -58,6 +60,14 @@ async function runScenario(s: EvalScenario): Promise<RunResult> {
         todayStr: "2026-07-15",
         stageGuidance: s.stage ? STAGE_GUIDANCE[s.stage] ?? null : null,
         languageHint: s.language ?? null,
+        // Espelha buildPatientSnapshot de produção (fonte da verdade sobre agendamentos)
+        patientSnapshot: s.withAppointment
+            ? [
+                "Paciente cadastrado: Fabricio Teste",
+                "AGENDAMENTOS ATIVOS (estado REAL do sistema agora):",
+                `- ${MOCK_APPOINTMENT.date} às ${MOCK_APPOINTMENT.start_time} — ${MOCK_APPOINTMENT.appointment_types.name} com ${MOCK_APPOINTMENT.doctors.full_name} (${MOCK_APPOINTMENT.status})`,
+            ].join("\n")
+            : null,
     });
 
     const transcript = s.history
@@ -70,17 +80,22 @@ async function runScenario(s: EvalScenario): Promise<RunResult> {
     ];
 
     const toolsCalled: string[] = [];
+    const agendarInputs: string[] = [];
     let transferred = false;
     let rounds = 0;
 
+    // 1500 espelha AGENT_MAX_TOKENS do copilot.ts (produção) — manter em sincronia
     let reply = await claudeChat(stubSupabase, {
         tenantId: "eval", purpose: `eval:${s.name.split(" ")[0]}`, model: MODEL,
-        maxTokens: 600, tools, system, messages: convo,
+        maxTokens: 1500, tools, system, messages: convo,
     });
 
     while (reply.toolCalls.length > 0 && rounds < MAX_TOOL_ROUNDS) {
         rounds++;
-        for (const call of reply.toolCalls) toolsCalled.push(call.name);
+        for (const call of reply.toolCalls) {
+            toolsCalled.push(call.name);
+            if (call.name === "agendar") agendarInputs.push(JSON.stringify(call.input || {}));
+        }
 
         if (reply.toolCalls.some(t => t.name === "transfer_to_human")) { transferred = true; break; }
         if (reply.toolCalls.some(t => t.name === "encaminhar_cancelamento")) break;
@@ -97,13 +112,13 @@ async function runScenario(s: EvalScenario): Promise<RunResult> {
 
         reply = await claudeChat(stubSupabase, {
             tenantId: "eval", purpose: `eval:${s.name.split(" ")[0]}`, model: MODEL,
-            maxTokens: 600, tools, system, messages: convo,
+            maxTokens: 1500, tools, system, messages: convo,
         });
     }
 
     const text = reply.text.trim();
     if (!text && !transferred && !toolsCalled.includes("encaminhar_cancelamento")) transferred = true; // produção: vazio → handoff
-    return { text, toolsCalled, transferred, rounds };
+    return { text, toolsCalled, agendarInputs, transferred, rounds };
 }
 
 // ─── Asserções ───────────────────────────────────────────────────────────────
@@ -120,7 +135,15 @@ function check(s: EvalScenario, r: RunResult): string[] {
 
     if (e.noInventedTimes) {
         const times = [...r.text.matchAll(TIME_PATTERN)].map(m => m[0]).map(t => (t.length === 4 ? `0${t}` : t));
-        const allowed = new Set([...MOCK_SLOT_TIMES, "11:00"]); // 11:00 = consulta existente do mock
+        // Slots do mock também na forma 12h (o modelo diz "2:00 PM" para 14:00) —
+        // evita falso-positivo do checker, não é horário inventado.
+        const allowed = new Set<string>([...MOCK_SLOT_TIMES, "11:00"]);
+        for (const t of [...MOCK_SLOT_TIMES, "11:00"]) {
+            const [h, m] = t.split(":").map(Number);
+            const h12 = h % 12 === 0 ? 12 : h % 12;
+            allowed.add(`${String(h12).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+            allowed.add(`${h12}:${String(m).padStart(2, "0")}`.padStart(5, "0"));
+        }
         const invented = times.filter(t => !allowed.has(t));
         if (invented.length) failures.push(`horários inventados: ${invented.join(", ")}`);
     }
@@ -130,6 +153,11 @@ function check(s: EvalScenario, r: RunResult): string[] {
     }
     for (const tool of e.toolsNotCalled || []) {
         if (r.toolsCalled.includes(tool)) failures.push(`ferramenta proibida chamada: ${tool}`);
+    }
+
+    if (e.agendarInputIncludes) {
+        const hit = r.agendarInputs.some(inp => inp.toLowerCase().includes(e.agendarInputIncludes!.toLowerCase()));
+        if (!hit) failures.push(`nenhuma chamada de agendar contém "${e.agendarInputIncludes}" no input: [${r.agendarInputs.join(" | ").substring(0, 150)}]`);
     }
 
     if (e.transfer === true && !r.transferred) failures.push("deveria transferir para humano e não transferiu");
