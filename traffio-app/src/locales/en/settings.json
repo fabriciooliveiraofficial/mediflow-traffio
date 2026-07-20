@@ -107,6 +107,45 @@
       "saveError": "Could not save {{fact}}."
     }
   },
+  "aiOnboarding": {
+    "title": "Fill knowledge with AI",
+    "subtitle": "AI suggests; you review and approve each item before it is used.",
+    "close": "Close",
+    "back": "Back",
+    "loading": "Loading record and suggestions...",
+    "pending": "You have {{count}} suggestion(s) awaiting review.",
+    "reviewNow": "Review now",
+    "noEmptyFacts": "All canonical fields are filled. You can still review pending suggestions.",
+    "addMore": "Add more content",
+    "analyze": "Analyze",
+    "analyzing": "Analyzing...",
+    "entry": { "title": "Fill the record faster", "description": "Use the website, text, a file, or a guided interview. Nothing is published without your approval.", "button": "Fill with AI" },
+    "method": {
+      "title": "How would you like to provide the information?",
+      "url": { "title": "Paste website link", "description": "We securely retrieve the public text from the website." },
+      "text": { "title": "Paste text", "description": "Use content copied from Instagram, documents, or notes." },
+      "file": { "title": "Upload file (.txt/.md)", "description": "The file is read locally and sent as text." },
+      "interview": { "title": "Guided interview", "description": "Answer one empty field at a time, at your own pace." }
+    },
+    "input": {
+      "url": { "title": "Website link", "description": "Enter a public clinic page. Internal sites and files are not accepted." },
+      "pasted_text": { "title": "Clinic text", "description": "Paste only the content you want to analyze.", "placeholder": "Paste hours, address, policies, and other information here..." },
+      "file": { "title": "Text file", "description": "Accepted formats: .txt and .md.", "select": "Select file", "hint": ".txt or .md, up to 300 KB" }
+    },
+    "clarity": { "high": "High clarity", "medium": "Review", "low": "Low clarity" },
+    "review": {
+      "title": "Review before approval", "description": "Check and edit each value. Only approved items become active knowledge.",
+      "canonicalFact": "Canonical record field", "freeKnowledge": "Supplementary knowledge", "titleLabel": "Knowledge title", "source": "Source",
+      "approve": "Approve", "editApprove": "Edit and approve", "discard": "Discard", "approveHigh": "Approve {{count}} high-clarity item(s)",
+      "itemError": "This item could not be completed. Review the value and try again.", "empty": "No suggestions are awaiting review."
+    },
+    "interview": {
+      "progress": "Question {{current}} of {{total}}", "answered": "{{count}} answered", "previous": "Previous", "next": "Next", "skip": "Skip",
+      "createSuggestions": "Create {{count}} suggestion(s)", "completeTitle": "Record complete", "noEmptyFacts": "There are no empty fields to ask about.",
+      "saveError": "Suggestions could not be created. No answer was activated."
+    },
+    "errors": { "load": "The record and suggestions could not be loaded.", "analyze": "Analysis failed. No partial suggestion was saved.", "file": "Choose a .txt or .md file up to 300 KB.", "fileRead": "This file could not be read." }
+  },
   "knowledgeGaps": {
     "title": "Unanswered questions ({{count}})",
     "subtitle": "Real questions the agent could not answer. Turn them into permanent knowledge.",

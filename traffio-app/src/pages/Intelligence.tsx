@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Zap, Save, Loader2 } from 'lucide-react';
 import { useBotConfig } from '../hooks/useBotConfig';
@@ -7,6 +8,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { TimeInput } from '../components/shared/TimeInput';
 import { ClinicKnowledgeSettings } from '../components/settings/ClinicKnowledgeSettings';
 import { KnowledgeGapsPanel } from '../components/settings/KnowledgeGapsPanel';
+import { AiOnboardingWizard } from '../components/settings/AiOnboardingWizard';
 import { getUTCOffsetString } from '../lib/timezoneUtils';
 
 // Re-exportado para compatibilidade — BotConfigWizard.tsx importa este type
@@ -19,6 +21,7 @@ export const Intelligence = () => {
     const { timezone } = useLocaleFormat();
     const { tenant: currentTenant, userRole } = useTenant();
     const { can } = usePermissions();
+    const [knowledgeVersion, setKnowledgeVersion] = useState(0);
     // Base de conhecimento pertence à Inteligência (cérebro do agente), não a Configurações.
     const canEditKnowledge = can('action:edit_config') && (userRole === 'owner' || userRole === 'admin');
 
@@ -136,7 +139,12 @@ export const Intelligence = () => {
             {/* ── Base de conhecimento do agente (auto-salva por fato) ── */}
             {canEditKnowledge && currentTenant && (
                 <div className="pt-8 mt-2 border-t border-ice-100">
+                    <AiOnboardingWizard
+                        tenantId={currentTenant.id}
+                        onKnowledgeChanged={() => setKnowledgeVersion((version) => version + 1)}
+                    />
                     <ClinicKnowledgeSettings
+                        key={`${currentTenant.id}-${knowledgeVersion}`}
                         tenantId={currentTenant.id}
                         canEdit={canEditKnowledge}
                         userRole={userRole || 'staff'}

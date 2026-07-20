@@ -52,6 +52,7 @@ export const PreCheckin: React.FC = () => {
     const [patient, setPatient] = useState<Patient | null>(null);
     const [appointment, setAppointment] = useState<Appointment | null>(null);
     const [tenantId, setTenantId] = useState<string>('');
+    const [loadError, setLoadError] = useState<string | null>(null);
 
     const { result: geoResult, loading: geoLoading, error: geoError, check: geoCheck } = useGeofence(tenantId, locIdParam);
 
@@ -60,23 +61,44 @@ export const PreCheckin: React.FC = () => {
 
     // Fetch appointment data
     useEffect(() => {
-        if (!appointmentId) return;
+        if (!appointmentId) {
+            setLoadError(t('preCheckin.invalidLink'));
+            return;
+        }
+
+        let active = true;
+        const timeout = new Promise<never>((_, reject) => {
+            window.setTimeout(() => reject(new Error('Appointment request timed out')), 15000);
+        });
 
         (async () => {
-            const { data: apt } = await supabase
-                .from('appointments')
-                .select('*, patient:patients(*)')
-                .eq('id', appointmentId)
-                .single();
+            try {
+                const request = supabase
+                    .from('appointments')
+                    .select('*, patient:patients(*)')
+                    .eq('id', appointmentId)
+                    .single();
+                const { data: apt, error } = await Promise.race([request, timeout]);
 
-            if (apt) {
+                if (error) throw error;
+                if (!apt) throw new Error('Appointment not found');
+                if (!active) return;
+
                 setAppointment(apt as unknown as Appointment);
                 setPatient(apt.patient as unknown as Patient);
                 setTenantId((apt as any).tenant_id || '');
                 setStep('geofence_check');
+            } catch (error) {
+                if (!active) return;
+                console.error('[PreCheckin] Failed to load appointment:', error);
+                setLoadError(t('preCheckin.errors.checkFailed'));
             }
         })();
-    }, [appointmentId]);
+
+        return () => {
+            active = false;
+        };
+    }, [appointmentId, t]);
 
     // Auto-check geofence when entering the step
     useEffect(() => {
@@ -114,10 +136,10 @@ export const PreCheckin: React.FC = () => {
         setStep('complete');
     };
 
-    if (!appointmentId) {
+    if (!appointmentId || loadError) {
         return (
             <div className="min-h-screen bg-ice-50 flex items-center justify-center p-6">
-                <p className="text-graphite-400 font-medium">{t('preCheckin.invalidLink')}</p>
+                <p className="text-graphite-400 font-medium text-center">{loadError || t('preCheckin.invalidLink')}</p>
             </div>
         );
     }

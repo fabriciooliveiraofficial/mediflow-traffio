@@ -107,6 +107,45 @@
       "saveError": "No se pudo guardar {{fact}}."
     }
   },
+  "aiOnboarding": {
+    "title": "Completar conocimiento con IA",
+    "subtitle": "La IA sugiere; usted revisa y aprueba cada dato antes de que se use.",
+    "close": "Cerrar",
+    "back": "Volver",
+    "loading": "Cargando ficha y sugerencias...",
+    "pending": "Tiene {{count}} sugerencia(s) pendiente(s) de revisión.",
+    "reviewNow": "Revisar ahora",
+    "noEmptyFacts": "Todos los campos canónicos están completos. Aún puede revisar sugerencias pendientes.",
+    "addMore": "Agregar más contenido",
+    "analyze": "Analizar",
+    "analyzing": "Analizando...",
+    "entry": { "title": "Complete la ficha más rápido", "description": "Use el sitio, texto, un archivo o una entrevista guiada. Nada se publica sin su aprobación.", "button": "Completar con IA" },
+    "method": {
+      "title": "¿Cómo desea proporcionar la información?",
+      "url": { "title": "Pegar enlace del sitio", "description": "Obtenemos de forma segura el texto público del sitio." },
+      "text": { "title": "Pegar texto", "description": "Use contenido copiado de Instagram, documentos o notas." },
+      "file": { "title": "Enviar archivo (.txt/.md)", "description": "El archivo se lee localmente y se envía como texto." },
+      "interview": { "title": "Entrevista guiada", "description": "Responda un campo vacío a la vez, a su ritmo." }
+    },
+    "input": {
+      "url": { "title": "Enlace del sitio", "description": "Informe una página pública de la clínica. No se aceptan sitios internos ni archivos." },
+      "pasted_text": { "title": "Texto de la clínica", "description": "Pegue solo el contenido que desea analizar.", "placeholder": "Pegue aquí horarios, dirección, políticas y otra información..." },
+      "file": { "title": "Archivo de texto", "description": "Formatos aceptados: .txt y .md.", "select": "Seleccionar archivo", "hint": ".txt o .md, hasta 300 KB" }
+    },
+    "clarity": { "high": "Alta claridad", "medium": "Revisar", "low": "Baja claridad" },
+    "review": {
+      "title": "Revise antes de aprobar", "description": "Compruebe y edite cada valor. Solo los elementos aprobados pasan al conocimiento activo.",
+      "canonicalFact": "Campo de la ficha canónica", "freeKnowledge": "Conocimiento complementario", "titleLabel": "Título del conocimiento", "source": "Origen",
+      "approve": "Aprobar", "editApprove": "Editar y aprobar", "discard": "Descartar", "approveHigh": "Aprobar {{count}} de alta claridad",
+      "itemError": "No se pudo completar este elemento. Revise el valor e inténtelo de nuevo.", "empty": "No hay sugerencias pendientes de revisión."
+    },
+    "interview": {
+      "progress": "Pregunta {{current}} de {{total}}", "answered": "{{count}} respondida(s)", "previous": "Anterior", "next": "Siguiente", "skip": "Omitir",
+      "createSuggestions": "Crear {{count}} sugerencia(s)", "completeTitle": "Ficha completa", "noEmptyFacts": "No hay campos vacíos para preguntar.",
+      "saveError": "No se pudieron crear las sugerencias. Ninguna respuesta fue activada."
+    },
+    "errors": { "load": "No se pudieron cargar la ficha y las sugerencias.", "analyze": "El análisis falló. No se guardó ninguna sugerencia parcial.", "file": "Elija un archivo .txt o .md de hasta 300 KB.", "fileRead": "No se pudo leer este archivo." }
+  },
   "knowledgeGaps": {
     "title": "Preguntas sin respuesta ({{count}})",
     "subtitle": "Preguntas reales que el agente no pudo responder. Conviértelas en conocimiento permanente.",

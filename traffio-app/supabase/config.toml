@@ -422,6 +422,10 @@ verify_jwt = false
 enabled = true
 verify_jwt = false
 
+[functions.extract-clinic-facts]
+enabled = true
+verify_jwt = true
+
 [functions.meta-social-webhook]
 enabled = true
 verify_jwt = false

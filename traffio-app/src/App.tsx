@@ -3,10 +3,10 @@ import { useTranslation } from 'react-i18next'
 import { Routes, Route, Navigate, useSearchParams } from 'react-router-dom'
 import { DashboardLayout } from './layouts/DashboardLayout'
 import { PagarmeCallback } from './pages/PagarmeCallback'
+import { PreCheckin } from './pages/patient/PreCheckin'
 
 // Lazy-loaded patient routes to prevent mobile devices from loading the entire admin bundle
 const WaitingRoom = lazy(() => import('./pages/patient/WaitingRoom').then(m => ({ default: m.WaitingRoom })));
-const PreCheckin = lazy(() => import('./pages/patient/PreCheckin').then(m => ({ default: m.PreCheckin })));
 
 // Lazy-loaded admin routes
 const TodayPage = lazy(() => import('./pages/TodayPage').then(m => ({ default: m.TodayPage })));
