@@ -12,7 +12,8 @@
  */
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { claudeChat, claudeJson, type LlmTool } from "./llmProvider.ts";
-import { getAiModelAgent, getAiModelRouter } from "./masterConfig.ts";
+import { getAiModelAgent, getAiModelRouter, getRagEnabled, getRagMinKbEntries } from "./masterConfig.ts";
+import { embedText } from "./embeddings.ts";
 import { OutboxDispatcher } from "./outboxDispatcher.ts";
 import {
     SCHEDULING_TOOLS,
@@ -44,6 +45,98 @@ const MAX_KB_ENTRIES = 20;
 const MAX_KB_CHARS = 400;
 const MAX_CLINIC_INFO_CHARS = 1_200;
 const MAX_GLOBAL_KNOWLEDGE_ENTRIES = 12;
+const RAG_MATCH_THRESHOLD = 0.5;
+const RAG_MATCH_COUNT = 6;
+
+export interface RagDecisionInput {
+    ragEnabled?: boolean;
+    kbCount?: number | null;
+    threshold?: number;
+}
+
+/** Decisão pura e conservadora: os defaults sempre mantêm o RAG desligado. */
+export function shouldUseRag({
+    ragEnabled = false,
+    kbCount = 0,
+    threshold = 20,
+}: RagDecisionInput = {}): boolean {
+    return ragEnabled === true && Number.isFinite(kbCount) && Number.isFinite(threshold) &&
+        (kbCount as number) >= threshold;
+}
+
+export interface KnowledgeBaseRow {
+    id: string;
+    title: string;
+    content: string;
+}
+
+/** Montagem pura: retrieval vazio/indisponível recua para o dump existente. */
+export function buildKnowledgeBaseSection(
+    retrievedRows: readonly KnowledgeBaseRow[] | null,
+    dumpRows: readonly KnowledgeBaseRow[],
+): string {
+    const rows = retrievedRows?.length ? retrievedRows : dumpRows;
+    if (!rows.length) return "";
+    return "BASE DE CONHECIMENTO:\n" + rows
+        .map((row) => `## ${row.title} [fonte:kb#${row.id}]\n${String(row.content || "").substring(0, MAX_KB_CHARS)}`)
+        .join("\n");
+}
+
+async function loadKnowledgeBaseRows(
+    supabase: SupabaseClient,
+    tenantId: string,
+    patientQuery?: string,
+): Promise<{ retrieved: KnowledgeBaseRow[] | null; dump: KnowledgeBaseRow[] }> {
+    // O fallback começa junto com as demais consultas e é sempre preservado.
+    const dumpPromise = Promise.resolve(supabase.from("knowledge_base")
+        .select("id, title, content")
+        .eq("tenant_id", tenantId)
+        .eq("is_active", true)
+        .limit(MAX_KB_ENTRIES));
+
+    const fallback = async (): Promise<{ retrieved: null; dump: KnowledgeBaseRow[] }> => {
+        const dumpResult = await dumpPromise;
+        return { retrieved: null, dump: (dumpResult.data as KnowledgeBaseRow[]) || [] };
+    };
+
+    const queryText = typeof patientQuery === "string" ? patientQuery.trim() : "";
+    if (!queryText) return fallback();
+
+    try {
+        const ragEnabled = await getRagEnabled(supabase);
+        if (!ragEnabled) return fallback();
+
+        const threshold = await getRagMinKbEntries(supabase);
+        const countResult = await supabase.from("knowledge_base")
+            .select("id", { count: "exact", head: true })
+            .eq("tenant_id", tenantId)
+            .eq("is_active", true);
+        if (countResult.error) throw countResult.error;
+        if (!shouldUseRag({ ragEnabled, kbCount: countResult.count, threshold })) return fallback();
+
+        const queryEmbedding = await embedText(supabase, queryText);
+        if (!queryEmbedding) return fallback();
+
+        const retrieval = await supabase.rpc("match_knowledge_base", {
+            query_embedding: queryEmbedding,
+            match_threshold: RAG_MATCH_THRESHOLD,
+            match_count: RAG_MATCH_COUNT,
+            p_tenant_id: tenantId,
+        });
+        if (retrieval.error) throw retrieval.error;
+
+        const rows = (retrieval.data as KnowledgeBaseRow[]) || [];
+        if (!rows.length) {
+            console.warn(`[rag] [${tenantId}] retrieval vazio; usando dump da KB`);
+            return fallback();
+        }
+        const dumpResult = await dumpPromise;
+        return { retrieved: rows, dump: (dumpResult.data as KnowledgeBaseRow[]) || [] };
+    } catch (error: any) {
+        console.warn(`[rag] [${tenantId}] falha isolada: ${error?.message || "erro desconhecido"}; usando dump da KB`);
+        return fallback();
+    }
+}
 
 export type GlobalKnowledgeLanguage = "pt-BR" | "en" | "es";
 
@@ -139,6 +232,7 @@ export async function buildKnowledgePacket(
     supabase: SupabaseClient,
     tenantId: string,
     language: string = "pt-BR",
+    patientQuery?: string,
 ): Promise<string> {
     const globalLanguage = normalizeGlobalKnowledgeLanguage(language);
     const [services, info, globalKnowledge, kb, consultationFee] = await Promise.all([
@@ -157,11 +251,7 @@ export async function buildKnowledgePacket(
             .eq("is_active", true)
             .order("topic_key")
             .limit(MAX_GLOBAL_KNOWLEDGE_ENTRIES),
-        supabase.from("knowledge_base")
-            .select("id, title, content")
-            .eq("tenant_id", tenantId)
-            .eq("is_active", true)
-            .limit(MAX_KB_ENTRIES),
+        loadKnowledgeBaseRows(supabase, tenantId, patientQuery),
         // Fato-estrela consultado separadamente: continua presente mesmo quando
         // um tenant ultrapassa o limite defensivo do pacote geral.
         supabase.from("clinic_info")
@@ -210,12 +300,8 @@ export async function buildKnowledgePacket(
             .join("\n"));
     }
 
-    const kbRows = (kb.data as any[]) || [];
-    if (kbRows.length) {
-        parts.push("BASE DE CONHECIMENTO:\n" + kbRows
-            .map(k => `## ${k.title} [fonte:kb#${k.id}]\n${String(k.content || "").substring(0, MAX_KB_CHARS)}`)
-            .join("\n"));
-    }
+    const kbSection = buildKnowledgeBaseSection(kb.retrieved, kb.dump);
+    if (kbSection) parts.push(kbSection);
 
     return parts.join("\n\n");
 }
@@ -243,6 +329,7 @@ export async function runCopilot(supabase: SupabaseClient, params: CopilotParams
 
         const context = session.context || {};
         const knownIntake = context.intake || {};
+        const patientQuery = [...history].reverse().find((message: any) => message.role === "user")?.content;
 
         // ── 1+2. Triagem (Haiku) e rascunho (Sonnet) em PARALELO ───────────────
         // O rascunho não depende da triagem (o Sonnet espelha o idioma do
@@ -250,7 +337,7 @@ export async function runCopilot(supabase: SupabaseClient, params: CopilotParams
         const [routerModel, agentModel, knowledgePacket, journeyStage, patientSnapshot] = await Promise.all([
             getAiModelRouter(supabase),
             getAiModelAgent(supabase),
-            buildKnowledgePacket(supabase, tenantId, normalizeGlobalKnowledgeLanguage(context.language)),
+            buildKnowledgePacket(supabase, tenantId, normalizeGlobalKnowledgeLanguage(context.language), patientQuery),
             fetchStageGuidance(supabase, sessionId),
             buildPatientSnapshot(supabase, tenantId, phone, null),
         ]);
@@ -789,6 +876,7 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
         const context = session.context || {};
         const knownIntake = context.intake || {};
         const storedLanguage = context.language || "pt";
+        const patientQuery = [...history].reverse().find((message: any) => message.role === "user")?.content;
 
         // Nota: o clique em botão de slot (parseSlotClick/context.pending_slots) NÃO
         // é mais verificado aqui — o pré-filtro universal do F2 (structuredFlow.ts)
@@ -802,7 +890,7 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
         const [routerModel, agentModel, knowledgePacket, journeyStage, patientSnapshot] = await Promise.all([
             getAiModelRouter(supabase),
             getAiModelAgent(supabase),
-            buildKnowledgePacket(supabase, tenantId, normalizeGlobalKnowledgeLanguage(storedLanguage)),
+            buildKnowledgePacket(supabase, tenantId, normalizeGlobalKnowledgeLanguage(storedLanguage), patientQuery),
             fetchStageGuidance(supabase, sessionId),
             buildPatientSnapshot(supabase, tenantId, phone, timezone),
         ]);

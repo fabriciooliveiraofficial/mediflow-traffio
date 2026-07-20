@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { corsHeaders } from "../_shared/cors.ts";
+import { embedText } from "../_shared/embeddings.ts";
 
 /**
  * embed-knowledge — Edge Function
@@ -36,44 +37,17 @@ serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // 1. Resolve API Key from master_config (dynamic)
-    const { data: config } = await supabase
-      .from("master_config")
-      .select("value")
-      .eq("key", "OPENAI_API_KEY")
-      .maybeSingle();
-
-    const openaiApiKey = config?.value;
-
-    if (!openaiApiKey) {
-      console.error("[embed-knowledge] OPENAI_API_KEY not found in master_config");
-      return new Response(JSON.stringify({ error: "Missing API Key" }), { status: 500 });
-    }
-
-    // 2. Call OpenAI Embeddings API
+    // 1. Gera via helper compartilhado (chave dinâmica + timeout + falha isolada).
     console.log(`[embed-knowledge] [${record.id}] Generating embedding for: "${record.title}"`);
-    
-    const response = await fetch("https://api.openai.com/v1/embeddings", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${openaiApiKey}`,
-      },
-      body: JSON.stringify({
-        input: record.content,
-        model: "text-embedding-3-small",
-      }),
-    });
-
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`OpenAI API error: ${errorData.error?.message || response.statusText}`);
+    const embedding = await embedText(supabase, record.content);
+    if (!embedding) {
+      return new Response(JSON.stringify({ error: "Embedding unavailable" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    const result = await response.json();
-    const embedding = result.data[0].embedding;
-
-    // 3. Update the record with the new embedding
+    // 2. Update the record with the new embedding
     const { error: updateError } = await supabase
       .from("knowledge_base")
       .update({ embedding })

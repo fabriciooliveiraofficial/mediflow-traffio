@@ -303,7 +303,8 @@ Deno.test("isNearDuplicateReply: pega repetição, ignora resposta nova", () => 
 
 // ── Onda 2: confirmação, política com fonte e provenance multimodal ──────────
 import { isAffirmativeChoice } from "../../_shared/schedulingTools.ts";
-import { CONSULTATION_STATUS_VALUES, formatConsultationStatus, hasUnsourcedPolicyClaim, mergeGlobalKnowledge, normalizeGlobalKnowledgeLanguage, wrapUntrustedContent } from "../../_shared/copilot.ts";
+import { buildKnowledgeBaseSection, CONSULTATION_STATUS_VALUES, formatConsultationStatus, hasUnsourcedPolicyClaim, mergeGlobalKnowledge, normalizeGlobalKnowledgeLanguage, shouldUseRag, wrapUntrustedContent } from "../../_shared/copilot.ts";
+import { embedText } from "../../_shared/embeddings.ts";
 
 Deno.test("global knowledge: idioma normalizado e tenant prevalece", () => {
     assertEquals(normalizeGlobalKnowledgeLanguage("pt"), "pt-BR");
@@ -440,4 +441,83 @@ Deno.test("formatConsultationStatus: aceita apenas os enums canônicos", () => {
 Deno.test("consultation_fee: enum do backend permanece alinhado ao catálogo", () => {
     const consultationFact = CLINIC_FACTS.find((fact) => fact.key === "consultation_fee");
     assertEquals(consultationFact?.options?.map((option) => option.value), [...CONSULTATION_STATUS_VALUES]);
+});
+
+// ─── Fase 5: RAG construído desligado ────────────────────────────────────────
+
+Deno.test("shouldUseRag: flag, limiar e defaults são conservadores", () => {
+    assertEquals(shouldUseRag(), false);
+    assertEquals(shouldUseRag({ ragEnabled: false, kbCount: 100, threshold: 20 }), false);
+    assertEquals(shouldUseRag({ ragEnabled: true, kbCount: 19, threshold: 20 }), false);
+    assertEquals(shouldUseRag({ ragEnabled: true, kbCount: 19 }), false);
+    assertEquals(shouldUseRag({ ragEnabled: true, kbCount: 20, threshold: 20 }), true);
+    assertEquals(shouldUseRag({ ragEnabled: true, kbCount: 20 }), true);
+});
+
+Deno.test("buildKnowledgeBaseSection: usa top-K e preserva marcadores de fonte", () => {
+    const dump = [{ id: "dump-1", title: "Dump", content: "conteúdo geral" }];
+    const retrieved = [{ id: "rag-1", title: "Relevante", content: "trecho certo" }];
+    const section = buildKnowledgeBaseSection(retrieved, dump);
+    assert(section.includes("[fonte:kb#rag-1]"));
+    assert(section.includes("trecho certo"));
+    assert(!section.includes("dump-1"));
+});
+
+Deno.test("buildKnowledgeBaseSection: retrieval vazio ou indisponível usa dump", () => {
+    const dump = [{ id: "dump-1", title: "Fallback", content: "conteúdo preservado" }];
+    for (const retrieval of [null, []]) {
+        const section = buildKnowledgeBaseSection(retrieval, dump);
+        assert(section.includes("[fonte:kb#dump-1]"));
+        assert(section.includes("conteúdo preservado"));
+    }
+});
+
+Deno.test("embedText: sucesso retorna vetor 1536 e envia modelo/dimensões", async () => {
+    const expected = Array.from({ length: 1536 }, (_, index) => index / 1536);
+    let requestBody: any = null;
+    const result = await embedText(null as any, "pergunta do paciente", {
+        resolveApiKey: async () => "test-key",
+        fetchFn: async (_input, init) => {
+            requestBody = JSON.parse(String(init?.body));
+            return new Response(JSON.stringify({ data: [{ embedding: expected }] }), { status: 200 });
+        },
+    });
+    assertEquals(result, expected);
+    assertEquals(requestBody.model, "text-embedding-3-small");
+    assertEquals(requestBody.dimensions, 1536);
+});
+
+Deno.test("embedText: chave ausente e erro HTTP retornam null", async () => {
+    let fetched = false;
+    const noKey = await embedText(null as any, "texto", {
+        resolveApiKey: async () => "",
+        fetchFn: async () => {
+            fetched = true;
+            return new Response();
+        },
+    });
+    assertEquals(noKey, null);
+    assertEquals(fetched, false);
+
+    const httpError = await embedText(null as any, "texto", {
+        resolveApiKey: async () => "test-key",
+        fetchFn: async () => new Response("rate limited", { status: 429 }),
+    });
+    assertEquals(httpError, null);
+});
+
+Deno.test("embedText: timeout retorna null e aborta fetch", async () => {
+    let aborted = false;
+    const result = await embedText(null as any, "texto", {
+        resolveApiKey: async () => "test-key",
+        timeoutMs: 5,
+        fetchFn: (_input, init) => new Promise((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => {
+                aborted = true;
+                reject(new DOMException("aborted", "AbortError"));
+            });
+        }),
+    });
+    assertEquals(result, null);
+    assert(aborted);
 });

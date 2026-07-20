@@ -17,13 +17,16 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
 async function getMasterConfig(
   supabase: SupabaseClient,
   key: string,
-  defaultValue = ""
+  defaultValue = "",
+  allowEnv = true,
 ): Promise<string> {
   // 1. Supabase Secret (env var) — preferido, sem latência.
   // trim(): chaves coladas manualmente costumam vir com espaço/quebra de linha,
   // o que gera 401 "invalid x-api-key" difícil de diagnosticar.
-  const envValue = Deno.env.get(key)?.trim();
-  if (envValue) return envValue;
+  if (allowEnv) {
+    const envValue = Deno.env.get(key)?.trim();
+    if (envValue) return envValue;
+  }
 
   // 2. Cache em memória
   const cached = cache[key];
@@ -105,6 +108,23 @@ export async function getAiModelAgent(supabase: SupabaseClient): Promise<string>
 /** Modelo de triagem/extração — papéis estruturados (default: Haiku 4.5). */
 export async function getAiModelRouter(supabase: SupabaseClient): Promise<string> {
   return getMasterConfig(supabase, "AI_MODEL_ROUTER", "claude-haiku-4-5-20251001");
+}
+
+// ─── RAG / embeddings ────────────────────────────────────────────────────────
+
+export async function getOpenAiApiKey(supabase: SupabaseClient): Promise<string> {
+  return getMasterConfig(supabase, "OPENAI_API_KEY");
+}
+
+/** Flag global: ausente ou diferente de "true" mantém o RAG desligado. */
+export async function getRagEnabled(supabase: SupabaseClient): Promise<boolean> {
+  return (await getMasterConfig(supabase, "RAG_ENABLED", "false", false)).toLowerCase() === "true";
+}
+
+/** Limiar defensivo; valor ausente, inválido ou menor que 1 volta ao default. */
+export async function getRagMinKbEntries(supabase: SupabaseClient): Promise<number> {
+  const parsed = Number.parseInt(await getMasterConfig(supabase, "RAG_MIN_KB_ENTRIES", "20", false), 10);
+  return Number.isFinite(parsed) && parsed >= 1 ? parsed : 20;
 }
 
 // ─── Cache management ─────────────────────────────────────────────────────────

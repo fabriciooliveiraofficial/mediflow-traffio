@@ -580,13 +580,13 @@ export const AgendaMestra: React.FC = () => {
         if (!selectedTenant) return;
         setRecurrenceLoading(true);
 
-        const startTime = bookingModal.slot?.slot_time || bookingModal.prefillStart || '08:00';
-        const endTime = bookingModal.slot?.slot_end || bookingModal.prefillEnd || '08:30';
-        const duration = timeToMin(endTime) - timeToMin(startTime);
-        const docId = targetDocId || bookingModal.doctorId;
-        const locId = bookingModal.slot?.location_id || selectedLocation || '';
         const typeId = targetTypeId || bookingForm.typeId;
         const selectedType = appointmentTypes.find(t => t.id === typeId);
+        const duration = selectedType?.duration_minutes || DEFAULT_DURATION;
+        const startTime = bookingModal.slot?.slot_time || bookingModal.prefillStart || '08:00';
+        const endTime = minToTime(timeToMin(startTime) + duration);
+        const docId = targetDocId || bookingModal.doctorId;
+        const locId = bookingModal.slot?.location_id || selectedLocation || '';
 
         // Calculate max date to fetch future schedule data
         const maxDate = calculateNextDate(dateStr, recurrencePattern, occurrencesCount);
@@ -946,7 +946,9 @@ export const AgendaMestra: React.FC = () => {
 
         try {
             const startTime = bookingModal.slot?.slot_time || bookingModal.prefillStart || '08:00';
-            const endTime = bookingModal.slot?.slot_end || bookingModal.prefillEnd || '08:30';
+            const selectedType = appointmentTypes.find(t => t.id === bookingForm.typeId);
+            const duration = selectedType?.duration_minutes || DEFAULT_DURATION;
+            const endTime = minToTime(timeToMin(startTime) + duration);
             const slot = bookingModal.slot;
             const slotType = slot ? (slot.is_auto_released ? 'auto_released' : slot.block_type) : 'regular';
 
@@ -1715,14 +1717,18 @@ export const AgendaMestra: React.FC = () => {
                                     <div>
                                         <h3 className="text-lg font-black text-graphite-900">{t('mestra.bookingModal.title')}</h3>
                                         <div className="flex items-center gap-3 mt-1">
-                                            <span className="text-xs text-graphite-500 font-medium flex items-center gap-1">
-                                                <Clock size={12} />
-                                                {bookingModal.slot
-                                                    ? `${formatSlot(bookingModal.slot.slot_time)} – ${formatSlot(bookingModal.slot.slot_end)}`
-                                                    : bookingModal.prefillStart
-                                                        ? `${formatSlot(bookingModal.prefillStart)} – ${formatSlot(bookingModal.prefillEnd)}`
-                                                        : ''}
-                                            </span>
+                                            {(() => {
+                                                const sTime = bookingModal.slot?.slot_time || bookingModal.prefillStart || '08:00';
+                                                const selType = appointmentTypes.find(t => t.id === bookingForm.typeId);
+                                                const dur = selType?.duration_minutes || DEFAULT_DURATION;
+                                                const eTime = minToTime(timeToMin(sTime) + dur);
+                                                return (
+                                                    <span className="text-xs text-graphite-500 font-medium flex items-center gap-1">
+                                                        <Clock size={12} />
+                                                        {`${formatSlot(sTime)} – ${formatSlot(eTime)}`}
+                                                    </span>
+                                                );
+                                            })()}
                                             {bookingModal.slot && <SlotBadge slot={bookingModal.slot} />}
                                         </div>
                                     </div>
@@ -2387,7 +2393,10 @@ export const AgendaMestra: React.FC = () => {
                         
                         const colW = rect.width / visibleDoctors.length;
                         const sMin = timeToMin(bookingModal.slot?.slot_time || bookingModal.prefillStart || '08:00');
-                        const eMin = timeToMin(bookingModal.slot?.slot_end || bookingModal.prefillEnd || '08:30');
+                        const selType = appointmentTypes.find(t => t.id === bookingForm.typeId);
+                        const dur = selType?.duration_minutes || DEFAULT_DURATION;
+                        const eMin = sMin + dur;
+                        const eTimeStr = minToTime(eMin);
                         
                         const top = rect.top + minToY(sMin) - scrollTop;
                         const height = minToY(eMin) - minToY(sMin);
@@ -2420,9 +2429,7 @@ export const AgendaMestra: React.FC = () => {
                                     </button>
                                 </div>
                                 <span className="text-[11px] font-black text-white px-2 py-1 bg-white/10 rounded-lg">
-                                    {bookingModal.slot 
-                                        ? `${formatSlot(bookingModal.slot.slot_time)} – ${formatSlot(bookingModal.slot.slot_end)}`
-                                        : `${formatSlot(bookingModal.prefillStart)} – ${formatSlot(bookingModal.prefillEnd)}`}
+                                    {`${formatSlot(minToTime(sMin))} – ${formatSlot(eTimeStr)}`}
                                 </span>
                                 <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-10 h-1.5 rounded-full bg-white/30" />
                             </div>

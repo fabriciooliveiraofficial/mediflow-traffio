@@ -159,7 +159,7 @@ export const smartSchedulingService = {
         // Fetch the created appointment to return the same shape as before
         const { data: appointment, error: fetchError } = await supabase
             .from('appointments')
-            .select('*, patients(full_name)')
+            .select('*, patients(full_name, phone, email, insurance_provider)')
             .eq('id', data.appointment_id)
             .single();
 
@@ -170,7 +170,7 @@ export const smartSchedulingService = {
     async getAppointmentsForDate(tenantId: string, date: string, doctorIds?: string[]) {
         let query = supabase
             .from('appointments')
-            .select('*, patients(full_name), appointment_types(name, price_cents)')
+            .select('*, patients(full_name, phone, email, insurance_provider), appointment_types(name, price_cents)')
             .eq('tenant_id', tenantId)
             .eq('date', date)
             .not('status', 'in', '("canceled","noshow")')
