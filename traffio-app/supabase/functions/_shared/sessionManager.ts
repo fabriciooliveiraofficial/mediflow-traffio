@@ -242,6 +242,40 @@ export class SessionManager {
         return false;
     }
 
+    /**
+     * Onda 4 — orçamento de risco cumulativo de jailbreak multi-turno: soma o
+     * delta de risco desta mensagem (computeJailbreakRiskDelta) ao acumulado da
+     * conversa; ao cruzar o threshold, transfere para humano e zera. Ataques
+     * lentos (uma sondagem parcial por turno, nenhuma isoladamente crítica) não
+     * disparam nenhum validador de turno único — só o acúmulo.
+     */
+    async registerJailbreakSignal(sessionId: string, delta: number, threshold: number = 4): Promise<boolean> {
+        if (!delta) return false;
+        const { data: session } = await this.supabase
+            .from('conversation_sessions')
+            .select('context')
+            .eq('id', sessionId)
+            .single();
+
+        const context = session?.context || {};
+        const score = (context.jailbreak_risk_score || 0) + delta;
+
+        if (score >= threshold) {
+            context.jailbreak_risk_score = 0;
+            await this.triggerHumanHandoff(sessionId, context);
+            console.warn(`[SessionManager] Jailbreak risk budget tripped (${score}/${threshold}) — session ${sessionId} handed to human`);
+            return true;
+        }
+
+        context.jailbreak_risk_score = score;
+        const { error } = await this.supabase
+            .from('conversation_sessions')
+            .update({ context })
+            .eq('id', sessionId);
+        if (error) console.error('registerJailbreakSignal failed:', error);
+        return false;
+    }
+
     /** F0 — Turno compreendido: zera o contador do disjuntor (se necessário). */
     async resetMisunderstanding(sessionId: string): Promise<void> {
         const { data: session } = await this.supabase

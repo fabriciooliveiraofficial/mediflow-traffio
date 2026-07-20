@@ -14,7 +14,21 @@ export type ExtractedSuggestion = {
     suggested_value: string;
     source_excerpt?: string | null;
     clarity?: "high" | "medium" | "low";
+    /** Onda 4 (blindagem): defesa em profundidade contra poisoning na ingestão — nunca bloqueia, só destaca para o revisor humano. */
+    flagged_suspicious?: boolean;
 };
+
+// Onda 4 — padrão de instrução embutida ("ignore as regras", "system:", "você agora
+// é...") dentro de um FATO sugerido é sinal de tentativa de poisoning na base de
+// conhecimento; a revisão humana já é obrigatória (nunca escrevemos direto), isto
+// só dá mais destaque ao revisor — nunca rejeita automaticamente uma sugestão
+// legítima que por acaso contenha essas palavras em contexto clínico normal.
+const INJECTION_ATTEMPT_PATTERN = /\b(?:ignore|desconsidere|disregard)\b[^.]{0,30}\b(?:regras|instru[cç][oõ]es|instructions|rules)\b|\bsystem\s*:|\bprompt (?:do )?sistema\b|\byou are now\b|\bact as\s+(?:an?\s+)?assistant\b/i;
+
+/** Onda 4: marca (nunca bloqueia) sugestões com padrão de instrução embutida. */
+export function looksLikeInjectionAttempt(text: string): boolean {
+    return INJECTION_ATTEMPT_PATTERN.test(text || "");
+}
 
 export function stripHtmlToText(html: string): string {
     return html
