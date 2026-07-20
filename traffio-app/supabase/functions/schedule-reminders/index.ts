@@ -47,6 +47,32 @@ function renderCustomCaption(template: string, vars: any): string {
 
 type ChannelInfo = ResolvedChannelInfo;
 
+function normalizeLocale(value: unknown): 'pt' | 'en' | 'es' {
+    const locale = String(value || '').toLowerCase();
+    if (locale.startsWith('en')) return 'en';
+    if (locale.startsWith('es')) return 'es';
+    return 'pt';
+}
+
+/** `start_time` é um horário civil da clínica, não um instante UTC. */
+function formatReminderTime(value: string, timeFormat: string | null | undefined, locale: string): string {
+    const match = String(value || '').match(/^(\d{1,2}):(\d{2})/);
+    if (!match) return String(value || '').substring(0, 5);
+    const hour = Number(match[1]);
+    const minute = match[2];
+    const use12h = timeFormat === '12h' || (timeFormat !== '24h' && normalizeLocale(locale) === 'en');
+    if (!use12h) return `${String(hour).padStart(2, '0')}:${minute}`;
+    const suffix = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${minute} ${suffix}`;
+}
+
+function formatReminderDate(value: string, locale: string): string {
+    const [year, month, day] = String(value || '').split('-');
+    if (!year || !month || !day) return String(value || '');
+    return normalizeLocale(locale) === 'en' ? `${month}/${day}/${year}` : `${day}/${month}/${year}`;
+}
+
 // ─── Handler principal ───────────────────────────────────────────────────────
 
 serve(async (req: Request) => {
@@ -58,8 +84,11 @@ serve(async (req: Request) => {
 
     try {
         const now       = new Date();
-        const today     = now.toISOString().split("T")[0];
         const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+        // A varredura começa no dia UTC anterior para não perder o "hoje" de
+        // clínicas atrás de UTC quando o servidor já virou a data. A decisão
+        // final continua usando o relógio/local timezone de cada tenant.
+        const scanStartDate = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString().split("T")[0];
         // Janela de varredura: maior offset de lembrete em uso é de dias, não meses.
         // Limitar a 10 dias evita escanear toda a agenda futura (timeout em tenants
         // com agenda cheia) — agendamentos distantes entram na janela conforme se
@@ -75,7 +104,7 @@ serve(async (req: Request) => {
                 locations(id, name, address, google_maps_url, latitude, longitude),
                 appointment_types(name)
             `)
-            .or("date.gte." + today + ",created_at.gte." + yesterday)
+            .or("date.gte." + scanStartDate + ",created_at.gte." + yesterday)
             .lte("date", windowEnd)
             .in("status", ["scheduled", "confirmed"])
             .order("date", { ascending: true });
@@ -89,7 +118,7 @@ serve(async (req: Request) => {
         const tenantIds = [...new Set(appointments.map((a: any) => a.tenant_id))];
         const { data: tenants } = await supabase
             .from("tenants")
-            .select("id, name, slug, bot_config, timezone")
+            .select("id, name, slug, bot_config, timezone, time_format")
             .in("id", tenantIds);
 
         const tenantConfigMap: Record<string, any> = Object.fromEntries(
@@ -98,6 +127,7 @@ serve(async (req: Request) => {
                 name:       t.name,
                 slug:       t.slug,
                 timezone:   t.timezone || "America/Sao_Paulo",
+                time_format: t.time_format || null,
             }])
         );
 
@@ -175,7 +205,7 @@ serve(async (req: Request) => {
             const patientData = Array.isArray(appt.patients) ? appt.patients[0] : appt.patients;
             if (!patientData?.phone) continue;
 
-            const tenantConfig  = tenantConfigMap[appt.tenant_id] ?? { bot_config: {}, name: "Clínica", timezone: "America/Sao_Paulo", slug: null };
+            const tenantConfig  = tenantConfigMap[appt.tenant_id] ?? { bot_config: {}, name: "Clínica", timezone: "America/Sao_Paulo", time_format: null, slug: null };
             const { bot_config: botConfig, name: clinicName, timezone } = tenantConfig;
 
             if (!botConfig.no_show_prevention) continue;
@@ -204,22 +234,13 @@ serve(async (req: Request) => {
                 locationLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressText)}`;
             }
 
-            const dateFormatted = appt.date.split("-").reverse().join("/");
-            const timeShort     = appt.start_time.substring(0, 5);
+            const patientLocale = normalizeLocale(patientData.preferred_locale || botConfig.notification_locale || "pt");
+            const dateFormatted = formatReminderDate(appt.date, patientLocale);
+            const timeShort     = formatReminderTime(appt.start_time, tenantConfig.time_format, patientLocale);
             
             const customAppUrl  = botConfig.app_url;
             const appUrlEnv     = Deno.env.get("PUBLIC_APP_URL") || Deno.env.get("APP_URL") || "https://mediflow-traffio.com";
             const publicUrl     = customAppUrl || appUrlEnv;
-
-            // Fonte de verdade do idioma: bot_config.notification_locale (definido pelo
-            // tenant na página Inteligência). Não há cadastro de idioma por paciente —
-            // o fallback em preferred_locale só cobre tenants que nunca configuraram isso.
-            const patientLocale = (() => {
-                const l = (botConfig.notification_locale || patientData.preferred_locale || "pt").toLowerCase();
-                if (l.startsWith("en")) return "en";
-                if (l.startsWith("es")) return "es";
-                return "pt";
-            })();
 
             const vars = {
                 patient_name:      patientData.full_name || "Paciente",
@@ -299,11 +320,7 @@ serve(async (req: Request) => {
                             if (typeof r.caption === "string") {
                                 captionText = r.caption;
                             } else if (r.caption && typeof r.caption === "object") {
-                                let locale = (patientData?.preferred_locale || "pt").toLowerCase();
-                                if (locale.startsWith("en")) locale = "en";
-                                else if (locale.startsWith("es")) locale = "es";
-                                else locale = "pt";
-                                captionText = r.caption[locale] || r.caption["pt"] || r.caption["en"] || "";
+                                captionText = r.caption[patientLocale] || r.caption["pt"] || r.caption["en"] || r.caption["es"] || "";
                             }
                             override_message = renderCustomCaption(captionText, vars);
                         }
@@ -353,11 +370,7 @@ serve(async (req: Request) => {
                             if (typeof captionObj === "string") {
                                 override_message = renderCustomCaption(captionObj, vars);
                             } else if (captionObj && typeof captionObj === "object") {
-                                let locale = (patientData?.preferred_locale || "pt").toLowerCase();
-                                if (locale.startsWith("en")) locale = "en";
-                                else if (locale.startsWith("es")) locale = "es";
-                                else locale = "pt";
-                                const msgTemplate = captionObj[locale] || captionObj["pt"] || captionObj["en"] || "";
+                                const msgTemplate = captionObj[patientLocale] || captionObj["pt"] || captionObj["en"] || captionObj["es"] || "";
                                 override_message = renderCustomCaption(msgTemplate, vars);
                             }
                         }

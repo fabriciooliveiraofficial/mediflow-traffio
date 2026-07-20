@@ -91,7 +91,41 @@ export function nowInTz(timezone?: string): string {
 // o RPC filtrava "passado" pela data UTC do servidor e oferecia horários que já
 // tinham passado na clínica. TODA consulta de disponibilidade passa por aqui.
 
+export type TenantTimeFormat = "12h" | "24h";
+
+const COUNTRY_DISPLAY_DEFAULTS: Record<string, { locale: string; timeFormat: TenantTimeFormat }> = {
+    BR: { locale: "pt-BR", timeFormat: "24h" },
+    US: { locale: "en-US", timeFormat: "12h" },
+    NZ: { locale: "en-NZ", timeFormat: "12h" },
+    MX: { locale: "es-MX", timeFormat: "24h" },
+};
+
+/** Locale de apresentacao do tenant, com fallback igual ao painel web. */
+export function resolveTenantLocale(locale?: string | null, country?: string | null): string {
+    const configured = String(locale || "").trim();
+    if (configured) return configured;
+    return COUNTRY_DISPLAY_DEFAULTS[String(country || "").toUpperCase()]?.locale || "pt-BR";
+}
+
+/** Retorna o formato configurado ou o padrao de exibicao do pais do tenant. */
+export function resolveTenantTimeFormat(
+    timeFormat?: string | null,
+    country?: string | null,
+    locale?: string | null,
+): TenantTimeFormat {
+    if (timeFormat === "12h" || timeFormat === "24h") return timeFormat;
+
+    const countryDefault = COUNTRY_DISPLAY_DEFAULTS[String(country || "").toUpperCase()];
+    if (countryDefault) return countryDefault.timeFormat;
+
+    const normalizedLocale = String(locale || "").toLowerCase();
+    return /^(en-us|en-nz)(?:-|$)/.test(normalizedLocale) ? "12h" : "24h";
+}
+
 export interface TenantClock {
+    timezone: string;
+    timeFormat: TenantTimeFormat;
+    locale: string;
     /** "Hoje" no fuso da clínica (YYYY-MM-DD) */
     today: string;
     /** Agora no fuso da clínica (HH:MM) */
@@ -104,13 +138,18 @@ export async function getTenantClock(supabase: SupabaseClient, tenantId: string)
     // Exceção intencional: tenants é a própria raiz do escopo e não possui tenant_id.
     const { data } = await supabase
         .from("tenants")
-        .select("timezone, booking_min_lead_minutes")
+        .select("timezone, booking_min_lead_minutes, time_format, locale, country")
         .eq("id", tenantId)
         .maybeSingle();
-    const tz = (data as any)?.timezone || undefined;
+    const timezone = String((data as any)?.timezone || "America/Sao_Paulo");
+    const locale = resolveTenantLocale((data as any)?.locale, (data as any)?.country);
+    const timeFormat = resolveTenantTimeFormat((data as any)?.time_format, (data as any)?.country, locale);
     return {
-        today: todayInTz(tz),
-        nowHHMM: nowInTz(tz),
+        timezone,
+        timeFormat,
+        locale,
+        today: todayInTz(timezone),
+        nowHHMM: nowInTz(timezone),
         bufferMinutes: (data as any)?.booking_min_lead_minutes ?? 30,
     };
 }

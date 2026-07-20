@@ -64,6 +64,18 @@ const RECOVERY_TEMPLATE_KEYS = ['recovery_immediate', 'recovery_48h', 'recovery_
 // fica de fora: reativação não está ligada a um médico/horário específico como o recovery.
 const STRUCTURED_RECOVERY_KEYS = ['recovery_immediate', 'recovery_48h', 'recovery_7d'];
 
+/**
+ * Locale de mensagens transacionais precisa ser canônico porque ele também é
+ * usado pelo F2 quando a resposta do paciente é curta ("confirmed", "ok").
+ * Nunca deixar valores como "en-US" ou "English" vazarem para o contexto.
+ */
+function normalizeConversationLocale(value: unknown): 'pt' | 'en' | 'es' {
+  const locale = String(value || '').toLowerCase();
+  if (locale.startsWith('en')) return 'en';
+  if (locale.startsWith('es')) return 'es';
+  return 'pt';
+}
+
 // Cloud API tier Pro (docs/ROADMAP_PRODUTO_2026.md, item 4) — categoria de billing Meta
 // por template_key. Envios sem template (réplica de conversa ao vivo) ficam de fora
 // desta função e caem no default "service" (grátis) do OutboxDispatcher.
@@ -550,6 +562,34 @@ serve(async (req: Request) => {
         await supabase.from('outbound_message_queue')
           .update({ status: 'sent', sent_at: new Date().toISOString() }).eq('id', msg.id);
 
+        // F2 — o paciente frequentemente responde apenas "confirmed" ao
+        // lembrete. Sem registrar a mensagem e sua consulta de referência, a
+        // resposta chega ao agente como texto solto e pode ser confundida com
+        // a confirmação de um novo slot. O marker é apenas um atalho; o F2
+        // também consulta a fila enviada caso o cleanup da sessão o remova.
+        if (channel === 'whatsapp' && msg.reference_id && msg.template_key?.startsWith('appointment_reminder')) {
+          try {
+            const patientSession = await sessionManager.getOrCreateSession(msg.tenant_id, msg.patient_phone);
+            const locale = normalizeConversationLocale(msg.template_vars?.locale || tenant?.bot_config?.notification_locale);
+            const sentAt = new Date().toISOString();
+            await sessionManager.logMessage(patientSession.id, 'assistant', text, {
+              message_type: 'appointment_reminder',
+            });
+            await sessionManager.updateContext(patientSession.id, {
+              pending_appointment_confirmation: {
+                appointment_id: msg.reference_id,
+                template_key: msg.template_key,
+                locale,
+                sent_at: sentAt,
+              },
+            });
+          } catch (markerErr: any) {
+            // O envio já foi concluído; falha de correlação não pode provocar
+            // reenvio. O F2 ainda tenta recuperar a referência pela fila.
+            console.warn(`[process-outbound] marker de confirmação do lembrete falhou (non-fatal): ${markerErr?.message}`);
+          }
+        }
+
         // Rastrear confirmação de 48h
         if (msg.message_type === 'reminder_48h' && msg.reference_id) {
           await supabase.from('appointments')
@@ -572,6 +612,7 @@ serve(async (req: Request) => {
                   template_key: msg.template_key,
                   crm_journey_id: msg.reference_id,
                   patient_id: journey.patient_id,
+                  locale: normalizeConversationLocale(msg.template_vars?.locale || tenant?.bot_config?.notification_locale),
                   sent_at: new Date().toISOString(),
                 },
               });

@@ -76,6 +76,124 @@ const NO_SLOTS_MSG: Record<string, string> = {
     es: "Voy a verificar con el equipo los próximos horarios disponibles y le aviso por aquí.",
 };
 
+type ConversationLanguage = "pt" | "en" | "es";
+
+function normalizeLanguage(value: unknown): ConversationLanguage {
+    const language = String(value || "").toLowerCase();
+    if (language.startsWith("en")) return "en";
+    if (language.startsWith("es")) return "es";
+    return "pt";
+}
+
+function phoneDigits(value: unknown): string {
+    return String(value || "").replace(/\D/g, "");
+}
+
+function phoneVariants(value: unknown): string[] {
+    const digits = phoneDigits(value);
+    return [...new Set([String(value || ""), digits, digits ? `+${digits}` : ""].filter(Boolean))];
+}
+
+/** Só trata uma resposta inequívoca a um lembrete já correlacionado. */
+function isReminderConfirmation(content: string): boolean {
+    const text = String(content || "").trim().toLowerCase();
+    if (!text || text.includes("?")) return false;
+    return /(?:^|\b)(?:confirm(?:ed|ing|o|ado|ada)?|yes|yeah|yep|sim|s[ií]|ok(?:ay)?|correct|that(?:'s| is) right)(?:\b|$)/i.test(text);
+}
+
+function languageForReminderConfirmation(content: string, fallback: ConversationLanguage): ConversationLanguage {
+    const text = String(content || "").toLowerCase();
+    if (/\b(?:yes|yeah|yep|confirmed|confirming|correct|okay)\b/.test(text)) return "en";
+    if (/\b(?:s[ií]|reagendar)\b/.test(text)) return "es";
+    if (/\b(?:sim|confirmado|confirmada|confirmo)\b/.test(text)) return "pt";
+    return fallback;
+}
+
+interface ReminderConfirmationMarker {
+    appointmentId: string;
+    language: ConversationLanguage;
+}
+
+/**
+ * O marker de sessão resolve o caminho comum. A fila "sent" é o fallback
+ * durável após o cleanup de contexto e para telefones com/sem sinal de +.
+ * Em caso de duas consultas distintas, não escolhemos uma por suposição.
+ */
+async function findReminderConfirmationMarker(
+    supabase: SupabaseClient,
+    tenantId: string,
+    phone: string,
+    context: any,
+): Promise<{ marker: ReminderConfirmationMarker | null; queryFailed: boolean }> {
+    const pending = context?.pending_appointment_confirmation;
+    if (pending?.appointment_id) {
+        return {
+            marker: {
+                appointmentId: String(pending.appointment_id),
+                language: normalizeLanguage(pending.locale || context.language),
+            },
+            queryFailed: false,
+        };
+    }
+
+    const cutoff = new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString();
+    const select = "reference_id, patient_phone, template_key, template_vars, sent_at";
+    const variants = phoneVariants(phone);
+    let data: any[] | null = null;
+
+    const primary = await supabase
+        .from("outbound_message_queue")
+        .select(select)
+        .eq("tenant_id", tenantId)
+        .eq("status", "sent")
+        .like("template_key", "appointment_reminder%")
+        .gte("sent_at", cutoff)
+        .in("patient_phone", variants)
+        .order("sent_at", { ascending: false })
+        .limit(12);
+    if (primary.error) return { marker: null, queryFailed: true };
+    data = primary.data || [];
+
+    // Cadastros legados podem ter máscara. Só nesta janela pequena fazemos
+    // fallback em memória, sem varrer pacientes ou agenda inteira.
+    if (!data.length) {
+        const fallback = await supabase
+            .from("outbound_message_queue")
+            .select(select)
+            .eq("tenant_id", tenantId)
+            .eq("status", "sent")
+            .like("template_key", "appointment_reminder%")
+            .gte("sent_at", cutoff)
+            .order("sent_at", { ascending: false })
+            .limit(80);
+        if (fallback.error) return { marker: null, queryFailed: true };
+        const canonical = phoneDigits(phone);
+        data = (fallback.data || []).filter((row: any) => canonical && phoneDigits(row.patient_phone) === canonical);
+    }
+
+    const byAppointment = new Map<string, any>();
+    for (const row of data || []) {
+        if (row.reference_id && !byAppointment.has(String(row.reference_id))) {
+            byAppointment.set(String(row.reference_id), row);
+        }
+    }
+    if (byAppointment.size !== 1) return { marker: null, queryFailed: false };
+    const row = [...byAppointment.values()][0];
+    return {
+        marker: {
+            appointmentId: String(row.reference_id),
+            language: normalizeLanguage(row.template_vars?.locale || context?.language),
+        },
+        queryFailed: false,
+    };
+}
+
+const REMINDER_CONFIRMED_MSG: Record<ConversationLanguage, (name: string, date: string, time: string) => string> = {
+    pt: (name, date, time) => `Perfeito${name ? `, ${name}` : ""}! Sua consulta em ${date} às ${time} está confirmada.`,
+    en: (name, date, time) => `Thank you${name ? `, ${name}` : ""}! Your appointment on ${date} at ${time} is confirmed.`,
+    es: (name, date, time) => `¡Perfecto${name ? `, ${name}` : ""}! Su cita del ${date} a las ${time} está confirmada.`,
+};
+
 export async function tryStructuredFlow(supabase: SupabaseClient, params: StructuredFlowParams): Promise<StructuredFlowResult> {
     const { tenantId, sessionId, phone, tenant, botConfig, sessionManager, timezone } = params;
 
@@ -96,6 +214,70 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
         const lastUserMsg = [...history].reverse().find((m: any) => m.role === "user");
         const rawContent: string = lastUserMsg?.content || "";
         const dispatcher = new OutboxDispatcher(supabase);
+
+        // Confirmação de lembrete: resposta curta e inequívoca nunca chega ao
+        // LLM como se fosse a confirmação de um novo slot.
+        if (isReminderConfirmation(rawContent)) {
+            const correlation = await findReminderConfirmationMarker(supabase, tenantId, phone, context);
+            if (correlation.queryFailed) {
+                console.error(`[structuredFlow] [${phone}] falha ao consultar correlação de lembrete`);
+                return { matched: true, status: "failed" };
+            }
+            if (correlation.marker) {
+                const { data: appointment, error: appointmentError } = await supabase
+                    .from("appointments")
+                    .select("id, date, start_time, status, confirmation_status, patients:patient_id(phone, full_name)")
+                    .eq("tenant_id", tenantId)
+                    .eq("id", correlation.marker.appointmentId)
+                    .maybeSingle();
+                if (appointmentError) {
+                    console.error(`[structuredFlow] [${phone}] falha ao validar consulta do lembrete: ${appointmentError.message}`);
+                    return { matched: true, status: "failed" };
+                }
+
+                const patient = Array.isArray((appointment as any)?.patients)
+                    ? (appointment as any)?.patients[0]
+                    : (appointment as any)?.patients;
+                const ownsAppointment = Boolean(
+                    appointment
+                    && patient?.phone
+                    && phoneDigits(patient.phone) === phoneDigits(phone)
+                );
+                const activeAppointment = ["scheduled", "confirmed"].includes(String((appointment as any)?.status || "").toLowerCase());
+
+                if (ownsAppointment && activeAppointment) {
+                    const confirmationLanguage = languageForReminderConfirmation(rawContent, correlation.marker.language);
+                    const { error: updateError } = await supabase
+                        .from("appointments")
+                        .update({ confirmation_status: "confirmed" })
+                        .eq("tenant_id", tenantId)
+                        .eq("id", correlation.marker.appointmentId);
+                    if (updateError) {
+                        console.error(`[structuredFlow] [${phone}] falha ao confirmar presença: ${updateError.message}`);
+                        return { matched: true, status: "failed" };
+                    }
+
+                    const ctx = { ...context };
+                    delete ctx.pending_appointment_confirmation;
+                    const date = formatDateForPatient(String((appointment as any).date), confirmationLanguage);
+                    const time = String((appointment as any).start_time || "").substring(0, 5);
+                    const msg = (REMINDER_CONFIRMED_MSG[confirmationLanguage] || REMINDER_CONFIRMED_MSG.pt)(patient?.full_name || "", date, time);
+                    await sendWithFallback(dispatcher, tenant, tenantId, phone, msg);
+                    await sessionManager.logMessage(sessionId, "assistant", msg);
+                    await supabase
+                        .from("conversation_sessions")
+                        .update({ context: ctx, omnichannel_status: "bot_active", human_handoff: false })
+                        .eq("id", sessionId);
+                    return { matched: true, status: "replied" };
+                }
+
+                // Referência expirada/cancelada ou de outro contato: limpa o
+                // marker e permite o fallback seguro pedir esclarecimento.
+                const ctx = { ...context };
+                delete ctx.pending_appointment_confirmation;
+                await supabase.from("conversation_sessions").update({ context: ctx }).eq("id", sessionId);
+            }
+        }
 
         // ── 1. Clique em botão de horário / fallback numérico (sem LLM) ────────
         let clickContent = rawContent;

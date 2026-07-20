@@ -36,9 +36,92 @@ interface CopilotParams {
 
 interface TriageResult {
     temperature: "hot" | "warm" | "cold";
-    language: string;
+    /** Raw model output. Normalize before it reaches context, prompts or routing. */
+    language?: string;
     intake: Record<string, unknown>;
 }
+
+/** The only language values persisted in a conversation context. */
+export type ConversationLanguage = "pt" | "en" | "es";
+
+const CONVERSATION_LANGUAGE_NAMES: Record<ConversationLanguage, string> = {
+    pt: "português",
+    en: "English",
+    es: "español",
+};
+
+function normalizeLanguageKey(value: string): string {
+    return value
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim()
+        .replace(/_/g, "-")
+        .replace(/\s+/g, " ");
+}
+
+function parseConversationLanguage(value: unknown): ConversationLanguage | null {
+    if (typeof value !== "string") return null;
+    const key = normalizeLanguageKey(value);
+    if (["pt", "pt-br", "pt-pt", "portugues", "portuguese", "brazilian portuguese"].includes(key)) return "pt";
+    if (["en", "en-us", "en-gb", "english"].includes(key)) return "en";
+    if (["es", "es-es", "es-mx", "espanol", "spanish"].includes(key)) return "es";
+    return null;
+}
+
+/**
+ * Canonicalize any legacy/model language value before it is persisted or used
+ * to choose a prompt. Unknown values deliberately fall back to a known code.
+ */
+export function normalizeConversationLanguage(
+    value: unknown,
+    fallback: ConversationLanguage = "pt",
+): ConversationLanguage {
+    return parseConversationLanguage(value) ?? fallback;
+}
+
+// This is intentionally only a fallback for a malformed/unavailable triage
+// result. The current-turn triage remains the authoritative classifier.
+const TURN_LANGUAGE_HINTS: Record<ConversationLanguage, readonly RegExp[]> = {
+    pt: [
+        /\b(?:obrigad[oa]|amanh[ãa]|hoje|hor[aá]rios?|agendamento|avalia[cç][ãa]o|voc[eê]|quero|posso)\b/iu,
+    ],
+    en: [
+        /\b(?:confirmed?|thank(?:s| you)|appointment|today|tomorrow|please|i(?:'m| am)|would|could|book(?:ing)?|schedule(?:d)?)\b/iu,
+    ],
+    es: [
+        /\b(?:gracias|ma[nñ]ana|hoy|por favor|cita|reservar|agendar|usted|quiero|puedo)\b/iu,
+    ],
+};
+
+function inferLanguageFromCurrentMessage(message: unknown): ConversationLanguage | null {
+    const text = typeof message === "string" ? message : "";
+    if (!text.trim()) return null;
+    const matches = (Object.entries(TURN_LANGUAGE_HINTS) as [ConversationLanguage, readonly RegExp[]][])
+        .filter(([, patterns]) => patterns.some((pattern) => pattern.test(text)))
+        .map(([language]) => language);
+    return matches.length === 1 ? matches[0] : null;
+}
+
+/** Current turn wins; conversation history is only a safe fallback. */
+export function resolveConversationLanguage(
+    triageLanguage: unknown,
+    currentPatientMessage: unknown,
+    storedLanguage: unknown,
+): ConversationLanguage {
+    return parseConversationLanguage(triageLanguage)
+        ?? inferLanguageFromCurrentMessage(currentPatientMessage)
+        ?? normalizeConversationLanguage(storedLanguage);
+}
+
+const TRIAGE_SYSTEM_PROMPT = [
+    "Você classifica conversas de pacientes de uma clínica e extrai dados objetivos.",
+    "Responda APENAS com JSON válido, sem comentários, neste formato:",
+    '{"temperature":"hot|warm|cold","language":"pt|en|es","intake":{"procedure":string|null,"for_whom":string|null,"preferred_window":string|null,"doctor_pref":string|null}}',
+    "language é obrigatoriamente o idioma da resposta DESTE turno: pt, en ou es em minúsculas. Dê prioridade à última mensagem do paciente; uma mudança explícita de idioma vence o histórico. Em respostas curtas como 'confirmed' ou 'ok', use o idioma evidente da mensagem e do último texto da clínica, nunca invente outro idioma.",
+    "temperature: hot = quer agendar/comprar agora; warm = interessado explorando; cold = sem intenção clara.",
+    "intake: extraia SOMENTE o que o paciente disse explicitamente; use null para o que não foi dito.",
+].join("\n");
 
 const MAX_HISTORY_TURNS = 12;
 const MAX_KB_ENTRIES = 20;
@@ -148,9 +231,8 @@ export interface GlobalKnowledgeEntry {
 }
 
 export function normalizeGlobalKnowledgeLanguage(language?: string | null): GlobalKnowledgeLanguage {
-    if (language?.toLowerCase().startsWith("en")) return "en";
-    if (language?.toLowerCase().startsWith("es")) return "es";
-    return "pt-BR";
+    const canonical = normalizeConversationLanguage(language);
+    return canonical === "pt" ? "pt-BR" : canonical;
 }
 
 /** Pure merge: active clinic facts win over global topics with the same key. */
@@ -329,15 +411,14 @@ export async function runCopilot(supabase: SupabaseClient, params: CopilotParams
 
         const context = session.context || {};
         const knownIntake = context.intake || {};
-        const patientQuery = [...history].reverse().find((message: any) => message.role === "user")?.content;
+        const storedLanguage = normalizeConversationLanguage(context.language);
+        const patientQuery = String([...history].reverse().find((message: any) => message.role === "user")?.content || "");
 
-        // ── 1+2. Triagem (Haiku) e rascunho (Sonnet) em PARALELO ───────────────
-        // O rascunho não depende da triagem (o Sonnet espelha o idioma do
-        // paciente sozinho) — rodar em série só somava latência.
-        const [routerModel, agentModel, knowledgePacket, journeyStage, patientSnapshot] = await Promise.all([
+        // A triagem precede o rascunho: o idioma do turno nunca pode depender
+        // apenas de memória antiga ou da detecção implícita do modelo redator.
+        const [routerModel, agentModel, journeyStage, patientSnapshot] = await Promise.all([
             getAiModelRouter(supabase),
             getAiModelAgent(supabase),
-            buildKnowledgePacket(supabase, tenantId, normalizeGlobalKnowledgeLanguage(context.language), patientQuery),
             fetchStageGuidance(supabase, sessionId),
             buildPatientSnapshot(supabase, tenantId, phone, null),
         ]);
@@ -345,24 +426,20 @@ export async function runCopilot(supabase: SupabaseClient, params: CopilotParams
         const instructions = botConfig?.global_instructions || "";
         const stageGuidance = journeyStage.guidance;
 
-        const [triage, draftText] = await Promise.all([
-            claudeJson<TriageResult>(supabase, {
-                tenantId,
-                purpose: "copilot_triage",
-                model: routerModel,
-                maxTokens: 400,
-                system: [
-                    "Você classifica conversas de pacientes de uma clínica e extrai dados objetivos.",
-                    "Responda APENAS com JSON válido, sem comentários, neste formato:",
-                    '{"temperature":"hot|warm|cold","language":"pt|en|es","intake":{"procedure":string|null,"for_whom":string|null,"preferred_window":string|null,"doctor_pref":string|null}}',
-                    "temperature: hot = quer agendar/comprar agora; warm = interessado explorando; cold = sem intenção clara.",
-                    "intake: extraia SOMENTE o que o paciente disse explicitamente; use null para o que não foi dito.",
-                ].join("\n"),
-                messages: [{ role: "user", content: `Ficha já conhecida: ${JSON.stringify(knownIntake)}\n\nConversa:\n${transcript}` }],
-            }),
-            (async () => {
-                try {
-                    const draft = await claudeChat(supabase, {
+        const triage = await claudeJson<TriageResult>(supabase, {
+            tenantId,
+            purpose: "copilot_triage",
+            model: routerModel,
+            maxTokens: 400,
+            system: TRIAGE_SYSTEM_PROMPT,
+            messages: [{ role: "user", content: `Ficha já conhecida: ${JSON.stringify(knownIntake)}\n\nConversa:\n${transcript}` }],
+        });
+        const language = resolveConversationLanguage(triage?.language, patientQuery, storedLanguage);
+        const knowledgePacket = await buildKnowledgePacket(supabase, tenantId, language, patientQuery);
+
+        let draftText = "";
+        try {
+            const draft = await claudeChat(supabase, {
                         tenantId,
                         purpose: "copilot_draft",
                         model: agentModel,
@@ -372,7 +449,7 @@ export async function runCopilot(supabase: SupabaseClient, params: CopilotParams
                             SALES_PERSONA,
                             stageGuidance ? `### CONTEXTO DA JORNADA DESTE PACIENTE (ajusta a abordagem, nunca a política de preço):\n${stageGuidance}` : "",
                             `Ajuste de tom desta clínica: ${personality}.`,
-                            `⚠️ IDIOMA: identifique o idioma da ÚLTIMA mensagem do paciente e escreva a sugestão 100% nesse idioma — nenhuma palavra solta de outro idioma (nem termos como "avaliação"/"agendamento" em português dentro de uma resposta em espanhol/inglês). Se não souber o termo exato, parafraseie; nunca deixe a palavra em português.`,
+                            `⚠️ IDIOMA OBRIGATÓRIO DESTE TURNO: escreva a sugestão 100% em ${CONVERSATION_LANGUAGE_NAMES[language]}. Esta classificação já foi concluída para a última mensagem do paciente; não troque de idioma por causa do histórico ou de retornos internos.`,
                             instructions ? `### INSTRUÇÕES DA CLÍNICA (prioridade máxima — sobrepõem qualquer regra acima):\n${instructions}` : "",
                             knowledgePacket ? `### CONTEXTO DA CLÍNICA (única fonte de fatos permitida):\n${knowledgePacket}` : "",
                             patientSnapshot ? `### PACIENTE NO SISTEMA (fonte da VERDADE — vale mais que a memória da conversa):\n${patientSnapshot}\nPara "confirmar/quando é minha consulta": responda com o dado acima; nunca diga que "está sendo finalizado" se o agendamento já existe, nem invente eventos de sistema.` : "",
@@ -383,18 +460,15 @@ export async function runCopilot(supabase: SupabaseClient, params: CopilotParams
                             "- Se o dado necessário NÃO estiver no contexto, aí sim diga que vai confirmar com a equipe — e mesmo assim adiante o que o contexto permitir.",
                             "- NUNCA invente fato que não esteja no contexto: horário disponível, endereço, informação clínica.",
                             "- PREÇO: nunca informe VALOR MONETÁRIO. Informe o status gratuito/pago da consulta quando ele estiver explicitamente no contexto com fonte.",
-                            "- IDIOMA: releia a sugestão antes de responder — se houver qualquer palavra fora do idioma do paciente, reescreva-a.",
+                            `- IDIOMA: releia a sugestão antes de responder — se houver qualquer palavra fora de ${CONVERSATION_LANGUAGE_NAMES[language]}, reescreva-a.`,
                             "- ENTIDADES: nunca traduza nome próprio, dose, endereço ou horário ao trocar de idioma — preserve o valor exato da fonte.",
                         ].filter(Boolean).join("\n"),
                         messages: [{ role: "user", content: `Conversa até agora:\n${transcript}\n\nRedija a sugestão de resposta da clínica para a última mensagem do paciente.` }],
-                    });
-                    return draft.text.trim();
-                } catch (draftErr: any) {
-                    console.warn(`[copilot] draft falhou (non-fatal): ${draftErr?.message}`);
-                    return "";
-                }
-            })(),
-        ]);
+            });
+            draftText = draft.text.trim();
+        } catch (draftErr: any) {
+            console.warn(`[copilot] draft falhou (non-fatal): ${draftErr?.message}`);
+        }
 
         // ── 3. Guard anti-rascunho obsoleto (cancelar-e-regenerar do copiloto) ─
         // Se o paciente mandou mensagem nova enquanto gerávamos, este rascunho já
@@ -416,6 +490,7 @@ export async function runCopilot(supabase: SupabaseClient, params: CopilotParams
             ...context,
             intake: { ...knownIntake, ...pruneNulls(triage?.intake) },
             ...(triage?.temperature ? { lead_temperature: triage.temperature } : {}),
+            language,
             ...(finalDraft
                 ? { ai_draft: { text: finalDraft, created_at: new Date().toISOString() } }
                 : {}),
@@ -503,7 +578,7 @@ const MAX_TOOL_ROUNDS = 4;
 // 2026-07-16, out=600 cravado no teto de 600).
 const AGENT_MAX_TOKENS = 1500;
 
-const LANG_NAME: Record<string, string> = { pt: "português", en: "English", es: "español" };
+const LANG_NAME = CONVERSATION_LANGUAGE_NAMES;
 
 // ── Camada 1: validadores de runtime ─────────────────────────────────────────
 // Nenhuma resposta do agente chega ao paciente sem passar por estas checagens
@@ -511,12 +586,36 @@ const LANG_NAME: Record<string, string> = { pt: "português", en: "English", es:
 // Reprovou → 1 regeneração corretiva → ainda reprovado → handoff humano.
 const PRICE_LEAK_PATTERN = /(r\$|us\$|\$\s?\d|€|\d+[.,]\d{2}\b|\b\d{3,}\s?(reais|dólares|dolares|euros)\b|\b(custa|cuesta|costs?)\s+\d)/i;
 const TIME_MENTION_PATTERN = /\b([01]?\d|2[0-3]):[0-5]\d\b/g;
-// Marcadores fortes de PT que não existem em EN/ES — deriva de idioma pós-ferramenta
-const PT_DRIFT_MARKERS = ["ção", "você", "horários", "amanhã", "não é", "olá"];
-const LANGUAGE_DRIFT_MARKERS: Record<string, string[]> = {
-    en: [...PT_DRIFT_MARKERS, "avaliação", "gratuita", "grátis", "paga", "sin costo", "primera"],
-    es: PT_DRIFT_MARKERS,
+type LanguageDriftMarker = { marker: string; pattern: RegExp };
+
+// Markers must be language-specific enough to avoid names, procedure names and
+// neutral dates. They catch leakage in all directions, not only PT → EN/ES.
+const LANGUAGE_DRIFT_MARKERS: Record<ConversationLanguage, readonly LanguageDriftMarker[]> = {
+    pt: [
+        { marker: "English appointment phrase", pattern: /\b(?:your appointment|thank you|please|tomorrow|available|would you|i(?:'m| am)|we(?:'ll| will)|confirmed?)\b/i },
+        { marker: "Spanish appointment phrase", pattern: /\b(?:gracias|por favor|ma[nñ]ana|hoy|su cita|disponible|confirmad[oa]|usted)\b/i },
+    ],
+    en: [
+        { marker: "Portuguese appointment phrase", pattern: /\b(?:voc[eê]|amanh[ãa]|hoje|hor[aá]rios?|agendamento|avalia[cç][ãa]o|obrigad[oa]|n[aã]o|consulta confirmada)\b/i },
+        { marker: "Spanish appointment phrase", pattern: /\b(?:gracias|por favor|ma[nñ]ana|hoy|su cita|disponible|confirmad[oa]|usted)\b/i },
+    ],
+    es: [
+        { marker: "Portuguese appointment phrase", pattern: /\b(?:voc[eê]|amanh[ãa]|hoje|hor[aá]rios?|agendamento|avalia[cç][ãa]o|obrigad[oa]|n[aã]o|consulta confirmada)\b/i },
+        { marker: "English appointment phrase", pattern: /\b(?:your appointment|thank you|please|tomorrow|today|available|would you|i(?:'m| am)|we(?:'ll| will)|confirmed?)\b/i },
+    ],
 };
+
+const ACTIVE_APPOINTMENT_SNAPSHOT_HEADER = "AGENDAMENTOS ATIVOS (estado REAL do sistema agora):";
+const APPOINTMENT_ABSENCE_PATTERNS: readonly RegExp[] = [
+    /\b(?:n[aã]o|nao)\s+(?:h[aá]|ha|tem|existe|encontrei|localizei|vejo|consta)\b[\s\S]{0,80}\b(?:consulta|agendamento|hor[aá]rio|horario|registro)\b/i,
+    /\b(?:nenhum|nenhuma|sem)\s+(?:consulta|agendamento|hor[aá]rio|horario|registro)\b/i,
+    /\b(?:i|we)\s+(?:do not|don't|cannot|can't)\s+(?:currently\s+)?(?:see|find|locate|have)\b[\s\S]{0,80}\b(?:appointment|booking|consultation)\b/i,
+    /\bthere\s+(?:is|are)\s+(?:no|not)\b[\s\S]{0,80}\b(?:appointment|booking|consultation)\b/i,
+    /\b(?:nothing|no appointment)\b[\s\S]{0,80}\b(?:finali[sz]ed|scheduled|confirmed|appointment|booking)\b/i,
+    /\b(?:no\s+(?:hay|veo|encuentro|aparece)|sin)\b[\s\S]{0,80}\b(?:cita|consulta|reserva|turno|registro)\b/i,
+    /\b(?:nada|ninguna)\b[\s\S]{0,80}\b(?:finalizado|confirmado|agendado|cita|consulta)\b/i,
+    /\b(?:your|sua|su)\s+(?:appointment|booking|consultation|consulta|cita)\b[\s\S]{0,50}\b(?:was|has been|is|foi|est[aá]|fue|est[aá])\s+(?:not\s+)?(?:finali[sz]ed|scheduled|confirmed|available|cancel(?:ed|ada|ado)|cancelada|cancelado)\b/i,
+];
 
 /** Preserva provenance: saída de OCR/transcrição é dado não confiável, não comando. */
 export function wrapUntrustedContent(content: string, type: string): string {
@@ -636,13 +735,41 @@ function normalizeHHMM(t: string): string {
     return t.length === 4 ? `0${t}` : t;
 }
 
+function hasActiveAppointmentSnapshot(evidence: string | null | undefined): boolean {
+    if (!evidence?.includes(ACTIVE_APPOINTMENT_SNAPSHOT_HEADER)) return false;
+    const start = evidence.indexOf(ACTIVE_APPOINTMENT_SNAPSHOT_HEADER);
+    return /^-\s+\d{4}-\d{2}-\d{2}\s+(?:às|as)\s+\d{1,2}:\d{2}/mu.test(evidence.slice(start));
+}
+
+/**
+ * The patient snapshot is authoritative for this turn. A model may ask tools
+ * for a different operation, but it must never tell a patient that an active
+ * appointment is absent, unfinalized or cancelled when the snapshot says it exists.
+ */
+export function hasAppointmentContradiction(
+    text: string,
+    appointmentEvidence: string | null | undefined,
+): boolean {
+    return hasActiveAppointmentSnapshot(appointmentEvidence)
+        && APPOINTMENT_ABSENCE_PATTERNS.some((pattern) => pattern.test(text));
+}
+
+export interface AgentReplyValidationOptions {
+    language: string;
+    evidence: string;
+    policyEvidence: string;
+    patientLastMessage?: string;
+    /** buildPatientSnapshot output only; do not use untrusted transcript text here. */
+    appointmentEvidence?: string | null;
+}
+
 /**
  * Valida a resposta final do agente contra as políticas invioláveis.
  * `evidence` = tudo que o agente PODIA legitimamente citar neste turno
  * (pacote de conhecimento + transcript + retornos de ferramentas).
  * Retorna a lista de violações (vazia = aprovada).
  */
-export function validateAgentReply(text: string, opts: { language: string; evidence: string; policyEvidence: string; patientLastMessage?: string }): string[] {
+export function validateAgentReply(text: string, opts: AgentReplyValidationOptions): string[] {
     const violations: string[] = [];
 
     if (PRICE_LEAK_PATTERN.test(text)) violations.push("preço citado na mensagem (POLÍTICA DE PREÇO)");
@@ -660,10 +787,16 @@ export function validateAgentReply(text: string, opts: { language: string; evide
         .filter(t => !allowed.has(t));
     if (invented.length) violations.push(`horário(s) que não veio de ferramenta/contexto: ${[...new Set(invented)].join(", ")}`);
 
-    if (opts.language === "en" || opts.language === "es") {
-        const lower = text.toLowerCase();
-        const leaked = (LANGUAGE_DRIFT_MARKERS[opts.language] ?? PT_DRIFT_MARKERS).filter(mk => lower.includes(mk));
-        if (leaked.length) violations.push(`palavras em português numa conversa em ${LANG_NAME[opts.language]}: ${leaked.join(", ")}`);
+    const language = normalizeConversationLanguage(opts.language);
+    const leaked = LANGUAGE_DRIFT_MARKERS[language]
+        .filter(({ pattern }) => pattern.test(text))
+        .map(({ marker }) => marker);
+    if (leaked.length) {
+        violations.push(`desvio de idioma numa conversa em ${LANG_NAME[language]}: ${leaked.join(", ")}`);
+    }
+
+    if (hasAppointmentContradiction(text, opts.appointmentEvidence)) {
+        violations.push("resposta contradiz agendamento ativo no estado real do paciente");
     }
 
     // Emojis: calor humano com parcimônia (máx. 1 por mensagem na persona);
