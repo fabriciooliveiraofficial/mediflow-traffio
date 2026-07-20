@@ -40,7 +40,7 @@ export function useGeofence(tenantId: string, locationId?: string): UseGeofenceR
         } finally {
             setLoading(false);
         }
-    }, [tenantId, t]);
+    }, [tenantId, locationId, t]);
 
     return { result, loading, error, check };
 }

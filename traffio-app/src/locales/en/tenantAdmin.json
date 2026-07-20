@@ -326,6 +326,31 @@
       "createError": "Error creating charge."
     }
   },
+  "billingRecordModal": {
+    "titleNew": "New charge",
+    "titleReceipt": "Register payment",
+    "patientLabel": "Patient",
+    "selectPlaceholder": "Select...",
+    "amountLabel": "Amount",
+    "dueDateLabel": "Due date",
+    "paymentDateLabel": "Payment date",
+    "methodLabel": "Payment method",
+    "methods": {
+      "pix": "Pix",
+      "cash": "Cash",
+      "card_machine": "Card machine",
+      "credit_card": "Credit card",
+      "bank_transfer": "Bank transfer",
+      "boleto": "Boleto",
+      "other": "Other"
+    },
+    "notesLabel": "Notes",
+    "paymentNoteTemplate": "Proposal: {{title}}",
+    "cancelButton": "Cancel",
+    "saveButton": "Save",
+    "validationError": "Enter a valid amount.",
+    "createError": "Could not save."
+  },
   "services": {
     "header": {
       "title": "Appointment Types",
@@ -716,7 +741,10 @@
         "bank_transfer": "Bank transfer",
         "other": "Other"
       },
-      "paymentDateLabel": "Payment date"
+      "paymentDateLabel": "Payment date",
+      "generatePaymentLink": "Generate Stripe payment link",
+      "stripeLinkCopied": "Link copied — send it to the patient",
+      "stripeLinkError": "Could not generate the payment link"
     },
     "lostReasons": {
       "price": "Price",

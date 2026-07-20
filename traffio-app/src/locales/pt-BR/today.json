@@ -11,7 +11,9 @@
         "minutes_one": "{{count}} min",
         "minutes_other": "{{count}} min",
         "hours_one": "{{count}} h",
-        "hours_other": "{{count}} h"
+        "hours_other": "{{count}} h",
+        "days_one": "{{count}} dia",
+        "days_other": "{{count}} dias"
     },
     "channels": {
         "whatsapp": "WhatsApp",
@@ -35,7 +37,8 @@
         },
         "followUps": {
             "title": "Follow-ups vencidos",
-            "score": "Prioridade {{score}}"
+            "score": "Prioridade {{score}}",
+            "stale": "Orçamento parado · {{amount}}"
         },
         "waitlist": {
             "title": "Lista de espera",
@@ -52,11 +55,13 @@
         "title": "Metas do mês",
         "appointments": "Agendamentos",
         "showRate": "Comparecimento",
+        "revenue": "Faturamento",
         "setup": "Definir metas",
         "edit": "Editar",
         "modalTitle": "Metas do mês",
         "appointmentsLabel": "Meta de agendamentos por mês",
         "showRateLabel": "Meta de comparecimento (%)",
+        "revenueLabel": "Meta de faturamento por mês",
         "save": "Salvar metas",
         "saved": "Metas atualizadas",
         "saveError": "Não foi possível salvar as metas"

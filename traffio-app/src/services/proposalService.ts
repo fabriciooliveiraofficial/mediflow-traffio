@@ -349,10 +349,19 @@ export const ProposalService = {
 
     // ── Integração com Financeiro (livro-caixa) ─────────────────────────────────
 
-    /** Cria o recebimento e já vincula ao orçamento numa chamada. */
+    /**
+     * Cria o recebimento já como pago e vincula ao orçamento numa chamada.
+     * "Registrar recebimento" é dinheiro que já entrou — diferente de uma cobrança
+     * (NewBillingModal), que nasce 'pending' até ser paga depois.
+     */
     async registerPayment(proposalId: string, payload: { tenant_id: string; patient_id: string; amount_cents: number; due_date: string; payment_method?: string; notes?: string }) {
         const record = await BillingService.create(payload);
-        await BillingService.update(record.id, { proposal_id: proposalId });
+        await BillingService.update(record.id, {
+            proposal_id: proposalId,
+            status: 'paid',
+            payment_method: payload.payment_method || 'cash',
+            paid_at: new Date().toISOString(),
+        });
         await this.syncPaidStatus(proposalId);
         return record;
     },

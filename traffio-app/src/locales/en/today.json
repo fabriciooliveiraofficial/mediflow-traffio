@@ -11,7 +11,9 @@
         "minutes_one": "{{count}} min",
         "minutes_other": "{{count}} min",
         "hours_one": "{{count}} hr",
-        "hours_other": "{{count}} hrs"
+        "hours_other": "{{count}} hrs",
+        "days_one": "{{count}} day",
+        "days_other": "{{count}} days"
     },
     "channels": {
         "whatsapp": "WhatsApp",
@@ -35,7 +37,8 @@
         },
         "followUps": {
             "title": "Overdue follow-ups",
-            "score": "Priority {{score}}"
+            "score": "Priority {{score}}",
+            "stale": "Stalled proposal · {{amount}}"
         },
         "waitlist": {
             "title": "Waitlist",
@@ -52,11 +55,13 @@
         "title": "Monthly goals",
         "appointments": "Appointments",
         "showRate": "Show rate",
+        "revenue": "Revenue",
         "setup": "Set goals",
         "edit": "Edit",
         "modalTitle": "Monthly goals",
         "appointmentsLabel": "Appointments target per month",
         "showRateLabel": "Show-rate target (%)",
+        "revenueLabel": "Revenue target per month",
         "save": "Save goals",
         "saved": "Goals updated",
         "saveError": "Could not save goals"

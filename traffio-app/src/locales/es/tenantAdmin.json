@@ -326,6 +326,31 @@
       "createError": "Error al crear el cobro."
     }
   },
+  "billingRecordModal": {
+    "titleNew": "Nuevo cobro",
+    "titleReceipt": "Registrar recibo",
+    "patientLabel": "Paciente",
+    "selectPlaceholder": "Seleccionar...",
+    "amountLabel": "Monto",
+    "dueDateLabel": "Vencimiento",
+    "paymentDateLabel": "Fecha del recibo",
+    "methodLabel": "Forma de pago",
+    "methods": {
+      "pix": "Pix",
+      "cash": "Efectivo",
+      "card_machine": "Terminal (tarjeta)",
+      "credit_card": "Tarjeta de crédito",
+      "bank_transfer": "Transferencia bancaria",
+      "boleto": "Boleto",
+      "other": "Otro"
+    },
+    "notesLabel": "Notas",
+    "paymentNoteTemplate": "Presupuesto: {{title}}",
+    "cancelButton": "Cancelar",
+    "saveButton": "Guardar",
+    "validationError": "Ingrese un monto válido.",
+    "createError": "No se pudo guardar."
+  },
   "services": {
     "header": {
       "title": "Tipos de Consulta",
@@ -716,7 +741,10 @@
         "bank_transfer": "Transferencia bancaria",
         "other": "Otro"
       },
-      "paymentDateLabel": "Fecha del pago"
+      "paymentDateLabel": "Fecha del pago",
+      "generatePaymentLink": "Generar link de pago Stripe",
+      "stripeLinkCopied": "Link copiado — envíaselo al paciente",
+      "stripeLinkError": "No se pudo generar el link de pago"
     },
     "lostReasons": {
       "price": "Precio",

@@ -25,8 +25,13 @@ export interface QueuePreviewItem {
     title: string;
     /** Contexto curto (horário, telefone, estágio) — já formatado */
     subtitle: string;
-    /** Timestamp de referência para tempo relativo (F1: espera na fila) */
+    /** Timestamp de referência para tempo relativo (F1: espera na fila; F4: orçamento parado) */
     referenceAt?: string;
+    /** Discrimina a origem do item numa fila mista (F4 = jornada CRM + orçamento parado). */
+    kind?: 'proposal';
+    /** Só presentes quando kind === 'proposal' — valor do orçamento parado. */
+    amountCents?: number;
+    currency?: string;
 }
 
 export interface QueueSnapshot {
@@ -57,6 +62,8 @@ export interface TodaySnapshot {
         appointments?: GoalProgress;
         /** Comparecimento: completed / (completed + no_show), em % */
         showRate?: GoalProgress;
+        /** Recebido no mês corrente (fuso do tenant), em centavos — orçamentos com status='paid' */
+        revenue?: GoalProgress;
     };
     pulse: {
         appointmentsToday: number;
@@ -69,11 +76,15 @@ export interface TodaySnapshot {
 export interface MonthlyGoals {
     appointments?: number;
     show_rate?: number;
+    /** Meta de faturamento do mês, em centavos (moeda operacional do tenant). */
+    revenue?: number;
 }
 
 /** Statuses de agendamento cancelado/falta variam no banco — cobrir todos. */
 const CANCELLED_STATUSES = ['canceled', 'cancelled'];
 const NO_SHOW_STATUSES = ['noshow', 'no_show'];
+/** Mesmo limiar do estágio CRM 'proposal' (sla_hours=96) — orçamento "parado" no F4. */
+const STALE_PROPOSAL_MS = 96 * 60 * 60 * 1000;
 
 // Campos mínimos de jornada para estratificar + resolver nome (sem carregar o board inteiro)
 const JOURNEY_SELECT =
@@ -109,6 +120,7 @@ export async function getTodaySnapshot(tenantId: string, timezone?: string): Pro
     const monthStartStr = `${todayStr.slice(0, 7)}-01`;
 
     const startOfToday = localDateTimeToUTC(todayStr, '00:00', tz).toISOString();
+    const startOfMonth = localDateTimeToUTC(monthStartStr, '00:00', tz).toISOString();
     const nowTimeStr = new Intl.DateTimeFormat('en-GB', {
         timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
     }).format(new Date());
@@ -122,6 +134,8 @@ export async function getTodaySnapshot(tenantId: string, timezone?: string): Pro
         monthTotal,
         monthCompleted,
         monthNoShow,
+        monthPaidProposals,
+        staleProposals,
         newLeadsToday,
         resolvedToday,
     ] = await Promise.all([
@@ -187,6 +201,20 @@ export async function getTodaySnapshot(tenantId: string, timezone?: string): Pro
             .gte('date', monthStartStr)
             .lte('date', todayStr)
             .in('status', NO_SHOW_STATUSES),
+        // Meta — recebido no mês (orçamentos pagos, fuso do tenant)
+        supabase
+            .from('commercial_proposals')
+            .select('total_cents')
+            .eq('tenant_id', tenantId)
+            .eq('status', 'paid')
+            .gte('paid_at', startOfMonth),
+        // F4 — orçamentos parados (enviados/vistos, sem resposta há mais de 96h)
+        supabase
+            .from('commercial_proposals')
+            .select('id, title, total_cents, currency, sent_at, viewed_at, patients:patient_id(full_name, phone)')
+            .eq('tenant_id', tenantId)
+            .in('status', ['sent', 'viewed'])
+            .limit(200),
         // Pulso — novos leads hoje
         supabase
             .from('crm_journeys')
@@ -211,12 +239,29 @@ export async function getTodaySnapshot(tenantId: string, timezone?: string): Pro
     logError('confirmations', confirmations.error);
     logError('journeys', journeys.error);
     logError('waitlist', waitlistEntries.error);
+    logError('monthPaidProposals', monthPaidProposals.error);
+    logError('staleProposals', staleProposals.error);
 
     // F3/F4 — estratificação compartilhada (fonte única com o WorkQueue)
     const journeyRows = (journeys.data as unknown as JourneyRow[]) || [];
     const { due } = stratifyJourneys(journeyRows);
     const recoveryDue = due.filter(j => j.stage_id === 'recovery');
     const followUpsDue = due.filter(j => j.stage_id !== 'recovery');
+
+    // F4 — orçamentos parados (sem card próprio, ver docs/SPEC_TELA_HOJE.md)
+    const staleProposalRows = ((staleProposals.data as any[]) || []).filter(p => {
+        const ref = p.viewed_at || p.sent_at;
+        return !!ref && (Date.now() - new Date(ref).getTime()) > STALE_PROPOSAL_MS;
+    });
+    const staleProposalItems: QueuePreviewItem[] = staleProposalRows.map(p => ({
+        id: p.id,
+        title: p.patients?.full_name || formatPhone(p.patients?.phone || ''),
+        subtitle: p.title,
+        referenceAt: p.viewed_at || p.sent_at,
+        kind: 'proposal' as const,
+        amountCents: p.total_cents,
+        currency: p.currency,
+    }));
 
     // F6 + pulso — derivados da agenda de hoje
     const todayRows = (todayAppointments.data as any[]) || [];
@@ -256,12 +301,15 @@ export async function getTodaySnapshot(tenantId: string, timezone?: string): Pro
                 })),
             },
             followUps: {
-                count: followUpsDue.length,
-                items: followUpsDue.slice(0, 3).map(j => ({
-                    id: j.id,
-                    title: journeyName(j),
-                    subtitle: String(j.priority_score),
-                })),
+                count: followUpsDue.length + staleProposalItems.length,
+                items: [
+                    ...followUpsDue.map(j => ({
+                        id: j.id,
+                        title: journeyName(j),
+                        subtitle: String(j.priority_score),
+                    })),
+                    ...staleProposalItems,
+                ].slice(0, 3),
             },
             waitlist: {
                 count: waitlistEntries.count ?? 0,
@@ -286,6 +334,10 @@ export async function getTodaySnapshot(tenantId: string, timezone?: string): Pro
                     const denom = completed + noShow;
                     return denom > 0 ? Math.round((completed / denom) * 100) : 0;
                 })(),
+                target: 0,
+            },
+            revenue: {
+                current: ((monthPaidProposals.data as any[]) || []).reduce((s, r) => s + r.total_cents, 0),
                 target: 0,
             },
         },

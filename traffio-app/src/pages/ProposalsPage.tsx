@@ -2,16 +2,18 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     FileText, Plus, Search, Send, Check, X, Trash2, Loader2,
-    Wallet, TrendingUp, Clock, ChevronRight, AlertTriangle, ArrowLeft,
+    Wallet, TrendingUp, Clock, ChevronRight, AlertTriangle, ArrowLeft, CreditCard,
 } from 'lucide-react';
 import { useTenant } from '../contexts/TenantContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { useTenantMoney } from '../hooks/useTenantMoney';
 import { useLocaleFormat } from '../hooks/useLocaleFormat';
+import { useStripeConnection } from '../hooks/useStripeConnection';
 import { supabase } from '../lib/supabase';
 import { PageHeader, KpiCard, Badge, EmptyState, Button } from '../components/ui';
 import { SendProposalChannelModal } from '../components/channel/SendProposalChannelModal';
+import { BillingRecordModal } from '../components/billing/BillingRecordModal';
 import {
     ProposalService,
     type CommercialProposal,
@@ -418,6 +420,7 @@ function ProposalDetailDrawer({ proposal, loading, tenantId, userId, tenant, onC
     const { showToast } = useToast();
     const { formatCentsIn } = useTenantMoney();
     const { formatDateTime } = useLocaleFormat();
+    const { canSendPaymentLinks } = useStripeConnection();
 
     const [channelOptions, setChannelOptions] = useState<ProposalChannelOption[] | null>(null);
     const [showSendModal, setShowSendModal] = useState(false);
@@ -427,6 +430,24 @@ function ProposalDetailDrawer({ proposal, loading, tenantId, userId, tenant, onC
     const [busy, setBusy] = useState(false);
     const [paidTotal, setPaidTotal] = useState(0);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [generatingLink, setGeneratingLink] = useState(false);
+
+    const handleGeneratePaymentLink = async () => {
+        if (!proposal) return;
+        setGeneratingLink(true);
+        try {
+            const { data, error } = await supabase.functions.invoke('stripe-connect-create-payment-link', {
+                body: { proposal_id: proposal.id },
+            });
+            if (error || !data?.url) throw new Error(error?.message || data?.error || t('proposals.detail.stripeLinkError'));
+            await navigator.clipboard.writeText(data.url);
+            showToast('success', t('proposals.detail.stripeLinkCopied'));
+        } catch (err: any) {
+            showToast('error', err.message || t('proposals.detail.stripeLinkError'));
+        } finally {
+            setGeneratingLink(false);
+        }
+    };
 
     useEffect(() => {
         if (proposal?.status === 'approved' || proposal?.status === 'paid') {
@@ -622,9 +643,17 @@ function ProposalDetailDrawer({ proposal, loading, tenantId, userId, tenant, onC
                         </div>
                     )}
                     {proposal.status === 'approved' && (
-                        <button onClick={() => setShowPaymentModal(true)} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black text-white bg-brand-primary border-0 cursor-pointer">
-                            <Wallet size={13} />{t('proposals.detail.registerPayment')}
-                        </button>
+                        <div className="space-y-2">
+                            <button onClick={() => setShowPaymentModal(true)} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black text-white bg-brand-primary border-0 cursor-pointer">
+                                <Wallet size={13} />{t('proposals.detail.registerPayment')}
+                            </button>
+                            {canSendPaymentLinks && (
+                                <button onClick={handleGeneratePaymentLink} disabled={generatingLink} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black text-brand-primary bg-brand-primary/10 border-0 cursor-pointer disabled:opacity-50">
+                                    {generatingLink ? <Loader2 size={13} className="animate-spin" /> : <CreditCard size={13} />}
+                                    {t('proposals.detail.generatePaymentLink')}
+                                </button>
+                            )}
+                        </div>
                     )}
                     {(proposal.status === 'lost' || proposal.status === 'paid') && (
                         <div className="flex items-center justify-center gap-1.5 py-1 text-xs text-graphite-400">
@@ -645,9 +674,11 @@ function ProposalDetailDrawer({ proposal, loading, tenantId, userId, tenant, onC
             )}
 
             {showPaymentModal && (
-                <RegisterPaymentModal
-                    proposal={proposal}
+                <BillingRecordModal
                     tenantId={tenantId}
+                    proposalId={proposal.id}
+                    proposalTitle={proposal.title}
+                    patientId={proposal.patient_id}
                     remainingCents={remainingCents}
                     onClose={() => setShowPaymentModal(false)}
                     onSaved={async () => { setShowPaymentModal(false); await onChanged(); }}
@@ -657,87 +688,3 @@ function ProposalDetailDrawer({ proposal, loading, tenantId, userId, tenant, onC
     );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Registrar recebimento (v1 — modal fino, chama BillingService diretamente)
-// ─────────────────────────────────────────────────────────────────────────────
-
-const PAYMENT_METHODS = ['cash', 'pix', 'card_machine', 'bank_transfer', 'other'] as const;
-
-function RegisterPaymentModal({ proposal, tenantId, remainingCents, onClose, onSaved }: {
-    proposal: ProposalWithRelations;
-    tenantId: string;
-    remainingCents: number;
-    onClose: () => void;
-    onSaved: () => void;
-}) {
-    const { t } = useTranslation('tenantAdmin');
-    const { showToast } = useToast();
-    const { currency } = useTenantMoney();
-
-    const [amountInput, setAmountInput] = useState((remainingCents / 100).toFixed(2));
-    const [dueDate, setDueDate] = useState(new Date().toISOString().slice(0, 10));
-    const [method, setMethod] = useState<typeof PAYMENT_METHODS[number]>('pix');
-    const [saving, setSaving] = useState(false);
-
-    const handleSave = async () => {
-        const amountCents = Math.round(parseFloat(amountInput.replace(',', '.')) * 100);
-        if (!amountCents || amountCents <= 0) {
-            showToast('error', t('proposals.toasts.validationError'));
-            return;
-        }
-        setSaving(true);
-        try {
-            await ProposalService.registerPayment(proposal.id, {
-                tenant_id: tenantId,
-                patient_id: proposal.patient_id,
-                amount_cents: amountCents,
-                due_date: dueDate,
-                payment_method: method,
-                notes: t('proposals.detail.paymentNoteTemplate', { title: proposal.title }),
-            });
-            showToast('success', t('proposals.toasts.paymentSuccess'));
-            onSaved();
-        } catch (err: any) {
-            showToast('error', t('proposals.toasts.paymentError', { message: err.message }));
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    return (
-        <div className="fixed inset-0 z-[95] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => !saving && onClose()} />
-            <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 animate-in fade-in zoom-in-95 duration-200">
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-base font-black text-graphite-900">{t('proposals.detail.registerPayment')}</h3>
-                    <button onClick={onClose} disabled={saving} className="p-1.5 rounded-lg hover:bg-ice-100 text-graphite-400 border-0 bg-transparent cursor-pointer">
-                        <X size={16} />
-                    </button>
-                </div>
-                <div className="space-y-3">
-                    <div>
-                        <label className="text-[10px] font-black text-graphite-400 uppercase tracking-widest mb-1.5 block">{t('proposals.modal.totalLabel')} ({currency})</label>
-                        <input
-                            type="text" inputMode="decimal" value={amountInput} onChange={e => setAmountInput(e.target.value)}
-                            className="w-full bg-ice-50 border border-ice-100 rounded-xl px-4 py-2.5 text-sm font-bold focus:outline-none focus:border-brand-primary"
-                        />
-                    </div>
-                    <div>
-                        <label className="text-[10px] font-black text-graphite-400 uppercase tracking-widest mb-1.5 block">{t('proposals.detail.paymentMethodLabel')}</label>
-                        <select value={method} onChange={e => setMethod(e.target.value as any)} className="w-full bg-ice-50 border border-ice-100 rounded-xl px-4 py-2.5 text-sm font-bold focus:outline-none focus:border-brand-primary">
-                            {PAYMENT_METHODS.map(m => <option key={m} value={m}>{t(`proposals.detail.paymentMethods.${m}`)}</option>)}
-                        </select>
-                    </div>
-                    <div>
-                        <label className="text-[10px] font-black text-graphite-400 uppercase tracking-widest mb-1.5 block">{t('proposals.detail.paymentDateLabel')}</label>
-                        <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="w-full bg-ice-50 border border-ice-100 rounded-xl px-4 py-2.5 text-sm font-bold focus:outline-none focus:border-brand-primary" />
-                    </div>
-                </div>
-                <button onClick={handleSave} disabled={saving} className="mt-5 w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-black text-white bg-brand-primary border-0 cursor-pointer disabled:opacity-50">
-                    {saving && <Loader2 size={16} className="animate-spin" />}
-                    {t('proposals.modal.save')}
-                </button>
-            </div>
-        </div>
-    );
-}

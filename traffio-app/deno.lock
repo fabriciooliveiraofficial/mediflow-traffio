@@ -45,7 +45,8 @@
     "https://deno.land/x/denomailer@1.6.0/config/mail/mod.ts": "a7fafa3386a45a585d7983d816b09ddc28b2f2b84097a614f1e38685b1f62868",
     "https://deno.land/x/denomailer@1.6.0/deps.ts": "12bef188bb2a490fedc82ac1889f3d438e8a15887c423b045fee532b31a43102",
     "https://deno.land/x/denomailer@1.6.0/mod.ts": "71a197dff098194ab53691abd3c9d22a276ef04e1382eb85f5632dbcb5a83bf3",
-    "https://esm.sh/@supabase/supabase-js@2.7.1": "be4ce96f1e7e5c9fc4b2b77a7feb75ac03796dd2c6988e99b229c0cefc28309b"
+    "https://esm.sh/@supabase/supabase-js@2.7.1": "be4ce96f1e7e5c9fc4b2b77a7feb75ac03796dd2c6988e99b229c0cefc28309b",
+    "https://esm.sh/stripe@14.21.0?target=deno": "c68b76780452938e9bbae9e312323e97869ccbdafeb83ddf372746ffa52f6b66"
   },
   "workspace": {
     "packageJson": {

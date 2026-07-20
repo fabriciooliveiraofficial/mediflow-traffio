@@ -102,10 +102,10 @@ export const PreCheckin: React.FC = () => {
 
     // Auto-check geofence when entering the step
     useEffect(() => {
-        if (step === 'geofence_check' && tenantId && !geoResult && !geoLoading) {
+        if (step === 'geofence_check' && tenantId && !geoResult && !geoLoading && !geoError) {
             geoCheck();
         }
-    }, [step, tenantId, geoResult, geoLoading, geoCheck]);
+    }, [step, tenantId, geoResult, geoLoading, geoError, geoCheck]);
 
     // Auto-advance if geofence passes
     useEffect(() => {

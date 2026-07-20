@@ -8,6 +8,7 @@ import { clsx } from 'clsx';
 import { useLocaleFormat } from '../hooks/useLocaleFormat';
 import { useTranslation } from 'react-i18next';
 import { getIntlLocale } from '../lib/i18n';
+import { getTenantNow, getTenantTodayString } from '../lib/timezoneUtils';
 
 interface QuickBookingModalProps {
     isOpen: boolean;
@@ -107,14 +108,37 @@ export const QuickBookingModal: React.FC<QuickBookingModalProps> = ({ isOpen, on
     const loadSlots = async () => {
         setLoading(true);
         try {
+            const tz = tenant?.timezone || 'America/Sao_Paulo';
+            const todayStr = getTenantTodayString(tz);
             const { data, error } = await supabase.rpc('find_next_available_dates', {
                 p_doctor_id: selectedDoctor,
                 p_duration_minutes: selectedService.duration_minutes || 30,
                 p_limit: 7,
-                p_location_id: selectedLocation
+                p_location_id: selectedLocation,
+                p_from_date: todayStr
             });
             if (error) throw error;
-            setAvailableDates(data || []);
+
+            // Relógio local do tenant: sem isto, horários já passados hoje (no fuso da
+            // clínica) apareceriam como disponíveis — mesmo bug já corrigido no agente de
+            // IA via getTenantClock() (schedulingTools.ts).
+            const now = getTenantNow(tz);
+            const currentHours = now.getHours();
+            const currentMinutes = now.getMinutes();
+
+            const filtered = (data || []).map((day: any) => ({
+                ...day,
+                slots: (day.slots || []).filter((slot: any) => {
+                    if (!slot.available) return false;
+                    if (day.date !== todayStr) return true;
+                    const [h, m] = slot.time.split(':').map(Number);
+                    if (h > currentHours) return true;
+                    if (h === currentHours && m > currentMinutes) return true;
+                    return false;
+                })
+            }));
+
+            setAvailableDates(filtered);
         } catch (err) {
             console.error('Erro ao carregar slots:', err);
         } finally {

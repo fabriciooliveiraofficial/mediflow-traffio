@@ -45,9 +45,17 @@ Legenda: ✅ Implementado e em produção · 🟡 Decidido/especificado, não co
 - Virou a tela default ao logar (era Agenda)
 - i18n completo pt-BR/en/es
 
+**✅ Follow-ups concluídos (21/07/2026):**
+- Meta/número de **faturamento real** — 3ª barra em `GoalsStrip` (recebido no
+  mês, `commercial_proposals.status='paid'` no fuso do tenant), visível só
+  para quem tem `action:view_financial` (owner/admin/manager), oculta (não
+  zerada) quando a meta não está configurada.
+- Fila de **orçamentos parados** dentro de F4 — sem card novo (conforme a
+  spec original): propostas `sent`/`viewed` sem resposta há mais de 96h
+  (mesmo limiar já usado pelo estágio CRM `proposal`) entram nos itens do
+  card F4 existente.
+
 **🟡 Pendente desta iniciativa:**
-- Meta/número de **faturamento real** — depende do módulo de Orçamentos (item 3)
-- Fila de **orçamentos parados** dentro de F4 — depende do módulo de Orçamentos
 - Rotas react-router (deep-link, botão voltar) — hoje navegação é por `activeScreen` em memória
 
 **Bug corrigido pós-lançamento (16/07/2026):** `todayService.ts` comparava
@@ -138,18 +146,36 @@ navegador no primeiro teste manual da página nova:
    da interface `ProposalPatient` e dos fallbacks `phone || mobile` em
    `resolveChannelAvailability()`/`send()`.
 
-**🟡 Ainda pendente desta frente:**
-- **Recebimento como "Recibo"**: `billing_records`/`FinancialDashboard` continuam
-  sendo o livro-caixa geral; o "Registrar recebimento" do orçamento é um modal
-  fino próprio (v1 enxuta) que ainda não foi unificado com o `NewBillingModal`
-  existente — possível follow-up, não bloqueante.
-- **`approved→paid` automático via trigger de banco**: hoje a reconciliação é
-  acionada pelo client (`syncPaidStatus` após registrar um recebimento pelo
-  próprio módulo); se o recebimento for registrado por outro caminho, o
-  auto-`paid` pode não disparar. Fast-follow: trigger em `billing_records`.
-- **Geração de link de pagamento Stripe** a partir de um orçamento aprovado —
-  Fase 4 do plano Financeiro original, ainda não construída (`useStripeConnection`
-  já existe e está pronto para isso).
+**✅ Follow-ups concluídos (21/07/2026):**
+- **Recebimento unificado**: `RegisterPaymentModal` (ProposalsPage) e
+  `NewBillingModal` (FinancialDashboard) substituídos por um único
+  `src/components/billing/BillingRecordModal.tsx` (modo "recibo" com
+  paciente/valor travados quando aberto a partir de um orçamento; modo
+  "cobrança avulsa" com seletor de paciente quando aberto solto).
+- **Bug real encontrado e corrigido nessa unificação**: `ProposalService.
+  registerPayment()` criava o `billing_records` via `BillingService.create()`
+  (sempre `status:'pending'`) e nunca marcava como pago — a reconciliação
+  `syncPaidStatus()` (que só soma linhas `status='paid'`) nunca via o
+  recebimento, então uma proposta nunca virava `paid` pelo próprio fluxo
+  principal do módulo. Corrigido: "Registrar recebimento" agora grava direto
+  como `paid`/`paid_at=now()` (dinheiro já recebido, ao contrário de uma
+  cobrança avulsa, que nasce `pending` até ser paga depois).
+- **`approved→paid` automático via trigger de banco**: migration
+  `20260721100000_proposal_paid_trigger.sql` — trigger
+  `trg_billing_records_sync_proposal_paid` em `billing_records` (AFTER
+  INSERT/UPDATE de `status`/`proposal_id`) recalcula a soma paga e promove
+  `commercial_proposals` para `paid` independente do caminho que registrou o
+  pagamento (recibo manual, webhook Stripe, etc.). Testado ao vivo com uma
+  proposta/recebimento sintéticos (criados e removidos na mesma transação).
+- **Link de pagamento Stripe a partir de orçamento aprovado**: nova edge
+  function `stripe-connect-create-payment-link` — cria a `billing_records`
+  pendente pelo restante e uma Checkout Session direta na conta Connect
+  Standard do tenant (`{ stripeAccount: ... }`, sem `application_fee_amount`,
+  mesma arquitetura "Tech Provider direto" do Meta Cloud API); o consumidor
+  (`stripe-connect-webhook`, `checkout.session.completed`) já existia e já
+  lê `metadata.billing_record_id`. Botão "Gerar link de pagamento Stripe" no
+  drawer de detalhe, visível só quando `useStripeConnection().
+  canSendPaymentLinks` é `true` (mesma regra de UI já documentada no hook).
 
 Decisão de arquitetura (por causa de tenants multi-país sem integração de
 gateway viável): **3 objetos separados**
@@ -427,9 +453,12 @@ produção (`stop_reason=max_tokens`, pico de transferências, resposta vazia).
 - **Relógio local da clínica**: bug real corrigido — agente oferecia
   horário no passado pra tenant em fuso UTC+ alto (ex. Nova Zelândia); RPC
   de disponibilidade agora recebe a data/hora local do tenant explicitamente
-  (`getTenantClock()`), nunca `CURRENT_DATE` do servidor. **Gap conhecido**:
-  o FRONTEND (`QuickBookingModal`, `smartSchedulingService`) ainda não passa
-  esse relógio — mesmo bug latente fora do agente, não corrigido ainda.
+  (`getTenantClock()`), nunca `CURRENT_DATE` do servidor. **✅ Mesmo bug
+  corrigido no frontend em 21/07/2026** — `QuickBookingModal.loadSlots()`
+  era o único chamador de `find_next_available_dates` que não passava
+  `p_from_date`/filtro de horário; agora usa `getTenantTodayString()`/
+  `getTenantNow()` (mesmo padrão de `smartSchedulingService`/
+  `SidebarBookingView`), sem mudança de RPC.
 - **Fechamento por texto**: paciente que digita o horário ("9am") em vez de
   clicar no botão agora fecha o agendamento (antes estourava rounds e caía
   em handoff por não ter os IDs do slot fora do clique).
@@ -494,9 +523,6 @@ tinha itens já concluídos que não estavam documentados; corrigida):
 - **Camadas 3-6** do plano original (reflection pré-envio, follow-up
   automático, evals noturnos + LLM-judge, alarmes de produção) — não
   implementadas.
-- **Frontend não passa o relógio local do tenant** (`QuickBookingModal`,
-  `smartSchedulingService`) — mesmo bug do relógio já corrigido no agente,
-  ainda latente na UI de agendamento manual.
 - **Identidade em canais sem telefone** (Messenger/Instagram DM, livechat)
   — `buildPatientSnapshot` não resolve paciente nesses canais; problema
   aberto, sem solução desenhada.
@@ -720,6 +746,12 @@ documentos afirmavam.
    ~~IA consciente de jornada~~ · ~~Blindagem Ondas 1-2~~ · ~~Camada de
    Conhecimento (5 fases)~~ · ~~Meta Cloud API — billing + UI de upgrade~~
    (itens 1-7, ver seções acima — datas entre 14/07 e 20/07/2026).
+2. ~~Follow-ups pequenos de features já entregues~~ (21/07/2026): KPI de
+   faturamento real + fila "orçamentos parados" na Tela Hoje; recebimento
+   unificado (`BillingRecordModal`) + bug de status corrigido + trigger
+   `approved→paid`; link de pagamento Stripe a partir de orçamento aprovado;
+   relógio local do tenant no `QuickBookingModal`. Ver detalhes nas seções 1
+   e 3 acima.
 
 **Pendências reais, por tipo:**
 
@@ -729,19 +761,10 @@ documentos afirmavam.
 - Preencher `OPENAI_API_KEY` (embeddings) → pré-requisito para ligar o RAG
   do item 5 (infra pronta, `RAG_ENABLED=false` por decisão consciente).
 
-*Follow-ups pequenos de features já entregues:*
-- Tela Hoje: KPI de faturamento real + fila "orçamentos parados" (agora
-  desbloqueados pelo módulo de Orçamentos, ainda não construídos); rotas
-  react-router.
-- Orçamentos: unificar modal de recibo com `NewBillingModal`; trigger
-  automático `approved→paid`; link de pagamento Stripe.
-- Agente: relógio local do tenant no frontend de agendamento manual
-  (`QuickBookingModal`/`smartSchedulingService`) — mesmo bug já corrigido
-  no agente, ainda latente na UI.
-
-**← próximo passo de construção recomendado**: fechar as pendências de
-Orçamentos acima (menor esforço, maior fricção operacional hoje) — ou, se
-preferir seguir a frente de IA, a **Onda 3/4 de blindagem** (tom/
+**← próximo passo de construção recomendado**: rotas react-router (deep-link,
+botão voltar — hoje navegação é por `activeScreen` em memória), maior esforço
+que os follow-ups já fechados, deliberadamente adiada para uma entrega própria
+— ou, se preferir seguir a frente de IA, a **Onda 3/4 de blindagem** (tom/
 acessibilidade + riscos emergentes 2026) é a próxima peça de robustez
 ainda sem nenhum código.
 
@@ -759,7 +782,10 @@ deste arquivo. Histórico resumido: Tela Hoje/menu/Orçamentos/F2/GTM/
 Relatórios/IA-por-estágio concluídos 14-16/07; Cloud API billing+UI
 16/07 (onboarding real segue bloqueado, ação externa); Blindagem Ondas 1-2
 e Camada de Conhecimento (5 fases) concluídas 14-20/07, só agora
-documentadas — eram o maior gap deste arquivo. Ao concluir qualquer item,
-mover para a seção correspondente com ✅ e a data/PR relevante — e
-**verificar contra o código antes de assumir**, este arquivo já provou
-divergir da realidade mais de uma vez.*
+documentadas — eram o maior gap deste arquivo; 6 follow-ups pequenos
+(KPI de faturamento, fila de orçamentos parados, recebimento unificado +
+bug de status corrigido, trigger `approved→paid`, link de pagamento
+Stripe, relógio local no agendamento manual) concluídos em 21/07. Ao
+concluir qualquer item, mover para a seção correspondente com ✅ e a
+data/PR relevante — e **verificar contra o código antes de assumir**, este
+arquivo já provou divergir da realidade mais de uma vez.*

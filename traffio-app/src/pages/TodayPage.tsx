@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useTenant } from '../contexts/TenantContext';
 import { useLocaleFormat } from '../hooks/useLocaleFormat';
+import { useTenantMoney } from '../hooks/useTenantMoney';
 import { useTodaySnapshot } from '../hooks/useTodaySnapshot';
 import { getLocalHour } from '../lib/timezoneUtils';
 import { QueueCard, type QueueCardItem } from '../components/today/QueueCard';
@@ -22,6 +23,7 @@ export function TodayPage({ onNavigate }: { onNavigate?: (screen: string) => voi
     const { t } = useTranslation('today');
     const { tenant, userProfile } = useTenant();
     const { formatDate, formatDateTime } = useLocaleFormat();
+    const { formatCentsIn } = useTenantMoney();
     const { snapshot, loading, refreshing, refresh } = useTodaySnapshot();
 
     const tz = tenant?.timezone;
@@ -46,6 +48,14 @@ export function TodayPage({ onNavigate }: { onNavigate?: (screen: string) => voi
         return { meta, metaTone: minutes > 15 ? 'danger' : minutes >= 5 ? 'warn' : 'neutral' };
     };
 
+    // Dias parado (F4: orçamento sem resposta) — já é "parado" a partir de 96h (ver todayService),
+    // então qualquer item aqui é pelo menos "warn"; passa a "danger" acima de 7 dias.
+    const staleDaysMeta = (referenceAt?: string): Pick<QueueCardItem, 'meta' | 'metaTone'> => {
+        if (!referenceAt) return {};
+        const days = Math.max(0, Math.floor((Date.now() - new Date(referenceAt).getTime()) / 86400000));
+        return { meta: t('time.days', { count: days }), metaTone: days > 7 ? 'danger' : 'warn' };
+    };
+
     const q = snapshot?.queues;
 
     const humanItems: QueueCardItem[] = (q?.humanQueue.items || []).map(i => ({
@@ -67,11 +77,21 @@ export function TodayPage({ onNavigate }: { onNavigate?: (screen: string) => voi
         subtitle: t('queues.recovery.reason', { count: Number(i.subtitle) || 1 }),
     }));
 
-    const followUpItems: QueueCardItem[] = (q?.followUps.items || []).map(i => ({
-        id: i.id,
-        title: i.title,
-        subtitle: t('queues.followUps.score', { score: i.subtitle }),
-    }));
+    const followUpItems: QueueCardItem[] = (q?.followUps.items || []).map(i => {
+        if (i.kind === 'proposal') {
+            return {
+                id: i.id,
+                title: i.title,
+                subtitle: t('queues.followUps.stale', { amount: formatCentsIn(i.amountCents || 0, i.currency) }),
+                ...staleDaysMeta(i.referenceAt),
+            };
+        }
+        return {
+            id: i.id,
+            title: i.title,
+            subtitle: t('queues.followUps.score', { score: i.subtitle }),
+        };
+    });
 
     const waitlistItems: QueueCardItem[] = (q?.waitlist.items || []).map(i => ({
         id: i.id,
@@ -111,6 +131,7 @@ export function TodayPage({ onNavigate }: { onNavigate?: (screen: string) => voi
             <GoalsStrip
                 appointmentsCurrent={snapshot.goals.appointments?.current ?? 0}
                 showRateCurrent={snapshot.goals.showRate?.current ?? 0}
+                revenueCurrent={snapshot.goals.revenue?.current ?? 0}
             />
 
             {/* Filas — ordem fixa F1→F6 (previsibilidade espacial > ranking) */}
