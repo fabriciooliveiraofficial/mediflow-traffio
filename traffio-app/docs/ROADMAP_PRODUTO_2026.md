@@ -288,16 +288,11 @@ de modelo: `claude-sonnet-5` (agente conversacional) + `claude-haiku-4-5-2025100
   respondendo…", chip "Aguardando resposta" (vermelho pulsante) quando é vez
   do humano, bolhas de mensagem da IA em violeta com etiqueta "IA"
 
-**Suíte de evals (gate obrigatório)** ✅
+**Suíte de evals (gate obrigatório)** ✅ — cresceu ao longo de várias sessões
+(14→21/07/2026); contagem final na seção "Blindagem" abaixo. Baseline
+inicial: 12 cenários / 13 testes unitários, 14/07/2026.
 - `supabase/functions/_tests/evals/` — roda o modelo real com o prompt de
   produção contra ferramentas mockadas
-- **12 cenários**: preço, insistência em preço, pedido de humano,
-  cancelamento, agendamento, remarcação, ferramenta fora do ar (não pode
-  inventar horário), dúvida clínica, idiomas EN/ES, idioma pós-ferramentas
-  (anti-deriva), identidade (não finge ser humano)
-- 13 testes unitários puros (parse de clique, horário de atendimento,
-  normalização de slot, formatação de data)
-- **Baseline atual: 12/12 verde** (14/07/2026, claude-sonnet-5)
 - Regra: mudou prompt/modelo/ferramenta → suíte roda antes do deploy
 
 **Bugs de piloto corrigidos** ✅ (documentados em `copilot_f1_architecture.md`
@@ -353,14 +348,173 @@ na memória do projeto)
 - Mensagem de waitlist (`process-waitlist/index.ts`) continua só em PT —
   limitação pré-existente, não introduzida por este trabalho.
 
-**🟡 Pendente desta frente:**
-- **Camada de provedor Meta Cloud API para o agente** — hoje o envio já
-  suporta os dois provedores (dispatcher), mas o agente não foi testado/
-  validado especificamente rodando sobre Cloud API em vez de Z-API
-- **Teto de uso/custo por tenant** que degrada autonomia (`copilot` em vez de
-  cortar atendimento) quando estoura orçamento — mencionado na spec original,
-  não implementado
-- **Áudio/voz** (transcrição de mensagem de voz do paciente) — fora de escopo, mencionado como fase futura
+---
+
+#### Blindagem do agente em camadas (14→17/07/2026) — auditado em 21/07/2026
+
+**Não documentado até agora.** Depois dos F0-F3 e do F2, uma frente inteira de
+robustez do agente autônomo foi construída e verificada diretamente no
+código (`copilot.ts` tem hoje **1138 linhas**, `schedulingTools.ts` **815**)
+— não é mais um arquivo pequeno. Docs de referência já existentes no repo:
+`docs/RESULTADO_COMPORTAMENTOS_AGENTE_IA.md`,
+`docs/PLANO_BLINDAGEM_AGENTE_ONDAS.md`,
+`docs/TAREFA_IMPLEMENTACAO_ONDA2_BLINDAGEM.md`.
+
+**Camadas 1-2 ("LLM propõe, sistema garante")** ✅
+- `agentChat()`: teto de tokens com retry em dobro se cortar no meio +
+  aparagem na última sentença — nunca envia frase amputada (causa raiz de um
+  bug real: `max_tokens` estourado corta o texto E os `tool_use` que viriam
+  depois, o agente "esquecia" de agendar).
+- `validateAgentReply(text, {language, evidence, policyEvidence})`: valida
+  preço vazado, horário inventado (fora da evidência do turno), deriva de
+  idioma, política sem fonte, emoji em excesso, quase-duplicata da última
+  resposta. Reprovou → 1 regeneração corretiva → ainda reprovado → handoff.
+- `buildFlowStateHint(context, intake)`: estado do agendamento vira seção
+  "### ESTADO DO FLUXO" no prompt — evita reperguntar o que já foi dito ou
+  re-ofertar horário já oferecido.
+
+**Onda 1 — comportamentos de risco imediato** ✅ (17/07/2026)
+Validadores + regras de prompt para: injeção de prompt, vazamento de
+detalhe interno (slot_id/UUID/nome de ferramenta), promessa clínica
+(diagnóstico/cura), idempotência de agendamento (detecta `already_booked`),
+loop de resposta repetida, emergência médica (orienta pronto-socorro +
+handoff), engenharia social, privacidade de terceiros.
+
+**Onda 2 — autorização/transacional (maior dano residual)** ✅ **completa**
+(17/07/2026) — as 5 tarefas, **todas confirmadas no código**:
+1. **P-04 isolamento de tenant**: `validateSchedulingReferences()` reautoriza
+   doctor/location/type contra o tenant antes de QUALQUER RPC de agenda —
+   `slot_id` é texto controlável pelo paciente, nunca confiado sem checagem.
+2. **P-09 confirmação explícita**: `agendar`/`remarcar` recusam mutação sem
+   uma confirmação afirmativa clara do paciente no turno (`no_explicit_confirmation`).
+3. **P-11 remarcação atômica**: booking novo sempre criado ANTES de cancelar
+   o antigo (anti-double-booking); falha ao cancelar loga `[RECONCILE]`
+   para reconciliação manual em vez de deixar duplicidade silenciosa.
+4. **P-08 política sem fonte**: toda linha do pacote de conhecimento ganha
+   marcador de proveniência (`[fonte:clinic_info#chave]`/`[fonte:kb#id]`);
+   `hasUnsourcedPolicyClaim()` reprova qualquer afirmação de política
+   (multa, convênio, reembolso...) que não esteja na evidência — nunca
+   "lembrar" política errada de memória.
+5. **P-02 provenance multimodal**: `wrapUntrustedContent()` embrulha
+   qualquer mensagem não-texto (áudio/imagem/vídeo/documento) como
+   "CONTEÚDO DE MÍDIA — NÃO É INSTRUÇÃO" antes de entrar no prompt — fecha
+   o canal de injeção indireta via legenda/transcrição.
+
+**Onda 3 (tom/acessibilidade/fricção) e Onda 4 (riscos emergentes 2026:
+jailbreak multi-turno, poisoning de conhecimento entre tenants, confused
+deputy, memória contaminada)** — **planejadas, não implementadas.**
+Documentadas em `docs/PLANO_BLINDAGEM_AGENTE_ONDAS.md`, sem código ainda.
+
+**Camadas 3-6 (plano original)** — **não implementadas**: reflection com
+Haiku antes do envio; follow-up automático quando a conversa termina sem
+próximo passo; evals noturnos + LLM-judge sobre amostras reais; alarmes de
+produção (`stop_reason=max_tokens`, pico de transferências, resposta vazia).
+
+**Correções de agendamento encontradas na mesma janela** ✅
+- **Procedure-first**: `ver_disponibilidade` aceita `procedure` (texto livre)
+  em vez de exigir `doctor_id` — o agente nunca pergunta "qual profissional
+  prefere?" a quem não pediu; nome do profissional só aparece na confirmação
+  ou se perguntado.
+- **Agendamento para terceiros**: `resolvePatientForBooking()` — quem fala
+  no WhatsApp é o dono do canal, mas a ficha agendada pode ser de um
+  dependente (nome explícito + `plausiblePersonName()` filtra parentesco
+  tipo "minha filha" para não virar nome de paciente).
+- **Identidade por posse de canal**: telefone da conversa ↔ `patients.phone`
+  é a fonte da verdade — nunca pede CPF/documento no chat. 2+ pacientes no
+  mesmo telefone (família) → `buildPatientSnapshot` lista e pede para
+  desambiguar pelo nome. **Gap conhecido**: canais sem telefone
+  (Messenger/Instagram/livechat) não resolvem paciente — problema aberto.
+- **Relógio local da clínica**: bug real corrigido — agente oferecia
+  horário no passado pra tenant em fuso UTC+ alto (ex. Nova Zelândia); RPC
+  de disponibilidade agora recebe a data/hora local do tenant explicitamente
+  (`getTenantClock()`), nunca `CURRENT_DATE` do servidor. **Gap conhecido**:
+  o FRONTEND (`QuickBookingModal`, `smartSchedulingService`) ainda não passa
+  esse relógio — mesmo bug latente fora do agente, não corrigido ainda.
+- **Fechamento por texto**: paciente que digita o horário ("9am") em vez de
+  clicar no botão agora fecha o agendamento (antes estourava rounds e caía
+  em handoff por não ter os IDs do slot fora do clique).
+- **Snapshot do paciente**: ficha + agendamentos futuros reais injetados
+  todo turno ("### PACIENTE NO SISTEMA — fonte da verdade") — corrige
+  alucinação em perguntas sobre estado (ex.: "confirma minha consulta?").
+
+**Confiabilidade — lock de conversa pooler-safe** ✅ (achado em auditoria,
+migration `20260716c_conversation_lock_lease.sql`) — `pg_try_advisory_lock`
+é de sessão Postgres; via PostgREST/pooler o lock podia ser adquirido numa
+conexão e o unlock rodar em outra, travando a fila do tenant por 2-3min
+(observado em produção). Substituído por lease com TTL em tabela
+(`conversation_locks` + RPCs `acquire_conversation_lock`/
+`release_conversation_lock`), atômico em qualquer conexão.
+
+**Suíte de evals — estado atual (auditado em 21/07/2026): 31 cenários / 62
+testes unitários.** Cada onda/correção acima tem cenário próprio
+(`prompt_injection`, `emergencia_medica`, `politica_sem_fonte`,
+`injecao_via_midia`, `agendamento_procedure_first`, `agendamento_para_terceiro`,
+`fechamento_por_texto`, `confirmacao_existente`, `estagio_*` do item 6,
+entre outros) — cresceu de 12→31 sem regressão registrada em nenhuma etapa.
+
+---
+
+#### Camada de Conhecimento do agente (17→20/07/2026) — 5 fases, todas em produção
+
+**Não documentado até agora.** Motivação: agente transferia por falta de
+contexto do tenant. Implementado sob orquestração (Codex + review/gate/
+deploy), documentado em `docs/TAREFA_CHATGPT_CAMADA_CONHECIMENTO.md` e
+`docs/RESULTADO_CAMADA_CONHECIMENTO.md`.
+
+1. **Ficha canônica** — `src/config/clinicFactsSchema.ts`: 25 fatos
+   trilíngues (commercial/logistics/clinical/policies); UI guiada em
+   Configurações → "Base de Conhecimento da IA"; `buildKnowledgePacket`
+   distingue STATUS da consulta (sempre informável se houver fonte) de
+   VALOR monetário (nunca, política de preço absoluta intacta).
+2. **Loop de lacunas de conhecimento** — agente registra pergunta que não
+   soube responder (`knowledge_gaps`, dedupe por pergunta normalizada);
+   painel `KnowledgeGapsPanel` na página Inteligência transforma lacuna em
+   fato com 1 clique.
+3. **Base de domínio global odontológica** — `global_knowledge` (sem
+   tenant_id, curada pela Traffio): 15 tópicos × 3 idiomas, herdados por
+   todo tenant novo sem cadastrar nada; suprimido automaticamente se o
+   tenant já tem fato próprio equivalente. CRUD super-admin em
+   `/master/knowledge`.
+4. **Onboarding por IA** — extrai fatos de site/texto/arquivo/entrevista
+   (`extract-clinic-facts`, Haiku) → **sempre** fila de sugestões com
+   revisão humana obrigatória, nunca escreve direto no cadastro. SSRF guard
+   no fetch server-side. Fora de escopo documentado: PDF/imagem/OCR,
+   scraping oficial de Instagram.
+5. **RAG — construído e DESLIGADO por decisão do dono** — infra pgvector já
+   existia (`knowledge_base.embedding`, RPC `match_knowledge_base`, índice
+   HNSW); `RAG_ENABLED=false` até haver volume de KB que justifique
+   (`RAG_MIN_KB_ENTRIES=20`). `OPENAI_API_KEY` (embeddings) ainda vazio —
+   pré-requisito para ligar.
+
+**🟡 Pendente real desta frente** (auditado em 21/07/2026 — lista anterior
+tinha itens já concluídos que não estavam documentados; corrigida):
+- **Onda 3** (tom/acessibilidade/fricção) **e Onda 4** (jailbreak
+  multi-turno, poisoning entre tenants, confused deputy, memória
+  contaminada) — só planejadas, zero código.
+- **Camadas 3-6** do plano original (reflection pré-envio, follow-up
+  automático, evals noturnos + LLM-judge, alarmes de produção) — não
+  implementadas.
+- **Frontend não passa o relógio local do tenant** (`QuickBookingModal`,
+  `smartSchedulingService`) — mesmo bug do relógio já corrigido no agente,
+  ainda latente na UI de agendamento manual.
+- **Identidade em canais sem telefone** (Messenger/Instagram DM, livechat)
+  — `buildPatientSnapshot` não resolve paciente nesses canais; problema
+  aberto, sem solução desenhada.
+- **RAG desligado** — falta `OPENAI_API_KEY` + volume de KB por tenant para
+  justificar ligar; runbook já documentado, decisão consciente de não
+  ligar ainda, não é bug.
+- **Agente rodando sobre Cloud API** — o dispatcher suporta os dois
+  provedores, mas o agente conversacional nunca foi validado
+  especificamente sobre Cloud API em produção (só Z-API até agora).
+- **Teto de uso/custo por tenant** que degrada autonomia automaticamente
+  (`ai_always`→`copilot`) ao estourar orçamento — mencionado na spec
+  original, não implementado.
+- **Áudio/voz**: mensagem de voz é detectada e categorizada, mas **nunca
+  transcrita** — cai em handoff humano. Bloqueado por decisão de produto
+  (P-02/provenance multimodal exige tratar transcrição como conteúdo não
+  confiável antes de ligar) — desenho existe, implementação não.
+
+---
 
 ---
 
@@ -393,7 +547,10 @@ dedicada, agora com nome e conteúdo coerentes.
 
 ### 6. IA consciente de jornada (CRM stage-aware) — a fronteira competitiva
 
-**Status: ✅ Implementado e verificado (16/07/2026) — suíte de evals 16/16 verde, liberado para produção.**
+**Status: ✅ Implementado e verificado (16/07/2026) — suíte de evals 16/16 verde
+na época, liberado para produção.** *(nota de auditoria 21/07/2026: a suíte
+cresceu desde então para 31 cenários — ver "Blindagem do agente em camadas"
+no item 5 — os 4 cenários `estagio_*` desta entrega continuam entre eles.)*
 
 O agente (F1 rascunho + F3 autônomo) agora lê `crm_journeys.stage_id` da
 conversa (via `crm_journeys.session_id`, FK já populada pelo trigger
@@ -550,47 +707,59 @@ fica como item futuro separado, a desenhar do zero.
 
 ## Ordem recomendada dos próximos passos
 
-1. **Validar o piloto do F3** (agendamento autônomo) na Dental Test 4 — mais
-   testes reais, rodar a suíte a cada ajuste. *(contínuo, depende de uso real — não é uma tarefa de código isolada)*
-2. ~~**Módulo de Orçamentos + caixa gateway-agnóstico** (item 3)~~ **✅ Concluído
-   em 16/07/2026.**
-3. ~~**Reorganização visual do menu em 5 grupos** (item 2)~~ **✅ Concluído em
-   16/07/2026.**
-4. ~~**F2 — fluxos estruturados determinísticos** (recovery + waitlist)~~ **✅
-   Concluído em 16/07/2026.** Teste ponta a ponta pendente com WhatsApp real
-   (ver seção do item 5 acima) — próxima vez que mexer no pipeline de
-   inbox/outbound, validar contra o tenant de teste.
-5. ~~**GTM em Odontologia** (seletor de especialidade simplificado) +
-   **consolidar Relatórios** (item 7)~~ **✅ Concluído em 16/07/2026.** Falta
-   só a decisão de copy de marketing/onboarding externo (site, discurso
-   comercial), que fica fora deste repositório.
-6. ~~**IA consciente de jornada** (item 6)~~ **✅ Implementado e verificado em
-   16/07/2026** — suíte de evals 16/16 verde (incluiu de brinde um reforço
-   na âncora de idioma F1/F3, achado durante a própria rodada de evals).
-7. ~~**Meta Cloud API como tier Pro** — UI de upgrade + billing metered
-   (item 4)~~ **✅ Construído em 16/07/2026** (as 2 peças que dependiam só de
-   código). **🔴 Falta 1 peça, não é tarefa de código**: onboarding real
-   (Embedded Signup) exige que o usuário habilite o produto WhatsApp no
-   Meta App da Traffio + Business Verification aprovada pela Meta —
-   processo externo, iniciar quando fizer sentido. **← próximo passo real
-   agora é essa ação do usuário, não uma tarefa de construção.** Depois
-   disso, resta o loop de aprendizado com edições do copiloto (fora de
-   escopo do item 6, sem plumbing hoje) como próxima grande aposta em
-   aberto.
+**⚠️ Auditoria de 21/07/2026**: este documento estava desatualizado — não
+registrava a Blindagem em camadas (Ondas 1-2 completas), a Camada de
+Conhecimento (5 fases em produção) nem o fix de confiabilidade do lock de
+conversa, todos já em produção. A lista abaixo foi corrigida para refletir
+só o que foi **verificado diretamente no código/banco**, não o que os
+documentos afirmavam.
+
+**Concluído (verificado):**
+1. ~~Tela Hoje~~ · ~~Reorganização de menu~~ · ~~Orçamentos~~ · ~~F2 fluxos
+   estruturados~~ · ~~GTM Odontologia~~ · ~~Consolidação de Relatórios~~ ·
+   ~~IA consciente de jornada~~ · ~~Blindagem Ondas 1-2~~ · ~~Camada de
+   Conhecimento (5 fases)~~ · ~~Meta Cloud API — billing + UI de upgrade~~
+   (itens 1-7, ver seções acima — datas entre 14/07 e 20/07/2026).
+
+**Pendências reais, por tipo:**
+
+*Ações externas suas (não são tarefas de código):*
+- Habilitar produto WhatsApp + Business Verification no Meta Business
+  Manager da Traffio → destrava onboarding real (Embedded Signup) do item 4.
+- Preencher `OPENAI_API_KEY` (embeddings) → pré-requisito para ligar o RAG
+  do item 5 (infra pronta, `RAG_ENABLED=false` por decisão consciente).
+
+*Follow-ups pequenos de features já entregues:*
+- Tela Hoje: KPI de faturamento real + fila "orçamentos parados" (agora
+  desbloqueados pelo módulo de Orçamentos, ainda não construídos); rotas
+  react-router.
+- Orçamentos: unificar modal de recibo com `NewBillingModal`; trigger
+  automático `approved→paid`; link de pagamento Stripe.
+- Agente: relógio local do tenant no frontend de agendamento manual
+  (`QuickBookingModal`/`smartSchedulingService`) — mesmo bug já corrigido
+  no agente, ainda latente na UI.
+
+**← próximo passo de construção recomendado**: fechar as pendências de
+Orçamentos acima (menor esforço, maior fricção operacional hoje) — ou, se
+preferir seguir a frente de IA, a **Onda 3/4 de blindagem** (tom/
+acessibilidade + riscos emergentes 2026) é a próxima peça de robustez
+ainda sem nenhum código.
+
+*Ideias sem desenho (não é força de trabalho pronta pra puxar):*
+- Loop de aprendizado com edições do copiloto (item 6, zero plumbing hoje).
+- Camadas 3-6 de blindagem (reflection, follow-up automático, evals
+  noturnos, alarmes).
+- Identidade de paciente em canais sem telefone (Messenger/Instagram DM).
 
 ---
 
-*Última atualização: 16/07/2026 (bugs pós-lançamento do módulo de Orçamentos
-e da Tela Hoje corrigidos — ver itens 1 e 3; reorganização visual do menu em
-5 grupos concluída — item 2; F2 fluxos estruturados determinísticos
-recovery+waitlist concluído — item 5; GTM em Odontologia implementado —
-item 7, default de tenant novo + seletor de especialidade simplificado;
-consolidação de Relatórios concluída — item 7, Marketing/Financeiro/
-Comercial; IA consciente de jornada implementada e verificada — item 6,
-F1+F3 ajustam abordagem por estágio do CRM, suíte de evals 16/16 verde,
-âncora de idioma F1/F3 reforçada como efeito colateral; Meta Cloud API tier
-Pro parcialmente implementado — item 4, billing medido + UI de upgrade
-prontos, onboarding real via Embedded Signup bloqueado em Business
-Verification que o usuário ainda precisa iniciar no Meta Business Manager).
-Ao concluir qualquer item, mover para a seção correspondente com ✅ e a
-data/PR relevante.*
+*Última atualização: 21/07/2026 — auditoria completa contra código/banco
+(não contra a própria documentação) após o usuário questionar a precisão
+deste arquivo. Histórico resumido: Tela Hoje/menu/Orçamentos/F2/GTM/
+Relatórios/IA-por-estágio concluídos 14-16/07; Cloud API billing+UI
+16/07 (onboarding real segue bloqueado, ação externa); Blindagem Ondas 1-2
+e Camada de Conhecimento (5 fases) concluídas 14-20/07, só agora
+documentadas — eram o maior gap deste arquivo. Ao concluir qualquer item,
+mover para a seção correspondente com ✅ e a data/PR relevante — e
+**verificar contra o código antes de assumir**, este arquivo já provou
+divergir da realidade mais de uma vez.*
