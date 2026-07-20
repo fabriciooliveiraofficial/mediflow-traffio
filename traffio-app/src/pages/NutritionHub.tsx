@@ -14,14 +14,16 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
+import { useLocation } from 'react-router-dom';
 import { nutritionService } from '../services/nutritionService';
 import { useToast } from '../contexts/ToastContext';
 import { PatientSearchModal } from '../components/shared/PatientSearchModal';
 import { NewNutritionEvaluationModal } from '../components/nutrition/NewNutritionEvaluationModal';
 import { MealPlannerModal } from '../components/nutrition/MealPlannerModal';
 
-export const NutritionHub: React.FC<{ activeView?: string }> = ({ activeView }) => {
+export const NutritionHub: React.FC = () => {
     const { t } = useTranslation('medical');
+    const location = useLocation();
     const { showToast } = useToast();
     const [evaluations, setEvaluations] = useState<any[]>([]);
     const [timeline, setTimeline] = useState<any[]>([]);
@@ -38,10 +40,10 @@ export const NutritionHub: React.FC<{ activeView?: string }> = ({ activeView }) 
     const [pendingAction, setPendingAction] = useState<'eval' | 'meal' | null>(null);
 
     useEffect(() => {
-        if (activeView === 'nutrition-plan') {
+        if (location.pathname.endsWith('/nutrition-plan')) {
             handleActionRequest('meal');
         }
-    }, [activeView]);
+    }, [location.pathname]);
 
     useEffect(() => {
         const fetchHubData = async () => {

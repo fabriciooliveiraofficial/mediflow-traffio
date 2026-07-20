@@ -94,24 +94,36 @@ export const GeolocationService = {
      * Checks against ALL active locations + tenant main address.
      * Returns the NEAREST location result.
      */
-    async checkGeofence(tenantId: string, expectedLocationId?: string): Promise<GeofenceResult> {
-        // 1. Fetch Tenant Settings
-        const { data: tenant } = await supabase
-            .from('tenants')
-            .select('name, latitude, longitude, geofence_radius, address')
-            .eq('id', tenantId)
-            .single();
+    async checkGeofence(
+        tenantId: string,
+        expectedLocationId?: string,
+        preloadedTenant?: { name?: string; latitude?: number; longitude?: number; geofence_radius?: number; address?: string },
+        preloadedLocations?: LocationInfo[]
+    ): Promise<GeofenceResult> {
+        let tenant = preloadedTenant;
+        let locations = preloadedLocations;
+
+        if (!tenant) {
+            const { data } = await supabase
+                .from('tenants')
+                .select('name, latitude, longitude, geofence_radius, address')
+                .eq('id', tenantId)
+                .single();
+            tenant = data || undefined;
+        }
 
         if (!tenant) throw new Error('Tenant not found');
 
-        // 2. Fetch Active Locations with Coordinates
-        const { data: locations } = await supabase
-            .from('locations')
-            .select('id, name, latitude, longitude')
-            .eq('tenant_id', tenantId)
-            .eq('is_active', true)
-            .not('latitude', 'is', null)
-            .not('longitude', 'is', null);
+        if (!locations) {
+            const { data } = await supabase
+                .from('locations')
+                .select('id, name, latitude, longitude')
+                .eq('tenant_id', tenantId)
+                .eq('is_active', true)
+                .not('latitude', 'is', null)
+                .not('longitude', 'is', null);
+            locations = (data || []) as LocationInfo[];
+        }
 
         // 3. Get User Location
         const coords = await this.getBrowserLocation();

@@ -11,6 +11,7 @@ import {
     Stethoscope,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useLocation } from 'react-router-dom';
 import { dentalService } from '../services/dentalService';
 import { useToast } from '../contexts/ToastContext';
 import { NewDentalBudgetModal } from '../components/dental/NewDentalBudgetModal';
@@ -19,8 +20,9 @@ import { OdontogramModal } from '../components/dental/OdontogramModal';
 import { PatientSearchModal } from '../components/shared/PatientSearchModal';
 import { Button, Badge, KpiCard, Card, PageHeader, EmptyState } from '../components/ui';
 
-export const OdontologyHub: React.FC<{ activeView?: string }> = ({ activeView }) => {
+export const OdontologyHub: React.FC = () => {
     const { t } = useTranslation('medical');
+    const location = useLocation();
     const { showToast } = useToast();
     const [budgets, setBudgets] = useState<any[]>([]);
     const [recalls, setRecalls] = useState<any[]>([]);
@@ -37,10 +39,10 @@ export const OdontologyHub: React.FC<{ activeView?: string }> = ({ activeView })
     const [pendingAction, setPendingAction] = useState<'budget' | 'odontogram' | null>(null);
 
     useEffect(() => {
-        if (activeView === 'odontogram') {
+        if (location.pathname.endsWith('/odontogram')) {
             handleActionRequest('odontogram');
         }
-    }, [activeView]);
+    }, [location.pathname]);
 
     useEffect(() => {
         const fetchHubData = async () => {

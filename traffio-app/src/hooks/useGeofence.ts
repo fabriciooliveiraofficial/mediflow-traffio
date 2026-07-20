@@ -14,7 +14,12 @@ interface UseGeofenceReturn {
  * Exposes { result, loading, error, check }.
  * Call `check()` to trigger the multi-layer location check.
  */
-export function useGeofence(tenantId: string, locationId?: string): UseGeofenceReturn {
+export function useGeofence(
+    tenantId: string,
+    locationId?: string,
+    tenantData?: { name?: string; latitude?: number; longitude?: number; geofence_radius?: number; address?: string },
+    locationsData?: any[]
+): UseGeofenceReturn {
     const { t } = useTranslation('patient');
     const [result, setResult] = useState<GeofenceResult | null>(null);
     const [loading, setLoading] = useState(false);
@@ -30,7 +35,7 @@ export function useGeofence(tenantId: string, locationId?: string): UseGeofenceR
         setError(null);
 
         try {
-            const geofenceResult = await GeolocationService.checkGeofence(tenantId, locationId);
+            const geofenceResult = await GeolocationService.checkGeofence(tenantId, locationId, tenantData, locationsData);
             setResult(geofenceResult);
         } catch (e) {
             const message = e instanceof Error
@@ -40,7 +45,7 @@ export function useGeofence(tenantId: string, locationId?: string): UseGeofenceR
         } finally {
             setLoading(false);
         }
-    }, [tenantId, locationId, t]);
+    }, [tenantId, locationId, tenantData, locationsData, t]);
 
     return { result, loading, error, check };
 }

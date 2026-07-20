@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import {
     CreditCard,
     Download,
@@ -25,8 +26,9 @@ import { BillingRecordModal } from '../components/billing/BillingRecordModal';
  * Relatórios). Esta página ficou só com a parte operacional: filtrar/marcar
  * pago/cancelar transações e criar novas cobranças.
  */
-export const FinancialDashboard = ({ onNavigate }: { onNavigate?: (id: string) => void }) => {
+export const FinancialDashboard = () => {
     const { t } = useTranslation('tenantAdmin');
+    const navigate = useNavigate();
     const { formatDate } = useLocaleFormat();
     // Caixa = domínio operacional: valores já estão na moeda do tenant, sem conversão
     const { formatCentsIn } = useTenantMoney();
@@ -104,7 +106,7 @@ export const FinancialDashboard = ({ onNavigate }: { onNavigate?: (id: string) =
                         <option value="pending">{t('financialDashboard.header.filterPending')}</option>
                         <option value="canceled">{t('financialDashboard.header.filterCanceled')}</option>
                     </select>
-                    <Button variant="secondary" onClick={() => onNavigate?.('reports')}>
+                    <Button variant="secondary" onClick={() => navigate('/dashboard/reports?tab=financeiro')}>
                         <TrendingUp size={16} />
                         {t('financialDashboard.header.viewFullReportButton')}
                     </Button>

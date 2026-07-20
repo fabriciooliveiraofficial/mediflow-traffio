@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { formatPhone, phoneFlag } from '../lib/formatPhone';
 import { formatDoc, docLabel } from '../lib/i18n/doc';
 import { DEFAULT_COUNTRY, type CountryCode } from '../lib/i18n/countryFormats';
@@ -19,12 +20,9 @@ import { useToast } from '../contexts/ToastContext';
 import { useTranslation } from 'react-i18next';
 import { useLocaleFormat } from '../hooks/useLocaleFormat';
 
-interface CrmLeadsProps {
-    onSelectPatient?: (id: string) => void;
-}
-
-export const CrmLeads: React.FC<CrmLeadsProps> = ({ onSelectPatient }) => {
+export const CrmLeads: React.FC = () => {
     const { t } = useTranslation('crm');
+    const navigate = useNavigate();
     const { formatDate: formatLocaleDate } = useLocaleFormat();
     const { showToast } = useToast();
     const [patients, setPatients] = useState<any[]>([]);
@@ -231,7 +229,7 @@ export const CrmLeads: React.FC<CrmLeadsProps> = ({ onSelectPatient }) => {
                                                     <Trash2 size={16} />
                                                 </button>
                                                 <button
-                                                    onClick={() => onSelectPatient?.(patient.id)}
+                                                    onClick={() => navigate('/dashboard/patients/' + patient.id)}
                                                     className="p-2 hover:bg-ice-100 rounded-lg text-graphite-400 hover:text-brand-primary transition-all border-none bg-transparent cursor-pointer shadow-none hover:shadow-sm ml-2"
                                                     title={t('leads.detailsTitle')}
                                                 >

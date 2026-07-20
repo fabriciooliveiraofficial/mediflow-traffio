@@ -33,7 +33,7 @@ import { FloatingCommunicationsButton } from '../components/softphone/FloatingCo
 import { motion, AnimatePresence } from 'framer-motion'
 import { clsx } from 'clsx'
 import { supabase } from '../lib/supabase'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useTenant } from '../contexts/TenantContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -112,21 +112,20 @@ interface HandoffAlert {
     arrivedAt: string
 }
 
-export const DashboardLayout = ({ children, activeScreen, onNavigate }: {
+export const DashboardLayout = ({ children }: {
     children: React.ReactNode,
-    activeScreen: string,
-    onNavigate: (id: string) => void
 }) => {
     const { t } = useTranslation('common')
     const { tenant, loading: isTenantLoading, userRole } = useTenant()
     const { user: authUser } = useAuth()
     const { can } = usePermissions()
+    const location = useLocation()
+    const activeScreen = location.pathname.split('/')[2] || 'today'
     const [isSidebarOpen, setIsSidebarOpen] = useState(true)
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
     const [scrolled, setScrolled] = useState(false)
     const [expandedMenus, setExpandedMenus] = useState<string[]>([])
     const [profile, setProfile] = useState<{ full_name: string; role: string } | null>(null)
-    const [, setSearchParams] = useSearchParams()
 
     // ── Human handoff alert system ────────────────
     const [queuedCount, setQueuedCount]     = useState(0)
@@ -302,7 +301,7 @@ export const DashboardLayout = ({ children, activeScreen, onNavigate }: {
             );
         }
         
-        onNavigate(item.id);
+        navigate('/dashboard/' + item.id);
     };
 
     const handleSignOut = async () => {
@@ -570,7 +569,7 @@ export const DashboardLayout = ({ children, activeScreen, onNavigate }: {
                         {filteredNavItems.slice(0, 2).map((item) => (
                             <button
                                 key={item.id}
-                                onClick={() => onNavigate(item.id)}
+                                onClick={() => navigate('/dashboard/' + item.id)}
                                 className={clsx(
                                     "flex flex-col items-center gap-1 p-2 border-none bg-transparent cursor-pointer transition-all",
                                     activeScreen === item.id ? "text-brand-primary" : "text-graphite-300"
@@ -591,7 +590,7 @@ export const DashboardLayout = ({ children, activeScreen, onNavigate }: {
                         {filteredNavItems.slice(2, 4).map((item) => (
                             <button
                                 key={item.id}
-                                onClick={() => onNavigate(item.id)}
+                                onClick={() => navigate('/dashboard/' + item.id)}
                                 className={clsx(
                                     "flex flex-col items-center gap-1 p-2 border-none bg-transparent cursor-pointer transition-all",
                                     activeScreen === item.id ? "text-brand-primary" : "text-graphite-300"
@@ -658,8 +657,7 @@ export const DashboardLayout = ({ children, activeScreen, onNavigate }: {
                                 <div className="px-4 pb-4 flex gap-2">
                                     <button
                                         onClick={() => {
-                                            setSearchParams({ handoff_session: alert.id })
-                                            onNavigate('inbox')
+                                            navigate('/dashboard/inbox?handoff_session=' + alert.id)
                                             setAlerts(prev => prev.filter(a => a.id !== alert.id))
                                         }}
                                         className="flex-1 py-2 rounded-xl bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition-colors"
@@ -725,7 +723,7 @@ export const DashboardLayout = ({ children, activeScreen, onNavigate }: {
                                         )}
                                         <button
                                             onClick={() => {
-                                                onNavigate(item.id)
+                                                navigate('/dashboard/' + item.id)
                                                 setIsMobileMenuOpen(false)
                                             }}
                                             className={clsx(

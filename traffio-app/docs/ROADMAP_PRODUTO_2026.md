@@ -41,7 +41,7 @@ Legenda: ✅ Implementado e em produção · 🟡 Decidido/especificado, não co
   `QueueCard`/`GoalsStrip`/`PulseRow`
 - Estratificação compartilhada com o WorkQueue via `lib/workQueueStrata.ts`
   (fonte única — nunca diverge do FollowUpBoard)
-- Metas do mês (agendamentos, taxa de comparecimento) em `tenants.settings.monthly_goals`
+- Metas do mês (agendamentos, taxa de comparecimento, faturamento) em `tenants.settings.monthly_goals`
 - Virou a tela default ao logar (era Agenda)
 - i18n completo pt-BR/en/es
 

@@ -18,6 +18,7 @@ import {
     TrendingUp,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { useTenant } from '../contexts/TenantContext';
 import { useToast } from '../contexts/ToastContext';
 import { useLocaleFormat } from '../hooks/useLocaleFormat';
@@ -35,12 +36,13 @@ import { PageHeader, Button } from '../components/ui';
  * Relatórios). Esta página ficou só com a parte operacional: conectar/
  * gerenciar/desconectar as integrações OAuth e o feed de leads recentes.
  */
-export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onNavigate }) => {
+export const Dashboard: React.FC = () => {
     const { t } = useTranslation('dashboard');
     const { t: tSettings } = useTranslation('settings');
     const { tenant } = useTenant();
     const { showToast } = useToast();
     const { formatDateTime } = useLocaleFormat();
+    const navigate = useNavigate();
 
     const [leads, setLeads] = useState<any[]>([]);
     const [integrations, setIntegrations] = useState<{meta?: boolean, google?: boolean}>({});
@@ -320,7 +322,7 @@ export const Dashboard: React.FC<{ onNavigate?: (id: string) => void }> = ({ onN
                 title={t('integrations.title')}
                 subtitle={t('integrations.pageSubtitle')}
                 actions={
-                    <Button variant="secondary" onClick={() => onNavigate?.('reports')}>
+                    <Button variant="secondary" onClick={() => navigate('/dashboard/reports?tab=marketing')}>
                         <TrendingUp size={16} />
                         {t('header.viewFullReportButton')}
                     </Button>

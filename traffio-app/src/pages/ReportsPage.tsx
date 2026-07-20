@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 import { TrendingUp } from 'lucide-react';
 import { useTenant } from '../contexts/TenantContext';
 import { useFollowUpMetrics } from '../hooks/useFollowUpMetrics';
@@ -21,14 +22,11 @@ import { PerformanceStats } from '../components/followup/PerformanceStats';
 
 type ReportTab = 'marketing' | 'financeiro' | 'comercial';
 
-interface ReportsPageProps {
-    initialTab?: ReportTab;
-}
-
-export function ReportsPage({ initialTab = 'marketing' }: ReportsPageProps) {
+export function ReportsPage() {
     const { t } = useTranslation('tenantAdmin');
     const { tenant } = useTenant();
-    const [tab, setTab] = useState<ReportTab>(initialTab);
+    const [searchParams] = useSearchParams();
+    const [tab, setTab] = useState<ReportTab>((searchParams.get('tab') as ReportTab) || 'marketing');
     const { metrics, isLoading } = useFollowUpMetrics({
         tenantId: tenant?.id || '',
         days: 30,

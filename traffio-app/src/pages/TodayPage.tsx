@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import {
     Headphones, CalendarCheck, UserX, AlarmClock, ListPlus, CalendarDays,
     RefreshCw, Loader2,
@@ -19,15 +20,16 @@ import type { QueuePreviewItem } from '../services/todayService';
  * Agregador acionável: conta, prioriza e roteia para as superfícies operáveis
  * que já existem (Inbox, Agenda, Follow-up, Recepção). Zerar as filas = dia bem feito.
  */
-export function TodayPage({ onNavigate }: { onNavigate?: (screen: string) => void }) {
+export function TodayPage() {
     const { t } = useTranslation('today');
     const { tenant, userProfile } = useTenant();
     const { formatDate, formatDateTime } = useLocaleFormat();
     const { formatCentsIn } = useTenantMoney();
     const { snapshot, loading, refreshing, refresh } = useTodaySnapshot();
+    const navigate = useNavigate();
 
     const tz = tenant?.timezone;
-    const go = (screen: string) => onNavigate?.(screen);
+    const go = (screen: string) => navigate('/dashboard/' + screen);
 
     // Saudação e data no fuso do TENANT (nunca no do navegador)
     const greetingKey = useMemo(() => {

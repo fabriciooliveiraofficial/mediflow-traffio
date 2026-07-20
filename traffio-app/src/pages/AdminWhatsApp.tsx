@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import {
     MessageCircle,
     QrCode,
@@ -29,8 +30,9 @@ type ConnectionStatus = 'loading' | 'no_instance' | 'configured' | 'connecting' 
  * Tenant-facing WhatsApp connection page.
  * Real Z-API integration.
  */
-export const AdminWhatsApp = ({ onNavigate }: { onNavigate?: (id: string) => void } = {}) => {
+export const AdminWhatsApp = () => {
     const { t } = useTranslation('tenantAdmin');
+    const navigate = useNavigate();
     const { tenant, loading: tenantLoading, updateTenant } = useTenant();
     const { showToast } = useToast();
     const { can } = usePlan();
@@ -374,7 +376,7 @@ export const AdminWhatsApp = ({ onNavigate }: { onNavigate?: (id: string) => voi
                             <p className="text-sm text-graphite-400 mt-2 max-w-md mx-auto leading-relaxed">{t('adminWhatsApp.cloudApi.upsell.body')}</p>
                         </div>
                         <button
-                            onClick={() => onNavigate?.('billing')}
+                            onClick={() => navigate('/dashboard/billing')}
                             className="bg-amber-500 text-white rounded-2xl px-8 py-3.5 font-black hover:bg-amber-600 transition-all shadow-lg shadow-amber-500/20 border-none cursor-pointer"
                         >
                             {t('adminWhatsApp.cloudApi.upsell.cta')}

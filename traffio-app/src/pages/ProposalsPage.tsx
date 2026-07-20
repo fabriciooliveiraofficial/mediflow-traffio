@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import {
     FileText, Plus, Search, Send, Check, X, Trash2, Loader2,
     Wallet, TrendingUp, Clock, ChevronRight, AlertTriangle, ArrowLeft, CreditCard,
@@ -32,11 +33,7 @@ const STATUS_ACCENT: Record<ProposalStatus, 'neutral' | 'info' | 'success' | 'er
 };
 const LOST_REASONS: LostReason[] = ['price', 'competitor', 'no_response', 'gave_up', 'other'];
 
-interface ProposalsPageProps {
-    onSelectPatient?: (id: string) => void;
-}
-
-export function ProposalsPage({ onSelectPatient }: ProposalsPageProps) {
+export function ProposalsPage() {
     const { t } = useTranslation('tenantAdmin');
     const { tenant } = useTenant();
     const { user } = useAuth();
@@ -207,7 +204,6 @@ export function ProposalsPage({ onSelectPatient }: ProposalsPageProps) {
                     onEdit={() => detailProposal && openEdit(detailProposal.id)}
                     onDelete={() => detailProposal && handleDelete(detailProposal.id)}
                     onChanged={async () => { await load(); if (detailId) loadDetail(detailId); }}
-                    onSelectPatient={onSelectPatient}
                 />
             )}
         </div>
@@ -404,7 +400,7 @@ function ProposalFormModal({ tenantId, editing, onClose, onSaved }: {
 // Drawer de detalhe
 // ─────────────────────────────────────────────────────────────────────────────
 
-function ProposalDetailDrawer({ proposal, loading, tenantId, userId, tenant, onClose, onEdit, onDelete, onChanged, onSelectPatient }: {
+function ProposalDetailDrawer({ proposal, loading, tenantId, userId, tenant, onClose, onEdit, onDelete, onChanged }: {
     proposal: ProposalWithRelations | null;
     loading: boolean;
     tenantId: string;
@@ -414,9 +410,9 @@ function ProposalDetailDrawer({ proposal, loading, tenantId, userId, tenant, onC
     onEdit: () => void;
     onDelete: () => void;
     onChanged: () => void;
-    onSelectPatient?: (id: string) => void;
 }) {
     const { t } = useTranslation('tenantAdmin');
+    const navigate = useNavigate();
     const { showToast } = useToast();
     const { formatCentsIn } = useTenantMoney();
     const { formatDateTime } = useLocaleFormat();
@@ -540,7 +536,7 @@ function ProposalDetailDrawer({ proposal, loading, tenantId, userId, tenant, onC
                         </button>
                         <h3 className="text-lg font-black text-graphite-900 truncate">{proposal.title}</h3>
                         <button
-                            onClick={() => onSelectPatient?.(proposal.patient_id)}
+                            onClick={() => navigate('/dashboard/patients/' + proposal.patient_id)}
                             className="text-xs font-bold text-brand-primary border-0 bg-transparent cursor-pointer p-0 mt-0.5"
                         >
                             {proposal.patients?.full_name}

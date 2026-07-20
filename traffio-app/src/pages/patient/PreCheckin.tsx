@@ -52,14 +52,21 @@ export const PreCheckin: React.FC = () => {
     const [patient, setPatient] = useState<Patient | null>(null);
     const [appointment, setAppointment] = useState<Appointment | null>(null);
     const [tenantId, setTenantId] = useState<string>('');
+    const [tenantData, setTenantData] = useState<any>(null);
+    const [locationsData, setLocationsData] = useState<any[]>([]);
     const [loadError, setLoadError] = useState<string | null>(null);
 
-    const { result: geoResult, loading: geoLoading, error: geoError, check: geoCheck } = useGeofence(tenantId, locIdParam);
+    const { result: geoResult, loading: geoLoading, error: geoError, check: geoCheck } = useGeofence(
+        tenantId,
+        locIdParam,
+        tenantData,
+        locationsData
+    );
 
     // Idioma padrão do paciente: localStorage (já aplicado no boot) > patient.preferred_locale
     useApplyDefaultLanguage({ userPreferredLocale: patient?.preferred_locale });
 
-    // Fetch appointment data
+    // Fetch appointment data via RPC (bypasses RLS for unauthenticated patients)
     useEffect(() => {
         if (!appointmentId) {
             setLoadError(t('preCheckin.invalidLink'));
@@ -73,20 +80,20 @@ export const PreCheckin: React.FC = () => {
 
         (async () => {
             try {
-                const request = supabase
-                    .from('appointments')
-                    .select('*, patient:patients(*)')
-                    .eq('id', appointmentId)
-                    .single();
-                const { data: apt, error } = await Promise.race([request, timeout]);
+                const request = supabase.rpc('get_public_precheckin_data', {
+                    p_appointment_id: appointmentId,
+                });
+                const { data, error } = await Promise.race([request, timeout]);
 
                 if (error) throw error;
-                if (!apt) throw new Error('Appointment not found');
+                if (!data || !data.appointment) throw new Error('Appointment not found');
                 if (!active) return;
 
-                setAppointment(apt as unknown as Appointment);
-                setPatient(apt.patient as unknown as Patient);
-                setTenantId((apt as any).tenant_id || '');
+                setAppointment(data.appointment as unknown as Appointment);
+                setPatient(data.patient as unknown as Patient);
+                setTenantId(data.appointment.tenant_id || '');
+                setTenantData(data.tenant || null);
+                setLocationsData(data.locations || []);
                 setStep('geofence_check');
             } catch (error) {
                 if (!active) return;
@@ -128,10 +135,9 @@ export const PreCheckin: React.FC = () => {
 
     const handleComplete = async () => {
         if (appointment) {
-            await supabase
-                .from('appointments')
-                .update({ status: 'confirmed', updated_at: new Date().toISOString() })
-                .eq('id', appointment.id);
+            await supabase.rpc('confirm_public_checkin', {
+                p_appointment_id: appointment.id,
+            });
         }
         setStep('complete');
     };

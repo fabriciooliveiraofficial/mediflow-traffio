@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import {
   User, Loader2,
@@ -56,16 +56,12 @@ export interface CrmJourney {
 
 const LOST_REASONS = ['price', 'competitor', 'no_response', 'gave_up', 'other'] as const;
 
-interface FollowUpBoardProps {
-  onNavigate?: (screen: string) => void;
-}
-
-export function FollowUpBoard({ onNavigate }: FollowUpBoardProps) {
+export function FollowUpBoard() {
   const { t } = useTranslation('crm');
   const { tenant } = useTenant();
   const { formatDateTime } = useLocaleFormat();
   const { showToast } = useToast();
-  const [, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [journeys, setJourneys] = useState<CrmJourney[]>([]);
   const [loading, setLoading] = useState(true);
   const [days, setDays] = useState(30);
@@ -177,16 +173,11 @@ export function FollowUpBoard({ onNavigate }: FollowUpBoardProps) {
   // HumanInboxPage já suporta (?handoff_session=), agenda via navegação
   const openConversation = (j: CrmJourney) => {
     if (!j.session_id) return;
-    setSearchParams(prev => {
-      const p = new URLSearchParams(prev);
-      p.set('handoff_session', j.session_id!);
-      return p;
-    });
-    onNavigate?.('inbox');
+    navigate('/dashboard/inbox?handoff_session=' + j.session_id);
   };
 
   const openBooking = (_j: CrmJourney) => {
-    onNavigate?.('agenda');
+    navigate('/dashboard/agenda');
   };
 
   // Patch otimista: a linha reage no mesmo instante do clique, sem esperar

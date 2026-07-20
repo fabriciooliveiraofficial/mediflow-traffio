@@ -111,8 +111,8 @@ serve(async (req: Request) => {
 
       const link = await stripe.accountLinks.create({
         account: accountId,
-        refresh_url: `${appUrl}/?screen=payments&stripe_connect=refresh`,
-        return_url:  `${appUrl}/?screen=payments&stripe_connect=return`,
+        refresh_url: `${appUrl}/dashboard/payments?stripe_connect=refresh`,
+        return_url:  `${appUrl}/dashboard/payments?stripe_connect=return`,
         type: "account_onboarding",
       });
 

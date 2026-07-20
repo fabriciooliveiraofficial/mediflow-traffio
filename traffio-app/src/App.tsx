@@ -1,6 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Routes, Route, Navigate, useSearchParams } from 'react-router-dom'
+import { Routes, Route, Navigate, useSearchParams, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { DashboardLayout } from './layouts/DashboardLayout'
 import { PagarmeCallback } from './pages/PagarmeCallback'
 import { PreCheckin } from './pages/patient/PreCheckin'
@@ -68,19 +68,20 @@ import { PortalDashboard } from './pages/portal/PortalDashboard'
 import { PortalBook } from './pages/portal/PortalBook'
 import { PortalProfile } from './pages/portal/PortalProfile'
 
-// --- Tenant Application Wrapper (Legacy State Navigation) ---
+// --- Tenant Application Wrapper (rotas react-router aninhadas em /dashboard/*) ---
+function PatientDetailsRoute() {
+  const { patientId } = useParams()
+  const navigate = useNavigate()
+  return <PatientDetails patientId={patientId!} onBack={() => navigate('/dashboard/leads')} />
+}
+
 function TenantApp() {
   const { t } = useTranslation('billing')
-  // ?screen=... permite deep-link em fluxos de retorno externo (ex.: onboarding Stripe Connect)
-  const [activeScreen, setActiveScreen] = useState(() => new URLSearchParams(window.location.search).get('screen') || 'today')
-  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null)
-  // Relatórios (roadmap item 7): aba inicial ao navegar a partir do link
-  // "Ver relatório completo" em Dashboard.tsx/FinancialDashboard.tsx
-  const [reportsInitialTab, setReportsInitialTab] = useState<'marketing' | 'financeiro' | 'comercial'>('marketing')
   const [searchParams, setSearchParams] = useSearchParams()
+  const location = useLocation()
   const { tenant, refresh } = useTenant()
   const { kicked, deactivateCurrentSession } = useSessionGuard()
-  
+
   const welcome = searchParams.get('welcome')
   const [isPolling, setIsPolling] = useState(!!welcome)
 
@@ -114,65 +115,6 @@ function TenantApp() {
 
   // REDIRECT GUARD REMOVED - Handled by AuthRedirector
 
-  const handlePatientSelect = (id: string) => {
-    setSelectedPatientId(id)
-    setActiveScreen('patient-details')
-  }
-
-  // Dashboard.tsx/FinancialDashboard.tsx chamam onNavigate('reports') a partir
-  // do botão "Ver relatório completo" — estes wrappers setam a aba certa antes
-  // de navegar, sem sobrecarregar a assinatura onNavigate: (id: string) => void
-  // já usada em todo o app.
-  const handleDashboardNavigate = (id: string) => {
-    if (id === 'reports') setReportsInitialTab('marketing')
-    setActiveScreen(id)
-  }
-  const handleAnalyticsNavigate = (id: string) => {
-    if (id === 'reports') setReportsInitialTab('financeiro')
-    setActiveScreen(id)
-  }
-
-  const renderScreen = () => {
-    switch (activeScreen) {
-      case 'today': return <TodayPage key="today" onNavigate={setActiveScreen} />
-      case 'dashboard': return <Dashboard key="dashboard" onNavigate={handleDashboardNavigate} />
-      case 'reports': return <ReportsPage key="reports" initialTab={reportsInitialTab} />
-      case 'agenda': return <AgendaMestra key="agenda" />
-      case 'leads': return <CrmLeads key="leads" onSelectPatient={handlePatientSelect} />
-      case 'proposals': return <ProposalsPage key="proposals" onSelectPatient={handlePatientSelect} />
-      case 'analytics': return <FinancialDashboard key="analytics" onNavigate={handleAnalyticsNavigate} />
-      case 'intelligence': return <Intelligence key="intelligence" />
-      case 'settings': return <Settings key="settings" />
-      case 'reception': return <ReceptionDashboard key="reception" />
-      case 'inbox': return <HumanInboxPage key="inbox" />
-      case 'followup': return <FollowUpBoard key="followup" onNavigate={setActiveScreen} />
-      case 'notifications': return <NotificationsPage key="notifications" />
-      case 'payments': return <PaymentsPage key="payments" />
-      case 'billing': return <BillingPage key="billing" />
-      case 'whatsapp': return <AdminWhatsApp key="whatsapp" onNavigate={setActiveScreen} />
-      case 'communications': return <CommunicationsHub key="communications" />
-      case 'professionals': return <Professionals key="professionals" />
-      case 'services': return <Services key="services" />
-      case 'odontology': 
-      case 'odontogram':
-        return <OdontologyHub key="odontology" activeView={activeScreen} />
-      case 'nutrition': 
-      case 'nutrition-plan':
-        return <NutritionHub key="nutrition" activeView={activeScreen} />
-      case 'medical-records':
-        return <MedicalRecordsHub key="medical-records" />
-      case 'patient-details':
-        return selectedPatientId ? (
-          <PatientDetails
-            key="patient-details"
-            patientId={selectedPatientId}
-            onBack={() => setActiveScreen('leads')}
-          />
-        ) : <CrmLeads key="leads-fallback" onSelectPatient={handlePatientSelect} />
-      default: return <TodayPage key="today" onNavigate={setActiveScreen} />
-    }
-  }
-
   if (isPolling && tenant && !tenant.card_on_file) {
     return (
       <div className="min-h-screen bg-ice-50 flex items-center justify-center p-4">
@@ -192,11 +134,11 @@ function TenantApp() {
   return (
     <>
       {kicked && <SessionKickedModal onLogout={handleKickedLogout} />}
-      <DashboardLayout activeScreen={activeScreen} onNavigate={setActiveScreen}>
-      <SubscriptionGuard activeScreen={activeScreen} onNavigate={setActiveScreen}>
+      <DashboardLayout>
+      <SubscriptionGuard>
         <AnimatePresence mode="wait">
           <motion.div
-            key={activeScreen}
+            key={location.pathname}
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
@@ -208,7 +150,35 @@ function TenantApp() {
                 <Loader2 className="animate-spin text-brand-primary" size={32} />
               </div>
             }>
-              {renderScreen()}
+              <Routes location={location}>
+                <Route index element={<Navigate to="today" replace />} />
+                <Route path="today" element={<TodayPage />} />
+                <Route path="dashboard" element={<Dashboard />} />
+                <Route path="reports" element={<ReportsPage />} />
+                <Route path="agenda" element={<AgendaMestra />} />
+                <Route path="leads" element={<CrmLeads />} />
+                <Route path="proposals" element={<ProposalsPage />} />
+                <Route path="analytics" element={<FinancialDashboard />} />
+                <Route path="intelligence" element={<Intelligence />} />
+                <Route path="settings" element={<Settings />} />
+                <Route path="reception" element={<ReceptionDashboard />} />
+                <Route path="inbox" element={<HumanInboxPage />} />
+                <Route path="followup" element={<FollowUpBoard />} />
+                <Route path="notifications" element={<NotificationsPage />} />
+                <Route path="payments" element={<PaymentsPage />} />
+                <Route path="billing" element={<BillingPage />} />
+                <Route path="whatsapp" element={<AdminWhatsApp />} />
+                <Route path="communications" element={<CommunicationsHub />} />
+                <Route path="professionals" element={<Professionals />} />
+                <Route path="services" element={<Services />} />
+                <Route path="odontology" element={<OdontologyHub />} />
+                <Route path="odontogram" element={<OdontologyHub />} />
+                <Route path="nutrition" element={<NutritionHub />} />
+                <Route path="nutrition-plan" element={<NutritionHub />} />
+                <Route path="medical-records" element={<MedicalRecordsHub />} />
+                <Route path="patients/:patientId" element={<PatientDetailsRoute />} />
+                <Route path="*" element={<Navigate to="today" replace />} />
+              </Routes>
             </Suspense>
           </motion.div>
         </AnimatePresence>

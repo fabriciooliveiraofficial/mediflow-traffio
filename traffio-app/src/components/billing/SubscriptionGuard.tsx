@@ -1,13 +1,11 @@
 import { AlertTriangle, CreditCard, Settings as SettingsIcon, XCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTenant } from '../../contexts/TenantContext';
 import { usePlan } from '../../hooks/usePlan';
 import { PaymentRequiredModal } from './PaymentRequiredModal';
 
 interface SubscriptionGuardProps {
-    /** tela ativa da navegação interna do TenantApp */
-    activeScreen: string;
-    onNavigate: (screen: string) => void;
     children: React.ReactNode;
 }
 
@@ -22,10 +20,13 @@ const ALLOWED_WHEN_BLOCKED = ['billing', 'settings'];
  *  - ativa ou trial c/cartão → acesso liberado
  * Rotas master (/master/*) e portal do paciente (/portal/*) ficam fora.
  */
-export const SubscriptionGuard = ({ activeScreen, onNavigate, children }: SubscriptionGuardProps) => {
+export const SubscriptionGuard = ({ children }: SubscriptionGuardProps) => {
     const { t } = useTranslation('billing');
     const { tenant, loading } = useTenant();
     const { isTrialExpired } = usePlan();
+    const location = useLocation();
+    const navigate = useNavigate();
+    const activeScreen = location.pathname.split('/')[2] || 'today';
 
     // Sem tenant carregado (loading, super_admin etc.) → não bloqueia aqui
     if (loading || !tenant) return <>{children}</>;
@@ -79,14 +80,14 @@ export const SubscriptionGuard = ({ activeScreen, onNavigate, children }: Subscr
                     <p className="text-sm text-graphite-500 font-medium leading-relaxed mb-8">{copy.message}</p>
 
                     <button
-                        onClick={() => onNavigate('billing')}
+                        onClick={() => navigate('/dashboard/billing')}
                         className="w-full bg-brand-primary text-white py-4 rounded-xl font-bold shadow-lg shadow-brand-primary/25 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 border-none cursor-pointer mb-3"
                     >
                         <CreditCard size={18} />
                         {copy.cta}
                     </button>
                     <button
-                        onClick={() => onNavigate('settings')}
+                        onClick={() => navigate('/dashboard/settings')}
                         className="w-full bg-ice-100 text-graphite-700 py-3.5 rounded-xl font-bold hover:bg-ice-200 transition-all flex items-center justify-center gap-2 border-none cursor-pointer"
                     >
                         <SettingsIcon size={16} />
