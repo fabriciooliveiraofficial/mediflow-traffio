@@ -1,4 +1,4 @@
--- Migration: Public Pre-Checkin RPC functions
+-- Migration: Public Pre-Checkin RPC functions (Bulletproof schema-independent implementation using to_jsonb)
 -- Grants anon users secure access to load appointment & complete check-in without exposing entire tables
 
 CREATE OR REPLACE FUNCTION get_public_precheckin_data(p_appointment_id UUID)
@@ -29,52 +29,23 @@ BEGIN
     WHERE id = v_apt.patient_id;
 
     -- 3. Fetch Tenant
-    SELECT name, latitude, longitude, geofence_radius, address INTO v_tenant
+    SELECT * INTO v_tenant
     FROM public.tenants
     WHERE id = v_apt.tenant_id;
 
     -- 4. Fetch Active Locations with Coordinates
-    SELECT COALESCE(jsonb_agg(jsonb_build_object(
-        'id', l.id,
-        'name', l.name,
-        'latitude', l.latitude,
-        'longitude', l.longitude
-    )), '[]'::jsonb) INTO v_locations
+    SELECT COALESCE(jsonb_agg(to_jsonb(l)), '[]'::jsonb) INTO v_locations
     FROM public.locations l
     WHERE l.tenant_id = v_apt.tenant_id
       AND l.is_active = TRUE
       AND l.latitude IS NOT NULL
       AND l.longitude IS NOT NULL;
 
-    -- 5. Build Result JSON
+    -- 5. Build Result JSON using to_jsonb (prevents 42703 undefined_column errors)
     v_result := jsonb_build_object(
-        'appointment', jsonb_build_object(
-            'id', v_apt.id,
-            'tenant_id', v_apt.tenant_id,
-            'start_time', v_apt.start_time,
-            'status', v_apt.status
-        ),
-        'patient', jsonb_build_object(
-            'id', v_patient.id,
-            'full_name', v_patient.full_name,
-            'national_id', v_patient.national_id,
-            'cpf', v_patient.cpf,
-            'mobile', v_patient.mobile,
-            'phone', v_patient.phone,
-            'email', v_patient.email,
-            'country', v_patient.country,
-            'type', v_patient.type,
-            'insurance_provider', v_patient.insurance_provider,
-            'insurance_card', v_patient.insurance_card,
-            'preferred_locale', v_patient.preferred_locale
-        ),
-        'tenant', jsonb_build_object(
-            'name', COALESCE(v_tenant.name, ''),
-            'latitude', v_tenant.latitude,
-            'longitude', v_tenant.longitude,
-            'geofence_radius', v_tenant.geofence_radius,
-            'address', v_tenant.address
-        ),
+        'appointment', to_jsonb(v_apt),
+        'patient', to_jsonb(v_patient),
+        'tenant', to_jsonb(v_tenant),
         'locations', v_locations
     );
 

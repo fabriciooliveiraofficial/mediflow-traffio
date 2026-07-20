@@ -54,9 +54,21 @@ Legenda: ✅ Implementado e em produção · 🟡 Decidido/especificado, não co
   spec original): propostas `sent`/`viewed` sem resposta há mais de 96h
   (mesmo limiar já usado pelo estágio CRM `proposal`) entram nos itens do
   card F4 existente.
-
-**🟡 Pendente desta iniciativa:**
-- Rotas react-router (deep-link, botão voltar) — hoje navegação é por `activeScreen` em memória
+- **Rotas react-router (deep-link, botão voltar)** — descoberta na
+  investigação: `react-router-dom` (`^7.13.0`) já estava instalado e já
+  governava landing/portal do paciente/master admin; só o app do tenant
+  (`TenantApp` em `src/App.tsx`, montado em `/dashboard/*`) ainda usava
+  `activeScreen`/`switch`. Migrado para rotas aninhadas de verdade (mesmo
+  padrão já usado em `MasterApp.tsx`): as 24 telas viraram `<Route>`
+  (`/dashboard/today`, `/dashboard/proposals`, `/dashboard/patients/:id`,
+  etc.), `DashboardLayout`/`SubscriptionGuard` derivam a tela ativa de
+  `useLocation()` em vez de receber prop, e todo `onNavigate`/
+  `onSelectPatient` virou `useNavigate()` direto nas páginas (7 páginas +
+  2 componentes). Bug de deep-link real encontrado e corrigido junto: o
+  retorno do onboarding Stripe Connect usava `/?screen=payments...`, um
+  mecanismo que só era lido uma vez no `useState` inicial — agora aponta
+  direto para `/dashboard/payments?stripe_connect=return` (edge function
+  `stripe-connect-onboard` reimplantada).
 
 **Bug corrigido pós-lançamento (16/07/2026):** `todayService.ts` comparava
 `appointments.start_time`/`.end_time` (tipo `time without time zone`) contra
@@ -752,6 +764,10 @@ documentos afirmavam.
    `approved→paid`; link de pagamento Stripe a partir de orçamento aprovado;
    relógio local do tenant no `QuickBookingModal`. Ver detalhes nas seções 1
    e 3 acima.
+3. ~~Migração react-router do app do tenant~~ (21/07/2026): as 24 telas do
+   `TenantApp` viraram rotas de verdade em `/dashboard/*` (deep-link e botão
+   voltar funcionando), mesmo padrão já usado em `MasterApp.tsx`; bug real
+   de deep-link do retorno Stripe Connect corrigido junto. Ver seção 1.
 
 **Pendências reais, por tipo:**
 
@@ -761,12 +777,11 @@ documentos afirmavam.
 - Preencher `OPENAI_API_KEY` (embeddings) → pré-requisito para ligar o RAG
   do item 5 (infra pronta, `RAG_ENABLED=false` por decisão consciente).
 
-**← próximo passo de construção recomendado**: rotas react-router (deep-link,
-botão voltar — hoje navegação é por `activeScreen` em memória), maior esforço
-que os follow-ups já fechados, deliberadamente adiada para uma entrega própria
-— ou, se preferir seguir a frente de IA, a **Onda 3/4 de blindagem** (tom/
-acessibilidade + riscos emergentes 2026) é a próxima peça de robustez
-ainda sem nenhum código.
+**← próximo passo de construção recomendado**: **Onda 3/4 de blindagem do
+agente** (tom/acessibilidade/fricção + riscos emergentes 2026: jailbreak
+multi-turno, poisoning de conhecimento entre tenants, confused deputy,
+memória contaminada) — a próxima peça de robustez ainda sem nenhum código,
+já com plano detalhado em `docs/PLANO_BLINDAGEM_AGENTE_ONDAS.md`.
 
 *Ideias sem desenho (não é força de trabalho pronta pra puxar):*
 - Loop de aprendizado com edições do copiloto (item 6, zero plumbing hoje).
@@ -785,7 +800,9 @@ e Camada de Conhecimento (5 fases) concluídas 14-20/07, só agora
 documentadas — eram o maior gap deste arquivo; 6 follow-ups pequenos
 (KPI de faturamento, fila de orçamentos parados, recebimento unificado +
 bug de status corrigido, trigger `approved→paid`, link de pagamento
-Stripe, relógio local no agendamento manual) concluídos em 21/07. Ao
-concluir qualquer item, mover para a seção correspondente com ✅ e a
-data/PR relevante — e **verificar contra o código antes de assumir**, este
-arquivo já provou divergir da realidade mais de uma vez.*
+Stripe, relógio local no agendamento manual) concluídos em 21/07; migração
+react-router do app do tenant concluída no mesmo dia (deep-link/botão
+voltar funcionando em `/dashboard/*`). Ao concluir qualquer item, mover
+para a seção correspondente com ✅ e a data/PR relevante — e **verificar
+contra o código antes de assumir**, este arquivo já provou divergir da
+realidade mais de uma vez.*
