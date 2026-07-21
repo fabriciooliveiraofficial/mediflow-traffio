@@ -26,6 +26,7 @@ import {
     type SlotOption,
 } from "./schedulingTools.ts";
 import { fetchStageGuidance } from "./journeyStage.ts";
+import { logAgentTurnEvent } from "./observabilityLayer.ts";
 
 interface CopilotParams {
     tenantId: string;
@@ -1281,18 +1282,37 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
     const { tenantId, sessionId, phone, clinicName, botConfig, tenant, sessionManager, timezone } = params;
     const dispatcher = new OutboxDispatcher(supabase);
 
+    // Onda 5.2 — trace de observabilidade do turno (agent_turn_events). Best-effort
+    // absoluto: logAgentTurnEvent nunca lança; cada `emitTrace` é chamado logo antes
+    // de cada `return`, mesclando o que já se sabe até aquele ponto do turno.
+    const turnStartedAt = Date.now();
+    const toolsCalledSet = new Set<string>();
+    let tokensIn = 0;
+    let tokensOut = 0;
+    const emitTrace = (patch: Record<string, unknown>) => logAgentTurnEvent(supabase, {
+        tenant_id: tenantId,
+        session_id: sessionId,
+        phone,
+        route: "agent",
+        latency_ms: Date.now() - turnStartedAt,
+        tools_called: toolsCalledSet.size ? [...toolsCalledSet] : undefined,
+        tokens_in: tokensIn || null,
+        tokens_out: tokensOut || null,
+        ...patch,
+    } as any);
+
     try {
         const { data: session } = await supabase
             .from("conversation_sessions")
             .select("context, recent_messages, platform_display_name, handoff_kind, omnichannel_status")
             .eq("id", sessionId)
             .single();
-        if (!session) return "failed";
+        if (!session) { await emitTrace({ handoff_reason: "no_session" }); return "failed"; }
 
         const history = (session.recent_messages || [])
             .slice(-MAX_HISTORY_TURNS)
             .filter((m: any) => m.role !== "internal");
-        if (history.length === 0) return "failed";
+        if (history.length === 0) { await emitTrace({ handoff_reason: "no_history" }); return "failed"; }
 
         const context = session.context || {};
         const knownIntake = context.intake || {};
@@ -1312,6 +1332,7 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
                 await sessionManager.logMessage(sessionId, "assistant", bye);
                 await sessionManager.triggerHumanHandoff(sessionId, undefined, { reason: "jailbreak", kind: "hard" });
                 console.warn(`[agent] [${phone}] orçamento de risco de jailbreak esgotado — handoff humano`);
+                await emitTrace({ turn_language: turnLanguage, handoff_reason: "jailbreak", handoff_kind: "hard" });
                 return "transferred";
             }
         }
@@ -1388,6 +1409,7 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             tenantId, purpose: "agent_reply", model: agentModel, tools, cacheTools: true,
             system: systemPrompt.text, cacheableSystemPrefix: systemPrompt.cachePrefix, messages: convo,
         });
+        tokensIn += reply.usage.inputTokens; tokensOut += reply.usage.outputTokens;
 
         let lastSlots: SlotOption[] | null = null;
         let transferReason: string | null = null;
@@ -1416,6 +1438,7 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             const results: any[] = [];
             const nonResponderCalls = reply.toolCalls.filter(t => t.name !== "responder_paciente");
             for (const call of nonResponderCalls) {
+                toolsCalledSet.add(call.name);
                 const outcome = await executeSchedulingTool(supabase, tenantId, phone, session.platform_display_name, call, lastPatientMessage, turnLanguage);
                 if (outcome.slots?.length) lastSlots = outcome.slots;
                 if (outcome.data?.reconciliation_needed) reconciliationNeeded = true;
@@ -1429,6 +1452,7 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
                     tenantId, purpose: "agent_reply", model: agentModel, tools, cacheTools: true,
                     system: systemPrompt.text, cacheableSystemPrefix: systemPrompt.cachePrefix, messages: convo,
                 });
+                tokensIn += reply.usage.inputTokens; tokensOut += reply.usage.outputTokens;
             } else {
                 break;
             }
@@ -1453,6 +1477,7 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
                 tenantId, purpose: "agent_reply", model: agentModel, tools, toolChoice: { type: "none" }, cacheTools: true,
                 system: systemPrompt.text, cacheableSystemPrefix: systemPrompt.cachePrefix, messages: convo,
             });
+            tokensIn += reply.usage.inputTokens; tokensOut += reply.usage.outputTokens;
         }
 
         const triage = await triagePromise;
@@ -1474,6 +1499,7 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             .eq("status", "pending");
         if ((newerPending ?? 0) > 0) {
             console.log(`[agent] [${phone}] resposta descartada — ${newerPending} msg(s) nova(s) durante a geração`);
+            await emitTrace({ turn_language: turnLanguage, bubbles: bubbles.length, handoff_reason: "deferred_newer_message" });
             return "defer";
         }
 
@@ -1508,6 +1534,7 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             await sessionManager.logMessage(sessionId, "assistant", msg);
             await sessionManager.triggerHumanHandoff(sessionId, merged, { reason: "cancel", kind: "hard" });
             console.log(`[agent] [${phone}] cancelamento encaminhado (expediente=${within})`);
+            await emitTrace({ turn_language: turnLanguage, bubbles: bubbles.length, handoff_reason: "cancel", handoff_kind: "hard" });
             return "transferred";
         }
 
@@ -1531,6 +1558,7 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             await sessionManager.triggerHumanHandoff(sessionId, merged, handoffOpts);
             await recordKnowledgeGap(supabase, tenantId, gapResult, language);
             console.log(`[agent] [${phone}] transferido para humano — motivo: ${handoffOpts.reason} (${handoffOpts.kind})`);
+            await emitTrace({ turn_language: language, bubbles: bubbles.length, handoff_reason: handoffOpts.reason, handoff_kind: handoffOpts.kind });
             return "transferred";
         }
 
@@ -1575,6 +1603,7 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
                 tenantId, purpose: "agent_reply", model: agentModel, tools, cacheTools: true,
                 system: systemPrompt.text, cacheableSystemPrefix: systemPrompt.cachePrefix, messages: convo,
             });
+            tokensIn += fixed.usage.inputTokens; tokensOut += fixed.usage.outputTokens;
 
             const fixedCall = fixed.toolCalls.find(t => t.name === "responder_paciente");
             const fixedBubbles = fixedCall ? composeBubbles(fixedCall.input as StructuredReply) : composeBubbles(fixed.text);
@@ -1606,6 +1635,11 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
                 await sessionManager.logMessage(sessionId, "assistant", bye);
                 await sessionManager.triggerHumanHandoff(sessionId, merged, { reason: "tech", kind: "soft" });
                 console.warn(`[agent] [${phone}] regeneração também reprovada [${fixedViolations.join(" | ")}] — handoff humano`);
+                await emitTrace({
+                    turn_language: language, bubbles: bubbles.length,
+                    violations: [...violations, ...fixedViolations],
+                    handoff_reason: "tech", handoff_kind: "soft",
+                });
                 return "transferred";
             }
             bubbles = fixedBubbles;
@@ -1621,6 +1655,11 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
         if (reconciliationNeeded) {
             await sessionManager.triggerHumanHandoff(sessionId, merged, { reason: "reconciliation", kind: "hard" });
             console.error(`[RECONCILE] [${phone}] handoff acionado após confirmação da remarcação`);
+            await emitTrace({
+                turn_language: language, bubbles: bubbles.length,
+                violations: violations.length ? violations : undefined,
+                handoff_reason: "reconciliation", handoff_kind: "hard",
+            });
             return "transferred";
         }
         await recordKnowledgeGap(supabase, tenantId, classifyKnowledgeGap({
@@ -1632,11 +1671,16 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             .from("conversation_sessions")
             .update({ omnichannel_status: "bot_active", human_handoff: false })
             .eq("id", sessionId);
+        await emitTrace({
+            turn_language: language, bubbles: sentBubbles.length,
+            violations: violations.length ? violations : undefined,
+        });
         return "replied";
 
     } catch (err: any) {
         // Fail-safe: nunca deixar o paciente sem caminho — vai para a fila humana
         console.error(`[agent] [${phone}] falha no modo autônomo (fail-safe → humano): ${err?.message}`);
+        await emitTrace({ handoff_reason: "exception", violations: [String(err?.message || "erro desconhecido")] });
         return "failed";
     }
 }

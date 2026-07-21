@@ -25,6 +25,7 @@ import { OutboxDispatcher } from "../_shared/outboxDispatcher.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { runCopilot, runAutonomousAgent, wrapUntrustedContent } from "../_shared/copilot.ts";
 import { tryStructuredFlow } from "../_shared/structuredFlow.ts";
+import { logAgentTurnEvent } from "../_shared/observabilityLayer.ts";
 
 // How long to wait after the last message before processing (ms).
 // Gives the patient time to finish typing multiple messages.
@@ -239,6 +240,7 @@ async function processConversationTurn(
        // F2 roda MESMO com humano na fila: é 100% determinístico e nunca gera texto
        // livre. Sem isto, o clique num horário já oferecido é ignorado para sempre
        // depois de qualquer transferência (bug de produção 2026-07-21).
+       const structuredFlowStartedAt = Date.now();
        structuredFlowResult = await tryStructuredFlow(supabase, {
          tenantId,
          sessionId: session.id,
@@ -250,6 +252,11 @@ async function processConversationTurn(
        });
        if (structuredFlowResult.matched) {
          console.log(`[process-inbox] [${phone}] fluxo determinístico resolveu o turno com humano na fila`);
+         // Onda 5.2 — best-effort, nunca afeta o turno.
+         await logAgentTurnEvent(supabase, {
+           tenant_id: tenantId, session_id: session.id, phone, route: "structured_flow",
+           latency_ms: Date.now() - structuredFlowStartedAt,
+         });
        }
 
      } else {
@@ -320,6 +327,7 @@ async function processConversationTurn(
        // Reconhece clique de horário / resposta a recovery / resposta a waitlist
        // sem gastar LLM. Se não reconhecer nada, cai no roteamento normal abaixo
        // sem nenhuma mudança de comportamento.
+       const structuredFlowStartedAt2 = Date.now();
        structuredFlowResult = await tryStructuredFlow(supabase, {
          tenantId,
          sessionId: session.id,
@@ -337,6 +345,11 @@ async function processConversationTurn(
            await sessionManager.triggerHumanHandoff(session.id);
          }
          // 'replied'/'transferred': a própria função já enviou a mensagem e atualizou o estado
+         // Onda 5.2 — best-effort, nunca afeta o turno.
+         await logAgentTurnEvent(supabase, {
+           tenant_id: tenantId, session_id: session.id, phone, route: "structured_flow",
+           latency_ms: Date.now() - structuredFlowStartedAt2,
+         });
        } else if (activeAgent === "ai_always") {
          // A IA responde diretamente. Fail-safe: qualquer resultado que não seja
          // uma resposta entregue termina com o paciente na fila humana.
