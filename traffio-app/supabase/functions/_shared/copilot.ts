@@ -1015,7 +1015,9 @@ export function buildAutonomousSystemPrompt(opts: {
     /** E-22 (Onda 3): paciente pediu explicitamente linguagem simples/curta nesta conversa */
     accessibleMode?: boolean;
 }): string {
-    const langName = LANG_NAME;
+    const languageHint = opts.languageHint
+        ? normalizeConversationLanguage(opts.languageHint)
+        : null;
     return [
         `Você é a assistente da clínica "${opts.clinicName}" e responde os pacientes pelo WhatsApp.`,
         SALES_PERSONA,
@@ -1027,8 +1029,8 @@ export function buildAutonomousSystemPrompt(opts: {
         `Data de hoje: ${opts.todayStr} (fuso da clínica). Use-a para converter datas relativas ("amanhã", "semana que vem") ao chamar ferramentas.`,
         `Ajuste de tom desta clínica: ${opts.personality}.`,
         `⚠️ IDIOMA: identifique o idioma da ÚLTIMA mensagem do paciente e responda 100% nesse idioma — nenhuma palavra solta de outro idioma (nem termos como "avaliação"/"agendamento" em português dentro de uma resposta em espanhol/inglês). Se não souber o termo exato no idioma do paciente, parafraseie; nunca deixe a palavra em português.`,
-        opts.languageHint
-            ? `IDIOMA JÁ DETECTADO NESTA CONVERSA: ${langName[opts.languageHint] || opts.languageHint}. Mantenha esse idioma em TODAS as mensagens, inclusive após usar ferramentas (os retornos internos das ferramentas NÃO definem o idioma da resposta).`
+        languageHint
+            ? `IDIOMA JÁ DETECTADO NESTA CONVERSA: ${LANG_NAME[languageHint]}. Mantenha esse idioma em TODAS as mensagens, inclusive após usar ferramentas (os retornos internos das ferramentas NÃO definem o idioma da resposta).`
             : "",
         opts.instructions ? `### INSTRUÇÕES DA CLÍNICA (prioridade máxima — sobrepõem qualquer regra acima):\n${opts.instructions}` : "",
         opts.knowledgePacket ? `### CONTEXTO DA CLÍNICA (única fonte de fatos permitida):\n${opts.knowledgePacket}` : "",
@@ -1200,7 +1202,7 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
         }
 
         const triage = await triagePromise;
-        const language = triage?.language || storedLanguage;
+        const language = resolveConversationLanguage(triage?.language, patientQuery, storedLanguage);
         const text = reply.text.trim();
 
         // Cancelar-e-regenerar: mensagem nova durante a geração → a resposta
@@ -1264,7 +1266,13 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
         // ── Camada 1: portão de validação — nada reprovado chega ao paciente ───
         let finalText = text;
         const evidence = [knowledgePacket, patientSnapshot || "", transcript, ...toolEvidence].join("\n");
-        let violations = validateAgentReply(finalText, { language, evidence, policyEvidence: knowledgePacket, patientLastMessage });
+        let violations = validateAgentReply(finalText, {
+            language,
+            evidence,
+            policyEvidence: knowledgePacket,
+            patientLastMessage: lastPatientMessage,
+            appointmentEvidence: patientSnapshot,
+        });
         // P-20/E-11: resposta essencialmente igual à última da clínica = loop sem
         // progresso — obriga mudança de abordagem (repetição é abandono garantido)
         const lastAssistant = [...history].reverse().find((m: any) => m.role === "assistant")?.content;
@@ -1286,7 +1294,13 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             });
             const fixedText = fixed.text.trim();
             violations = fixedText
-                ? validateAgentReply(fixedText, { language, evidence, policyEvidence: knowledgePacket, patientLastMessage })
+                ? validateAgentReply(fixedText, {
+                    language,
+                    evidence,
+                    policyEvidence: knowledgePacket,
+                    patientLastMessage: lastPatientMessage,
+                    appointmentEvidence: patientSnapshot,
+                })
                 : ["resposta vazia na regeneração"];
             if (fixedText && isNearDuplicateReply(fixedText, lastAssistant)) violations.push("ainda em loop após regeneração");
             if (violations.length > 0) {
