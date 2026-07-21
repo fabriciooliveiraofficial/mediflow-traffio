@@ -136,7 +136,7 @@
     "review": {
       "title": "Revise antes de aprobar", "description": "Compruebe y edite cada valor. Solo los elementos aprobados pasan al conocimiento activo.",
       "canonicalFact": "Campo de la ficha canónica", "freeKnowledge": "Conocimiento complementario", "titleLabel": "Título del conocimiento", "source": "Origen",
-      "approve": "Aprobar", "editApprove": "Editar y aprobar", "discard": "Descartar", "approveHigh": "Aprobar {{count}} de alta claridad",
+      "approve": "Aprobar", "editApprove": "Editar y aprobar", "discard": "Descartar", "approveHigh": "Aprobar {{count}} de alta claridad", "flaggedSuspicious": "Revisar con atención",
       "itemError": "No se pudo completar este elemento. Revise el valor e inténtelo de nuevo.", "empty": "No hay sugerencias pendientes de revisión."
     },
     "interview": {

@@ -828,7 +828,7 @@ const INTERNAL_LEAK_PATTERN = new RegExp([
 const CLINICAL_PROMISE_PATTERN = /\b(garant\w+ (que|o resultado|resultado)|100%\s*(sem dor|seguro|de sucesso|painless|success)|sem dor nenhuma|não vai doer nada|totalmente indolor|cura garantida|resultado perfeito garantido|we guarantee|painless procedure guaranteed|guaranteed results?|le garantizamos|sin ningún dolor garantizado)\b/i;
 
 // P-15 (Onda 3) — hostilidade/sarcasmo/ameaça na resposta, nunca revide abuso (pt/en/es)
-const HOSTILE_TONE_PATTERN = /\b(voc[eê]\s+[ée]\s+(um|uma)\s*(idiota|burr[oa]|in[uú]til)|c[aá]le(?:-se|se)|o problema [ée] seu|n[aã]o [ée] meu problema|se vira|shut up|you'?re (?:an?\s+)?(?:idiot|stupid|useless)|c[aá]llate|es tu problema|no es mi problema)\b/i;
+const HOSTILE_TONE_PATTERN = /\b(voc[eê]\s+[ée]\s+(um|uma)\s*(idiota|burr[oa]|in[uú]til)|c[aá]le(?:-se|se)|o problema [ée] seu|n[aã]o [ée] meu problema|se vira|shut up|you'?re (?:being\s+|an?\s+)?(?:idiot|stupid|useless)|c[aá]llate|es tu problema|no es mi problema)\b/i;
 // P-17 (Onda 3) — culpa/vergonha/cobrança sobre falta ou atraso do paciente (pt/en/es)
 const BLAME_SHAME_PATTERN = /\b(voc[eê] faltou|voc[eê] perdeu (?:a consulta|o hor[aá]rio)|n[aã]o [ée] a primeira vez que|isso (?:j[aá] )?[ée] recorrente|you missed (?:your|the) appointment|this keeps happening|usted falt[oó]|otra vez que)\b/i;
 // P-16 (Onda 3) — contexto sensível do paciente (medo, luto, urgência) — reprova tom festivo/emoji na resposta

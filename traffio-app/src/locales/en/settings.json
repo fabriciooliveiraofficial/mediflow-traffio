@@ -136,7 +136,7 @@
     "review": {
       "title": "Review before approval", "description": "Check and edit each value. Only approved items become active knowledge.",
       "canonicalFact": "Canonical record field", "freeKnowledge": "Supplementary knowledge", "titleLabel": "Knowledge title", "source": "Source",
-      "approve": "Approve", "editApprove": "Edit and approve", "discard": "Discard", "approveHigh": "Approve {{count}} high-clarity item(s)",
+      "approve": "Approve", "editApprove": "Edit and approve", "discard": "Discard", "approveHigh": "Approve {{count}} high-clarity item(s)", "flaggedSuspicious": "Review carefully",
       "itemError": "This item could not be completed. Review the value and try again.", "empty": "No suggestions are awaiting review."
     },
     "interview": {

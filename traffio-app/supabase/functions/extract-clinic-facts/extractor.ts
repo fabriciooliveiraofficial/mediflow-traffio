@@ -81,6 +81,7 @@ export function validateExtractedSuggestions(
             ? item.source_excerpt.trim().slice(0, 500) || null
             : null;
         const clarity = item.clarity === "high" || item.clarity === "low" ? item.clarity : "medium";
+        const flagged_suspicious = looksLikeInjectionAttempt(value) || looksLikeInjectionAttempt(excerpt || "");
 
         if (item.destination === "clinic_info" && typeof item.fact_key === "string") {
             const fact = catalogByKey.get(item.fact_key);
@@ -99,6 +100,7 @@ export function validateExtractedSuggestions(
                 suggested_value: value,
                 source_excerpt: excerpt,
                 clarity,
+                flagged_suspicious,
             }];
         }
 
@@ -112,6 +114,7 @@ export function validateExtractedSuggestions(
                 suggested_value: value,
                 source_excerpt: excerpt,
                 clarity,
+                flagged_suspicious,
             }];
         }
 

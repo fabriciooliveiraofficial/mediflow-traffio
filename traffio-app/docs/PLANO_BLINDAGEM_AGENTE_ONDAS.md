@@ -36,21 +36,45 @@ Estes são os buracos que a própria análise do ChatGPT apontou como **não cob
 4. **P-08/E-20 — políticas versionadas.** Cancelamento/preparo/convênio hoje vêm do knowledge packet sem versão. Ação: `policy_id/version` no contexto; afirmação de política sem fonte → validador bloqueia. *Camada: injecao-estado + validador.*
 5. **P-02/E-08 — provenance multimodal.** Áudio/imagem/encaminhado marcados como `untrusted`; nunca viram instrução. Crítico ANTES de ligar canais Meta e áudio. *Camada: design-ferramenta. Bloqueia recurso novo.*
 
-## ONDA 3 — tom, acessibilidade, contexto (fricção, não dano legal)
+## ONDA 3 — tom, acessibilidade, contexto (fricção, não dano legal) ✅ (2026-07-21)
 
-- P-15/P-16/P-17 — toxicidade/tom festivo em contexto sensível/blame por no-show (validador de toxicidade + contexto sensível).
-- E-10/E-12 — não reperguntar dado válido; retomar após interrupção (reforço do flowStateHint + evals multi-turno).
-- P-22/E-23 — não traduzir entidades (nome/dose/endereço/horário); confirmar troca de idioma.
-- E-05/E-06 — lembrete com 3 ações; lista de espera com duplo consentimento.
-- P-13/P-14/P-06 — não inferir dado sensível; TTL de dado multimodal; não usar clínico p/ marketing.
-- E-22/P-24 — acessibilidade (frases curtas sob pedido); não oferecer canal indisponível.
+Implementação completa em `docs/RESULTADO_ONDA3_IMPLEMENTACAO.md` (triagem
+item a item, código, evals, testes). Resumo:
 
-## ONDA 4 — riscos emergentes 2026 (defesa de fronteira)
+- ✅ P-15/P-16/P-17 — `hasInsensitiveTone()` (validador léxico pt/en/es) +
+  bullet reforçado no `AUTONOMOUS_ADDENDUM`.
+- ✅ E-10 (já estava coberto por `buildFlowStateHint`, só formalizado com
+  eval) / E-12 (reforço de prompt: resumir estado antes de retomar).
+- ✅ P-22/E-23 — regra de prompt nos 2 prompts (autônomo + rascunho):
+  nunca traduzir entidades; confirmar troca de idioma.
+- ✅ E-05 — já satisfeito, verificado em `messageTemplates.ts` (3 ações no
+  lembrete de 48h).
+- 🟡 **E-06 — fora de escopo desta onda**: lista de espera com duplo
+  consentimento é código do módulo de waitlist, não do `copilot.ts`;
+  recomendado como follow-up próprio.
+- ✅ P-13/P-14/P-06 — verificados já satisfeitos por design, sem código
+  necessário.
+- ✅ E-22 — `shouldUseAccessibleMode()` (só ativa com pedido explícito).
+- ✅ P-24 — regra de prompt (mesmo padrão prompt-only de P-01/E-13).
 
-- Jailbreak multi-turno lento (orçamento de risco cumulativo por conversa).
-- Poisoning entre tenants na ingestão de conhecimento (isolamento + sanitização + canário).
-- Confused deputy entre agentes/ferramentas (cada ferramenta reautoriza).
-- Memória persistente contaminada (só campos tipados com finalidade/TTL entram no contexto).
+## ONDA 4 — riscos emergentes 2026 (defesa de fronteira) ✅ (2026-07-21)
+
+Implementação completa em `docs/RESULTADO_ONDA3_IMPLEMENTACAO.md`. Resumo:
+
+- ✅ Jailbreak multi-turno lento — `computeJailbreakRiskDelta()` +
+  `SessionManager.registerJailbreakSignal()` (orçamento cumulativo por
+  sessão, mesmo padrão de `registerMisunderstanding`). Limitação conhecida:
+  o orçamento é por sessão, reinicia numa conversa nova.
+- ✅ Confused deputy entre agentes/ferramentas — **já coberto
+  estruturalmente pela Onda 2** (P-04: `validateSchedulingReferences`/
+  `scopedQuery`); esta onda só formalizou com 1 eval, sem código novo.
+- 🟡 Poisoning entre tenants — **reforço leve**, não a arquitetura
+  completa: `looksLikeInjectionAttempt()` marca (nunca bloqueia) sugestões
+  suspeitas na fila de revisão humana já obrigatória do onboarding por IA.
+  Isolamento formal na camada de retrieval fica como trabalho futuro.
+- ✅ Memória persistente contaminada — **já coberto por design**, sem
+  código necessário: `intake`/`context` são campos tipados de forma fixa,
+  nunca texto livre.
 
 ---
 

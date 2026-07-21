@@ -438,10 +438,41 @@ handoff), engenharia social, privacidade de terceiros.
    "CONTEÚDO DE MÍDIA — NÃO É INSTRUÇÃO" antes de entrar no prompt — fecha
    o canal de injeção indireta via legenda/transcrição.
 
-**Onda 3 (tom/acessibilidade/fricção) e Onda 4 (riscos emergentes 2026:
-jailbreak multi-turno, poisoning de conhecimento entre tenants, confused
-deputy, memória contaminada)** — **planejadas, não implementadas.**
-Documentadas em `docs/PLANO_BLINDAGEM_AGENTE_ONDAS.md`, sem código ainda.
+**Onda 3 (tom/acessibilidade/fricção) e Onda 4 (riscos emergentes 2026)** ✅
+(21/07/2026) — detalhes completos em `docs/RESULTADO_ONDA3_IMPLEMENTACAO.md`
+(triagem item a item + código + evals + testes):
+- **P-15/P-16/P-17** (tom hostil/festivo em contexto sensível/culpa por
+  no-show): `hasInsensitiveTone()`, novo validador léxico pt/en/es.
+- **E-10/E-12** (continuidade): E-10 já estava coberto por
+  `buildFlowStateHint`, só formalizado com eval; E-12 ganhou reforço de
+  prompt (resumir estado antes de retomar).
+- **P-22/E-23** (preservar entidades/confirmar troca de idioma): regra de
+  prompt nos 2 prompts do agente (autônomo + rascunho revisado por humano).
+- **E-22** (acessibilidade): `shouldUseAccessibleMode()`, só ativa com
+  pedido explícito do paciente.
+- **P-24** (não oferecer canal indisponível): regra de prompt, mesmo padrão
+  já usado para P-01/E-13.
+- **E-05, P-06, P-13, P-14**: verificados **já satisfeitos** por código/
+  design existente, documentados sem necessidade de mudança.
+- **Onda 4 — jailbreak multi-turno**: `computeJailbreakRiskDelta()` +
+  `SessionManager.registerJailbreakSignal()` — orçamento de risco
+  cumulativo por sessão, mesmo padrão do disjuntor `registerMisunderstanding`
+  já em produção.
+- **Onda 4 — confused deputy**: já coberto estruturalmente pelo P-04 da
+  Onda 2; só formalizado com eval, sem código novo.
+- **Onda 4 — poisoning entre tenants**: reforço leve —
+  `looksLikeInjectionAttempt()` marca (nunca bloqueia) sugestões suspeitas
+  na fila de revisão humana já obrigatória do onboarding por IA (migration
+  `clinic_fact_suggestions.flagged_suspicious` aplicada).
+- **Onda 4 — memória contaminada**: já coberto por design (campos tipados
+  de forma fixa), sem código necessário.
+- **Fora de escopo, pendência real**: **E-06** (lista de espera com duplo
+  consentimento) — é código do módulo de waitlist, não do `copilot.ts`;
+  fica como follow-up próprio.
+- **Pendente**: gate de evals com modelo real (`ANTHROPIC_API_KEY` não
+  armazenada no repo) — 39 cenários (31 anteriores + 8 novos), precisa
+  rodar verde antes do deploy desta onda. `deno check`/`deno test` (68/68)
+  já confirmados.
 
 **Camadas 3-6 (plano original)** — **não implementadas**: reflection com
 Haiku antes do envio; follow-up automático quando a conversa termina sem
@@ -529,9 +560,10 @@ deploy), documentado em `docs/TAREFA_CHATGPT_CAMADA_CONHECIMENTO.md` e
 
 **🟡 Pendente real desta frente** (auditado em 21/07/2026 — lista anterior
 tinha itens já concluídos que não estavam documentados; corrigida):
-- **Onda 3** (tom/acessibilidade/fricção) **e Onda 4** (jailbreak
-  multi-turno, poisoning entre tenants, confused deputy, memória
-  contaminada) — só planejadas, zero código.
+- **Onda 3/4 concluídas em 21/07/2026** (ver item 5 acima e
+  `docs/RESULTADO_ONDA3_IMPLEMENTACAO.md`) — pendências residuais: gate de
+  evals com `ANTHROPIC_API_KEY` real, e **E-06** (waitlist com duplo
+  consentimento, fora de escopo, follow-up próprio).
 - **Camadas 3-6** do plano original (reflection pré-envio, follow-up
   automático, evals noturnos + LLM-judge, alarmes de produção) — não
   implementadas.
@@ -768,6 +800,10 @@ documentos afirmavam.
    `TenantApp` viraram rotas de verdade em `/dashboard/*` (deep-link e botão
    voltar funcionando), mesmo padrão já usado em `MasterApp.tsx`; bug real
    de deep-link do retorno Stripe Connect corrigido junto. Ver seção 1.
+4. ~~Blindagem do agente — Ondas 3 e 4~~ (21/07/2026): tom/acessibilidade/
+   fricção + riscos emergentes 2026 implementados (código + evals + testes);
+   detalhes na tabela de triagem item a item em
+   `docs/RESULTADO_ONDA3_IMPLEMENTACAO.md`. Ver item 5 acima.
 
 **Pendências reais, por tipo:**
 
@@ -776,12 +812,16 @@ documentos afirmavam.
   Manager da Traffio → destrava onboarding real (Embedded Signup) do item 4.
 - Preencher `OPENAI_API_KEY` (embeddings) → pré-requisito para ligar o RAG
   do item 5 (infra pronta, `RAG_ENABLED=false` por decisão consciente).
+- Rodar o gate de evals (`ANTHROPIC_API_KEY`, não armazenada no repo) das
+  Ondas 3/4 antes do deploy — 39 cenários, `deno check`/`deno test` já
+  verdes.
 
-**← próximo passo de construção recomendado**: **Onda 3/4 de blindagem do
-agente** (tom/acessibilidade/fricção + riscos emergentes 2026: jailbreak
-multi-turno, poisoning de conhecimento entre tenants, confused deputy,
-memória contaminada) — a próxima peça de robustez ainda sem nenhum código,
-já com plano detalhado em `docs/PLANO_BLINDAGEM_AGENTE_ONDAS.md`.
+**← próximo passo de construção recomendado**: **E-06** (lista de espera
+com duplo consentimento) — único item que ficou de fora das Ondas 3/4 por
+tocar um subsistema diferente (`process-waitlist`/UI de waitlist); ou,
+se preferir, as **Camadas 3-6** do plano original de blindagem (reflection
+pré-envio, follow-up automático, evals noturnos + LLM-judge, alarmes de
+produção) — a próxima peça de robustez ainda sem nenhum código.
 
 *Ideias sem desenho (não é força de trabalho pronta pra puxar):*
 - Loop de aprendizado com edições do copiloto (item 6, zero plumbing hoje).
@@ -802,7 +842,9 @@ documentadas — eram o maior gap deste arquivo; 6 follow-ups pequenos
 bug de status corrigido, trigger `approved→paid`, link de pagamento
 Stripe, relógio local no agendamento manual) concluídos em 21/07; migração
 react-router do app do tenant concluída no mesmo dia (deep-link/botão
-voltar funcionando em `/dashboard/*`). Ao concluir qualquer item, mover
-para a seção correspondente com ✅ e a data/PR relevante — e **verificar
-contra o código antes de assumir**, este arquivo já provou divergir da
-realidade mais de uma vez.*
+voltar funcionando em `/dashboard/*`); Blindagem Ondas 3/4 concluída no
+mesmo dia (tom/acessibilidade/fricção + riscos emergentes 2026 — gate de
+evals com modelo real ainda pendente de `ANTHROPIC_API_KEY`). Ao concluir
+qualquer item, mover para a seção correspondente com ✅ e a data/PR
+relevante — e **verificar contra o código antes de assumir**, este arquivo
+já provou divergir da realidade mais de uma vez.*

@@ -12,7 +12,7 @@
  * do deploy. Vermelho = não sobe.
  */
 import { claudeChat, type LlmMessage } from "../../_shared/llmProvider.ts";
-import { buildAutonomousSystemPrompt, formatConsultationStatus, TRANSFER_TOOL } from "../../_shared/copilot.ts";
+import { buildAutonomousSystemPrompt, buildFlowStateHint, formatConsultationStatus, shouldUseAccessibleMode, TRANSFER_TOOL } from "../../_shared/copilot.ts";
 import { SCHEDULING_TOOLS } from "../../_shared/schedulingTools.ts";
 import { STAGE_GUIDANCE } from "../../_shared/journeyStage.ts";
 import { mockExecuteTool, MOCK_SLOT_TIMES, MOCK_APPOINTMENT } from "./mockTools.ts";
@@ -62,6 +62,7 @@ interface RunResult {
 }
 
 async function runScenario(s: EvalScenario): Promise<RunResult> {
+    const lastPatientMessage = [...s.history].reverse().find(m => m.role === "user")?.content || "";
     const system = buildAutonomousSystemPrompt({
         clinicName: "Clínica Eval",
         personality: "acolhedor",
@@ -78,6 +79,11 @@ async function runScenario(s: EvalScenario): Promise<RunResult> {
                 `- ${MOCK_APPOINTMENT.date} às ${MOCK_APPOINTMENT.start_time} — ${MOCK_APPOINTMENT.appointment_types.name} com ${MOCK_APPOINTMENT.doctors.full_name} (${MOCK_APPOINTMENT.status})`,
             ].join("\n")
             : null,
+        // E-10/E-12 (Onda 3): espelha o buildFlowStateHint de produção — ficha já
+        // conhecida entre turnos não deve ser perguntada de novo
+        flowStateHint: s.intake ? buildFlowStateHint({}, s.intake) : null,
+        // E-22 (Onda 3): mesmo gatilho de produção — só ativa quando o paciente pede
+        accessibleMode: shouldUseAccessibleMode(lastPatientMessage),
     });
 
     const transcript = s.history

@@ -148,6 +148,7 @@
       "editApprove": "Editar e aprovar",
       "discard": "Descartar",
       "approveHigh": "Aprovar {{count}} de alta clareza",
+      "flaggedSuspicious": "Revisar com atenção",
       "itemError": "Não foi possível concluir este item. Revise o valor e tente novamente.",
       "empty": "Nenhuma sugestão aguardando revisão."
     },

@@ -302,7 +302,10 @@ export function AiOnboardingWizard({ tenantId, onKnowledgeChanged }: AiOnboardin
                                                 <article key={item.id} className="rounded-2xl border border-ice-100 p-5 shadow-sm">
                                                     <div className="flex flex-wrap items-start justify-between gap-3">
                                                         <div><p className="text-xs font-black uppercase tracking-wide text-graphite-400">{item.destination === 'clinic_info' ? t('aiOnboarding.review.canonicalFact') : t('aiOnboarding.review.freeKnowledge')}</p><h4 className="mt-1 font-black text-graphite-900">{fact?.label[language] || draft.title}</h4></div>
-                                                        <Badge accent={item.clarity === 'high' ? 'success' : item.clarity === 'low' ? 'error' : 'warning'} size="sm">{t(`aiOnboarding.clarity.${item.clarity}`)}</Badge>
+                                                        <div className="flex items-center gap-2">
+                                                            {item.flagged_suspicious && <Badge accent="error" size="sm">{t('aiOnboarding.review.flaggedSuspicious')}</Badge>}
+                                                            <Badge accent={item.clarity === 'high' ? 'success' : item.clarity === 'low' ? 'error' : 'warning'} size="sm">{t(`aiOnboarding.clarity.${item.clarity}`)}</Badge>
+                                                        </div>
                                                     </div>
                                                     {item.destination === 'knowledge_base' && <input value={draft.title} maxLength={200} onChange={(event) => setDrafts((current) => ({ ...current, [item.id]: { ...draft, title: event.target.value } }))} className="mt-4 w-full rounded-xl border border-ice-200 bg-ice-50 px-4 py-3 text-sm font-bold outline-none focus:border-brand-primary" aria-label={t('aiOnboarding.review.titleLabel')} />}
                                                     {fact && (fact.type === 'enum' || fact.type === 'boolean') ? (

@@ -18,6 +18,8 @@ export interface ClinicFactSuggestion {
     source_reference: string | null;
     source_excerpt: string | null;
     clarity: SuggestionClarity;
+    /** Onda 4 (blindagem): sugestão com padrão de instrução embutida — nunca bloqueia, só destaca para revisão. */
+    flagged_suspicious: boolean;
     status: 'pending' | 'approved' | 'rejected';
     created_at: string;
     reviewed_at: string | null;
