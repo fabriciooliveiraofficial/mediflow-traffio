@@ -583,9 +583,14 @@ export async function executeSchedulingTool(
             const patient = await findPatient(supabase, tenantId, phone);
             if (!patient) return { data: { appointments: [], note: "Patient has no record at this clinic yet. Reply in the PATIENT'S language." } };
 
+            // Bug de produção (2026-07-21): sem o relógio LOCAL da clínica, "hoje"
+            // caía no default America/Sao_Paulo — perto da virada do dia, tenants
+            // em fusos distantes (ex.: Pacific/Auckland) podiam ganhar/perder
+            // agendamentos de hoje neste filtro (mesma lição do bug de disponibilidade).
+            const clock = await getTenantClock(supabase, tenantId);
             const { data, error } = await scopedQuery(supabase, "appointments", tenantId, "id, date, start_time, status, doctor_id, type_id, location_id, doctors:doctor_id(full_name), appointment_types:type_id(name)")
                 .eq("patient_id", patient.id)
-                .gte("date", todayInTz())
+                .gte("date", clock.today)
                 .not("status", "in", '("canceled","cancelled","noshow","no_show")')
                 .order("date", { ascending: true })
                 .limit(5);
@@ -706,6 +711,21 @@ export async function executeSchedulingTool(
 // é de quem SERÁ ATENDIDO (filho, cônjuge, parente) — vinculada ao mesmo
 // telefone. Nunca agendar o dependente na ficha do titular.
 
+// Bug de produção (2026-07-21): dois cadastros do mesmo paciente com formatos
+// de telefone divergentes ("554198933579" vs "+554198933579") — o agente
+// buscava por igualdade exata, achava o cadastro ERRADO (sem agendamento) e
+// alucinava "não encontrei nada". patients.phone não tem constraint de
+// formato; toda leitura/escrita por telefone passa por aqui.
+export function canonicalizePhone(phone: string | null | undefined): string {
+    return String(phone ?? "").replace(/\D/g, "");
+}
+
+/** Candidatos de formato para casar cadastros legados até a reconciliação de dados. */
+function phoneLookupCandidates(phone: string): string[] {
+    const digits = canonicalizePhone(phone);
+    return digits ? [digits, `+${digits}`] : [phone];
+}
+
 const NORM = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 
 /** Match tolerante de nomes ("Sofia" ↔ "Sofia Prado"), sem acento/caixa. */
@@ -733,10 +753,11 @@ export async function resolvePatientForBooking(
     fallbackDisplayName?: string | null,
 ): Promise<{ patient: { id: string } | null; ambiguous?: string[]; created?: boolean }> {
     const { data } = await scopedQuery(supabase, "patients", tenantId, "id, full_name")
-        .eq("phone", phone)
+        .in("phone", phoneLookupCandidates(phone))
         .order("created_at", { ascending: true })
         .limit(5);
     const existing = (data || []) as { id: string; full_name: string | null }[];
+    const canonicalPhone = canonicalizePhone(phone) || phone;
 
     if (forName?.trim()) {
         const match = existing.find(p => p.full_name && namesMatch(p.full_name, forName));
@@ -744,7 +765,7 @@ export async function resolvePatientForBooking(
         // Dependente sem ficha: cria vinculado ao MESMO telefone do responsável
         const { data: created, error } = await supabase
             .from("patients")
-            .insert({ tenant_id: tenantId, phone, full_name: forName.trim() })
+            .insert({ tenant_id: tenantId, phone: canonicalPhone, full_name: forName.trim() })
             .select("id")
             .single();
         if (error) { console.error(`[schedulingTools] criar dependente falhou: ${error.message}`); return { patient: null }; }
@@ -756,7 +777,7 @@ export async function resolvePatientForBooking(
 
     const { data: created, error } = await supabase
         .from("patients")
-        .insert({ tenant_id: tenantId, phone, full_name: fallbackDisplayName?.trim() || "Paciente WhatsApp" })
+        .insert({ tenant_id: tenantId, phone: canonicalPhone, full_name: fallbackDisplayName?.trim() || "Paciente WhatsApp" })
         .select("id")
         .single();
     if (error) { console.error(`[schedulingTools] ensure paciente falhou: ${error.message}`); return { patient: null }; }
@@ -766,9 +787,10 @@ export async function resolvePatientForBooking(
 async function findPatient(supabase: SupabaseClient, tenantId: string, phone: string): Promise<{ id: string } | null> {
     // Telefone compartilhado (família) é legítimo — maybeSingle() quebraria com
     // 2+ cadastros e o ensurePatient criaria um duplicado. Determinístico: o
-    // cadastro mais antigo (titular do número).
+    // cadastro mais antigo (titular do número). `.in()` com os dois formatos
+    // casa cadastros legados com/sem "+" até a reconciliação de dados.
     const { data } = await scopedQuery(supabase, "patients", tenantId, "id")
-        .eq("phone", phone)
+        .in("phone", phoneLookupCandidates(phone))
         .order("created_at", { ascending: true })
         .limit(1);
     return (data as any[])?.[0] ?? null;
@@ -800,7 +822,7 @@ export async function ensurePatient(
 
     const { data, error } = await supabase
         .from("patients")
-        .insert({ tenant_id: tenantId, phone, full_name: name?.trim() || "Paciente WhatsApp" })
+        .insert({ tenant_id: tenantId, phone: canonicalizePhone(phone) || phone, full_name: name?.trim() || "Paciente WhatsApp" })
         .select("id")
         .single();
     if (error) {

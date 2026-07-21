@@ -764,6 +764,20 @@ export interface AgentReplyValidationOptions {
 }
 
 /**
+ * Marcadores do OUTRO idioma que vazaram no texto. Extraído de
+ * `validateAgentReply` para ser reutilizável em caminhos que bypassam o
+ * validador completo (handoff/transferência) — bug de produção 2026-07-21:
+ * a mensagem de transferência ia direto do modelo ao paciente sem checagem
+ * de idioma, e derivou para português numa conversa em inglês.
+ */
+export function detectLanguageDrift(text: string, language: string): string[] {
+    const normalized = normalizeConversationLanguage(language);
+    return LANGUAGE_DRIFT_MARKERS[normalized]
+        .filter(({ pattern }) => pattern.test(text))
+        .map(({ marker }) => marker);
+}
+
+/**
  * Valida a resposta final do agente contra as políticas invioláveis.
  * `evidence` = tudo que o agente PODIA legitimamente citar neste turno
  * (pacote de conhecimento + transcript + retornos de ferramentas).
@@ -788,9 +802,7 @@ export function validateAgentReply(text: string, opts: AgentReplyValidationOptio
     if (invented.length) violations.push(`horário(s) que não veio de ferramenta/contexto: ${[...new Set(invented)].join(", ")}`);
 
     const language = normalizeConversationLanguage(opts.language);
-    const leaked = LANGUAGE_DRIFT_MARKERS[language]
-        .filter(({ pattern }) => pattern.test(text))
-        .map(({ marker }) => marker);
+    const leaked = detectLanguageDrift(text, language);
     if (leaked.length) {
         violations.push(`desvio de idioma numa conversa em ${LANG_NAME[language]}: ${leaked.join(", ")}`);
     }
@@ -922,11 +934,15 @@ export async function buildPatientSnapshot(
     // Identificação conversacional = posse do canal; com 2+ pacientes o agente
     // desambigua pelo nome (nível N1), nunca por documento (CPF/SSN não
     // autentica canal e cria passivo LGPD em log de conversa).
+    // Bug de produção (2026-07-21): cadastros duplicados com/sem "+" faziam
+    // esta busca achar o cadastro ERRADO (sem agendamento) e o agente alucinar
+    // "não encontrei nada" — o paciente tinha acabado de sair da consulta.
+    const phoneDigits = phone.replace(/\D/g, "");
     const { data: patients } = await supabase
         .from("patients")
         .select("id, full_name")
         .eq("tenant_id", tenantId)
-        .eq("phone", phone)
+        .in("phone", phoneDigits ? [phoneDigits, `+${phoneDigits}`] : [phone])
         .order("created_at", { ascending: true })
         .limit(3);
     if (!patients?.length) return null;
@@ -1239,8 +1255,12 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
         // Fora do expediente → acolhe e promete retorno; entra na fila do mesmo jeito.
         if (cancelRequested) {
             const within = isWithinBusinessHours(botConfig, timezone || undefined);
+            // Mesmo guard do caminho de transferência (bug 2026-07-21): texto cru
+            // do modelo não pode ir ao paciente sem checagem de deriva de idioma.
+            const cancelDrifted = within && Boolean(text) && detectLanguageDrift(text, language).length > 0;
+            if (cancelDrifted) console.warn(`[agent] [${phone}] mensagem de cancelamento com deriva de idioma — usando texto canônico`);
             const msg = within
-                ? (text || HANDOFF_MSG[language] || HANDOFF_MSG.pt)
+                ? ((text && !cancelDrifted) ? text : (HANDOFF_MSG[language] || HANDOFF_MSG.pt))
                 : (AFTER_HOURS_CANCEL_MSG[language] || AFTER_HOURS_CANCEL_MSG.pt);
             await sendWithFallback(dispatcher, tenant, tenantId, phone, msg);
             await sessionManager.logMessage(sessionId, "assistant", msg);
@@ -1251,7 +1271,12 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
 
         // ── Transferência (decisão do modelo, rounds esgotados ou resposta vazia) ──
         if (transferReason || !text) {
-            const bye = text || HANDOFF_MSG[language] || HANDOFF_MSG.pt;
+            // Bug de produção (2026-07-21): a mensagem de despedida do modelo ia
+            // direto ao paciente sem passar por validateAgentReply — derivou para
+            // PT numa conversa em EN. Mesma checagem de idioma, canônica se falhar.
+            const handoffDrifted = Boolean(text) && detectLanguageDrift(text, language).length > 0;
+            if (handoffDrifted) console.warn(`[agent] [${phone}] mensagem de handoff com deriva de idioma — usando texto canônico`);
+            const bye = (text && !handoffDrifted) ? text : (HANDOFF_MSG[language] || HANDOFF_MSG.pt);
             await sendWithFallback(dispatcher, tenant, tenantId, phone, bye);
             await sessionManager.logMessage(sessionId, "assistant", bye);
             await sessionManager.triggerHumanHandoff(sessionId, merged);

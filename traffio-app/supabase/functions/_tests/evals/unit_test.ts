@@ -611,3 +611,30 @@ Deno.test("looksLikeInjectionAttempt: marca (nunca bloqueia) padrão de instruç
         assert(!looksLikeInjectionAttempt(text), `não deveria marcar: ${text}`);
     }
 });
+
+// ── Incidente 2026-07-21: telefone divergente ("+55...") escondia paciente real
+import { canonicalizePhone } from "../../_shared/schedulingTools.ts";
+
+Deno.test("canonicalizePhone: remove tudo que não é dígito", () => {
+    assertEquals(canonicalizePhone("+554198933579"), "554198933579");
+    assertEquals(canonicalizePhone("554198933579"), "554198933579");
+    assertEquals(canonicalizePhone("+55 (41) 98933-579"), "554198933579");
+    assertEquals(canonicalizePhone(""), "");
+    assertEquals(canonicalizePhone(null), "");
+    assertEquals(canonicalizePhone(undefined), "");
+});
+
+// ── Incidente 2026-07-21: mensagem de handoff derivava de idioma sem checagem
+import { detectLanguageDrift } from "../../_shared/copilot.ts";
+
+Deno.test("detectLanguageDrift: pega deriva PT em conversa EN (frase real do incidente), ignora conversa PT", () => {
+    // Frase real que vazou na produção (2026-07-21): mensagem de handoff em PT
+    // numa conversa inteiramente em inglês.
+    const realIncidentText = "Entendo sua frustração, Fabricio, e peço desculpas pelo transtorno. Verifiquei novamente nosso sistema agora mesmo e, de fato, não há nenhum registro de consulta em seu nome — nem hoje, nem em datas futuras.";
+    const drifted = detectLanguageDrift(realIncidentText, "en");
+    assert(drifted.length > 0);
+    const clean = detectLanguageDrift("I understand your frustration, let me check again.", "en");
+    assertEquals(clean, []);
+    const pt = detectLanguageDrift(realIncidentText, "pt");
+    assertEquals(pt, []);
+});
