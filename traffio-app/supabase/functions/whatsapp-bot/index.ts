@@ -20,6 +20,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { TenantResolver } from "../_shared/tenantResolver.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { runCopilot } from "../_shared/copilot.ts";
+import { extractZapiContent, extractCloudApiContent } from "../_shared/inboundParser.ts";
 
 console.log("whatsapp-bot v6 — Inbox Pattern + Dual Provider — Initialized");
 
@@ -95,30 +96,17 @@ async function handleZapi(supabase: any, body: any): Promise<Response> {
     return new Response(JSON.stringify({ ignored: true, reason: "self_message"   }), { status: 200 });
   }
 
-  // --- EXTRACT TEXT ---
-  const inputContent =
-    body.text?.message       ||
-    body.message             ||
-    body.data?.message       ||
-    body.buttonResponse?.buttonId ||
-    body.optionListResponse?.id;
+  // --- EXTRACT CONTENT VIA INBOUND PARSER ---
+  const parsed = extractZapiContent(body);
+  const { content, mediaUrl, caption, messageType, interactiveTitle, isInteractiveReply } = parsed;
 
-  // --- EXTRACT MEDIA ---
-  const mediaUrl  = body.image?.imageUrl || body.audio?.audioUrl || body.video?.videoUrl || body.document?.documentUrl || body.sticker?.stickerUrl || null;
-  const caption   = body.image?.caption || body.video?.caption || body.document?.caption || null;
-  let messageType = "text";
-  if (body.image)    messageType = "image";
-  if (body.audio)    messageType = "audio";
-  if (body.video)    messageType = "video";
-  if (body.document) messageType = "document";
-  if (body.sticker)  messageType = "sticker";
-
-  // Determine content: text OR media marker
-  const content = inputContent || caption || (mediaUrl ? `[${messageType}]` : null);
-
-  if (!instanceId || !phone || !content) {
+  if (!instanceId || !phone || (!content && !isInteractiveReply)) {
     console.log(`[whatsapp-bot] Z-API: [${phone}] ignored=empty_event | content=${content} type=${body.type} payload=${JSON.stringify(body).substring(0, 900)}`);
     return new Response(JSON.stringify({ ignored: "Empty event" }), { status: 200 });
+  }
+
+  if (isInteractiveReply) {
+    console.log(`[whatsapp-bot] Z-API: [${phone}] interactive reply id="${content}" title="${interactiveTitle}"`);
   }
 
   // --- IDEMPOTENCY ---
@@ -182,7 +170,7 @@ async function handleZapi(supabase: any, body: any): Promise<Response> {
       message_id:   messageId,
       message_type: messageType,
       media_url:    mediaUrl,
-      caption:      caption,
+      caption:      caption ?? interactiveTitle,
       received_at:  new Date().toISOString(),
       status:       "pending",
     });
@@ -196,7 +184,7 @@ async function handleZapi(supabase: any, body: any): Promise<Response> {
     return new Response(JSON.stringify({ error: "inbox_insert_failed" }), { status: 500 });
   }
 
-  console.log(`[whatsapp-bot] Z-API: [${phone}] Queued: "${content.substring(0, 60)}" (${messageType})`);
+  console.log(`[whatsapp-bot] Z-API: [${phone}] Queued: "${(content ?? "").substring(0, 60)}" (${messageType})`);
   triggerInboxProcessing();
   return new Response(JSON.stringify({ status: "queued" }), { headers: corsHeaders });
 }
@@ -243,51 +231,11 @@ async function handleCloudApi(supabase: any, body: any): Promise<Response> {
     const msgType = msg.type;
     const msgId   = msg.id;
 
-    // Extract content based on message type
-    let content = "";
-    let mediaUrl: string | null = null;
-    let caption: string | null = null;
-    let messageType = "text";
+    // --- EXTRACT CONTENT VIA INBOUND PARSER ---
+    const parsed = extractCloudApiContent(msg);
+    const { content, mediaUrl, caption, messageType, interactiveTitle, isInteractiveReply } = parsed;
 
-    if (msgType === "text") {
-      content = msg.text?.body || "";
-    } else if (msgType === "image") {
-      mediaUrl = msg.image?.id; // Cloud API returns media_id, not URL
-      caption  = msg.image?.caption || null;
-      messageType = "image";
-      content  = caption || "[imagem]";
-    } else if (msgType === "audio") {
-      mediaUrl = msg.audio?.id;
-      messageType = "audio";
-      content  = "[áudio]";
-    } else if (msgType === "video") {
-      mediaUrl = msg.video?.id;
-      caption  = msg.video?.caption || null;
-      messageType = "video";
-      content  = caption || "[vídeo]";
-    } else if (msgType === "document") {
-      mediaUrl = msg.document?.id;
-      messageType = "document";
-      content  = msg.document?.filename || "[documento]";
-    } else if (msgType === "sticker") {
-      mediaUrl = msg.sticker?.id;
-      messageType = "sticker";
-      content  = "[figurinha]";
-    } else if (msgType === "interactive") {
-      // Button/list responses
-      const interactive = msg.interactive;
-      if (interactive?.type === "button_reply") {
-        content = interactive.button_reply?.id || interactive.button_reply?.title || "";
-      } else if (interactive?.type === "list_reply") {
-        content = interactive.list_reply?.id || interactive.list_reply?.title || "";
-      }
-    } else if (msgType === "button") {
-      content = msg.button?.text || msg.button?.payload || "";
-    } else {
-      content = `[${msgType}]`;
-    }
-
-    if (!content) continue;
+    if (!content && !isInteractiveReply) continue;
 
     // --- IDEMPOTENCY ---
     const { error: idempotencyError } = await supabase
@@ -338,7 +286,7 @@ async function handleCloudApi(supabase: any, body: any): Promise<Response> {
         message_id:   msgId,
         message_type: messageType,
         media_url:    mediaUrl,
-        caption:      caption,
+        caption:      caption ?? interactiveTitle,
         received_at:  timestamp,
         status:       "pending",
       });
@@ -353,7 +301,7 @@ async function handleCloudApi(supabase: any, body: any): Promise<Response> {
     }
 
     inserted++;
-    console.log(`[whatsapp-bot] Cloud API: [${phone}] Queued: "${content.substring(0, 60)}" (${messageType})`);
+    console.log(`[whatsapp-bot] Cloud API: [${phone}] Queued: "${(content ?? "").substring(0, 60)}" (${messageType})`);
   }
 
   if (inserted > 0) triggerInboxProcessing();

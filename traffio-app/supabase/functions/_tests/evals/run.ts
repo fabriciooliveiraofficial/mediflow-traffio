@@ -63,7 +63,7 @@ interface RunResult {
 
 async function runScenario(s: EvalScenario): Promise<RunResult> {
     const lastPatientMessage = [...s.history].reverse().find(m => m.role === "user")?.content || "";
-    const system = buildAutonomousSystemPrompt({
+    const { text: system, cachePrefix: systemCachePrefix } = buildAutonomousSystemPrompt({
         clinicName: "Clínica Eval",
         personality: "acolhedor",
         instructions: "",
@@ -103,7 +103,7 @@ async function runScenario(s: EvalScenario): Promise<RunResult> {
     // 1500 espelha AGENT_MAX_TOKENS do copilot.ts (produção) — manter em sincronia
     let reply = await claudeChat(stubSupabase, {
         tenantId: "eval", purpose: `eval:${s.name.split(" ")[0]}`, model: MODEL,
-        maxTokens: 1500, tools, system, messages: convo,
+        maxTokens: 1500, tools, cacheTools: true, system, cacheableSystemPrefix: systemCachePrefix, messages: convo,
     });
 
     while (reply.toolCalls.length > 0 && rounds < MAX_TOOL_ROUNDS) {
@@ -128,7 +128,7 @@ async function runScenario(s: EvalScenario): Promise<RunResult> {
 
         reply = await claudeChat(stubSupabase, {
             tenantId: "eval", purpose: `eval:${s.name.split(" ")[0]}`, model: MODEL,
-            maxTokens: 1500, tools, system, messages: convo,
+            maxTokens: 1500, tools, cacheTools: true, system, cacheableSystemPrefix: systemCachePrefix, messages: convo,
         });
     }
 

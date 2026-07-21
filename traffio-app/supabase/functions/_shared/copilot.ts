@@ -12,6 +12,7 @@
  */
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { claudeChat, claudeJson, type LlmTool } from "./llmProvider.ts";
+import { type HandoffReason, type HandoffKind } from "./sessionManager.ts";
 import { getAiModelAgent, getAiModelRouter, getRagEnabled, getRagMinKbEntries } from "./masterConfig.ts";
 import { embedText } from "./embeddings.ts";
 import { OutboxDispatcher } from "./outboxDispatcher.ts";
@@ -84,13 +85,13 @@ export function normalizeConversationLanguage(
 // result. The current-turn triage remains the authoritative classifier.
 const TURN_LANGUAGE_HINTS: Record<ConversationLanguage, readonly RegExp[]> = {
     pt: [
-        /\b(?:obrigad[oa]|amanh[ãa]|hoje|hor[aá]rios?|agendamento|avalia[cç][ãa]o|voc[eê]|quero|posso)\b/iu,
+        /\b(?:obrigad[oa]|amanh[ãa]|hoje|hor[aá]rios?|agendamento|avalia[cç][ãa]o|voc[eê]|quero|posso|oi|ol[aá]|bom dia|boa tarde|pre[cç]o|quanto|onde|quando|preciso|limpeza|marcar)\b/iu,
     ],
     en: [
-        /\b(?:confirmed?|thank(?:s| you)|appointment|today|tomorrow|please|i(?:'m| am)|would|could|book(?:ing)?|schedule(?:d)?)\b/iu,
+        /\b(?:confirmed?|thank(?:s| you)?|appointment|today|tomorrow|please|i(?:'m| am)|would|could|book(?:ing)?|schedule(?:d)?|hi|hello|hey|good morning|afternoon|price|cost|how much|where|when|implant|dental|need|want|can you|do you)\b/iu,
     ],
     es: [
-        /\b(?:gracias|ma[nñ]ana|hoy|por favor|cita|reservar|agendar|usted|quiero|puedo)\b/iu,
+        /\b(?:gracias|ma[nñ]ana|hoy|por favor|cita|reservar|agendar|usted|quiero|puedo|hola|buenos d[ií]as|buenas tardes|precio|cu[aá]nto|d[oó]nde|cu[aá]ndo|necesito|puede|implante|limpieza)\b/iu,
     ],
 };
 
@@ -101,6 +102,21 @@ function inferLanguageFromCurrentMessage(message: unknown): ConversationLanguage
         .filter(([, patterns]) => patterns.some((pattern) => pattern.test(text)))
         .map(([language]) => language);
     return matches.length === 1 ? matches[0] : null;
+}
+
+/**
+ * Idioma DESTE turno, sem custo de LLM. A mensagem atual do paciente vence
+ * sempre; o idioma armazenado é só fallback quando a mensagem não é conclusiva.
+ * Bug de produção (2026-07-21): o modo autônomo montava o prompt com o idioma do
+ * turno ANTERIOR (ores "pt" no primeiro turno) e cravava "IDIOMA JÁ DETECTADO:
+ * português" numa conversa em inglês.
+ */
+export function resolveTurnLanguage(
+    currentPatientMessage: unknown,
+    storedLanguage: unknown,
+): ConversationLanguage {
+    return inferLanguageFromCurrentMessage(currentPatientMessage)
+        ?? normalizeConversationLanguage(storedLanguage);
 }
 
 /** Current turn wins; conversation history is only a safe fallback. */
@@ -278,6 +294,10 @@ Uma consultora de pacientes experiente: técnica e precisa nas informações, ca
 2. RESPONDER COM VALOR: responda a dúvida diretamente usando o contexto da clínica; conecte a informação ao benefício para ELE (resultado, conforto, segurança) antes de qualquer preço.
 3. AVANÇAR: termine com UMA única pergunta ou convite que aproxima do agendamento.
 
+### UMA COISA POR VEZ (cadência humana)
+- Responda apenas ao ponto atual da conversa. Não junte múltiplos assuntos em uma única mensagem.
+- Mantenha a resposta dividida em bolhas naturais (acolhimento, resposta e avanço) usando a ferramenta responder_paciente.
+
 ### POLÍTICA DE PREÇO (absoluta, sem exceção)
 - VALOR MONETÁRIO de procedimento ou consulta: NUNCA informe por mensagem — nem estimativa, nem faixa, nem "a partir de".
 - STATUS DA CONSULTA (gratuita, paga ou primeira gratuita) NÃO é valor monetário. Quando esse status constar no CONTEXTO DA CLÍNICA com fonte, informe-o SEMPRE e diretamente quando o paciente perguntar. Nunca invente o status quando ele não constar.
@@ -293,11 +313,10 @@ Uma consultora de pacientes experiente: técnica e precisa nas informações, ca
 - Se o paciente recusar o convite, não insista na mesma mensagem: entregue valor e deixe a porta aberta.
 - Venda o agendamento da avaliação, não o tratamento: diagnóstico, orçamento e promessa de resultado são do dentista, não seus.
 
-### EMOJIS (calor humano, com parcimônia)
-- Use no MÁXIMO 1 emoji por mensagem, e somente quando ele adiciona conexão real: empatia com uma dor ou receio (ex.: medo de dentista), celebração de um passo do paciente (agendou, decidiu cuidar de si), ou acolhimento num primeiro contato. Exemplos que funcionam: 😊 🙂 ✨ 💙 ✅.
-- A maioria das mensagens NÃO leva emoji — informação objetiva, logística e respostas técnicas ficam mais profissionais sem ele.
-- NUNCA use emoji quando o paciente relatar dor intensa, urgência, reclamação ou irritação — nesses momentos, sobriedade é empatia.
-- Nunca mais de um, nunca em sequência, nunca no meio da frase — no fim de uma frase de acolhimento ou fechamento.
+### EMOJIS (calor humano, calibrado)
+- 1 a 2 emojis por mensagem quando eles adicionam conexão real: acolhimento no primeiro contato, empatia com um receio, celebração de um passo do paciente, confirmação de algo bom. 😊 🙂 ✨ 💙 ✅
+- NUNCA use emoji quando o paciente relatar dor intensa, urgência, medo grave, luto, reclamação ou irritação — nesses momentos, sobriedade é empatia.
+- Nunca em sequência, nunca no meio da frase — sempre ao fim de uma frase.
 `.trim();
 
 /**
@@ -439,30 +458,42 @@ export async function runCopilot(supabase: SupabaseClient, params: CopilotParams
 
         let draftText = "";
         try {
+            // ⚠️ PROMPT CACHING (contrato igual a buildAutonomousSystemPrompt,
+            // ver banner acima dela): draftCachePrefix é estável por tenant+idioma
+            // entre turnos (persona + instruções + conhecimento da clínica).
+            // NUNCA mova algo de draftDynamicParts pra cá (jornada, idioma
+            // detectado NESTE turno, snapshot do paciente) — quebra o cache hit
+            // silenciosamente, sem falhar nenhum teste.
+            const draftCachePrefix = [
+                `Você redige SUGESTÕES de resposta para a equipe da clínica "${clinicName}" — um humano revisa antes de enviar.`,
+                SALES_PERSONA,
+                `Ajuste de tom desta clínica: ${personality}.`,
+                instructions ? `### INSTRUÇÕES DA CLÍNICA (prioridade máxima — sobrepõem qualquer regra acima):\n${instructions}` : "",
+                knowledgePacket ? `### CONTEXTO DA CLÍNICA (única fonte de fatos permitida):\n${knowledgePacket}` : "",
+            ].filter(Boolean).join("\n");
+            const draftDynamicParts = [
+                stageGuidance ? `### CONTEXTO DA JORNADA DESTE PACIENTE (ajusta a abordagem, nunca a política de preço):\n${stageGuidance}` : "",
+                `⚠️ IDIOMA OBRIGATÓRIO DESTE TURNO: escreva a sugestão 100% em ${CONVERSATION_LANGUAGE_NAMES[language]}. Esta classificação já foi concluída para a última mensagem do paciente; não troque de idioma por causa do histórico ou de retornos internos.`,
+                patientSnapshot ? `### PACIENTE NO SISTEMA (fonte da VERDADE — vale mais que a memória da conversa):\n${patientSnapshot}\nPara "confirmar/quando é minha consulta": responda com o dado acima; nunca diga que "está sendo finalizado" se o agendamento já existe, nem invente eventos de sistema.` : "",
+                "### REGRAS INEGOCIÁVEIS:",
+                "- Escreva APENAS o texto da resposta sugerida, nada mais (sem aspas, sem prefixos).",
+                "- Curto: no máximo 2 parágrafos breves, adequado para WhatsApp.",
+                "- RESPONDA A DÚVIDA DIRETAMENTE quando a informação estiver no CONTEXTO DA CLÍNICA. Resposta genérica de 'vou verificar' quando o dado existe no contexto é ERRADA.",
+                "- Se o dado necessário NÃO estiver no contexto, aí sim diga que vai confirmar com a equipe — e mesmo assim adiante o que o contexto permitir.",
+                "- NUNCA invente fato que não esteja no contexto: horário disponível, endereço, informação clínica.",
+                "- PREÇO: nunca informe VALOR MONETÁRIO. Informe o status gratuito/pago da consulta quando ele estiver explicitamente no contexto com fonte.",
+                `- IDIOMA: releia a sugestão antes de responder — se houver qualquer palavra fora de ${CONVERSATION_LANGUAGE_NAMES[language]}, reescreva-a.`,
+                "- ENTIDADES: nunca traduza nome próprio, dose, endereço ou horário ao trocar de idioma — preserve o valor exato da fonte.",
+            ].filter(Boolean);
+            const draftSystem = [draftCachePrefix, ...draftDynamicParts].filter(Boolean).join("\n");
+
             const draft = await claudeChat(supabase, {
                         tenantId,
                         purpose: "copilot_draft",
                         model: agentModel,
                         maxTokens: 500,
-                        system: [
-                            `Você redige SUGESTÕES de resposta para a equipe da clínica "${clinicName}" — um humano revisa antes de enviar.`,
-                            SALES_PERSONA,
-                            stageGuidance ? `### CONTEXTO DA JORNADA DESTE PACIENTE (ajusta a abordagem, nunca a política de preço):\n${stageGuidance}` : "",
-                            `Ajuste de tom desta clínica: ${personality}.`,
-                            `⚠️ IDIOMA OBRIGATÓRIO DESTE TURNO: escreva a sugestão 100% em ${CONVERSATION_LANGUAGE_NAMES[language]}. Esta classificação já foi concluída para a última mensagem do paciente; não troque de idioma por causa do histórico ou de retornos internos.`,
-                            instructions ? `### INSTRUÇÕES DA CLÍNICA (prioridade máxima — sobrepõem qualquer regra acima):\n${instructions}` : "",
-                            knowledgePacket ? `### CONTEXTO DA CLÍNICA (única fonte de fatos permitida):\n${knowledgePacket}` : "",
-                            patientSnapshot ? `### PACIENTE NO SISTEMA (fonte da VERDADE — vale mais que a memória da conversa):\n${patientSnapshot}\nPara "confirmar/quando é minha consulta": responda com o dado acima; nunca diga que "está sendo finalizado" se o agendamento já existe, nem invente eventos de sistema.` : "",
-                            "### REGRAS INEGOCIÁVEIS:",
-                            "- Escreva APENAS o texto da resposta sugerida, nada mais (sem aspas, sem prefixos).",
-                            "- Curto: no máximo 2 parágrafos breves, adequado para WhatsApp.",
-                            "- RESPONDA A DÚVIDA DIRETAMENTE quando a informação estiver no CONTEXTO DA CLÍNICA. Resposta genérica de 'vou verificar' quando o dado existe no contexto é ERRADA.",
-                            "- Se o dado necessário NÃO estiver no contexto, aí sim diga que vai confirmar com a equipe — e mesmo assim adiante o que o contexto permitir.",
-                            "- NUNCA invente fato que não esteja no contexto: horário disponível, endereço, informação clínica.",
-                            "- PREÇO: nunca informe VALOR MONETÁRIO. Informe o status gratuito/pago da consulta quando ele estiver explicitamente no contexto com fonte.",
-                            `- IDIOMA: releia a sugestão antes de responder — se houver qualquer palavra fora de ${CONVERSATION_LANGUAGE_NAMES[language]}, reescreva-a.`,
-                            "- ENTIDADES: nunca traduza nome próprio, dose, endereço ou horário ao trocar de idioma — preserve o valor exato da fonte.",
-                        ].filter(Boolean).join("\n"),
+                        system: draftSystem,
+                        cacheableSystemPrefix: draftCachePrefix,
                         messages: [{ role: "user", content: `Conversa até agora:\n${transcript}\n\nRedija a sugestão de resposta da clínica para a última mensagem do paciente.` }],
             });
             draftText = draft.text.trim();
@@ -541,6 +572,52 @@ const AUTONOMOUS_ADDENDUM = `
 - RETOMADA APÓS INTERRUPÇÃO: se a conversa foi retomada e já existe um agendamento em andamento (ver ESTADO DO FLUXO DE AGENDAMENTO abaixo, se houver), resuma o último estado confirmado numa frase curta e pergunte só a decisão pendente — nunca recomece do zero repetindo perguntas já respondidas.
 - NUNCA ofereça canal (vídeo chamada, intérprete de Libras, atendimento por outro app) ou recurso que não esteja explicitamente disponível no CONTEXTO DA CLÍNICA para este tenant — se o paciente pedir algo assim, diga com sinceridade o que está disponível hoje.
 `.trim();
+
+export const RESPONDER_PACIENTE_TOOL: LlmTool = {
+    name: "responder_paciente",
+    description: "Envia a resposta estruturada ao paciente em 1 a 3 bolhas de mensagem (acolhimento, resposta, avanço). Use esta ferramenta para estruturar a mensagem ao paciente.",
+    input_schema: {
+        type: "object",
+        properties: {
+            acknowledge: {
+                type: "string",
+                description: "Bolha 1 (opcional): Acolhimento breve — reconheça a mensagem ou sentimento do paciente numa frase leve.",
+            },
+            answer: {
+                type: "string",
+                description: "Bolha 2 (obrigatória): Resposta direta à dúvida usando o contexto da clínica — objetiva e informativa.",
+            },
+            advance: {
+                type: "string",
+                description: "Bolha 3 (opcional): Pergunta ou convite de avanço — aproxima do agendamento ou decisão (ex.: 'Prefere manhã ou tarde?').",
+            },
+        },
+        required: ["answer"],
+    },
+};
+
+export interface StructuredReply {
+    acknowledge?: string | null;
+    answer?: string | null;
+    advance?: string | null;
+}
+
+/**
+ * Converte o contrato de saída estruturado { acknowledge, answer, advance }
+ * ou uma string simples em uma lista de 1 a 3 bolhas de mensagem.
+ */
+export function composeBubbles(reply: StructuredReply | string | null | undefined): string[] {
+    if (!reply) return [];
+    if (typeof reply === "string") {
+        const clean = reply.trim();
+        return clean ? [clean] : [];
+    }
+    const bubbles: string[] = [];
+    if (reply.acknowledge?.trim()) bubbles.push(reply.acknowledge.trim());
+    if (reply.answer?.trim()) bubbles.push(reply.answer.trim());
+    if (reply.advance?.trim()) bubbles.push(reply.advance.trim());
+    return bubbles;
+}
 
 export const TRANSFER_TOOL: LlmTool = {
     name: "transfer_to_human",
@@ -670,6 +747,64 @@ export function classifyKnowledgeGap(input: {
     if (!isGap) return { isGap: false, question: null };
     const question = sanitizeKnowledgeGapQuestion(input.lastPatientMessage);
     return question ? { isGap: true, question } : { isGap: false, question: null };
+}
+
+/**
+ * Classifica a razão e o tipo (soft/hard) do handoff para humano.
+ */
+export function resolveHandoffReason(
+    transferReason: string | null | undefined,
+    flags?: {
+        cancelRequested?: boolean;
+        reconciliationNeeded?: boolean;
+        jailbreakTripped?: boolean;
+        isKnowledgeGap?: boolean;
+        isTechFail?: boolean;
+    },
+): { reason: HandoffReason; kind: HandoffKind } {
+    if (flags?.cancelRequested) {
+        return { reason: "cancel", kind: "hard" };
+    }
+    if (flags?.jailbreakTripped) {
+        return { reason: "jailbreak", kind: "hard" };
+    }
+    if (flags?.reconciliationNeeded) {
+        return { reason: "reconciliation", kind: "hard" };
+    }
+
+    const reasonText = (transferReason || "").toLowerCase();
+
+    if (/\b(?:emerg[eê]n|urg[eê]n|socorro|dor\b|luto\b|bleeding|sangram)/i.test(reasonText)) {
+        return { reason: "emergency", kind: "hard" };
+    }
+    if (/\b(?:cl[ií]nic|m[eé]dic|sintoma|remedio|rem[eé]dio|dosagem|diagnostico|trata|posso tomar|contraindica|efeito colateral)/i.test(reasonText)) {
+        return { reason: "clinical", kind: "hard" };
+    }
+    if (/\b(?:humano|human|atendente|pessoa|falar com|falar com alguém|falar com alguem|falar com atendente|recep)/i.test(reasonText)) {
+        return { reason: "human_request", kind: "hard" };
+    }
+    if (/\b(?:pre[cç]o|price|precio|valor|or[cç]amento|quanto custa|tabela)/i.test(reasonText)) {
+        return { reason: "price_insistence", kind: "hard" };
+    }
+    if (/\b(?:reclam|procon|processo|advogad|ouvidor|absurdo|pessim|p[eé]ssim)/i.test(reasonText)) {
+        return { reason: "complaint", kind: "hard" };
+    }
+
+    if (flags?.isKnowledgeGap) {
+        return { reason: "knowledge_gap", kind: "soft" };
+    }
+
+    if (flags?.isTechFail) {
+        return { reason: "tech", kind: "soft" };
+    }
+
+    if (transferReason) {
+        return NON_GAP_REASON_PATTERN.test(transferReason)
+            ? { reason: "human_request", kind: "hard" }
+            : { reason: "knowledge_gap", kind: "soft" };
+    }
+
+    return { reason: "tech", kind: "soft" };
 }
 
 async function recordKnowledgeGap(supabase: SupabaseClient, tenantId: string, result: { isGap: boolean; question: string | null }, language: string): Promise<void> {
@@ -811,10 +946,10 @@ export function validateAgentReply(text: string, opts: AgentReplyValidationOptio
         violations.push("resposta contradiz agendamento ativo no estado real do paciente");
     }
 
-    // Emojis: calor humano com parcimônia (máx. 1 por mensagem na persona);
-    // 3+ é ruído infantilizado — reprova e regenera.
+    // Emojis: calor humano calibrado (1 a 2 por mensagem na persona);
+    // 3+ por bolha é ruído infantilizado — reprova e regenera.
     const emojiCount = (text.match(/\p{Extended_Pictographic}/gu) || []).length;
-    if (emojiCount > 2) violations.push(`excesso de emojis (${emojiCount}) — use no máximo 1, apenas quando adiciona conexão real`);
+    if (emojiCount > 2) violations.push(`excesso de emojis na mensagem (${emojiCount}) — no máximo 1 a 2 por mensagem`);
 
     // P-05 (matriz de comportamentos): vazamento de artefato interno — id de slot
     // cru, UUID, nome de ferramenta, fragmento do prompt ou stack trace no texto
@@ -1014,6 +1149,41 @@ export function buildFlowStateHint(context: any, intake: any): string | null {
  * System prompt do agente autônomo — FONTE ÚNICA, usada em produção e na
  * suíte de evals (_tests/evals). Mudou aqui? Rode os evals antes de subir.
  */
+// ══════════════════════════════════════════════════════════════════════════
+// ⚠️  PROMPT CACHING — CONTRATO TRAVADO, NÃO ALTERE SEM LER (2026-07-21)
+// ══════════════════════════════════════════════════════════════════════════
+// `cachePrefix` só entrega economia real (medido: ~77% do custo de input em
+// produção) se ele for IDÊNTICO turno após turno para o mesmo tenant. Isso
+// significa UMA regra inegociável para quem editar `buildAutonomousSystemPrompt`
+// (e o gêmeo inline em runCopilot, o system do rascunho F1):
+//
+//   NUNCA coloque em `cachedParts` algo que varie por turno/paciente/sessão
+//   (data de hoje, snapshot do paciente, estágio da jornada, fluxo de
+//   agendamento, idioma detectado NESTA conversa, modo acessível). Isso vai
+//   em `dynamicParts`, sempre. Se precisar adicionar um campo novo a `opts`,
+//   pergunte-se: "isso é igual para toda conversa deste tenant, ou muda
+//   conforme o paciente/turno?" — a resposta decide o bloco.
+//
+// Guardado por teste (unit_test.ts): "cachePrefix é prefixo exato de text",
+// "conteúdo por turno NUNCA vaza para o cachePrefix", "cachePrefix é IDÊNTICO
+// entre turnos do mesmo tenant". Quebrar esse contrato não derruba a suíte de
+// evals (o texto final continua correto) — só encarece silenciosamente cada
+// chamada, sem nenhum erro para avisar. Ver docs/SPEC_AGENTE_IA_CLAUDE.md §
+// Prompt caching e memory/prompt_caching_feature.md.
+export interface AutonomousSystemPrompt {
+    /** Texto completo a enviar como `system` — conteúdo idêntico ao anterior. */
+    text: string;
+    /**
+     * Prefixo estável POR TENANT entre turnos (persona + regras universais +
+     * instruções + conhecimento da clínica) — só muda quando o operador edita
+     * Inteligência/Configurações. Passe em `cacheableSystemPrefix` do
+     * llmProvider para habilitar prompt caching (Anthropic): mesmo tenant e
+     * config inalterada entre turnos → cache hit, ~10% do custo do input.
+     * https://platform.claude.com/docs/en/build-with-claude/prompt-caching
+     */
+    cachePrefix: string;
+}
+
 export function buildAutonomousSystemPrompt(opts: {
     clinicName: string;
     personality: string;
@@ -1030,26 +1200,40 @@ export function buildAutonomousSystemPrompt(opts: {
     patientSnapshot?: string | null;
     /** E-22 (Onda 3): paciente pediu explicitamente linguagem simples/curta nesta conversa */
     accessibleMode?: boolean;
-}): string {
+    /** Handoff reversível (soft): avisar modelo para não repetir que equipe vai assumir */
+    softHandoffNotice?: boolean;
+}): AutonomousSystemPrompt {
     const languageHint = opts.languageHint
         ? normalizeConversationLanguage(opts.languageHint)
         : null;
-    return [
+
+    // Bloco CACHEÁVEL: estável por tenant (persona + regras universais +
+    // instruções + conhecimento da clínica) — nunca inclua aqui algo que
+    // mude por turno/paciente, ou o prefixo nunca vai repetir e o cache
+    // nunca vai bater.
+    const cachedParts = [
         `Você é a assistente da clínica "${opts.clinicName}" e responde os pacientes pelo WhatsApp.`,
         SALES_PERSONA,
         AUTONOMOUS_ADDENDUM,
+        `Ajuste de tom desta clínica: ${opts.personality}.`,
+        `⚠️ IDIOMA: identifique o idioma da ÚLTIMA mensagem do paciente e responda 100% nesse idioma — nenhuma palavra solta de outro idioma (nem termos como "avaliação"/"agendamento" em português dentro de uma resposta em espanhol/inglês). Se não souber o termo exato no idioma do paciente, parafraseie; nunca deixe a palavra em português.`,
+        opts.instructions ? `### INSTRUÇÕES DA CLÍNICA (prioridade máxima — sobrepõem qualquer regra acima):\n${opts.instructions}` : "",
+        opts.knowledgePacket ? `### CONTEXTO DA CLÍNICA (única fonte de fatos permitida):\n${opts.knowledgePacket}` : "",
+    ].filter(Boolean);
+
+    // Bloco DINÂMICO: muda por turno/sessão — nunca cacheável junto ao
+    // prefixo acima. Regras inegociáveis ficam por último de propósito
+    // (última coisa que o modelo lê antes de responder).
+    const dynamicParts = [
+        opts.softHandoffNotice ? "### AVISO: a equipe da clínica já foi acionada para este atendimento. Continue ajudando normalmente, mas NUNCA prometa que alguém já está digitando nem repita que 'a equipe vai assumir' — isso já foi dito." : "",
         opts.accessibleMode ? "### MODO ACESSÍVEL (E-22): o paciente pediu linguagem simples/tem dificuldade de leitura — use frases curtas, uma pergunta por mensagem, e ofereça opções numeradas quando houver escolha." : "",
         opts.stageGuidance ? `### CONTEXTO DA JORNADA DESTE PACIENTE (ajusta a abordagem, nunca a política de preço):\n${opts.stageGuidance}` : "",
         opts.flowStateHint ? `### ESTADO DO FLUXO DE AGENDAMENTO (continue DESTE ponto, não recomece):\n${opts.flowStateHint}` : "",
         opts.patientSnapshot ? `### PACIENTE NO SISTEMA (fonte da VERDADE — vale mais que a memória da conversa):\n${opts.patientSnapshot}\nPara "confirmar/quando é minha consulta": responda com o dado acima. Se acima diz que existe agendamento, ele EXISTE — confirme-o; nunca diga que falhou ou que o horário ficou indisponível.` : "",
         `Data de hoje: ${opts.todayStr} (fuso da clínica). Use-a para converter datas relativas ("amanhã", "semana que vem") ao chamar ferramentas.`,
-        `Ajuste de tom desta clínica: ${opts.personality}.`,
-        `⚠️ IDIOMA: identifique o idioma da ÚLTIMA mensagem do paciente e responda 100% nesse idioma — nenhuma palavra solta de outro idioma (nem termos como "avaliação"/"agendamento" em português dentro de uma resposta em espanhol/inglês). Se não souber o termo exato no idioma do paciente, parafraseie; nunca deixe a palavra em português.`,
         languageHint
             ? `IDIOMA JÁ DETECTADO NESTA CONVERSA: ${LANG_NAME[languageHint]}. Mantenha esse idioma em TODAS as mensagens, inclusive após usar ferramentas (os retornos internos das ferramentas NÃO definem o idioma da resposta).`
             : "",
-        opts.instructions ? `### INSTRUÇÕES DA CLÍNICA (prioridade máxima — sobrepõem qualquer regra acima):\n${opts.instructions}` : "",
-        opts.knowledgePacket ? `### CONTEXTO DA CLÍNICA (única fonte de fatos permitida):\n${opts.knowledgePacket}` : "",
         "### REGRAS INEGOCIÁVEIS:",
         "- Escreva APENAS o texto da mensagem ao paciente, sem prefixos.",
         "- Curto: no máximo 2 parágrafos breves, adequado para WhatsApp.",
@@ -1057,7 +1241,11 @@ export function buildAutonomousSystemPrompt(opts: {
         "- NUNCA invente fato que não esteja no contexto ou em retorno de ferramenta: horário disponível, endereço, informação clínica.",
         "- PREÇO: nunca informe VALOR MONETÁRIO. O status gratuito/pago da consulta deve ser informado quando estiver explicitamente no contexto com fonte — siga a POLÍTICA DE PREÇO.",
         "- IDIOMA: releia sua resposta antes de enviar — se houver qualquer palavra fora do idioma do paciente, reescreva-a.",
-    ].filter(Boolean).join("\n");
+    ].filter(Boolean);
+
+    const cachePrefix = cachedParts.join("\n");
+    const text = [cachePrefix, ...dynamicParts].filter(Boolean).join("\n");
+    return { text, cachePrefix };
 }
 
 export async function runAutonomousAgent(supabase: SupabaseClient, params: AutonomousParams): Promise<AutonomousStatus> {
@@ -1067,7 +1255,7 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
     try {
         const { data: session } = await supabase
             .from("conversation_sessions")
-            .select("context, recent_messages, platform_display_name")
+            .select("context, recent_messages, platform_display_name, handoff_kind, omnichannel_status")
             .eq("id", sessionId)
             .single();
         if (!session) return "failed";
@@ -1079,8 +1267,9 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
 
         const context = session.context || {};
         const knownIntake = context.intake || {};
-        const storedLanguage = context.language || "pt";
         const patientQuery = [...history].reverse().find((message: any) => message.role === "user")?.content;
+        const storedLanguage = normalizeConversationLanguage(context.language);
+        const turnLanguage = resolveTurnLanguage(patientQuery, storedLanguage);
 
         // Onda 4 — orçamento de risco cumulativo de jailbreak multi-turno: cada
         // sondagem parcial soma risco mesmo sem violar nada isoladamente; só o
@@ -1089,9 +1278,10 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
         if (jailbreakDelta > 0) {
             const tripped = await sessionManager.registerJailbreakSignal(sessionId, jailbreakDelta);
             if (tripped) {
-                const bye = HANDOFF_MSG[storedLanguage] || HANDOFF_MSG.pt;
+                const bye = HANDOFF_MSG[turnLanguage] || HANDOFF_MSG.pt;
                 await sendWithFallback(dispatcher, tenant, tenantId, phone, bye);
                 await sessionManager.logMessage(sessionId, "assistant", bye);
+                await sessionManager.triggerHumanHandoff(sessionId, undefined, { reason: "jailbreak", kind: "hard" });
                 console.warn(`[agent] [${phone}] orçamento de risco de jailbreak esgotado — handoff humano`);
                 return "transferred";
             }
@@ -1109,12 +1299,14 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
         const [routerModel, agentModel, knowledgePacket, journeyStage, patientSnapshot] = await Promise.all([
             getAiModelRouter(supabase),
             getAiModelAgent(supabase),
-            buildKnowledgePacket(supabase, tenantId, normalizeGlobalKnowledgeLanguage(storedLanguage), patientQuery),
+            buildKnowledgePacket(supabase, tenantId, normalizeGlobalKnowledgeLanguage(turnLanguage), patientQuery),
             fetchStageGuidance(supabase, sessionId),
             buildPatientSnapshot(supabase, tenantId, phone, timezone),
         ]);
         const personality = botConfig?.personality || "acolhedor";
         const instructions = botConfig?.global_instructions || "";
+
+        const isSoftHandoffQueued = session.omnichannel_status === "queued" && session.handoff_kind === "soft";
 
         const systemPrompt = buildAutonomousSystemPrompt({
             clinicName,
@@ -1122,9 +1314,8 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             instructions,
             knowledgePacket,
             todayStr: todayInTz(timezone || undefined),
-            // Idioma detectado nos turnos anteriores (triagem) — evita a deriva
-            // para PT depois dos retornos internos das ferramentas
-            languageHint: context.language || null,
+            // Idioma DESTE turno — evita a deriva para PT no 1º turno ou depois de ferramentas
+            languageHint: turnLanguage,
             // IA consciente de jornada (roadmap item 6)
             stageGuidance: journeyStage.guidance,
             // Camada 2 — continuidade determinística do fluxo de agendamento
@@ -1133,6 +1324,7 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             patientSnapshot,
             // E-22 (Onda 3): só ativa quando o paciente pede explicitamente, nunca inferido
             accessibleMode: shouldUseAccessibleMode(patientQuery || ""),
+            softHandoffNotice: isSoftHandoffQueued,
         });
 
         // Triagem em paralelo com o loop (não bloqueia a resposta)
@@ -1152,13 +1344,20 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
         });
 
         // ── Loop agentic: modelo decide ferramenta → executamos → devolvemos ───
-        const tools = [TRANSFER_TOOL, ...SCHEDULING_TOOLS];
+        const tools = [RESPONDER_PACIENTE_TOOL, TRANSFER_TOOL, ...SCHEDULING_TOOLS];
         const convo: { role: "user" | "assistant"; content: string | any[] }[] = [
             { role: "user", content: `Conversa até agora:\n${transcript}\n\nResponda à última mensagem do paciente.` },
         ];
 
+        // ⚠️ PROMPT CACHING: as 4 chamadas a agentChat/claudeChat NESTE turno
+        // (aqui, no loop de ferramentas, no anti-beco e na regeneração
+        // corretiva) SEMPRE passam `cacheTools: true` + `cacheableSystemPrefix:
+        // systemPrompt.cachePrefix` junto de `system: systemPrompt.text`. Se
+        // adicionar uma 5ª chamada neste turno, replique os três — esquecer
+        // não quebra nada visivelmente, só perde o cache hit daquela chamada.
         let reply = await agentChat(supabase, {
-            tenantId, purpose: "agent_reply", model: agentModel, tools, system: systemPrompt, messages: convo,
+            tenantId, purpose: "agent_reply", model: agentModel, tools, cacheTools: true,
+            system: systemPrompt.text, cacheableSystemPrefix: systemPrompt.cachePrefix, messages: convo,
         });
 
         let lastSlots: SlotOption[] | null = null;
@@ -1179,10 +1378,15 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
                 cancelRequested = true;
                 break;
             }
+            // Se o modelo chamou responder_paciente junto ou sozinho, extraímos e encerramos o loop de ferramentas
+            if (reply.toolCalls.some(t => t.name === "responder_paciente") && !reply.toolCalls.some(t => t.name !== "responder_paciente")) {
+                break;
+            }
 
             convo.push({ role: "assistant", content: reply.rawContent });
             const results: any[] = [];
-            for (const call of reply.toolCalls) {
+            const nonResponderCalls = reply.toolCalls.filter(t => t.name !== "responder_paciente");
+            for (const call of nonResponderCalls) {
                 const outcome = await executeSchedulingTool(supabase, tenantId, phone, session.platform_display_name, call, lastPatientMessage);
                 if (outcome.slots?.length) lastSlots = outcome.slots;
                 if (outcome.data?.reconciliation_needed) reconciliationNeeded = true;
@@ -1190,17 +1394,22 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
                 toolEvidence.push(resultJson);
                 results.push({ type: "tool_result", tool_use_id: call.id, content: resultJson });
             }
-            convo.push({ role: "user", content: results });
-
-            reply = await agentChat(supabase, {
-                tenantId, purpose: "agent_reply", model: agentModel, tools, system: systemPrompt, messages: convo,
-            });
+            if (results.length > 0) {
+                convo.push({ role: "user", content: results });
+                reply = await agentChat(supabase, {
+                    tenantId, purpose: "agent_reply", model: agentModel, tools, cacheTools: true,
+                    system: systemPrompt.text, cacheableSystemPrefix: systemPrompt.cachePrefix, messages: convo,
+                });
+            } else {
+                break;
+            }
         }
 
         // Anti-beco: rounds esgotados com o modelo ainda pedindo ferramenta e sem
         // texto → uma última chamada SEM ferramentas para verbalizar o que ele já
         // sabe (em produção isso virava handoff desnecessário no meio do fechamento).
-        if (!reply.text.trim() && reply.toolCalls.length > 0 && !transferReason && !cancelRequested) {
+        const hasResponderCall = reply.toolCalls.some(t => t.name === "responder_paciente");
+        if (!reply.text.trim() && !hasResponderCall && reply.toolCalls.length > 0 && !transferReason && !cancelRequested) {
             console.warn(`[agent] [${phone}] rounds esgotados sem texto — verbalização final sem ferramentas`);
             convo.push({ role: "assistant", content: reply.rawContent });
             convo.push({
@@ -1212,14 +1421,18 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
                 })),
             });
             reply = await agentChat(supabase, {
-                tenantId, purpose: "agent_reply", model: agentModel, tools, toolChoice: { type: "none" },
-                system: systemPrompt, messages: convo,
+                tenantId, purpose: "agent_reply", model: agentModel, tools, toolChoice: { type: "none" }, cacheTools: true,
+                system: systemPrompt.text, cacheableSystemPrefix: systemPrompt.cachePrefix, messages: convo,
             });
         }
 
         const triage = await triagePromise;
-        const language = resolveConversationLanguage(triage?.language, patientQuery, storedLanguage);
-        const text = reply.text.trim();
+        const language = resolveConversationLanguage(triage?.language, patientQuery, turnLanguage);
+
+        // Extração de bolhas via contrato responder_paciente ou texto simples
+        const responderCall = reply.toolCalls.find(t => t.name === "responder_paciente");
+        let bubbles = responderCall ? composeBubbles(responderCall.input as StructuredReply) : composeBubbles(reply.text);
+        const text = bubbles.join("\n\n");
 
         // Cancelar-e-regenerar: mensagem nova durante a geração → a resposta
         // nasceu velha. Descarta; o chamador devolve o batch para a fila e o
@@ -1243,10 +1456,12 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             language,
         };
         delete merged.ai_draft;
-        if (lastSlots?.length && !transferReason && !cancelRequested && text) {
+        if (lastSlots?.length && !transferReason && !cancelRequested && bubbles.length > 0) {
             merged.pending_slots = lastSlots.map(s => s.id);
+            merged.pending_slot_titles = lastSlots.map(s => s.title);
         } else {
             delete merged.pending_slots;
+            delete merged.pending_slot_titles;
         }
         await supabase.from("conversation_sessions").update({ context: merged }).eq("id", sessionId);
 
@@ -1255,55 +1470,68 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
         // Fora do expediente → acolhe e promete retorno; entra na fila do mesmo jeito.
         if (cancelRequested) {
             const within = isWithinBusinessHours(botConfig, timezone || undefined);
-            // Mesmo guard do caminho de transferência (bug 2026-07-21): texto cru
-            // do modelo não pode ir ao paciente sem checagem de deriva de idioma.
             const cancelDrifted = within && Boolean(text) && detectLanguageDrift(text, language).length > 0;
             if (cancelDrifted) console.warn(`[agent] [${phone}] mensagem de cancelamento com deriva de idioma — usando texto canônico`);
             const msg = within
                 ? ((text && !cancelDrifted) ? text : (HANDOFF_MSG[language] || HANDOFF_MSG.pt))
                 : (AFTER_HOURS_CANCEL_MSG[language] || AFTER_HOURS_CANCEL_MSG.pt);
-            await sendWithFallback(dispatcher, tenant, tenantId, phone, msg);
+            await dispatcher.sendSequence(tenant, phone, [msg]);
             await sessionManager.logMessage(sessionId, "assistant", msg);
-            await sessionManager.triggerHumanHandoff(sessionId, merged);
+            await sessionManager.triggerHumanHandoff(sessionId, merged, { reason: "cancel", kind: "hard" });
             console.log(`[agent] [${phone}] cancelamento encaminhado (expediente=${within})`);
             return "transferred";
         }
 
         // ── Transferência (decisão do modelo, rounds esgotados ou resposta vazia) ──
-        if (transferReason || !text) {
-            // Bug de produção (2026-07-21): a mensagem de despedida do modelo ia
-            // direto ao paciente sem passar por validateAgentReply — derivou para
-            // PT numa conversa em EN. Mesma checagem de idioma, canônica se falhar.
+        if (transferReason || bubbles.length === 0) {
             const handoffDrifted = Boolean(text) && detectLanguageDrift(text, language).length > 0;
             if (handoffDrifted) console.warn(`[agent] [${phone}] mensagem de handoff com deriva de idioma — usando texto canônico`);
             const bye = (text && !handoffDrifted) ? text : (HANDOFF_MSG[language] || HANDOFF_MSG.pt);
-            await sendWithFallback(dispatcher, tenant, tenantId, phone, bye);
+            await dispatcher.sendSequence(tenant, phone, [bye]);
             await sessionManager.logMessage(sessionId, "assistant", bye);
-            await sessionManager.triggerHumanHandoff(sessionId, merged);
-            await recordKnowledgeGap(supabase, tenantId, classifyKnowledgeGap({
+            const gapResult = classifyKnowledgeGap({
                 transferReason, replyText: text, lastPatientMessage,
                 flags: { cancelRequested, reconciliationNeeded },
-            }), language);
-            console.log(`[agent] [${phone}] transferido para humano — motivo: ${transferReason || "resposta vazia/rounds esgotados"}`);
+            });
+            const handoffOpts = resolveHandoffReason(transferReason, {
+                cancelRequested,
+                reconciliationNeeded,
+                isKnowledgeGap: gapResult.isGap,
+                isTechFail: bubbles.length === 0 && !transferReason,
+            });
+            await sessionManager.triggerHumanHandoff(sessionId, merged, handoffOpts);
+            await recordKnowledgeGap(supabase, tenantId, gapResult, language);
+            console.log(`[agent] [${phone}] transferido para humano — motivo: ${handoffOpts.reason} (${handoffOpts.kind})`);
             return "transferred";
         }
 
-        // ── Camada 1: portão de validação — nada reprovado chega ao paciente ───
-        let finalText = text;
+        // ── Camada 1: portão de validação por bolha + loop do turno completo ───
         const evidence = [knowledgePacket, patientSnapshot || "", transcript, ...toolEvidence].join("\n");
-        let violations = validateAgentReply(finalText, {
-            language,
-            evidence,
-            policyEvidence: knowledgePacket,
-            patientLastMessage: lastPatientMessage,
-            appointmentEvidence: patientSnapshot,
-        });
-        // P-20/E-11: resposta essencialmente igual à última da clínica = loop sem
-        // progresso — obriga mudança de abordagem (repetição é abandono garantido)
+        let violations: string[] = [];
+
+        for (const bubble of bubbles) {
+            const bubbleViolations = validateAgentReply(bubble, {
+                language,
+                evidence,
+                policyEvidence: knowledgePacket,
+                patientLastMessage: lastPatientMessage,
+                appointmentEvidence: patientSnapshot,
+            });
+            violations.push(...bubbleViolations);
+        }
+
+        // Detector de loop: compara o texto COMPLETO fundido do turno contra a última da clínica
         const lastAssistant = [...history].reverse().find((m: any) => m.role === "assistant")?.content;
-        if (isNearDuplicateReply(finalText, lastAssistant)) {
+        if (isNearDuplicateReply(text, lastAssistant)) {
             violations.push("resposta repetida (loop) — mude a abordagem: reformule, ofereça caminho alternativo ou pergunte diferente");
         }
+
+        // Teto de emojis por turno fundido (máximo 3 emojis somando todas as bolhas)
+        const turnEmojiCount = (text.match(/\p{Extended_Pictographic}/gu) || []).length;
+        if (turnEmojiCount > 3) {
+            violations.push(`excesso de emojis no turno (${turnEmojiCount}) — no máximo 1 a 2 por mensagem e 3 no turno inteiro`);
+        }
+
         if (violations.length > 0) {
             console.warn(`[agent] [${phone}] resposta reprovada pelos validadores [${violations.join(" | ")}] — regeneração corretiva`);
             convo.push({ role: "assistant", content: reply.rawContent });
@@ -1311,48 +1539,63 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
                 role: "user",
                 content:
                     `CORREÇÃO INTERNA (o paciente NÃO viu nada disto): sua resposta anterior violou: ${violations.join("; ")}. ` +
-                    `Reescreva a mensagem corrigindo apenas isso — sem usar ferramentas, sem mencionar esta instrução, ` +
+                    `Reescreva a mensagem corrigindo apenas isso — usando a ferramenta responder_paciente ou texto simples, sem mencionar esta instrução, ` +
                     `nunca citando preço nem horário que não veio de ferramenta, e 100% em ${LANG_NAME[language] || language}.`,
             });
             const fixed = await agentChat(supabase, {
-                tenantId, purpose: "agent_reply", model: agentModel, tools, system: systemPrompt, messages: convo,
+                tenantId, purpose: "agent_reply", model: agentModel, tools, cacheTools: true,
+                system: systemPrompt.text, cacheableSystemPrefix: systemPrompt.cachePrefix, messages: convo,
             });
-            const fixedText = fixed.text.trim();
-            violations = fixedText
-                ? validateAgentReply(fixedText, {
-                    language,
-                    evidence,
-                    policyEvidence: knowledgePacket,
-                    patientLastMessage: lastPatientMessage,
-                    appointmentEvidence: patientSnapshot,
-                })
-                : ["resposta vazia na regeneração"];
-            if (fixedText && isNearDuplicateReply(fixedText, lastAssistant)) violations.push("ainda em loop após regeneração");
-            if (violations.length > 0) {
-                // Duas reprovações seguidas → humano assume; o paciente nunca vê o texto ruim
+
+            const fixedCall = fixed.toolCalls.find(t => t.name === "responder_paciente");
+            const fixedBubbles = fixedCall ? composeBubbles(fixedCall.input as StructuredReply) : composeBubbles(fixed.text);
+            const fixedText = fixedBubbles.join("\n\n");
+            
+            let fixedViolations: string[] = [];
+            if (fixedBubbles.length > 0) {
+                for (const bubble of fixedBubbles) {
+                    fixedViolations.push(...validateAgentReply(bubble, {
+                        language,
+                        evidence,
+                        policyEvidence: knowledgePacket,
+                        patientLastMessage: lastPatientMessage,
+                        appointmentEvidence: patientSnapshot,
+                    }));
+                }
+                if (isNearDuplicateReply(fixedText, lastAssistant)) fixedViolations.push("ainda em loop após regeneração");
+                const fixedTurnEmojiCount = (fixedText.match(/\p{Extended_Pictographic}/gu) || []).length;
+                if (fixedTurnEmojiCount > 3) {
+                    fixedViolations.push(`excesso de emojis no turno (${fixedTurnEmojiCount}) — no máximo 1 a 2 por mensagem e 3 no turno inteiro`);
+                }
+            } else {
+                fixedViolations.push("resposta vazia na regeneração");
+            }
+
+            if (fixedViolations.length > 0) {
                 const bye = HANDOFF_MSG[language] || HANDOFF_MSG.pt;
-                await sendWithFallback(dispatcher, tenant, tenantId, phone, bye);
+                await dispatcher.sendSequence(tenant, phone, [bye]);
                 await sessionManager.logMessage(sessionId, "assistant", bye);
-                await sessionManager.triggerHumanHandoff(sessionId, merged);
-                console.warn(`[agent] [${phone}] regeneração também reprovada [${violations.join(" | ")}] — handoff humano`);
+                await sessionManager.triggerHumanHandoff(sessionId, merged, { reason: "tech", kind: "soft" });
+                console.warn(`[agent] [${phone}] regeneração também reprovada [${fixedViolations.join(" | ")}] — handoff humano`);
                 return "transferred";
             }
-            finalText = fixedText;
+            bubbles = fixedBubbles;
         }
 
-        // ── Resposta normal (com botões de horário quando houver slots) ────────
+        // ── Resposta normal em bolhas (com botões de horário acoplados na última bolha) ────────
         const interactive = lastSlots?.length ? buildSlotInteractive(lastSlots, language) : undefined;
-        await sendWithFallback(dispatcher, tenant, tenantId, phone, finalText, interactive);
-        await sessionManager.logMessage(sessionId, "assistant", finalText);
+        const sentBubbles = await dispatcher.sendSequence(tenant, phone, bubbles, interactive);
+        for (const bubbleText of sentBubbles) {
+            await sessionManager.logMessage(sessionId, "assistant", bubbleText);
+        }
+
         if (reconciliationNeeded) {
-            // A resposta normal confirma o novo horário primeiro; depois a fila
-            // humana recebe o caso operável para remover a duplicidade antiga.
-            await sessionManager.triggerHumanHandoff(sessionId, merged);
+            await sessionManager.triggerHumanHandoff(sessionId, merged, { reason: "reconciliation", kind: "hard" });
             console.error(`[RECONCILE] [${phone}] handoff acionado após confirmação da remarcação`);
             return "transferred";
         }
         await recordKnowledgeGap(supabase, tenantId, classifyKnowledgeGap({
-            transferReason: null, replyText: finalText, lastPatientMessage,
+            transferReason: null, replyText: text, lastPatientMessage,
             flags: { reconciliationNeeded },
         }), language);
         // Sinaliza no Inbox que a IA está conduzindo esta conversa (badge "IA atendendo")

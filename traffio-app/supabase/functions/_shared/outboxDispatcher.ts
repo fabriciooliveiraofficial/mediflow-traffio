@@ -42,6 +42,56 @@ export class OutboxDispatcher {
         }
     }
 
+    /**
+     * Envia uma sequência de bolhas de mensagem ao paciente com cadência de digitação (pausas humanas).
+     * Se uma bolha intermediária falhar no envio síncrono, as bolhas restantes são enfileiradas no outbox.
+     * Retorna a lista de bolhas efetivamente entregues ou enfileiradas.
+     */
+    async sendSequence(
+        tenant: any,
+        phone: string,
+        bubbles: string[],
+        interactive?: any,
+        category: CloudApiBillingCategory = "service"
+    ): Promise<string[]> {
+        if (!bubbles || bubbles.length === 0) return [];
+
+        const sentBubbles: string[] = [];
+        for (let i = 0; i < bubbles.length; i++) {
+            const bubble = bubbles[i];
+            const isLast = (i === bubbles.length - 1);
+            const payload: { text: string; interactive?: any } = { text: bubble };
+            if (isLast && interactive) {
+                payload.interactive = interactive;
+            }
+
+            const typingDelayMs = Math.min(2200, Math.max(800, bubble.length * 35));
+
+            try {
+                await this.sendNow(tenant, phone, payload, typingDelayMs, undefined, category);
+                sentBubbles.push(bubble);
+            } catch (err: any) {
+                console.warn(`[OutboxDispatcher] Falha no envio síncrono da bolha ${i + 1}/${bubbles.length}: ${err?.message}. Enfileirando restantes.`);
+                for (let j = i; j < bubbles.length; j++) {
+                    const remBubble = bubbles[j];
+                    const remIsLast = (j === bubbles.length - 1);
+                    const remPayload: { text: string; interactive?: any } = { text: remBubble };
+                    if (remIsLast && interactive) remPayload.interactive = interactive;
+                    await this.enqueue(tenant.id, phone, remPayload);
+                    sentBubbles.push(remBubble);
+                }
+                break;
+            }
+
+            if (i < bubbles.length - 1) {
+                const interBubbleDelay = Math.min(1500, Math.max(600, bubble.length * 20));
+                await new Promise((resolve) => setTimeout(resolve, interBubbleDelay));
+            }
+        }
+
+        return sentBubbles;
+    }
+
     /** Billing medido de mensagens Cloud API (roadmap item 4) — non-blocking, nunca derruba o envio. */
     private async trackCloudApiUsage(tenantId: string, category: CloudApiBillingCategory): Promise<void> {
         if (category === "service") return;

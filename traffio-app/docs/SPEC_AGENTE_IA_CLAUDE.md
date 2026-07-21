@@ -89,6 +89,38 @@ Regra: mudou prompt, modelo ou ferramenta → roda a suíte. Sem verde, não sob
 - Contador mensal de tokens por tenant (`bot_config.ai_usage`) com teto suave: excedeu → dial cai para `copilot` + aviso ao tenant (nunca corta o atendimento — degrada a autonomia).
 - Logs de cada chamada (modelo, tokens, latência, tool calls) para auditoria e tuning.
 
+### Prompt caching (Anthropic) — decisão travada, 2026-07-21
+
+**NÃO REVERTA.** `_shared/llmProvider.ts` implementa `cache_control` (docs oficiais:
+https://platform.claude.com/docs/en/build-with-claude/prompt-caching) nas duas
+chamadas de maior volume da plataforma: o loop do agente autônomo
+(`runAutonomousAgent`) e o rascunho do copiloto F1 (`runCopilot`).
+
+Como funciona: `buildAutonomousSystemPrompt` (e o gêmeo inline em `runCopilot`)
+devolve `{ text, cachePrefix }` — `cachePrefix` é a parte do system prompt que
+é **idêntica turno após turno para o mesmo tenant** (persona, regras
+universais, instruções da clínica, base de conhecimento); tudo que muda por
+turno (data, estado real do paciente, estágio da jornada, idioma detectado)
+fica de fora, no sufixo dinâmico. As ferramentas de agendamento
+(`SCHEDULING_TOOLS`+`TRANSFER_TOOL`) também são cacheadas — são idênticas
+para todo tenant, sempre.
+
+**Prova medida em produção** (rodada de evals, 51 chamadas): 299.978 tokens
+lidos do cache (a 10% do preço normal) contra 36.831 tokens processados do
+zero — **~77% de economia estimada** no custo de input. Detalhes completos em
+`memory/prompt_caching_feature.md` (auto-memory do projeto).
+
+**Regra para qualquer edição futura em `buildAutonomousSystemPrompt` ou no
+system prompt do rascunho**: nunca mover conteúdo que varia por
+turno/paciente/sessão para dentro do `cachePrefix`/`cachedParts` — isso não
+quebra a suíte de evals (o texto final continua correto), só faz o cache
+parar de bater silenciosamente, sem nenhum erro para avisar. Contrato
+verificado por teste em `unit_test.ts`
+("cachePrefix é prefixo exato de text", "conteúdo por turno NUNCA vaza para o
+cachePrefix", "cachePrefix é IDÊNTICO entre turnos do mesmo tenant").
+Comentários de aviso equivalentes estão nos dois pontos de código
+(`llmProvider.ts` e `copilot.ts`).
+
 ## Fora de escopo desta spec
 
 - Áudio/voz (transcrição de áudio do paciente) — fase posterior.

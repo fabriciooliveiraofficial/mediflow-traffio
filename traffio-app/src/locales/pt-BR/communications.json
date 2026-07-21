@@ -75,6 +75,23 @@
       "humanActive": "Em Atendimento",
       "closed": "Encerrado"
     },
+    "handoffReasons": {
+      "knowledge_gap": "Dúvida sem resposta",
+      "media": "Mídia recebida",
+      "tech": "Falha no sistema",
+      "human_request": "Solicitou humano",
+      "clinical": "Dúvida médica/clínica",
+      "emergency": "Urgência/Emergência",
+      "complaint": "Reclamação/Ouvidoria",
+      "price_insistence": "Insistência em preço",
+      "jailbreak": "Tentativa de manipulação",
+      "cancel": "Pedido de cancelamento",
+      "reconciliation": "Remarcação pendente"
+    },
+    "handoffKinds": {
+      "soft": "Soft",
+      "hard": "Hard"
+    },
     "temperature": {
       "cold": "Frio",
       "warm": "Morno",

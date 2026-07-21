@@ -1,5 +1,26 @@
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 
+export type HandoffKind = "soft" | "hard";
+export type HandoffReason =
+    | "knowledge_gap" | "media" | "tech"                                   // soft
+    | "human_request" | "clinical" | "emergency" | "complaint"
+    | "price_insistence" | "jailbreak" | "cancel" | "reconciliation";      // hard
+
+/**
+ * Determina se a sessão está em handoff estrito (hard).
+ * Sessões em hard handoff (ou atendidas por humano em human_active) bloqueiam o bot autônomo.
+ * Sessões em soft handoff em fila (queued + soft) PERMITEM a execução do agente.
+ */
+export function isHardHandoffSession(session: {
+    omnichannel_status?: string | null;
+    human_handoff?: boolean | null;
+    handoff_kind?: string | null;
+}): boolean {
+    if (session.omnichannel_status === "human_active") return true;
+    if (session.human_handoff && session.handoff_kind !== "soft") return true;
+    return false;
+}
+
 export interface Session {
     id: string;
     tenant_id: string;
@@ -9,6 +30,9 @@ export interface Session {
     recent_messages: any[]; // New Enterprise Column
     conversation_summary: any; // New Enterprise Column
     human_handoff: boolean;
+    handoff_reason?: HandoffReason | null;
+    handoff_kind?: HandoffKind | null;
+    handoff_at?: string | null;
     updated_at: string;
     omnichannel_status: string;
 }
@@ -148,19 +172,28 @@ export class SessionManager {
      * Grava human_handoff=true E current_state='HUMAN_HANDOFF' em uma única operação,
      * garantindo que futuras mensagens sejam bloqueadas na guarda do index.ts (linha 73).
      */
-    async triggerHumanHandoff(sessionId: string, contextUpdate?: any) {
+    async triggerHumanHandoff(
+        sessionId: string,
+        contextUpdate?: any,
+        opts?: { reason?: HandoffReason; kind?: HandoffKind },
+    ) {
+        const reason = opts?.reason ?? "tech";
+        const kind = opts?.kind ?? "hard";
         const updateData: any = {
-            current_state: 'HUMAN_HANDOFF',
+            current_state: "HUMAN_HANDOFF",
             human_handoff: true,
-            omnichannel_status: 'queued',
+            omnichannel_status: "queued",
+            handoff_reason: reason,
+            handoff_kind: kind,
+            handoff_at: new Date().toISOString(),
         };
         if (contextUpdate) {
             updateData.context = contextUpdate;
         }
         const { error } = await this.supabase
-            .from('conversation_sessions')
+            .from("conversation_sessions")
             .update(updateData)
-            .eq('id', sessionId);
+            .eq("id", sessionId);
         if (error) console.error("triggerHumanHandoff failed:", error);
     }
 

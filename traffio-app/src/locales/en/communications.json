@@ -75,6 +75,23 @@
       "humanActive": "In Progress",
       "closed": "Closed"
     },
+    "handoffReasons": {
+      "knowledge_gap": "Unanswered question",
+      "media": "Media received",
+      "tech": "System failure",
+      "human_request": "Requested human",
+      "clinical": "Medical/clinical query",
+      "emergency": "Urgent/Emergency",
+      "complaint": "Complaint/Escalation",
+      "price_insistence": "Price inquiry",
+      "jailbreak": "Prompt manipulation",
+      "cancel": "Cancellation request",
+      "reconciliation": "Pending reschedule"
+    },
+    "handoffKinds": {
+      "soft": "Soft",
+      "hard": "Hard"
+    },
     "temperature": {
       "cold": "Cold",
       "warm": "Warm",

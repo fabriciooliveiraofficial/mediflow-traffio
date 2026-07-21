@@ -638,3 +638,77 @@ Deno.test("detectLanguageDrift: pega deriva PT em conversa EN (frase real do inc
     const pt = detectLanguageDrift(realIncidentText, "pt");
     assertEquals(pt, []);
 });
+
+// ── Prompt caching (Anthropic) — https://platform.claude.com/docs/en/build-with-claude/prompt-caching
+import { buildCachedSystemField, applyCacheToTools } from "../../_shared/llmProvider.ts";
+
+Deno.test("buildCachedSystemField: prefixo válido vira array com cache_control; resto sem", () => {
+    const result = buildCachedSystemField("AAA\nBBB\nCCC", "AAA\nBBB\n");
+    assert(Array.isArray(result));
+    assertEquals((result as any[]).length, 2);
+    assertEquals((result as any[])[0], { type: "text", text: "AAA\nBBB\n", cache_control: { type: "ephemeral" } });
+    assertEquals((result as any[])[1], { type: "text", text: "CCC" });
+});
+
+Deno.test("buildCachedSystemField: prefixo == texto inteiro vira um único bloco cacheado", () => {
+    const result = buildCachedSystemField("AAA\nBBB", "AAA\nBBB");
+    assertEquals(result, [{ type: "text", text: "AAA\nBBB", cache_control: { type: "ephemeral" } }]);
+});
+
+Deno.test("buildCachedSystemField: sem prefixo, prefixo vazio, ou prefixo que não bate → string crua (sem cache)", () => {
+    assertEquals(buildCachedSystemField("AAA\nBBB"), "AAA\nBBB");
+    assertEquals(buildCachedSystemField("AAA\nBBB", ""), "AAA\nBBB");
+    assertEquals(buildCachedSystemField("AAA\nBBB", "XYZ"), "AAA\nBBB"); // não é prefixo real — nunca cachear errado
+});
+
+Deno.test("applyCacheToTools: marca só o ÚLTIMO tool (exigência da API); vazio não quebra", () => {
+    const tools = [{ name: "a" }, { name: "b" }, { name: "c" }];
+    const result = applyCacheToTools(tools);
+    assertEquals((result[0] as any).cache_control, undefined);
+    assertEquals((result[1] as any).cache_control, undefined);
+    assertEquals((result[2] as any).cache_control, { type: "ephemeral" });
+    assertEquals(applyCacheToTools([]), []);
+});
+
+// ── buildAutonomousSystemPrompt: reordenado para {text, cachePrefix} — o
+// prefixo cacheável nunca pode conter algo que mude por turno (patientSnapshot,
+// flowStateHint, stageGuidance, data, idioma detectado), senão o cache nunca bate.
+import { buildAutonomousSystemPrompt } from "../../_shared/copilot.ts";
+
+Deno.test("buildAutonomousSystemPrompt: cachePrefix é prefixo exato de text (contrato do llmProvider)", () => {
+    const { text, cachePrefix } = buildAutonomousSystemPrompt({
+        clinicName: "Clínica X", personality: "acolhedor", instructions: "Sempre sorria.",
+        knowledgePacket: "Serviços: Limpeza.", todayStr: "2026-07-21",
+        languageHint: "en", stageGuidance: "estágio: recovery",
+        flowStateHint: "paciente já escolheu 09:00", patientSnapshot: "Paciente: João. Consulta em 21/07.",
+        accessibleMode: true,
+    });
+    assert(text.startsWith(cachePrefix));
+    assert(cachePrefix.length > 0 && cachePrefix.length < text.length);
+});
+
+Deno.test("buildAutonomousSystemPrompt: conteúdo por turno NUNCA vaza para o cachePrefix", () => {
+    const { cachePrefix } = buildAutonomousSystemPrompt({
+        clinicName: "Clínica X", personality: "acolhedor", instructions: "", knowledgePacket: "",
+        todayStr: "2026-07-21", languageHint: "en", stageGuidance: "GUIDANCE_UNICA_DO_ESTAGIO",
+        flowStateHint: "FLOWHINT_UNICO_DO_TURNO", patientSnapshot: "SNAPSHOT_UNICO_DO_PACIENTE",
+        accessibleMode: true,
+    });
+    for (const dynamicMarker of ["GUIDANCE_UNICA_DO_ESTAGIO", "FLOWHINT_UNICO_DO_TURNO", "SNAPSHOT_UNICO_DO_PACIENTE", "2026-07-21", "MODO ACESSÍVEL", "IDIOMA JÁ DETECTADO"]) {
+        assert(!cachePrefix.includes(dynamicMarker), `"${dynamicMarker}" vazou para o prefixo cacheável`);
+    }
+});
+
+Deno.test("buildAutonomousSystemPrompt: cachePrefix é IDÊNTICO entre turnos do mesmo tenant (é isso que faz o cache bater)", () => {
+    const base = { clinicName: "Clínica X", personality: "acolhedor", instructions: "Sempre sorria.", knowledgePacket: "Serviços: Limpeza." };
+    const turn1 = buildAutonomousSystemPrompt({ ...base, todayStr: "2026-07-21", stageGuidance: "recovery", flowStateHint: null, patientSnapshot: null, languageHint: "pt" });
+    const turn2 = buildAutonomousSystemPrompt({ ...base, todayStr: "2026-07-22", stageGuidance: "won", flowStateHint: "algo novo", patientSnapshot: "outro paciente", languageHint: "en" });
+    assertEquals(turn1.cachePrefix, turn2.cachePrefix);
+    assert(turn1.text !== turn2.text); // o texto final ainda muda — só o prefixo cacheável é estável
+});
+
+Deno.test("buildAutonomousSystemPrompt: instructions/knowledgePacket diferentes → cachePrefix diferente (não sobrepõe tenants distintos)", () => {
+    const a = buildAutonomousSystemPrompt({ clinicName: "A", personality: "x", instructions: "regra A", knowledgePacket: "", todayStr: "2026-07-21" });
+    const b = buildAutonomousSystemPrompt({ clinicName: "B", personality: "x", instructions: "regra B", knowledgePacket: "", todayStr: "2026-07-21" });
+    assert(a.cachePrefix !== b.cachePrefix);
+});

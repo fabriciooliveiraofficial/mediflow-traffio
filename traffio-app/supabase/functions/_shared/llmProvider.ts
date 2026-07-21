@@ -8,6 +8,24 @@
  *  - Erros são retornados como exceção tipada — o chamador decide o fallback
  *    (no copiloto: seguir sem rascunho; em nível autônomo: handoff humano).
  *  - Retry único em 429/5xx com backoff curto. Sem retry em 4xx de request.
+ *
+ * ══════════════════════════════════════════════════════════════════════════
+ * ⚠️  PROMPT CACHING (Anthropic) — DECISÃO DE ARQUITETURA TRAVADA, 2026-07-21
+ * ══════════════════════════════════════════════════════════════════════════
+ * NÃO REMOVA `cacheableSystemPrefix`/`cacheTools` de `LlmRequest`, nem a
+ * lógica de `cache_control` em `buildCachedSystemField`/`applyCacheToTools`
+ * abaixo. Medido em produção: ~77% de economia no custo de input tokens do
+ * agente (299.978 tokens lidos do cache a 10% do preço vs. 36.831 tokens
+ * fresh, numa única rodada da suíte de evals — ver memory/prompt_caching_feature.md
+ * e docs/SPEC_AGENTE_IA_CLAUDE.md § Prompt caching).
+ *
+ * Se um "cleanup"/refactor futuro achar esses campos "não usados" ou
+ * "redundantes com `system`/`tools`": NÃO SÃO. Eles existem especificamente
+ * para o cache_control da Anthropic — removê-los reverte a otimização
+ * silenciosamente (o código continua funcionando, só fica ~4-10x mais caro
+ * por chamada, sem nenhum erro ou teste quebrando para avisar).
+ * Doc oficial: https://platform.claude.com/docs/en/build-with-claude/prompt-caching
+ * Guardado por teste: `unit_test.ts` → "buildCachedSystemField"/"applyCacheToTools".
  */
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { getAnthropicApiKey } from "./masterConfig.ts";
@@ -45,7 +63,14 @@ export interface LlmResult {
     text: string;
     toolCalls: LlmToolCall[];
     stopReason: string;
-    usage: { inputTokens: number; outputTokens: number };
+    usage: {
+        inputTokens: number;
+        outputTokens: number;
+        /** Tokens NOVOS escritos no cache nesta chamada (prompt caching) */
+        cacheCreationTokens: number;
+        /** Tokens lidos do cache (10% do custo normal) — prova de que o cache funcionou */
+        cacheReadTokens: number;
+    };
     /** Content blocks crus da resposta — necessários para devolver tool_result no loop agentic */
     rawContent: any[];
 }
@@ -63,6 +88,50 @@ export interface LlmRequest {
     toolChoice?: { type: "auto" | "any" | "none" } | { type: "tool"; name: string };
     maxTokens?: number;
     temperature?: number;
+    /**
+     * Prompt caching (Anthropic): https://platform.claude.com/docs/en/build-with-claude/prompt-caching
+     * Deve ser um PREFIXO EXATO de `system` (mesmo texto, começando do início).
+     * Tudo até aqui vira um bloco `cache_control: ephemeral` (TTL padrão 5min);
+     * o restante de `system` (contexto dinâmico por turno) fica de fora —
+     * processado normal a cada chamada. Cache hit = ~10% do custo do input.
+     */
+    cacheableSystemPrefix?: string;
+    /** Marca `tools` (lista 100% estática entre chamadas) como cacheável — a
+     * API só respeita cache_control no ÚLTIMO item da lista. */
+    cacheTools?: boolean;
+}
+
+/**
+ * Monta o campo `system` do request Anthropic. Se `cacheableSystemPrefix` for
+ * um prefixo válido de `system`, separa em dois blocos — o prefixo com
+ * cache_control (reaproveitável entre chamadas idênticas) e o restante sem.
+ * Pura e exportada para ser testável sem rede.
+ */
+export function buildCachedSystemField(
+    system: string,
+    cacheableSystemPrefix?: string,
+): string | Array<{ type: "text"; text: string; cache_control?: { type: "ephemeral" } }> {
+    if (!cacheableSystemPrefix || cacheableSystemPrefix.length === 0 || !system.startsWith(cacheableSystemPrefix)) {
+        return system;
+    }
+    const rest = system.slice(cacheableSystemPrefix.length);
+    const blocks: Array<{ type: "text"; text: string; cache_control?: { type: "ephemeral" } }> = [
+        { type: "text", text: cacheableSystemPrefix, cache_control: { type: "ephemeral" } },
+    ];
+    if (rest) blocks.push({ type: "text", text: rest });
+    return blocks;
+}
+
+/**
+ * Marca o último item de `tools` com cache_control (exigência da API: só o
+ * breakpoint no ÚLTIMO elemento da lista é respeitado — os anteriores são
+ * cacheados "de brinde" via lookback). Pura e exportada para ser testável.
+ */
+export function applyCacheToTools<T extends object>(tools: readonly T[]): T[] {
+    if (!tools.length) return tools as T[];
+    return tools.map((tool, i) =>
+        i === tools.length - 1 ? { ...tool, cache_control: { type: "ephemeral" as const } } : tool,
+    ) as T[];
 }
 
 export async function claudeChat(supabase: SupabaseClient, req: LlmRequest): Promise<LlmResult> {
@@ -72,10 +141,10 @@ export async function claudeChat(supabase: SupabaseClient, req: LlmRequest): Pro
     const body: Record<string, unknown> = {
         model: req.model,
         max_tokens: req.maxTokens ?? 1024,
-        system: req.system,
+        system: buildCachedSystemField(req.system, req.cacheableSystemPrefix),
         messages: req.messages,
     };
-    if (req.tools?.length) body.tools = req.tools;
+    if (req.tools?.length) body.tools = req.cacheTools ? applyCacheToTools(req.tools) : req.tools;
     if (req.toolChoice) body.tool_choice = req.toolChoice;
     if (req.temperature !== undefined) body.temperature = req.temperature;
 
@@ -134,16 +203,29 @@ export async function claudeChat(supabase: SupabaseClient, req: LlmRequest): Pro
     const usage = {
         inputTokens: data.usage?.input_tokens ?? 0,
         outputTokens: data.usage?.output_tokens ?? 0,
+        cacheCreationTokens: data.usage?.cache_creation_input_tokens ?? 0,
+        cacheReadTokens: data.usage?.cache_read_input_tokens ?? 0,
     };
 
-    console.log(`[llmProvider] ${req.purpose}: ${req.model} — in=${usage.inputTokens} out=${usage.outputTokens} tools=${toolCalls.length} ${Date.now() - started}ms`);
+    const cacheNote = (usage.cacheReadTokens || usage.cacheCreationTokens)
+        ? ` cacheRead=${usage.cacheReadTokens} cacheWrite=${usage.cacheCreationTokens}`
+        : "";
+    console.log(`[llmProvider] ${req.purpose}: ${req.model} — in=${usage.inputTokens} out=${usage.outputTokens}${cacheNote} tools=${toolCalls.length} ${Date.now() - started}ms`);
 
     // Log de uso para o dashboard do painel master — best effort, nunca falha a chamada.
     // Colunas conforme o schema REAL de ai_usage_logs (tokens_input/tokens_output/
     // cost_api_cents/price_tenant_cents/model/context) — validado em produção 07/2026.
     try {
         const price = PRICE_PER_MTOK[req.model] ?? PRICE_PER_MTOK["claude-sonnet-5"];
-        const costUsd = (usage.inputTokens * price.input + usage.outputTokens * price.output) / 1_000_000;
+        // Cache (TTL padrão 5min, único usado aqui): escrita = 1.25x o input
+        // normal, leitura = 0.1x — sem isso o custo estimado subestimaria o
+        // gasto real da Anthropic sempre que o cache escrever ou ler.
+        const costUsd = (
+            usage.inputTokens * price.input +
+            usage.cacheCreationTokens * price.input * 1.25 +
+            usage.cacheReadTokens * price.input * 0.1 +
+            usage.outputTokens * price.output
+        ) / 1_000_000;
         const costCents = costUsd * 100;
         const { error: logError } = await supabase.from("ai_usage_logs").insert({
             tenant_id: req.tenantId,

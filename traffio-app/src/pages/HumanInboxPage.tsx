@@ -56,6 +56,9 @@ interface ConversationSession {
   assigned_to_user_id: string | null
   claimed_at: string | null
   human_handoff: boolean
+  handoff_reason?: string | null
+  handoff_kind?: 'soft' | 'hard' | null
+  handoff_at?: string | null
   kanban_stage?: string
   tags?: any
   revenue_estimated?: number
@@ -172,6 +175,29 @@ function StatusBadge({ status }: { status: OmnichannelStatus }) {
   )
 }
 
+function HandoffReasonBadge({ reason, kind }: { reason?: string | null; kind?: string | null }) {
+  const { t } = useTranslation('communications')
+  if (!reason) return null
+  const isHard = kind === 'hard'
+  const reasonText = t(`humanInbox.handoffReasons.${reason}`, { defaultValue: reason })
+  const kindText = kind ? t(`humanInbox.handoffKinds.${kind}`, { defaultValue: kind }) : null
+
+  return (
+    <span
+      className={clsx(
+        'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border shrink-0',
+        isHard
+          ? 'bg-red-50 text-red-700 border-red-200'
+          : 'bg-amber-50 text-amber-800 border-amber-200',
+      )}
+      title={`Handoff: ${reason} (${kind || 'soft'})`}
+    >
+      <span className="font-semibold">{reasonText}</span>
+      {kindText && <span className="opacity-75">({kindText})</span>}
+    </span>
+  )
+}
+
 // ─────────────────────────────────────────────
 // ConversationRow
 // ─────────────────────────────────────────────
@@ -272,8 +298,9 @@ function ConversationRow({
             )
           )}
 
-          {(session.kanban_stage || session.tags?.temperature || session.tags?.priority) && (
+          {(session.kanban_stage || session.tags?.temperature || session.tags?.priority || session.handoff_reason) && (
             <div className="flex flex-wrap items-center gap-1.5 mt-1">
+              <HandoffReasonBadge reason={session.handoff_reason} kind={session.handoff_kind} />
               {session.tags?.temperature && TEMPERATURE_MAP[session.tags.temperature] && (
                 <span className={clsx("flex items-center gap-1 px-1.5 py-0.5 rounded-md border text-[9px] font-bold uppercase shrink-0", TEMPERATURE_MAP[session.tags.temperature].className)}>
                   <span>{TEMPERATURE_MAP[session.tags.temperature].icon}</span>
@@ -2876,7 +2903,13 @@ export function HumanInboxPage() {
     // não ser tratado como encerramento remoto
     selectedRef.current = null
     await supabase.from('conversation_sessions')
-      .update({ omnichannel_status: 'closed', closed_at: new Date().toISOString() })
+      .update({
+        omnichannel_status: 'closed',
+        closed_at: new Date().toISOString(),
+        human_handoff: false,
+        handoff_reason: null,
+        handoff_kind: null,
+      })
       .eq('id', selected.id)
 
     // Avisar o widget do visitante em tempo real que o atendimento foi encerrado
@@ -3313,6 +3346,7 @@ export function HumanInboxPage() {
                 </p>
                 <div className="flex items-center gap-2 mt-0.5">
                   <StatusBadge status={selected.omnichannel_status} />
+                  <HandoffReasonBadge reason={selected.handoff_reason} kind={selected.handoff_kind} />
                   {selected.omnichannel_status === 'queued' && (
                     <span className={clsx('text-[11px]', slaColor(selected.updated_at))}>
                       <Clock className="w-3 h-3 inline mr-0.5" />

@@ -229,6 +229,67 @@ export function buildSlotInteractive(slots: SlotOption[], language: string = "pt
 }
 
 /**
+ * Normaliza string para comparação de títulos: trim, lowercase, remove acentos,
+ * colapsa espaços múltiplos e substitui separadores comuns (·, -, |) por espaço.
+ * Se o texto contiver quebras de linha ("titulo\ndescricao"), considera apenas a 1ª linha.
+ */
+function normalizeTitleString(str: string): string {
+    const firstLine = str.split(/\r?\n/)[0] || "";
+    return firstLine
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[·\-\|]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+/**
+ * Deriva um título visual padrão ("DD/MM · HH:MM") a partir do slot_id ("slot|doctor|loc|type|YYYY-MM-DD|HH:MM").
+ */
+function deriveTitleFromSlotId(slotIdStr: string): string | null {
+    const parsed = parseSlotClick(slotIdStr);
+    if (!parsed) return null;
+    const parts = parsed.date.split("-");
+    if (parts.length !== 3) return null;
+    const [, month, day] = parts;
+    return `${day}/${month} · ${parsed.time}`;
+}
+
+/**
+ * Casa o rótulo visível do slot ("22/07 · 08:30") com o slot_id oferecido.
+ */
+export function resolveSlotIdByTitle(
+    text: string | null | undefined,
+    pendingSlots: string[] | undefined,
+    pendingTitles: string[] | undefined,
+): string | null {
+    if (!text || !Array.isArray(pendingSlots) || pendingSlots.length === 0) {
+        return null;
+    }
+
+    const normText = normalizeTitleString(text);
+    if (!normText) return null;
+
+    for (let i = 0; i < pendingSlots.length; i++) {
+        const slotIdStr = pendingSlots[i];
+        let titleToMatch = pendingTitles && pendingTitles[i] ? pendingTitles[i] : null;
+        if (!titleToMatch) {
+            titleToMatch = deriveTitleFromSlotId(slotIdStr);
+        }
+        if (titleToMatch) {
+            const normTitle = normalizeTitleString(titleToMatch);
+            if (normTitle === normText) {
+                return slotIdStr;
+            }
+        }
+    }
+
+    return null;
+}
+
+/**
  * Consulta o RPC find_next_available_dates e monta os SlotOption clicáveis.
  * Extraído do case 'ver_disponibilidade' para ser reutilizável fora do formato
  * de tool-call do LLM (usado também pelo F2 — respostas determinísticas de recovery).

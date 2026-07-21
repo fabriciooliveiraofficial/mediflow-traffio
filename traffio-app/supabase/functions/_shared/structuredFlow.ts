@@ -19,9 +19,10 @@
  */
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { OutboxDispatcher } from "./outboxDispatcher.ts";
-import { sendWithFallback } from "./copilot.ts";
+import { sendWithFallback, resolveTurnLanguage } from "./copilot.ts";
 import {
     parseSlotClick,
+    resolveSlotIdByTitle,
     resolvePatientForBooking,
     plausiblePersonName,
     fetchAvailableSlots,
@@ -209,10 +210,10 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
         if (!session) return { matched: false };
 
         const context = session.context || {};
-        const language = context.language || "pt";
         const history = (session.recent_messages || []).filter((m: any) => m.role !== "internal");
         const lastUserMsg = [...history].reverse().find((m: any) => m.role === "user");
         const rawContent: string = lastUserMsg?.content || "";
+        const language = resolveTurnLanguage(rawContent, context.language);
         const dispatcher = new OutboxDispatcher(supabase);
 
         // Confirmação de lembrete: resposta curta e inequívoca nunca chega ao
@@ -286,6 +287,10 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
             const idx = parseInt(digitMatch[1], 10) - 1;
             if (idx < context.pending_slots.length) clickContent = context.pending_slots[idx];
         }
+        if (!clickContent.startsWith("slot|")) {
+            const byTitle = resolveSlotIdByTitle(rawContent, context.pending_slots, context.pending_slot_titles);
+            if (byTitle) clickContent = byTitle;
+        }
         const slotClick = parseSlotClick(clickContent);
         if (slotClick) {
             // slot_id é texto controlável pelo cliente: reautorizar antes do RPC.
@@ -325,6 +330,7 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
             await sessionManager.logMessage(sessionId, "assistant", msg);
             const ctx = { ...context };
             delete ctx.pending_slots;
+            delete ctx.pending_slot_titles;
             await supabase
                 .from("conversation_sessions")
                 .update({ context: ctx, omnichannel_status: "bot_active", human_handoff: false })
@@ -371,7 +377,7 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
             await sendWithFallback(dispatcher, tenant, tenantId, phone, msg);
             await sessionManager.logMessage(sessionId, "assistant", msg);
             await supabase.from("waitlist").update({ status: "expired", updated_at: new Date().toISOString() }).eq("id", pendingWaitlist.waitlist_id);
-            await sessionManager.triggerHumanHandoff(sessionId, ctx);
+            await sessionManager.triggerHumanHandoff(sessionId, ctx, { reason: "tech", kind: "soft" });
             return { matched: true, status: "transferred" };
         }
 
@@ -418,7 +424,7 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
                 const msg = NO_SLOTS_MSG[language] || NO_SLOTS_MSG.pt;
                 await sendWithFallback(dispatcher, tenant, tenantId, phone, msg);
                 await sessionManager.logMessage(sessionId, "assistant", msg);
-                await sessionManager.triggerHumanHandoff(sessionId, ctx);
+                await sessionManager.triggerHumanHandoff(sessionId, ctx, { reason: "tech", kind: "soft" });
                 return { matched: true, status: "transferred" };
             }
 
@@ -427,6 +433,7 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
             await sendWithFallback(dispatcher, tenant, tenantId, phone, msg, interactive);
             await sessionManager.logMessage(sessionId, "assistant", msg);
             ctx.pending_slots = slots.map((s: SlotOption) => s.id);
+            ctx.pending_slot_titles = slots.map((s: SlotOption) => s.title);
             await supabase.from("conversation_sessions")
                 .update({ context: ctx, omnichannel_status: "bot_active", human_handoff: false })
                 .eq("id", sessionId);

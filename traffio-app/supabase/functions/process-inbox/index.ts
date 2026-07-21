@@ -20,7 +20,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { TenantResolver } from "../_shared/tenantResolver.ts";
-import { SessionManager } from "../_shared/sessionManager.ts";
+import { SessionManager, isHardHandoffSession } from "../_shared/sessionManager.ts";
 import { OutboxDispatcher } from "../_shared/outboxDispatcher.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { runCopilot, runAutonomousAgent, wrapUntrustedContent } from "../_shared/copilot.ts";
@@ -180,27 +180,27 @@ async function processConversationTurn(
        .select("*")
        .eq("id", tenantId)
        .maybeSingle();
-     const botConfig = tenantRow?.bot_config || {};
-     const activeAgent = botConfig.active_agent ?? (botConfig.enabled ? "ai_assistant" : "human");
-     const aiWillRespond =
-       ["ai_always", "ai_assistant", "flow_bot"].includes(activeAgent) &&
-       session.omnichannel_status !== "human_active" &&
-       session.omnichannel_status !== "queued" &&
-       !session.human_handoff;
+      const botConfig = tenantRow?.bot_config || {};
+      const activeAgent = botConfig.active_agent ?? (botConfig.enabled ? "ai_assistant" : "human");
+      const isHardHandoff = isHardHandoffSession(session);
+      let autonomousStatus: string | null = null;
+      const aiWillRespond =
+        ["ai_always", "ai_assistant", "flow_bot"].includes(activeAgent) &&
+        !isHardHandoff;
 
-     if (aiWillRespond) {
-       const newestArrival = Math.max(...messages.map((m: any) => new Date(m.received_at).getTime()));
-       if (Date.now() - newestArrival < AI_DEBOUNCE_MS) {
-         // Paciente ainda pode estar digitando — devolve o batch para a fila;
-         // o próximo ciclo do cron reprocessa com a rajada completa fundida.
-         console.log(`[process-inbox] [${phone}] AI debounce: last msg ${Date.now() - newestArrival}ms ago (< ${AI_DEBOUNCE_MS}ms) — deferring`);
-         await markMessages(supabase, messageIds, "pending");
-         return;
-       }
-     }
+      if (aiWillRespond) {
+        const newestArrival = Math.max(...messages.map((m: any) => new Date(m.received_at).getTime()));
+        if (Date.now() - newestArrival < AI_DEBOUNCE_MS) {
+          // Paciente ainda pode estar digitando — devolve o batch para a fila;
+          // o próximo ciclo do cron reprocessa com a rajada completa fundida.
+          console.log(`[process-inbox] [${phone}] AI debounce: last msg ${Date.now() - newestArrival}ms ago (< ${AI_DEBOUNCE_MS}ms) — deferring`);
+          await markMessages(supabase, messageIds, "pending");
+          return;
+        }
+      }
  
-     if (session.omnichannel_status === "human_active" || session.omnichannel_status === "queued") {
-       console.log(`[process-inbox] [${phone}] Session status is ${session.omnichannel_status}. Logging ${messages.length} message(s) individually.`);
+      if (isHardHandoff) {
+        console.log(`[process-inbox] [${phone}] Session is in hard handoff (status=${session.omnichannel_status}, kind=${session.handoff_kind}). Logging ${messages.length} message(s) individually.`);
        
        for (const msg of messages) {
          const typeMap: Record<string, string> = {
@@ -221,7 +221,23 @@ async function processConversationTurn(
  
        const lastMsg = messages[messages.length - 1];
        lastMessageSnippet = lastMsg.caption || lastMsg.content || `[${lastMsg.message_type || 'mídia'}]`;
- 
+
+       // F2 roda MESMO com humano na fila: é 100% determinístico e nunca gera texto
+       // livre. Sem isto, o clique num horário já oferecido é ignorado para sempre
+       // depois de qualquer transferência (bug de produção 2026-07-21).
+       structuredFlowResult = await tryStructuredFlow(supabase, {
+         tenantId,
+         sessionId: session.id,
+         phone,
+         tenant: tenantRow,
+         botConfig,
+         sessionManager,
+         timezone: tenantRow?.timezone,
+       });
+       if (structuredFlowResult.matched) {
+         console.log(`[process-inbox] [${phone}] fluxo determinístico resolveu o turno com humano na fila`);
+       }
+
      } else {
        // --- 5. Context Fusion: merge multiple messages into one coherent user turn ---
        const fusedContent = messages.map((m: any) => {
@@ -310,7 +326,7 @@ async function processConversationTurn(
        } else if (activeAgent === "ai_always") {
          // A IA responde diretamente. Fail-safe: qualquer resultado que não seja
          // uma resposta entregue termina com o paciente na fila humana.
-         const status = await runAutonomousAgent(supabase, {
+         autonomousStatus = await runAutonomousAgent(supabase, {
            tenantId,
            sessionId: session.id,
            phone,
@@ -321,12 +337,12 @@ async function processConversationTurn(
            timezone: tenantRow?.timezone,
          });
 
-         if (status === "defer") {
+         if (autonomousStatus === "defer") {
            // Mensagem nova chegou durante a geração — devolve o batch e regenera
            await markMessages(supabase, messageIds, "pending");
            return;
          }
-         if (status === "failed") {
+         if (autonomousStatus === "failed") {
            console.warn(`[process-inbox] [${phone}] agente autônomo falhou — fail-safe para fila humana`);
            await sessionManager.triggerHumanHandoff(session.id);
          }
@@ -382,12 +398,11 @@ async function processConversationTurn(
      // --- 11. F1: Copiloto (Nível 0) — rascunho + triagem para o atendente ---
      // Roda DEPOIS de logar/rotear (o fluxo humano nunca depende disto) e
      // dentro do advisory lock. Falhas são isoladas dentro de runCopilot.
-     // No modo ai_always, conversas já transferidas ao humano também recebem
-     // rascunhos — a IA vira copiloto do atendente depois do handoff.
-     // O F2 pula o rascunho quando já resolveu deterministicamente: gerar um
-     // draft sobre um assunto já encerrado só confundiria o atendente.
-     const humanHolds = session.omnichannel_status === "human_active" || session.omnichannel_status === "queued";
-     if (!structuredFlowResult.matched && (activeAgent === "copilot" || (activeAgent === "ai_always" && humanHolds))) {
+     // No modo ai_always, conversas em handoff estrito (hard/human_active) recebem
+     // rascunhos. Se a IA autônoma respondeu com sucesso neste turno (replied),
+     // o copiloto não roda para evitar rascunhos obsoletos e desperdício de LLM.
+     const humanHolds = isHardHandoffSession(session);
+     if (!structuredFlowResult.matched && autonomousStatus !== "replied" && (activeAgent === "copilot" || (activeAgent === "ai_always" && humanHolds))) {
        await runCopilot(supabase, {
          tenantId,
          sessionId: session.id,
