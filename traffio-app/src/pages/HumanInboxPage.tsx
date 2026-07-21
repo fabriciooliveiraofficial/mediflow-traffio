@@ -15,7 +15,7 @@ import {
   UserPlus, UserMinus, Users, Building2, Tag, CalendarSearch, DollarSign,
   Mic, Paperclip, Camera, Smile, Play, Pause,
   FileText, Download, Reply, Pencil, Copy, Forward, Trash2, Zap, ArrowRight, Instagram, Facebook, ChevronDown, ArrowLeft, Settings, Plus,
-  MessageSquare, Sparkles
+  MessageSquare, Sparkles, Bug
 } from 'lucide-react'
 import data from '@emoji-mart/data'
 import Picker from '@emoji-mart/react'
@@ -85,6 +85,22 @@ interface Message {
   duration_s?:   number
   replied_to_id?: string
   is_edited?:    boolean
+}
+
+// Onda 5.3 — trace de observabilidade por turno (tabela agent_turn_events, Onda 5.1)
+interface AgentTurnEvent {
+  id: string
+  route: 'structured_flow' | 'agent' | 'human' | 'ignored'
+  turn_language: string | null
+  tools_called: string[] | null
+  violations: string[] | null
+  handoff_reason: string | null
+  handoff_kind: 'soft' | 'hard' | null
+  bubbles: number | null
+  latency_ms: number | null
+  tokens_in: number | null
+  tokens_out: number | null
+  created_at: string
 }
 
 interface PatientInfo {
@@ -1990,7 +2006,7 @@ function PatientPanel({
 export function HumanInboxPage() {
   const { t } = useTranslation('communications')
   const { showToast, showConfirm } = useToast()
-  const { tenant } = useTenant()
+  const { tenant, userRole } = useTenant()
   const [searchParams, setSearchParams] = useSearchParams()
   const [tenantId, setTenantId]       = useState<string | null>(null)
   const [userId, setUserId]           = useState<string | null>(null)
@@ -2021,6 +2037,13 @@ export function HumanInboxPage() {
   const [rescheduleData, setRescheduleData] = useState<any | null>(null);
   const [bookingPreFill, setBookingPreFill] = useState<any | null>(null);
   const [channelFilter, setChannelFilter] = useState<'all' | 'whatsapp' | 'livechat' | 'instagram' | 'facebook' | 'sms'>('all');
+
+  // ── Drawer de debug do agente (Onda 5.3) — trace de agent_turn_events,
+  // visível só para super_admin. Ajuda a reconstruir "por que este turno
+  // terminou assim" sem depender de logs de console.
+  const [showDebugTrace, setShowDebugTrace] = useState(false)
+  const [debugEvents, setDebugEvents] = useState<AgentTurnEvent[]>([])
+  const [loadingDebugTrace, setLoadingDebugTrace] = useState(false)
 
   // ── Popup de canal para a mensagem de confirmação de agendamento ──
   const [confirmationMsg, setConfirmationMsg] = useState<string | null>(null);
@@ -2151,6 +2174,27 @@ export function HumanInboxPage() {
   // (evita closures com estado desatualizado)
   const selectedRef = useRef<ConversationSession | null>(null)
   useEffect(() => { selectedRef.current = selected }, [selected])
+
+  // ── Drawer de debug do agente (Onda 5.3) — busca o trace só quando aberto,
+  // e só para super_admin (gate de acesso — a query também tem RLS própria).
+  useEffect(() => {
+    if (!showDebugTrace || !selected?.id || userRole !== 'super_admin') { setDebugEvents([]); return }
+    let cancelled = false
+    setLoadingDebugTrace(true)
+    supabase
+      .from('agent_turn_events')
+      .select('id, route, turn_language, tools_called, violations, handoff_reason, handoff_kind, bubbles, latency_ms, tokens_in, tokens_out, created_at')
+      .eq('session_id', selected.id)
+      .order('created_at', { ascending: false })
+      .limit(10)
+      .then(({ data, error }) => {
+        if (cancelled) return
+        if (error) { console.error('debug trace fetch failed:', error); setDebugEvents([]); return }
+        setDebugEvents((data || []) as AgentTurnEvent[])
+      })
+      .finally(() => { if (!cancelled) setLoadingDebugTrace(false) })
+    return () => { cancelled = true }
+  }, [showDebugTrace, selected?.id, userRole])
 
   // ── Upload para o bucket chat-media ──────────
   const uploadToStorage = useCallback(async (file: File) => {
@@ -3376,6 +3420,20 @@ export function HumanInboxPage() {
                   <XCircle className="w-3.5 h-3.5" /> {t('humanInbox.main.close')}
                 </button>
               )}
+              {userRole === 'super_admin' && (
+                <button
+                  onClick={() => setShowDebugTrace(v => !v)}
+                  className={clsx(
+                    'w-8 h-8 rounded-xl flex items-center justify-center transition-colors border',
+                    showDebugTrace
+                      ? 'bg-violet-50 border-violet-200 text-violet-600'
+                      : 'border-gray-200 text-gray-400 hover:bg-gray-50',
+                  )}
+                  title={t('humanInbox.main.debugTraceTitle')}
+                >
+                  <Bug className="w-4 h-4" />
+                </button>
+              )}
               <button
                 onClick={() => setShowPatientPanel(p => !p)}
                 className={clsx(
@@ -3390,6 +3448,47 @@ export function HumanInboxPage() {
               </button>
             </div>
           </div>
+
+          {/* Drawer de debug do agente (Onda 5.3) — trace dos últimos turnos, super_admin only */}
+          {showDebugTrace && userRole === 'super_admin' && (
+            <div className="border-b border-violet-100 bg-violet-50/50 px-5 py-3 max-h-64 overflow-y-auto">
+              {loadingDebugTrace ? (
+                <div className="flex items-center gap-2 text-xs text-violet-500">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> {t('humanInbox.main.debugTraceLoading')}
+                </div>
+              ) : debugEvents.length === 0 ? (
+                <p className="text-xs text-violet-400 font-medium">{t('humanInbox.main.debugTraceEmpty')}</p>
+              ) : (
+                <div className="space-y-2">
+                  {debugEvents.map((event) => (
+                    <div key={event.id} className="text-[11px] font-mono bg-white border border-violet-100 rounded-lg px-3 py-2">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-violet-700 font-bold">
+                        <span>{new Date(event.created_at).toLocaleTimeString()}</span>
+                        <span className="px-1.5 py-0.5 rounded bg-violet-100">{event.route}</span>
+                        {event.turn_language && <span>lang={event.turn_language}</span>}
+                        {event.latency_ms != null && <span>{event.latency_ms}ms</span>}
+                        {(event.tokens_in != null || event.tokens_out != null) && (
+                          <span>tok={event.tokens_in ?? '?'}/{event.tokens_out ?? '?'}</span>
+                        )}
+                        {event.bubbles != null && <span>bubbles={event.bubbles}</span>}
+                      </div>
+                      {event.tools_called && event.tools_called.length > 0 && (
+                        <p className="text-gray-500 mt-1">tools: {event.tools_called.join(', ')}</p>
+                      )}
+                      {event.handoff_reason && (
+                        <p className="text-amber-600 mt-1">
+                          handoff: {event.handoff_reason} ({event.handoff_kind ?? '-'})
+                        </p>
+                      )}
+                      {event.violations && event.violations.length > 0 && (
+                        <p className="text-red-500 mt-1">{event.violations.join(' | ')}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 py-4 bg-gray-50/50">
