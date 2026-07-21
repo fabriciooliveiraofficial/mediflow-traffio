@@ -30,6 +30,12 @@ export function mockExecuteTool(call: LlmToolCall, opts: MockOptions = {}): { da
         case "listar_profissionais":
             return { data: { professionals: [{ ...MOCK_DOCTOR, specialty: "Odontologia", performs: ["Limpeza dental", "Clareamento dental", "Avaliação inicial"] }] } };
 
+        case "atualizar_cadastro_paciente":
+            return { data: { success: true, patient_id: "patient-mock-1", created: true } };
+
+        case "adicionar_lista_espera":
+            return { data: { success: true, waitlist_id: "waitlist-mock-1", note: "Confirm warmly that the patient is on the waitlist and will be notified as soon as a slot opens. Reply in the PATIENT'S language." } };
+
         case "ver_disponibilidade":
             if (opts.availabilityFails) {
                 return { data: { error: "timeout: agenda indisponível no momento" } };
@@ -45,7 +51,8 @@ export function mockExecuteTool(call: LlmToolCall, opts: MockOptions = {}): { da
                         professional: MOCK_DOCTOR.full_name,
                         slots: MOCK_SLOT_TIMES.map(t => ({ time: t, slot_id: `slot|${MOCK_DOCTOR.id}|${MOCK_LOCATION_ID}||${MOCK_DATE}|${t}` })),
                     }],
-                    note: "The time slots above will be sent to the patient as clickable buttons automatically — present them briefly and invite the patient to pick one. If the patient chooses a time by TEXT, call `agendar` immediately with that option's exact slot_id. Do NOT mention professional names unless the patient explicitly asked about professionals (the booking confirmation will include the professional's name). Reply in the PATIENT'S language.",
+                    slots_formatted: `tomorrow 📅 07/23/2026\n🕛09:00 am\n🕛10:30 am\n🕛02:00 pm`,
+                    note: "Write the message to the patient INCLUDING the `slots_formatted` block EXACTLY as provided (copy it verbatim, keep the emoji and line breaks), then close with ONE short question asking which time works best. The same slots also go as clickable buttons automatically. If the patient picks a time by TEXT, call `agendar` immediately with that option's exact slot_id. Do NOT mention professional names unless the patient asked. Reply in the PATIENT'S language.",
                 },
             };
 

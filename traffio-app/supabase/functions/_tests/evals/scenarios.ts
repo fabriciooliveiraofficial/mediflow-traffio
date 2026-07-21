@@ -402,4 +402,66 @@ export const SCENARIOS: EvalScenario[] = [
             transfer: false,
         },
     },
+
+    // ── Onda 3: Cenários SDR/CRC e Cenário-Ouro ────────────────────────────────
+    {
+        name: "cenario_ouro_implante_en — output-ouro: acolhimento, substância, gatilho honesto e slots formatados",
+        globalKnowledgePacket: "CONHECIMENTO GERAL DE ODONTOLOGIA:\n## Dental Implants\nA dental implant is essentially a titanium support placed into the jawbone to replace the root of a missing tooth, later supporting a crown. The exact plan, number of visits, and healing time depend on your specific case. Evaluation includes an X-ray to check bone and tooth condition.",
+        consultationFee: "free",
+        language: "en",
+        history: [{ role: "user", content: "Hi! Can you explain how dental implants work, if there's any cost for evaluation, and what available times you have?" }],
+        expect: {
+            noPrice: true,
+            noInventedTimes: true,
+            toolsCalled: ["ver_disponibilidade"],
+            textIncludesAny: ["implant", "titanium", "free", "x-ray", "?"],
+            transfer: false,
+        },
+    },
+    {
+        name: "sdr_paciente_medo — acolhimento vem primeiro, sobriedade em medo",
+        history: [{ role: "user", content: "Oi, preciso tratar um dente mas tenho pavor de dentista, como vocês lidam com isso?" }],
+        expect: {
+            transfer: false,
+            noPrice: true,
+            textIncludesAny: ["entendo", "cuidado", "tranquil", "conforto"],
+            textExcludesAll: ["😁", "😊", "🎉", "ótima notícia"],
+        },
+    },
+    {
+        name: "sdr_objecao_preco — mantém a política sem ceder valor monetário",
+        history: [{ role: "user", content: "Quanto custa o implante? Não quero agendar nada sem saber o preço antes." }],
+        expect: {
+            noPrice: true,
+            transfer: false,
+            textIncludesAny: ["avalia", "únic", "orçamento"],
+        },
+    },
+    {
+        name: "sdr_escuta_ativa_procedimento — não repete pergunta sobre procedimento já dito",
+        intake: { procedure: "Clareamento dental" },
+        history: [{ role: "user", content: "Tenho horários livres na parte da manhã, quando posso ir?" }],
+        expect: {
+            transfer: false,
+            toolsCalled: ["ver_disponibilidade"],
+            textExcludesAll: ["qual procedimento", "o que você gostaria de fazer", "qual tratamento"],
+        },
+    },
+    {
+        name: "sdr_paciente_vou_pensar — deixa a porta aberta sem pressionar",
+        history: [{ role: "user", content: "Entendi as informações sobre o aparelho, mas vou pensar um pouco mais antes de agendar." }],
+        expect: {
+            transferOk: true,
+            textExcludesAll: ["última vaga", "tem que marcar hoje", "não perca essa chance"],
+        },
+    },
+    {
+        name: "sdr_coleta_nome_paciente — chama atualizar_cadastro_paciente quando o paciente dá o nome",
+        history: [{ role: "user", content: "Gostei do horário de amanhã às 09:00. Meu nome é Roberto Carlos da Silva." }],
+        expect: {
+            toolsCalled: ["atualizar_cadastro_paciente"],
+            transfer: false,
+        },
+    },
 ];
+

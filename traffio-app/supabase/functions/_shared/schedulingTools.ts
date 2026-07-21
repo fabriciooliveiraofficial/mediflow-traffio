@@ -32,6 +32,85 @@ export function isAffirmativeChoice(lastPatientMessage: string): boolean {
 
 // ─── Horário de atendimento humano do tenant ─────────────────────────────────
 
+export type ConversationLanguage = "pt" | "en" | "es";
+
+export interface SlotPresentationOptions {
+    clock: TenantClock;
+    language: ConversationLanguage;
+}
+
+export function formatSlotTimeForPatient(time: string, timeFormat: TenantTimeFormat): string {
+    if (timeFormat !== "12h") return time;
+    const [hStr, mStr] = time.split(":");
+    let h = parseInt(hStr, 10);
+    if (isNaN(h)) return time;
+    const suffix = h >= 12 ? "pm" : "am";
+    h = h % 12;
+    if (h === 0) h = 12;
+    const hFormatted = String(h).padStart(2, "0");
+    return `${hFormatted}:${mStr} ${suffix}`;
+}
+
+function getRelativeDayLabel(dateStr: string, todayStr: string, language: ConversationLanguage): string | null {
+    if (!dateStr || !todayStr) return null;
+    const d = new Date(dateStr + "T00:00:00Z");
+    const t = new Date(todayStr + "T00:00:00Z");
+    if (isNaN(d.getTime()) || isNaN(t.getTime())) return null;
+    const diffMs = d.getTime() - t.getTime();
+    const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) {
+        if (language === "en") return "today";
+        if (language === "es") return "hoy";
+        return "hoje";
+    }
+    if (diffDays === 1) {
+        if (language === "en") return "tomorrow";
+        if (language === "es") return "mañana";
+        return "amanhã";
+    }
+    if (diffDays >= 2 && diffDays <= 6) {
+        const dayIndex = d.getUTCDay();
+        const daysOfWeek: Record<ConversationLanguage, string[]> = {
+            en: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+            pt: ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"],
+            es: ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"],
+        };
+        return daysOfWeek[language]?.[dayIndex] || null;
+    }
+    return null;
+}
+
+/**
+ * Formata a disponibilidade para o paciente, pronta para o modelo COPIAR no texto.
+ * Nunca inventa horário: recebe exatamente o que veio de fetchAvailableSlotsMulti.
+ */
+export function formatSlotsForPatient(
+    available: { date: string; location: string; professional: string; slots: { time: string; slot_id: string }[] }[],
+    opts: SlotPresentationOptions,
+): string {
+    if (!available || available.length === 0) return "";
+
+    const dayBlocks: string[] = [];
+
+    for (const group of available) {
+        if (!group.slots || group.slots.length === 0) continue;
+        const relativeLabel = getRelativeDayLabel(group.date, opts.clock.today, opts.language);
+        const formattedDate = formatDateForPatient(group.date, opts.language);
+        const header = relativeLabel
+            ? `${relativeLabel} 📅 ${formattedDate}`
+            : `📅 ${formattedDate}`;
+
+        const slotLines = group.slots.map(
+            s => `🕛${formatSlotTimeForPatient(s.time, opts.clock.timeFormat)}`
+        );
+
+        dayBlocks.push(`${header}\n${slotLines.join("\n")}`);
+    }
+
+    return dayBlocks.join("\n\n");
+}
+
 /**
  * bot_config.business_hours = { start: "08:00", end: "18:00", days: [1..6] }
  * (days: 0=domingo … 6=sábado, no fuso do tenant). Sem config → considera
@@ -489,6 +568,33 @@ export const SCHEDULING_TOOLS: LlmTool[] = [
         input_schema: { type: "object", properties: {} },
     },
     {
+        name: "atualizar_cadastro_paciente",
+        description: "Cria ou atualiza a ficha do paciente desta conversa. Use assim que souber o nome completo — SEMPRE antes de agendar. O telefone já é conhecido pelo sistema; nunca peça telefone, CPF, RG ou documento.",
+        input_schema: {
+            type: "object",
+            properties: {
+                full_name: { type: "string", description: "Nome completo de quem será atendido, como o paciente informou." },
+                email:     { type: "string", description: "E-mail, se o paciente informar espontaneamente ou aceitar dar. Opcional." },
+                birth_date:{ type: "string", description: "Data de nascimento YYYY-MM-DD, se informada. Opcional." },
+                notes:     { type: "string", description: "Observação clínica/contextual relevante dita pelo paciente (ex.: 'tem medo de dentista', 'dente quebrou ontem'). Opcional." },
+            },
+            required: ["full_name"],
+        },
+    },
+    {
+        name: "adicionar_lista_espera",
+        description: "Coloca o paciente na lista de espera para ser avisado assim que abrir um horário. Use SEMPRE que não houver horário disponível, ou quando nenhum dos horários oferecidos servir para o paciente — nunca encerre a conversa sem oferecer esta alternativa.",
+        input_schema: {
+            type: "object",
+            properties: {
+                procedure:        { type: "string", description: "Procedimento desejado, como o paciente falou." },
+                preferred_period: { type: "string", enum: ["morning", "afternoon", "evening", "any"], description: "Período preferido do paciente." },
+                notes:            { type: "string", description: "Restrição relevante dita pelo paciente (ex.: 'só consigo sexta', 'depois das 17h'). Opcional." },
+            },
+            required: [],
+        },
+    },
+    {
         name: "ver_disponibilidade",
         description: "Consulta os horários REAIS disponíveis. Informe o PROCEDIMENTO que o paciente deseja — o sistema encontra automaticamente os profissionais que o realizam e agrega a disponibilidade. NÃO pergunte ao paciente qual profissional ele prefere; só passe doctor_id se o paciente pediu alguém específico pelo nome. Os horários retornados viram botões clicáveis automaticamente — apresente-os brevemente no texto.",
         input_schema: {
@@ -563,6 +669,7 @@ export async function executeSchedulingTool(
     patientDisplayName: string | null,
     call: LlmToolCall,
     lastPatientMessage: string = "",
+    language: ConversationLanguage = "pt",
 ): Promise<ToolExecOutcome> {
     const input = (call.input || {}) as any;
 
@@ -581,6 +688,123 @@ export async function executeSchedulingTool(
                     .filter(Boolean),
             }));
             return { data: { professionals } };
+        }
+
+        case "atualizar_cadastro_paciente": {
+            const fullName = String(input.full_name || "").trim();
+            if (!plausiblePersonName(fullName)) {
+                return {
+                    data: {
+                        success: false,
+                        error: "invalid_name",
+                        note: "Ask for the person's actual full name.",
+                    },
+                };
+            }
+
+            const canonicalPhone = canonicalizePhone(phone) || phone;
+            const existing = await findPatient(supabase, tenantId, phone);
+
+            if (existing) {
+                const updateData: Record<string, any> = { full_name: fullName };
+                if (input.email?.trim()) updateData.email = input.email.trim();
+                if (input.birth_date?.trim()) updateData.birth_date = input.birth_date.trim();
+                if (input.notes?.trim()) updateData.notes = input.notes.trim();
+
+                const { error } = await supabase
+                    .from("patients")
+                    .update(updateData)
+                    .eq("id", existing.id)
+                    .eq("tenant_id", tenantId);
+
+                if (error) return { data: { success: false, error: error.message } };
+                return { data: { success: true, patient_id: existing.id, created: false } };
+            } else {
+                const insertData: Record<string, any> = {
+                    tenant_id: tenantId,
+                    phone: canonicalPhone,
+                    full_name: fullName,
+                };
+                if (input.email?.trim()) insertData.email = input.email.trim();
+                if (input.birth_date?.trim()) insertData.birth_date = input.birth_date.trim();
+                if (input.notes?.trim()) insertData.notes = input.notes.trim();
+
+                const { data: created, error } = await supabase
+                    .from("patients")
+                    .insert(insertData)
+                    .select("id")
+                    .single();
+
+                if (error) return { data: { success: false, error: error.message } };
+                return { data: { success: true, patient_id: (created as any)?.id, created: true } };
+            }
+        }
+
+        case "adicionar_lista_espera": {
+            const patient = await findPatient(supabase, tenantId, phone);
+            let patName = "";
+            if (patient) {
+                const { data: patData } = await scopedQuery(supabase, "patients", tenantId, "full_name")
+                    .eq("id", patient.id)
+                    .maybeSingle();
+                patName = (patData as any)?.full_name?.trim() || "";
+            }
+            if (!patient || !patName || patName === "Paciente WhatsApp" || !plausiblePersonName(patName)) {
+                return {
+                    data: {
+                        success: false,
+                        error: "patient_not_registered",
+                        note: "Before adding to waitlist, ask the patient's full name in a natural, warm way and call atualizar_cadastro_paciente. Then call adicionar_lista_espera again.",
+                    },
+                };
+            }
+
+            let doctorId: string | null = null;
+            let service: { id: string; name: string } | null = null;
+            if (input.procedure) {
+                service = await resolveServiceByName(supabase, tenantId, input.procedure);
+                if (service) {
+                    const doctors = await doctorsForService(supabase, tenantId, service.id);
+                    if (doctors.length > 0) doctorId = doctors[0].id;
+                }
+            }
+
+            // Não tenta fallback para médico arbitrário (evita cadastrar médico errado).
+            // Se doctorId não for resolvido a partir do procedimento, retorna erro.
+            if (!doctorId) {
+                return {
+                    data: {
+                        success: false,
+                        error: "no_doctor_available",
+                        note: "Could not resolve a professional for this procedure. Offer to transfer to human.",
+                    },
+                };
+            }
+
+            // Schema real da tabela waitlist (lido por process-waitlist/index.ts):
+            // tenant_id, patient_id, doctor_id, type_id, preferred_days (null = qualquer dia), status ('waiting')
+            const { data: createdWaitlist, error: waitlistErr } = await supabase
+                .from("waitlist")
+                .insert({
+                    tenant_id: tenantId,
+                    patient_id: patient.id,
+                    doctor_id: doctorId,
+                    type_id: service?.id ?? null,
+                    preferred_days: null,
+                    status: "waiting",
+                })
+                .select("id")
+                .single();
+
+            if (waitlistErr) return { data: { success: false, error: waitlistErr.message } };
+
+            return {
+                data: {
+                    success: true,
+                    waitlist_id: (createdWaitlist as any)?.id,
+                    note: "Confirm warmly that the patient is on the waitlist and will be notified as soon as a slot opens. Reply in the PATIENT'S language.",
+                },
+            };
         }
 
         case "ver_disponibilidade": {
@@ -626,12 +850,15 @@ export async function executeSchedulingTool(
             );
             if (!slots.length && errors.length) return { data: { error: errors[0] } };
 
+            const slotsFormatted = formatSlotsForPatient(availableForModel, { clock, language });
+
             return {
                 data: {
                     service: service?.name,
                     available: availableForModel,
+                    slots_formatted: slotsFormatted,
                     note: slots.length
-                        ? "The time slots above will be sent to the patient as clickable buttons automatically — present them briefly and invite the patient to pick one. If the patient chooses a time by TEXT, call `agendar` immediately with that option's exact slot_id. Do NOT mention professional names unless the patient explicitly asked about professionals (the booking confirmation will include the professional's name). Reply in the PATIENT'S language."
+                        ? "Write the message to the patient INCLUDING the `slots_formatted` block EXACTLY as provided (copy it verbatim, keep the emoji and line breaks), then close with ONE short question asking which time works best. The same slots also go as clickable buttons automatically. If the patient picks a time by TEXT, call `agendar` immediately with that option's exact slot_id. Do NOT mention professional names unless the patient asked. Reply in the PATIENT'S language."
                         : (period
                             ? "No available time slots in that period. Offer to check other periods or days — do not invent times."
                             : "No available time slots in this period."),
@@ -686,6 +913,22 @@ export async function executeSchedulingTool(
                 return { data: { success: false, error: "multiple_patients_on_this_phone", patients: resolved.ambiguous, note: "Ask naturally for whom the appointment is and call agendar again with patient_name. Reply in the PATIENT'S language." } };
             }
             const patient = resolved.patient;
+
+            // Guard C3: do not allow booking if full_name is missing, generic "Paciente WhatsApp", or not plausible
+            const { data: patDetails } = await scopedQuery(supabase, "patients", tenantId, "full_name")
+                .eq("id", patient.id)
+                .maybeSingle();
+
+            const patName = (patDetails as any)?.full_name?.trim();
+            if (!patName || patName === "Paciente WhatsApp" || !plausiblePersonName(patName)) {
+                return {
+                    data: {
+                        success: false,
+                        error: "patient_not_registered",
+                        note: "Before booking, ask the patient's full name in a natural, warm way and call atualizar_cadastro_paciente. Then call agendar again.",
+                    },
+                };
+            }
 
             const { data, error } = await supabase.rpc("book_appointment", {
                 p_tenant_id: tenantId,
@@ -796,13 +1039,13 @@ export function namesMatch(a: string, b: string): boolean {
     return na.includes(nb) || nb.includes(na);
 }
 
-// Palavras de parentesco — "minha filha" NÃO é um nome de pessoa
-const RELATION_WORDS = /\b(filh[oa]|esposa|esposo|marido|mulher|m[aã]e|pai|irm[aão]|av[oóô]|tio|tia|sobrinh[oa]|neto|neta|son|daughter|wife|husband|mother|father|brother|sister|hijo|hija|esposa?|madre|padre|herman[oa])\b/i;
+// Palavras de parentesco ou placeholders — "minha filha" e "Paciente WhatsApp" NÃO são nomes válidos
+const NON_PLAUSIBLE_NAME_WORDS = /\b(filh[oa]|esposa|esposo|marido|mulher|m[aã]e|pai|irm[aão]|av[oóô]|tio|tia|sobrinh[oa]|neto|neta|son|daughter|wife|husband|mother|father|brother|sister|hijo|hija|esposa?|madre|padre|herman[oa]|paciente(?:\s+whatsapp)?|patient)\b/i;
 
-/** true se o texto parece um NOME próprio (e não "minha filha" / "meu marido"). */
+/** true se o texto parece um NOME próprio (e não "minha filha" / "meu marido" / "Paciente WhatsApp"). */
 export function plausiblePersonName(s: string | null | undefined): boolean {
     const t = (s || "").trim();
-    if (t.length < 3 || RELATION_WORDS.test(t)) return false;
+    if (t.length < 3 || NON_PLAUSIBLE_NAME_WORDS.test(t)) return false;
     return /^[\p{L}][\p{L}\s'.-]+$/u.test(t);
 }
 

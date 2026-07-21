@@ -712,3 +712,392 @@ Deno.test("buildAutonomousSystemPrompt: instructions/knowledgePacket diferentes 
     const b = buildAutonomousSystemPrompt({ clinicName: "B", personality: "x", instructions: "regra B", knowledgePacket: "", todayStr: "2026-07-21" });
     assert(a.cachePrefix !== b.cachePrefix);
 });
+
+// ── Onda 3: C1 — formatSlotsForPatient (≥10 testes) ──────────────────────────
+
+import {
+    formatSlotsForPatient,
+    formatSlotTimeForPatient,
+    executeSchedulingTool,
+    type TenantClock,
+} from "../../_shared/schedulingTools.ts";
+import {
+    countDecorativeEmoji,
+} from "../../_shared/copilot.ts";
+
+const makeClock = (today = "2026-07-22", timeFormat: "12h" | "24h" = "12h"): TenantClock => ({
+    timezone: "Pacific/Auckland",
+    timeFormat,
+    locale: timeFormat === "12h" ? "en-NZ" : "pt-BR",
+    today,
+    nowHHMM: "08:00",
+    bufferMinutes: 30,
+});
+
+Deno.test("formatSlotTimeForPatient: 12h tarde, manhã, meia-noite, meio-dia", () => {
+    assertEquals(formatSlotTimeForPatient("14:00", "12h"), "02:00 pm");
+    assertEquals(formatSlotTimeForPatient("09:00", "12h"), "09:00 am");
+    assertEquals(formatSlotTimeForPatient("00:00", "12h"), "12:00 am");
+    assertEquals(formatSlotTimeForPatient("12:00", "12h"), "12:00 pm");
+});
+
+Deno.test("formatSlotTimeForPatient: 24h permanece inalterado", () => {
+    assertEquals(formatSlotTimeForPatient("14:00", "24h"), "14:00");
+    assertEquals(formatSlotTimeForPatient("09:00", "24h"), "09:00");
+});
+
+Deno.test("formatSlotsForPatient: lista vazia retorna string vazia", () => {
+    assertEquals(formatSlotsForPatient([], { clock: makeClock(), language: "en" }), "");
+});
+
+Deno.test("formatSlotsForPatient: 12h, inglês, D+1 (tomorrow)", () => {
+    const clock = makeClock("2026-07-22", "12h");
+    const available = [{
+        date: "2026-07-23",
+        location: "Main Clinic",
+        professional: "Dr. Smith",
+        slots: [{ time: "09:00", slot_id: "slot|d|l|t|2026-07-23|09:00" }, { time: "14:00", slot_id: "slot|d|l|t|2026-07-23|14:00" }],
+    }];
+    const formatted = formatSlotsForPatient(available, { clock, language: "en" });
+    assert(formatted.includes("tomorrow 📅 07/23/2026"));
+    assert(formatted.includes("🕛09:00 am"));
+    assert(formatted.includes("🕛02:00 pm"));
+});
+
+Deno.test("formatSlotsForPatient: 24h, português, D+0 (hoje)", () => {
+    const clock = makeClock("2026-07-22", "24h");
+    const available = [{
+        date: "2026-07-22",
+        location: "Clínica Central",
+        professional: "Dra. Ana",
+        slots: [{ time: "14:00", slot_id: "slot|d|l|t|2026-07-22|14:00" }],
+    }];
+    const formatted = formatSlotsForPatient(available, { clock, language: "pt" });
+    assert(formatted.includes("hoje 📅 22/07/2026"));
+    assert(formatted.includes("🕛14:00"));
+});
+
+Deno.test("formatSlotsForPatient: espanhol, D+1 (mañana)", () => {
+    const clock = makeClock("2026-07-22", "24h");
+    const available = [{
+        date: "2026-07-23",
+        location: "Clínica Centro",
+        professional: "Dr. Carlos",
+        slots: [{ time: "10:00", slot_id: "slot|d|l|t|2026-07-23|10:00" }],
+    }];
+    const formatted = formatSlotsForPatient(available, { clock, language: "es" });
+    assert(formatted.includes("mañana 📅 23/07/2026"));
+    assert(formatted.includes("🕛10:00"));
+});
+
+Deno.test("formatSlotsForPatient: D+2..D+6 dia da semana (Thursday)", () => {
+    const clock = makeClock("2026-07-21", "12h"); // Tuesday 2026-07-21
+    const available = [{
+        date: "2026-07-23", // Thursday
+        location: "Clinic",
+        professional: "Dr. Who",
+        slots: [{ time: "09:30", slot_id: "slot|d|l|t|2026-07-23|09:30" }],
+    }];
+    const formatted = formatSlotsForPatient(available, { clock, language: "en" });
+    assert(formatted.includes("Thursday 📅 07/23/2026"));
+});
+
+Deno.test("formatSlotsForPatient: virada de mês (D+1)", () => {
+    const clock = makeClock("2026-07-31", "12h");
+    const available = [{
+        date: "2026-08-01",
+        location: "Clinic",
+        professional: "Dr. Who",
+        slots: [{ time: "09:00", slot_id: "slot|d|l|t|2026-08-01|09:00" }],
+    }];
+    const formatted = formatSlotsForPatient(available, { clock, language: "en" });
+    assert(formatted.includes("tomorrow 📅 08/01/2026"));
+});
+
+Deno.test("formatSlotsForPatient: 2 dias agrupados", () => {
+    const clock = makeClock("2026-07-22", "12h");
+    const available = [
+        {
+            date: "2026-07-23",
+            location: "Clinic",
+            professional: "Dr. A",
+            slots: [{ time: "09:00", slot_id: "slot1" }],
+        },
+        {
+            date: "2026-07-24",
+            location: "Clinic",
+            professional: "Dr. A",
+            slots: [{ time: "10:00", slot_id: "slot2" }],
+        },
+    ];
+    const formatted = formatSlotsForPatient(available, { clock, language: "en" });
+    assert(formatted.includes("tomorrow 📅 07/23/2026"));
+    assert(formatted.includes("Friday 📅 07/24/2026"));
+});
+
+// ── Onda 3: C1.4 — Horário 14:00 em 12h ("02:00 pm") passa no validador ─────
+
+Deno.test("C1.4: slot 14:00 formatado como '02:00 pm' não gera violação de horário inventado", () => {
+    const slotsFormatted = "tomorrow 📅 07/23/2026\n🕛09:00 am\n🕛02:00 pm";
+    const toolEvidence = JSON.stringify({ slots_formatted: slotsFormatted, available: [{ date: "2026-07-23", slots: [{ time: "14:00" }] }] });
+    const agentText = `I have morning openings tomorrow 📅 07/23/2026\n🕛09:00 am\n🕛02:00 pm\n\nWhich works better for you?`;
+
+    const violations = validateAgentReply(agentText, {
+        language: "en",
+        evidence: toolEvidence,
+        policyEvidence: toolEvidence,
+    });
+
+    assert(!violations.some(v => v.includes("horário(s) que não veio")), `Violations found: ${violations.join(", ")}`);
+});
+
+// ── Onda 3: C2 — Orçamento de emojis (countDecorativeEmoji) ─────────────────
+
+Deno.test("countDecorativeEmoji: ignora marcadores estruturais 🕛 📅", () => {
+    const text = "tomorrow 📅 07/23/2026\n🕛09:00 am\n🕛09:30 am\n🕛10:00 am\n\nThursday 📅 07/24/2026\n🕛09:00 am\n😁 🦷 😉";
+    assertEquals(countDecorativeEmoji(text), 3);
+});
+
+Deno.test("C2: 6 emojis decorativos numa bolha reprovam", () => {
+    const text = "Hello 😁 🦷 😉 😊 💙 ✨";
+    const violations = validateAgentReply(text, { language: "en", evidence: "", policyEvidence: "" });
+    assert(violations.some(v => v.includes("excesso de emojis decorativos")));
+});
+
+Deno.test("C2: 8 🕛 + 1 😊 passa no validador de bolha", () => {
+    const text = "tomorrow 📅 07/23/2026\n🕛09:00 am\n🕛09:30 am\n🕛10:00 am\n🕛10:30 am\n\nThursday 📅 07/24/2026\n🕛09:00 am\n🕛09:30 am\n🕛10:00 am\n\nWhich works better? 😊";
+    const violations = validateAgentReply(text, { language: "en", evidence: text, policyEvidence: text });
+    assert(!violations.some(v => v.includes("excesso de emojis decorativos")));
+});
+
+Deno.test("C2.3: mensagem com emoji quando o paciente relata medo/dor reprimida reprova tom sensível", () => {
+    const text = "Tudo bem! 😊 Vamos agendar?";
+    const violations = validateAgentReply(text, {
+        language: "pt",
+        evidence: "",
+        policyEvidence: "",
+        patientLastMessage: "estou com muito medo do procedimento",
+    });
+    assert(violations.some(v => v.includes("tom festivo/emoji em contexto sensível")));
+});
+
+// ── Onda 3: C3 — plausiblePersonName e cadastro ──────────────────────────────
+
+Deno.test("plausiblePersonName: valida nomes próprios vs parentesco / placeholders", () => {
+    assert(plausiblePersonName("Maria Silva"));
+    assert(plausiblePersonName("John Doe"));
+    assert(!plausiblePersonName("minha filha"));
+    assert(!plausiblePersonName("meu marido"));
+    assert(!plausiblePersonName("Paciente WhatsApp"));
+    assert(!plausiblePersonName(""));
+});
+
+// ── Onda 3: C6.3 — Teste de regressão inverso (output-ouro literal) ─────────
+
+Deno.test("C6.3: output-ouro literal passa no validateAgentReply sem nenhuma violação", () => {
+    const goldOutput = `😁 Happy to help you get a clearer picture of dental implants.
+
+A dental implant is essentially a titanium support placed into the jawbone to replace the root of a missing tooth, later supporting a crown. The exact plan, number of visits, and healing time depend on your specific case, which is why the dentist examines you first — this includes an X-ray as part of the evaluation to check bone and tooth condition. Good news: the consultation itself is free, so there's no cost to get that personalized assessment. 🦷😉
+
+I have morning openings tomorrow 📅 07/23/2026
+🕛09:00 am
+🕛09:30 am
+🕛10:00 am
+
+or Thursday
+🕛09:00 am
+🕛09:30 am
+🕛10:00 am
+
+which works better for you?`;
+
+    const evidence = [
+        "[fonte:clinic_info#consultation_fee] [policies] STATUS DA CONSULTA (consultation_fee=free): A avaliação/consulta é GRATUITA (free / sin costo).",
+        "[fonte:clinic_info#evaluation_includes_xray] evaluation_includes_xray: true",
+        JSON.stringify({
+            slots_formatted: "tomorrow 📅 07/23/2026\n🕛09:00 am\n🕛09:30 am\n🕛10:00 am\n\nThursday\n🕛09:00 am\n🕛09:30 am\n🕛10:00 am",
+        }),
+    ].join("\n");
+
+    const violations = validateAgentReply(goldOutput, {
+        language: "en",
+        evidence,
+        policyEvidence: evidence,
+    });
+
+    assertEquals(violations, [], `Gold output failed validation with violations: ${violations.join("; ")}`);
+});
+
+// ── Onda 3: C3 — Executor atualizar_cadastro_paciente e Trava de Agendamento ──
+
+function createMockSupabase(overrides: {
+    patient?: any;
+    appointmentType?: any;
+    doctorServices?: any[];
+    doctor?: any;
+    location?: any;
+    onWaitlistInsert?: (payload: any) => void;
+} = {}) {
+    const defaultPatient = { id: "pat-1", full_name: "Roberto Silva", phone: "5511999999999" };
+    const defaultDoctor = { id: "doc-1", full_name: "Dra. Ana" };
+    const defaultLocation = { id: "loc-1", name: "Centro" };
+    const defaultType = { id: "type-1", name: "Limpeza" };
+
+    const chainable = (item: any) => {
+        const arr = item ? (Array.isArray(item) ? item : [item]) : [];
+        const singleObj = item ? (Array.isArray(item) ? item[0] : item) : null;
+
+        const obj: any = {
+            eq: () => obj,
+            in: () => obj,
+            or: () => obj,
+            ilike: () => obj,
+            limit: () => obj,
+            order: () => obj,
+            select: () => obj,
+            single: async () => ({ data: singleObj, error: null }),
+            maybeSingle: async () => ({ data: singleObj, error: null }),
+            then: (resolve: any) => resolve({ data: arr, error: null }),
+            data: arr,
+            error: null,
+        };
+        return obj;
+    };
+
+    return {
+        from: (table: string) => {
+            if (table === "patients") {
+                const patData = overrides.patient !== undefined ? overrides.patient : defaultPatient;
+                return {
+                    select: () => chainable(patData),
+                    update: () => chainable(null),
+                    insert: () => ({
+                        select: () => ({ single: async () => ({ data: patData || { id: "new-pat-id" }, error: null }) })
+                    }),
+                };
+            }
+            if (table === "appointment_types") {
+                const typeData = overrides.appointmentType !== undefined ? overrides.appointmentType : defaultType;
+                return {
+                    select: () => chainable(typeData)
+                };
+            }
+            if (table === "doctor_services") {
+                const dsData = overrides.doctorServices !== undefined ? overrides.doctorServices : [{ doctor_id: "doc-1", doctors: { id: "doc-1", full_name: "Dra. Ana", is_active: true } }];
+                return {
+                    select: () => chainable(dsData)
+                };
+            }
+            if (table === "doctors") {
+                const docData = overrides.doctor !== undefined ? overrides.doctor : defaultDoctor;
+                return {
+                    select: () => chainable(docData)
+                };
+            }
+            if (table === "locations") {
+                const locData = overrides.location !== undefined ? overrides.location : defaultLocation;
+                return {
+                    select: () => chainable(locData)
+                };
+            }
+            if (table === "waitlist") {
+                return {
+                    insert: (payload: any) => {
+                        if (overrides.onWaitlistInsert) overrides.onWaitlistInsert(payload);
+                        return {
+                            select: () => ({
+                                single: async () => ({ data: { id: "waitlist-created-id" }, error: null })
+                            })
+                        };
+                    }
+                };
+            }
+            return {
+                select: () => chainable(null)
+            };
+        }
+    };
+}
+
+Deno.test("C3: atualizar_cadastro_paciente com nome inválido (parentesco/placeholder) retorna invalid_name", async () => {
+    const mockSupabase = createMockSupabase();
+    const callInvalidName = { id: "c1", name: "atualizar_cadastro_paciente", input: { full_name: "minha filha" } };
+    const res1 = await executeSchedulingTool(mockSupabase as any, "tenant-1", "5511999999999", "Maria", callInvalidName as any, "quero agendar pra minha filha");
+    assertEquals(res1.data.success, false);
+    assertEquals(res1.data.error, "invalid_name");
+
+    const callPlaceholder = { id: "c2", name: "atualizar_cadastro_paciente", input: { full_name: "Paciente WhatsApp" } };
+    const res2 = await executeSchedulingTool(mockSupabase as any, "tenant-1", "5511999999999", "Maria", callPlaceholder as any, "meu nome");
+    assertEquals(res2.data.success, false);
+    assertEquals(res2.data.error, "invalid_name");
+});
+
+Deno.test("C3: agendar bloqueia paciente não cadastrado ou com nome 'Paciente WhatsApp'", async () => {
+    const mockSupabase = createMockSupabase({
+        patient: { id: "pat-1", full_name: "Paciente WhatsApp", phone: "5511999999999" }
+    });
+    const callAgendar = {
+        id: "c3",
+        name: "agendar",
+        input: { slot_id: "slot|doc-1|loc-1|type-1|2026-07-25|09:00" }
+    };
+    const res = await executeSchedulingTool(mockSupabase as any, "tenant-1", "5511999999999", "Maria", callAgendar as any, "Sim, confirma para mim por favor!");
+    assertEquals(res.data.success, false);
+    assertEquals(res.data.error, "patient_not_registered");
+});
+
+// ── Onda 3: C4B — Executor adicionar_lista_espera e Schema da Waitlist ──────
+
+Deno.test("C4B: adicionar_lista_espera com paciente não cadastrado retorna patient_not_registered sem chamar insert", async () => {
+    let insertCalled = false;
+    const mockSupabase = createMockSupabase({
+        patient: null,
+        onWaitlistInsert: () => { insertCalled = true; }
+    });
+    const callWaitlist = { id: "c4", name: "adicionar_lista_espera", input: { procedure: "Limpeza" } };
+    const res = await executeSchedulingTool(mockSupabase as any, "tenant-1", "5511999999999", "User", callWaitlist as any, "me bota na lista de espera");
+    assertEquals(res.data.success, false);
+    assertEquals(res.data.error, "patient_not_registered");
+    assertEquals(insertCalled, false);
+});
+
+Deno.test("C4B: adicionar_lista_espera sem médico resolvível retorna no_doctor_available sem usar fallback arbitrário", async () => {
+    let insertCalled = false;
+    const mockSupabase = createMockSupabase({
+        patient: { id: "pat-1", full_name: "Roberto Silva", phone: "5511999999999" },
+        appointmentType: null,
+        onWaitlistInsert: () => { insertCalled = true; }
+    });
+    const callWaitlist = { id: "c5", name: "adicionar_lista_espera", input: { procedure: "Procedimento Inexistente" } };
+    const res = await executeSchedulingTool(mockSupabase as any, "tenant-1", "5511999999999", "Roberto", callWaitlist as any, "me bota na lista");
+    assertEquals(res.data.success, false);
+    assertEquals(res.data.error, "no_doctor_available");
+    assertEquals(insertCalled, false);
+});
+
+Deno.test("C4B: adicionar_lista_espera envia payload com schema real (type_id, preferred_days: null, status: 'waiting')", async () => {
+    let insertedPayload: any = null;
+    const mockSupabase = createMockSupabase({
+        patient: { id: "pat-10", full_name: "Ana Clara", phone: "5511988888888" },
+        appointmentType: { id: "type-limpeza", name: "Limpeza dental" },
+        doctorServices: [{ doctor_id: "doc-ana", doctors: { id: "doc-ana", full_name: "Dra. Ana", is_active: true } }],
+        onWaitlistInsert: (payload) => { insertedPayload = payload; }
+    });
+
+    const callWaitlist = { id: "c6", name: "adicionar_lista_espera", input: { procedure: "Limpeza dental" } };
+    const res = await executeSchedulingTool(mockSupabase as any, "tenant-1", "5511988888888", "Ana", callWaitlist as any, "quero entrar na lista de espera");
+    
+    assertEquals(res.data.success, true);
+    assertEquals(res.data.waitlist_id, "waitlist-created-id");
+    assertEquals(insertedPayload, {
+        tenant_id: "tenant-1",
+        patient_id: "pat-10",
+        doctor_id: "doc-ana",
+        type_id: "type-limpeza",
+        preferred_days: null,
+        status: "waiting",
+    });
+    // Garante que nenhuma coluna inexistente (preferred_period, notes) está no payload
+    assertEquals(insertedPayload.preferred_period, undefined);
+    assertEquals(insertedPayload.notes, undefined);
+});

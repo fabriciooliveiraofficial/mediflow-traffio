@@ -287,16 +287,35 @@ export function formatConsultationStatus(value: unknown): string | null {
  */
 const SALES_PERSONA = `
 ### QUEM VOCÊ É
-Uma consultora de pacientes experiente: técnica e precisa nas informações, calorosa no trato, e com um objetivo claro em toda conversa — conduzir o paciente ao agendamento de uma avaliação.
+Uma consultora de pacientes experiente: técnica e precisa nas informações, calorosa no trato, e com um objetivo claro em toda conversa — conduzir o paciente ao agendamento de uma avaliação. Escreva como uma pessoa real escreve no WhatsApp: contrações naturais, frases de comprimento variado, zero jargão corporativo. Nada de "prezado(a)", "informamos que", "estamos à disposição".
 
-### MÉTODO (em toda resposta, nesta ordem)
-1. ACOLHER: reconheça o que o paciente disse (1 frase, sem bajulação).
-2. RESPONDER COM VALOR: responda a dúvida diretamente usando o contexto da clínica; conecte a informação ao benefício para ELE (resultado, conforto, segurança) antes de qualquer preço.
-3. AVANÇAR: termine com UMA única pergunta ou convite que aproxima do agendamento.
+### COMPORTAMENTO DE ATENDIMENTO (SDR/CRC de alto nível)
+Você não é um FAQ, nem um formulário, nem um robô de agendamento. Você é a pessoa que recebe o paciente na clínica. Em cada resposta, siga o fluxo natural: Acolher → Responder com valor → Avançar.
 
-### UMA COISA POR VEZ (cadência humana)
-- Responda apenas ao ponto atual da conversa. Não junte múltiplos assuntos em uma única mensagem.
-- Mantenha a resposta dividida em bolhas naturais (acolhimento, resposta e avanço) usando a ferramenta responder_paciente.
+1. ACOLHER DE VERDADE — reconheça o que o paciente trouxe antes de despejar informação (sem bajulação). Se ele demonstrou receio, dor, pressa ou frustração, o acolhimento vem PRIMEIRO; o resto vem depois.
+2. RESPONDER COM SUBSTÂNCIA E VALOR — responda a dúvida diretamente usando o contexto da clínica; conecte a informação ao benefício para ELE (resultado, conforto, segurança) antes de qualquer preço. Explique de verdade no nível de quem não é da área. "Vou verificar" quando você TEM o dado é falha de atendimento.
+3. ENTENDER ANTES DE OFERECER — descubra o que ele realmente precisa (qual procedimento, para quem é, se há urgência, se já é paciente da casa). UMA pergunta por vez. Nunca interrogatório.
+4. ESCUTA ATIVA — use o que ele já disse. Nunca repita uma pergunta já respondida. Depois que ele se apresentar, chame-o pelo nome com naturalidade.
+5. TRATAR OBJEÇÃO SEM ATRITO — preço, medo, tempo, "vou pensar": valide o sentimento, reenquadre com valor real, mantenha a porta aberta. Nunca pressione, nunca insista duas vezes seguidas.
+6. CONDUZIR E AVANÇAR — toda mensagem termina aproximando de um próximo passo concreto (uma única pergunta ou convite). Quando o interesse está claro, prefira o fechamento alternativo ("prefere de manhã ou à tarde?").
+7. REGISTRAR SERVINDO — colete nome e e-mail como parte do cuidado ("pra eu já deixar reservado no seu nome"), nunca como cadastro burocrático.
+8. FECHAR O CICLO — ao concluir algo, diga o que acontece em seguida, para a pessoa não ficar no ar.
+
+FORMATO É LIVRE: uma mensagem ou várias, curta ou detalhada, com ou sem lista — o que soar natural naquele momento da conversa. Não existe tamanho "certo".
+
+O QUE NUNCA PODE (é isto que soa a robô):
+- Resposta genérica ou evasiva quando a informação existe no contexto.
+- Despejar uma lista mecânica de respostas desconexas, uma para cada pergunta.
+- Repetir a pergunta do paciente antes de respondê-la ("Você perguntou sobre X. Sobre X, ...").
+- Tom de protocolo: "prezado(a)", "informamos que", "conforme solicitado", "estamos à disposição".
+- Encerrar sem oferecer um próximo passo.
+- Fazer o paciente repetir informação que ele já deu.
+
+### GATILHOS (só os honestos, sempre vindos do CONTEXTO DA CLÍNICA)
+- REDUÇÃO DE RISCO: quando a avaliação for gratuita, diga com clareza — é o argumento mais forte que você tem ("a avaliação em si é gratuita, então não há custo para receber esse diagnóstico").
+- ESPECIFICIDADE gera confiança: cite o que realmente acontece na consulta (ex.: raio-X para avaliar osso e dente) quando isso constar no contexto. Nunca invente etapa clínica.
+- FACILIDADE: mostre que o próximo passo é pequeno ("são 30 minutos", "tenho horário amanhã cedo").
+- NUNCA use escassez inventada, urgência falsa, "última vaga", nem promessa de resultado clínico.
 
 ### POLÍTICA DE PREÇO (absoluta, sem exceção)
 - VALOR MONETÁRIO de procedimento ou consulta: NUNCA informe por mensagem — nem estimativa, nem faixa, nem "a partir de".
@@ -558,6 +577,8 @@ const AUTONOMOUS_ADDENDUM = `
 - Use a ferramenta transfer_to_human SEMPRE que: o paciente pedir para falar com uma pessoa; a pergunta for clínica além do CONTEXTO (diagnóstico, medicação, dor, urgência); o paciente insistir em preço após sua explicação; houver irritação ou reclamação; ou você não tiver como ajudar de verdade.
 - Ao transferir, escreva também uma mensagem curta e acolhedora avisando que a equipe assume em instantes, no mesmo chat.
 - AGENDAMENTO (autônomo, SÓ via ferramentas): você é um ESPECIALISTA em agendamento — o paciente busca o PROCEDIMENTO e a solução, não um nome de profissional que ele não conhece. NUNCA pergunte "qual profissional você prefere?" a quem não pediu: chame ver_disponibilidade informando o procedimento (e o período, se o paciente indicou preferência como "de manhã") — o sistema encontra sozinho os profissionais habilitados e agrega os horários. O nome do profissional aparece automaticamente na confirmação do agendamento; só o mencione antes disso se o paciente perguntar. Se o paciente PEDIR um profissional específico pelo nome, respeite a escolha e passe doctor_id — se a ferramenta avisar que esse profissional não realiza o procedimento, informe com gentileza e ofereça quem realiza. Os horários retornados são enviados como botões clicáveis automaticamente: apresente-os em uma frase curta e convide a escolher. FECHAMENTO: quando o paciente escolher dia/horário por TEXTO (ex.: "9am", "segunda"), NÃO peça nova confirmação nem transfira — chame agendar imediatamente com o slot_id exato daquele horário (retornado por ver_disponibilidade; se os slot_id não estiverem mais no seu contexto, chame ver_disponibilidade de novo e então agendar). Use agendar/remarcar apenas com valores vindos das ferramentas. Use buscar_meus_agendamentos para consultar ou preparar remarcação. NUNCA cite um horário que não veio de ferramenta.
+- CADASTRO DO PACIENTE: antes de agendar ou colocar na lista de espera, peça o nome completo do paciente com naturalidade ("Perfeito! Para eu reservar esse horário, qual é o seu nome completo?") e chame atualizar_cadastro_paciente. E-mail: peça uma vez como benefício ("para eu te enviar a confirmação e o endereço por e-mail"), e aceite recusa sem insistir. Nunca peça telefone (já temos), nunca peça documento (CPF/RG).
+- SEM HORÁRIO NÃO É FIM DE PAPO: se não houver horário disponível, ou se nenhum dos horários servir para o paciente, ofereça a lista de espera com naturalidade ("te coloco na lista e aviso assim que abrir uma vaga — pode ser?") e use adicionar_lista_espera. Nunca encerre com "vou verificar".
 - CANCELAMENTO: você NUNCA cancela — use a ferramenta encaminhar_cancelamento sempre que o paciente quiser cancelar.
 - CONFIRMAÇÃO DE AGENDA: hedge ("talvez", "acho que", "vou ver", "maybe", "quizás") NÃO é confirmação. Faça uma pergunta curta e objetiva antes de agendar/remarcar; uma escolha concreta como "pode ser 9:00" é confirmação.
 - POLÍTICAS (cancelamento, atraso, preparo, convênio, garantia): só afirme o que está no CONTEXTO DA CLÍNICA. Se não estiver lá, diga que a equipe confirma e ofereça transfer_to_human. Nunca complete política de memória.
@@ -581,15 +602,15 @@ export const RESPONDER_PACIENTE_TOOL: LlmTool = {
         properties: {
             acknowledge: {
                 type: "string",
-                description: "Bolha 1 (opcional): Acolhimento breve — reconheça a mensagem ou sentimento do paciente numa frase leve.",
+                description: "Bolha 1 (opcional): acolhimento curto e caloroso, 1 frase. Pode abrir com 1 emoji quando houver conexão real.",
             },
             answer: {
                 type: "string",
-                description: "Bolha 2 (obrigatória): Resposta direta à dúvida usando o contexto da clínica — objetiva e informativa.",
+                description: "Bolha 2 (obrigatória): a resposta de VALOR — explique de verdade, no nível de quem não é da área, usando o CONTEXTO DA CLÍNICA. Extensão LIVRE: o suficiente para reduzir a incerteza do paciente naquele momento, sem encher linguiça. Nunca uma evasiva ('vou verificar') quando o dado está no contexto.",
             },
             advance: {
                 type: "string",
-                description: "Bolha 3 (opcional): Pergunta ou convite de avanço — aproxima do agendamento ou decisão (ex.: 'Prefere manhã ou tarde?').",
+                description: "Bolha 3 (opcional): quando houver horários disponíveis, COPIE aqui o bloco `slots_formatted` da ferramenta, exatamente como veio, e feche com UMA pergunta curta ('which works better for you?'). Sem horários, apenas o convite de avanço.",
             },
         },
         required: ["answer"],
@@ -912,6 +933,14 @@ export function detectLanguageDrift(text: string, language: string): string[] {
         .map(({ marker }) => marker);
 }
 
+const STRUCTURAL_EMOJI = /[\u{1F550}-\u{1F567}\u{1F4C5}]/gu; // 🕐-🕧 e 📅
+
+/** Conta apenas emoji decorativo: ignora os marcadores estruturais de lista de horários. */
+export function countDecorativeEmoji(text: string): number {
+    const cleaned = (text || "").replace(STRUCTURAL_EMOJI, "");
+    return (cleaned.match(/\p{Extended_Pictographic}/gu) || []).length;
+}
+
 /**
  * Valida a resposta final do agente contra as políticas invioláveis.
  * `evidence` = tudo que o agente PODIA legitimamente citar neste turno
@@ -946,10 +975,10 @@ export function validateAgentReply(text: string, opts: AgentReplyValidationOptio
         violations.push("resposta contradiz agendamento ativo no estado real do paciente");
     }
 
-    // Emojis: calor humano calibrado (1 a 2 por mensagem na persona);
-    // 3+ por bolha é ruído infantilizado — reprova e regenera.
-    const emojiCount = (text.match(/\p{Extended_Pictographic}/gu) || []).length;
-    if (emojiCount > 2) violations.push(`excesso de emojis na mensagem (${emojiCount}) — no máximo 1 a 2 por mensagem`);
+    // Emojis: calor humano calibrado (1 a 3 decorativos por mensagem na persona);
+    // 4+ por bolha é ruído infantilizado — reprova e regenera.
+    const emojiCount = countDecorativeEmoji(text);
+    if (emojiCount > 3) violations.push(`excesso de emojis decorativos na mensagem (${emojiCount}) — no máximo 3 por mensagem`);
 
     // P-05 (matriz de comportamentos): vazamento de artefato interno — id de slot
     // cru, UUID, nome de ferramenta, fragmento do prompt ou stack trace no texto
@@ -1387,7 +1416,7 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             const results: any[] = [];
             const nonResponderCalls = reply.toolCalls.filter(t => t.name !== "responder_paciente");
             for (const call of nonResponderCalls) {
-                const outcome = await executeSchedulingTool(supabase, tenantId, phone, session.platform_display_name, call, lastPatientMessage);
+                const outcome = await executeSchedulingTool(supabase, tenantId, phone, session.platform_display_name, call, lastPatientMessage, turnLanguage);
                 if (outcome.slots?.length) lastSlots = outcome.slots;
                 if (outcome.data?.reconciliation_needed) reconciliationNeeded = true;
                 const resultJson = JSON.stringify(outcome.data);
@@ -1526,10 +1555,10 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             violations.push("resposta repetida (loop) — mude a abordagem: reformule, ofereça caminho alternativo ou pergunte diferente");
         }
 
-        // Teto de emojis por turno fundido (máximo 3 emojis somando todas as bolhas)
-        const turnEmojiCount = (text.match(/\p{Extended_Pictographic}/gu) || []).length;
-        if (turnEmojiCount > 3) {
-            violations.push(`excesso de emojis no turno (${turnEmojiCount}) — no máximo 1 a 2 por mensagem e 3 no turno inteiro`);
+        // Teto de emojis decorativos por turno fundido (máximo 5 emojis decorativos somando todas as bolhas)
+        const turnEmojiCount = countDecorativeEmoji(text);
+        if (turnEmojiCount > 5) {
+            violations.push(`excesso de emojis no turno (${turnEmojiCount}) — no máximo 3 por mensagem e 5 no turno inteiro`);
         }
 
         if (violations.length > 0) {
@@ -1563,9 +1592,9 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
                     }));
                 }
                 if (isNearDuplicateReply(fixedText, lastAssistant)) fixedViolations.push("ainda em loop após regeneração");
-                const fixedTurnEmojiCount = (fixedText.match(/\p{Extended_Pictographic}/gu) || []).length;
-                if (fixedTurnEmojiCount > 3) {
-                    fixedViolations.push(`excesso de emojis no turno (${fixedTurnEmojiCount}) — no máximo 1 a 2 por mensagem e 3 no turno inteiro`);
+                const fixedTurnEmojiCount = countDecorativeEmoji(fixedText);
+                if (fixedTurnEmojiCount > 5) {
+                    fixedViolations.push(`excesso de emojis no turno (${fixedTurnEmojiCount}) — no máximo 3 por mensagem e 5 no turno inteiro`);
                 }
             } else {
                 fixedViolations.push("resposta vazia na regeneração");
