@@ -164,6 +164,20 @@ async function processConversationTurn(
        .in("id", messageIds);
  
      const session = await sessionManager.getOrCreateSession(tenantId, phone);
+
+     // Sessão fechada recebendo mensagem nova NUNCA pode ficar invisível — e
+     // reabrir NÃO significa forçar humano. Conversa fechada é neutra: só a
+     // conversa ASSUMIDA (human_active) trava com o atendente. Uma conversa só
+     // fechada volta ao roteamento normal (estruturado → IA → humano, conforme
+     // o dial do tenant) — ver SessionManager.reopenClosedSession.
+     if (session.omnichannel_status === "closed") {
+       await sessionManager.reopenClosedSession(session.id);
+       session.omnichannel_status = "queued";
+       session.human_handoff = false;
+       session.handoff_kind = null;
+       console.log(`[process-inbox] [${phone}] sessão fechada reaberta por mensagem nova — roteamento normal`);
+     }
+
      let lastMessageSnippet = "";
      // F2 — resultado do pré-filtro determinístico (permanece 'unmatched' quando a
      // conversa está em human_active/queued, onde nenhum bot deve responder)

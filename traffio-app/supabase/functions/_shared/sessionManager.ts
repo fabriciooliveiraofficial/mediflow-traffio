@@ -198,6 +198,37 @@ export class SessionManager {
     }
 
     /**
+     * Reabre uma sessão 'closed' para o roteamento NORMAL (estruturado → IA →
+     * humano, conforme o dial do tenant) — nunca força humano.
+     *
+     * Regra de produto (2026-07-22): conversa fechada é neutra. Só fica presa
+     * em fila humana quando um atendente ASSUME ativamente (human_active).
+     * Uma conversa apenas fechada, ao receber mensagem nova, deve passar pelo
+     * Agente de IA como qualquer conversa comum — ele é quem filtra, agenda,
+     * responde dúvidas e decide transferir se for o caso.
+     *
+     * Bug de produção (2026-07-22): sessão 'closed' com human_handoff=true
+     * residual (de handoff anterior ao fechamento antigo, que não zerava esse
+     * campo) fazia isHardHandoffSession() classificar como hard handoff — a
+     * mensagem era logada mas nunca roteada, ficando invisível no Inbox e sem
+     * resposta da IA. Esta função limpa TODO o estado de handoff ao reabrir.
+     */
+    async reopenClosedSession(sessionId: string): Promise<void> {
+        const { error } = await this.supabase
+            .from("conversation_sessions")
+            .update({
+                omnichannel_status: "queued",
+                human_handoff: false,
+                handoff_reason: null,
+                handoff_kind: null,
+                handoff_at: null,
+                closed_at: null,
+            })
+            .eq("id", sessionId);
+        if (error) console.error("reopenClosedSession failed:", error);
+    }
+
+    /**
      * Shallow-merge genérico em context (read-modify-write). Usado pelos
      * marcadores de correlação do F2 (pending_recovery/pending_waitlist) e por
      * qualquer chamador que precise gravar uma fatia de context sem sobrescrever
