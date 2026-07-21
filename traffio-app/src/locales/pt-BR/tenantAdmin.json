@@ -507,7 +507,19 @@
       "hoursTitle": "Horário da equipe (cancelamentos neste horário vão direto ao atendente)",
       "hoursTimezoneHint": "Fuso do tenant: {{timezone}} ({{offset}}) — definido em Configurações",
       "dayLetters": { "0": "D", "1": "S", "2": "T", "3": "Q", "4": "Q", "5": "S", "6": "S" },
-      "dayNames": { "0": "Domingo", "1": "Segunda", "2": "Terça", "3": "Quarta", "4": "Quinta", "5": "Sexta", "6": "Sábado" }
+      "dayNames": { "0": "Domingo", "1": "Segunda", "2": "Terça", "3": "Quarta", "4": "Quinta", "5": "Sexta", "6": "Sábado" },
+      "readiness": {
+        "title": "Faltam dados para a IA atender bem",
+        "subtitle": "Preencha o mínimo abaixo na base de conhecimento — sem isso o agente cai em \"vou confirmar com a equipe\" logo na primeira pergunta.",
+        "blockedTooltip": "Complete a base de conhecimento antes de ligar a IA",
+        "missingItems": {
+          "address": "Endereço da clínica",
+          "business_hours": "Horário de funcionamento",
+          "consultation_fee": "Status da avaliação (gratuita ou paga)",
+          "appointment_type": "Ao menos 1 procedimento com duração definida",
+          "doctor_service": "Ao menos 1 profissional vinculado a um procedimento"
+        }
+      }
     },
     "toasts": {
       "loadConfigError": "Erro ao carregar configuração: {{message}}",

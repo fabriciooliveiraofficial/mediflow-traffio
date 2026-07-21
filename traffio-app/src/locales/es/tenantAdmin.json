@@ -503,7 +503,19 @@
       "hoursTitle": "Horario del equipo (cancelaciones en este horario van directo a un asistente)",
       "hoursTimezoneHint": "Zona horaria del tenant: {{timezone}} ({{offset}}) — definida en Configuración",
       "dayLetters": { "0": "D", "1": "L", "2": "M", "3": "X", "4": "J", "5": "V", "6": "S" },
-      "dayNames": { "0": "Domingo", "1": "Lunes", "2": "Martes", "3": "Miércoles", "4": "Jueves", "5": "Viernes", "6": "Sábado" }
+      "dayNames": { "0": "Domingo", "1": "Lunes", "2": "Martes", "3": "Miércoles", "4": "Jueves", "5": "Viernes", "6": "Sábado" },
+      "readiness": {
+        "title": "Faltan datos para que la IA atienda bien",
+        "subtitle": "Complete lo mínimo abajo en la base de conocimiento — sin eso, el agente cae en \"voy a confirmar con el equipo\" desde la primera pregunta.",
+        "blockedTooltip": "Complete la base de conocimiento antes de activar la IA",
+        "missingItems": {
+          "address": "Dirección de la clínica",
+          "business_hours": "Horario de atención",
+          "consultation_fee": "Estado de la consulta (gratuita o paga)",
+          "appointment_type": "Al menos 1 procedimiento con duración definida",
+          "doctor_service": "Al menos 1 profesional vinculado a un procedimiento"
+        }
+      }
     },
     "header": {
       "title": "Centro de Automatizaciones",

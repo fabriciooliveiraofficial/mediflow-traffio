@@ -503,7 +503,19 @@
       "hoursTitle": "Team hours (cancellations during these hours go straight to an attendant)",
       "hoursTimezoneHint": "Tenant timezone: {{timezone}} ({{offset}}) — set in Settings",
       "dayLetters": { "0": "S", "1": "M", "2": "T", "3": "W", "4": "T", "5": "F", "6": "S" },
-      "dayNames": { "0": "Sunday", "1": "Monday", "2": "Tuesday", "3": "Wednesday", "4": "Thursday", "5": "Friday", "6": "Saturday" }
+      "dayNames": { "0": "Sunday", "1": "Monday", "2": "Tuesday", "3": "Wednesday", "4": "Thursday", "5": "Friday", "6": "Saturday" },
+      "readiness": {
+        "title": "Missing data for the AI to give good answers",
+        "subtitle": "Fill in the minimum below in the knowledge base — without it, the agent falls back to \"I'll check with the team\" on the very first question.",
+        "blockedTooltip": "Complete the knowledge base before turning the AI on",
+        "missingItems": {
+          "address": "Clinic address",
+          "business_hours": "Business hours",
+          "consultation_fee": "Consultation status (free or paid)",
+          "appointment_type": "At least 1 procedure with a set duration",
+          "doctor_service": "At least 1 professional linked to a procedure"
+        }
+      }
     },
     "header": {
       "title": "Automation Hub",

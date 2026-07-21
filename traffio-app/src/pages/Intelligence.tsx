@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Zap, Save, Loader2 } from 'lucide-react';
+import { Zap, Save, Loader2, AlertTriangle } from 'lucide-react';
 import { useBotConfig } from '../hooks/useBotConfig';
 import { useLocaleFormat } from '../hooks/useLocaleFormat';
 import { useTenant } from '../contexts/TenantContext';
@@ -10,6 +10,7 @@ import { ClinicKnowledgeSettings } from '../components/settings/ClinicKnowledgeS
 import { KnowledgeGapsPanel } from '../components/settings/KnowledgeGapsPanel';
 import { AiOnboardingWizard } from '../components/settings/AiOnboardingWizard';
 import { getUTCOffsetString } from '../lib/timezoneUtils';
+import { aiReadinessService, type AiReadiness } from '../services/aiReadinessService';
 
 // Re-exportado para compatibilidade — BotConfigWizard.tsx importa este type
 // a partir deste módulo. Fonte real: src/types/botConfig.ts
@@ -24,6 +25,20 @@ export const Intelligence = () => {
     const [knowledgeVersion, setKnowledgeVersion] = useState(0);
     // Base de conhecimento pertence à Inteligência (cérebro do agente), não a Configurações.
     const canEditKnowledge = can('action:edit_config') && (userRole === 'owner' || userRole === 'admin');
+
+    // Gate de prontidão (Onda 5.4): ligar ai_always com a base vazia é o que
+    // produz "vou confirmar com a equipe" na primeira pergunta do paciente —
+    // o próprio incidente que motivou a reengenharia do agente.
+    const [readiness, setReadiness] = useState<AiReadiness | null>(null);
+    useEffect(() => {
+        if (!currentTenant?.id) return;
+        let cancelled = false;
+        aiReadinessService.check(currentTenant.id)
+            .then((result) => { if (!cancelled) setReadiness(result); })
+            .catch(() => { if (!cancelled) setReadiness(null); });
+        return () => { cancelled = true; };
+    }, [currentTenant?.id, knowledgeVersion]);
+    const isAiAlwaysBlocked = config.active_agent !== 'ai_always' && readiness !== null && !readiness.ready;
 
     if (loading) return <div className="h-full flex items-center justify-center"><Loader2 className="animate-spin text-brand-primary" size={32} /></div>;
 
@@ -60,17 +75,52 @@ export const Intelligence = () => {
                     ] as { key: 'human' | 'copilot' | 'ai_always'; label: string }[]).map(mode => (
                         <button
                             key={mode.key}
-                            onClick={() => setConfig(prev => ({ ...prev, active_agent: mode.key }))}
-                            className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all border-0 cursor-pointer ${
-                                config.active_agent === mode.key
-                                    ? 'bg-white text-brand-primary shadow-sm'
-                                    : 'bg-transparent text-graphite-500 hover:text-graphite-800'
+                            disabled={mode.key === 'ai_always' && isAiAlwaysBlocked}
+                            onClick={() => {
+                                if (mode.key === 'ai_always' && isAiAlwaysBlocked) {
+                                    document.getElementById('ai-onboarding-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                    return;
+                                }
+                                setConfig(prev => ({ ...prev, active_agent: mode.key }));
+                            }}
+                            title={mode.key === 'ai_always' && isAiAlwaysBlocked ? t('intelligence.aiDial.readiness.blockedTooltip') : undefined}
+                            className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all border-0 ${
+                                mode.key === 'ai_always' && isAiAlwaysBlocked
+                                    ? 'bg-transparent text-graphite-300 cursor-not-allowed'
+                                    : config.active_agent === mode.key
+                                        ? 'bg-white text-brand-primary shadow-sm cursor-pointer'
+                                        : 'bg-transparent text-graphite-500 hover:text-graphite-800 cursor-pointer'
                             }`}
                         >
                             {mode.label}
                         </button>
                     ))}
                 </div>
+
+                {/* Gate de prontidão (Onda 5.4): base vazia produz "vou confirmar com a
+                    equipe" na primeira pergunta — não deixa ligar ai_always até o mínimo
+                    de dado existir. */}
+                {isAiAlwaysBlocked && readiness && (
+                    <div className="w-full flex items-start gap-3 pt-4 mt-1 border-t border-ice-100">
+                        <div className="w-8 h-8 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0">
+                            <AlertTriangle size={16} className="text-amber-600" />
+                        </div>
+                        <div className="min-w-0">
+                            <p className="text-xs font-black text-graphite-900">{t('intelligence.aiDial.readiness.title')}</p>
+                            <p className="text-xs font-medium text-graphite-400 mt-0.5">{t('intelligence.aiDial.readiness.subtitle')}</p>
+                            <ul className="mt-2 flex flex-wrap gap-1.5">
+                                {readiness.missing.map((key) => (
+                                    <li
+                                        key={key}
+                                        className="px-2 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-bold"
+                                    >
+                                        {t(`intelligence.aiDial.readiness.missingItems.${key}`)}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    </div>
+                )}
 
                 {/* Horário da equipe — cancelamentos no expediente vão direto ao humano;
                     fora dele a IA acolhe e promete retorno (SPEC F3) */}
@@ -138,7 +188,7 @@ export const Intelligence = () => {
 
             {/* ── Base de conhecimento do agente (auto-salva por fato) ── */}
             {canEditKnowledge && currentTenant && (
-                <div className="pt-8 mt-2 border-t border-ice-100">
+                <div id="ai-onboarding-anchor" className="pt-8 mt-2 border-t border-ice-100 scroll-mt-6">
                     <AiOnboardingWizard
                         tenantId={currentTenant.id}
                         onKnowledgeChanged={() => setKnowledgeVersion((version) => version + 1)}
