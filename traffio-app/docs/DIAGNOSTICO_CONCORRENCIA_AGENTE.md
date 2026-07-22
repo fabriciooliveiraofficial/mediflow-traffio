@@ -115,14 +115,15 @@ saída.**
 
 Ordem sugerida — do maior ganho/menor risco para o mais estrutural:
 
-1. **Portar o fair-claim do outbound para o inbox** — *o item que resolve mais de uma vez*. Criar uma
-   RPC `claim_inbox_conversations` espelhando `claim_outbound_messages`
-   (`migrations/20260701_outbound_fair_claim.sql`): reaper de `processing` preso >5min + `FOR UPDATE
-   SKIP LOCKED` + **cap por tenant** via window function. Isso resolve de uma vez: o **gap #3**
-   (mensagem presa), a **contenção entre invocações**, o **batch limitado** (o `LIMIT` do claim), e a
-   **justiça multi-tenant** (head-of-line blocking do vizinho barulhento). Padrão já provado em
-   produção na saída → baixo risco. **Nota:** o inbox agrupa por `(tenant, phone)`, então o cap e o
-   claim operam por conversa, não por mensagem solta — a RPC precisa dessa adaptação.
+1. ✅ **FEITO (2026-07-21)** — **Fair-claim por tenant no inbox**. RPC `claim_inbox_conversations`
+   (`migrations/20260722130000_inbox_fair_claim.sql`) + `process-inbox/index.ts`: reaper de
+   `processing` preso >5min (fecha o **gap #3**), **cap por tenant** via window function (mata o
+   **head-of-line blocking** multi-tenant) e **limite de lote** + **orçamento de relógio de 100s** (o
+   worker não morre mais no timeout deixando mensagem presa). Trava de segurança: RPC `SECURITY
+   DEFINER` com EXECUTE só para `service_role` (REVOKE explícito de anon/authenticated). Provado com
+   dados sintéticos (tenant grande capado, pequeno incluído) e smoke-testado em produção. **Não
+   inclui** o claim exclusivo com `SKIP LOCKED` — mantém o lease-lock por conversa existente; a
+   paralelização real fica no item 2.
 2. **Paralelizar o loop com concorrência limitada** (`index.ts:81-104`): trocar o `for await`
    sequencial por um pool (ex.: 5-10 conversas em voo por invocação). Multiplica o throughput por
    tick. Risco médio (precisa cap para não estourar rate limit — casa com o item 3).
