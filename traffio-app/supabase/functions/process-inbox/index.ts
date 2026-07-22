@@ -204,12 +204,20 @@ async function processConversationTurn(
      // claimed_at alimenta o reaper de claim_inbox_conversations: se este worker
      // morrer antes de marcar 'done'/'pending', a mensagem volta à fila em 5min.
      const batchId = crypto.randomUUID();
-     await supabase
-       .from("message_inbox")
-       .update({ status: "processing", batch_id: batchId, claimed_at: new Date().toISOString() })
-       .in("id", messageIds);
- 
-     const session = await sessionManager.getOrCreateSession(tenantId, phone);
+     // Marca 'processing' + carrega sessão + tenant EM PARALELO: os três são
+     // independentes entre si (message_inbox por id, sessão por tenant+phone,
+     // tenant por id). Rodá-los em série eram 3 round-trips sequenciais no
+     // PostgREST — exatamente o gargalo da cauda de latência sob carga
+     // (docs/DIAGNOSTICO_CONCORRENCIA_AGENTE.md). claimed_at alimenta o reaper.
+     const [, session, tenantFetch] = await Promise.all([
+       supabase
+         .from("message_inbox")
+         .update({ status: "processing", batch_id: batchId, claimed_at: new Date().toISOString() })
+         .in("id", messageIds),
+       sessionManager.getOrCreateSession(tenantId, phone),
+       supabase.from("tenants").select("*").eq("id", tenantId).maybeSingle(),
+     ]);
+     const tenantRow = tenantFetch.data;
 
      // Sessão fechada recebendo mensagem nova NUNCA pode ficar invisível — e
      // reabrir NÃO significa forçar humano. Conversa fechada é neutra: só a
@@ -234,12 +242,7 @@ async function processConversationTurn(
      // silêncio do paciente antes de processar — absorve a "enxurrada" de
      // mensagens fragmentadas em um único turno coerente. Com o dial em
      // 'human'/'copilot' este gate nunca adia nada (fluxo humano = latência baixa).
-     // Linha completa: o modo autônomo precisa das credenciais de envio (Z-API/Cloud API)
-     const { data: tenantRow } = await supabase
-       .from("tenants")
-       .select("*")
-       .eq("id", tenantId)
-       .maybeSingle();
+     // (tenantRow já foi carregado acima, em paralelo com sessão e mark-processing.)
       const botConfig = tenantRow?.bot_config || {};
       const activeAgent = botConfig.active_agent ?? (botConfig.enabled ? "ai_assistant" : "human");
       const isHardHandoff = isHardHandoffSession(session);
@@ -428,45 +431,17 @@ async function processConversationTurn(
        }
      }
  
-     // --- 6. Patient lookup & Funnel tracking (Passive CRM) ---
-     const [{ data: patientRow }, { data: patientData }] = await Promise.all([
-       supabase.from("patient_funnel_stage")
-         .select("id, patient_name, current_stage")
-         .eq("tenant_id", tenantId)
-         .eq("patient_phone", phone)
-         .maybeSingle(),
-       supabase.from("patients")
-         .select("id, full_name")
-         .eq("tenant_id", tenantId)
-         .eq("phone", phone)
-         .maybeSingle()
-     ]);
- 
-     const funnelUpdate: any = {
-       last_interaction_at: new Date().toISOString(),
-       last_message_snippet: lastMessageSnippet.length > 200 ? lastMessageSnippet.substring(0, 197) + '...' : lastMessageSnippet
-     };
- 
-     if (!patientRow) {
-         const sessionName = (session as any).context?.known_first_name ?? null;
-         await supabase
-           .from("patient_funnel_stage")
-           .upsert({
-             tenant_id: tenantId,
-             patient_phone: phone,
-             patient_name: patientData?.full_name || sessionName || null,
-             current_stage: 'novo_lead',
-             lead_source: 'whatsapp',
-             ...funnelUpdate
-           }, { onConflict: 'tenant_id, patient_phone' });
-     } else {
-         await supabase
-           .from("patient_funnel_stage")
-           .update(funnelUpdate)
-           .eq('tenant_id', tenantId)
-           .eq('patient_phone', phone);
-     }
- 
+     // --- 6. Passive CRM ---
+     // REMOVIDO (2026-07-22): o bloco de patient_funnel_stage escrevia numa
+     // tabela DROPADA desde a migration 20260701c (funil aposentado, dados
+     // absorvidos em crm_journeys — nenhuma página do frontend o lia). Eram
+     // 3 round-trips/turno ao PostgREST (2 SELECT + 1 upsert) para o vazio,
+     // gerando erro silencioso e somando à cauda de latência sob carga
+     // (docs/DIAGNOSTICO_CONCORRENCIA_AGENTE.md § causa raiz). Se rastrear
+     // "última interação" de inbound no CRM for desejado, fazer via a porta
+     // única crm_move_stage() do CRM Journey Engine — nunca reintroduzir
+     // escrita direta a uma tabela de funil.
+
      // --- 11. F1: Copiloto (Nível 0) — rascunho + triagem para o atendente ---
      // Roda DEPOIS de logar/rotear (o fluxo humano nunca depende disto) e
      // dentro do advisory lock. Falhas são isoladas dentro de runCopilot.
