@@ -51,7 +51,13 @@ export function mockExecuteTool(call: LlmToolCall, opts: MockOptions = {}): { da
                         professional: MOCK_DOCTOR.full_name,
                         slots: MOCK_SLOT_TIMES.map(t => ({ time: t, slot_id: `slot|${MOCK_DOCTOR.id}|${MOCK_LOCATION_ID}||${MOCK_DATE}|${t}` })),
                     }],
-                    slots_formatted: `tomorrow 📅 07/23/2026\n🕛09:00 am\n🕛10:30 am\n🕛02:00 pm`,
+                    // Precisa ficar consistente com MOCK_DATE/MOCK_SLOT_TIMES acima — um
+                    // texto pré-pronto com uma data diferente da real é indetectável pelos
+                    // checkers de horário (só olham HH:MM), mas um juiz de tom que
+                    // referencia a data (ex.: "mesmo dia que a consulta de amanhã") pega a
+                    // incoerência na hora. Em produção isso nunca diverge: slots_formatted
+                    // e available[].date vêm da MESMA chamada a formatSlotsForPatient.
+                    slots_formatted: `tomorrow 📅 07/16/2026\n🕛09:00 am\n🕛10:30 am\n🕛02:00 pm`,
                     note: "Write the message to the patient INCLUDING the `slots_formatted` block EXACTLY as provided (copy it verbatim, keep the emoji and line breaks), then close with ONE short question asking which time works best. The same slots also go as clickable buttons automatically. If the patient picks a time by TEXT, call `agendar` immediately with that option's exact slot_id. Do NOT mention professional names unless the patient asked. Reply in the PATIENT'S language.",
                 },
             };
