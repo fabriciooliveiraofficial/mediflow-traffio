@@ -135,9 +135,14 @@ Ordem sugerida — do maior ganho/menor risco para o mais estrutural:
    catch de erro do turno tentava gravar esse valor há tempos e a violação era engolida
    silenciosamente, deixando a mensagem presa até o reaper (item 1) resgatar. Ampliado o constraint
    (`migrations/20260722140000`).
-3. **Backoff exponencial + jitter + honrar `retry-after`** em 429/5xx (`_shared/llmProvider.ts:178-185`),
-   com mais de 1 tentativa. Transforma o degrade de "handoff em massa" em "espera curta e recupera".
-   Baixo risco, alto valor sob burst.
+3. ✅ **FEITO (2026-07-21)** — **Backoff exponencial + jitter + `retry-after`** em 429/5xx.
+   `computeRetryDelayMs` (`_shared/llmProvider.ts`, pura e testada isoladamente — 7 testes: crescimento
+   exponencial, teto, `retry-after` honrado e capado, fallback quando o header é inválido) substitui o
+   retry único fixo de 1,5s por até **4 retries** com "full jitter" (uniforme entre 0 e o teto
+   exponencial — espalha os retries no tempo, relevante agora que o item 2 roda várias conversas em
+   paralelo e podem levar 429 juntas) e honra `retry-after` do servidor quando presente (capado em
+   30s, para um servidor não travar o turno inteiro). Deployado nas 3 funções que tocam
+   `llmProvider.ts`: `process-inbox`, `whatsapp-bot`, `extract-clinic-facts`.
 4. **Confirmar/subir o tier da API Anthropic** e/ou aplicar um **limitador de RPM** central antes de
    disparar chamadas (semáforo por processo/tenant). Sem isso, os itens 2 e 3 só empurram o teto para
    o rate limit da conta.

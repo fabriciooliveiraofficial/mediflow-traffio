@@ -134,6 +134,37 @@ export function applyCacheToTools<T extends object>(tools: readonly T[]): T[] {
     ) as T[];
 }
 
+// Item 3 do hardening de carga (docs/DIAGNOSTICO_CONCORRENCIA_AGENTE.md): o
+// retry antigo era 1 tentativa fixa de 1,5s — sob 429 sustentado (burst de
+// muitos tenants, agora mais provável com a concorrência do item 2), isso
+// virava "handoff em massa" em vez de "espera curta e recupera".
+const RETRY_BASE_MS = 1000;
+const RETRY_MAX_MS = 30_000;
+
+/**
+ * Delay do próximo retry em 429/5xx. Honra `retry-after` do servidor quando
+ * presente (limitado a RETRY_MAX_MS — um servidor pedindo minutos de espera
+ * não deve travar o turno inteiro). Sem header, usa "full jitter" (AWS):
+ * uniforme entre 0 e min(RETRY_MAX_MS, RETRY_BASE_MS * 2^attempt) — espalha
+ * os retries no tempo em vez de todos os workers baterem de novo no mesmo
+ * instante (relevante com concorrência: várias conversas podem levar 429 ao
+ * mesmo tempo). Pura e exportada para ser testável sem rede/timers reais.
+ */
+export function computeRetryDelayMs(
+    attempt: number,
+    opts: { retryAfterHeader?: string | null; baseMs?: number; maxMs?: number; random?: () => number } = {},
+): number {
+    const maxMs = opts.maxMs ?? RETRY_MAX_MS;
+    if (opts.retryAfterHeader) {
+        const seconds = Number(opts.retryAfterHeader);
+        if (Number.isFinite(seconds) && seconds >= 0) return Math.min(seconds * 1000, maxMs);
+    }
+    const baseMs = opts.baseMs ?? RETRY_BASE_MS;
+    const random = opts.random ?? Math.random;
+    const cap = Math.min(maxMs, baseMs * Math.pow(2, attempt));
+    return Math.round(random() * cap);
+}
+
 export async function claudeChat(supabase: SupabaseClient, req: LlmRequest): Promise<LlmResult> {
     const apiKey = await getAnthropicApiKey(supabase);
     if (!apiKey) throw new Error("ANTHROPIC_API_KEY não configurada (painel master → Intelligence)");
@@ -150,9 +181,13 @@ export async function claudeChat(supabase: SupabaseClient, req: LlmRequest): Pro
 
     const started = Date.now();
     let res: Response | null = null;
-    let retried = false;
+    let rateLimitRetries = 0;
+    let temperatureStripped = false;
+    // MAX_RATE_LIMIT_RETRIES retries em 429/5xx (backoff) + 1 troca única de
+    // 'temperature' (compat) — teto de iterações do loop, nunca infinito.
+    const MAX_RATE_LIMIT_RETRIES = 4;
 
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let iter = 0; iter < MAX_RATE_LIMIT_RETRIES + 2; iter++) {
         res = await fetch(ANTHROPIC_URL, {
             method: "POST",
             headers: {
@@ -169,17 +204,19 @@ export async function claudeChat(supabase: SupabaseClient, req: LlmRequest): Pro
 
         // Modelos mais novos rejeitam `temperature` (deprecated) — remover e repetir.
         // Compatibilidade por modelo muda com o tempo; nunca falhar por parâmetro opcional.
-        if (res.status === 400 && errText.includes("temperature") && "temperature" in body) {
+        if (!temperatureStripped && res.status === 400 && errText.includes("temperature") && "temperature" in body) {
+            temperatureStripped = true;
             console.warn(`[llmProvider] ${req.purpose}: modelo rejeitou 'temperature' — repetindo sem o parâmetro`);
             delete body.temperature;
             continue;
         }
 
-        // Retry único em rate-limit/instabilidade; demais 4xx não se repetem
-        if ((res.status === 429 || res.status >= 500) && !retried) {
-            retried = true;
-            const waitMs = 1500;
-            console.warn(`[llmProvider] ${req.purpose}: HTTP ${res.status} — retry em ${waitMs}ms`);
+        // Backoff exponencial + jitter em rate-limit/instabilidade, honrando
+        // retry-after quando o servidor manda. Demais 4xx não se repetem.
+        if ((res.status === 429 || res.status >= 500) && rateLimitRetries < MAX_RATE_LIMIT_RETRIES) {
+            const waitMs = computeRetryDelayMs(rateLimitRetries, { retryAfterHeader: res.headers.get("retry-after") });
+            rateLimitRetries++;
+            console.warn(`[llmProvider] ${req.purpose}: HTTP ${res.status} — retry ${rateLimitRetries}/${MAX_RATE_LIMIT_RETRIES} em ${waitMs}ms`);
             await new Promise(r => setTimeout(r, waitMs));
             continue;
         }
