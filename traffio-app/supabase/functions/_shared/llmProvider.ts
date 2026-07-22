@@ -244,10 +244,11 @@ export async function claudeChat(supabase: SupabaseClient, req: LlmRequest): Pro
         cacheReadTokens: data.usage?.cache_read_input_tokens ?? 0,
     };
 
+    const durationMs = Date.now() - started;
     const cacheNote = (usage.cacheReadTokens || usage.cacheCreationTokens)
         ? ` cacheRead=${usage.cacheReadTokens} cacheWrite=${usage.cacheCreationTokens}`
         : "";
-    console.log(`[llmProvider] ${req.purpose}: ${req.model} — in=${usage.inputTokens} out=${usage.outputTokens}${cacheNote} tools=${toolCalls.length} ${Date.now() - started}ms`);
+    console.log(`[llmProvider] ${req.purpose}: ${req.model} — in=${usage.inputTokens} out=${usage.outputTokens}${cacheNote} tools=${toolCalls.length} retries=${rateLimitRetries} ${durationMs}ms`);
 
     // Log de uso para o dashboard do painel master — best effort, nunca falha a chamada.
     // Colunas conforme o schema REAL de ai_usage_logs (tokens_input/tokens_output/
@@ -273,6 +274,16 @@ export async function claudeChat(supabase: SupabaseClient, req: LlmRequest): Pro
             // Convenção de markup da plataforma (ver _shared/pricing.ts): preço ao tenant = 2× o custo
             price_tenant_cents: costCents * 2,
             context: req.purpose,
+            // Observabilidade de latência/cache/retry por chamada — usado no
+            // diagnóstico de carga (docs/DIAGNOSTICO_CONCORRENCIA_AGENTE.md) para
+            // separar "Anthropic lento sob rajada" de contenção nossa, e útil em
+            // produção para ver latência real e taxa de 429 por chamada.
+            metadata: {
+                duration_ms: durationMs,
+                cache_read: usage.cacheReadTokens,
+                cache_creation: usage.cacheCreationTokens,
+                retries: rateLimitRetries,
+            },
         });
         if (logError) console.warn(`[llmProvider] usage log failed (non-fatal): ${logError.message}`);
     } catch (logErr: any) {
