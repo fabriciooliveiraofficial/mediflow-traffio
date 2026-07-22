@@ -64,6 +64,37 @@ Mensagens viram `processing` no início do turno (`process-inbox/index.ts:160-16
 duro, elas ficam presas em `processing` até a limpeza de 24h. O **lease TTL cura o lock** sozinho em
 120s, mas **não a mensagem**.
 
+## Dimensão multi-tenant (vários tenants ao mesmo tempo)
+
+A preocupação "todos os tenants terão seu AI Agent atendendo simultaneamente" se separa em duas
+questões com respostas **opostas**:
+
+### Isolamento entre tenants (correção) — ✅ sólido
+
+Não há vazamento cruzado. Cada turno carrega `tenants`/`bot_config`/`clinic_info`/sessão/mensagens
+**filtrados por `tenant_id`** (`process-inbox/index.ts:144-197`). O **prompt cache é por-tenant** — o
+`cachePrefix` inclui persona+instruções+conhecimento daquele tenant, então o cache de um nunca é
+servido a outro (garantido por teste em `unit_test.ts`: *"instructions/knowledgePacket diferentes →
+cachePrefix diferente (não sobrepõe tenants distintos)"*). O eval `confused_deputy_multimodal` prova
+que mídia alegando outro `tenant_id` não faz o agente agir cross-tenant. **50 tenants concorrentes não
+se contaminam.**
+
+### Justiça sob carga (throughput) — ⚠️ gap real, com solução já pronta no repo
+
+O `process-inbox` usa **FIFO global por `received_at`, sequencial, sem cap por tenant**
+(`index.ts:54-104`). Um tenant grande (200 mensagens) **empurra os pacientes de um tenant pequeno para
+trás da fila** — *head-of-line blocking* (vizinho barulhento). O pequeno é atendido, mas com latência
+inflada pela lotação do grande.
+
+**Ponto-chave:** o processador de **saída** já resolveu exatamente isso —
+`migrations/20260701_outbound_fair_claim.sql`, RPC `claim_outbound_messages`, que numa única chamada
+atômica faz: (1) reaper de `processing` preso >5min → `pending`; (2) `FOR UPDATE SKIP LOCKED` (claim
+sem contenção); (3) **cap por tenant** via `row_number() OVER (PARTITION BY tenant_id)` + `rn <= cap`
+(um tenant grande nunca trava os pequenos). O lado de **entrada não tem equivalente** — usa o padrão
+antigo (SELECT + lease por telefone) que o próprio outbound diz ter substituído. Portanto o hardening
+de justiça multi-tenant **não é especulativo: é portar a RPC de fair-claim que já roda em produção na
+saída.**
+
 ## O que isso NÃO é
 
 - **Não é alucinação sob carga.** A qualidade de raciocínio é por-conversa e independente do volume.
@@ -84,22 +115,24 @@ duro, elas ficam presas em `processing` até a limpeza de 24h. O **lease TTL cur
 
 Ordem sugerida — do maior ganho/menor risco para o mais estrutural:
 
-1. **Batch limitado + retorno rápido** (`process-inbox/index.ts`): adicionar `.limit(N)` na busca de
-   pendentes e processar no máximo N por invocação, para cada tick terminar **bem abaixo** do timeout.
-   Deixa as 3 invocações escalonadas drenarem em paralelo sem nenhuma morrer no meio. Baixo risco.
+1. **Portar o fair-claim do outbound para o inbox** — *o item que resolve mais de uma vez*. Criar uma
+   RPC `claim_inbox_conversations` espelhando `claim_outbound_messages`
+   (`migrations/20260701_outbound_fair_claim.sql`): reaper de `processing` preso >5min + `FOR UPDATE
+   SKIP LOCKED` + **cap por tenant** via window function. Isso resolve de uma vez: o **gap #3**
+   (mensagem presa), a **contenção entre invocações**, o **batch limitado** (o `LIMIT` do claim), e a
+   **justiça multi-tenant** (head-of-line blocking do vizinho barulhento). Padrão já provado em
+   produção na saída → baixo risco. **Nota:** o inbox agrupa por `(tenant, phone)`, então o cap e o
+   claim operam por conversa, não por mensagem solta — a RPC precisa dessa adaptação.
 2. **Paralelizar o loop com concorrência limitada** (`index.ts:81-104`): trocar o `for await`
-   sequencial por um pool de concorrência (ex.: 5-10 conversas em voo por invocação), respeitando o
-   lease por telefone. Multiplica o throughput por tick. Risco médio (precisa cap para não estourar
-   rate limit — casa com o item 4).
-3. **Reaper de `processing` preso** (`index.ts` ou cron): devolver a `pending` mensagens em
-   `processing` há mais de ~3min (worker morto). Fecha o gap #3. Baixo risco.
-4. **Backoff exponencial + jitter + honrar `retry-after`** em 429/5xx (`_shared/llmProvider.ts:178-185`),
+   sequencial por um pool (ex.: 5-10 conversas em voo por invocação). Multiplica o throughput por
+   tick. Risco médio (precisa cap para não estourar rate limit — casa com o item 3).
+3. **Backoff exponencial + jitter + honrar `retry-after`** em 429/5xx (`_shared/llmProvider.ts:178-185`),
    com mais de 1 tentativa. Transforma o degrade de "handoff em massa" em "espera curta e recupera".
    Baixo risco, alto valor sob burst.
-5. **Confirmar/subir o tier da API Anthropic** e/ou aplicar um **limitador de RPM** central antes de
-   disparar chamadas (semáforo por processo/tenant). Sem isso, os itens 2 e 4 só empurram o teto para
+4. **Confirmar/subir o tier da API Anthropic** e/ou aplicar um **limitador de RPM** central antes de
+   disparar chamadas (semáforo por processo/tenant). Sem isso, os itens 2 e 3 só empurram o teto para
    o rate limit da conta.
-6. **(Estrutural, opcional)** trocar o modelo poll-cron por **fila orientada a evento** (webhook →
+5. **(Estrutural, opcional)** trocar o modelo poll-cron por **fila orientada a evento** (webhook →
    enfileira → worker consome com concorrência controlada) e/ou **mais frequência de cron**. Maior
    ganho de latência, maior esforço.
 
