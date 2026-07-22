@@ -211,6 +211,49 @@ então a falha é engolida silenciosamente pelo cliente supabase-js (que não la
 API por padrão) — o "Passive CRM"/funil provavelmente nunca gravou nada em produção, sem que nada
 quebrasse visivelmente. Não corrigido nesta sessão (fora do escopo de carga).
 
+## Investigação de causa raiz da latência (2026-07-22)
+
+O gap de latência da rodada 2 (turno interno ~12s→~27s) foi investigado a fundo, instrumentando
+`ai_usage_logs.metadata` com `duration_ms`/`retries`/`cache_read`/`cache_creation` por chamada
+(`_shared/llmProvider.ts`, permanente). Dois experimentos controlados A/B:
+
+| | conc baixa (N=50, ~35 concorrentes efetivos) | conc alta (N=100, ~82 concorrentes efetivos) |
+|---|---|---|
+| Chamada Sonnet — média / p95 | 3.752ms / 5.530ms | 4.090ms / 6.201ms |
+| **Retries (429)** | **0** | **0** |
+| Cache hit | 95/100 | 218/220 |
+| Turno wall-clock — p50 / p95 / máx | 11.070ms / 13.384ms / 14.876ms | 12.930ms / **34.241ms** / **89.452ms** |
+| Falhas | 0 | 1 |
+| Drenagem | ~40s | ~8-9 min |
+
+**Conclusões (medidas, não inferidas):**
+
+1. **NÃO é a API Anthropic.** Mesmo a ~82 conversas concorrentes, as chamadas Sonnet ficaram rápidas
+   (~4s média, ~6s p95), **zero 429/retries**, cache batendo 99%. O tier confirmado (item 4) tinha
+   MUITA folga e a medição confirma na prática.
+
+2. **É a nossa própria infraestrutura, e aparece como CAUDA, não como média.** A ~82 concorrentes o
+   turno mediano continua saudável (~13s ≈ 2 chamadas Sonnet + overhead), mas a cauda explode (p95 34s,
+   máx 89s). Como as chamadas de API são comprovadamente rápidas, o tempo extra da cauda está no
+   RESTO do turno: os ~8-10 round-trips ao Postgres por turno (carregar sessão, snapshot do paciente,
+   tool exec de `ver_disponibilidade`, lookup de paciente, upsert de funil, update de contexto,
+   status de mensagens, `logMessage`) contendo no PostgREST/Postgres compartilhado, e/ou saturação do
+   event-loop do isolate Deno rodando dezenas de turnos ao mesmo tempo.
+
+3. **Descoberta sobre a escala do Supabase — muda a recomendação de config.** O Supabase **auto-escala
+   isolates horizontalmente**, e `WORKER_CONCURRENCY` **multiplica** com isso: `conc=5` produziu ~35
+   concorrentes efetivos (≈7 isolates), `conc=40` produziu ~82 (cada isolate sozinho já satura).
+   Portanto o valor certo é **baixo**, não alto — deixar o auto-scaling do Supabase paralelizar e
+   manter cada isolate leve. **Ação: `INBOX_WORKER_CONCURRENCY` ajustado para 8** (a faixa de ~35
+   efetivos foi comprovadamente saudável; 82 degradou). Isso reverte o palpite anterior de subir para
+   20/40 — que, sabendo agora do multiplicador do auto-scaling, era over-concurrency.
+
+**Ponto de atenção residual (não corrigido nesta sessão):** o gargalo real de escala é o número de
+round-trips ao Postgres por turno. Reduzi-los (batch de queries, cache de sessão/tenant no turno,
+remover a query morta de `patient_funnel_stage` que sempre falha — ver achado incidental acima) é o
+próximo passo para subir o teto de concorrência saudável além de ~35-40. É trabalho de otimização de
+DB, não de mais paralelismo.
+
 ## Plano de teste de carga (para medir, não adivinhar)
 
 Script que dispara **N webhooks de inbound simultâneos** (N ∈ {50, 100, 150, 200}) para o tenant de
