@@ -40,6 +40,10 @@ export interface AgentTurnResult {
     toolsCalled: string[];
     /** Inputs JSON de cada chamada de agendar (asserções finas, ex.: terceiro) */
     agendarInputs: string[];
+    /** Inputs JSON de TODAS as chamadas de ferramenta, por nome. Para asserções
+     * que não devem presumir EM QUAL ferramenta um dado caiu — ex.: o nome do
+     * dono do telefone vai em atualizar_cadastro_paciente, não em agendar. */
+    toolInputs: { name: string; input: string }[];
     transferred: boolean;
     transferReason: string | null;
     cancelRequested: boolean;
@@ -70,6 +74,7 @@ export async function runAgentTurn(opts: AgentTurnOptions): Promise<AgentTurnRes
 
     const toolsCalled: string[] = [];
     const agendarInputs: string[] = [];
+    const toolInputs: { name: string; input: string }[] = [];
     let transferred = false;
     let transferReason: string | null = null;
     let cancelRequested = false;
@@ -84,7 +89,9 @@ export async function runAgentTurn(opts: AgentTurnOptions): Promise<AgentTurnRes
         rounds++;
         for (const call of reply.toolCalls) {
             toolsCalled.push(call.name);
-            if (call.name === "agendar") agendarInputs.push(JSON.stringify(call.input || {}));
+            const inputJson = JSON.stringify(call.input || {});
+            toolInputs.push({ name: call.name, input: inputJson });
+            if (call.name === "agendar") agendarInputs.push(inputJson);
         }
 
         if (reply.toolCalls.some(t => t.name === "transfer_to_human")) {
@@ -124,5 +131,5 @@ export async function runAgentTurn(opts: AgentTurnOptions): Promise<AgentTurnRes
     const text = bubbles.join("\n\n");
     if (!text && !transferred && !cancelRequested) transferred = true; // produção: vazio → handoff
 
-    return { text, bubbles, toolsCalled, agendarInputs, transferred, transferReason, cancelRequested, rounds };
+    return { text, bubbles, toolsCalled, agendarInputs, toolInputs, transferred, transferReason, cancelRequested, rounds };
 }

@@ -41,8 +41,13 @@ export interface ConversationScenario {
         finalTextExcludesAll?: string[];
         /** Nenhum turno da conversa (não só o último) pode conter estas substrings */
         textExcludesAllEver?: string[];
-        /** O input de alguma chamada de `agendar` na conversa deve conter esta substring */
+        /** O input de alguma chamada de `agendar` na conversa deve conter esta substring
+         *  (use só para TERCEIRO — nome de quem não é o dono do telefone) */
         agendarInputIncludes?: string;
+        /** O nome deve ter sido capturado por ALGUMA ferramenta (cadastro OU agendar).
+         *  Para o DONO do telefone o nome vai em atualizar_cadastro_paciente, não em
+         *  agendar — usar este check, nunca agendarInputIncludes. */
+        patientNameCapturedInAnyTool?: string;
     };
 }
 
@@ -67,7 +72,7 @@ export const CONVERSATION_SCENARIOS: ConversationScenario[] = [
             noPriceEver: true,
             noInventedTimesEver: true,
             finalLanguage: "en",
-            agendarInputIncludes: "Jordan",
+            patientNameCapturedInAnyTool: "Jordan",
         },
     },
     {
@@ -95,7 +100,7 @@ export const CONVERSATION_SCENARIOS: ConversationScenario[] = [
         expect: {
             noPriceEver: true,
             toolsCalledEver: ["ver_disponibilidade", "agendar"],
-            agendarInputIncludes: "Camila",
+            patientNameCapturedInAnyTool: "Camila",
         },
     },
     {
@@ -116,7 +121,7 @@ export const CONVERSATION_SCENARIOS: ConversationScenario[] = [
         ],
         expect: {
             toolsCalledEver: ["ver_disponibilidade", "agendar"],
-            agendarInputIncludes: "Diego",
+            patientNameCapturedInAnyTool: "Diego",
             noRepeatedQuestion: true,
             textExcludesAllEver: ["qual procedimento", "qual tratamento", "o que você gostaria de agendar", "manhã ou tarde você prefere"],
         },

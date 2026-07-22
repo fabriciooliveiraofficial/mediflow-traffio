@@ -70,6 +70,8 @@ export interface ConversationRunResult {
     turns: ConversationTurnLog[];
     allToolsCalled: Set<string>;
     allAgendarInputs: string[];
+    /** Inputs JSON de TODAS as ferramentas de toda a conversa (nome + input) */
+    allToolInputs: { name: string; input: string }[];
     anyTransferred: boolean;
 }
 
@@ -78,6 +80,7 @@ async function runConversation(s: ConversationScenario): Promise<ConversationRun
     const turns: ConversationTurnLog[] = [];
     const allToolsCalled = new Set<string>();
     const allAgendarInputs: string[] = [];
+    const allToolInputs: { name: string; input: string }[] = [];
     let anyTransferred = false;
     // Espelha context.language persistido entre turnos (produção) — semeado
     // pelo idioma inicial do cenário, sobrescrito pelo idioma resolvido a
@@ -125,12 +128,13 @@ async function runConversation(s: ConversationScenario): Promise<ConversationRun
 
         for (const t of reply.toolsCalled) allToolsCalled.add(t);
         allAgendarInputs.push(...reply.agendarInputs);
+        allToolInputs.push(...reply.toolInputs);
         if (reply.transferred) anyTransferred = true;
 
         storedLanguage = turnLanguage;
     }
 
-    return { turns, allToolsCalled, allAgendarInputs, anyTransferred };
+    return { turns, allToolsCalled, allAgendarInputs, allToolInputs, anyTransferred };
 }
 
 // ─── Asserções ───────────────────────────────────────────────────────────────
@@ -179,6 +183,15 @@ function check(s: ConversationScenario, r: ConversationRunResult): string[] {
     if (e.agendarInputIncludes) {
         const hit = r.allAgendarInputs.some(inp => inp.toLowerCase().includes(e.agendarInputIncludes!.toLowerCase()));
         if (!hit) failures.push(`nenhuma chamada de agendar contém "${e.agendarInputIncludes}" no input: [${r.allAgendarInputs.join(" | ").substring(0, 150)}]`);
+    }
+
+    // Nome capturado em QUALQUER ferramenta — para o dono do telefone, o nome vai
+    // em atualizar_cadastro_paciente, não em agendar (patient_name no agendar só
+    // é obrigatório para terceiros/multi-paciente, ver schema de SCHEDULING_TOOLS).
+    if (e.patientNameCapturedInAnyTool) {
+        const needle = e.patientNameCapturedInAnyTool.toLowerCase();
+        const hit = r.allToolInputs.some(ti => ti.input.toLowerCase().includes(needle));
+        if (!hit) failures.push(`nome "${e.patientNameCapturedInAnyTool}" não foi capturado por nenhuma ferramenta: [${r.allToolInputs.map(ti => `${ti.name}:${ti.input}`).join(" | ").substring(0, 200)}]`);
     }
 
     if (e.transferExpected && !r.anyTransferred) failures.push("deveria transferir para humano em algum turno e não transferiu");
