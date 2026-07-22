@@ -11,23 +11,11 @@
  * Regra do projeto: mudou prompt, modelo ou ferramenta → esta suíte roda ANTES
  * do deploy. Vermelho = não sobe.
  */
-import { claudeChat, type LlmMessage } from "../../_shared/llmProvider.ts";
-import { buildAutonomousSystemPrompt, buildFlowStateHint, formatConsultationStatus, shouldUseAccessibleMode, TRANSFER_TOOL } from "../../_shared/copilot.ts";
-import { SCHEDULING_TOOLS } from "../../_shared/schedulingTools.ts";
+import { buildAutonomousSystemPrompt, buildFlowStateHint, formatConsultationStatus, shouldUseAccessibleMode } from "../../_shared/copilot.ts";
 import { STAGE_GUIDANCE } from "../../_shared/journeyStage.ts";
-import { mockExecuteTool, MOCK_SLOT_TIMES, MOCK_APPOINTMENT } from "./mockTools.ts";
+import { MOCK_SLOT_TIMES, MOCK_APPOINTMENT } from "./mockTools.ts";
 import { SCENARIOS, type EvalScenario } from "./scenarios.ts";
-
-const MAX_TOOL_ROUNDS = 4;
-
-// Stub mínimo de supabase: claudeChat só o usa para a chave (env vence) e o
-// log de uso (no-op aqui).
-const stubSupabase: any = {
-    from: () => ({
-        insert: async () => ({ error: null }),
-        select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null }) }) }),
-    }),
-};
+import { runAgentTurn, type AgentTurnResult } from "./agentTurn.ts";
 
 const MODEL = Deno.env.get("AI_MODEL_AGENT") || "claude-sonnet-5";
 
@@ -52,14 +40,7 @@ function buildScenarioKnowledgePacket(s: EvalScenario): string {
     return parts.join("\n\n");
 }
 
-interface RunResult {
-    text: string;
-    toolsCalled: string[];
-    /** Inputs JSON de cada chamada de agendar (asserções finas, ex.: terceiro) */
-    agendarInputs: string[];
-    transferred: boolean;
-    rounds: number;
-}
+type RunResult = AgentTurnResult;
 
 async function runScenario(s: EvalScenario): Promise<RunResult> {
     const lastPatientMessage = [...s.history].reverse().find(m => m.role === "user")?.content || "";
@@ -90,51 +71,11 @@ async function runScenario(s: EvalScenario): Promise<RunResult> {
         .map(m => `${m.role === "user" ? "PACIENTE" : "CLÍNICA"}: ${m.content}`)
         .join("\n");
 
-    const tools = [TRANSFER_TOOL, ...SCHEDULING_TOOLS];
-    const convo: LlmMessage[] = [
-        { role: "user", content: `Conversa até agora:\n${transcript}\n\nResponda à última mensagem do paciente.` },
-    ];
-
-    const toolsCalled: string[] = [];
-    const agendarInputs: string[] = [];
-    let transferred = false;
-    let rounds = 0;
-
-    // 1500 espelha AGENT_MAX_TOKENS do copilot.ts (produção) — manter em sincronia
-    let reply = await claudeChat(stubSupabase, {
-        tenantId: "eval", purpose: `eval:${s.name.split(" ")[0]}`, model: MODEL,
-        maxTokens: 1500, tools, cacheTools: true, system, cacheableSystemPrefix: systemCachePrefix, messages: convo,
+    return runAgentTurn({
+        system, systemCachePrefix, transcript, model: MODEL,
+        purpose: `eval:${s.name.split(" ")[0]}`,
+        mockOptions: { availabilityFails: s.availabilityFails },
     });
-
-    while (reply.toolCalls.length > 0 && rounds < MAX_TOOL_ROUNDS) {
-        rounds++;
-        for (const call of reply.toolCalls) {
-            toolsCalled.push(call.name);
-            if (call.name === "agendar") agendarInputs.push(JSON.stringify(call.input || {}));
-        }
-
-        if (reply.toolCalls.some(t => t.name === "transfer_to_human")) { transferred = true; break; }
-        if (reply.toolCalls.some(t => t.name === "encaminhar_cancelamento")) break;
-
-        convo.push({ role: "assistant", content: reply.rawContent });
-        convo.push({
-            role: "user",
-            content: reply.toolCalls.map(call => ({
-                type: "tool_result",
-                tool_use_id: call.id,
-                content: JSON.stringify(mockExecuteTool(call, { availabilityFails: s.availabilityFails }).data),
-            })),
-        });
-
-        reply = await claudeChat(stubSupabase, {
-            tenantId: "eval", purpose: `eval:${s.name.split(" ")[0]}`, model: MODEL,
-            maxTokens: 1500, tools, cacheTools: true, system, cacheableSystemPrefix: systemCachePrefix, messages: convo,
-        });
-    }
-
-    const text = reply.text.trim();
-    if (!text && !transferred && !toolsCalled.includes("encaminhar_cancelamento")) transferred = true; // produção: vazio → handoff
-    return { text, toolsCalled, agendarInputs, transferred, rounds };
 }
 
 // ─── Asserções ───────────────────────────────────────────────────────────────

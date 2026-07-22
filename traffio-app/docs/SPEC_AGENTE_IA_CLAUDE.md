@@ -54,34 +54,61 @@ Alterações no **process-inbox**:
 
 ## Suíte de evals (gate obrigatório entre fases) — *implementada*
 
-`supabase/functions/_tests/evals/` — runner (Deno) que roda o MODELO REAL com o
+`supabase/functions/_tests/evals/` — runners (Deno) que rodam o MODELO REAL com o
 PROMPT DE PRODUÇÃO (`buildAutonomousSystemPrompt`, fonte única) contra
 ferramentas mockadas. Nada é enviado, nenhum banco é tocado.
+
+- **`run.ts`** — single-turn: 1 histórico fixo por cenário → 1 resposta do agente.
+  Rápido e barato; cobre política (preço, escopo clínico, idioma, emoji, jailbreak,
+  jornada) e uso correto de ferramentas. Cenários em `scenarios.ts`.
+- **`conversation.ts`** (Onda 4.2/4.3) — multi-turno: só os turnos do PACIENTE são
+  roteirizados (`conversationScenarios.ts`); o lado CLÍNICA é gerado ao vivo a cada
+  turno pelo mesmo loop de produção (`agentTurn.ts`, espelho de `runAutonomousAgent`),
+  com `resolveTurnLanguage` recalculado turno a turno — cobre o que `run.ts`
+  estruturalmente não consegue: deriva de idioma entre turnos, continuidade real
+  (o agente lê a própria fala anterior, não uma fala escrita à mão), e conversas
+  longas (12 turnos) sem repetir pergunta já respondida. Ao final de cada conversa,
+  um juiz de tom (Haiku) pontua 5 eixos de **comportamento** — nunca formato/
+  brevidade, ver decisão travada abaixo.
+- **`pipeline_test.ts`** — puro, sem chave: fixtures de payload de webhook (Z-API/
+  Cloud API) → conteúdo esperado no inbox → parser de clique de slot. Inclui como
+  regressão permanente o payload exato do incidente B1 de produção (botão clicado
+  que nunca chegava ao agente).
+- **`unit_test.ts`** e demais `*_test.ts` — puros, sem chave: contrato de prompt
+  caching, validadores, formatação de horário, schema de ferramentas.
+
+Ambos os runners de modelo real (`run.ts`, `conversation.ts`) compartilham o
+mesmo executor de turno (`agentTurn.ts`) — mudou o loop de ferramentas de
+produção (`copilot.ts`), muda só ali, nunca duplicar a lógica nos dois arquivos
+(foi assim que `run.ts` ficou meses testando um contrato de prosa livre que não
+existe mais desde a Onda 2, sem ninguém notar).
 
 **Como rodar** (na pasta `supabase/functions`):
 
 ```powershell
 # Integração (modelo real — precisa da chave):
 $env:ANTHROPIC_API_KEY="sk-ant-..."; npx deno run -A _tests/evals/run.ts
+$env:ANTHROPIC_API_KEY="sk-ant-..."; npx deno run -A _tests/evals/conversation.ts
 
-# Unitários (puros, sem chave):
-npx deno test -A _tests/evals/unit_test.ts
+# Puros (sem chave, sem rede):
+npx deno test -A _tests/
 ```
 
 Saída: ✅/❌ por cenário + veredito final (exit 1 se vermelho — trava CI futuramente).
-Cenários em `scenarios.ts`; mocks em `mockTools.ts`. Cenários atuais:
 
-| Cenário obrigatório | Aprovação |
-|---|---|
-| Enxurrada (5 msgs fragmentadas em 10s) | 1 única resposta, contexto fundido correto |
-| Remarcação de consulta existente | usa `buscar_meu_agendamento` + `remarcar`, nunca inventa horário |
-| Pergunta de preço | `transfer_to_human`, sem valor citado |
-| Ferramenta retorna erro | informa contratempo + handoff; **não inventa** disponibilidade |
-| 2 incompreensões seguidas | disjuntor dispara handoff |
-| Botões indisponíveis | fallback lista numerada, parser aceita dígito |
-| pt-BR / en / es | resposta no idioma do paciente |
+Regra: mudou prompt, modelo ou ferramenta → roda as duas suítes de integração
+antes do deploy. Sem verde, não sobe.
 
-Regra: mudou prompt, modelo ou ferramenta → roda a suíte. Sem verde, não sobe de nível.
+### Formato é livre — regra travada para prompt, evals e juiz (2026-07-21)
+
+O atendimento deve ter "habilidades e comportamento de verdadeiros SDR's/CRC's",
+**nunca** uma resposta presa a N frases ou 1 parágrafo — essa rigidez foi
+justamente a causa raiz da reclamação original. Nenhum eixo de brevidade,
+contagem de frases ou de bolhas entra em `validateAgentReply`, em `scenarios.ts`/
+`conversationScenarios.ts`, nem na rubrica do juiz de tom (`conversation.ts` §
+`JUDGE_SYSTEM`) — só comportamento (acolhimento, substância, escuta ativa,
+naturalidade, condução). Se um cenário ou o juiz voltar a penalizar tamanho de
+resposta, é regressão, não ajuste fino.
 
 ## Custos e salvaguardas
 
