@@ -129,6 +129,23 @@ serve(async (req: Request) => {
               .in("id", failedMsgs.map((m: any) => m.id));
           }
         } catch (_) { /* best effort cleanup */ }
+        // FAIL-SAFE: um turno que falhou NÃO pode sumir — antes, a mensagem
+        // ficava só marcada 'failed' e o paciente ficava sem resposta E fora
+        // da fila humana (achado no teste de carga,
+        // docs/DIAGNOSTICO_CONCORRENCIA_AGENTE.md). Coloca a conversa na fila
+        // humana (reason 'tech', kind 'hard') para um atendente assumir. As
+        // falhas ocorrem tipicamente DENTRO do runAutonomousAgent, depois do
+        // logMessage do paciente, então o atendente vê a mensagem no histórico.
+        // Best-effort: se este handoff também falhar, ao menos as mensagens já
+        // não bloqueiam a fila ('failed' é terminal, o reaper não as ressuscita).
+        try {
+          const sm = new SessionManager(supabase as any);
+          const failedSession = await sm.getOrCreateSession(tenant_id, phone);
+          await sm.triggerHumanHandoff(failedSession.id, undefined, { reason: "tech", kind: "hard" });
+          console.log(`[process-inbox] [${phone}] turno falho encaminhado para a fila humana (fail-safe)`);
+        } catch (handoffErr: any) {
+          console.error(`[process-inbox] [${phone}] fail-safe handoff também falhou:`, handoffErr?.message);
+        }
       }
     }
 
