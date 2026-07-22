@@ -86,7 +86,11 @@ export function normalizeConversationLanguage(
 // result. The current-turn triage remains the authoritative classifier.
 const TURN_LANGUAGE_HINTS: Record<ConversationLanguage, readonly RegExp[]> = {
     pt: [
-        /\b(?:obrigad[oa]|amanh[ãa]|hoje|hor[aá]rios?|agendamento|avalia[cç][ãa]o|voc[eê]|quero|posso|oi|ol[aá]|bom dia|boa tarde|pre[cç]o|quanto|onde|quando|preciso|limpeza|marcar)\b/iu,
+        // "horário(s)" exige o acento: sem ele ("horarios") é ortografia espanhola
+        // válida e colide com o hint de "es" (bug real pego pelo eval multi-turno,
+        // 2026-07-21: "...tienen horarios en la mañana?" batia em pt E es ao mesmo
+        // tempo → ambíguo → caía no idioma armazenado, o mesmo padrão do B2).
+        /\b(?:obrigad[oa]|amanh[ãa]|hoje|horários?|agendamento|avalia[cç][ãa]o|voc[eê]|quero|posso|oi|ol[aá]|bom dia|boa tarde|pre[cç]o|quanto|onde|quando|preciso|limpeza|marcar)\b/iu,
     ],
     en: [
         /\b(?:confirmed?|thank(?:s| you)?|appointment|today|tomorrow|please|i(?:'m| am)|would|could|book(?:ing)?|schedule(?:d)?|hi|hello|hey|good morning|afternoon|price|cost|how much|where|when|implant|dental|need|want|can you|do you)\b/iu,

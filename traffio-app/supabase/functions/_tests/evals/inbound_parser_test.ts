@@ -257,3 +257,14 @@ Deno.test("resolveTurnLanguage — time string uses stored language fallback", (
     const lang = resolveTurnLanguage("08:30", "en");
     assertEquals(lang, "en");
 });
+
+// Regressão real (achada pelo eval multi-turno conversation.ts, 2026-07-21):
+// "horarios" sem acento é ortografia espanhola válida; o hint de pt aceitava
+// "horarios" (acento opcional) e colidia com o hint de es ("mañana") na MESMA
+// mensagem → ambíguo → caía no idioma armazenado ("en"), nunca detectava a
+// troca para es. Mesma classe de bug do B2 (idioma do turno anterior vazando
+// pro turno seguinte), só que via colisão de regex em vez de timing.
+Deno.test("resolveTurnLanguage — 'horarios' (sem acento) + 'mañana' não é ambíguo — es vence", () => {
+    const lang = resolveTurnLanguage("perdón, prefiero seguir en español a partir de ahora, ¿tienen horarios en la mañana?", "en");
+    assertEquals(lang, "es");
+});
