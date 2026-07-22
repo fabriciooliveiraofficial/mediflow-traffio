@@ -48,6 +48,17 @@ const AI_DEBOUNCE_MS = 10_000;
 // Supabase Secret INBOX_WORKER_CONCURRENCY.
 const WORKER_CONCURRENCY = Number(Deno.env.get("INBOX_WORKER_CONCURRENCY")) || 5;
 
+// Achado real no teste de carga (docs/DIAGNOSTICO_CONCORRENCIA_AGENTE.md,
+// 2026-07-22, N=50 conversas de UM tenant): com o default antigo da RPC (15),
+// um ÚNICO tenant lotado se auto-limitava a 15 conversas por tick mesmo com
+// WORKER_CONCURRENCY=20 livre para processar mais — as 50 conversas
+// avançavam em "ondas" de 15 presas ao ritmo do cron (~20s), não ao ritmo
+// real de processamento (~12s/turno). O cap por tenant (item 1) continua
+// necessário para proteger tenants pequenos de um vizinho grande — só
+// precisa ser alto o bastante para não estrangular um tenant sozinho.
+// Ajustável sem novo deploy via Supabase Secret INBOX_PER_TENANT_CAP.
+const PER_TENANT_CAP = Number(Deno.env.get("INBOX_PER_TENANT_CAP")) || 50;
+
 console.log("process-inbox v1 — Debounce + Fusion Worker — Initialized");
 
 serve(async (req: Request) => {
@@ -72,6 +83,7 @@ serve(async (req: Request) => {
     // migrations/20260722130000_inbox_fair_claim.sql.
     const { data: batches, error: fetchError } = await supabase.rpc("claim_inbox_conversations", {
       p_cutoff: cutoff,
+      p_per_tenant_cap: PER_TENANT_CAP,
     });
 
     if (fetchError) {
