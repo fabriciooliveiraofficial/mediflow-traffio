@@ -50,35 +50,43 @@ serve(async (req: Request) => {
     const now    = Date.now();
     const cutoff = new Date(now - DEBOUNCE_MS).toISOString();
 
-    // --- 1. Find all conversations with pending messages past the debounce window ---
-    const { data: pendingGroups, error: fetchError } = await supabase
-      .from("message_inbox")
-      .select("tenant_id, phone")
-      .eq("status", "pending")
-      .lte("received_at", cutoff)
-      .order("received_at", { ascending: true });
+    // --- 1. Claim justo por tenant (porta o padrão do process-outbound) ---
+    // A RPC devolve, numa única chamada: (a) reaper de mensagens presas em
+    // 'processing' há >5min → 'pending' (recupera worker morto no meio de um
+    // turno); (b) conversas distintas (tenant, phone) com pendentes <= cutoff,
+    // com CAP POR TENANT (um tenant grande não trava os pequenos —
+    // head-of-line blocking) e LIMIT de lote. A RPC só seleciona candidatos;
+    // o lease-lock por conversa (abaixo) continua sendo a guarda de
+    // concorrência entre invocações. Ver
+    // migrations/20260722130000_inbox_fair_claim.sql.
+    const { data: batches, error: fetchError } = await supabase.rpc("claim_inbox_conversations", {
+      p_cutoff: cutoff,
+    });
 
     if (fetchError) {
-      console.error("[process-inbox] Fetch error:", fetchError.message);
+      console.error("[process-inbox] claim_inbox_conversations error:", fetchError.message);
       return new Response(JSON.stringify({ error: fetchError.message }), { status: 500 });
     }
 
-    if (!pendingGroups || pendingGroups.length === 0) {
+    if (!batches || batches.length === 0) {
       return new Response(JSON.stringify({ processed: 0 }), { headers: corsHeaders });
     }
 
-    // Deduplicate: one entry per (tenant_id, phone)
-    const seen    = new Set<string>();
-    const batches = pendingGroups.filter((row: any) => {
-      const key = `${row.tenant_id}:${row.phone}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-
     let processed = 0;
 
+    // Orçamento de relógio: cada invocação PARA de pegar novas conversas quando
+    // passa deste tempo, deixando o resto 'pending' para o próximo tick. Evita
+    // ser morta pelo timeout do edge no meio de um turno (o que deixava
+    // mensagens presas em 'processing'). Conservador sob o wall-limit típico do
+    // edge (~150s); o reaper da RPC é a rede de segurança final.
+    const BUDGET_MS = 100_000;
+    const loopStart = Date.now();
+
     for (const batch of batches) {
+      if (Date.now() - loopStart > BUDGET_MS) {
+        console.log(`[process-inbox] orçamento de relógio atingido — ${processed} processada(s), resto fica para o próximo tick`);
+        break;
+      }
       const { tenant_id, phone } = batch as any;
       try {
         await processConversationTurn(supabase, tenant_id, phone, cutoff);
@@ -158,10 +166,12 @@ async function processConversationTurn(
     const messageIds = messages.map((m: any) => m.id);
  
      // --- 4. Mark as processing (prevent double-pick by concurrent cron runs) ---
+     // claimed_at alimenta o reaper de claim_inbox_conversations: se este worker
+     // morrer antes de marcar 'done'/'pending', a mensagem volta à fila em 5min.
      const batchId = crypto.randomUUID();
      await supabase
        .from("message_inbox")
-       .update({ status: "processing", batch_id: batchId })
+       .update({ status: "processing", batch_id: batchId, claimed_at: new Date().toISOString() })
        .in("id", messageIds);
  
      const session = await sessionManager.getOrCreateSession(tenantId, phone);
