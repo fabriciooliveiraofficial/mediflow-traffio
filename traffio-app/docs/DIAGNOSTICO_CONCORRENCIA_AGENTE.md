@@ -248,11 +248,35 @@ O gap de latência da rodada 2 (turno interno ~12s→~27s) foi investigado a fun
    efetivos foi comprovadamente saudável; 82 degradou). Isso reverte o palpite anterior de subir para
    20/40 — que, sabendo agora do multiplicador do auto-scaling, era over-concurrency.
 
-**Ponto de atenção residual (não corrigido nesta sessão):** o gargalo real de escala é o número de
-round-trips ao Postgres por turno. Reduzi-los (batch de queries, cache de sessão/tenant no turno,
-remover a query morta de `patient_funnel_stage` que sempre falha — ver achado incidental acima) é o
-próximo passo para subir o teto de concorrência saudável além de ~35-40. É trabalho de otimização de
-DB, não de mais paralelismo.
+### Otimização de DB aplicada (2026-07-22)
+
+Atacado o gargalo de round-trips ao Postgres por turno (`process-inbox/index.ts`):
+1. **Removido o bloco morto de `patient_funnel_stage`** (−3 round-trips/turno: 2 SELECT + 1 upsert).
+   A tabela foi DROPADA na migration `20260701c` (funil aposentado → `crm_journeys`); o código
+   escrevia no vazio há semanas, gerando erro silencioso e somando à cauda de latência.
+2. **Paralelizado mark-processing + `getOrCreateSession` + fetch do tenant** (3 round-trips seriais →
+   1 espera via `Promise.all`; são independentes entre si).
+
+**Efeito colateral achado e corrigido — reaper agressivo demais** (`migration 20260722150000`, TTL
+5min→15min): no teste de validação N=100/conc=8 com cold-start, a drenagem lenta fez um isolate que
+reivindicou mensagens ESTALAR >5min (cold-start/starvation, não morte real); o reaper de 5min
+reivindicava as mensagens de volta → outro isolate reprocessava → corrida → **13/100 marcadas
+`failed`**. Turnos reais levam ~30s; 15min elimina o false-reap sob drenagem lenta. Foi efeito do
+reaper do item 1, não da otimização de DB (o run conc=40 COM a otimização teve 0 falhas).
+
+**Validação honesta:** o run conc=40/N=100 COM a otimização teve **0 falhas, máx 89s→48s, handoffs
+14→1** vs o degradado anterior — mas p50/p95 são confundidos por concorrência instantânea maior
+(drenou 100 em ~60s vs ~8min), então não afirmo um delta limpo de p50/p95. A redução de round-trips é
+correta por construção; a prova de campo é ruidosa por causa do auto-scaling variável e cold-starts.
+
+**Pontos de atenção residuais (não corrigidos):**
+- **Mensagem `failed` é perdida silenciosamente:** o catch de turno marca `message_inbox.status =
+  'failed'` mas NÃO dispara handoff — o paciente fica sem resposta E fora da fila humana. Deveria
+  cair na fila humana (fail-safe). Prioridade se as falhas persistirem sob carga real.
+- **Reduzir mais round-trips por turno** dentro de `runAutonomousAgent` (snapshot, context update,
+  cancel-check, logMessage) subiria o teto além de ~35-40 — mas é superfície mais arriscada; os evals
+  cobrem o comportamento, não a estrutura de queries.
+- **Cadência de cron / fila orientada a evento (item 5)** para latência menor no start.
 
 ## Plano de teste de carga (para medir, não adivinhar)
 
