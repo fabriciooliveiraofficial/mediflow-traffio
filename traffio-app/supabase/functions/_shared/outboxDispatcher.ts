@@ -33,6 +33,15 @@ export class OutboxDispatcher {
      * Se falhar, lança exceção (quem chama decide se faz enqueue como fallback).
      */
     async sendNow(tenant: any, phone: string, payload: { text: string; interactive?: any }, typingDelayMs = 0, quotedMsgId?: string, category: CloudApiBillingCategory = "service"): Promise<string | undefined> {
+        // Teste de carga (docs/DIAGNOSTICO_CONCORRENCIA_AGENTE.md): flag ESCOPADA POR
+        // TENANT (bot_config.outbound_dry_run), nunca global — um teste de carga não
+        // pode silenciar respostas reais de OUTROS tenants enquanto roda. Usada só
+        // durante o teste controlado, sempre revertida logo em seguida.
+        if (tenant?.bot_config?.outbound_dry_run) {
+            const fakeId = `dry-run-${crypto.randomUUID()}`;
+            console.log(`[OutboxDispatcher] DRY RUN (tenant ${tenant.id}) — não enviou de verdade para ${phone}: "${payload.text.substring(0, 60)}" (id simulado: ${fakeId})`);
+            return fakeId;
+        }
         if (tenant.whatsapp_provider === 'cloud_api' && tenant.cloud_api_phone_number_id && tenant.cloud_api_access_token) {
             const result = await sendCloudApiMessage(tenant, phone, payload, quotedMsgId);
             await this.trackCloudApiUsage(tenant.id, category);
