@@ -124,9 +124,17 @@ Ordem sugerida — do maior ganho/menor risco para o mais estrutural:
    dados sintéticos (tenant grande capado, pequeno incluído) e smoke-testado em produção. **Não
    inclui** o claim exclusivo com `SKIP LOCKED` — mantém o lease-lock por conversa existente; a
    paralelização real fica no item 2.
-2. **Paralelizar o loop com concorrência limitada** (`index.ts:81-104`): trocar o `for await`
-   sequencial por um pool (ex.: 5-10 conversas em voo por invocação). Multiplica o throughput por
-   tick. Risco médio (precisa cap para não estourar rate limit — casa com o item 3).
+2. ✅ **FEITO (2026-07-21)** — **Paralelizar o loop com concorrência limitada**. Extraído em
+   `_shared/concurrencyPool.ts` (`runWithConcurrencyLimit`, testado isoladamente: 5 testes cobrindo
+   teto nunca excedido, orçamento sem abandonar trabalho em voo, falha isolada). `process-inbox`
+   agora roda `WORKER_CONCURRENCY` conversas em voo por invocação (default **5**, conservador —
+   configurável via Supabase Secret `INBOX_WORKER_CONCURRENCY` sem novo deploy, para subir junto com
+   o item 4). Conversas distintas `(tenant, phone)` já não têm contenção entre si (lease-lock é por
+   conversa), então isso é ganho de throughput puro, sem novo risco de corrida. **Bug adjacente
+   corrigido no caminho:** `message_inbox.status` nunca aceitava `'failed'` no CHECK constraint — o
+   catch de erro do turno tentava gravar esse valor há tempos e a violação era engolida
+   silenciosamente, deixando a mensagem presa até o reaper (item 1) resgatar. Ampliado o constraint
+   (`migrations/20260722140000`).
 3. **Backoff exponencial + jitter + honrar `retry-after`** em 429/5xx (`_shared/llmProvider.ts:178-185`),
    com mais de 1 tentativa. Transforma o degrade de "handoff em massa" em "espera curta e recupera".
    Baixo risco, alto valor sob burst.
