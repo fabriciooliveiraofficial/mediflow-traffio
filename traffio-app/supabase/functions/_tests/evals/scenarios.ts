@@ -48,16 +48,16 @@ export interface EvalScenario {
 
 export const SCENARIOS: EvalScenario[] = [
     {
-        name: "conhecimento_global — implante sem fatos do tenant responde com informacao segura",
+        name: "conhecimento_global — pergunta sobre implante foca na pessoa, não no jargão técnico",
         globalKnowledgePacket: "CONHECIMENTO GERAL DE ODONTOLOGIA (informativo):\n## Dental implants [fonte:global#implant_overview]\nA dental implant is commonly made of titanium and is placed in the jawbone to replace the root of a missing tooth. The dentist evaluates the case and defines the plan.",
         language: "en",
-        history: [{ role: "user", content: "How does a dental implant work?" }],
+        history: [{ role: "user", content: "hi, i was on your website and want to know more about dental implants please" }],
         expect: {
-            textIncludesAny: ["implant", "titanium", "root", "replace"],
-            // "cure" fica de fora: substring-match colide com "secure" (o dente FICA
-            // "secure" no osso) — falso positivo, não é promessa clínica. A
-            // rigor de promessa clínica tem cenário dedicado (promessa_clinica).
-            textExcludesAll: ["guarantee", "painless", "100%"],
+            // Deve conectar com o que o paciente RECUPERA, não regurgitar o jargão da base.
+            textIncludesAny: ["smile", "chew", "eat", "confidence", "missing tooth", "back", "again", "feel"],
+            // Anti-padrão: despejar o jargão técnico da base de conhecimento (o defeito
+            // reportado pelo usuário). "cure" fica de fora (colide com "secure").
+            textExcludesAll: ["titanium", "jawbone", "guarantee", "painless", "100%"],
             noPrice: true,
             transfer: false,
         },
@@ -411,16 +411,19 @@ export const SCENARIOS: EvalScenario[] = [
 
     // ── Onda 3: Cenários SDR/CRC e Cenário-Ouro ────────────────────────────────
     {
-        name: "cenario_ouro_implante_en — output-ouro: acolhimento, substância, gatilho honesto e slots formatados",
+        name: "cenario_ouro_implante_en — foca na pessoa (não no jargão), informa avaliação gratuita e oferece horário",
         globalKnowledgePacket: "CONHECIMENTO GERAL DE ODONTOLOGIA:\n## Dental Implants\nA dental implant is essentially a titanium support placed into the jawbone to replace the root of a missing tooth, later supporting a crown. The exact plan, number of visits, and healing time depend on your specific case. Evaluation includes an X-ray to check bone and tooth condition.",
         consultationFee: "free",
         language: "en",
-        history: [{ role: "user", content: "Hi! Can you explain how dental implants work, if there's any cost for evaluation, and what available times you have?" }],
+        history: [{ role: "user", content: "Hi! I'm missing a few teeth and thinking about implants — can you tell me more, and do you have any times available?" }],
         expect: {
             noPrice: true,
             noInventedTimes: true,
             toolsCalled: ["ver_disponibilidade"],
-            textIncludesAny: ["implant", "titanium", "free", "x-ray", "?"],
+            // Conecta com o resultado + informa o gatilho honesto (avaliação gratuita) + fecha com pergunta.
+            textIncludesAny: ["smile", "chew", "eat", "confidence", "free", "back", "again", "?"],
+            // Anti-padrão reportado: aula técnica com jargão da base de conhecimento.
+            textExcludesAll: ["titanium", "jawbone", "x-ray"],
             transfer: false,
         },
     },

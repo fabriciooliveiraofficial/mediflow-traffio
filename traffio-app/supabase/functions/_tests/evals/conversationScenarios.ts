@@ -73,6 +73,8 @@ export const CONVERSATION_SCENARIOS: ConversationScenario[] = [
             noInventedTimesEver: true,
             finalLanguage: "en",
             patientNameCapturedInAnyTool: "Jordan",
+            // Foco na pessoa: ao falar de implante, não despejar o jargão da base de conhecimento.
+            textExcludesAllEver: ["titanium", "jawbone"],
         },
     },
     {
