@@ -26,6 +26,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { runCopilot, runAutonomousAgent, wrapUntrustedContent } from "../_shared/copilot.ts";
 import { tryStructuredFlow } from "../_shared/structuredFlow.ts";
 import { logAgentTurnEvent } from "../_shared/observabilityLayer.ts";
+import { runWithConcurrencyLimit } from "../_shared/concurrencyPool.ts";
 
 // How long to wait after the last message before processing (ms).
 // Gives the patient time to finish typing multiple messages.
@@ -36,6 +37,16 @@ const DEBOUNCE_MS = 1200;
 // pausas de 3–5s; a IA só deve gerar resposta após silêncio real. O fluxo
 // humano continua no debounce curto (latência importa para o atendente).
 const AI_DEBOUNCE_MS = 10_000;
+
+// Item 2 do hardening de carga (docs/DIAGNOSTICO_CONCORRENCIA_AGENTE.md):
+// conversas distintas (tenant, phone) já vêm sem contenção entre si (cada
+// uma tem seu próprio lease-lock) — processá-las em série desperdiçava o
+// tempo do turno de uma esperando a IA da outra terminar. Concorrência
+// limitada (não "paralelizar tudo"): o teto real de paralelismo é o rate
+// limit da conta Anthropic (RPM/TPM, item 4 do hardening — ainda não
+// confirmado), então o default é conservador. Ajustável sem novo deploy via
+// Supabase Secret INBOX_WORKER_CONCURRENCY.
+const WORKER_CONCURRENCY = Number(Deno.env.get("INBOX_WORKER_CONCURRENCY")) || 5;
 
 console.log("process-inbox v1 — Debounce + Fusion Worker — Initialized");
 
@@ -73,26 +84,24 @@ serve(async (req: Request) => {
     }
 
     let processed = 0;
+    let failed = 0;
 
-    // Orçamento de relógio: cada invocação PARA de pegar novas conversas quando
-    // passa deste tempo, deixando o resto 'pending' para o próximo tick. Evita
-    // ser morta pelo timeout do edge no meio de um turno (o que deixava
-    // mensagens presas em 'processing'). Conservador sob o wall-limit típico do
-    // edge (~150s); o reaper da RPC é a rede de segurança final.
+    // Orçamento de relógio: cada invocação PARA de DISPARAR novas conversas
+    // quando passa deste tempo, deixando o resto 'pending' para o próximo tick
+    // (as em voo terminam normalmente). Evita ser morta pelo timeout do edge no
+    // meio de um turno (o que deixava mensagens presas em 'processing').
+    // Conservador sob o wall-limit típico do edge (~150s); o reaper da RPC é a
+    // rede de segurança final.
     const BUDGET_MS = 100_000;
-    const loopStart = Date.now();
 
-    for (const batch of batches) {
-      if (Date.now() - loopStart > BUDGET_MS) {
-        console.log(`[process-inbox] orçamento de relógio atingido — ${processed} processada(s), resto fica para o próximo tick`);
-        break;
-      }
-      const { tenant_id, phone } = batch as any;
+    async function runOne(batch: { tenant_id: string; phone: string }) {
+      const { tenant_id, phone } = batch;
       try {
         await processConversationTurn(supabase, tenant_id, phone, cutoff);
         processed++;
       } catch (turnErr: any) {
         console.error(`[process-inbox] [${phone}] Turn failed:`, turnErr.message, turnErr.stack?.substring(0, 300));
+        failed++;
         // Mark messages as failed so they don't block the queue forever
         try {
           const { data: failedMsgs } = await supabase
@@ -111,8 +120,22 @@ serve(async (req: Request) => {
       }
     }
 
-    console.log(`[process-inbox] Processed ${processed} conversation(s)`);
-    return new Response(JSON.stringify({ processed }), { headers: corsHeaders });
+    // Dispatcher de concorrência limitada: conversas distintas (tenant, phone)
+    // não têm contenção entre si (lease-lock é por conversa), então rodá-las
+    // em voo ao mesmo tempo (até WORKER_CONCURRENCY) multiplica o throughput do
+    // tick sem precisar de FOR UPDATE SKIP LOCKED — a RPC já devolveu conversas
+    // distintas, dedupidas e ordenadas por justiça (item 1). Lógica testada
+    // isoladamente em _shared/concurrencyPool.ts.
+    const { remaining } = await runWithConcurrencyLimit(batches, runOne, {
+      concurrency: WORKER_CONCURRENCY,
+      budgetMs: BUDGET_MS,
+    });
+    if (remaining > 0) {
+      console.log(`[process-inbox] orçamento de relógio atingido — ${remaining} conversa(s) ficam para o próximo tick`);
+    }
+
+    console.log(`[process-inbox] Processed ${processed} conversation(s), ${failed} failed`);
+    return new Response(JSON.stringify({ processed, failed }), { headers: corsHeaders });
 
   } catch (err: any) {
     console.error("[process-inbox] Fatal error:", err);
