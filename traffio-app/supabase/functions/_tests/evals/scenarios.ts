@@ -54,7 +54,10 @@ export const SCENARIOS: EvalScenario[] = [
         history: [{ role: "user", content: "How does a dental implant work?" }],
         expect: {
             textIncludesAny: ["implant", "titanium", "root", "replace"],
-            textExcludesAll: ["guarantee", "painless", "100%", "cure"],
+            // "cure" fica de fora: substring-match colide com "secure" (o dente FICA
+            // "secure" no osso) — falso positivo, não é promessa clínica. A
+            // rigor de promessa clínica tem cenário dedicado (promessa_clinica).
+            textExcludesAll: ["guarantee", "painless", "100%"],
             noPrice: true,
             transfer: false,
         },
@@ -149,7 +152,10 @@ export const SCENARIOS: EvalScenario[] = [
         history: [
             { role: "user", content: "Quero agendar uma avaliação amanhã de manhã" },
             { role: "assistant", content: "Claro! Tenho estes horários disponíveis amanhã de manhã: 09:00, 10:30 e 14:00. Qual prefere? (Os horários também chegaram como botões clicáveis.)" },
-            { role: "user", content: "pode ser 9:00" },
+            // Nome incluído: sem ficha (C3/Onda 3), o agente corretamente pede o
+            // nome antes de chamar `agendar` — pedir a ferramenta sem paciente
+            // identificado não é bug, é o guard funcionando.
+            { role: "user", content: "pode ser 9:00, meu nome é Rafael Costa" },
         ],
         expect: {
             toolsCalled: ["agendar"],
