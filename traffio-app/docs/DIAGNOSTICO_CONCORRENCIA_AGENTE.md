@@ -2,8 +2,10 @@
 
 > **Status (2026-07-22):** itens 1-4 do hardening **implementados, testados e deployados**
 > (fair-claim por tenant, paralelização com concorrência limitada, backoff exponencial em 429, tier
-> Anthropic confirmado generoso). Falta o item 5 (estrutural, opcional) e o **teste de carga real**
-> para medir o ganho com número em vez de estimativa.
+> Anthropic confirmado generoso). **Teste de carga real rodado** (N=50, tenant real + IA real + envio
+> em dry-run): achou e corrigiu um gargalo real (`per_tenant_cap` default de 15 estrangulava um
+> tenant único), confirmado com uma 2ª rodada (drenagem ~90s → ~48s). Falta escalar o teste pra N
+> maior (100-200) e o item 5 (estrutural, opcional) — ver § Teste de carga real abaixo.
 >
 > **Escopo:** este documento trata **exclusivamente de throughput sob concorrência**
 > (50/100/150/200 pacientes simultâneos). A **qualidade de atendimento por conversa** já está
@@ -165,6 +167,49 @@ Ordem sugerida — do maior ganho/menor risco para o mais estrutural:
 5. **(Estrutural, opcional)** trocar o modelo poll-cron por **fila orientada a evento** (webhook →
    enfileira → worker consome com concorrência controlada) e/ou **mais frequência de cron**. Maior
    ganho de latência, maior esforço.
+
+## Teste de carga real — resultado (2026-07-22)
+
+Rodado contra o tenant de teste (`3810a967-...`), com `active_agent=ai_always` e
+`bot_config.outbound_dry_run=true` (flag escopada por tenant, ver `_shared/outboxDispatcher.ts`
+— nenhuma mensagem WhatsApp real foi enviada; nenhum outro tenant foi afetado). N=50 conversas
+sintéticas, IA e Anthropic reais. Dados sintéticos e estado do tenant revertidos ao fim de cada
+rodada — zero resquício.
+
+| Métrica | Rodada 1 (`per_tenant_cap`=15, default nunca ajustado) | Rodada 2 (`per_tenant_cap`=50, pós-fix) |
+|---|---|---|
+| Processadas | 50/50, 0 falhas, 0 presas | 50/50, 0 falhas, 0 presas |
+| Tempo total de drenagem | ~90s | **~48s** |
+| Latência interna média (só a IA) | ~12s | ~27s |
+| Latência ponta-a-ponta p50 | ~35s | ~56s |
+| Latência ponta-a-ponta p95 | ~69s | **~63s** |
+| Latência ponta-a-ponta máxima | ~70s | **~64s** |
+
+**Achado real na rodada 1:** o `per_tenant_cap` da RPC (item 1) nunca tinha valor passado
+explicitamente pelo `process-inbox`, então usava o default da função SQL (15). Um único tenant
+lotado se auto-limitava a 15 conversas por tick de cron mesmo com `WORKER_CONCURRENCY=20` livre
+para processar mais — as 50 avançavam em ~4 "ondas" de 15, presas ao ritmo do cron (~20s), não ao
+ritmo real de processamento. **Corrigido**: `PER_TENANT_CAP` subido para 50, configurável via
+Supabase Secret `INBOX_PER_TENANT_CAP` (mesmo padrão do `WORKER_CONCURRENCY`).
+
+**Achado honesto na rodada 2 (trade-off, não escondido):** com o cap corrigido, ~39-40 das 50
+conversas passaram a rodar de verdade ao mesmo tempo (confirmado no poll: `processing_now: 39`) —
+isso eliminou as "ondas" (spread p50↔p95 caiu de 35s↔69s para 56s↔63s, bem mais compacto) e reduziu
+o tempo total de drenagem em quase a metade. Mas a **latência de cada turno individual quase
+dobrou** (~12s → ~27s) sob essa concorrência real — sinal de contenção genuína em algum ponto
+(candidatos: rate limit da Anthropic sob burst — mesmo abaixo do teto nominal —, pool de conexões
+do Postgres, ou CPU do isolate Deno rodando ~20-40 `fetch()` concorrentes). **Não isolamos qual**
+ainda — não há acesso a logs da function via CLI nesta sessão (`supabase functions logs` não existe
+nesta versão) para confirmar se foram 429 reais. O saldo foi líquido positivo (drenagem total e
+p95/máx menores), mas é o próximo ponto de atenção se a concorrência subir mais (ex.: N=100-200 ou
+`WORKER_CONCURRENCY` maior) — pode não escalar linearmente.
+
+**Achado incidental (fora de escopo, registrado para o futuro):** durante a limpeza, descobrimos que
+`patient_funnel_stage`, referenciada em `process-inbox/index.ts` (linhas ~421-453), **não existe**
+no banco real — divergência de schema. O código não verifica `.error` nesses `upsert`/`update`,
+então a falha é engolida silenciosamente pelo cliente supabase-js (que não lança exceção em erro de
+API por padrão) — o "Passive CRM"/funil provavelmente nunca gravou nada em produção, sem que nada
+quebrasse visivelmente. Não corrigido nesta sessão (fora do escopo de carga).
 
 ## Plano de teste de carga (para medir, não adivinhar)
 
