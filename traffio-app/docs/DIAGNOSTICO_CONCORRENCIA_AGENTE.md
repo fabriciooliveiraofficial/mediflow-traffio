@@ -1,8 +1,9 @@
 # Diagnóstico de concorrência/carga — AI Agent (inbox worker)
 
-> **Status:** diagnóstico apenas — nenhum código alterado. Decisão do usuário (2026-07-21):
-> documentar o gargalo e o plano de hardening; seguir o teste de fogo comportamental
-> (poucos pacientes) por enquanto; endurecer para carga depois.
+> **Status (2026-07-22):** itens 1-4 do hardening **implementados, testados e deployados**
+> (fair-claim por tenant, paralelização com concorrência limitada, backoff exponencial em 429, tier
+> Anthropic confirmado generoso). Falta o item 5 (estrutural, opcional) e o **teste de carga real**
+> para medir o ganho com número em vez de estimativa.
 >
 > **Escopo:** este documento trata **exclusivamente de throughput sob concorrência**
 > (50/100/150/200 pacientes simultâneos). A **qualidade de atendimento por conversa** já está
@@ -12,12 +13,16 @@
 
 ## TL;DR
 
-Do jeito que está hoje, o sistema **não atende 200 pacientes verdadeiramente simultâneos com baixa
-latência** — e a causa **não é alucinação**. É throughput de infraestrutura: um worker que processa
-a fila **em série**, varrido por cron a cada ~20s, com retry fraco em rate-limit. Sob um burst de
-200 simultâneos, a fila **não perde mensagens** (ficam `pending`, FIFO), mas drena ao longo de
-**vários minutos** — os últimos pacientes esperam minutos pela 1ª resposta. Isso é "200
-enfileirados, atendidos aos poucos", não "200 atendidos ao mesmo tempo".
+**Diagnóstico original (2026-07-21):** o sistema não atendia 200 pacientes verdadeiramente
+simultâneos com baixa latência — e a causa não era alucinação, era throughput de infraestrutura: um
+worker que processava a fila em série, varrido por cron a cada ~20s, com retry fraco em rate-limit e
+sem justiça entre tenants.
+
+**Estado atual (2026-07-22), após os itens 1-4:** a fila agora tem **justiça por tenant** (item 1),
+processa **até 20 conversas em paralelo por invocação** (item 2), tem **retry com backoff** em vez de
+desistir rápido sob rate-limit (item 3), e o **tier da API Anthropic foi confirmado generoso o
+bastante** para essa escala — não é o gargalo (item 4, com a conta feita abaixo). O que falta para
+"garantido com número" é só o **teste de carga real** — ainda não rodado.
 
 ## Como o processamento funciona hoje (verificado no código + banco de produção)
 
@@ -107,8 +112,17 @@ saída.**
 
 ## Incógnitas (precisam ser respondidas antes de prometer um número)
 
-1. **Tier da API Anthropic** (RPM e TPM). — determina o teto de paralelismo real.
-2. **Plano Supabase**: limite de relógio e de concorrência de edge functions.
+1. ✅ **RESPONDIDA (2026-07-22) — Tier da API Anthropic.** Nível Build: Sonnet 5 e Haiku 4.x têm pools
+   **separados** de 5.000 RPM / 5.000.000 TPM entrada (excluindo leituras de cache) / 1.000.000 TPM
+   saída, cada um. Usando os tokens REAIS observados nas rodadas de eval desta sessão (`in=`/`out=` dos
+   logs do `llmProvider`, ~1200 tokens de entrada fresca e ~250 de saída por chamada, ~2,5 chamadas
+   Sonnet por turno): o teto da Anthropic é **~1.600 turnos/minuto** (o menor entre RPM≈2000,
+   TPM-entrada≈1666, TPM-saída≈1600). Para "centenas de pacientes simultâneos", mesmo no extremo de
+   200 turnos disparados no mesmo segundo (que não acontece na prática — debounce de 10s + ritmo
+   humano), isso consome **~12% de UM minuto** dessa capacidade. **Conclusão: a API Anthropic NÃO é o
+   gargalo nessa escala.** O teto real passa a ser infraestrutura nossa (Supabase edge function / pool
+   de conexões do Postgres) — ainda não medida.
+2. **Plano Supabase**: limite de relógio e de concorrência de edge functions. — ainda não medida.
 3. **Comportamento real sob carga** — só um teste de carga mede.
 
 ## Plano de hardening (quando for a hora)
@@ -143,9 +157,11 @@ Ordem sugerida — do maior ganho/menor risco para o mais estrutural:
    paralelo e podem levar 429 juntas) e honra `retry-after` do servidor quando presente (capado em
    30s, para um servidor não travar o turno inteiro). Deployado nas 3 funções que tocam
    `llmProvider.ts`: `process-inbox`, `whatsapp-bot`, `extract-clinic-facts`.
-4. **Confirmar/subir o tier da API Anthropic** e/ou aplicar um **limitador de RPM** central antes de
-   disparar chamadas (semáforo por processo/tenant). Sem isso, os itens 2 e 3 só empurram o teto para
-   o rate limit da conta.
+4. ✅ **RESPONDIDA (2026-07-22)** — **Tier Anthropic confirmado generoso** (~1.600 turnos/min de teto,
+   ver Incógnitas acima) — não precisa de limitador de RPM adicional nessa escala. Ação tomada:
+   `INBOX_WORKER_CONCURRENCY` subido de 5 → **20** via Supabase Secret (passo medido, não o máximo
+   possível — o teto real agora é infra Supabase/Postgres, não testada; subir mais exige o teste de
+   carga do item seguinte antes).
 5. **(Estrutural, opcional)** trocar o modelo poll-cron por **fila orientada a evento** (webhook →
    enfileira → worker consome com concorrência controlada) e/ou **mais frequência de cron**. Maior
    ganho de latência, maior esforço.
@@ -165,7 +181,12 @@ Rodar **antes e depois** do hardening para provar o ganho com número, não com 
 
 ## Recomendação
 
-Para o **teste de fogo comportamental agora** (poucos pacientes, validar o atendimento ponta-a-ponta
-como o cliente reclamou): **liberado** — a qualidade está verde e o caminho feliz funciona. Para
-**abrir para volume real de clínica cheia (50-200 simultâneos)**: executar o hardening acima
-(itens 1-5 no mínimo) e o teste de carga antes, com o tier da Anthropic confirmado.
+Para o **teste de fogo comportamental** (poucos pacientes, validar o atendimento ponta-a-ponta como o
+cliente reclamou): **liberado** — a qualidade está verde e o caminho feliz funciona.
+
+Para **abrir para volume real de clínica cheia (50-200 simultâneos)**: os itens 1-4 estão feitos e a
+incógnita que mais preocupava (rate limit da Anthropic) está respondida — o tier atual comporta essa
+escala com folga. O que falta para "garantido", não "deveria funcionar": **rodar o teste de carga**
+(script de N webhooks simultâneos, medindo drenagem/latência p95/429/presas) para confirmar que a
+infraestrutura Supabase/Postgres aguenta o `WORKER_CONCURRENCY=20` atual — essa é a única incógnita
+real que resta.
