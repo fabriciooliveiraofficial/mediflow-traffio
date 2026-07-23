@@ -1101,3 +1101,73 @@ Deno.test("C4B: adicionar_lista_espera envia payload com schema real (type_id, p
     assertEquals(insertedPayload.preferred_period, undefined);
     assertEquals(insertedPayload.notes, undefined);
 });
+
+// ══════════════════════════════════════════════════════════════════════════
+// Testes-guarda — diagnóstico de produção 2026-07-23 (5 falhas do AI Agent
+// isoladas e corrigidas: slot ocupado ofertado, deriva de idioma, "falha no
+// sistema (hard)" em massa por incidente de infra do LLM, motivo de conflito
+// de agendamento divergente entre RPC e consumidor). Cada teste trava o
+// contrato exato que causou a regressão — se algum destes quebrar, um dos 5
+// bugs originais está voltando.
+// ══════════════════════════════════════════════════════════════════════════
+
+// ── Erro 1: slot OCUPADO nunca pode ser ofertado como horário clicável ──────
+import { isSlotAvailable, BOOKING_REASON } from "../../_shared/schedulingTools.ts";
+
+Deno.test("isSlotAvailable: available:false nunca é ofertável (raiz da cascata de agendamento)", () => {
+    assertEquals(isSlotAvailable({ time: "08:30", available: false }), false);
+});
+
+Deno.test("isSlotAvailable: available:true e ausência da flag (schema legado) continuam ofertáveis", () => {
+    assertEquals(isSlotAvailable({ time: "08:30", available: true }), true);
+    assertEquals(isSlotAvailable({ time: "08:30" }), true);
+    assertEquals(isSlotAvailable("08:30"), true); // forma legada: string pura, sem flag
+});
+
+// ── Erro 5: o motivo de conflito do RPC book_appointment não pode divergir
+// entre a versão em produção (migrations/20260626120000_book_appointment_
+// hardening.sql) e quem a consome (schedulingTools.ts, structuredFlow.ts) ──
+Deno.test("BOOKING_REASON: contrato bate com as strings reais devolvidas por book_appointment", () => {
+    // Trava a string EXATA — se este teste quebrar, o RPC e o consumidor
+    // divergiram de novo (mesmo bug do 'slot_taken' legado que nunca casava).
+    assertEquals(BOOKING_REASON.SLOT_CONFLICT, "SLOT_CONFLICT");
+    assertEquals(BOOKING_REASON.OUTSIDE_AVAILABILITY, "OUTSIDE_AVAILABILITY");
+});
+
+// ── Erro 3/4: falha de INFRA do LLM (chave/rede/upstream) precisa ser
+// diferenciável de falha de lógica do turno, para não virar "falha no
+// sistema (hard)" em massa para todas as conversas simultâneas ─────────────
+import { LlmProviderError, isLlmInfraFailure } from "../../_shared/llmProvider.ts";
+
+Deno.test("isLlmInfraFailure: auth/config/upstream/network são infra (afetam toda conversa)", () => {
+    assertEquals(isLlmInfraFailure(new LlmProviderError("m", "auth", 401)), true);
+    assertEquals(isLlmInfraFailure(new LlmProviderError("m", "config")), true);
+    assertEquals(isLlmInfraFailure(new LlmProviderError("m", "upstream_unavailable", 503)), true);
+    assertEquals(isLlmInfraFailure(new LlmProviderError("m", "network")), true);
+});
+
+Deno.test("isLlmInfraFailure: erro de request (4xx de payload) e erro genérico NÃO são infra", () => {
+    assertEquals(isLlmInfraFailure(new LlmProviderError("m", "request", 400)), false);
+    assertEquals(isLlmInfraFailure(new Error("erro qualquer deste turno")), false);
+    assertEquals(isLlmInfraFailure("string solta"), false);
+});
+
+// ── Erro 2: sem evidência real do idioma, o prompt não pode cravar um idioma
+// (o default "pt" travava o modelo numa conversa que começou em inglês) ────
+import { isTurnLanguageConfident } from "../../_shared/copilot.ts";
+
+Deno.test("isTurnLanguageConfident: 1ª mensagem ambígua sem idioma armazenado = SEM confiança (bug 'Morning'→pt)", () => {
+    assertEquals(isTurnLanguageConfident("Morning", null), false);
+    assertEquals(isTurnLanguageConfident("Morning", undefined), false);
+    assertEquals(isTurnLanguageConfident("1", null), false);
+});
+
+Deno.test("isTurnLanguageConfident: mensagem bate num hint de idioma = confiança", () => {
+    assertEquals(isTurnLanguageConfident("good morning, do you have availability tomorrow?", null), true);
+    assertEquals(isTurnLanguageConfident("bom dia, quero marcar uma avaliação", null), true);
+});
+
+Deno.test("isTurnLanguageConfident: idioma já persistido de turno anterior = confiança mesmo com mensagem ambígua", () => {
+    assertEquals(isTurnLanguageConfident("Morning", "en"), true);
+    assertEquals(isTurnLanguageConfident("ok", "es"), true);
+});

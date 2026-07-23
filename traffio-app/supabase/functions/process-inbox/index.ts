@@ -443,6 +443,18 @@ async function processConversationTurn(
            console.warn(`[process-inbox] [${phone}] agente autônomo falhou — fail-safe para fila humana`);
            await sessionManager.triggerHumanHandoff(session.id);
          }
+         if (autonomousStatus === "infra_failed") {
+           // Falha de INFRA do LLM (chave/rede/upstream) — não é culpa desta
+           // conversa nem vai se resolver com um atendente clicando em algo.
+           // Soft handoff: fila humana por ora, mas a IA volta a atender
+           // sozinha assim que a infra normalizar (isHardHandoffSession trata
+           // kind='soft' como NÃO bloqueante — sessionManager.ts). Hard aqui
+           // faria N conversas simultâneas ficarem travadas manualmente por um
+           // problema que se autorresolve (achado em produção 2026-07-23: uma
+           // chave errada virava vários "falha no sistema (hard)" ao mesmo tempo).
+           console.warn(`[process-inbox] [${phone}] falha de infra do LLM — fila humana (soft, autorrecuperável)`);
+           await sessionManager.triggerHumanHandoff(session.id, undefined, { reason: "tech", kind: "soft" });
+         }
          // 'replied': paciente respondido, sessão continua com a IA
          // 'transferred': handoff já feito dentro do agente
        } else {

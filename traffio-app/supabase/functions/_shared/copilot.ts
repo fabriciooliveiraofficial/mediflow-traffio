@@ -11,7 +11,8 @@
  * mensagens (log + fila humana) jamais depende do copiloto.
  */
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
-import { claudeChat, claudeJson, type LlmTool } from "./llmProvider.ts";
+import { claudeChat, claudeJson, isLlmInfraFailure, type LlmTool } from "./llmProvider.ts";
+import { shouldRaiseLlmInfraAlert } from "./llmCircuitBreaker.ts";
 import { type HandoffReason, type HandoffKind } from "./sessionManager.ts";
 import { getAiModelAgent, getAiModelRouter, getRagEnabled, getRagMinKbEntries } from "./masterConfig.ts";
 import { embedText } from "./embeddings.ts";
@@ -122,6 +123,29 @@ export function resolveTurnLanguage(
 ): ConversationLanguage {
     return inferLanguageFromCurrentMessage(currentPatientMessage)
         ?? normalizeConversationLanguage(storedLanguage);
+}
+
+/**
+ * true quando há EVIDÊNCIA real do idioma deste turno — a mensagem atual
+ * bateu num hint de idioma, OU já existe idioma persistido de um turno
+ * anterior desta conversa. false só acontece na 1ª mensagem de uma conversa
+ * quando ela é curta/ambígua e não bate em nenhum hint.
+ *
+ * Existe separado de resolveTurnLanguage porque este último SEMPRE devolve um
+ * idioma (default "pt" quando não há evidência) — necessário para escolher
+ * textos de fallback (HANDOFF_MSG, pacote de conhecimento). Mas usar esse
+ * default como uma AFIRMAÇÃO forte no prompt ("IDIOMA JÁ DETECTADO... mantenha
+ * esse idioma") é o que causava a deriva: bug de produção (2026-07-23), 1ª
+ * mensagem "Morning"/"Hi" (inglês, mas sem bater no hint regex, que exige
+ * "good morning"/"hello" completos) caía no default "pt" e o prompt travava o
+ * modelo em português numa conversa que começou em inglês.
+ */
+export function isTurnLanguageConfident(
+    currentPatientMessage: unknown,
+    storedLanguageRaw: unknown,
+): boolean {
+    return inferLanguageFromCurrentMessage(currentPatientMessage) !== null
+        || parseConversationLanguage(storedLanguageRaw) !== null;
 }
 
 /** Current turn wins; conversation history is only a safe fallback. */
@@ -668,7 +692,11 @@ const HANDOFF_MSG: Record<string, string> = {
     es: "¡Perfecto! Ya estoy pasando su conversación a nuestro equipo — le responderán por aquí en unos instantes. 😊",
 };
 
-export type AutonomousStatus = "replied" | "transferred" | "defer" | "failed";
+// "infra_failed" é distinto de "failed": a causa é uma falha de INFRA do LLM
+// (chave inválida, Anthropic fora do ar, rede) que afeta TODAS as conversas,
+// não um problema deste turno/paciente — o chamador trata com soft handoff
+// (autorrecuperável quando a infra volta) em vez de hard.
+export type AutonomousStatus = "replied" | "transferred" | "defer" | "failed" | "infra_failed";
 
 interface AutonomousParams extends CopilotParams {
     /** Linha completa do tenant (credenciais Z-API/Cloud API para o envio) */
@@ -1337,6 +1365,21 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
         const patientQuery = [...history].reverse().find((message: any) => message.role === "user")?.content;
         const storedLanguage = normalizeConversationLanguage(context.language);
         const turnLanguage = resolveTurnLanguage(patientQuery, storedLanguage);
+        // Confiança do turnLanguage: só vira uma AFIRMAÇÃO forte no prompt
+        // ("IDIOMA JÁ DETECTADO... mantenha esse idioma em TODAS as mensagens")
+        // quando há evidência real — a mensagem atual bateu num hint de idioma,
+        // OU já existe idioma persistido de um turno anterior desta conversa.
+        // Sem isso, turnLanguage é só o "pt" default de
+        // normalizeConversationLanguage, nunca uma detecção de verdade.
+        // Bug de produção (2026-07-23): 1ª mensagem ambígua/curta ("Morning",
+        // "Hi") não batia em nenhum hint regex (que exige "good morning"/"hi"
+        // completos, não variações soltas), caía no default "pt", e o prompt
+        // cravava "responda 100% em português" numa conversa que começou em
+        // inglês — a IA seguia a instrução travada em vez de ler a própria
+        // mensagem do paciente. Sem hint algum, a regra base do prompt
+        // ("identifique o idioma da ÚLTIMA mensagem e responda nesse idioma",
+        // em cachedParts) já é suficiente e não força um idioma errado.
+        const turnLanguageIsConfident = isTurnLanguageConfident(patientQuery, context.language);
 
         // Onda 4 — orçamento de risco cumulativo de jailbreak multi-turno: cada
         // sondagem parcial soma risco mesmo sem violar nada isoladamente; só o
@@ -1382,8 +1425,11 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             instructions,
             knowledgePacket,
             todayStr: todayInTz(timezone || undefined),
-            // Idioma DESTE turno — evita a deriva para PT no 1º turno ou depois de ferramentas
-            languageHint: turnLanguage,
+            // Idioma DESTE turno — evita a deriva para PT no 1º turno ou depois de
+            // ferramentas. Só afirma um idioma quando há evidência real
+            // (turnLanguageIsConfident); sem evidência, omite o hint em vez de
+            // cravar o default "pt" e travar o modelo num idioma errado.
+            languageHint: turnLanguageIsConfident ? turnLanguage : null,
             // IA consciente de jornada (roadmap item 6)
             stageGuidance: journeyStage.guidance,
             // Camada 2 — continuidade determinística do fluxo de agendamento
@@ -1701,8 +1747,15 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
     } catch (err: any) {
         // Fail-safe: nunca deixar o paciente sem caminho — vai para a fila humana
         console.error(`[agent] [${phone}] falha no modo autônomo (fail-safe → humano): ${err?.message}`);
+        const infraFailure = isLlmInfraFailure(err);
+        if (infraFailure && await shouldRaiseLlmInfraAlert(supabase)) {
+            // UM alerta por incidente (cooldown no circuit breaker), não um por
+            // conversa — ver llmCircuitBreaker.ts. É este console.error que o
+            // operador deve monitorar/alarmar, não a contagem de "falha hard" no Inbox.
+            console.error(`[agent] 🚨 ALERTA DE INFRA DO LLM (${(err as any)?.kind ?? "desconhecido"}): ${err?.message} — verificar chave/config em Master → Intelligence`);
+        }
         await emitTrace({ handoff_reason: "exception", violations: [String(err?.message || "erro desconhecido")] });
-        return "failed";
+        return infraFailure ? "infra_failed" : "failed";
     }
 }
 

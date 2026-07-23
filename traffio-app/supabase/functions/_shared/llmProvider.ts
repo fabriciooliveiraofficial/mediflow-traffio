@@ -75,6 +75,51 @@ export interface LlmResult {
     rawContent: any[];
 }
 
+/**
+ * Erro tipado do provider — o `kind` distingue falha de INFRA (afeta TODAS as
+ * conversas, não é culpa deste turno) de falha pontual do request.
+ *
+ * Bug de produção (2026-07-23, ver memory/incident_api_key_wrong_slot.md): uma
+ * chave Anthropic errada no slot de config faz TODA chamada de TODAS as
+ * conversas falhar ao mesmo tempo com HTTP 401. Sem este tipo, o chamador
+ * (process-inbox) não tinha como diferenciar isso de uma falha isolada de
+ * turno — e carimbava CADA lead simultâneo com "falha no sistema (hard)",
+ * girando um incidente de config em dezenas de handoffs individuais e
+ * confundindo o time (parecia o agente "quebrado", não a config).
+ *
+ *  - "config": chave ausente/não configurada — nunca vai se resolver sozinho.
+ *  - "auth": chave presente mas rejeitada pela Anthropic (401/403) — chave
+ *    errada ou revogada; mesmo padrão do incidente acima.
+ *  - "upstream_unavailable": 429/5xx sustentado mesmo após todos os retries —
+ *    a Anthropic está indisponível/limitando, não é erro nosso.
+ *  - "network": fetch nunca completou (DNS, timeout, conexão recusada).
+ *  - "request": 4xx que não é auth (payload/parâmetro inválido) — bug de
+ *    request deste turno específico, não afeta as demais conversas.
+ */
+export type LlmErrorKind = "config" | "auth" | "upstream_unavailable" | "network" | "request";
+
+export class LlmProviderError extends Error {
+    readonly kind: LlmErrorKind;
+    readonly status?: number;
+    constructor(message: string, kind: LlmErrorKind, status?: number) {
+        super(message);
+        this.name = "LlmProviderError";
+        this.kind = kind;
+        this.status = status;
+    }
+}
+
+/**
+ * true para falhas de INFRA — afetam todas as conversas do tenant/plataforma,
+ * não só este turno. O chamador usa isto para acionar o circuit breaker
+ * (degradação graciosa + um único alerta) em vez de marcar cada conversa
+ * simultânea como "falha no sistema (hard)".
+ */
+export function isLlmInfraFailure(err: unknown): boolean {
+    return err instanceof LlmProviderError &&
+        (err.kind === "config" || err.kind === "auth" || err.kind === "upstream_unavailable" || err.kind === "network");
+}
+
 export interface LlmRequest {
     /** Para o log de uso no painel master */
     tenantId: string;
@@ -167,7 +212,7 @@ export function computeRetryDelayMs(
 
 export async function claudeChat(supabase: SupabaseClient, req: LlmRequest): Promise<LlmResult> {
     const apiKey = await getAnthropicApiKey(supabase);
-    if (!apiKey) throw new Error("ANTHROPIC_API_KEY não configurada (painel master → Intelligence)");
+    if (!apiKey) throw new LlmProviderError("ANTHROPIC_API_KEY não configurada (painel master → Intelligence)", "config");
 
     const body: Record<string, unknown> = {
         model: req.model,
@@ -188,15 +233,23 @@ export async function claudeChat(supabase: SupabaseClient, req: LlmRequest): Pro
     const MAX_RATE_LIMIT_RETRIES = 4;
 
     for (let iter = 0; iter < MAX_RATE_LIMIT_RETRIES + 2; iter++) {
-        res = await fetch(ANTHROPIC_URL, {
-            method: "POST",
-            headers: {
-                "content-type": "application/json",
-                "x-api-key": apiKey,
-                "anthropic-version": ANTHROPIC_VERSION,
-            },
-            body: JSON.stringify(body),
-        });
+        try {
+            res = await fetch(ANTHROPIC_URL, {
+                method: "POST",
+                headers: {
+                    "content-type": "application/json",
+                    "x-api-key": apiKey,
+                    "anthropic-version": ANTHROPIC_VERSION,
+                },
+                body: JSON.stringify(body),
+            });
+        } catch (networkErr: any) {
+            // fetch nunca completou (DNS, timeout, conexão recusada) — infra, não turno.
+            throw new LlmProviderError(
+                `[llmProvider] ${req.purpose}: falha de rede ao chamar Anthropic — ${networkErr?.message}`,
+                "network",
+            );
+        }
 
         if (res.ok) break;
 
@@ -211,6 +264,16 @@ export async function claudeChat(supabase: SupabaseClient, req: LlmRequest): Pro
             continue;
         }
 
+        // Chave presente mas rejeitada — falha de INFRA (afeta toda chamada da
+        // plataforma até a chave ser corrigida), nunca deste turno específico.
+        if (res.status === 401 || res.status === 403) {
+            throw new LlmProviderError(
+                `[llmProvider] ${req.purpose}: Anthropic HTTP ${res.status} (auth) — ${errText.substring(0, 300)}`,
+                "auth",
+                res.status,
+            );
+        }
+
         // Backoff exponencial + jitter em rate-limit/instabilidade, honrando
         // retry-after quando o servidor manda. Demais 4xx não se repetem.
         if ((res.status === 429 || res.status >= 500) && rateLimitRetries < MAX_RATE_LIMIT_RETRIES) {
@@ -220,11 +283,24 @@ export async function claudeChat(supabase: SupabaseClient, req: LlmRequest): Pro
             await new Promise(r => setTimeout(r, waitMs));
             continue;
         }
-        throw new Error(`[llmProvider] ${req.purpose}: Anthropic HTTP ${res.status} — ${errText.substring(0, 300)}`);
+
+        // 429/5xx que esgotou os retries: upstream indisponível, não é bug de request.
+        if (res.status === 429 || res.status >= 500) {
+            throw new LlmProviderError(
+                `[llmProvider] ${req.purpose}: Anthropic HTTP ${res.status} após esgotar retries — ${errText.substring(0, 300)}`,
+                "upstream_unavailable",
+                res.status,
+            );
+        }
+        throw new LlmProviderError(
+            `[llmProvider] ${req.purpose}: Anthropic HTTP ${res.status} — ${errText.substring(0, 300)}`,
+            "request",
+            res.status,
+        );
     }
 
     if (!res || !res.ok) {
-        throw new Error(`[llmProvider] ${req.purpose}: esgotou tentativas sem resposta OK`);
+        throw new LlmProviderError(`[llmProvider] ${req.purpose}: esgotou tentativas sem resposta OK`, "upstream_unavailable");
     }
 
     const data = await res!.json();

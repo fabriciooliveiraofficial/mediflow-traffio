@@ -9,7 +9,7 @@
  *     → [{date, location_id, location_name, slots: ["HH:MM"...], slot_count}]
  *   book_appointment(p_tenant_id, p_patient_id, p_doctor_id, p_location_id,
  *                    p_type_id, p_date, p_start_time, p_booked_by)
- *     → {success, appointment_id} | {success:false, reason:'slot_taken'|...}
+ *     → {success, appointment_id} | {success:false, reason:BOOKING_REASON.*}
  *
  * Os horários oferecidos viram BOTÕES CLICÁVEIS (id determinístico "slot|...")
  * — o clique é agendado sem passar pelo modelo (caminho 100% determinístico).
@@ -251,6 +251,26 @@ export interface SlotOption {
     time: string;
 }
 
+/**
+ * Motivos que o RPC book_appointment devolve em `reason` quando `success:false`
+ * (migrations/20260626120000_book_appointment_hardening.sql, versão consolidada
+ * e única em produção). Ponto único: qualquer consumidor do RPC (agendar,
+ * remarcar, clique determinístico em structuredFlow.ts) compara contra ESTA
+ * constante — nunca contra uma string solta hardcoded.
+ *
+ * Bug de produção (2026-07-23): a checagem de idempotência abaixo comparava
+ * `reason === "slot_taken"`, uma string de uma versão ANTIGA da função
+ * (migration 05). A versão consolidada nunca devolve isso — devolve
+ * 'SLOT_CONFLICT'/'OUTSIDE_AVAILABILITY' — então a checagem nunca disparava:
+ * um "confirmo" duplicado (retry, doble clique) do PRÓPRIO paciente virava
+ * "esse horário acabou de ser preenchido" mesmo quando a vaga já era dele,
+ * gerando confusão e a percepção de sistema quebrado que o paciente reportava.
+ */
+export const BOOKING_REASON = {
+    SLOT_CONFLICT: "SLOT_CONFLICT",
+    OUTSIDE_AVAILABILITY: "OUTSIDE_AVAILABILITY",
+} as const;
+
 const MAX_SLOT_OPTIONS = 6;
 
 function slotId(s: Omit<SlotOption, "id" | "title" | "description">): string {
@@ -280,6 +300,25 @@ export function normalizeSlotTime(raw: unknown): string | null {
     const match = String(candidate).match(/^([01]?\d|2[0-3]):([0-5]\d)/);
     if (!match) return null;
     return `${match[1].padStart(2, "0")}:${match[2]}`;
+}
+
+/**
+ * true a menos que o RPC marque explicitamente o slot como ocupado.
+ * Bug de produção (2026-07-23): find_next_available_dates já calcula a
+ * ocupação real (overlap contra `appointments`) e devolve `available:false`
+ * por slot dentro do array `slots` — o HAVING da query só garante que a DATA
+ * tenha ao menos 1 horário livre, não que TODOS os slots do array estejam
+ * livres. O consumidor lia apenas o horário (normalizeSlotTime) e ignorava a
+ * flag, oferecendo horários OCUPADOS como botão clicável para o paciente —
+ * a raiz da cascata de falhas de agendamento. Formas antigas (string pura,
+ * sem a flag) continuam tratadas como disponíveis por retrocompatibilidade.
+ */
+export function isSlotAvailable(raw: unknown): boolean {
+    if (raw && typeof raw === "object") {
+        const o = raw as any;
+        if (o.available === false) return false;
+    }
+    return true;
 }
 
 // Rótulos do payload interativo por idioma da CONVERSA (não do tenant) —
@@ -413,6 +452,7 @@ export async function fetchAvailableSlots(
     const availableForModel: { date: string; location: string; slots: string[] }[] = [];
     for (const d of dates) {
         const normalized = (d.slots || [])
+            .filter((s: unknown) => isSlotAvailable(s))
             .map((s: unknown) => normalizeSlotTime(s))
             .filter((t: string | null): t is string => t !== null)
             .slice(0, 3);
@@ -948,7 +988,7 @@ export async function executeSchedulingTool(
             }
             // P-10 (idempotência): "confirmo" duplicado/retry não pode virar
             // "horário indisponível" quando quem ocupa o slot é o PRÓPRIO paciente.
-            if ((data as any)?.reason === "slot_taken") {
+            if ((data as any)?.reason === BOOKING_REASON.SLOT_CONFLICT) {
                 const { data: own } = await scopedQuery(supabase, "appointments", tenantId, "id")
                     .eq("patient_id", patient.id)
                     .eq("doctor_id", booking.doctor_id)

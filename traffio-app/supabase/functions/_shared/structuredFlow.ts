@@ -34,6 +34,7 @@ import {
     SLOT_CONFIRM_MSG,
     SLOT_TAKEN_MSG,
     WAITLIST_TAKEN_MSG,
+    BOOKING_REASON,
     type SlotOption,
 } from "./schedulingTools.ts";
 
@@ -319,12 +320,33 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
             });
 
             const ok = !bookErr && (booked as any)?.success;
-            const msg = ok
+            // P-10 (idempotência) — mesmo guard do caminho `agendar` via LLM
+            // (schedulingTools.ts): um clique duplicado no mesmo botão (double-tap,
+            // retry de rede) pode colidir com o AGENDAMENTO DO PRÓPRIO paciente —
+            // isso é BOOKING_REASON.SLOT_CONFLICT, não uma vaga perdida para outra
+            // pessoa. Sem este guard, o paciente que já garantiu o horário recebia
+            // "esse horário acabou de ser preenchido", parecendo sistema quebrado.
+            let alreadyOwnBooking = false;
+            if (!ok && (booked as any)?.reason === BOOKING_REASON.SLOT_CONFLICT) {
+                const { data: own } = await supabase
+                    .from("appointments")
+                    .select("id")
+                    .eq("tenant_id", tenantId)
+                    .eq("patient_id", patient.id)
+                    .eq("doctor_id", slotClick.doctor_id)
+                    .eq("date", slotClick.date)
+                    .eq("start_time", slotClick.time)
+                    .not("status", "in", '("canceled","cancelled","noshow","no_show")')
+                    .limit(1);
+                alreadyOwnBooking = !!(own as any[])?.length;
+            }
+            const success = ok || alreadyOwnBooking;
+            const msg = success
                 ? (SLOT_CONFIRM_MSG[language] || SLOT_CONFIRM_MSG.pt)(
                     formatDateForPatient(slotClick.date, language), slotClick.time,
                     await doctorDisplayName(supabase, tenantId, slotClick.doctor_id))
                 : (SLOT_TAKEN_MSG[language] || SLOT_TAKEN_MSG.pt);
-            if (!ok) console.warn(`[structuredFlow] [${phone}] slot click não agendou: ${bookErr?.message || JSON.stringify(booked)}`);
+            if (!success) console.warn(`[structuredFlow] [${phone}] slot click não agendou: ${bookErr?.message || JSON.stringify(booked)}`);
 
             await sendWithFallback(dispatcher, tenant, tenantId, phone, msg);
             await sessionManager.logMessage(sessionId, "assistant", msg);
