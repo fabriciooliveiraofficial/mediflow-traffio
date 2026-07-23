@@ -20,7 +20,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { TenantResolver } from "../_shared/tenantResolver.ts";
-import { SessionManager, isHardHandoffSession } from "../_shared/sessionManager.ts";
+import { SessionManager, isHardHandoffSession, isAutonomousAgentTurn } from "../_shared/sessionManager.ts";
 import { OutboxDispatcher } from "../_shared/outboxDispatcher.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { runCopilot, runAutonomousAgent, wrapUntrustedContent } from "../_shared/copilot.ts";
@@ -415,9 +415,14 @@ async function processConversationTurn(
            tenant_id: tenantId, session_id: session.id, phone, route: "structured_flow",
            latency_ms: Date.now() - structuredFlowStartedAt2,
          });
-       } else if (activeAgent === "ai_always") {
-         // A IA responde diretamente. Fail-safe: qualquer resultado que não seja
-         // uma resposta entregue termina com o paciente na fila humana.
+       } else if (isAutonomousAgentTurn(activeAgent, session)) {
+         // ⚠️ CAMINHO CRÍTICO DE RECEITA — o AI Agent atende (ver
+         // isAutonomousAgentTurn em sessionManager.ts + testes-guarda em
+         // _tests/evals/agent_attendance_guard_test.ts). Estamos no ramo
+         // !isHardHandoff, então esta condição = dial 'ai_always'. NÃO troque por
+         // uma checagem inline solta: mantenha a função nomeada, que é travada
+         // por teste. A IA responde diretamente; fail-safe: qualquer resultado
+         // que não seja uma resposta entregue termina com o paciente na fila humana.
          autonomousStatus = await runAutonomousAgent(supabase, {
            tenantId,
            sessionId: session.id,

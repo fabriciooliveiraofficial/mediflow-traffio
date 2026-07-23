@@ -1677,10 +1677,13 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             transferReason: null, replyText: text, lastPatientMessage,
             flags: { reconciliationNeeded },
         }), language);
-        // Sinaliza no Inbox que a IA está conduzindo esta conversa (badge "IA atendendo")
+        // Sinaliza no Inbox que a IA está conduzindo esta conversa (badge "IA atendendo").
+        // Reseta current_state também: sem isso, uma conversa que teve handoff antes
+        // ficava com current_state='HUMAN_HANDOFF' preso mesmo com a IA reativa
+        // (bot_active), deixando estado inconsistente (achado 2026-07-23).
         await supabase
             .from("conversation_sessions")
-            .update({ omnichannel_status: "bot_active", human_handoff: false })
+            .update({ omnichannel_status: "bot_active", human_handoff: false, current_state: "BOT_ACTIVE" })
             .eq("id", sessionId);
         await emitTrace({
             turn_language: language, bubbles: sentBubbles.length,

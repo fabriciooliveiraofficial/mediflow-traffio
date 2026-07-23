@@ -21,6 +21,34 @@ export function isHardHandoffSession(session: {
     return false;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// ⚠️  CAMINHO CRÍTICO DE RECEITA — O AI AGENT ATENDE OU NÃO
+// ═══════════════════════════════════════════════════════════════════════════
+// isAutonomousAgentTurn decide se o AI Agent autônomo RESPONDE este turno. É a
+// razão nº 1 pela qual os tenants contratam a plataforma: quando NÃO foi
+// assumida por um humano, a conversa TEM que ser atendida pela IA, não cair
+// calada na fila humana. Já quebrou em produção (2026-07-22/23) por mudanças
+// adjacentes; por isso está isolado aqui, como função pura, TRAVADO por testes
+// em _tests/evals/agent_attendance_guard_test.ts.
+//
+// REGRA (não afrouxar sem atualizar os testes-guarda, que rodam antes de deploy):
+//   O AI Agent autônomo responde  ⇔  dial === 'ai_always'  E  a sessão NÃO está
+//   em handoff estrito (isHardHandoffSession === false).
+//
+// Consequência que importa: uma conversa em 'queued'/"Aguardando" com
+// human_handoff=false (NÃO assumida por ninguém) NÃO é hard handoff → a IA
+// DEVE atender. "Aguardando" no inbox é só o estado transitório até a IA
+// responder; nunca significa "pulou a IA".
+//
+// NÃO cobre a camada determinística (structuredFlow) nem o dial 'copilot'
+// (rascunho para humano) — só o turno autônomo do AI Agent.
+export function isAutonomousAgentTurn(
+    activeAgent: string | null | undefined,
+    session: { omnichannel_status?: string | null; human_handoff?: boolean | null; handoff_kind?: string | null },
+): boolean {
+    return activeAgent === "ai_always" && !isHardHandoffSession(session);
+}
+
 export interface Session {
     id: string;
     tenant_id: string;
