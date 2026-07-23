@@ -943,7 +943,8 @@ export async function executeSchedulingTool(
             if (error) return { data: { success: false, error: error.message } };
             if ((data as any)?.success) {
                 const professional = await doctorDisplayName(supabase, tenantId, booking.doctor_id);
-                return { data: { ...(data as any), professional, note: "Confirm the booking to the patient including date, time and professional name. Reply in the PATIENT'S language." } };
+                const confirmation_formatted = await assembleConfirmation(supabase, tenantId, booking as any, professional, language);
+                return { data: { ...(data as any), professional, confirmation_formatted, note: "Send the confirmation. Open with a short warm line (e.g. 'All set!' / 'Prontinho!' + ✅), then INCLUDE the `confirmation_formatted` block EXACTLY as provided (copy it verbatim — keep every emoji, label, bold and line break), and close with ONE warm line inviting them to message here if they need anything before the visit. Reply in the PATIENT'S language." } };
             }
             // P-10 (idempotência): "confirmo" duplicado/retry não pode virar
             // "horário indisponível" quando quem ocupa o slot é o PRÓPRIO paciente.
@@ -957,7 +958,8 @@ export async function executeSchedulingTool(
                     .limit(1);
                 if ((own as any[])?.length) {
                     const professional = await doctorDisplayName(supabase, tenantId, booking.doctor_id);
-                    return { data: { success: true, already_booked: true, professional, note: "This appointment ALREADY EXISTS for this patient (duplicate confirmation). Reassure the patient it is confirmed — do not offer new slots. Reply in the PATIENT'S language." } };
+                    const confirmation_formatted = await assembleConfirmation(supabase, tenantId, booking as any, professional, language);
+                    return { data: { success: true, already_booked: true, professional, confirmation_formatted, note: "This appointment ALREADY EXISTS for this patient (duplicate confirmation). Reassure the patient it is confirmed — do not offer new slots. INCLUDE the `confirmation_formatted` block EXACTLY as provided (copy it verbatim). Reply in the PATIENT'S language." } };
                 }
             }
             return { data };
@@ -1177,4 +1179,81 @@ export function formatDateForPatient(date: string, language: string): string {
     const [y, m, d] = date.split("-");
     if (language === "en") return `${m}/${d}/${y}`;
     return `${d}/${m}/${y}`;
+}
+
+// ── Confirmação de agendamento — bloco estruturado que o agente COPIA verbatim ──
+// Pedido do usuário (2026-07-23): a confirmação vinha incompleta. Sempre incluir
+// título do profissional (Dr.), contato, local e link do Google Maps, num formato
+// amigável com emojis. Igual ao slots_formatted da disponibilidade, a ferramenta
+// entrega o bloco pronto para o agente não inventar nem omitir dados.
+
+/** Prefixa "Dr. " se o nome ainda não vier com título (Dr./Dra.). */
+export function confirmationDoctorTitle(fullName: string | null | undefined): string {
+    const n = (fullName || "").trim();
+    if (!n) return n;
+    if (/^dr[a]?\b\.?/i.test(n)) return n; // já tem Dr./Dra.
+    return `Dr. ${n}`;
+}
+
+/** Link do Maps: usa o google_maps_url do local; senão constrói uma busca pelo endereço. */
+export function confirmationMapsUrl(loc: any): string | null {
+    const saved = loc?.google_maps_url?.trim?.();
+    if (saved) return saved;
+    const addr = [loc?.address, loc?.address_number, loc?.address_neighborhood, loc?.address_zip_code]
+        .filter((p: any) => p && String(p).trim()).join(", ");
+    if (addr) return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}`;
+    return null;
+}
+
+const CONFIRMATION_LABELS: Record<ConversationLanguage, Record<string, string>> = {
+    en: { header: "Appointment Details", date: "Date", time: "Time", doctor: "Doctor", contact: "Contact", location: "Location", directions: "Get Directions" },
+    pt: { header: "Detalhes do Agendamento", date: "Data", time: "Horário", doctor: "Profissional", contact: "Contato", location: "Local", directions: "Como Chegar" },
+    es: { header: "Detalles de la Cita", date: "Fecha", time: "Hora", doctor: "Profesional", contact: "Contacto", location: "Ubicación", directions: "Cómo Llegar" },
+};
+
+/** Monta o bloco de confirmação estruturado, só com as linhas cujos dados existem. */
+export function buildConfirmationBlock(opts: {
+    date: string;
+    time: string;
+    doctorName: string | null;
+    location: any;
+    contact: string | null;
+    clock: TenantClock;
+    language: ConversationLanguage;
+}): string {
+    const L = CONFIRMATION_LABELS[opts.language] || CONFIRMATION_LABELS.pt;
+    const lines: string[] = [`📝 *${L.header}:*`];
+    lines.push(`📅 *${L.date}:* ${formatDateForPatient(opts.date, opts.language)}`);
+    lines.push(`🕒 *${L.time}:* ${formatSlotTimeForPatient(opts.time, opts.clock.timeFormat)}`);
+    if (opts.doctorName?.trim()) lines.push(`👨‍⚕️ *${L.doctor}:* ${confirmationDoctorTitle(opts.doctorName)}`);
+    if (opts.contact?.trim()) lines.push(`☎️ *${L.contact}:* ${opts.contact.trim()}`);
+    if (opts.location?.name?.trim?.()) lines.push(`📍 *${L.location}:* ${opts.location.name.trim()}`);
+    const maps = confirmationMapsUrl(opts.location);
+    if (maps) lines.push(`🗺️ *${L.directions}:* ${maps}`);
+    return lines.join("\n");
+}
+
+/** Busca os dados de local + contato e monta o bloco de confirmação para o turno. */
+export async function assembleConfirmation(
+    supabase: SupabaseClient,
+    tenantId: string,
+    booking: { date: string; start_time: string; location_id: string },
+    professional: string | null,
+    language: ConversationLanguage,
+): Promise<string> {
+    const clock = await getTenantClock(supabase, tenantId);
+    const { data: loc } = await scopedQuery(
+        supabase, "locations", tenantId,
+        "name, phone, address, address_number, address_neighborhood, address_zip_code, google_maps_url",
+    ).eq("id", booking.location_id).maybeSingle();
+    // Contato: telefone do local; fallback para o WhatsApp do tenant (o número que ele já usa).
+    let contact = (loc as any)?.phone?.trim?.() || null;
+    if (!contact) {
+        const { data: t } = await supabase.from("tenants").select("whatsapp_phone").eq("id", tenantId).maybeSingle();
+        contact = (t as any)?.whatsapp_phone?.trim?.() || null;
+    }
+    return buildConfirmationBlock({
+        date: booking.date, time: booking.start_time, doctorName: professional,
+        location: loc, contact, clock, language,
+    });
 }

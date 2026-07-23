@@ -66,7 +66,16 @@ export function mockExecuteTool(call: LlmToolCall, opts: MockOptions = {}): { da
             return { data: { appointments: [MOCK_APPOINTMENT] } };
 
         case "agendar":
-            return { data: { success: true, appointment_id: "novo-agendamento-mock", professional: MOCK_DOCTOR.full_name, note: "Confirm the booking to the patient including date, time and professional name. Reply in the PATIENT'S language." } };
+            return {
+                data: {
+                    success: true,
+                    appointment_id: "novo-agendamento-mock",
+                    professional: MOCK_DOCTOR.full_name,
+                    // Espelha o assembleConfirmation de produção: bloco pronto p/ o agente copiar.
+                    confirmation_formatted: `📝 *Appointment Details:*\n📅 *Date:* 07/16/2026\n🕒 *Time:* 09:00 am\n👨‍⚕️ *Doctor:* Dra. Ana Souza\n☎️ *Contact:* (11) 4000-1234\n📍 *Location:* Unidade Centro\n🗺️ *Get Directions:* https://maps.google.com/?q=Av.+Central+100`,
+                    note: "Send the confirmation. Open with a short warm line (e.g. 'All set!' / 'Prontinho!' + ✅), then INCLUDE the `confirmation_formatted` block EXACTLY as provided (copy it verbatim — keep every emoji, label, bold and line break), and close with ONE warm line inviting them to message here if they need anything. Reply in the PATIENT'S language.",
+                },
+            };
 
         case "remarcar":
             return { data: { success: true, rescheduled: true } };

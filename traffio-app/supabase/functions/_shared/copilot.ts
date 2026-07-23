@@ -945,9 +945,16 @@ export function detectLanguageDrift(text: string, language: string): string[] {
         .map(({ marker }) => marker);
 }
 
-const STRUCTURAL_EMOJI = /[\u{1F550}-\u{1F567}\u{1F4C5}]/gu; // 🕐-🕧 e 📅
+// Marcadores ESTRUTURAIS (não contam como emoji decorativo): relógios 🕐-🕧 e 📅
+// da lista de horários, e os marcadores de CAMPO do bloco de confirmação de
+// agendamento (📝 detalhes, 📍 local, 🗺️ direções, ☎️ contato, 👨/👩‍⚕️
+// profissional). Igual a slots_formatted, o bloco de confirmação é informação
+// estruturada — seus ícones são rótulos de campo, não enfeite. Sem isto, a
+// confirmação (que tem ~5 marcadores) estouraria o teto de emoji e seria
+// rejeitada pelo validador.
+const STRUCTURAL_EMOJI = /[\u{1F550}-\u{1F567}\u{1F4C5}\u{1F4DD}\u{1F4CD}]|\u{1F5FA}\u{FE0F}?|\u{260E}\u{FE0F}?|[\u{1F468}\u{1F469}]\u{200D}\u{2695}\u{FE0F}?/gu;
 
-/** Conta apenas emoji decorativo: ignora os marcadores estruturais de lista de horários. */
+/** Conta apenas emoji decorativo: ignora os marcadores estruturais (horários + confirmação). */
 export function countDecorativeEmoji(text: string): number {
     const cleaned = (text || "").replace(STRUCTURAL_EMOJI, "");
     return (cleaned.match(/\p{Extended_Pictographic}/gu) || []).length;
