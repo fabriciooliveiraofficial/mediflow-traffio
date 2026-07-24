@@ -789,12 +789,12 @@ export async function executeSchedulingTool(
                     .maybeSingle();
                 patName = (patData as any)?.full_name?.trim() || "";
             }
-            if (!patient || !patName || patName === "Paciente WhatsApp" || !plausiblePersonName(patName)) {
+            if (!patient || !patName || patName === "Paciente WhatsApp" || !bookingGradeName(patName)) {
                 return {
                     data: {
                         success: false,
                         error: "patient_not_registered",
-                        note: "Before adding to waitlist, ask the patient's full name in a natural, warm way and call atualizar_cadastro_paciente. Then call adicionar_lista_espera again.",
+                        note: "Before adding to waitlist, ask the patient's FULL name (first + last) in a natural, warm way and call atualizar_cadastro_paciente. Then call adicionar_lista_espera again.",
                     },
                 };
             }
@@ -960,12 +960,12 @@ export async function executeSchedulingTool(
                 .maybeSingle();
 
             const patName = (patDetails as any)?.full_name?.trim();
-            if (!patName || patName === "Paciente WhatsApp" || !plausiblePersonName(patName)) {
+            if (!patName || patName === "Paciente WhatsApp" || !bookingGradeName(patName)) {
                 return {
                     data: {
                         success: false,
                         error: "patient_not_registered",
-                        note: "Before booking, ask the patient's full name in a natural, warm way and call atualizar_cadastro_paciente. Then call agendar again.",
+                        note: "Before booking, ask the patient's FULL name (first + last, not just a first name) in a natural, warm way and call atualizar_cadastro_paciente. Then call agendar again.",
                     },
                 };
             }
@@ -1091,13 +1091,28 @@ export function plausiblePersonName(s: string | null | undefined): boolean {
     return /^[\p{L}][\p{L}\s'.-]+$/u.test(t);
 }
 
+/**
+ * Nome "grau de agendamento": além de parecer um nome próprio, precisa ter
+ * nome + sobrenome (≥2 palavras). Usado SÓ nos guards de AGENDAMENTO — na
+ * conversa comum (Etapa 1), o primeiro nome já basta. Bug de produção
+ * (2026-07-24, teste com 4 leads simultâneos): o guard C3 original aceitava
+ * qualquer `plausiblePersonName` (1 palavra passa, ex. "Sofia") e o caminho
+ * do CLIQUE em botão de horário nem chamava o guard — agendava direto e
+ * criava a ficha como "Paciente WhatsApp".
+ */
+export function bookingGradeName(s: string | null | undefined): boolean {
+    if (!plausiblePersonName(s)) return false;
+    const words = (s as string).trim().split(/\s+/).filter(Boolean);
+    return words.length >= 2;
+}
+
 export async function resolvePatientForBooking(
     supabase: SupabaseClient,
     tenantId: string,
     phone: string,
     forName: string | null | undefined,
     fallbackDisplayName?: string | null,
-): Promise<{ patient: { id: string } | null; ambiguous?: string[]; created?: boolean }> {
+): Promise<{ patient: { id: string } | null; ambiguous?: string[]; created?: boolean; reason?: "name_required" }> {
     const { data } = await scopedQuery(supabase, "patients", tenantId, "id, full_name")
         .in("phone", phoneLookupCandidates(phone))
         .order("created_at", { ascending: true })
@@ -1105,10 +1120,13 @@ export async function resolvePatientForBooking(
     const existing = (data || []) as { id: string; full_name: string | null }[];
     const canonicalPhone = canonicalizePhone(phone) || phone;
 
+    // Terceiro (forName explícito: filho, cônjuge, parente) — casa por nome
+    // entre os cadastros do MESMO telefone; sem match, cria dependente. Exige
+    // nome de agendamento (E2): sem isso, quem chamou decide como pedir o nome.
     if (forName?.trim()) {
         const match = existing.find(p => p.full_name && namesMatch(p.full_name, forName));
         if (match) return { patient: match };
-        // Dependente sem ficha: cria vinculado ao MESMO telefone do responsável
+        if (!bookingGradeName(forName)) return { patient: null, reason: "name_required" };
         const { data: created, error } = await supabase
             .from("patients")
             .insert({ tenant_id: tenantId, phone: canonicalPhone, full_name: forName.trim() })
@@ -1118,12 +1136,31 @@ export async function resolvePatientForBooking(
         return { patient: created as any, created: true };
     }
 
-    if (existing.length === 1) return { patient: existing[0] };
+    // Titular do telefone: identifica pela ficha existente. `fallbackDisplayName`
+    // só é usado quando já é, ele próprio, um nome de agendamento válido —
+    // nunca mais um placeholder truthy qualquer vira "Paciente WhatsApp" (E2).
+    const trustedName = bookingGradeName(fallbackDisplayName) ? (fallbackDisplayName as string).trim() : null;
+
+    if (existing.length === 1) {
+        const current = existing[0];
+        // Ficha existente ainda sem nome de agendamento (ex.: placeholder
+        // legado) + temos agora um nome confiável em mãos: atualiza em vez de
+        // deixar o cadastro travado como "Paciente WhatsApp" para sempre.
+        if (!bookingGradeName(current.full_name) && trustedName) {
+            const { error } = await supabase.from("patients").update({ full_name: trustedName }).eq("id", current.id).eq("tenant_id", tenantId);
+            if (error) { console.error(`[schedulingTools] atualizar nome do titular falhou: ${error.message}`); return { patient: current }; }
+            return { patient: { id: current.id } };
+        }
+        return { patient: current };
+    }
     if (existing.length > 1) return { patient: existing[0], ambiguous: existing.map(p => p.full_name || "sem nome") };
 
+    // Sem ficha nenhuma: só cria com nome confiável — "Paciente WhatsApp"
+    // nunca mais nasce aqui (E2, teste real 2026-07-24).
+    if (!trustedName) return { patient: null, reason: "name_required" };
     const { data: created, error } = await supabase
         .from("patients")
-        .insert({ tenant_id: tenantId, phone: canonicalPhone, full_name: fallbackDisplayName?.trim() || "Paciente WhatsApp" })
+        .insert({ tenant_id: tenantId, phone: canonicalPhone, full_name: trustedName })
         .select("id")
         .single();
     if (error) { console.error(`[schedulingTools] ensure paciente falhou: ${error.message}`); return { patient: null }; }
@@ -1199,6 +1236,17 @@ export const SLOT_TAKEN_MSG: Record<string, string> = {
     pt: "Poxa, esse horário acabou de ser preenchido! 😅 Me diga qual período prefere que eu já verifico outras opções para você.",
     en: "Oh no, that time slot was just taken! 😅 Let me know your preferred time of day and I'll check other options for you.",
     es: "¡Vaya, ese horario acaba de ocuparse! 😅 Dígame qué período prefiere y ya le busco otras opciones.",
+};
+
+/**
+ * Clique em botão de horário sem nome de agendamento confirmado (E2,
+ * 2026-07-24): reserva o horário no contexto (pending_booking_slot) e pede o
+ * nome completo antes de finalizar — nunca cria "Paciente WhatsApp".
+ */
+export const ASK_NAME_TO_BOOK_MSG: Record<string, string> = {
+    pt: "Perfeito! Esse horário está livre 😊 Para eu finalizar a reserva, qual é o seu nome completo?",
+    en: "Perfect! That time is available 😊 To finish the booking, what's your full name?",
+    es: "¡Perfecto! Ese horario está disponible 😊 Para finalizar la reserva, ¿cuál es su nombre completo?",
 };
 
 /** Vaga de lista de espera confirmada por outro paciente antes desta resposta. */

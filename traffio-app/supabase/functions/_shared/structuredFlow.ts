@@ -3,9 +3,12 @@
  *
  * Pré-filtro DETERMINÍSTICO — zero chamada de modelo — que roda ANTES do
  * roteamento por dial em process-inbox, para QUALQUER active_agent (human,
- * copilot, ai_always). Reconhece três padrões de alto volume / baixa ambiguidade:
+ * copilot, ai_always). Reconhece quatro padrões de alto volume / baixa ambiguidade:
  *
- *   1. Clique em botão de horário (context.pending_slots) — agenda direto.
+ *   0. Resposta de NOME COMPLETO a um clique de horário pendente de cadastro
+ *      (context.pending_booking_slot) — completa a reserva (E2, 2026-07-24).
+ *   1. Clique em botão de horário (context.pending_slots) — agenda direto se
+ *      já houver nome de agendamento confirmado; senão pede o nome (item 0).
  *   2. Resposta a uma notificação de vaga de lista de espera (context.pending_waitlist).
  *   3. Resposta a uma mensagem de recuperação de falta (context.pending_recovery).
  *
@@ -25,6 +28,7 @@ import {
     resolveSlotIdByTitle,
     resolvePatientForBooking,
     plausiblePersonName,
+    bookingGradeName,
     fetchAvailableSlots,
     buildSlotInteractive,
     formatDateForPatient,
@@ -33,10 +37,86 @@ import {
     getTenantClock,
     SLOT_CONFIRM_MSG,
     SLOT_TAKEN_MSG,
+    ASK_NAME_TO_BOOK_MSG,
     WAITLIST_TAKEN_MSG,
     BOOKING_REASON,
     type SlotOption,
 } from "./schedulingTools.ts";
+
+const PENDING_BOOKING_SLOT_TTL_MS = 30 * 60 * 1000;
+
+/** Executa o RPC de agendamento e resolve o guard de idempotência (P-10) — usado tanto pelo clique direto quanto pela retomada por nome (E2). */
+async function attemptBooking(
+    supabase: SupabaseClient,
+    tenantId: string,
+    patientId: string,
+    slot: Omit<SlotOption, "id" | "title" | "description">,
+): Promise<{ success: boolean; bookErrMessage?: string }> {
+    const { data: booked, error: bookErr } = await supabase.rpc("book_appointment", {
+        p_tenant_id: tenantId,
+        p_patient_id: patientId,
+        p_doctor_id: slot.doctor_id,
+        p_location_id: slot.location_id,
+        p_type_id: slot.type_id,
+        p_date: slot.date,
+        p_start_time: slot.time,
+        p_booked_by: "ai_agent",
+    });
+    const ok = !bookErr && (booked as any)?.success;
+    // P-10 (idempotência) — mesmo guard do caminho `agendar` via LLM
+    // (schedulingTools.ts): um clique/retry duplicado pode colidir com o
+    // AGENDAMENTO DO PRÓPRIO paciente (SLOT_CONFLICT), não uma vaga perdida.
+    let alreadyOwnBooking = false;
+    if (!ok && (booked as any)?.reason === BOOKING_REASON.SLOT_CONFLICT) {
+        const { data: own } = await supabase
+            .from("appointments")
+            .select("id")
+            .eq("tenant_id", tenantId)
+            .eq("patient_id", patientId)
+            .eq("doctor_id", slot.doctor_id)
+            .eq("date", slot.date)
+            .eq("start_time", slot.time)
+            .not("status", "in", '("canceled","cancelled","noshow","no_show")')
+            .limit(1);
+        alreadyOwnBooking = !!(own as any[])?.length;
+    }
+    return { success: ok || alreadyOwnBooking, bookErrMessage: bookErr?.message || (!ok ? JSON.stringify(booked) : undefined) };
+}
+
+/** Agenda o slot, envia a confirmação (ou o aviso de conflito) e limpa TODOS os marcadores de agendamento pendente do contexto. */
+async function bookSlotAndNotify(
+    supabase: SupabaseClient,
+    dispatcher: OutboxDispatcher,
+    tenant: any,
+    tenantId: string,
+    sessionId: string,
+    phone: string,
+    sessionManager: any,
+    patientId: string,
+    slot: Omit<SlotOption, "id" | "title" | "description">,
+    language: string,
+    baseContext: any,
+): Promise<"replied"> {
+    const { success, bookErrMessage } = await attemptBooking(supabase, tenantId, patientId, slot);
+    if (!success) console.warn(`[structuredFlow] [${phone}] agendamento não confirmou: ${bookErrMessage}`);
+    const msg = success
+        ? (SLOT_CONFIRM_MSG[language] || SLOT_CONFIRM_MSG.pt)(
+            formatDateForPatient(slot.date, language), slot.time,
+            await doctorDisplayName(supabase, tenantId, slot.doctor_id))
+        : (SLOT_TAKEN_MSG[language] || SLOT_TAKEN_MSG.pt);
+    await sendWithFallback(dispatcher, tenant, tenantId, phone, msg);
+    await sessionManager.logMessage(sessionId, "assistant", msg);
+    const ctx = { ...baseContext };
+    delete ctx.pending_slots;
+    delete ctx.pending_slot_titles;
+    delete ctx.pending_booking_slot;
+    delete ctx.pending_booking_slot_at;
+    await supabase
+        .from("conversation_sessions")
+        .update({ context: ctx, omnichannel_status: "bot_active", human_handoff: false })
+        .eq("id", sessionId);
+    return "replied";
+}
 
 export type StructuredFlowResult =
     | { matched: false }
@@ -281,6 +361,53 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
             }
         }
 
+        // ── 0. Retomada de reserva pendente por NOME (E2, 2026-07-24) ──────────
+        // O bloco 1 (clique de horário) só agenda quando já existe nome de
+        // agendamento confirmado; sem isso, ele grava pending_booking_slot e
+        // pede o nome (ASK_NAME_TO_BOOK_MSG). Esta mensagem seguinte é a
+        // resposta a esse pedido — não um novo clique. Um clique NOVO
+        // ("slot|...") ignora este bloco e segue direto para o bloco 1.
+        const pendingBookingSlot = context.pending_booking_slot;
+        if (pendingBookingSlot && !rawContent.trim().startsWith("slot|")) {
+            const pendingAt = context.pending_booking_slot_at ? new Date(context.pending_booking_slot_at).getTime() : NaN;
+            const expired = !Number.isFinite(pendingAt) || (Date.now() - pendingAt) > PENDING_BOOKING_SLOT_TTL_MS;
+
+            if (expired) {
+                const ctx = { ...context };
+                delete ctx.pending_booking_slot;
+                delete ctx.pending_booking_slot_at;
+                await supabase.from("conversation_sessions").update({ context: ctx }).eq("id", sessionId);
+                // segue para o roteamento normal abaixo (não intercepta esta mensagem)
+            } else if (bookingGradeName(rawContent)) {
+                const pendingSlotClick = parseSlotClick(pendingBookingSlot);
+                const scopeError = pendingSlotClick
+                    ? await validateSchedulingReferences(supabase, tenantId, pendingSlotClick.doctor_id, pendingSlotClick.location_id, pendingSlotClick.type_id)
+                    : "invalid_pending_slot";
+                if (pendingSlotClick && !scopeError) {
+                    // Titular do telefone: identifica/atualiza pela ficha existente com
+                    // o nome agora confirmado (resolvePatientForBooking cria OU
+                    // atualiza em vez de duplicar — ver schedulingTools.ts).
+                    const resolved = await resolvePatientForBooking(supabase, tenantId, phone, null, rawContent.trim());
+                    if (resolved.patient) {
+                        return {
+                            matched: true,
+                            status: await bookSlotAndNotify(supabase, dispatcher, tenant, tenantId, sessionId, phone, sessionManager, resolved.patient.id, pendingSlotClick, language, context),
+                        };
+                    }
+                }
+                console.error(`[structuredFlow] [${phone}] slot pendente inválido ao retomar por nome: ${scopeError || "resolvePatientForBooking falhou"}`);
+                const ctx = { ...context };
+                delete ctx.pending_booking_slot;
+                delete ctx.pending_booking_slot_at;
+                await supabase.from("conversation_sessions").update({ context: ctx }).eq("id", sessionId);
+                return { matched: true, status: "failed" };
+            } else {
+                // Ainda não parece nome completo — deixa o LLM conduzir (o hint de
+                // fluxo em copilot.ts explica o que falta); marker preservado.
+                return { matched: false };
+            }
+        }
+
         // ── 1. Clique em botão de horário / fallback numérico (sem LLM) ────────
         let clickContent = rawContent;
         const digitMatch = rawContent.trim().match(/^([1-9])[.)]?$/);
@@ -302,62 +429,34 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
             // Se a conversa era para um terceiro (intake.for_whom = nome plausível),
             // o clique agenda na ficha do terceiro — nunca na do titular do telefone
             const forWhom = context?.intake?.for_whom;
-            const { patient } = await resolvePatientForBooking(
+            const resolved = await resolvePatientForBooking(
                 supabase, tenantId, phone,
                 plausiblePersonName(forWhom) ? forWhom : null,
                 session.platform_display_name);
-            if (!patient) return { matched: true, status: "failed" };
 
-            const { data: booked, error: bookErr } = await supabase.rpc("book_appointment", {
-                p_tenant_id: tenantId,
-                p_patient_id: patient.id,
-                p_doctor_id: slotClick.doctor_id,
-                p_location_id: slotClick.location_id,
-                p_type_id: slotClick.type_id,
-                p_date: slotClick.date,
-                p_start_time: slotClick.time,
-                p_booked_by: "ai_agent",
-            });
-
-            const ok = !bookErr && (booked as any)?.success;
-            // P-10 (idempotência) — mesmo guard do caminho `agendar` via LLM
-            // (schedulingTools.ts): um clique duplicado no mesmo botão (double-tap,
-            // retry de rede) pode colidir com o AGENDAMENTO DO PRÓPRIO paciente —
-            // isso é BOOKING_REASON.SLOT_CONFLICT, não uma vaga perdida para outra
-            // pessoa. Sem este guard, o paciente que já garantiu o horário recebia
-            // "esse horário acabou de ser preenchido", parecendo sistema quebrado.
-            let alreadyOwnBooking = false;
-            if (!ok && (booked as any)?.reason === BOOKING_REASON.SLOT_CONFLICT) {
-                const { data: own } = await supabase
-                    .from("appointments")
-                    .select("id")
-                    .eq("tenant_id", tenantId)
-                    .eq("patient_id", patient.id)
-                    .eq("doctor_id", slotClick.doctor_id)
-                    .eq("date", slotClick.date)
-                    .eq("start_time", slotClick.time)
-                    .not("status", "in", '("canceled","cancelled","noshow","no_show")')
-                    .limit(1);
-                alreadyOwnBooking = !!(own as any[])?.length;
+            // E2 (2026-07-24): sem nome de AGENDAMENTO (nome completo) confirmado,
+            // NUNCA cria "Paciente WhatsApp" nem agenda — guarda o clique e pede o
+            // nome. resolvePatientForBooking só devolve reason:"name_required"
+            // quando não achou ficha existente E não tem nome confiável para criar uma.
+            if (!resolved.patient && resolved.reason === "name_required") {
+                const msg = ASK_NAME_TO_BOOK_MSG[language] || ASK_NAME_TO_BOOK_MSG.pt;
+                await sendWithFallback(dispatcher, tenant, tenantId, phone, msg);
+                await sessionManager.logMessage(sessionId, "assistant", msg);
+                const ctx = { ...context };
+                ctx.pending_booking_slot = clickContent;
+                ctx.pending_booking_slot_at = new Date().toISOString();
+                await supabase
+                    .from("conversation_sessions")
+                    .update({ context: ctx, omnichannel_status: "bot_active", human_handoff: false })
+                    .eq("id", sessionId);
+                return { matched: true, status: "replied" };
             }
-            const success = ok || alreadyOwnBooking;
-            const msg = success
-                ? (SLOT_CONFIRM_MSG[language] || SLOT_CONFIRM_MSG.pt)(
-                    formatDateForPatient(slotClick.date, language), slotClick.time,
-                    await doctorDisplayName(supabase, tenantId, slotClick.doctor_id))
-                : (SLOT_TAKEN_MSG[language] || SLOT_TAKEN_MSG.pt);
-            if (!success) console.warn(`[structuredFlow] [${phone}] slot click não agendou: ${bookErr?.message || JSON.stringify(booked)}`);
+            if (!resolved.patient) return { matched: true, status: "failed" };
 
-            await sendWithFallback(dispatcher, tenant, tenantId, phone, msg);
-            await sessionManager.logMessage(sessionId, "assistant", msg);
-            const ctx = { ...context };
-            delete ctx.pending_slots;
-            delete ctx.pending_slot_titles;
-            await supabase
-                .from("conversation_sessions")
-                .update({ context: ctx, omnichannel_status: "bot_active", human_handoff: false })
-                .eq("id", sessionId);
-            return { matched: true, status: "replied" };
+            return {
+                matched: true,
+                status: await bookSlotAndNotify(supabase, dispatcher, tenant, tenantId, sessionId, phone, sessionManager, resolved.patient.id, slotClick, language, context),
+            };
         }
 
         // ── 2. Resposta a oferta de vaga de lista de espera ─────────────────────

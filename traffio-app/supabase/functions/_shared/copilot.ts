@@ -1210,7 +1210,18 @@ export async function buildPatientSnapshot(
 export function buildFlowStateHint(context: any, intake: any): string | null {
     const parts: string[] = [];
 
-    if (context?.pending_slots?.length) {
+    // E2 (2026-07-24): quando há um horário JÁ ESCOLHIDO aguardando só o nome
+    // completo, essa é a ÚNICA coisa pendente — não repita a lista de opções
+    // (o pending_slots hint abaixo fica em silêncio para não contradizer isto).
+    if (context?.pending_booking_slot) {
+        parts.push(
+            "O paciente JÁ ESCOLHEU um horário e ele está RESERVADO aguardando o NOME COMPLETO " +
+            "(primeiro + último nome) para finalizar — não peça o horário de novo, não chame " +
+            "ver_disponibilidade de novo. Assim que o paciente disser o nome completo, chame " +
+            "atualizar_cadastro_paciente e em seguida agendar com este slot_id exato: " +
+            `${context.pending_booking_slot}`
+        );
+    } else if (context?.pending_slots?.length) {
         parts.push(
             "Você JÁ OFERECEU horários (botões clicáveis) e o paciente ainda não escolheu. " +
             "Se a última mensagem indicar preferência de período/dia (ex.: 'de manhã', 'mornings'), " +
@@ -1224,7 +1235,7 @@ export function buildFlowStateHint(context: any, intake: any): string | null {
     const known = Object.entries(intake || {}).filter(([, v]) => v != null && v !== "");
     if (known.length) {
         parts.push(`FICHA JÁ COLETADA (NÃO pergunte de novo): ${known.map(([k, v]) => `${k}=${v}`).join(", ")}.`);
-        if (intake?.preferred_window && !context?.pending_slots?.length) {
+        if (intake?.preferred_window && !context?.pending_slots?.length && !context?.pending_booking_slot) {
             parts.push(
                 "O paciente já indicou o período preferido — AVANCE o agendamento: " +
                 "chame ver_disponibilidade e ofereça horários reais desse período em vez de fazer novas perguntas."

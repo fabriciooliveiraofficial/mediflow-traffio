@@ -258,7 +258,7 @@ Deno.test("buildSlotInteractive: rótulos da lista seguem o idioma da conversa",
 });
 
 // ── Agendamento para terceiros: matching de nomes e filtro de parentesco ─────
-import { namesMatch, plausiblePersonName } from "../../_shared/schedulingTools.ts";
+import { namesMatch, plausiblePersonName, bookingGradeName } from "../../_shared/schedulingTools.ts";
 
 Deno.test("namesMatch: tolerante a acento, caixa e nome parcial", () => {
     assert(namesMatch("Sofia Prado", "sofia"));
@@ -277,6 +277,20 @@ Deno.test("plausiblePersonName: nome próprio sim, parentesco não", () => {
     assert(!plausiblePersonName("esposa"));
     assert(!plausiblePersonName(""));
     assert(!plausiblePersonName(null));
+});
+
+Deno.test("bookingGradeName (E2, 2026-07-24): exige nome + sobrenome — só 1 palavra não basta para AGENDAR", () => {
+    assert(bookingGradeName("Sofia Prado"));
+    assert(bookingGradeName("João d'Ávila"));
+    assert(bookingGradeName("  Fabricio   Oliveira  ")); // espaços extras não quebram a contagem
+    // Regressão do bug: "Sofia" sozinho passava em plausiblePersonName (guard antigo)
+    // e conseguia agendar sem nome completo.
+    assert(plausiblePersonName("Sofia"));
+    assert(!bookingGradeName("Sofia"));
+    assert(!bookingGradeName("Paciente WhatsApp")); // placeholder: 2 palavras, mas bloqueado por NON_PLAUSIBLE_NAME_WORDS
+    assert(!bookingGradeName("minha filha Sofia"));
+    assert(!bookingGradeName(""));
+    assert(!bookingGradeName(null));
 });
 
 // ── Onda 1 da matriz de comportamentos: P-05, P-07, P-20 ─────────────────────
@@ -1079,6 +1093,63 @@ Deno.test("buildPatientSnapshot: família com um placeholder no meio mostra 'sem
     assertEquals(snapshot?.includes("Paciente WhatsApp"), false);
     assertEquals(snapshot?.includes("Fabricio Oliveira"), true);
     assertEquals(snapshot?.includes("sem nome"), true);
+});
+
+// ── E2 (2026-07-24): resolvePatientForBooking nunca mais cria "Paciente WhatsApp" ──
+import { resolvePatientForBooking } from "../../_shared/schedulingTools.ts";
+
+Deno.test("resolvePatientForBooking: sem ficha e sem nome confiável — name_required, não cria nada", async () => {
+    const mockSupabase = createMockSupabase({ patient: null });
+    const result = await resolvePatientForBooking(mockSupabase as any, "tenant-1", "5511999999999", null, null);
+    assertEquals(result.patient, null);
+    assertEquals(result.reason, "name_required");
+});
+
+Deno.test("resolvePatientForBooking: sem ficha, display name de 1 palavra não é nome de agendamento — name_required", async () => {
+    const mockSupabase = createMockSupabase({ patient: null });
+    const result = await resolvePatientForBooking(mockSupabase as any, "tenant-1", "5511999999999", null, "Fabricio");
+    assertEquals(result.patient, null);
+    assertEquals(result.reason, "name_required");
+});
+
+Deno.test("resolvePatientForBooking: sem ficha, display name com nome completo — cria a ficha com esse nome", async () => {
+    const mockSupabase = createMockSupabase({ patient: null });
+    const result = await resolvePatientForBooking(mockSupabase as any, "tenant-1", "5511999999999", null, "Fabricio Oliveira");
+    assertEquals(result.patient?.id, "new-pat-id");
+    assertEquals(result.created, true);
+});
+
+Deno.test("resolvePatientForBooking: ficha placeholder existente + nome confiável — ATUALIZA em vez de duplicar", async () => {
+    const mockSupabase = createMockSupabase({
+        patient: { id: "pat-1", full_name: "Paciente WhatsApp", phone: "5511999999999" },
+    });
+    const result = await resolvePatientForBooking(mockSupabase as any, "tenant-1", "5511999999999", null, "Fabricio Oliveira");
+    assertEquals(result.patient?.id, "pat-1");
+    assertEquals(result.created, undefined); // atualização da MESMA ficha, não criação de outra linha
+});
+
+Deno.test("resolvePatientForBooking: terceiro (forName) sem nome de agendamento — name_required, não cria dependente", async () => {
+    const mockSupabase = createMockSupabase({ patient: null });
+    const result = await resolvePatientForBooking(mockSupabase as any, "tenant-1", "5511999999999", "Sofia", null);
+    assertEquals(result.patient, null);
+    assertEquals(result.reason, "name_required");
+});
+
+Deno.test("resolvePatientForBooking: terceiro (forName) com nome completo — cria dependente vinculado ao mesmo telefone", async () => {
+    const mockSupabase = createMockSupabase({ patient: null });
+    const result = await resolvePatientForBooking(mockSupabase as any, "tenant-1", "5511999999999", "Sofia Prado", null);
+    assertEquals(result.patient?.id, "new-pat-id");
+    assertEquals(result.created, true);
+});
+
+Deno.test("C3: agendar bloqueia nome de 1 palavra ('Sofia') — passava no guard antigo (plausiblePersonName), agora exige nome completo", async () => {
+    const mockSupabase = createMockSupabase({
+        patient: { id: "pat-1", full_name: "Sofia", phone: "5511999999999" },
+    });
+    const callAgendar = { id: "c3b", name: "agendar", input: { slot_id: "slot|doc-1|loc-1|type-1|2026-07-25|09:00" } };
+    const res = await executeSchedulingTool(mockSupabase as any, "tenant-1", "5511999999999", "Maria", callAgendar as any, "Sim, confirma para mim por favor!");
+    assertEquals(res.data.success, false);
+    assertEquals(res.data.error, "patient_not_registered");
 });
 
 // ── Onda 3: C4B — Executor adicionar_lista_espera e Schema da Waitlist ──────

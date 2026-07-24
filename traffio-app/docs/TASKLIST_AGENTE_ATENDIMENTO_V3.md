@@ -210,17 +210,17 @@ a dúvida é acolhida NA MESMA mensagem em que o nome é pedido.
 Meta: o guard C3 (hoje só no caminho LLM) vale para TODOS os caminhos de
 agendamento. Nome de agendamento = nome completo (mínimo 2 palavras).
 
-- [ ] 2.1 Em `_shared/schedulingTools.ts`, criar `bookingGradeName(s): boolean`
+- [x] 2.1 Em `_shared/schedulingTools.ts`, criar `bookingGradeName(s): boolean`
       = `plausiblePersonName(s)` **e** ≥ 2 palavras (nome + sobrenome). Não
       alterar `plausiblePersonName` (usada para conversa, primeiro nome é válido).
-- [ ] 2.2 Caminho do clique (`_shared/structuredFlow.ts`, bloco `slotClick`):
+- [x] 2.2 Caminho do clique (`_shared/structuredFlow.ts`, bloco `slotClick`):
       ANTES de agendar, resolver o paciente SEM criar registro (consultar
       apenas). Se não existir paciente com `bookingGradeName`:
       **não agendar ainda** — salvar `context.pending_booking_slot = clickContent`
       (+ `pending_booking_slot_at` ISO) e enviar mensagem determinística PT/EN/ES:
       "Perfeito! Esse horário está livre 😊 Para eu finalizar a reserva, qual é o
       seu nome completo?". Retornar `{ matched: true, status: "replied" }`.
-- [ ] 2.3 Novo ramo determinístico no início de `tryStructuredFlow`: se
+- [x] 2.3 Novo ramo determinístico no início de `tryStructuredFlow`: se
       `context.pending_booking_slot` existe e a mensagem atual é um
       `bookingGradeName` → `atualizar_cadastro` (upsert do paciente com esse nome)
       + agendar o slot pendente + confirmação estruturada (mesmo formato atual) +
@@ -229,7 +229,7 @@ agendamento. Nome de agendamento = nome completo (mínimo 2 palavras).
       30 min e `return { matched: false }` para o LLM conduzir (o hint da 2.5
       diz ao modelo o que falta). Se o slot pendente expirou/conflitou ao agendar,
       cair no fluxo de reoferta da Etapa 4.
-- [ ] 2.4 Em `resolvePatientForBooking` (`schedulingTools.ts:1094`): remover o
+- [x] 2.4 Em `resolvePatientForBooking` (`schedulingTools.ts:1094`): remover o
       fallback que INSERE `"Paciente WhatsApp"` (linha ~1126) — em contexto de
       agendamento, sem nome ⇒ retornar `{ patient: null, reason: "name_required" }`
       e cada chamador decide (o LLM já tem o guard C3; o clique agora tem a 2.2).
@@ -237,24 +237,107 @@ agendamento. Nome de agendamento = nome completo (mínimo 2 palavras).
       (`grep -rn` em `supabase/functions/`) e registrar na seção Resultado quais
       criam paciente placeholder fora do agendamento (ex.: register-lead, sessões)
       — esses NÃO devem ser alterados nesta etapa, só inventariados.
-- [ ] 2.5 Hint de fluxo para o LLM (`buildFlowStateHint` em `copilot.ts` ~1199):
+- [x] 2.5 Hint de fluxo para o LLM (`buildFlowStateHint` em `copilot.ts` ~1199):
       quando `pending_booking_slot` existir, instruir: "há um horário escolhido
       aguardando o NOME COMPLETO; obtenha o nome, chame atualizar_cadastro_paciente
       e então `agendar` com esse slot_id exato".
-- [ ] 2.6 Guard C3 do caminho LLM (`agendar` e lista de espera): trocar a
+- [x] 2.6 Guard C3 do caminho LLM (`agendar` e lista de espera): trocar a
       validação de nome para `bookingGradeName` (hoje aceita nome de 1 palavra).
       Ajustar o texto do `note` para pedir nome COMPLETO.
-- [ ] 2.7 Dados existentes: script SQL (somente leitura) listando pacientes
+- [x] 2.7 Dados existentes: script SQL (somente leitura) listando pacientes
       `full_name = 'Paciente WhatsApp'` do tenant de teste com seus agendamentos
       futuros — salvar a lista na seção Resultado para correção manual pela
       equipe. NÃO deletar nem renomear em massa.
-- [ ] 2.8 Testes: unit para `bookingGradeName`; pipeline para: clique sem
+- [x] 2.8 Testes: unit para `bookingGradeName`; pipeline para: clique sem
       cadastro → pede nome → recebe "Fabricio Oliveira" → agenda; clique sem
       cadastro → recebe "sim" (não-nome) → cai para o LLM com hint; C3 rejeita
       nome de 1 palavra. Atualizar os testes existentes que assumam o
       comportamento antigo. Rodar tudo + commit.
 
-**Resultado (preencher):**
+**Resultado:**
+
+- **2.1 — `bookingGradeName`:** adicionada em `schedulingTools.ts` logo após
+  `plausiblePersonName` — `plausiblePersonName(s) && palavras.length >= 2`.
+  `plausiblePersonName` permanece intocada (Etapa 1 depende dela aceitar
+  primeiro nome).
+- **2.2/2.3 — Caminho do clique (`structuredFlow.ts`):** o módulo ganhou um
+  "item 0" (novo, antes do clique de slot) documentado no cabeçalho do
+  arquivo. Extraí `attemptBooking` (RPC `book_appointment` + guard P-10 de
+  idempotência) e `bookSlotAndNotify` (agenda + envia confirmação/aviso de
+  ocupado + limpa TODOS os marcadores pendentes) como helpers de módulo,
+  reusados pelos dois pontos de entrada (clique direto e retomada por nome) —
+  evita duplicar a lógica de conflito que já existia. O bloco do clique agora
+  usa `resolved.reason === "name_required"` para decidir entre agendar
+  direto ou salvar `pending_booking_slot`/`pending_booking_slot_at` e enviar
+  `ASK_NAME_TO_BOOK_MSG`. O novo item 0 casa a resposta seguinte: nome
+  completo válido → resolve/atualiza a ficha e agenda; texto que não parece
+  nome completo → preserva o marker e devolve `matched:false` (LLM conduz,
+  guiado pelo hint da 2.5); marker vencido (>30min) → limpa e cai no
+  roteamento normal. Um clique NOVO (`slot|...`) sempre ignora o item 0 e
+  segue para o item 1 normalmente.
+- **2.4 — `resolvePatientForBooking` sem fallback "Paciente WhatsApp":**
+  reescrita completa. Ficou mais forte que o pedido original: em vez de só
+  "não criar mais o placeholder", quando existe exatamente 1 ficha para o
+  telefone e o nome dela AINDA NÃO é `bookingGradeName` (placeholder ou
+  vazio), e chega um nome confiável, a função **atualiza a ficha existente
+  em vez de criar outra** — evita órfãos quando alguém que já tem uma ficha
+  "Paciente WhatsApp" (das 3 achadas na Etapa 0) volta a agendar pelo novo
+  fluxo. `fallbackDisplayName` (nome de perfil do WhatsApp) agora também
+  precisa passar em `bookingGradeName` antes de ser usado — antes bastava
+  ser truthy, o que deixava qualquer nome de perfil (nickname, 1 palavra,
+  emoji) virar `full_name` sem checagem nenhuma.
+  **Auditoria de chamadores** (`grep -rn "resolvePatientForBooking\|ensurePatient("`
+  em `supabase/functions/`): só 2 chamadores de `resolvePatientForBooking`
+  existem no repo — `schedulingTools.ts` (tool `agendar`, caminho LLM) e
+  `structuredFlow.ts` (clique de slot) — ambos dentro do escopo desta etapa,
+  já corrigidos. `ensurePatient` (linha ~1200, mesmo arquivo) **tem ZERO
+  chamadores em todo o repositório** — código morto, não é usado por nenhum
+  fluxo em produção hoje. Não alterado (fora de escopo desta etapa; é
+  candidato a limpeza futura, não um caminho ativo de criação de
+  placeholder). `register-lead/index.ts` não grava `full_name` — não cria
+  paciente placeholder.
+- **2.5 — Hint de fluxo:** `buildFlowStateHint` ganhou um branch novo para
+  `context.pending_booking_slot` (prioritário) e o branch de `pending_slots`
+  passou a ficar em silêncio quando `pending_booking_slot` está presente,
+  para não mandar instruções contraditórias no mesmo turno (mesmo tratamento
+  aplicado à condição de `preferred_window`).
+- **2.6 — Guards C3 (caminho LLM):** `agendar` e `adicionar_lista_espera`
+  trocaram `plausiblePersonName` por `bookingGradeName`; textos de `note`
+  ajustados para pedir explicitamente "FULL name (first + last)".
+- **2.7 — Auditoria de dados (somente leitura, tenant de teste
+  `3810a967-507f-4415-866b-0f67b7d06053`):** as 3 fichas "Paciente WhatsApp"
+  achadas na Etapa 0 —
+  `1aef727a-aa78-4aea-8e4a-b9d0e394655b` (telefone `554198367006`, criada
+  2026-07-24 12:36, 0 agendamentos ativos),
+  `8c3cbc43-1255-49a8-8e2c-06a5830a9d38` (telefone `14049257024`, criada
+  12:37, 0 agendamentos ativos),
+  `2cfe597e-d886-4390-a8b2-80a7f6472590` (telefone `554192732006`, criada
+  12:37, **1 agendamento ativo**) — confirma no dado real que o bug chegou a
+  produzir uma consulta agendada em nome de "Paciente WhatsApp". Nenhuma
+  linha foi alterada/deletada; fica para a equipe corrigir manualmente (ex.
+  via atendimento humano ou UI) — a partir deste deploy, se esses mesmos 3
+  telefones voltarem a agendar pelo bot, a ficha será RENOMEADA em vez de
+  duplicada (efeito colateral do 2.4).
+- **2.8 — Testes:** `unit_test.ts` foi de 110 para **118** (+8): 1 teste de
+  `bookingGradeName` (inclui a regressão explícita "Sofia" passava no guard
+  antigo — `plausiblePersonName` — e não passa mais), 6 testes de
+  `resolvePatientForBooking` cobrindo os 3 ramos novos (sem ficha/sem nome →
+  `name_required`; sem ficha/nome completo → cria; ficha placeholder + nome
+  completo → atualiza, não duplica; terceiro sem/com nome completo), e 1
+  teste de regressão do guard C3 do `agendar` com nome de 1 palavra
+  ("Sofia"), que ANTES da mudança passaria e agora é bloqueado. Não escrevi
+  um harness de integração ponta-a-ponta para `tryStructuredFlow` em si
+  (decisão de escopo: nenhum dos ramos PRÉ-EXISTENTES do arquivo — clique de
+  sucesso, waitlist, recovery — tinha esse tipo de teste antes desta etapa;
+  construir um mock fiel de `OutboxDispatcher`/envio por WhatsApp só para
+  isto seria desproporcional e frágil). A verificação de ponta-a-ponta do
+  fluxo "clique → pede nome → recebe nome → agenda" fica para o smoke de
+  concorrência assistido da Etapa 5.3. Suíte completa: `unit_test.ts`
+  118/118, `pipeline_test.ts` 9/9, `output_contract_test.ts` 14/14,
+  `confirmation_test.ts` 8/8, `agent_attendance_guard_test.ts` 10/10 —
+  **159/159**. `npx deno check` limpo em `structuredFlow.ts`,
+  `schedulingTools.ts`, `copilot.ts`, `process-inbox/index.ts`, `run.ts` e
+  `unit_test.ts`.
 
 ---
 
