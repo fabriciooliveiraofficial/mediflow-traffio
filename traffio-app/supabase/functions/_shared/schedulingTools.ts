@@ -922,6 +922,29 @@ export async function executeSchedulingTool(
         }
 
         case "ver_disponibilidade": {
+            // Guard N1: Verificar se já sabemos o nome do lead antes de ofertar horários
+            const existingPatient = await findPatient(supabase, tenantId, phone);
+            let knownName: string | null = null;
+            if (existingPatient) {
+                const { data: patData } = await scopedQuery(supabase, "patients", tenantId, "full_name")
+                    .eq("id", existingPatient.id)
+                    .maybeSingle();
+                if ((patData as any)?.full_name) {
+                    knownName = (patData as any).full_name;
+                }
+            }
+            if (!knownName && patientDisplayName && bookingGradeName(patientDisplayName)) {
+                knownName = patientDisplayName;
+            }
+            if (!knownName || !bookingGradeName(knownName)) {
+                return {
+                    data: {
+                        needs_patient_name: true,
+                        note: "You do NOT know the lead's FULL name yet. Ask warmly for their FULL name (first and last name, e.g., 'Como posso te chamar?' / 'Qual é o seu nome completo?') BEFORE checking or offering available time slots. Reply in the PATIENT'S language.",
+                    },
+                };
+            }
+
             // 1. Resolver o serviço (procedimento) — define a duração e os profissionais habilitados
             let service: { id: string; name: string; duration_minutes: number | null } | null = null;
             if (input.type_id) {
@@ -1285,10 +1308,13 @@ export async function resolvePatientForBooking(
         // Ficha existente ainda sem nome de agendamento (ex.: placeholder
         // legado) + temos agora um nome confiável em mãos: atualiza em vez de
         // deixar o cadastro travado como "Paciente WhatsApp" para sempre.
-        if (!bookingGradeName(current.full_name) && trustedName) {
-            const { error } = await supabase.from("patients").update({ full_name: trustedName }).eq("id", current.id).eq("tenant_id", tenantId);
-            if (error) { console.error(`[schedulingTools] atualizar nome do titular falhou: ${error.message}`); return { patient: current }; }
-            return { patient: { id: current.id } };
+        if (!bookingGradeName(current.full_name)) {
+            if (trustedName) {
+                const { error } = await supabase.from("patients").update({ full_name: trustedName }).eq("id", current.id).eq("tenant_id", tenantId);
+                if (error) { console.error(`[schedulingTools] atualizar nome do titular falhou: ${error.message}`); return { patient: current }; }
+                return { patient: { id: current.id } };
+            }
+            return { patient: null, reason: "name_required" };
         }
         return { patient: current };
     }
