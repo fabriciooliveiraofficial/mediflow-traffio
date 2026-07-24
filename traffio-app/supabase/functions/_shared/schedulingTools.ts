@@ -933,9 +933,7 @@ export async function executeSchedulingTool(
                     knownName = (patData as any).full_name;
                 }
             }
-            if (!knownName && patientDisplayName && bookingGradeName(patientDisplayName)) {
-                knownName = patientDisplayName;
-            }
+
             if (!knownName || !bookingGradeName(knownName)) {
                 return {
                     data: {
