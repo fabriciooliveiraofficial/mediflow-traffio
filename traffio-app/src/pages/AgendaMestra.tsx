@@ -1100,12 +1100,15 @@ export const AgendaMestra: React.FC = () => {
 
     const handleDelete = async (id: string) => {
         try {
-            await supabase.from('appointments').delete().eq('id', id);
+            const { error } = await supabase.from('appointments').update({ status: 'canceled' }).eq('id', id);
+            if (error) throw error;
             setConfirmDelete(null);
             setEditingAppt(null);
-            fetchData();
+            await fetchData();
             showToast('success', t('mestra.toasts.appointmentRemoved'));
-        } catch (err: any) { showToast('error', t('mestra.toasts.genericError', { message: err.message })); }
+        } catch (err: any) {
+            showToast('error', t('mestra.toasts.genericError', { message: err.message }));
+        }
     };
 
     // ── Blocked / outside-hours bands ───────

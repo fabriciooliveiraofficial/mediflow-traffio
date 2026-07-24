@@ -21,6 +21,7 @@ import { TenantResolver } from "../_shared/tenantResolver.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { runCopilot } from "../_shared/copilot.ts";
 import { extractZapiContent, extractCloudApiContent } from "../_shared/inboundParser.ts";
+import { compensateIdempotencyMarker } from "../_shared/webhookIdempotency.ts";
 
 console.log("whatsapp-bot v6 — Inbox Pattern + Dual Provider — Initialized");
 
@@ -181,6 +182,13 @@ async function handleZapi(supabase: any, body: any): Promise<Response> {
       return new Response(JSON.stringify({ ignored: true, reason: "duplicate_inbox" }), { status: 200 });
     }
     console.error("[whatsapp-bot] Z-API: Inbox insert failed:", inboxError.message);
+    // Compensação: sem isto, o marcador de idempotência acima (processed_webhooks)
+    // fica committado permanentemente mesmo com a mensagem PERDIDA — a
+    // retentativa do provedor bate em 23505 pra sempre e a mensagem nunca chega
+    // a existir no message_inbox (perda silenciosa: sem tag de erro, sem ir pra
+    // fila humana). Bug de produção (2026-07-23). Best-effort: se o delete falhar,
+    // ainda é melhor tentar do que travar a retentativa para sempre.
+    await compensateIdempotencyMarker(supabase, tenant.id, messageId, "Z-API");
     return new Response(JSON.stringify({ error: "inbox_insert_failed" }), { status: 500 });
   }
 
@@ -225,6 +233,7 @@ async function handleCloudApi(supabase: any, body: any): Promise<Response> {
 
 
   let inserted = 0;
+  let insertFailed = false;
 
   for (const msg of messages) {
     const phone   = msg.from;
@@ -297,6 +306,11 @@ async function handleCloudApi(supabase: any, body: any): Promise<Response> {
         continue;
       }
       console.error("[whatsapp-bot] Cloud API: Inbox insert failed:", inboxError.message);
+      // Compensação (mesmo motivo do handleZapi): desfaz o marcador de
+      // idempotência para que a retentativa da Meta consiga inserir de verdade,
+      // em vez de bater em 23505 pra sempre e perder a mensagem em silêncio.
+      await compensateIdempotencyMarker(supabase, tenant.id, msgId, "Cloud API");
+      insertFailed = true;
       continue;
     }
 
@@ -305,7 +319,12 @@ async function handleCloudApi(supabase: any, body: any): Promise<Response> {
   }
 
   if (inserted > 0) triggerInboxProcessing();
-  return new Response(JSON.stringify({ status: "queued", inserted }), { headers: corsHeaders });
+  // Falha real de insert (não duplicidade) → não confirmar 200 para a Meta.
+  // As mensagens já inseridas com sucesso são idempotentes na retentativa
+  // (UNIQUE tenant_id+message_id em message_inbox devolve 23505 e é ignorado
+  // silenciosamente) — só a que falhou de fato ganha uma nova chance.
+  const status = insertFailed ? 500 : 200;
+  return new Response(JSON.stringify({ status: "queued", inserted, retry: insertFailed }), { status, headers: corsHeaders });
 }
 
 // =============================================================================
