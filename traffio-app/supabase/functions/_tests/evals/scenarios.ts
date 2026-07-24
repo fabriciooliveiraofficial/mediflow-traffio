@@ -513,5 +513,32 @@ export const SCENARIOS: EvalScenario[] = [
             transfer: false,
         },
     },
+    {
+        name: "qualificacao_pedido_generico — 'quero agendar' sem procedimento: pergunta a necessidade, NÃO consulta horários (P2, reteste 2)",
+        language: "pt",
+        history: [
+            { role: "assistant", content: "Oi, Fabricio! 😊 Como posso te ajudar?" },
+            { role: "user", content: "quero agendar uma consulta" },
+        ],
+        patientSnapshotOverride: "Paciente cadastrado: Fabricio Oliveira",
+        expect: {
+            // Deve perguntar o que o paciente precisa antes de oferecer horário.
+            toolsNotCalled: ["ver_disponibilidade", "agendar"],
+            transfer: false,
+        },
+    },
+    {
+        name: "qualificacao_necessidade_clara — paciente descreve a dor/procedimento: avança para disponibilidade (P2)",
+        language: "pt",
+        history: [
+            { role: "assistant", content: "Oi, Fabricio! 😊 Como posso te ajudar?" },
+            { role: "user", content: "quero fazer uma limpeza nos dentes essa semana" },
+        ],
+        patientSnapshotOverride: "Paciente cadastrado: Fabricio Oliveira",
+        expect: {
+            toolsCalled: ["ver_disponibilidade"],
+            transfer: false,
+        },
+    },
 ];
 

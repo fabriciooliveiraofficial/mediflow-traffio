@@ -1273,6 +1273,42 @@ Deno.test("E4: remarcar com conflito real e alternativas disponíveis — mesmo 
     assertEquals(res.slots?.length, 2);
 });
 
+// ── P2 (2026-07-24): ver_disponibilidade qualifica a necessidade antes de ofertar ──
+
+Deno.test("P2: ver_disponibilidade SEM procedimento e com >1 tipo ativo → needs_procedure (não oferta às cegas)", async () => {
+    const mockSupabase = createMockSupabase({
+        appointmentType: [
+            { id: "type-1", name: "Limpeza", duration_minutes: 30 },
+            { id: "type-2", name: "Avaliação de implante", duration_minutes: 45 },
+        ],
+    });
+    const call = { id: "vd1", name: "ver_disponibilidade", input: {} };
+    const res = await executeSchedulingTool(mockSupabase as any, "tenant-1", "5511999999999", "Fabricio", call as any, "quero agendar");
+    assertEquals(res.data.needs_procedure, true);
+    assert(Array.isArray(res.data.procedures_offered) && res.data.procedures_offered.includes("Limpeza"));
+    assertEquals(res.slots, undefined); // não ofereceu horário
+});
+
+Deno.test("P2: ver_disponibilidade SEM procedimento mas clínica tem 1 só tipo ativo → segue sem perguntar", async () => {
+    const mockSupabase = createMockSupabase({
+        appointmentType: { id: "type-1", name: "Consulta", duration_minutes: 30 },
+        rpcResponses: { find_next_available_dates: { data: [], error: null } },
+    });
+    const call = { id: "vd2", name: "ver_disponibilidade", input: {} };
+    const res = await executeSchedulingTool(mockSupabase as any, "tenant-1", "5511999999999", "Fabricio", call as any, "quero agendar");
+    assertEquals(res.data.needs_procedure, undefined); // NÃO pediu procedimento — seguiu com o único tipo
+});
+
+Deno.test("P2: ver_disponibilidade COM procedimento resolvível não dispara o guard", async () => {
+    const mockSupabase = createMockSupabase({
+        appointmentType: { id: "type-1", name: "Limpeza", duration_minutes: 30 },
+        rpcResponses: { find_next_available_dates: { data: [], error: null } },
+    });
+    const call = { id: "vd3", name: "ver_disponibilidade", input: { procedure: "limpeza" } };
+    const res = await executeSchedulingTool(mockSupabase as any, "tenant-1", "5511999999999", "Fabricio", call as any, "quero uma limpeza");
+    assertEquals(res.data.needs_procedure, undefined);
+});
+
 // ── Onda 3: C4B — Executor adicionar_lista_espera e Schema da Waitlist ──────
 
 Deno.test("C4B: adicionar_lista_espera com paciente não cadastrado retorna patient_not_registered sem chamar insert", async () => {

@@ -932,6 +932,32 @@ export async function executeSchedulingTool(
             } else if (input.procedure) {
                 service = await resolveServiceByName(supabase, tenantId, input.procedure);
             }
+
+            // P2 (2026-07-24): QUALIFICAÇÃO — não ofertar horário às cegas. Se o
+            // agente não sabe o procedimento (nem type_id, nem procedure que
+            // resolva um serviço) e NÃO pediram um profissional específico, e a
+            // clínica tem MAIS DE UM procedimento ativo, devolve um nudge para o
+            // agente descobrir a necessidade antes — em vez de escolher um
+            // profissional arbitrário (activeDoctors) e ofertar horário sem saber
+            // o que o paciente precisa. Clínica com 1 só procedimento segue sem
+            // perguntar; 0 procedimentos cadastrados mantém o fallback antigo.
+            if (!service && !input.doctor_id) {
+                const { data: activeTypes } = await scopedQuery(supabase, "appointment_types", tenantId, "id, name, duration_minutes")
+                    .eq("is_active", true)
+                    .limit(6);
+                const types = (activeTypes || []) as { id: string; name: string; duration_minutes: number | null }[];
+                if (types.length > 1) {
+                    return {
+                        data: {
+                            needs_procedure: true,
+                            procedures_offered: types.map(t => t.name),
+                            note: "You do NOT know yet which procedure the patient needs — do not offer times blindly. Ask warmly what brings them in / what they are looking for (you may hint a couple of options from procedures_offered) BEFORE checking availability. Never pick a procedure yourself. Reply in the PATIENT'S language.",
+                        },
+                    };
+                }
+                if (types.length === 1) service = types[0];
+            }
+
             const duration = service?.duration_minutes || 30;
             const period = (["morning", "afternoon", "evening"].includes(input.period) ? input.period : null) as DayPeriod | null;
 

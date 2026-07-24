@@ -758,29 +758,58 @@ clique de botão, na confirmação de lista de espera e no caminho LLM.
 Meta: o agente entende o que o lead precisa (motivo/procedimento) antes de
 `ver_disponibilidade`/`agendar`. Nunca assume o procedimento de contexto velho.
 
-- [ ] 7.1 `copilot.ts` — reordenar a regra de ABERTURA (Etapa 1): a 1ª resposta
+- [x] 7.1 `copilot.ts` — reordenar a regra de ABERTURA (Etapa 1): a 1ª resposta
       acolhe o lead, PERGUNTA o que ele precisa (motivo da visita/procedimento)
       e o nome — necessidade em primeiro plano, não o nome isolado. Uma pergunta
       por vez, sem interrogatório.
-- [ ] 7.2 `copilot.ts` — regra explícita: NUNCA chamar `ver_disponibilidade`
+- [x] 7.2 `copilot.ts` — regra explícita: NUNCA chamar `ver_disponibilidade`
       nem `agendar` sem saber o procedimento/motivo desta conversa. Se o lead
       pede "quero agendar" sem dizer o quê, perguntar antes. Não reaproveitar
       `intake.procedure` de agendamento anterior sem reconfirmar (anti-vazamento
       de contexto — foi o que gerou o "implant evaluation" fantasma).
-- [ ] 7.3 Guard na tool `ver_disponibilidade` (`schedulingTools.ts`): se
+- [x] 7.3 Guard na tool `ver_disponibilidade` (`schedulingTools.ts`): se
       `procedure`/`type_id` não vier e não houver como resolver o serviço,
       retornar um `note` pedindo para o agente qualificar a necessidade antes —
       em vez de cair em `activeDoctors` e ofertar horário às cegas. (Avaliar
       impacto: alguns tenants podem ter 1 procedimento só; se `appointment_types`
       do tenant tiver só 1 ativo, pode seguir sem perguntar.)
-- [ ] 7.4 Anti-vazamento: ao persistir `intake`, não deixar `procedure` de um
+- [x] 7.4 Anti-vazamento: ao persistir `intake`, não deixar `procedure` de um
       agendamento CONCLUÍDO contaminar a próxima intenção. Avaliar limpar
       `intake.procedure` após confirmação de agendamento.
-- [ ] 7.5 Evals (scenarios.ts): "quero agendar" sem procedimento → agente
+- [x] 7.5 Evals (scenarios.ts): "quero agendar" sem procedimento → agente
       pergunta a necessidade, NÃO chama ver_disponibilidade; "quero limpeza" →
       chama ver_disponibilidade com procedure. Rodar + commit.
 
-**Resultado (preencher):**
+**Resultado:**
+
+- **7.1/7.2 — Prompt (`AUTONOMOUS_ADDENDUM`):** a regra de ABERTURA (Etapa 1)
+  foi reescrita para "ABERTURA E QUALIFICAÇÃO" — recepcionista sênior que
+  ENTENDE antes de conduzir: precisa do nome E do que a pessoa precisa, uma
+  pergunta por vez, sem interrogatório. Adicionada a regra
+  "QUALIFICAÇÃO OBRIGATÓRIA ANTES DE AGENDAR": nunca chamar
+  `ver_disponibilidade`/`agendar` sem o procedimento/motivo DESTA conversa;
+  pedido genérico ("quero agendar") ⇒ perguntar o que precisa antes; DOR/DESEJO
+  descrito ⇒ já sabe, avança; NUNCA assumir o procedimento nem reaproveitar o
+  de um agendamento anterior (a raiz do "implant evaluation" fantasma do
+  reteste 2).
+- **7.3 — Guard na tool (`ver_disponibilidade`):** se o agente chamar sem
+  `type_id`/`procedure` que resolva um serviço, e SEM `doctor_id` específico,
+  a tool consulta os `appointment_types` ativos do tenant: >1 ativo ⇒ retorna
+  `{ needs_procedure: true, procedures_offered, note }` mandando o agente
+  descobrir a necessidade antes (não escolhe procedimento sozinho); exatamente
+  1 ativo ⇒ usa esse (não pergunta o óbvio); 0 ⇒ mantém o fallback antigo
+  (tenant que não usa `appointment_types`). É a rede determinística que
+  garante o comportamento mesmo que o prompt falhe.
+- **7.4 — Anti-vazamento (`copilot.ts`):** flag `bookingConfirmed` (setada
+  quando `agendar`/`remarcar` retorna `success` no turno) limpa
+  `intake.procedure`/`for_whom`/`preferred_window`/`doctor_pref` na
+  persistência do contexto — a próxima intenção de agendar começa do zero. O
+  nome do paciente NÃO se perde (fica na ficha `patients`, não no intake).
+- **7.5 — Testes:** 3 unit offline do guard (`>1 tipo → needs_procedure`;
+  `1 tipo → segue`; `com procedure → não dispara`) + 2 evals LLM-gated
+  (`quero agendar` genérico → NÃO chama ver_disponibilidade; `quero limpeza`
+  → chama). Suíte offline: **174/174**. `deno check` limpo (incl. run.ts e
+  scenarios.ts).
 
 ---
 

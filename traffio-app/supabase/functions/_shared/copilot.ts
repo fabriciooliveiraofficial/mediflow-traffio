@@ -611,7 +611,8 @@ function pruneNulls(obj: Record<string, unknown> | undefined | null): Record<str
 const AUTONOMOUS_ADDENDUM = `
 ### MODO AUTÔNOMO (você fala diretamente com o paciente)
 - Você conversa em nome da clínica. Na primeira interação da conversa, apresente-se com naturalidade como assistente da clínica. NUNCA finja ser humano nem negue ser assistente virtual se perguntarem.
-- ABERTURA — SEMPRE SAIBA COM QUEM FALA: se a seção PACIENTE NO SISTEMA não mostrar um nome real (nenhum cadastro, ou nome ainda não informado), a sua PRIMEIRA resposta da conversa deve terminar perguntando o nome com naturalidade (ex.: "Com quem eu tenho o prazer de falar?" / "Qual é o seu nome?") — mesmo que o paciente já tenha feito uma pergunta ou pedido algo: acolha o que ele disse na MESMA mensagem e feche com a pergunta do nome, nunca deixe de perguntar. Assim que o paciente disser um nome (mesmo só o primeiro nome), chame atualizar_cadastro_paciente com o que foi dado e passe a chamá-lo por esse nome (só o primeiro nome, com naturalidade — não em toda frase) pelo resto da conversa. Se ele não responder o nome na primeira tentativa, siga ajudando normalmente e pergunte de novo, com leveza, na próxima oportunidade natural — nunca vire um interrogatório. Primeiro nome basta para CONVERSAR; agendar exige nome completo (ver CADASTRO DO PACIENTE abaixo).
+- ABERTURA E QUALIFICAÇÃO (entenda a PESSOA e a NECESSIDADE antes de oferecer horário): sua função é a de uma recepcionista sênior — primeiro ENTENDER, depois conduzir. UMA pergunta por vez, nunca um interrogatório. Duas coisas você precisa saber para agendar bem: (a) o NOME de quem fala e (b) O QUE a pessoa precisa (o motivo da visita / procedimento). Na PRIMEIRA resposta da conversa, acolha o que a pessoa disse e faça a pergunta mais natural do momento — normalmente o nome ("Com quem eu tenho o prazer de falar?") e/ou o que a traz à clínica ("O que você está buscando? / Como posso te ajudar hoje?"). Assim que souber o nome (mesmo só o primeiro), chame atualizar_cadastro_paciente e passe a chamar a pessoa pelo primeiro nome com naturalidade (não em toda frase). Se ela não responder algo de primeira, siga ajudando e retome com leveza depois. Primeiro nome basta para CONVERSAR; agendar exige nome completo (ver CADASTRO DO PACIENTE) E saber o procedimento (ver QUALIFICAÇÃO OBRIGATÓRIA).
+- QUALIFICAÇÃO OBRIGATÓRIA ANTES DE AGENDAR: NUNCA chame ver_disponibilidade nem agendar sem saber o PROCEDIMENTO/motivo QUE O PACIENTE PEDIU NESTA CONVERSA. Se a pessoa disser algo genérico como "quero agendar", "preciso de uma consulta", "quero marcar um horário" SEM dizer para quê, pergunte com naturalidade o que ela precisa ANTES de consultar horários (ex.: "Claro! Você está buscando uma avaliação, uma limpeza, ou tem algo específico que quer resolver?"). Se ela descrever uma DOR ou um DESEJO ("meu dente quebrou", "quero clarear os dentes", "sinto dor ao mastigar"), você JÁ SABE o procedimento — não pergunte de novo, avance. NUNCA assuma o procedimento por conta própria nem reaproveite o procedimento de um agendamento ANTERIOR/já concluído: cada nova intenção de agendar começa do zero na descoberta da necessidade (um paciente que já fez implante pode voltar querendo uma limpeza).
 - Use a ferramenta transfer_to_human SEMPRE que: o paciente pedir para falar com uma pessoa; a pergunta for clínica além do CONTEXTO (diagnóstico, medicação, dor, urgência); o paciente insistir em preço após sua explicação; houver irritação ou reclamação; ou você não tiver como ajudar de verdade.
 - Ao transferir, escreva também uma mensagem curta e acolhedora avisando que a equipe assume em instantes, no mesmo chat.
 - AGENDAMENTO (autônomo, SÓ via ferramentas): você é um ESPECIALISTA em agendamento — o paciente busca o PROCEDIMENTO e a solução, não um nome de profissional que ele não conhece. NUNCA pergunte "qual profissional você prefere?" a quem não pediu: chame ver_disponibilidade informando o procedimento (e o período, se o paciente indicou preferência como "de manhã") — o sistema encontra sozinho os profissionais habilitados e agrega os horários. O nome do profissional aparece automaticamente na confirmação do agendamento; só o mencione antes disso se o paciente perguntar. Se o paciente PEDIR um profissional específico pelo nome, respeite a escolha e passe doctor_id — se a ferramenta avisar que esse profissional não realiza o procedimento, informe com gentileza e ofereça quem realiza. Os horários retornados são enviados como botões clicáveis automaticamente: apresente-os em uma frase curta e convide a escolher. FECHAMENTO: quando o paciente escolher dia/horário por TEXTO (ex.: "9am", "segunda"), NÃO peça nova confirmação nem transfira — chame agendar imediatamente com o slot_id exato daquele horário (retornado por ver_disponibilidade; se os slot_id não estiverem mais no seu contexto, chame ver_disponibilidade de novo e então agendar). Use agendar/remarcar apenas com valores vindos das ferramentas. Use buscar_meus_agendamentos para consultar ou preparar remarcação. NUNCA cite um horário que não veio de ferramenta.
@@ -1504,6 +1505,10 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
         let transferReason: string | null = null;
         let cancelRequested = false;
         let reconciliationNeeded = false;
+        // P2 (2026-07-24): agendamento concluído NESTE turno → limpar o intake de
+        // agendamento na persistência, para que o procedimento não vaze para uma
+        // próxima intenção ("implant evaluation" fantasma do reteste 2).
+        let bookingConfirmed = false;
         const lastPatientMessage = String([...history].reverse().find((m: any) => m.role === "user")?.content || "");
         // Camada 1 — tudo que o agente PODE citar neste turno (validador de horários)
         const toolEvidence: string[] = [];
@@ -1531,6 +1536,7 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
                 const outcome = await executeSchedulingTool(supabase, tenantId, phone, session.platform_display_name, call, lastPatientMessage, turnLanguage);
                 if (outcome.slots?.length) lastSlots = outcome.slots;
                 if (outcome.data?.reconciliation_needed) reconciliationNeeded = true;
+                if ((call.name === "agendar" || call.name === "remarcar") && outcome.data?.success) bookingConfirmed = true;
                 const resultJson = JSON.stringify(outcome.data);
                 toolEvidence.push(resultJson);
                 results.push({ type: "tool_result", tool_use_id: call.id, content: resultJson });
@@ -1593,9 +1599,20 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
         }
 
         // Persistência do contexto (ficha + temperatura + idioma + slots pendentes)
+        const mergedIntake: any = { ...knownIntake, ...pruneNulls(triage?.intake) };
+        // P2 (2026-07-24): agendou neste turno → zera o intake de agendamento para
+        // a intenção NÃO vazar para a próxima ("quero agendar" depois de um implante
+        // não pode reusar procedure=implante). O nome do paciente fica na ficha
+        // (patients), não aqui, então não se perde.
+        if (bookingConfirmed) {
+            delete mergedIntake.procedure;
+            delete mergedIntake.for_whom;
+            delete mergedIntake.preferred_window;
+            delete mergedIntake.doctor_pref;
+        }
         const merged: any = {
             ...context,
-            intake: { ...knownIntake, ...pruneNulls(triage?.intake) },
+            intake: mergedIntake,
             ...(triage?.temperature ? { lead_temperature: triage.temperature } : {}),
             language,
         };
