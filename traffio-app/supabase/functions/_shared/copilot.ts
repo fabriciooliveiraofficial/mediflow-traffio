@@ -29,6 +29,7 @@ import {
 } from "./schedulingTools.ts";
 import { fetchStageGuidance } from "./journeyStage.ts";
 import { logAgentTurnEvent } from "./observabilityLayer.ts";
+import { getPhoneSearchVariations } from "./phoneNormalizer.ts";
 
 interface CopilotParams {
     tenantId: string;
@@ -1143,23 +1144,32 @@ export async function buildPatientSnapshot(
     tenantId: string,
     phone: string,
     timezone?: string | null,
+    patientId?: string | null,
 ): Promise<string | null> {
-    // NUNCA maybeSingle aqui: telefone compartilhado é caso legítimo (família
-    // cadastrada no mesmo número — os lembretes já vão todos para esse aparelho).
-    // Identificação conversacional = posse do canal; com 2+ pacientes o agente
-    // desambigua pelo nome (nível N1), nunca por documento (CPF/SSN não
-    // autentica canal e cria passivo LGPD em log de conversa).
-    // Bug de produção (2026-07-21): cadastros duplicados com/sem "+" faziam
-    // esta busca achar o cadastro ERRADO (sem agendamento) e o agente alucinar
-    // "não encontrei nada" — o paciente tinha acabado de sair da consulta.
-    const phoneDigits = phone.replace(/\D/g, "");
-    const { data: patients } = await supabase
-        .from("patients")
-        .select("id, full_name")
-        .eq("tenant_id", tenantId)
-        .in("phone", phoneDigits ? [phoneDigits, `+${phoneDigits}`] : [phone])
-        .order("created_at", { ascending: true })
-        .limit(3);
+    let patients: any[] | null = null;
+
+    if (patientId) {
+        const { data } = await supabase
+            .from("patients")
+            .select("id, full_name")
+            .eq("tenant_id", tenantId)
+            .eq("id", patientId)
+            .limit(1);
+        patients = data;
+    }
+
+    if (!patients?.length && phone) {
+        const phoneVariations = getPhoneSearchVariations(phone);
+        const { data } = await supabase
+            .from("patients")
+            .select("id, full_name")
+            .eq("tenant_id", tenantId)
+            .in("phone", phoneVariations.length ? phoneVariations : [phone])
+            .order("created_at", { ascending: true })
+            .limit(3);
+        patients = data;
+    }
+
     if (!patients?.length) return null;
 
     const { data: appts } = await supabase
