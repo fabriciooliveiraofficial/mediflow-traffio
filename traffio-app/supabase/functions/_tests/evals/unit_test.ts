@@ -952,6 +952,8 @@ function createMockSupabase(overrides: {
             in: () => obj,
             or: () => obj,
             ilike: () => obj,
+            gte: () => obj,
+            not: () => obj,
             limit: () => obj,
             order: () => obj,
             select: () => obj,
@@ -1044,6 +1046,39 @@ Deno.test("C3: agendar bloqueia paciente não cadastrado ou com nome 'Paciente W
     const res = await executeSchedulingTool(mockSupabase as any, "tenant-1", "5511999999999", "Maria", callAgendar as any, "Sim, confirma para mim por favor!");
     assertEquals(res.data.success, false);
     assertEquals(res.data.error, "patient_not_registered");
+});
+
+// ── E1 (2026-07-24): buildPatientSnapshot nunca vaza ficha placeholder como nome real ──
+import { buildPatientSnapshot } from "../../_shared/copilot.ts";
+
+Deno.test("buildPatientSnapshot: nome placeholder 'Paciente WhatsApp' vira 'AINDA SEM NOME', nunca aparece como nome real", async () => {
+    const mockSupabase = createMockSupabase({
+        patient: { id: "pat-1", full_name: "Paciente WhatsApp", phone: "5511999999999" },
+    });
+    const snapshot = await buildPatientSnapshot(mockSupabase as any, "tenant-1", "5511999999999", null);
+    assertEquals(snapshot?.includes("Paciente WhatsApp"), false);
+    assertEquals(snapshot?.includes("AINDA SEM NOME"), true);
+});
+
+Deno.test("buildPatientSnapshot: nome real cadastrado aparece normalmente", async () => {
+    const mockSupabase = createMockSupabase({
+        patient: { id: "pat-1", full_name: "Fabricio Oliveira", phone: "5511999999999" },
+    });
+    const snapshot = await buildPatientSnapshot(mockSupabase as any, "tenant-1", "5511999999999", null);
+    assertEquals(snapshot?.includes("Paciente cadastrado: Fabricio Oliveira"), true);
+});
+
+Deno.test("buildPatientSnapshot: família com um placeholder no meio mostra 'sem nome', nunca o placeholder cru", async () => {
+    const mockSupabase = createMockSupabase({
+        patient: [
+            { id: "pat-1", full_name: "Fabricio Oliveira", phone: "5511999999999" },
+            { id: "pat-2", full_name: "Paciente WhatsApp", phone: "5511999999999" },
+        ],
+    });
+    const snapshot = await buildPatientSnapshot(mockSupabase as any, "tenant-1", "5511999999999", null);
+    assertEquals(snapshot?.includes("Paciente WhatsApp"), false);
+    assertEquals(snapshot?.includes("Fabricio Oliveira"), true);
+    assertEquals(snapshot?.includes("sem nome"), true);
 });
 
 // ── Onda 3: C4B — Executor adicionar_lista_espera e Schema da Waitlist ──────

@@ -24,6 +24,7 @@ import {
     isWithinBusinessHours,
     todayInTz,
     AFTER_HOURS_CANCEL_MSG,
+    plausiblePersonName,
     type SlotOption,
 } from "./schedulingTools.ts";
 import { fetchStageGuidance } from "./journeyStage.ts";
@@ -610,6 +611,7 @@ function pruneNulls(obj: Record<string, unknown> | undefined | null): Record<str
 const AUTONOMOUS_ADDENDUM = `
 ### MODO AUTÔNOMO (você fala diretamente com o paciente)
 - Você conversa em nome da clínica. Na primeira interação da conversa, apresente-se com naturalidade como assistente da clínica. NUNCA finja ser humano nem negue ser assistente virtual se perguntarem.
+- ABERTURA — SEMPRE SAIBA COM QUEM FALA: se a seção PACIENTE NO SISTEMA não mostrar um nome real (nenhum cadastro, ou nome ainda não informado), a sua PRIMEIRA resposta da conversa deve terminar perguntando o nome com naturalidade (ex.: "Com quem eu tenho o prazer de falar?" / "Qual é o seu nome?") — mesmo que o paciente já tenha feito uma pergunta ou pedido algo: acolha o que ele disse na MESMA mensagem e feche com a pergunta do nome, nunca deixe de perguntar. Assim que o paciente disser um nome (mesmo só o primeiro nome), chame atualizar_cadastro_paciente com o que foi dado e passe a chamá-lo por esse nome (só o primeiro nome, com naturalidade — não em toda frase) pelo resto da conversa. Se ele não responder o nome na primeira tentativa, siga ajudando normalmente e pergunte de novo, com leveza, na próxima oportunidade natural — nunca vire um interrogatório. Primeiro nome basta para CONVERSAR; agendar exige nome completo (ver CADASTRO DO PACIENTE abaixo).
 - Use a ferramenta transfer_to_human SEMPRE que: o paciente pedir para falar com uma pessoa; a pergunta for clínica além do CONTEXTO (diagnóstico, medicação, dor, urgência); o paciente insistir em preço após sua explicação; houver irritação ou reclamação; ou você não tiver como ajudar de verdade.
 - Ao transferir, escreva também uma mensagem curta e acolhedora avisando que a equipe assume em instantes, no mesmo chat.
 - AGENDAMENTO (autônomo, SÓ via ferramentas): você é um ESPECIALISTA em agendamento — o paciente busca o PROCEDIMENTO e a solução, não um nome de profissional que ele não conhece. NUNCA pergunte "qual profissional você prefere?" a quem não pediu: chame ver_disponibilidade informando o procedimento (e o período, se o paciente indicou preferência como "de manhã") — o sistema encontra sozinho os profissionais habilitados e agrega os horários. O nome do profissional aparece automaticamente na confirmação do agendamento; só o mencione antes disso se o paciente perguntar. Se o paciente PEDIR um profissional específico pelo nome, respeite a escolha e passe doctor_id — se a ferramenta avisar que esse profissional não realiza o procedimento, informe com gentileza e ofereça quem realiza. Os horários retornados são enviados como botões clicáveis automaticamente: apresente-os em uma frase curta e convide a escolher. FECHAMENTO: quando o paciente escolher dia/horário por TEXTO (ex.: "9am", "segunda"), NÃO peça nova confirmação nem transfira — chame agendar imediatamente com o slot_id exato daquele horário (retornado por ver_disponibilidade; se os slot_id não estiverem mais no seu contexto, chame ver_disponibilidade de novo e então agendar). Use agendar/remarcar apenas com valores vindos das ferramentas. Use buscar_meus_agendamentos para consultar ou preparar remarcação. NUNCA cite um horário que não veio de ferramenta.
@@ -1168,15 +1170,27 @@ export async function buildPatientSnapshot(
         .order("date", { ascending: true })
         .limit(8);
 
+    // Ficha placeholder ("Paciente WhatsApp") ou nome implausível ("minha filha")
+    // NUNCA pode aparecer como se fosse o nome real do paciente — o modelo
+    // saudaria/chamaria a pessoa por "Paciente WhatsApp" (E1/E2, teste real
+    // 2026-07-24). Trata como "nome ainda não informado", igual a não ter
+    // cadastro nenhum.
+    const displayName = (fullName: string | null | undefined): string | null =>
+        plausiblePersonName(fullName) ? (fullName as string).trim() : null;
+
     const lines: string[] = [];
     if (patients.length === 1) {
-        lines.push(`Paciente cadastrado: ${(patients[0] as any).full_name || "sem nome"}`);
+        const name = displayName((patients[0] as any).full_name);
+        lines.push(name
+            ? `Paciente cadastrado: ${name}`
+            : "Paciente já tem ficha no sistema, mas AINDA SEM NOME informado — pergunte o nome com naturalidade antes de chamá-lo por qualquer nome.");
     } else {
-        lines.push(`ATENÇÃO: ${patients.length} pacientes cadastrados com este número (provável família): ${(patients as any[]).map(p => p.full_name || "sem nome").join(", ")}.`);
+        const names = (patients as any[]).map(p => displayName(p.full_name) || "sem nome");
+        lines.push(`ATENÇÃO: ${patients.length} pacientes cadastrados com este número (provável família): ${names.join(", ")}.`);
         lines.push("Se não estiver claro pelo contexto com quem você fala ou de quem é a consulta, pergunte o nome com naturalidade antes de confirmar detalhes.");
     }
     if (appts?.length) {
-        const nameById = new Map((patients as any[]).map(p => [p.id, p.full_name || "sem nome"]));
+        const nameById = new Map((patients as any[]).map(p => [p.id, displayName(p.full_name) || "sem nome"]));
         lines.push("AGENDAMENTOS ATIVOS (estado REAL do sistema agora):");
         for (const a of appts as any[]) {
             const hhmm = String(a.start_time).substring(0, 5);

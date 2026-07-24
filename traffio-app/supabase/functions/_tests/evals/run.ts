@@ -53,13 +53,15 @@ async function runScenario(s: EvalScenario): Promise<RunResult> {
         stageGuidance: s.stage ? STAGE_GUIDANCE[s.stage] ?? null : null,
         languageHint: s.language ?? null,
         // Espelha buildPatientSnapshot de produção (fonte da verdade sobre agendamentos)
-        patientSnapshot: s.withAppointment
-            ? [
-                "Paciente cadastrado: Fabricio Teste",
-                "AGENDAMENTOS ATIVOS (estado REAL do sistema agora):",
-                `- ${MOCK_APPOINTMENT.date} às ${MOCK_APPOINTMENT.start_time} — ${MOCK_APPOINTMENT.appointment_types.name} com ${MOCK_APPOINTMENT.doctors.full_name} (${MOCK_APPOINTMENT.status})`,
-            ].join("\n")
-            : null,
+        patientSnapshot: s.patientSnapshotOverride !== undefined
+            ? s.patientSnapshotOverride
+            : (s.withAppointment
+                ? [
+                    "Paciente cadastrado: Fabricio Teste",
+                    "AGENDAMENTOS ATIVOS (estado REAL do sistema agora):",
+                    `- ${MOCK_APPOINTMENT.date} às ${MOCK_APPOINTMENT.start_time} — ${MOCK_APPOINTMENT.appointment_types.name} com ${MOCK_APPOINTMENT.doctors.full_name} (${MOCK_APPOINTMENT.status})`,
+                ].join("\n")
+                : null),
         // E-10/E-12 (Onda 3): espelha o buildFlowStateHint de produção — ficha já
         // conhecida entre turnos não deve ser perguntada de novo
         flowStateHint: s.intake ? buildFlowStateHint({}, s.intake) : null,

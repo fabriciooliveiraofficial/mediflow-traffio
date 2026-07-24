@@ -18,6 +18,13 @@ export interface EvalScenario {
     language?: "pt" | "en" | "es";
     /** Injeta o snapshot do paciente (MOCK_APPOINTMENT ativo) — fonte da verdade sobre agendamentos */
     withAppointment?: boolean;
+    /**
+     * Sobrescreve o patientSnapshot simulado, ignorando `withAppointment`.
+     * `null` = sem cadastro nenhum (nome desconhecido); string = snapshot customizado
+     * (ex.: ficha placeholder "Paciente já tem ficha... AINDA SEM NOME"). Se omitido,
+     * usa o comportamento padrão de `withAppointment`.
+     */
+    patientSnapshotOverride?: string | null;
     /** Injeta o fato canônico consultation_fee no pacote de conhecimento */
     consultationFee?: ConsultationStatus;
     /** Conteudo global simulado para o cenario de heranca sem fatos locais. */
@@ -467,6 +474,40 @@ export const SCENARIOS: EvalScenario[] = [
     {
         name: "sdr_coleta_nome_paciente — chama atualizar_cadastro_paciente quando o paciente dá o nome",
         history: [{ role: "user", content: "Gostei do horário de amanhã às 09:00. Meu nome é Roberto Carlos da Silva." }],
+        expect: {
+            toolsCalled: ["atualizar_cadastro_paciente"],
+            transfer: false,
+        },
+    },
+    {
+        name: "abertura_sem_nome — 1ª mensagem sem cadastro: acolhe a dúvida E pergunta o nome (E1, teste real 2026-07-24)",
+        language: "pt",
+        history: [{ role: "user", content: "Oi, quero saber sobre clareamento dental" }],
+        patientSnapshotOverride: null,
+        expect: {
+            textIncludesAny: ["nome", "prazer de falar", "quem eu", "chamá"],
+            toolsNotCalled: ["atualizar_cadastro_paciente"],
+            transfer: false,
+        },
+    },
+    {
+        name: "abertura_ficha_placeholder — ficha sem nome real nunca vaza 'Paciente WhatsApp' como saudação (E1/E2)",
+        language: "pt",
+        history: [{ role: "user", content: "Oi, quero marcar uma limpeza" }],
+        patientSnapshotOverride: "Paciente já tem ficha no sistema, mas AINDA SEM NOME informado — pergunte o nome com naturalidade antes de chamá-lo por qualquer nome.",
+        expect: {
+            textExcludesAll: ["paciente whatsapp"],
+            textIncludesAny: ["nome", "prazer de falar", "quem eu", "chamá"],
+        },
+    },
+    {
+        name: "abertura_primeiro_nome — paciente responde só o primeiro nome: cadastra e passa a usar o nome",
+        language: "pt",
+        history: [
+            { role: "assistant", content: "Oi! Sou a assistente da clínica 😊 Antes de mais nada, qual é o seu nome?" },
+            { role: "user", content: "Fabricio" },
+        ],
+        patientSnapshotOverride: null,
         expect: {
             toolsCalled: ["atualizar_cadastro_paciente"],
             transfer: false,
