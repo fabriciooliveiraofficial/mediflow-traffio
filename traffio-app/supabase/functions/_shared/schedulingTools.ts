@@ -1469,3 +1469,46 @@ export async function assembleConfirmation(
         location: loc, contact, clock, language,
     });
 }
+
+// ── Confirmação COMPLETA (saudação + "agendado!" + bloco rico) ───────────────
+// P3 (2026-07-24): o caminho do clique mandava só a SLOT_CONFIRM_MSG curta,
+// enquanto o LLM mandava o bloco rico. Agora TODOS os caminhos usam esta função
+// para entregar a mesma confirmação estruturada (data, horário, profissional,
+// local, maps) com uma saudação calorosa pelo primeiro nome.
+
+/** Saudação + linha "agendado com sucesso", por idioma. Nome opcional. */
+export const CONFIRMATION_GREETING: Record<ConversationLanguage, (firstName: string | null) => string> = {
+    en: (n) => `Hi${n ? ` ${n}` : ""}! 😊\nYour appointment has been successfully booked!`,
+    pt: (n) => `Prontinho${n ? `, ${n}` : ""}! 😊\nSeu agendamento foi confirmado com sucesso!`,
+    es: (n) => `¡Listo${n ? `, ${n}` : ""}! 😊\n¡Su cita quedó confirmada con éxito!`,
+};
+
+/** Primeiro nome plausível do paciente (para a saudação da confirmação). null se placeholder/ausente. */
+export async function patientFirstName(supabase: SupabaseClient, tenantId: string, patientId: string): Promise<string | null> {
+    const { data } = await scopedQuery(supabase, "patients", tenantId, "full_name").eq("id", patientId).maybeSingle();
+    const full = (data as any)?.full_name?.trim();
+    if (!full || !plausiblePersonName(full)) return null;
+    return full.split(/\s+/)[0];
+}
+
+/**
+ * Confirmação COMPLETA pronta para enviar ao paciente: saudação pelo primeiro
+ * nome + "agendado com sucesso" + o bloco estruturado (Data/Horário/
+ * Profissional/Local/Maps). Fonte única usada pelo clique, lista de espera e
+ * recovery — para que a experiência seja idêntica ao caminho LLM.
+ */
+export async function assembleFullConfirmation(
+    supabase: SupabaseClient,
+    tenantId: string,
+    booking: { date: string; start_time: string; location_id: string },
+    professional: string | null,
+    patientId: string | null,
+    language: ConversationLanguage,
+): Promise<string> {
+    const [block, firstName] = await Promise.all([
+        assembleConfirmation(supabase, tenantId, booking, professional, language),
+        patientId ? patientFirstName(supabase, tenantId, patientId) : Promise.resolve(null),
+    ]);
+    const greeting = (CONFIRMATION_GREETING[language] || CONFIRMATION_GREETING.pt)(firstName);
+    return `${greeting}\n\n${block}`;
+}

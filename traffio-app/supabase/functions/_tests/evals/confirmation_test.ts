@@ -5,7 +5,7 @@
  * garante que esse bloco NÃO é rejeitado pelo validador de emoji.
  */
 import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.168.0/testing/asserts.ts";
-import { buildConfirmationBlock, confirmationDoctorTitle, confirmationMapsUrl } from "../../_shared/schedulingTools.ts";
+import { buildConfirmationBlock, confirmationDoctorTitle, confirmationMapsUrl, CONFIRMATION_GREETING } from "../../_shared/schedulingTools.ts";
 import { countDecorativeEmoji, validateAgentReply } from "../../_shared/copilot.ts";
 
 const CLOCK_12H: any = { timezone: "Pacific/Auckland", timeFormat: "12h", locale: "en-NZ", today: "2026-07-23", now: "10:00" };
@@ -64,6 +64,19 @@ Deno.test("buildConfirmationBlock: omite linhas sem dado (local/maps/contato aus
     assert(!block.includes("Local"));
     assert(!block.includes("Como Chegar"));
     assertStringIncludes(block, "*Profissional:*");
+});
+
+Deno.test("CONFIRMATION_GREETING (P3, 2026-07-24): saudação com e sem nome, nos 3 idiomas", () => {
+    // EN com nome — bate com o formato do exemplo do usuário.
+    assertStringIncludes(CONFIRMATION_GREETING.en("Fabricio"), "Hi Fabricio! 😊");
+    assertStringIncludes(CONFIRMATION_GREETING.en("Fabricio"), "successfully booked");
+    // Sem nome (placeholder/ausente): saúda sem vírgula solta nem nome vazio.
+    assertEquals(CONFIRMATION_GREETING.en(null).startsWith("Hi! 😊"), true);
+    assertEquals(CONFIRMATION_GREETING.pt(null).startsWith("Prontinho! 😊"), true);
+    assertEquals(CONFIRMATION_GREETING.es(null).startsWith("¡Listo! 😊"), true);
+    // Com nome: PT e ES usam vírgula.
+    assertStringIncludes(CONFIRMATION_GREETING.pt("Ana"), "Prontinho, Ana! 😊");
+    assertStringIncludes(CONFIRMATION_GREETING.es("Ana"), "¡Listo, Ana! 😊");
 });
 
 Deno.test("GUARD emoji: o bloco de confirmação NÃO estoura o teto (marcadores são estruturais)", () => {

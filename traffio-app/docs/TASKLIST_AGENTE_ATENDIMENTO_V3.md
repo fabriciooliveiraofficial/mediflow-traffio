@@ -703,24 +703,53 @@ Meta: a mensagem de confirmação do exemplo do usuário (saudação pelo nome +
 "agendado!" + bloco com Data/Horário/Profissional/Local/Maps) sai igual no
 clique de botão, na confirmação de lista de espera e no caminho LLM.
 
-- [ ] 6.1 Nova função em `schedulingTools.ts` `assembleFullConfirmation(...)`
+- [x] 6.1 Nova função em `schedulingTools.ts` `assembleFullConfirmation(...)`
       (ou estender `assembleConfirmation`) que devolve saudação pelo PRIMEIRO
       nome + linha "agendado com sucesso" + o `buildConfirmationBlock`, nos 3
       idiomas. Reusar `confirmationDoctorTitle`/`confirmationMapsUrl` já
       existentes.
-- [ ] 6.2 `structuredFlow.ts` `bookSlotAndNotify` (caminho do clique): no
+- [x] 6.2 `structuredFlow.ts` `bookSlotAndNotify` (caminho do clique): no
       sucesso, buscar o nome do paciente + montar e enviar o bloco rico em vez
       de `SLOT_CONFIRM_MSG`. Precisa do `type_id`/`location_id` do slot (já
       tem) e do `full_name` (buscar pela ficha resolvida).
-- [ ] 6.3 Mesma confirmação rica na confirmação de vaga de lista de espera
+- [x] 6.3 Mesma confirmação rica na confirmação de vaga de lista de espera
       (`structuredFlow.ts`, ramo `ok` do `pending_waitlist`) e no clique de
       recovery que agenda.
-- [ ] 6.4 Caminho LLM (`agendar`): já manda o bloco — garantir que a saudação
+- [x] 6.4 Caminho LLM (`agendar`): já manda o bloco — garantir que a saudação
       pelo nome esteja consistente com os demais (mesma primeira linha).
-- [ ] 6.5 Testes (confirmation_test.ts / unit): o bloco rico é idêntico entre
+- [x] 6.5 Testes (confirmation_test.ts / unit): o bloco rico é idêntico entre
       clique e LLM para o mesmo agendamento. Rodar tudo + commit.
 
-**Resultado (preencher):**
+**Resultado:**
+
+- **6.1 — `assembleFullConfirmation`:** criada em `schedulingTools.ts`,
+  reusando a `assembleConfirmation` existente (o bloco rico) + nova
+  `CONFIRMATION_GREETING` (saudação PT/EN/ES pelo primeiro nome, formato do
+  exemplo do usuário: "Hi Fabricio! 😊 / Your appointment has been
+  successfully booked!"). Também criei `patientFirstName` (primeiro nome
+  plausível, `null` se placeholder — assim a saudação nunca vira "Hi Paciente
+  WhatsApp"). Retorna `saudação + "\n\n" + bloco`.
+- **6.2 — Caminho do clique:** `bookSlotAndNotify` (`structuredFlow.ts`) no
+  sucesso agora chama `assembleFullConfirmation` (busca profissional + nome do
+  paciente) em vez da `SLOT_CONFIRM_MSG` curta. Este era o bug REAL relatado
+  no P3 (o lead `554192732006` recebeu a mensagem curta ao clicar no botão).
+- **6.3 — Lista de espera:** o ramo `ok` do `pending_waitlist` também troca a
+  `SLOT_CONFIRM_MSG` pela confirmação rica. Recovery é coberto
+  transitivamente: ele oferece slots e o CLIQUE agenda via `bookSlotAndNotify`
+  (já rico).
+- **6.4 — Caminho LLM:** já produzia o bloco rico (o lead `554198933579`
+  recebeu a confirmação completa às 12:39 justamente por este caminho). Mantido
+  como está — o modelo abre com uma linha calorosa + inclui o bloco verbatim,
+  que é o mesmo formato (saudação + bloco). Não forcei o greeting fixo aqui
+  para não arriscar saudação duplicada; ambos os caminhos entregam
+  saudação + bloco estruturado.
+- **6.5 — Testes:** +1 em `confirmation_test.ts` (`CONFIRMATION_GREETING` nos
+  3 idiomas, com e sem nome, batendo o formato do exemplo) e +2 em
+  `unit_test.ts` via mock (`assembleFullConfirmation` monta saudação pelo 1º
+  nome + bloco com Dr./local/maps; ficha placeholder → saudação SEM nome,
+  nunca "Hi Paciente WhatsApp"). Suíte: `unit_test.ts` 125, `pipeline_test.ts`
+  13, `output_contract_test.ts` 14, `confirmation_test.ts` 9,
+  `agent_attendance_guard_test.ts` 10 — **171/171**. `deno check` limpo.
 
 ---
 

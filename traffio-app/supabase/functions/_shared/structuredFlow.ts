@@ -43,6 +43,7 @@ import {
     BOOKING_REASON,
     isPendingSlotsFresh,
     findConflictAlternatives,
+    assembleFullConfirmation,
     type SlotOption,
 } from "./schedulingTools.ts";
 
@@ -109,9 +110,15 @@ async function bookSlotAndNotify(
     const { success, bookErrMessage } = await attemptBooking(supabase, tenantId, patientId, slot);
 
     if (success) {
-        const msg = (SLOT_CONFIRM_MSG[language] || SLOT_CONFIRM_MSG.pt)(
-            formatDateForPatient(slot.date, language), slot.time,
-            await doctorDisplayName(supabase, tenantId, slot.doctor_id));
+        // P3 (2026-07-24): confirmação RICA (saudação + bloco estruturado com
+        // data/horário/profissional/local/maps) — igual ao caminho LLM, nunca
+        // mais a mensagem curta de uma linha só.
+        const professional = await doctorDisplayName(supabase, tenantId, slot.doctor_id);
+        const msg = await assembleFullConfirmation(
+            supabase, tenantId,
+            { date: slot.date, start_time: slot.time, location_id: slot.location_id },
+            professional, patientId, normalizeLanguage(language),
+        );
         await sendWithFallback(dispatcher, tenant, tenantId, phone, msg);
         await sessionManager.logMessage(sessionId, "assistant", msg);
         const ctx = { ...baseContext };
@@ -529,9 +536,13 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
             delete ctx.pending_waitlist;
 
             if (ok) {
-                const msg = (SLOT_CONFIRM_MSG[language] || SLOT_CONFIRM_MSG.pt)(
-                    formatDateForPatient(pendingWaitlist.date, language), pendingWaitlist.start_time,
-                    await doctorDisplayName(supabase, tenantId, pendingWaitlist.doctor_id));
+                // P3 (2026-07-24): confirmação rica também na vaga de lista de espera.
+                const professional = await doctorDisplayName(supabase, tenantId, pendingWaitlist.doctor_id);
+                const msg = await assembleFullConfirmation(
+                    supabase, tenantId,
+                    { date: pendingWaitlist.date, start_time: pendingWaitlist.start_time, location_id: pendingWaitlist.location_id },
+                    professional, pendingWaitlist.patient_id, normalizeLanguage(language),
+                );
                 await sendWithFallback(dispatcher, tenant, tenantId, phone, msg);
                 await sessionManager.logMessage(sessionId, "assistant", msg);
                 await supabase.from("waitlist").update({ status: "confirmed", updated_at: new Date().toISOString() }).eq("id", pendingWaitlist.waitlist_id);

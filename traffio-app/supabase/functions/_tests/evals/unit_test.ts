@@ -1089,6 +1089,44 @@ Deno.test("buildPatientSnapshot: nome real cadastrado aparece normalmente", asyn
     assertEquals(snapshot?.includes("Paciente cadastrado: Fabricio Oliveira"), true);
 });
 
+// ── P3 (2026-07-24): assembleFullConfirmation — confirmação rica em todos os caminhos ──
+import { assembleFullConfirmation, patientFirstName } from "../../_shared/schedulingTools.ts";
+
+Deno.test("assembleFullConfirmation: saudação pelo primeiro nome + bloco estruturado (data/profissional/local)", async () => {
+    const mockSupabase = createMockSupabase({
+        patient: { id: "pat-1", full_name: "Fabricio Oliveira", phone: "5511999999999" },
+        doctor: { id: "doc-1", full_name: "Fabricio Pacheco" },
+        location: { id: "loc-1", name: "Auckland Dental Care", google_maps_url: "https://maps.app.goo.gl/xyz" },
+    });
+    const msg = await assembleFullConfirmation(
+        mockSupabase as any, "tenant-1",
+        { date: "2026-07-28", start_time: "08:30", location_id: "loc-1" },
+        "Fabricio Pacheco", "pat-1", "en",
+    );
+    assert(msg.includes("Hi Fabricio! 😊"));             // saudação pelo PRIMEIRO nome
+    assert(msg.includes("successfully booked"));
+    assert(msg.includes("Appointment Details"));         // bloco estruturado
+    assert(msg.includes("Dr. Fabricio Pacheco"));
+    assert(msg.includes("Auckland Dental Care"));
+    assert(msg.includes("https://maps.app.goo.gl/xyz"));
+});
+
+Deno.test("assembleFullConfirmation: ficha placeholder → saudação SEM nome (nunca 'Hi Paciente WhatsApp')", async () => {
+    const mockSupabase = createMockSupabase({
+        patient: { id: "pat-1", full_name: "Paciente WhatsApp", phone: "5511999999999" },
+        location: { id: "loc-1", name: "Centro" },
+    });
+    const first = await patientFirstName(mockSupabase as any, "tenant-1", "pat-1");
+    assertEquals(first, null);
+    const msg = await assembleFullConfirmation(
+        mockSupabase as any, "tenant-1",
+        { date: "2026-07-28", start_time: "08:30", location_id: "loc-1" },
+        "Ana Souza", "pat-1", "pt",
+    );
+    assert(msg.startsWith("Prontinho! 😊"), `esperava saudação sem nome, veio: ${msg.substring(0, 30)}`);
+    assert(!msg.includes("Paciente WhatsApp"));
+});
+
 Deno.test("buildPatientSnapshot: família com um placeholder no meio mostra 'sem nome', nunca o placeholder cru", async () => {
     const mockSupabase = createMockSupabase({
         patient: [
