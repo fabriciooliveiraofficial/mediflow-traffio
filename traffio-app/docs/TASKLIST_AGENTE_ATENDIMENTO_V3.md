@@ -543,13 +543,13 @@ coerente.
 
 ## ETAPA 5 — Validação de concorrência, deploy e monitoramento
 
-- [ ] 5.1 Rodar TODAS as suítes de `_tests/evals/` e registrar o resultado.
-- [ ] 5.2 Deploy `process-inbox` (comando da seção 2). Registrar horário.
-- [ ] 5.3 Smoke assistido: simular 2 conversas com telefones distintos disputando
+- [x] 5.1 Rodar TODAS as suítes de `_tests/evals/` e registrar o resultado.
+- [x] 5.2 Deploy `process-inbox` (comando da seção 2). Registrar horário.
+- [x] 5.3 Smoke assistido: simular 2 conversas com telefones distintos disputando
       o MESMO slot (pode ser via inserção na fila de inbox do tenant de teste ou
       teste manual): a 1ª agenda; a 2ª recebe desculpa + reoferta com botões; e
       nenhum "Paciente WhatsApp" novo é criado em `patients`.
-- [ ] 5.4 Queries de monitoramento (salvar na seção Resultado): contagem de
+- [x] 5.4 Queries de monitoramento (salvar na seção Resultado): contagem de
       `patients` com nome placeholder criados após o deploy (meta: 0); taxa de
       `SLOT_CONFLICT` no log do worker; conversas em que a 1ª resposta do agente
       não pergunta o nome (amostra manual de 5 conversas novas).
@@ -563,7 +563,76 @@ coerente.
 - [ ] 5.6 Após aprovação do usuário: commit final + atualizar
       `docs/ATENDIMENTO_AI_AGENT_CAMINHO_CRITICO.md` com os novos guards.
 
-**Resultado (preencher):**
+**Resultado:**
+
+- **5.1 — Testes:** suíte completa rodada limpa imediatamente antes do deploy:
+  `unit_test.ts` 123/123, `pipeline_test.ts` 13/13, `output_contract_test.ts`
+  14/14, `confirmation_test.ts` 8/8, `agent_attendance_guard_test.ts` 10/10 —
+  **168/168**. Working tree limpo (só o próprio tasklist pendente) antes do
+  deploy.
+- **5.2 — Deploy:** `npx supabase functions deploy process-inbox
+  --project-ref fyyhxmugxcfqhvoevuwf` — sucesso em **2026-07-24 11:34:41
+  (horário local)**, a partir do commit `09f9c04` (Etapas 1-4 completas).
+- **5.3 — Smoke de concorrência (SEGURO, sem enviar nenhuma mensagem real):**
+  em vez de simular o pipeline completo via webhook (o que enviaria
+  mensagens de WhatsApp REAIS para um número de teste — decisão deliberada
+  de não fazer isso autonomamente), validei a FUNDAÇÃO de dados de que a
+  Etapa 4 depende, direto no banco de produção, com chamadas que ou só leem
+  ou falham por design (nada criado, nada enviado):
+  1. `book_appointment` chamado para um slot JÁ OCUPADO (doctor real de
+     teste, 2026-07-28 08:30, ocupado pelo paciente `2cfe597e-...`) com um
+     patient_id DIFERENTE → retornou exatamente
+     `{"success": false, "reason": "SLOT_CONFLICT"}` — bate 100% com o que
+     `attemptBooking`/`agendar`/`remarcar` esperam. Nenhuma linha criada (a
+     chamada falhou por design).
+  2. `find_next_available_dates` para o mesmo doctor/dia: `08:30` e `08:45`
+     (dentro da janela do agendamento real) corretamente `available:false`;
+     `09:00` corretamente `available:true` — confirma que, se esse conflito
+     acontecesse via bot, `findConflictAlternatives` acharia uma alternativa
+     real (09:00) para reofertar, exatamente como os testes unitários da
+     Etapa 4 simulam.
+  3. Contagem de "Paciente WhatsApp" seguiu **3** (igual à Etapa 0/2) —
+     nenhum placeholder novo desde o deploy.
+  **O que este smoke NÃO cobre** (fica para 5.5, o reteste real do usuário):
+  o disparo fim-a-fim via webhook → `tryStructuredFlow` →
+  `OutboxDispatcher`/envio real de WhatsApp → confirmação visual da
+  mensagem de reoferta com botões chegando no aparelho. Não tentei simular
+  isso autonomamente porque exigiria inserir mensagens na fila de um tenant
+  real e deixar o worker enviar WhatsApp de verdade para um número — ação
+  com efeito fora do meu sandbox que não me cabe disparar sozinho.
+- **5.4 — Monitoramento:**
+  - `select count(*) from patients where full_name = 'Paciente WhatsApp'` —
+    **3** (baseline igual à Etapa 0; meta daqui pra frente é este número
+    NUNCA subir). Comando pronto para reuso:
+    ```sql
+    select count(*) from patients where full_name = 'Paciente WhatsApp';
+    ```
+  - **Taxa de `SLOT_CONFLICT` no log do worker:** não existe hoje uma tabela
+    de observabilidade que registre isso — `agent_turn_events` (inspecionada
+    via `information_schema`) rastreia `tools_called`/`handoff_reason`/
+    `violations` por turno do agente autônomo, mas o caminho do CLIQUE
+    (`structuredFlow.ts`, onde a maior parte dos conflitos acontece) é um
+    pré-filtro que roda ANTES do agente e não escreve nessa tabela. Os
+    sinais reais ficam nos logs do Edge Function
+    (Dashboard Supabase → Edge Functions → `process-inbox` → Logs) — grep
+    por `agendamento não confirmou` (conflito no clique/retomada por nome),
+    `slot click não agendou` (não deveria mais aparecer — foi substituído
+    pelo bloco novo, se aparecer é sinal de código antigo em cache) e
+    `waitlist não confirmou`. Registrado aqui como GAP para a equipe: se
+    quiserem taxa numérica, precisa de uma tabela de evento dedicada — fora
+    do escopo desta correção.
+  - **Amostra de 5 conversas novas (1ª resposta pergunta o nome):** sem
+    dado ainda — o deploy é de agora (11:34) e nenhuma conversa nova
+    aconteceu neste tenant desde então. Fica pendente até o reteste real do
+    item 5.5, que é o próprio veículo dessa amostra.
+
+- **5.5 — PARADO. Aguardando o usuário repetir o teste real com 4 pessoas
+  simultâneas** (ver mensagem de fechamento do orquestrador). Critérios de
+  aceite: agente pergunta o nome na abertura e usa o nome depois; nenhum
+  paciente novo "Paciente WhatsApp"; nenhum slot oferecido que já estava
+  reservado ANTES da oferta; todo conflito de corrida vem com reoferta de
+  horários livres + botões na mesma mensagem.
+- **5.6 — pendente**, depende da aprovação do usuário no item 5.5.
 
 ---
 
