@@ -636,6 +636,158 @@ coerente.
 
 ---
 
+# RETESTE 2 (2026-07-24 ~14:50) — REPROVADO. Diagnóstico e Plano V3.1
+
+O usuário repetiu o teste real com 4 leads simultâneos e **reprovou**. Três
+problemas relatados + um quarto que o diagnóstico revelou. Diagnóstico feito
+com evidência real do banco de produção (tenant de teste
+`3810a967-507f-4415-866b-0f67b7d06053`): `agent_turn_events`,
+`conversation_sessions.recent_messages`, `message_inbox`.
+
+## Achados (evidência)
+
+- **P1 — Freeze / "Falha no sistema (Hard)" em vários leads.** Duas sessões
+  (`554192732006`, `554198933579`) terminaram em `handoff_kind=hard,
+  handoff_reason=tech`, com o paciente sem NENHUMA resposta (o lead digitou
+  "Terminou?" = "acabou?"). Mecânica confirmada no código:
+  1. Sob concorrência (4 turnos ao mesmo tempo), as latências dispararam
+     (16-30s por turno em `agent_turn_events`) e turnos falharam. Falha de
+     turno → `catch` no topo de `process-inbox` (linha 144) → handoff
+     `tech/hard`. As mensagens ficaram `done` (não `failed`) porque o throw
+     ocorre depois do `markMessages('done')` ou o retorno "failed" do agente
+     não passa pelo `catch` — de todo modo o resultado é o mesmo: sessão vira
+     hard.
+  2. **CASCATA DE SILÊNCIO (a raiz do "freeze" que o usuário vê):** uma vez
+     que a sessão está `hard`, `isAutonomousAgentTurn` passa a retornar
+     `false` para SEMPRE (`isHardHandoffSession` = true). Toda mensagem
+     seguinte do paciente cai no ramo `else` de `process-inbox` (linha 460),
+     que só re-encaminha para humano e **NÃO envia nada ao paciente**. O lead
+     fica falando sozinho, sem uma linha sequer dizendo que um humano vai
+     assumir. É exatamente o print que o usuário mandou.
+  - Observação honesta: o erro EXATO do primeiro throw exige os logs do Edge
+    Function (Dashboard → Edge Functions → process-inbox → Logs), que não
+    são acessíveis via `db query`. A hipótese mais forte é esgotamento do
+    pool de conexões do Postgres sob concorrência (bate com a memória do
+    projeto "teto real é infra/DB" e com uma sessão que virou hard em <1s,
+    rápido demais para ser LLM). A Etapa 8 inclui instrumentação para
+    capturar o erro exato E as correções estruturais que valem
+    independentemente da causa raiz.
+- **P2 — Agenda sem qualificar o procedimento.** Lead `554198933579` disse só
+  "need an appointment please!" e o agente respondeu "Let's get your **implant
+  evaluation** with Dr. Fabricio Pacheco sorted" e já ofereceu horário — sem
+  perguntar o que o paciente precisa. O agente ASSUMIU o procedimento (provável
+  vazamento de `intake.procedure` de uma conversa anterior no contexto). Fluxo
+  de mercado (Arini/Hello Patient/Intavia): entender a NECESSIDADE/motivo da
+  visita antes de oferecer horário.
+- **P3 — Confirmação curta no caminho do clique.** Lead `554192732006` clicou
+  no botão "28/07 · 08:30" e recebeu só: *"All set! Your appointment is booked
+  for 07/28/2026 at 08:30 with Fabricio Pacheco. ✅"* (a `SLOT_CONFIRM_MSG`
+  curta do caminho determinístico). Já o caminho LLM (`agendar`) manda o bloco
+  RICO ("📝 Detalhes do Agendamento: 📅 Data / 🕒 Horário / 👨‍⚕️ Profissional /
+  📍 Local / 🗺️ Como Chegar"). O usuário quer o bloco rico em TODOS os
+  caminhos — as peças (`assembleConfirmation`/`buildConfirmationBlock`) já
+  existem; o clique só não as usa.
+
+## Correção de rota do plano V3 (o usuário está certo)
+
+A Etapa 1 colocou "perguntar o nome" como a PRIMEIRA coisa. O fluxo validado de
+mercado qualifica a NECESSIDADE primeiro (ou junto), não o nome isolado. O nome
+continua obrigatório antes de reservar (Etapa 2), mas a ABERTURA deve entender
+o que o lead precisa. Ajuste incorporado na Etapa 7.
+
+---
+
+## ETAPA 6 — P3: confirmação estruturada e rica em TODOS os caminhos
+
+Meta: a mensagem de confirmação do exemplo do usuário (saudação pelo nome +
+"agendado!" + bloco com Data/Horário/Profissional/Local/Maps) sai igual no
+clique de botão, na confirmação de lista de espera e no caminho LLM.
+
+- [ ] 6.1 Nova função em `schedulingTools.ts` `assembleFullConfirmation(...)`
+      (ou estender `assembleConfirmation`) que devolve saudação pelo PRIMEIRO
+      nome + linha "agendado com sucesso" + o `buildConfirmationBlock`, nos 3
+      idiomas. Reusar `confirmationDoctorTitle`/`confirmationMapsUrl` já
+      existentes.
+- [ ] 6.2 `structuredFlow.ts` `bookSlotAndNotify` (caminho do clique): no
+      sucesso, buscar o nome do paciente + montar e enviar o bloco rico em vez
+      de `SLOT_CONFIRM_MSG`. Precisa do `type_id`/`location_id` do slot (já
+      tem) e do `full_name` (buscar pela ficha resolvida).
+- [ ] 6.3 Mesma confirmação rica na confirmação de vaga de lista de espera
+      (`structuredFlow.ts`, ramo `ok` do `pending_waitlist`) e no clique de
+      recovery que agenda.
+- [ ] 6.4 Caminho LLM (`agendar`): já manda o bloco — garantir que a saudação
+      pelo nome esteja consistente com os demais (mesma primeira linha).
+- [ ] 6.5 Testes (confirmation_test.ts / unit): o bloco rico é idêntico entre
+      clique e LLM para o mesmo agendamento. Rodar tudo + commit.
+
+**Resultado (preencher):**
+
+---
+
+## ETAPA 7 — P2: qualificar a necessidade/procedimento antes de oferecer horário
+
+Meta: o agente entende o que o lead precisa (motivo/procedimento) antes de
+`ver_disponibilidade`/`agendar`. Nunca assume o procedimento de contexto velho.
+
+- [ ] 7.1 `copilot.ts` — reordenar a regra de ABERTURA (Etapa 1): a 1ª resposta
+      acolhe o lead, PERGUNTA o que ele precisa (motivo da visita/procedimento)
+      e o nome — necessidade em primeiro plano, não o nome isolado. Uma pergunta
+      por vez, sem interrogatório.
+- [ ] 7.2 `copilot.ts` — regra explícita: NUNCA chamar `ver_disponibilidade`
+      nem `agendar` sem saber o procedimento/motivo desta conversa. Se o lead
+      pede "quero agendar" sem dizer o quê, perguntar antes. Não reaproveitar
+      `intake.procedure` de agendamento anterior sem reconfirmar (anti-vazamento
+      de contexto — foi o que gerou o "implant evaluation" fantasma).
+- [ ] 7.3 Guard na tool `ver_disponibilidade` (`schedulingTools.ts`): se
+      `procedure`/`type_id` não vier e não houver como resolver o serviço,
+      retornar um `note` pedindo para o agente qualificar a necessidade antes —
+      em vez de cair em `activeDoctors` e ofertar horário às cegas. (Avaliar
+      impacto: alguns tenants podem ter 1 procedimento só; se `appointment_types`
+      do tenant tiver só 1 ativo, pode seguir sem perguntar.)
+- [ ] 7.4 Anti-vazamento: ao persistir `intake`, não deixar `procedure` de um
+      agendamento CONCLUÍDO contaminar a próxima intenção. Avaliar limpar
+      `intake.procedure` após confirmação de agendamento.
+- [ ] 7.5 Evals (scenarios.ts): "quero agendar" sem procedimento → agente
+      pergunta a necessidade, NÃO chama ver_disponibilidade; "quero limpeza" →
+      chama ver_disponibilidade com procedure. Rodar + commit.
+
+**Resultado (preencher):**
+
+---
+
+## ETAPA 8 — P1: falha transitória nunca vira silêncio permanente
+
+Meta: (a) capturar o erro exato do primeiro throw; (b) falha transitória de
+infra/DB vira handoff SOFT (autorrecuperável), não HARD; (c) o paciente NUNCA
+fica sem uma resposta — toda rota para humano manda ao menos uma linha.
+
+- [ ] 8.1 Instrumentação: no `catch` de `process-inbox` (linha 114) e no
+      `catch` de `runAutonomousAgent`, logar `err.message`/`err.code`/nome —
+      e persistir o motivo num campo consultável (ex.: `agent_turn_events` com
+      `handoff_reason` detalhado ou uma coluna nova) para pararmos de depender
+      dos logs do Edge. Deployar isto PRIMEIRO e pedir um mini-reteste para
+      capturar o erro real antes de assumir a causa.
+- [ ] 8.2 Classificar erro transitório de DB (pool esgotado, timeout de
+      statement, "too many clients", "canceling statement") como INFRA →
+      `triggerHumanHandoff(..., { kind: "soft" })` (autorrecupera, igual ao
+      LLM infra hoje) em vez do `hard` default. Reusar/estender
+      `isLlmInfraFailure` → `isTransientInfraFailure`.
+- [ ] 8.3 Nunca estrandar o paciente: quando um turno cai para a fila humana
+      (qualquer motivo), enviar UMA mensagem curta ao paciente ("já estou
+      chamando alguém da equipe pra te ajudar, um instante 💙") — PT/EN/ES,
+      idempotente (não repetir a cada mensagem subsequente). Cobrir o ramo
+      `else` (linha 460), o fail-safe do `catch` (linha 144) e o
+      `autonomousStatus === "failed"` (linha 442).
+- [ ] 8.4 Concorrência: avaliar reduzir `WORKER_CONCURRENCY` e/ou serializar
+      turnos por tenant, e revisar o nº de round-trips por turno (Promise.all
+      de queries) para aliviar o pool sob carga. NÃO mexer em pg_cron.
+      (Só depois do 8.1 confirmar que é DB.)
+- [ ] 8.5 Testes + deploy + reteste real com 4 pessoas.
+
+**Resultado (preencher):**
+
+---
+
 ## Apêndice — mapa de arquivos
 
 | Arquivo | Papel |
