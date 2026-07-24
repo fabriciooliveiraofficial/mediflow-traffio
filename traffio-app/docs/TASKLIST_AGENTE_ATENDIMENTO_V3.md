@@ -346,29 +346,88 @@ agendamento. Nome de agendamento = nome completo (mínimo 2 palavras).
 Meta: além do filtro no fetch (já em código), eliminar as janelas de staleness
 que os testes simultâneos expuseram.
 
-- [ ] 3.1 Confirmar (evidência da Etapa 0) que o filtro `isSlotAvailable` está
+- [x] 3.1 Confirmar (evidência da Etapa 0) que o filtro `isSlotAvailable` está
       ativo em produção. Se o probe 0.3 mostrou o RPC retornando slots SEM a flag
       `available` (forma antiga), o RPC de produção precisa ser atualizado — 
       registrar e PARAR para alinhamento com o usuário (mudança de banco).
-- [ ] 3.2 TTL de `pending_slots`: ao gravar `pending_slots`/`pending_slot_titles`
+- [x] 3.2 TTL de `pending_slots`: ao gravar `pending_slots`/`pending_slot_titles`
       (em `copilot.ts` ~1579 e `structuredFlow.ts` ~457), gravar também
       `pending_slots_at` (ISO). No matching do clique (`structuredFlow.ts`
       ~284-295): se `pending_slots_at` > 60 min atrás, tratar como expirado —
       não casar dígito/título (evita agendar por índice de uma lista velha);
       clique em `slot|...` cru ainda é validado pelo RPC (atômico), então segue.
-- [ ] 3.3 Revalidação pré-envio no caminho LLM: em `executeSchedulingTool`
+- [x] 3.3 Revalidação pré-envio no caminho LLM: em `executeSchedulingTool`
       (`ver_disponibilidade`), nenhum trabalho extra — o fetch já é fresco no
       turno. Confirmar apenas que nenhum outro caminho reaproveita slots velhos
       do contexto para montar botões (verificar `copilot.ts` ~1570-1590 e
       `outboxDispatcher`).
-- [ ] 3.4 Registrar decisão de arquitetura na seção Resultado: a corrida
+- [x] 3.4 Registrar decisão de arquitetura na seção Resultado: a corrida
       mostrar→clicar é inerente (multiusuário); a defesa é (a) reserva atômica no
       RPC `book_appointment` (já existe) + (b) recuperação com reoferta imediata
       (Etapa 4). Não implementar lock/hold de slot nesta onda.
-- [ ] 3.5 Testes (pipeline: dígito sobre lista expirada não casa; clique cru
+- [x] 3.5 Testes (pipeline: dígito sobre lista expirada não casa; clique cru
       expirado ainda agenda se o RPC aceitar) + commit.
 
-**Resultado (preencher):**
+**Resultado:**
+
+- **3.1 — Filtro `isSlotAvailable` em produção:** já confirmado na Etapa 0
+  (probe direto no RPC `find_next_available_dates` de produção, tenant de
+  teste): os 3 horários ocupados do doctor real do teste vieram
+  corretamente com `"available": false`. Nenhuma ação de banco necessária
+  nesta etapa — o problema real do E3 é a janela de tempo entre "IA mostrou"
+  e "paciente clicou" (item 3.4), não o RPC.
+- **3.2 — TTL de `pending_slots` (60min):** extraída função pura
+  `isPendingSlotsFresh(pendingSlotsAt)` + constante `PENDING_SLOTS_TTL_MS`
+  em `schedulingTools.ts` (mesmo padrão de `isSlotAvailable` — pura,
+  exportada, testável sem banco). `pending_slots_at` agora é gravado nos
+  DOIS pontos de escrita: `copilot.ts` (caminho LLM, junto de
+  `merged.pending_slots`) e `structuredFlow.ts` (oferta de recovery, junto
+  de `ctx.pending_slots`). No casamento do clique (`structuredFlow.ts`,
+  bloco 1), tanto o fallback por DÍGITO quanto por TÍTULO agora exigem
+  `isPendingSlotsFresh(context.pending_slots_at)` — sem timestamp (sessão de
+  antes deste deploy) conta como vencido, fail-safe. Um clique CRU
+  (`slot|...`) nunca passa por este gate — vai direto para
+  `parseSlotClick`/RPC, que revalida atomicamente contra o banco de
+  qualquer forma. `pending_slots_at` é limpo em conjunto com `pending_slots`
+  em todo lugar que já limpava (`bookSlotAndNotify`, ramo `else` do LLM).
+- **3.3 — Caminho LLM nunca reaproveita slots velhos:** confirmado por
+  leitura — os botões enviados ao paciente no turno (`buildSlotInteractive(lastSlots, ...)`,
+  `copilot.ts:1740`) usam sempre `lastSlots`, que só é populado a partir de
+  `outcome.slots` do `ver_disponibilidade` DESTE turno (`copilot.ts:1532`) —
+  nunca lido de `context.pending_slots`. O `context.pending_slots` só
+  alimenta (a) o hint textual para o modelo escolher o `slot_id` certo se o
+  paciente responder por TEXTO, e (b) o casamento determinístico do clique
+  em `structuredFlow.ts` (agora com TTL). `outboxDispatcher.ts` não toca em
+  `pending_slots` (só tem um comentário de referência). Nenhuma mudança
+  necessária.
+- **3.4 — Decisão de arquitetura:** a corrida "IA mostra os horários" →
+  "paciente clica" é inerente a um sistema multiusuário em tempo real — não
+  existe forma de eliminá-la sem reservar (hold) o slot no momento em que é
+  OFERECIDO, o que traria seu próprio custo (expirar holds, liberar holds
+  abandonados, complexidade nova). A defesa adotada nesta iteração é em duas
+  camadas: **(a) prevenção de janela longa** — o TTL do item 3.2 garante que
+  a lista de opções nunca fica velha o suficiente para virar uma nova fonte
+  de erro por si só (o bug do teste real não era a corrida de segundos entre
+  mostrar e clicar — era uma sessão com lista de 1h+ ainda sendo usada); e
+  **(b) recuperação instantânea quando a corrida realmente acontece** —
+  `book_appointment` já é atômico no banco (garante que nunca dá dupla
+  reserva), e a Etapa 4 troca a mensagem de "horário ocupado" sem saída por
+  uma reoferta imediata das alternativas ainda livres. Não implementamos
+  lock/hold de slot nesta onda — decisão deliberada, não pendência.
+- **3.5 — Testes:** `pipeline_test.ts` ganhou 4 fixtures novas espelhando
+  a lógica REAL de `structuredFlow.ts` (dígito e título agora fazem parte do
+  `runFixture`, antes só o título): dígito sobre lista vencida (>1h) não
+  casa; dígito sobre lista fresca (<1h) casa normalmente; título sobre lista
+  vencida não casa; clique CRU continua casando mesmo com a lista vencida
+  (prova de que o TTL não afeta o caminho atômico). A fixture pré-existente
+  de fallback por título ganhou um `pending_slots_at` fresco (antes não
+  precisava, agora precisa para continuar passando — reflete o
+  comportamento real pós-deploy). `unit_test.ts` ganhou 2 testes puros de
+  `isPendingSlotsFresh` (limite de 59min/61min, e os casos ausente/vazio/
+  inválido = vencido). Suíte completa: `unit_test.ts` 120/120,
+  `pipeline_test.ts` 13/13, `output_contract_test.ts` 14/14,
+  `confirmation_test.ts` 8/8, `agent_attendance_guard_test.ts` 10/10 —
+  **165/165**. `npx deno check` limpo em todos os arquivos tocados.
 
 ---
 

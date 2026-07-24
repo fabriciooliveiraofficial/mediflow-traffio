@@ -1230,6 +1230,24 @@ Deno.test("isSlotAvailable: available:true e ausência da flag (schema legado) c
     assertEquals(isSlotAvailable("08:30"), true); // forma legada: string pura, sem flag
 });
 
+// ── E3 (2026-07-24): TTL dos botões de horário oferecidos ────────────────────
+import { isPendingSlotsFresh } from "../../_shared/schedulingTools.ts";
+
+Deno.test("isPendingSlotsFresh: dentro de 1h é fresco, depois de 1h está vencido", () => {
+    assertEquals(isPendingSlotsFresh(new Date().toISOString()), true);
+    assertEquals(isPendingSlotsFresh(new Date(Date.now() - 5 * 60 * 1000).toISOString()), true); // 5min
+    assertEquals(isPendingSlotsFresh(new Date(Date.now() - 59 * 60 * 1000).toISOString()), true); // 59min
+    assertEquals(isPendingSlotsFresh(new Date(Date.now() - 61 * 60 * 1000).toISOString()), false); // 61min
+    assertEquals(isPendingSlotsFresh(new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()), false); // 2h
+});
+
+Deno.test("isPendingSlotsFresh: ausente, vazio ou inválido conta como vencido (fail-safe)", () => {
+    assertEquals(isPendingSlotsFresh(null), false);
+    assertEquals(isPendingSlotsFresh(undefined), false);
+    assertEquals(isPendingSlotsFresh(""), false);
+    assertEquals(isPendingSlotsFresh("data-invalida"), false);
+});
+
 // ── Erro 5: o motivo de conflito do RPC book_appointment não pode divergir
 // entre a versão em produção (migrations/20260626120000_book_appointment_
 // hardening.sql) e quem a consome (schedulingTools.ts, structuredFlow.ts) ──

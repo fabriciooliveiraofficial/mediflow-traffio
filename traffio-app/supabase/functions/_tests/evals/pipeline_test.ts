@@ -16,7 +16,7 @@
  */
 import { assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
 import { extractZapiContent, extractCloudApiContent } from "../../_shared/inboundParser.ts";
-import { parseSlotClick, resolveSlotIdByTitle } from "../../_shared/schedulingTools.ts";
+import { parseSlotClick, resolveSlotIdByTitle, isPendingSlotsFresh } from "../../_shared/schedulingTools.ts";
 
 type Route = "structured_flow" | "no_match" | "ignored";
 
@@ -26,7 +26,7 @@ interface PipelineFixture {
     webhookPayload: any;
     provider: "zapi" | "cloud_api";
     /** Estado da sessão no momento do turno (o que importa para o roteamento). */
-    sessionContext?: { pending_slots?: string[]; pending_slot_titles?: string[] };
+    sessionContext?: { pending_slots?: string[]; pending_slot_titles?: string[]; pending_slots_at?: string | null };
     /** Rota esperada ao final da costura webhook → parser → pré-filtro estruturado. */
     expectedRoute: Route;
     /** Quando expectedRoute === "structured_flow", o slot_id que deveria casar. */
@@ -80,6 +80,67 @@ const FIXTURES: PipelineFixture[] = [
         sessionContext: {
             pending_slots: ["slot|doc1|loc1|type1|2026-07-22|08:30"],
             pending_slot_titles: ["22/07 · 08:30"],
+            pending_slots_at: new Date().toISOString(),
+        },
+        expectedRoute: "structured_flow",
+        expectedSlotId: "slot|doc1|loc1|type1|2026-07-22|08:30",
+    },
+    // ── E3 (2026-07-24): TTL dos botões oferecidos ────────────────────────────
+    {
+        name: "TTL: dígito sobre lista VENCIDA (>1h) não casa — evidência de produção (sessão real achada com pending_slots de 1h+ contendo horários já ocupados por outra pessoa)",
+        provider: "zapi",
+        webhookPayload: {
+            instanceId: "3E7A1782ADDED03618F7326225A8F6AC",
+            phone: "5511999999999",
+            text: { message: "1" },
+        },
+        sessionContext: {
+            pending_slots: ["slot|doc1|loc1|type1|2026-07-22|08:30"],
+            pending_slots_at: new Date(Date.now() - 90 * 60 * 1000).toISOString(), // 90min atrás
+        },
+        expectedRoute: "no_match",
+    },
+    {
+        name: "TTL: dígito sobre lista FRESCA (<1h) casa normalmente",
+        provider: "zapi",
+        webhookPayload: {
+            instanceId: "3E7A1782ADDED03618F7326225A8F6AC",
+            phone: "5511999999999",
+            text: { message: "1" },
+        },
+        sessionContext: {
+            pending_slots: ["slot|doc1|loc1|type1|2026-07-22|08:30"],
+            pending_slots_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(), // 5min atrás
+        },
+        expectedRoute: "structured_flow",
+        expectedSlotId: "slot|doc1|loc1|type1|2026-07-22|08:30",
+    },
+    {
+        name: "TTL: título sobre lista VENCIDA não casa (fallback por título desligado)",
+        provider: "zapi",
+        webhookPayload: {
+            instanceId: "3E7A1782ADDED03618F7326225A8F6AC",
+            phone: "5511999999999",
+            buttonsResponseMessage: { buttonId: "", message: "22/07 · 08:30" },
+        },
+        sessionContext: {
+            pending_slots: ["slot|doc1|loc1|type1|2026-07-22|08:30"],
+            pending_slot_titles: ["22/07 · 08:30"],
+            pending_slots_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2h atrás
+        },
+        expectedRoute: "no_match",
+    },
+    {
+        name: "TTL: clique CRU (slot|...) continua casando mesmo com pending_slots vencido — RPC atômico revalida depois",
+        provider: "zapi",
+        webhookPayload: {
+            instanceId: "3E7A1782ADDED03618F7326225A8F6AC",
+            phone: "5511999999999",
+            buttonsResponseMessage: { buttonId: "slot|doc1|loc1|type1|2026-07-22|08:30", message: "22/07 · 08:30" },
+        },
+        sessionContext: {
+            pending_slots: ["slot|doc1|loc1|type1|2026-07-22|08:30"],
+            pending_slots_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2h atrás
         },
         expectedRoute: "structured_flow",
         expectedSlotId: "slot|doc1|loc1|type1|2026-07-22|08:30",
@@ -156,11 +217,18 @@ function runFixture(f: PipelineFixture): { route: Route; slotId: string | null }
 
     const pendingSlots = f.sessionContext?.pending_slots ?? [];
     const pendingTitles = f.sessionContext?.pending_slot_titles;
+    const pendingSlotsFresh = isPendingSlotsFresh(f.sessionContext?.pending_slots_at);
 
-    // Espelha a ordem exata de structuredFlow.ts: tenta o id cru primeiro,
-    // cai para o fallback por título quando o id não é um slot válido.
+    // Espelha a ordem exata de structuredFlow.ts: dígito (só se pending_slots
+    // estiver FRESCO — TTL, E3) → id cru → fallback por título (idem, só se
+    // fresco). Um clique CRU em "slot|..." nunca passa pelo TTL.
     let clickContent = parsed.content ?? "";
-    if (!clickContent.startsWith("slot|")) {
+    const digitMatch = clickContent.trim().match(/^([1-9])[.)]?$/);
+    if (pendingSlotsFresh && digitMatch && pendingSlots.length > 0) {
+        const idx = parseInt(digitMatch[1], 10) - 1;
+        if (idx < pendingSlots.length) clickContent = pendingSlots[idx];
+    }
+    if (!clickContent.startsWith("slot|") && pendingSlotsFresh) {
         const byTitle = resolveSlotIdByTitle(clickContent, pendingSlots, pendingTitles);
         if (byTitle) clickContent = byTitle;
     }

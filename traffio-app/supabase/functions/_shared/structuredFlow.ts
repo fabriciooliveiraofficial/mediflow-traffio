@@ -40,6 +40,7 @@ import {
     ASK_NAME_TO_BOOK_MSG,
     WAITLIST_TAKEN_MSG,
     BOOKING_REASON,
+    isPendingSlotsFresh,
     type SlotOption,
 } from "./schedulingTools.ts";
 
@@ -109,6 +110,7 @@ async function bookSlotAndNotify(
     const ctx = { ...baseContext };
     delete ctx.pending_slots;
     delete ctx.pending_slot_titles;
+    delete ctx.pending_slots_at;
     delete ctx.pending_booking_slot;
     delete ctx.pending_booking_slot_at;
     await supabase
@@ -409,13 +411,18 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
         }
 
         // ── 1. Clique em botão de horário / fallback numérico (sem LLM) ────────
+        // TTL (E3): dígito/título só casam contra pending_slots FRESCOS — depois
+        // disso a lista pode conter horários já ocupados por outra pessoa. Um
+        // clique CRU em "slot|..." ignora este TTL: vai direto para
+        // parseSlotClick/RPC, que é atômico e sempre revalida contra o banco.
         let clickContent = rawContent;
+        const pendingSlotsFresh = isPendingSlotsFresh(context.pending_slots_at);
         const digitMatch = rawContent.trim().match(/^([1-9])[.)]?$/);
-        if (digitMatch && Array.isArray(context.pending_slots) && context.pending_slots.length > 0) {
+        if (pendingSlotsFresh && digitMatch && Array.isArray(context.pending_slots) && context.pending_slots.length > 0) {
             const idx = parseInt(digitMatch[1], 10) - 1;
             if (idx < context.pending_slots.length) clickContent = context.pending_slots[idx];
         }
-        if (!clickContent.startsWith("slot|")) {
+        if (!clickContent.startsWith("slot|") && pendingSlotsFresh) {
             const byTitle = resolveSlotIdByTitle(rawContent, context.pending_slots, context.pending_slot_titles);
             if (byTitle) clickContent = byTitle;
         }
@@ -555,6 +562,7 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
             await sessionManager.logMessage(sessionId, "assistant", msg);
             ctx.pending_slots = slots.map((s: SlotOption) => s.id);
             ctx.pending_slot_titles = slots.map((s: SlotOption) => s.title);
+            ctx.pending_slots_at = new Date().toISOString();
             await supabase.from("conversation_sessions")
                 .update({ context: ctx, omnichannel_status: "bot_active", human_handoff: false })
                 .eq("id", sessionId);

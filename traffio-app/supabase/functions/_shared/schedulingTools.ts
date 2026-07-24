@@ -321,6 +321,24 @@ export function isSlotAvailable(raw: unknown): boolean {
     return true;
 }
 
+/**
+ * TTL dos botões de horário oferecidos (E3, 2026-07-24). Evidência de
+ * produção: sessão achada com `pending_slots` de mais de 1h contendo
+ * EXATAMENTE os horários que, nesse meio-tempo, outra pessoa já havia
+ * reservado — um dígito ("1") ou título tardio casaria contra uma lista
+ * morta. Sem timestamp (sessão de antes deste deploy) conta como vencido —
+ * mais seguro deixar o LLM reconduzir do que casar por índice às cegas.
+ * Só afeta o casamento por DÍGITO/TÍTULO: um clique CRU em "slot|..." sempre
+ * revalida no RPC atômico, TTL ou não.
+ */
+export const PENDING_SLOTS_TTL_MS = 60 * 60 * 1000;
+
+export function isPendingSlotsFresh(pendingSlotsAt: string | null | undefined): boolean {
+    if (!pendingSlotsAt) return false;
+    const t = new Date(pendingSlotsAt).getTime();
+    return Number.isFinite(t) && (Date.now() - t) <= PENDING_SLOTS_TTL_MS;
+}
+
 // Rótulos do payload interativo por idioma da CONVERSA (não do tenant) —
 // "Ver horários" num chat em inglês é deriva de idioma tão grave quanto no texto.
 const SLOT_UI_LABELS: Record<string, { header: string; buttonText: string; sectionTitle: string }> = {

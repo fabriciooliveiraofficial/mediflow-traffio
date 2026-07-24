@@ -1603,9 +1603,11 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
         if (lastSlots?.length && !transferReason && !cancelRequested && bubbles.length > 0) {
             merged.pending_slots = lastSlots.map(s => s.id);
             merged.pending_slot_titles = lastSlots.map(s => s.title);
+            merged.pending_slots_at = new Date().toISOString();
         } else {
             delete merged.pending_slots;
             delete merged.pending_slot_titles;
+            delete merged.pending_slots_at;
         }
         await supabase.from("conversation_sessions").update({ context: merged }).eq("id", sessionId);
 
