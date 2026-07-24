@@ -617,6 +617,62 @@ export async function fetchAvailableSlotsMulti(
     return { slots: picked.map(x => x.slot), availableForModel, errors };
 }
 
+/**
+ * Alternativas FRESCAS para reofertar quando um agendamento colide com outro
+ * paciente (E4, 2026-07-24) — "esse horário foi preenchido" nunca fica sem
+ * próximo passo. Primeiro tenta o MESMO profissional a partir da data
+ * conflitada; se vazio e o procedimento é conhecido (type_id), expande para
+ * outros profissionais que realizam o mesmo serviço. Sempre via
+ * fetchAvailableSlotsMulti — mesmo caminho de `ver_disponibilidade` — mesmo
+ * para 1 profissional só, porque é a única forma cujo `availableForModel`
+ * bate com `formatSlotsForPatient` (a forma de `fetchAvailableSlots` sozinha,
+ * por profissional único, tem shape diferente e não alimenta texto ao paciente
+ * em nenhum outro lugar do código).
+ */
+export async function findConflictAlternatives(
+    supabase: SupabaseClient,
+    tenantId: string,
+    doctorId: string,
+    typeId: string | null,
+    conflictedDate: string,
+    conflictedTime: string,
+    clock: TenantClock,
+): Promise<{ slots: SlotOption[]; availableForModel: { date: string; location: string; professional: string; slots: { time: string; slot_id: string }[] }[] }> {
+    let duration = 30;
+    if (typeId) {
+        const { data: svc } = await scopedQuery(supabase, "appointment_types", tenantId, "duration_minutes").eq("id", typeId).maybeSingle();
+        if ((svc as any)?.duration_minutes) duration = (svc as any).duration_minutes;
+    }
+
+    // Defensivo: a busca já roda DEPOIS do conflito (a vaga tomada já está no
+    // banco), então o RPC normalmente já a exclui sozinho — mas nunca confiar
+    // só nisso para o horário que acabou de falhar.
+    const excludeConflicted = (s: SlotOption) => !(s.date === conflictedDate && s.time === conflictedTime && s.doctor_id === doctorId);
+    const pruneAvailableForModel = (rows: { date: string; location: string; professional: string; slots: { time: string; slot_id: string }[] }[]) =>
+        rows
+            .map(g => (g.date === conflictedDate ? { ...g, slots: g.slots.filter(s => s.time !== conflictedTime) } : g))
+            .filter(g => g.slots.length > 0);
+
+    const { data: doc } = await scopedQuery(supabase, "doctors", tenantId, "id, full_name").eq("id", doctorId).maybeSingle();
+    const primaryDoctors = doc ? [doc as any] : [];
+    let result = primaryDoctors.length
+        ? await fetchAvailableSlotsMulti(supabase, tenantId, primaryDoctors, conflictedDate, duration, typeId, null, clock)
+        : { slots: [] as SlotOption[], availableForModel: [] as { date: string; location: string; professional: string; slots: { time: string; slot_id: string }[] }[], errors: [] as string[] };
+    let slots = result.slots.filter(excludeConflicted);
+    let availableForModel = pruneAvailableForModel(result.availableForModel);
+
+    if (!slots.length && typeId) {
+        const performers = await doctorsForService(supabase, tenantId, typeId);
+        if (performers.length) {
+            result = await fetchAvailableSlotsMulti(supabase, tenantId, performers, conflictedDate, duration, typeId, null, clock);
+            slots = result.slots.filter(excludeConflicted);
+            availableForModel = pruneAvailableForModel(result.availableForModel);
+        }
+    }
+
+    return { slots, availableForModel };
+}
+
 // ─── Definições das ferramentas ──────────────────────────────────────────────
 
 export const SCHEDULING_TOOLS: LlmTool[] = [
@@ -1019,6 +1075,24 @@ export async function executeSchedulingTool(
                     const confirmation_formatted = await assembleConfirmation(supabase, tenantId, booking as any, professional, language);
                     return { data: { success: true, already_booked: true, professional, confirmation_formatted, note: "This appointment ALREADY EXISTS for this patient (duplicate confirmation). Reassure the patient it is confirmed — do not offer new slots. INCLUDE the `confirmation_formatted` block EXACTLY as provided (copy it verbatim). Reply in the PATIENT'S language." } };
                 }
+                // E4 (2026-07-24): conflito REAL (não é o próprio paciente) nunca fica
+                // sem próximo passo — busca alternativas FRESCAS e devolve prontas
+                // para o modelo apresentar como bloco verbatim + botões, no mesmo turno.
+                const clock = await getTenantClock(supabase, tenantId);
+                const { slots: alternatives, availableForModel } = await findConflictAlternatives(
+                    supabase, tenantId, booking.doctor_id, booking.type_id, booking.date, booking.start_time, clock);
+                if (alternatives.length) {
+                    const slots_formatted = formatSlotsForPatient(availableForModel, { clock, language });
+                    return {
+                        data: {
+                            ...(data as any),
+                            alternatives: availableForModel,
+                            slots_formatted,
+                            note: "This exact time was JUST taken by someone else. In ONE short warm line, tell the patient that time slot just filled up, then INCLUDE the `slots_formatted` block EXACTLY as provided (copy it verbatim, keep the emoji and line breaks), and close with ONE short question asking which of these works instead. The same alternatives also go as clickable buttons automatically. If the patient picks one by TEXT, call `agendar` again with that option's exact slot_id. Reply in the PATIENT'S language.",
+                        },
+                        slots: alternatives,
+                    };
+                }
             }
             return { data };
         }
@@ -1044,7 +1118,28 @@ export async function executeSchedulingTool(
                 p_booked_by: "ai_agent",
             });
             if (bookErr) return { data: { success: false, error: bookErr.message } };
-            if (!(booked as any)?.success) return { data: booked };
+            if (!(booked as any)?.success) {
+                // E4 (2026-07-24): mesmo tratamento de `agendar` — conflito nunca
+                // fica sem próximo passo. Remarcação não carrega type_id específico.
+                if ((booked as any)?.reason === BOOKING_REASON.SLOT_CONFLICT) {
+                    const clock = await getTenantClock(supabase, tenantId);
+                    const { slots: alternatives, availableForModel } = await findConflictAlternatives(
+                        supabase, tenantId, input.doctor_id, null, input.date, input.start_time, clock);
+                    if (alternatives.length) {
+                        const slots_formatted = formatSlotsForPatient(availableForModel, { clock, language });
+                        return {
+                            data: {
+                                ...(booked as any),
+                                alternatives: availableForModel,
+                                slots_formatted,
+                                note: "This exact time was JUST taken by someone else. In ONE short warm line, tell the patient that time slot just filled up, then INCLUDE the `slots_formatted` block EXACTLY as provided (copy it verbatim), and close with ONE short question asking which of these works instead. If the patient picks one by TEXT, call `remarcar` again with that option's exact date/start_time (keep the same appointment_id). Reply in the PATIENT'S language.",
+                            },
+                            slots: alternatives,
+                        };
+                    }
+                }
+                return { data: booked };
+            }
 
             const { data: canceled, error: cancelErr } = await supabase
                 .from("appointments")
@@ -1254,6 +1349,17 @@ export const SLOT_TAKEN_MSG: Record<string, string> = {
     pt: "Poxa, esse horário acabou de ser preenchido! 😅 Me diga qual período prefere que eu já verifico outras opções para você.",
     en: "Oh no, that time slot was just taken! 😅 Let me know your preferred time of day and I'll check other options for you.",
     es: "¡Vaya, ese horario acaba de ocuparse! 😅 Dígame qué período prefiere y ya le busco otras opciones.",
+};
+
+/**
+ * Conflito de horário COM alternativa fresca em mãos (E4, 2026-07-24): nunca
+ * deixar o paciente sem saber se digita um horário ou espera — a mensagem já
+ * vem com as opções que ainda estão livres, como botões, na mesma resposta.
+ */
+export const SLOT_TAKEN_RETRY_MSG: Record<string, string> = {
+    pt: "Poxa, esse horário acabou de ser preenchido! 😅 Mas ainda tenho estas opções pertinho dele — é só escolher:",
+    en: "Oh no, that time slot was just taken! 😅 But I still have these nearby options — just pick one:",
+    es: "¡Vaya, ese horario acaba de ocuparse! 😅 Pero todavía tengo estas opciones cercanas — solo elija una:",
 };
 
 /**

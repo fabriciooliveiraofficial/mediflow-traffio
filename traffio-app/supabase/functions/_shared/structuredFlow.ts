@@ -37,10 +37,12 @@ import {
     getTenantClock,
     SLOT_CONFIRM_MSG,
     SLOT_TAKEN_MSG,
+    SLOT_TAKEN_RETRY_MSG,
     ASK_NAME_TO_BOOK_MSG,
     WAITLIST_TAKEN_MSG,
     BOOKING_REASON,
     isPendingSlotsFresh,
+    findConflictAlternatives,
     type SlotOption,
 } from "./schedulingTools.ts";
 
@@ -84,7 +86,13 @@ async function attemptBooking(
     return { success: ok || alreadyOwnBooking, bookErrMessage: bookErr?.message || (!ok ? JSON.stringify(booked) : undefined) };
 }
 
-/** Agenda o slot, envia a confirmação (ou o aviso de conflito) e limpa TODOS os marcadores de agendamento pendente do contexto. */
+/**
+ * Agenda o slot e envia a confirmação. Em caso de conflito (outra pessoa
+ * levou a vaga entre a oferta e o clique), busca alternativas FRESCAS e
+ * reoferta na MESMA mensagem — "esse horário foi preenchido" nunca fica sem
+ * próximo passo (E4, 2026-07-24). Sem alternativa nenhuma: avisa e passa
+ * para a fila humana em vez de encerrar em silêncio.
+ */
 async function bookSlotAndNotify(
     supabase: SupabaseClient,
     dispatcher: OutboxDispatcher,
@@ -97,27 +105,60 @@ async function bookSlotAndNotify(
     slot: Omit<SlotOption, "id" | "title" | "description">,
     language: string,
     baseContext: any,
-): Promise<"replied"> {
+): Promise<"replied" | "transferred"> {
     const { success, bookErrMessage } = await attemptBooking(supabase, tenantId, patientId, slot);
-    if (!success) console.warn(`[structuredFlow] [${phone}] agendamento não confirmou: ${bookErrMessage}`);
-    const msg = success
-        ? (SLOT_CONFIRM_MSG[language] || SLOT_CONFIRM_MSG.pt)(
+
+    if (success) {
+        const msg = (SLOT_CONFIRM_MSG[language] || SLOT_CONFIRM_MSG.pt)(
             formatDateForPatient(slot.date, language), slot.time,
-            await doctorDisplayName(supabase, tenantId, slot.doctor_id))
-        : (SLOT_TAKEN_MSG[language] || SLOT_TAKEN_MSG.pt);
+            await doctorDisplayName(supabase, tenantId, slot.doctor_id));
+        await sendWithFallback(dispatcher, tenant, tenantId, phone, msg);
+        await sessionManager.logMessage(sessionId, "assistant", msg);
+        const ctx = { ...baseContext };
+        delete ctx.pending_slots;
+        delete ctx.pending_slot_titles;
+        delete ctx.pending_slots_at;
+        delete ctx.pending_booking_slot;
+        delete ctx.pending_booking_slot_at;
+        await supabase
+            .from("conversation_sessions")
+            .update({ context: ctx, omnichannel_status: "bot_active", human_handoff: false })
+            .eq("id", sessionId);
+        return "replied";
+    }
+
+    console.warn(`[structuredFlow] [${phone}] agendamento não confirmou: ${bookErrMessage}`);
+    const clock = await getTenantClock(supabase, tenantId);
+    const { slots: alternatives } = await findConflictAlternatives(
+        supabase, tenantId, slot.doctor_id, slot.type_id, slot.date, slot.time, clock);
+
+    const ctx = { ...baseContext };
+    delete ctx.pending_booking_slot;
+    delete ctx.pending_booking_slot_at;
+
+    if (alternatives.length) {
+        const msg = SLOT_TAKEN_RETRY_MSG[language] || SLOT_TAKEN_RETRY_MSG.pt;
+        const interactive = buildSlotInteractive(alternatives, language);
+        await sendWithFallback(dispatcher, tenant, tenantId, phone, msg, interactive);
+        await sessionManager.logMessage(sessionId, "assistant", msg);
+        ctx.pending_slots = alternatives.map((s: SlotOption) => s.id);
+        ctx.pending_slot_titles = alternatives.map((s: SlotOption) => s.title);
+        ctx.pending_slots_at = new Date().toISOString();
+        await supabase
+            .from("conversation_sessions")
+            .update({ context: ctx, omnichannel_status: "bot_active", human_handoff: false })
+            .eq("id", sessionId);
+        return "replied";
+    }
+
+    const msg = SLOT_TAKEN_MSG[language] || SLOT_TAKEN_MSG.pt;
     await sendWithFallback(dispatcher, tenant, tenantId, phone, msg);
     await sessionManager.logMessage(sessionId, "assistant", msg);
-    const ctx = { ...baseContext };
     delete ctx.pending_slots;
     delete ctx.pending_slot_titles;
     delete ctx.pending_slots_at;
-    delete ctx.pending_booking_slot;
-    delete ctx.pending_booking_slot_at;
-    await supabase
-        .from("conversation_sessions")
-        .update({ context: ctx, omnichannel_status: "bot_active", human_handoff: false })
-        .eq("id", sessionId);
-    return "replied";
+    await sessionManager.triggerHumanHandoff(sessionId, ctx, { reason: "tech", kind: "soft" });
+    return "transferred";
 }
 
 export type StructuredFlowResult =
@@ -501,10 +542,32 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
             }
 
             console.warn(`[structuredFlow] [${phone}] waitlist não confirmou: ${bookErr?.message || JSON.stringify(booked)}`);
+            await supabase.from("waitlist").update({ status: "expired", updated_at: new Date().toISOString() }).eq("id", pendingWaitlist.waitlist_id);
+
+            // E4 (2026-07-24): a vaga fechou de novo entre a notificação e a
+            // confirmação — busca alternativas FRESCAS antes de desistir e
+            // passar para humano (mesmo profissional/procedimento da lista).
+            const clock = await getTenantClock(supabase, tenantId);
+            const { slots: alternatives } = await findConflictAlternatives(
+                supabase, tenantId, pendingWaitlist.doctor_id, pendingWaitlist.type_id ?? null, pendingWaitlist.date, pendingWaitlist.start_time, clock);
+
+            if (alternatives.length) {
+                const retryMsg = SLOT_TAKEN_RETRY_MSG[language] || SLOT_TAKEN_RETRY_MSG.pt;
+                const interactive = buildSlotInteractive(alternatives, language);
+                await sendWithFallback(dispatcher, tenant, tenantId, phone, retryMsg, interactive);
+                await sessionManager.logMessage(sessionId, "assistant", retryMsg);
+                ctx.pending_slots = alternatives.map((s: SlotOption) => s.id);
+                ctx.pending_slot_titles = alternatives.map((s: SlotOption) => s.title);
+                ctx.pending_slots_at = new Date().toISOString();
+                await supabase.from("conversation_sessions")
+                    .update({ context: ctx, omnichannel_status: "bot_active", human_handoff: false })
+                    .eq("id", sessionId);
+                return { matched: true, status: "replied" };
+            }
+
             const msg = WAITLIST_TAKEN_MSG[language] || WAITLIST_TAKEN_MSG.pt;
             await sendWithFallback(dispatcher, tenant, tenantId, phone, msg);
             await sessionManager.logMessage(sessionId, "assistant", msg);
-            await supabase.from("waitlist").update({ status: "expired", updated_at: new Date().toISOString() }).eq("id", pendingWaitlist.waitlist_id);
             await sessionManager.triggerHumanHandoff(sessionId, ctx, { reason: "tech", kind: "soft" });
             return { matched: true, status: "transferred" };
         }

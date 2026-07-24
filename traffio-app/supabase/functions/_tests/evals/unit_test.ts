@@ -951,6 +951,8 @@ function createMockSupabase(overrides: {
     doctor?: any;
     location?: any;
     onWaitlistInsert?: (payload: any) => void;
+    /** Respostas de supabase.rpc(name, params) por nome da função — {data, error}. */
+    rpcResponses?: Record<string, { data?: any; error?: any }>;
 } = {}) {
     const defaultPatient = { id: "pat-1", full_name: "Roberto Silva", phone: "5511999999999" };
     const defaultDoctor = { id: "doc-1", full_name: "Dra. Ana" };
@@ -981,6 +983,11 @@ function createMockSupabase(overrides: {
     };
 
     return {
+        rpc: async (name: string, _params?: any) => {
+            const configured = overrides.rpcResponses?.[name];
+            if (configured) return configured;
+            return { data: null, error: null };
+        },
         from: (table: string) => {
             if (table === "patients") {
                 const patData = overrides.patient !== undefined ? overrides.patient : defaultPatient;
@@ -1150,6 +1157,82 @@ Deno.test("C3: agendar bloqueia nome de 1 palavra ('Sofia') — passava no guard
     const res = await executeSchedulingTool(mockSupabase as any, "tenant-1", "5511999999999", "Maria", callAgendar as any, "Sim, confirma para mim por favor!");
     assertEquals(res.data.success, false);
     assertEquals(res.data.error, "patient_not_registered");
+});
+
+// ── E4 (2026-07-24): conflito de horário nunca fica sem próximo passo ────────
+// "Esse horário acabou de ser preenchido" tinha que vir SEMPRE acompanhado de
+// alternativas frescas (ou de encaminhamento explícito, nunca em silêncio).
+
+const CONFLICT_RPC_ALTERNATIVES = {
+    data: [{
+        date: "2026-07-25",
+        location_id: "loc-1",
+        location_name: "Centro",
+        slots: [
+            { time: "09:00", available: false }, // o próprio horário que colidiu — o RPC já o exclui sozinho
+            { time: "09:30", available: true },
+            { time: "10:00", available: true },
+        ],
+    }],
+    error: null,
+};
+
+const CONFLICT_RPC_NO_ALTERNATIVES = {
+    data: [{ date: "2026-07-25", location_id: "loc-1", location_name: "Centro", slots: [{ time: "09:00", available: false }] }],
+    error: null,
+};
+
+Deno.test("E4: agendar com conflito real (outro paciente) e alternativas disponíveis — devolve slots_formatted + alternatives + botões", async () => {
+    const mockSupabase = createMockSupabase({
+        patient: { id: "pat-1", full_name: "Fabricio Oliveira", phone: "5511999999999" },
+        rpcResponses: {
+            book_appointment: { data: { success: false, reason: "SLOT_CONFLICT" }, error: null },
+            find_next_available_dates: CONFLICT_RPC_ALTERNATIVES,
+        },
+    });
+    // type_id vazio no slot_id → parseSlotClick devolve type_id: null (duração default 30min)
+    const callAgendar = { id: "c4a", name: "agendar", input: { slot_id: "slot|doc-1|loc-1||2026-07-25|09:00" } };
+    const res = await executeSchedulingTool(mockSupabase as any, "tenant-1", "5511999999999", "Fabricio", callAgendar as any, "Sim, confirma para mim por favor!");
+    assertEquals(res.data.success, false);
+    assertEquals(res.data.reason, "SLOT_CONFLICT");
+    assert(typeof res.data.slots_formatted === "string" && res.data.slots_formatted.length > 0);
+    assert(Array.isArray(res.data.alternatives) && res.data.alternatives.length > 0);
+    assert(typeof res.data.note === "string" && res.data.note.toLowerCase().includes("slots_formatted"));
+    assertEquals(res.slots?.length, 2);
+});
+
+Deno.test("E4: agendar com conflito real e ZERO alternativas — devolve o resultado cru, sem inventar alternatives", async () => {
+    const mockSupabase = createMockSupabase({
+        patient: { id: "pat-1", full_name: "Fabricio Oliveira", phone: "5511999999999" },
+        rpcResponses: {
+            book_appointment: { data: { success: false, reason: "SLOT_CONFLICT" }, error: null },
+            find_next_available_dates: CONFLICT_RPC_NO_ALTERNATIVES,
+        },
+    });
+    const callAgendar = { id: "c4b", name: "agendar", input: { slot_id: "slot|doc-1|loc-1||2026-07-25|09:00" } };
+    const res = await executeSchedulingTool(mockSupabase as any, "tenant-1", "5511999999999", "Fabricio", callAgendar as any, "Sim, confirma para mim por favor!");
+    assertEquals(res.data.success, false);
+    assertEquals(res.data.reason, "SLOT_CONFLICT");
+    assertEquals(res.data.alternatives, undefined);
+    assertEquals(res.slots, undefined);
+});
+
+Deno.test("E4: remarcar com conflito real e alternativas disponíveis — mesmo tratamento de agendar", async () => {
+    const mockSupabase = createMockSupabase({
+        patient: { id: "pat-1", full_name: "Fabricio Oliveira", phone: "5511999999999" },
+        rpcResponses: {
+            book_appointment: { data: { success: false, reason: "SLOT_CONFLICT" }, error: null },
+            find_next_available_dates: CONFLICT_RPC_ALTERNATIVES,
+        },
+    });
+    const callRemarcar = {
+        id: "c4c", name: "remarcar",
+        input: { appointment_id: "appt-1", doctor_id: "doc-1", location_id: "loc-1", date: "2026-07-25", start_time: "09:00" },
+    };
+    const res = await executeSchedulingTool(mockSupabase as any, "tenant-1", "5511999999999", "Fabricio", callRemarcar as any, "Sim, confirma para mim por favor!");
+    assertEquals(res.data.success, false);
+    assert(Array.isArray(res.data.alternatives) && res.data.alternatives.length > 0);
+    assertEquals(res.slots?.length, 2);
 });
 
 // ── Onda 3: C4B — Executor adicionar_lista_espera e Schema da Waitlist ──────

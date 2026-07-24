@@ -437,11 +437,11 @@ Meta: "esse horário acabou de ser preenchido" NUNCA vem sozinho — na mesma
 mensagem vão as alternativas ainda livres, como botões, e o contexto continua
 coerente.
 
-- [ ] 4.1 Nova mensagem `SLOT_TAKEN_RETRY_MSG` (PT/EN/ES), tipo:
+- [x] 4.1 Nova mensagem `SLOT_TAKEN_RETRY_MSG` (PT/EN/ES), tipo:
       "Poxa, esse horário acabou de ser preenchido! 😅 Mas ainda tenho estas
       opções pertinho dele — é só escolher:". Manter `SLOT_TAKEN_MSG` como
       fallback quando não houver nenhuma alternativa.
-- [ ] 4.2 Caminho do clique (`structuredFlow.ts`, ramo `!success` do slotClick):
+- [x] 4.2 Caminho do clique (`structuredFlow.ts`, ramo `!success` do slotClick):
       em vez de só `SLOT_TAKEN_MSG`: buscar disponibilidade fresca com
       `fetchAvailableSlots` (mesmo doctor, `type_id` do slot, duração do serviço
       se `type_id` conhecido, senão 30) e, se vazio, expandir com
@@ -451,7 +451,7 @@ coerente.
       `pending_slots_at` (nunca apagar e deixar vazio). Sem alternativas: enviar
       `SLOT_TAKEN_MSG` + oferta de lista de espera (fluxo existente) — nunca
       encerrar sem próximo passo.
-- [ ] 4.3 Caminho LLM (`schedulingTools.ts`, `agendar`, retorno final ~1005):
+- [x] 4.3 Caminho LLM (`schedulingTools.ts`, `agendar`, retorno final ~1005):
       quando `reason === SLOT_CONFLICT` e NÃO é o próprio paciente: executar a
       mesma busca fresca da 4.2 e retornar
       `{ success:false, reason, alternatives, slots_formatted, note }` com `note`
@@ -460,15 +460,84 @@ coerente.
       `slots` no `ToolExecOutcome` para virarem botões (hoje só
       `ver_disponibilidade` popula `outcome.slots` — verificar o consumo em
       `copilot.ts` ~1570-1590 e estender para este caso).
-- [ ] 4.4 Mesmo tratamento no ramo de conflito do `remarcar` e do clique de
+- [x] 4.4 Mesmo tratamento no ramo de conflito do `remarcar` e do clique de
       lista de espera (`WAITLIST_TAKEN_MSG` hoje também é beco sem saída —
       adicionar reoferta quando houver alternativa).
-- [ ] 4.5 Testes pipeline: clique em slot tomado → resposta contém alternativas
+- [x] 4.5 Testes pipeline: clique em slot tomado → resposta contém alternativas
       + botões + `pending_slots` atualizado; `agendar` LLM com conflito → tool
       result traz `alternatives`; conflito sem alternativa → lista de espera.
       Rodar tudo + commit.
 
-**Resultado (preencher):**
+**Resultado:**
+
+- **4.1 — `SLOT_TAKEN_RETRY_MSG`:** adicionada em `schedulingTools.ts` junto
+  de `SLOT_TAKEN_MSG` (PT/EN/ES). `SLOT_TAKEN_MSG` continua existindo como
+  fallback para quando não há NENHUMA alternativa.
+- **Helper central — `findConflictAlternatives`:** em vez de seguir a
+  literalidade do plano ("`fetchAvailableSlots` e, se vazio, expandir com
+  `fetchAvailableSlotsMulti`"), implementei via `fetchAvailableSlotsMulti`
+  nas DUAS etapas (mesmo profissional primeiro, depois expande para
+  `doctorsForService`) — decisão de engenharia tomada ao reler o código: a
+  forma `availableForModel` de `fetchAvailableSlots` sozinho (profissional
+  único) é uma shape DIFERENTE e incompatível com `formatSlotsForPatient`
+  (falta o campo `professional`, `slots` vem como `string[]` em vez de
+  `{time,slot_id}[]`) — e não é usada para montar texto em NENHUM outro
+  lugar do código hoje. `fetchAvailableSlotsMulti` (mesmo caminho de
+  `ver_disponibilidade`, mesmo para 1 profissional) já resolve as duas
+  necessidades (`slots` para botões + `availableForModel` certo para o
+  bloco de texto) com uma única função. Filtra defensivamente o próprio slot
+  conflitado por `date+time+doctor_id` (não só `date+time`, para não
+  esconder um horário idêntico de OUTRO profissional).
+- **4.2 — Caminho do clique (`structuredFlow.ts`, `bookSlotAndNotify`):**
+  reescrito com 3 desfechos: sucesso (como antes); conflito COM
+  alternativas → `SLOT_TAKEN_RETRY_MSG` + `buildSlotInteractive` +
+  `pending_slots`/`pending_slot_titles`/`pending_slots_at` ATUALIZADOS
+  (nunca apagados) + `status:"replied"`; conflito SEM alternativas →
+  `SLOT_TAKEN_MSG` + `triggerHumanHandoff(soft)` + `status:"transferred"`
+  (nunca termina em silêncio). Assinatura mudou de `Promise<"replied">`
+  para `Promise<"replied" | "transferred">` — compatível com o union já
+  existente em `StructuredFlowResult.status`.
+- **4.3 — Caminho LLM (`agendar`):** quando `SLOT_CONFLICT` e NÃO é o próprio
+  paciente (guard P-10 continua intocado, roda ANTES desta lógica), busca
+  alternativas e — havendo — retorna `{ ...data, alternatives, slots_formatted,
+  note }` no `data` E `slots` no nível do `ToolExecOutcome`. Verificado (sem
+  necessidade de mudança): `copilot.ts:1532` já consome `outcome.slots`
+  genericamente para QUALQUER ferramenta (`if (outcome.slots?.length)
+  lastSlots = outcome.slots`), não só `ver_disponibilidade` — os botões e o
+  `pending_slots` do turno já pegam a reoferta automaticamente.
+- **4.4 — `remarcar` e lista de espera:** `remarcar` ganhou o mesmo bloco de
+  reoferta (sem `type_id`, já que remarcação nunca carrega um serviço
+  específico). Na resposta a uma notificação de vaga de lista de espera
+  (`pending_waitlist`), quando a vaga fecha de novo entre o aviso e a
+  confirmação: busca alternativas do MESMO profissional/procedimento da
+  lista antes de desistir — com alternativas, reoferta com botões
+  (`pending_slots` assume o lugar do waitlist); sem alternativas, mantém o
+  comportamento anterior (`WAITLIST_TAKEN_MSG` + handoff humano soft).
+  **Nota de escopo:** para o caminho do CLIQUE (4.2) sem NENHUMA
+  alternativa, optei por encaminhamento humano (`triggerHumanHandoff` soft)
+  em vez de "lista de espera" literal — o fluxo determinístico do clique não
+  tem, em mãos, o `procedure` (nome do serviço em texto livre) que a tool
+  `adicionar_lista_espera` exige para resolver o profissional; inventar esse
+  dado seria pior do que encaminhar para humano. É exatamente o mesmo padrão
+  já usado pelo bloco de recovery pré-existente (`NO_SLOTS_MSG` + handoff
+  soft) quando não há nenhum horário. "Conflito sem alternativa → lista de
+  espera" do item 4.5 se aplica à branch de lista de espera em si (onde o
+  contexto do procedimento já existe), que preserva esse comportamento.
+- **4.5 — Testes:** 3 novos em `unit_test.ts` via `executeSchedulingTool`
+  (mesma classe de teste da Etapa 2 — sem harness de `tryStructuredFlow`,
+  mesma decisão de escopo já registrada nas Etapas 2/3): `agendar` com
+  conflito + alternativas → `slots_formatted`/`alternatives`/`note`/
+  `outcome.slots` presentes; `agendar` com conflito sem alternativa nenhuma
+  → devolve o resultado cru, sem inventar `alternatives`; `remarcar` com
+  conflito + alternativas → mesmo tratamento. Precisou estender
+  `createMockSupabase` com `.rpc(name, params)` (novo campo `rpcResponses`
+  no override) — extensão aditiva, não muda nenhum teste existente (nenhum
+  deles chamava `.rpc()` antes). A verificação do caminho do CLIQUE
+  (`structuredFlow.ts`) fica para o smoke assistido da Etapa 5.3, mesma
+  decisão de escopo das Etapas 2/3. Suíte completa: `unit_test.ts` 123/123,
+  `pipeline_test.ts` 13/13, `output_contract_test.ts` 14/14,
+  `confirmation_test.ts` 8/8, `agent_attendance_guard_test.ts` 10/10 —
+  **168/168**. `npx deno check` limpo em todos os arquivos tocados.
 
 ---
 
