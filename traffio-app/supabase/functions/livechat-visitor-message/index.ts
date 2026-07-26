@@ -90,7 +90,7 @@ serve(async (req: Request) => {
       // Validar que a sessão pertence ao tenant informado
       const { data: sessionRow, error: sessionErr } = await supabase
         .from('conversation_sessions')
-        .select('id, omnichannel_status, assigned_to_user_id')
+        .select('id, omnichannel_status, assigned_to_user_id, patient_phone')
         .eq('id', session_id)
         .eq('tenant_id', tenant_id)
         .maybeSingle();
@@ -104,14 +104,39 @@ serve(async (req: Request) => {
       }
 
       // Notas internas (role='internal') nunca são expostas ao visitante
-      const { data: messages, error: msgsError } = await supabase
+      const { data: convMsgs, error: msgsError } = await supabase
         .from('conversation_messages')
         .select('id, role, content, message_type, media_url, file_name, created_at')
         .eq('session_id', session_id)
-        .neq('role', 'internal')
-        .order('created_at', { ascending: true });
+        .neq('role', 'internal');
 
       if (msgsError) throw msgsError;
+
+      // Pegar também mensagens pendentes na message_inbox (ex: a primeira mensagem "Fulano iniciou o atendimento" ou as recém-enviadas)
+      const { data: inboxMsgs, error: inboxErr } = await supabase
+        .from('message_inbox')
+        .select('message_id, content, message_type, media_url, file_name, created_at')
+        .eq('tenant_id', tenant_id)
+        .eq('phone', sessionRow.patient_phone)
+        .eq('status', 'pending');
+      
+      if (inboxErr) throw inboxErr;
+
+      // Transformar inboxMsgs no mesmo formato de conversation_messages (como foram enviadas pelo visitante, role sempre é 'user')
+      const pendingMsgs = (inboxMsgs || []).map(m => ({
+        id: m.message_id,
+        role: 'user',
+        content: m.content,
+        message_type: m.message_type,
+        media_url: m.media_url,
+        file_name: m.file_name,
+        created_at: m.created_at
+      }));
+
+      // Juntar e ordenar
+      const messages = [...(convMsgs || []), ...pendingMsgs].sort((a, b) => {
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      });
 
       // Nome do atendente atribuído (exibido no cabeçalho do widget)
       let agentName: string | null = null;
