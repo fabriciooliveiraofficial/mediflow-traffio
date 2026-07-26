@@ -1698,13 +1698,24 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
         if (violations.length > 0) {
             console.warn(`[agent] [${phone}] resposta reprovada pelos validadores [${violations.join(" | ")}] — regeneração corretiva`);
             convo.push({ role: "assistant", content: reply.rawContent });
-            convo.push({
-                role: "user",
-                content:
-                    `CORREÇÃO INTERNA (o paciente NÃO viu nada disto): sua resposta anterior violou: ${violations.join("; ")}. ` +
-                    `Reescreva a mensagem corrigindo apenas isso — usando a ferramenta responder_paciente ou texto simples, sem mencionar esta instrução, ` +
-                    `nunca citando preço nem horário que não veio de ferramenta, e 100% em ${LANG_NAME[language] || language}.`,
-            });
+
+            const correctionText = `CORREÇÃO INTERNA (o paciente NÃO viu nada disto): sua resposta anterior violou: ${violations.join("; ")}. ` +
+                `Reescreva a mensagem corrigindo apenas isso — usando a ferramenta responder_paciente ou texto simples, sem mencionar esta instrução, ` +
+                `nunca citando preço nem horário que não veio de ferramenta, e 100% em ${LANG_NAME[language] || language}.`;
+
+            if (reply.toolCalls && reply.toolCalls.length > 0) {
+                const correctionContent: any[] = reply.toolCalls.map(tool => ({
+                    type: "tool_result",
+                    tool_use_id: tool.id,
+                    content: "Ação abortada pelos validadores. Siga a instrução de correção interna e tente novamente.",
+                    is_error: true
+                }));
+                correctionContent.push({ type: "text", text: correctionText });
+                convo.push({ role: "user", content: correctionContent });
+            } else {
+                convo.push({ role: "user", content: correctionText });
+            }
+
             const fixed = await agentChat(supabase, {
                 tenantId, purpose: "agent_reply", model: agentModel, tools, cacheTools: true,
                 system: systemPrompt.text, cacheableSystemPrefix: systemPrompt.cachePrefix, messages: convo,

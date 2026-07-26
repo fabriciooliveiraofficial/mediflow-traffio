@@ -203,7 +203,7 @@ serve(async (req: Request) => {
           tenant_id,
           patient_phone: syntheticPhone,
           channel: 'livechat',
-          omnichannel_status: 'queued', // Direto para a fila de atendimento humano
+          omnichannel_status: 'bot_active', // Encaminha para o Agente de IA / Fluxo Estruturado
           context: {
             visitor_name: visitor_name.trim(),
             visitor_email: visitor_email.trim(),
@@ -215,7 +215,7 @@ serve(async (req: Request) => {
       console.log(`[livechat-visitor-message] Nova sessão de livechat criada: ${activeSessionId}`);
     } else {
       // Sessão existente: preservar o atendimento em andamento.
-      // Só volta para a fila ('queued') se a sessão estava FECHADA — se um
+      // Só volta para o bot ('bot_active') se a sessão estava FECHADA — se um
       // atendente já está ativo (human_active), status e atribuição são mantidos
       // para que a conversa continue na lista dele sem precisar "Assumir" de novo.
       const { data: existingSession, error: fetchError } = await supabase
@@ -235,7 +235,7 @@ serve(async (req: Request) => {
 
       const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
       if (existingSession.omnichannel_status === 'closed') {
-        updates.omnichannel_status = 'queued';
+        updates.omnichannel_status = 'bot_active';
         updates.closed_at = null;
         updates.assigned_to_user_id = null;
       }
@@ -280,42 +280,74 @@ serve(async (req: Request) => {
       );
     }
 
-    // 4. Inserir a mensagem no histórico (conversation_messages)
-    const { data: dbMsg, error: msgError } = await supabase
-      .from('conversation_messages')
-      .insert({
-        session_id: activeSessionId,
-        role: 'user', // 'user' indica o visitante
-        content: fileObj ? (content || `[${messageType}]`) : content.trim(),
-        message_type: messageType,
-        media_url: mediaUrl,
-        file_name: fileObj ? fileObj.name : null,
-        file_size: fileObj ? fileObj.size : null,
-        mime_type: fileObj ? fileObj.type : null
-      })
-      .select('id, created_at')
+    // 4. Buscar a sessão para obter patient_phone e status omnichannel
+    const { data: sessionData, error: sessionErr } = await supabase
+      .from('conversation_sessions')
+      .select('patient_phone, omnichannel_status')
+      .eq('id', activeSessionId)
       .single();
 
-    if (msgError) throw msgError;
+    if (sessionErr || !sessionData) throw sessionErr || new Error('Sessão não encontrada.');
 
-    // 5. Transmitir via Supabase Realtime Broadcast para sincronizar a mensagem instantaneamente
+    const msgId = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+    const formattedContent = fileObj ? (content || `[${messageType}]`) : content.trim();
+
+    if (sessionData.omnichannel_status === 'human_active') {
+      // FAST PATH: Atendimento Humano Ativo — grava direto em conversation_messages
+      const { error: msgError } = await supabase
+        .from('conversation_messages')
+        .insert({
+          id: msgId,
+          session_id: activeSessionId,
+          role: 'user',
+          content: formattedContent,
+          message_type: messageType,
+          media_url: mediaUrl,
+          file_name: fileObj ? fileObj.name : null,
+          file_size: fileObj ? fileObj.size : null,
+          mime_type: fileObj ? fileObj.type : null,
+          created_at: createdAt
+        });
+
+      if (msgError) throw msgError;
+    } else {
+      // BOT PATH: Grava na message_inbox para o process-inbox (IA / Fluxo Estruturado) processar
+      const { error: inboxErr } = await supabase
+        .from('message_inbox')
+        .insert({
+          tenant_id,
+          phone: sessionData.patient_phone,
+          content: formattedContent,
+          message_id: msgId,
+          message_type: messageType,
+          media_url: mediaUrl,
+          status: 'pending',
+          received_at: createdAt
+        });
+
+      if (inboxErr) throw inboxErr;
+      console.log(`[livechat-visitor-message] Mensagem enfileirada na message_inbox para ${sessionData.patient_phone}`);
+    }
+
+    // 5. Transmitir via Supabase Realtime Broadcast para sincronizar a mensagem instantaneamente em todas as abas
     const realtimeChannel = supabase.channel(`livechat:${activeSessionId}`);
     await realtimeChannel.send({
       type: 'broadcast',
       event: 'message',
       payload: {
-        id: dbMsg.id,
+        id: msgId,
         role: 'user',
-        content: fileObj ? (content || `[${messageType}]`) : content.trim(),
+        content: formattedContent,
         message_type: messageType,
         media_url: mediaUrl,
         file_name: fileObj ? fileObj.name : null,
-        created_at: dbMsg.created_at
+        created_at: createdAt
       }
     });
 
     return new Response(
-      JSON.stringify({ success: true, session_id: activeSessionId }),
+      JSON.stringify({ success: true, session_id: activeSessionId, message_id: msgId }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
