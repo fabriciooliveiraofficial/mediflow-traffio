@@ -275,8 +275,10 @@
       font-size: 13px;
       line-height: 1.4;
       word-wrap: break-word;
-      white-space: pre-wrap;
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    }
+    .traffio-chat-bubble-text {
+      white-space: pre-wrap;
     }
     .traffio-chat-bubble-msg.visitor {
       background: var(--traffio-chat-primary, #1152d4);
@@ -1397,6 +1399,15 @@
         // Impedir duplicação de mensagens enviadas por si mesmo
         if (messagesList.some((m) => m.id === msg.id)) return;
 
+        // Dedup optimistic message race condition
+        if (msg.role === "user") {
+          const tempIdx = messagesList.findIndex(m => String(m.id).startsWith("temp-") && m.content === msg.content);
+          if (tempIdx !== -1) {
+            messagesList[tempIdx].id = msg.id;
+            return;
+          }
+        }
+
         if (msg.sender_name) setAgentName(msg.sender_name);
         touchActivity();
         messagesList.push(msg);
@@ -1472,7 +1483,7 @@
 
       bubbleEl.innerHTML = `
         ${senderLabel}
-        <div>${formatMessageText(msg.content || "")}</div>
+        <div class="traffio-chat-bubble-text">${formatMessageText(msg.content || "")}</div>
         ${mediaMarkup}
         ${interactiveMarkup}
         <div class="traffio-chat-bubble-time">${timeString}</div>

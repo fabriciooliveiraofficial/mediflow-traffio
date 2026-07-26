@@ -2,6 +2,34 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { corsHeaders } from "../_shared/cors.ts";
 
+// Helper to keep task alive for fire-and-forget
+function runInBackground(task: Promise<unknown>) {
+  try {
+    // @ts-ignore
+    EdgeRuntime.waitUntil(task);
+  } catch {
+    /* fire-and-forget */
+  }
+}
+
+function triggerInboxProcessing() {
+  const url = Deno.env.get("SUPABASE_URL");
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !key) return;
+
+  const task = (async () => {
+    // 1.5s delay to allow transaction commit and debounce
+    await new Promise((r) => setTimeout(r, 1500));
+    await fetch(`${url}/functions/v1/process-inbox`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: "{}",
+    }).catch((e) => console.warn("[livechat-visitor-message] push trigger failed:", e?.message));
+  })();
+
+  runInBackground(task);
+}
+
 serve(async (req: Request) => {
   // Tratar requisição OPTIONS para CORS
   if (req.method === 'OPTIONS') {
@@ -353,6 +381,9 @@ serve(async (req: Request) => {
 
       if (inboxErr) throw inboxErr;
       console.log(`[livechat-visitor-message] Mensagem enfileirada na message_inbox para ${sessionData.patient_phone}`);
+      
+      // TRIGGER AI/PROCESS INBOX
+      triggerInboxProcessing();
     }
 
     // 5. Transmitir via Supabase Realtime Broadcast para sincronizar a mensagem instantaneamente em todas as abas
