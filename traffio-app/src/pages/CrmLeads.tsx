@@ -19,6 +19,7 @@ import { NewPatientModal } from '../components/NewPatientModal';
 import { useToast } from '../contexts/ToastContext';
 import { useTranslation } from 'react-i18next';
 import { useLocaleFormat } from '../hooks/useLocaleFormat';
+import { ConfirmActionModal } from '../components/shared/ConfirmActionModal';
 
 export const CrmLeads: React.FC = () => {
     const { t } = useTranslation('crm');
@@ -30,6 +31,8 @@ export const CrmLeads: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingPatient, setEditingPatient] = useState<any | null>(null);
+    const [patientToDelete, setPatientToDelete] = useState<string | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
         fetchPatients();
@@ -80,14 +83,15 @@ export const CrmLeads: React.FC = () => {
         }
     };
     
-    const handleDelete = async (id: string) => {
-        if (!confirm(t('leads.confirmDelete'))) return;
+    const confirmDelete = async () => {
+        if (!patientToDelete) return;
         
         try {
+            setIsDeleting(true);
             const { error } = await supabase
                 .from('patients')
                 .delete()
-                .eq('id', id);
+                .eq('id', patientToDelete);
             
             if (error) throw error;
             fetchPatients();
@@ -95,6 +99,9 @@ export const CrmLeads: React.FC = () => {
         } catch (error) {
             console.error('Error deleting patient:', error);
             showToast('error', t('leads.toasts.deleteError'));
+        } finally {
+            setIsDeleting(false);
+            setPatientToDelete(null);
         }
     };
 
@@ -222,7 +229,7 @@ export const CrmLeads: React.FC = () => {
                                                     <Edit2 size={16} />
                                                 </button>
                                                 <button
-                                                    onClick={() => handleDelete(patient.id)}
+                                                    onClick={() => setPatientToDelete(patient.id)}
                                                     className="p-2 hover:bg-rose-50 rounded-lg text-graphite-400 hover:text-rose-500 transition-all border-none bg-transparent cursor-pointer"
                                                     title={t('leads.deleteTitle')}
                                                 >
@@ -254,6 +261,17 @@ export const CrmLeads: React.FC = () => {
                 onSuccess={fetchPatients}
                 patientId={editingPatient?.id}
                 initialData={editingPatient}
+            />
+
+            <ConfirmActionModal
+                isOpen={!!patientToDelete}
+                onClose={() => setPatientToDelete(null)}
+                onConfirm={confirmDelete}
+                title={t('leads.deleteTitle')}
+                message={t('leads.confirmDelete')}
+                confirmText={t('leads.deleteTitle')}
+                cancelText="Cancelar"
+                isLoading={isDeleting}
             />
         </div>
     );
