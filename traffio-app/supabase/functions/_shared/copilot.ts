@@ -1315,6 +1315,8 @@ export function buildAutonomousSystemPrompt(opts: {
     accessibleMode?: boolean;
     /** Handoff reversível (soft): avisar modelo para não repetir que equipe vai assumir */
     softHandoffNotice?: boolean;
+    /** Canal de comunicação atual (whatsapp, instagram, messenger, livechat) */
+    channel?: string;
 }): AutonomousSystemPrompt {
     const languageHint = opts.languageHint
         ? normalizeConversationLanguage(opts.languageHint)
@@ -1343,6 +1345,7 @@ export function buildAutonomousSystemPrompt(opts: {
         opts.stageGuidance ? `### CONTEXTO DA JORNADA DESTE PACIENTE (ajusta a abordagem, nunca a política de preço):\n${opts.stageGuidance}` : "",
         opts.flowStateHint ? `### ESTADO DO FLUXO DE AGENDAMENTO (continue DESTE ponto, não recomece):\n${opts.flowStateHint}` : "",
         opts.patientSnapshot ? `### PACIENTE NO SISTEMA (fonte da VERDADE — vale mais que a memória da conversa):\n${opts.patientSnapshot}\nPara "confirmar/quando é minha consulta": responda com o dado acima. Se acima diz que existe agendamento, ele EXISTE — confirme-o; nunca diga que falhou ou que o horário ficou indisponível.` : "",
+        opts.channel && opts.channel !== "whatsapp" ? `### OMNICHANNEL (${opts.channel.toUpperCase()}): Imediatamente após confirmar um agendamento com sucesso (via ferramenta agendar ou remarcar), você DEVE solicitar o número de telefone celular do paciente com DDD (ex: "Para enviar as confirmações da consulta, qual é o seu número de telefone celular com DDD?"). Peça o "telefone celular", não pergunte especificamente por WhatsApp.` : "",
         `Data de hoje: ${opts.todayStr} (fuso da clínica). Use-a para converter datas relativas ("amanhã", "semana que vem") ao chamar ferramentas.`,
         languageHint
             ? `IDIOMA JÁ DETECTADO NESTA CONVERSA: ${LANG_NAME[languageHint]}. Mantenha esse idioma em TODAS as mensagens, inclusive após usar ferramentas (os retornos internos das ferramentas NÃO definem o idioma da resposta).`
@@ -1449,20 +1452,13 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             instructions,
             knowledgePacket,
             todayStr: todayInTz(timezone || undefined),
-            // Idioma DESTE turno — evita a deriva para PT no 1º turno ou depois de
-            // ferramentas. Só afirma um idioma quando há evidência real
-            // (turnLanguageIsConfident); sem evidência, omite o hint em vez de
-            // cravar o default "pt" e travar o modelo num idioma errado.
             languageHint: turnLanguageIsConfident ? turnLanguage : null,
-            // IA consciente de jornada (roadmap item 6)
             stageGuidance: journeyStage.guidance,
-            // Camada 2 — continuidade determinística do fluxo de agendamento
             flowStateHint: buildFlowStateHint(context, knownIntake),
-            // Fonte da verdade: ficha + agendamentos reais do paciente neste turno
             patientSnapshot,
-            // E-22 (Onda 3): só ativa quando o paciente pede explicitamente, nunca inferido
             accessibleMode: shouldUseAccessibleMode(patientQuery || ""),
             softHandoffNotice: isSoftHandoffQueued,
+            channel: channel,
         });
 
         // Triagem em paralelo com o loop (não bloqueia a resposta)
@@ -1538,6 +1534,15 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
                 const resultJson = JSON.stringify(outcome.data);
                 toolEvidence.push(resultJson);
                 results.push({ type: "tool_result", tool_use_id: call.id, content: resultJson });
+            }
+            // Fix Anthropic HTTP 400: If responder_paciente was called alongside other tools, we must provide a tool_result for it too!
+            const responderCalls = reply.toolCalls.filter(t => t.name === "responder_paciente");
+            for (const call of responderCalls) {
+                results.push({
+                    type: "tool_result",
+                    tool_use_id: call.id,
+                    content: JSON.stringify({ error: "ignored_for_now", note: "Ferramenta ignorada porque outras ferramentas de dados foram chamadas. Avalie os resultados delas e chame responder_paciente novamente no próximo turno." })
+                });
             }
             if (results.length > 0) {
                 convo.push({ role: "user", content: results });

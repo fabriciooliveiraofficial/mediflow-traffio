@@ -142,6 +142,103 @@ export class MetaSocialClient {
   }
 
   /**
+   * Envia botões (Quick Replies) via Facebook Messenger.
+   */
+  static async sendFacebookQuickReplies(
+    pageToken: string,
+    psid: string,
+    text: string,
+    buttons: Array<{ id: string; title: string }>
+  ): Promise<MetaSendResult> {
+    const quickReplies = buttons.slice(0, 13).map(btn => ({
+      content_type: "text",
+      title: btn.title.substring(0, 20),
+      payload: btn.id
+    }));
+
+    const payload = {
+      recipient: { id: psid },
+      message: {
+        text,
+        quick_replies: quickReplies
+      },
+      messaging_type: "RESPONSE",
+    };
+
+    let res = await fetch(`${GRAPH_API}/me/messages?access_token=${pageToken}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    let data = await res.json();
+
+    if (data.error && MetaSocialClient.isWindowExpiredError(data.error)) {
+      const fallbackPayload = { ...payload, messaging_type: "MESSAGE_TAG", tag: "HUMAN_AGENT" };
+      res = await fetch(`${GRAPH_API}/me/messages?access_token=${pageToken}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(fallbackPayload),
+      });
+      data = await res.json();
+    }
+
+    if (data.error) {
+      throw new MetaSocialError(data.error.code, data.error.message, "facebook");
+    }
+
+    return { messageId: data.message_id, recipientId: data.recipient_id };
+  }
+
+  /**
+   * Envia botões (Quick Replies) via Instagram Direct Message.
+   */
+  static async sendInstagramQuickReplies(
+    pageToken: string,
+    igAccountId: string,
+    igsid: string,
+    text: string,
+    buttons: Array<{ id: string; title: string }>
+  ): Promise<MetaSendResult> {
+    const quickReplies = buttons.slice(0, 13).map(btn => ({
+      content_type: "text",
+      title: btn.title.substring(0, 20),
+      payload: btn.id
+    }));
+
+    const payload = {
+      recipient: { id: igsid },
+      message: {
+        text,
+        quick_replies: quickReplies
+      },
+      messaging_type: "RESPONSE",
+    };
+
+    let res = await fetch(`${GRAPH_API}/me/messages?access_token=${pageToken}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    let data = await res.json();
+
+    if (data.error && MetaSocialClient.isWindowExpiredError(data.error)) {
+      const fallbackPayload = { ...payload, messaging_type: "MESSAGE_TAG", tag: "HUMAN_AGENT" };
+      res = await fetch(`${GRAPH_API}/me/messages?access_token=${pageToken}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(fallbackPayload),
+      });
+      data = await res.json();
+    }
+
+    if (data.error) {
+      throw new MetaSocialError(data.error.code, data.error.message, "instagram");
+    }
+
+    return { messageId: data.message_id, recipientId: data.recipient_id };
+  }
+
+  /**
    * Envia anexo (imagem, vídeo, áudio ou arquivo) via Facebook Messenger.
    * @param pageToken  Page Access Token da página do Facebook
    * @param psid       Page-Scoped User ID do destinatário

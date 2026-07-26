@@ -275,6 +275,7 @@
       font-size: 13px;
       line-height: 1.4;
       word-wrap: break-word;
+      white-space: pre-wrap;
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     }
     .traffio-chat-bubble-msg.visitor {
@@ -517,6 +518,49 @@
       opacity: 1;
       transform: translateX(-50%) translateY(0);
     }
+    .traffio-chat-interactive-options {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 10px;
+      width: 100%;
+    }
+    .traffio-chat-option-btn {
+      background: #ffffff;
+      border: 1.5px solid var(--traffio-chat-primary, #1152d4);
+      color: var(--traffio-chat-primary, #1152d4);
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      outline: none;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+    }
+    .traffio-chat-option-btn:hover:not(:disabled) {
+      background: var(--traffio-chat-primary, #1152d4);
+      color: #ffffff;
+      transform: translateY(-1px);
+    }
+    .traffio-chat-option-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .traffio-chat-option-btn.selected {
+      background: var(--traffio-chat-primary, #1152d4);
+      color: #ffffff;
+      border-color: var(--traffio-chat-primary, #1152d4);
+    }
+    .traffio-chat-option-desc {
+      font-size: 11px;
+      font-weight: 400;
+      opacity: 0.85;
+      margin-top: 2px;
+    }
     @media (max-width: 480px) {
       .traffio-chat-window {
         bottom: 0;
@@ -687,12 +731,24 @@
 
   // Escapar HTML para impedir injeção de markup/script via conteúdo de mensagens
   function escapeHtml(value) {
-    return String(value == null ? "" : value)
+    if (typeof value !== "string") return "";
+    return value
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#39;");
+      .replace(/'/g, "&#039;");
+  }
+
+  function formatMessageText(text) {
+    if (!text) return "";
+    let html = escapeHtml(text);
+    // Transformar URLs em tags <a> clicáveis
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    html = html.replace(urlRegex, function(url) {
+      return `<a href="${url}" target="_blank" rel="noopener" style="text-decoration: underline;">${url}</a>`;
+    });
+    return html;
   }
 
   // URLs de mídia só são renderizadas se forem http(s) absolutas
@@ -1360,6 +1416,30 @@
       .subscribe();
   }
 
+  function renderInteractiveButtons(msg) {
+    const interactive = msg.interactive || (msg.metadata && msg.metadata.interactive);
+    if (!interactive) return "";
+
+    let buttons = [];
+    if (interactive.type === "button" && Array.isArray(interactive.buttons)) {
+      buttons = interactive.buttons.map(b => ({ id: b.id, title: b.title || b.label }));
+    } else if (interactive.type === "list" && Array.isArray(interactive.sections)) {
+      const rows = interactive.sections.flatMap(s => s.rows || []);
+      buttons = rows.map(r => ({ id: r.id, title: r.title, description: r.description }));
+    }
+
+    if (!buttons.length) return "";
+
+    const buttonsHtml = buttons.map(btn => `
+      <button class="traffio-chat-option-btn" data-btn-id="${escapeHtml(btn.id)}" data-btn-title="${escapeHtml(btn.title)}">
+        <span class="traffio-chat-option-title">${escapeHtml(btn.title)}</span>
+        ${btn.description ? `<span class="traffio-chat-option-desc">${escapeHtml(btn.description)}</span>` : ""}
+      </button>
+    `).join("");
+
+    return `<div class="traffio-chat-interactive-options" data-msg-id="${escapeHtml(msg.id)}">${buttonsHtml}</div>`;
+  }
+
   // Renderizar bolhas de mensagem na tela
   function renderMessages() {
     chatBody.innerHTML = "";
@@ -1382,6 +1462,7 @@
           </a>`;
       }
 
+      const interactiveMarkup = renderInteractiveButtons(msg);
       const timeString = formatTime(msg.created_at);
 
       // Nome de quem enviou, acima das mensagens do atendente
@@ -1391,14 +1472,35 @@
 
       bubbleEl.innerHTML = `
         ${senderLabel}
-        <div>${escapeHtml(msg.content || "")}</div>
+        <div>${formatMessageText(msg.content || "")}</div>
         ${mediaMarkup}
+        ${interactiveMarkup}
         <div class="traffio-chat-bubble-time">${timeString}</div>
       `;
       chatBody.appendChild(bubbleEl);
     });
     scrollToBottom();
   }
+
+  // Listener delegado de clique em botões interativos
+  chatBody.addEventListener("click", async (e) => {
+    const btn = e.target.closest(".traffio-chat-option-btn");
+    if (!btn || btn.disabled) return;
+
+    const btnTitle = btn.getAttribute("data-btn-title");
+    if (!btnTitle || !activeSessionId) return;
+
+    const container = btn.closest(".traffio-chat-interactive-options");
+    if (container) {
+      container.querySelectorAll(".traffio-chat-option-btn").forEach(b => {
+        b.disabled = true;
+        if (b === btn) b.classList.add("selected");
+      });
+    }
+
+    chatInput.value = btnTitle;
+    handleSendMessage();
+  });
 
   function scrollToBottom() {
     chatBody.scrollTop = chatBody.scrollHeight;

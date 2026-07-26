@@ -62,21 +62,18 @@ export class OutboxDispatcher {
                 throw new Error(`Sem credenciais ativas do Meta/Page para o canal ${effectiveChannel}`);
             }
 
+            const metaButtons = extractButtonsFromInteractive(payload?.interactive);
+
             if (isInstagram) {
-                const res = await MetaSocialClient.sendInstagramMessage(
-                    metaPage.page_access_token,
-                    metaPage.instagram_account_id,
-                    phone,
-                    payload.text
-                );
+                const res = metaButtons.length > 0
+                    ? await MetaSocialClient.sendInstagramQuickReplies(metaPage.page_access_token, metaPage.instagram_account_id, phone, payload.text, metaButtons)
+                    : await MetaSocialClient.sendInstagramMessage(metaPage.page_access_token, metaPage.instagram_account_id, phone, payload.text);
                 console.log(`[OutboxDispatcher] Instagram DM enviada com sucesso para ${phone} (msgId: ${res.messageId})`);
                 return res.messageId;
             } else {
-                const res = await MetaSocialClient.sendFacebookMessage(
-                    metaPage.page_access_token,
-                    phone,
-                    payload.text
-                );
+                const res = metaButtons.length > 0
+                    ? await MetaSocialClient.sendFacebookQuickReplies(metaPage.page_access_token, phone, payload.text, metaButtons)
+                    : await MetaSocialClient.sendFacebookMessage(metaPage.page_access_token, phone, payload.text);
                 console.log(`[OutboxDispatcher] Facebook Messenger enviada com sucesso para ${phone} (msgId: ${res.messageId})`);
                 return res.messageId;
             }
@@ -104,6 +101,7 @@ export class OutboxDispatcher {
                         id: msgId,
                         role: 'ai',
                         content: payload.text,
+                        interactive: payload.interactive || null,
                         sender_name: tenant.name || 'Assistente Virtual',
                         created_at: new Date().toISOString()
                     }
@@ -293,10 +291,19 @@ export class OutboxDispatcher {
                         continue;
                     }
 
+                    const metaButtons = extractButtonsFromInteractive(msg.payload?.interactive);
                     if (isInstagram) {
-                        await MetaSocialClient.sendInstagramMessage(metaPage.page_access_token, metaPage.instagram_account_id, msg.phone, msg.payload.text);
+                        if (metaButtons.length > 0) {
+                            await MetaSocialClient.sendInstagramQuickReplies(metaPage.page_access_token, metaPage.instagram_account_id, msg.phone, msg.payload.text, metaButtons);
+                        } else {
+                            await MetaSocialClient.sendInstagramMessage(metaPage.page_access_token, metaPage.instagram_account_id, msg.phone, msg.payload.text);
+                        }
                     } else {
-                        await MetaSocialClient.sendFacebookMessage(metaPage.page_access_token, msg.phone, msg.payload.text);
+                        if (metaButtons.length > 0) {
+                            await MetaSocialClient.sendFacebookQuickReplies(metaPage.page_access_token, msg.phone, msg.payload.text, metaButtons);
+                        } else {
+                            await MetaSocialClient.sendFacebookMessage(metaPage.page_access_token, msg.phone, msg.payload.text);
+                        }
                     }
                 } else if (tenant?.whatsapp_provider === 'cloud_api' && tenant?.cloud_api_phone_number_id && tenant?.cloud_api_access_token) {
                     await sendCloudApiMessage(tenant, msg.phone, msg.payload);
@@ -528,4 +535,16 @@ async function sendCloudApiMedia(tenant: any, phone: string, payload: any, quote
     );
     
     return res?.messages?.[0]?.id;
+}
+
+function extractButtonsFromInteractive(interactive: any): Array<{ id: string; title: string }> {
+    if (!interactive) return [];
+    if (interactive.type === 'button' && Array.isArray(interactive.buttons)) {
+        return interactive.buttons.map((b: any) => ({ id: b.id, title: b.title || b.label }));
+    }
+    if (interactive.type === 'list' && Array.isArray(interactive.sections)) {
+        const rows = interactive.sections.flatMap((s: any) => s.rows || []);
+        return rows.map((r: any) => ({ id: r.id, title: r.title }));
+    }
+    return [];
 }

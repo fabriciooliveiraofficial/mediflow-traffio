@@ -198,8 +198,9 @@ async function processMessagingEvent(
   const mediaUrl   = attachment?.payload?.url ?? null;
   const messageType = mediaUrl ? toAppMessageType(attachment.type) : "text";
 
-  // Conteúdo da mensagem (texto, título/payload de postback, ou marcador de mídia)
-  const rawText = message?.text ?? postback?.title ?? postback?.payload ?? "";
+  // Conteúdo da mensagem (texto, quick_reply payload, título/payload de postback, ou marcador de mídia)
+  const quickReplyPayload = message?.quick_reply?.payload;
+  const rawText = quickReplyPayload ?? message?.text ?? postback?.title ?? postback?.payload ?? "";
   const text = rawText || (mediaUrl ? `[${messageType}]` : "");
   const caption = mediaUrl && rawText ? rawText : null;
   const messageId = message?.mid ?? `postback_${timestamp}_${senderId}`;
