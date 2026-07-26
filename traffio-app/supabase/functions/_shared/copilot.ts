@@ -1387,10 +1387,11 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
     try {
         const { data: session } = await supabase
             .from("conversation_sessions")
-            .select("context, recent_messages, platform_display_name, handoff_kind, omnichannel_status")
+            .select("context, recent_messages, platform_display_name, handoff_kind, omnichannel_status, channel")
             .eq("id", sessionId)
             .single();
         if (!session) { await emitTrace({ handoff_reason: "no_session" }); return "failed"; }
+        const channel = (session as any).channel || "whatsapp";
 
         const history = (session.recent_messages || [])
             .slice(-MAX_HISTORY_TURNS)
@@ -1402,20 +1403,6 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
         const patientQuery = [...history].reverse().find((message: any) => message.role === "user")?.content;
         const storedLanguage = normalizeConversationLanguage(context.language);
         const turnLanguage = resolveTurnLanguage(patientQuery, storedLanguage);
-        // Confiança do turnLanguage: só vira uma AFIRMAÇÃO forte no prompt
-        // ("IDIOMA JÁ DETECTADO... mantenha esse idioma em TODAS as mensagens")
-        // quando há evidência real — a mensagem atual bateu num hint de idioma,
-        // OU já existe idioma persistido de um turno anterior desta conversa.
-        // Sem isso, turnLanguage é só o "pt" default de
-        // normalizeConversationLanguage, nunca uma detecção de verdade.
-        // Bug de produção (2026-07-23): 1ª mensagem ambígua/curta ("Morning",
-        // "Hi") não batia em nenhum hint regex (que exige "good morning"/"hi"
-        // completos, não variações soltas), caía no default "pt", e o prompt
-        // cravava "responda 100% em português" numa conversa que começou em
-        // inglês — a IA seguia a instrução travada em vez de ler a própria
-        // mensagem do paciente. Sem hint algum, a regra base do prompt
-        // ("identifique o idioma da ÚLTIMA mensagem e responda nesse idioma",
-        // em cachedParts) já é suficiente e não força um idioma errado.
         const turnLanguageIsConfident = isTurnLanguageConfident(patientQuery, context.language);
 
         // Onda 4 — orçamento de risco cumulativo de jailbreak multi-turno: cada
@@ -1426,7 +1413,7 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             const tripped = await sessionManager.registerJailbreakSignal(sessionId, jailbreakDelta);
             if (tripped) {
                 const bye = HANDOFF_MSG[turnLanguage] || HANDOFF_MSG.pt;
-                await sendWithFallback(dispatcher, tenant, tenantId, phone, bye);
+                await sendWithFallback(dispatcher, tenant, tenantId, phone, bye, undefined, channel);
                 await sessionManager.logMessage(sessionId, "assistant", bye);
                 await sessionManager.triggerHumanHandoff(sessionId, undefined, { reason: "jailbreak", kind: "hard" });
                 console.warn(`[agent] [${phone}] orçamento de risco de jailbreak esgotado — handoff humano`);
@@ -1649,7 +1636,7 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             const msg = within
                 ? ((text && !cancelDrifted) ? text : (HANDOFF_MSG[language] || HANDOFF_MSG.pt))
                 : (AFTER_HOURS_CANCEL_MSG[language] || AFTER_HOURS_CANCEL_MSG.pt);
-            await dispatcher.sendSequence(tenant, phone, [msg]);
+            await dispatcher.sendSequence(tenant, phone, [msg], undefined, "service", channel);
             await sessionManager.logMessage(sessionId, "assistant", msg);
             await sessionManager.triggerHumanHandoff(sessionId, merged, { reason: "cancel", kind: "hard" });
             console.log(`[agent] [${phone}] cancelamento encaminhado (expediente=${within})`);
@@ -1662,7 +1649,7 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             const handoffDrifted = Boolean(text) && detectLanguageDrift(text, language).length > 0;
             if (handoffDrifted) console.warn(`[agent] [${phone}] mensagem de handoff com deriva de idioma — usando texto canônico`);
             const bye = (text && !handoffDrifted) ? text : (HANDOFF_MSG[language] || HANDOFF_MSG.pt);
-            await dispatcher.sendSequence(tenant, phone, [bye]);
+            await dispatcher.sendSequence(tenant, phone, [bye], undefined, "service", channel);
             await sessionManager.logMessage(sessionId, "assistant", bye);
             const gapResult = classifyKnowledgeGap({
                 transferReason, replyText: text, lastPatientMessage,
@@ -1750,7 +1737,7 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
 
             if (fixedViolations.length > 0) {
                 const bye = HANDOFF_MSG[language] || HANDOFF_MSG.pt;
-                await dispatcher.sendSequence(tenant, phone, [bye]);
+                await dispatcher.sendSequence(tenant, phone, [bye], undefined, "service", channel);
                 await sessionManager.logMessage(sessionId, "assistant", bye);
                 await sessionManager.triggerHumanHandoff(sessionId, merged, { reason: "tech", kind: "soft" });
                 console.warn(`[agent] [${phone}] regeneração também reprovada [${fixedViolations.join(" | ")}] — handoff humano`);
@@ -1766,7 +1753,7 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
 
         // ── Resposta normal em bolhas (com botões de horário acoplados na última bolha) ────────
         const interactive = lastSlots?.length ? buildSlotInteractive(lastSlots, language) : undefined;
-        const sentBubbles = await dispatcher.sendSequence(tenant, phone, bubbles, interactive);
+        const sentBubbles = await dispatcher.sendSequence(tenant, phone, bubbles, interactive, "service", channel);
         for (const bubbleText of sentBubbles) {
             await sessionManager.logMessage(sessionId, "assistant", bubbleText);
         }
@@ -1815,11 +1802,11 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
 }
 
 /** Envio com typing delay curto; se o envio síncrono falhar, cai para a fila com retry. */
-export async function sendWithFallback(dispatcher: OutboxDispatcher, tenant: any, tenantId: string, phone: string, text: string, interactive?: any): Promise<void> {
+export async function sendWithFallback(dispatcher: OutboxDispatcher, tenant: any, tenantId: string, phone: string, text: string, interactive?: any, channel: string = "whatsapp"): Promise<void> {
     try {
-        await dispatcher.sendNow(tenant, phone, { text, interactive }, 1200);
+        await dispatcher.sendNow(tenant, phone, { text, interactive, channel }, 1200, undefined, "service", channel);
     } catch (sendErr: any) {
         console.warn(`[agent] sendNow falhou (${sendErr?.message}) — enfileirando com retry`);
-        await dispatcher.enqueue(tenantId, phone, { text, interactive });
+        await dispatcher.enqueue(tenantId, phone, { text, interactive, channel }, channel);
     }
 }

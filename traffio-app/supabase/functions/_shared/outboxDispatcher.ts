@@ -14,6 +14,7 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { CloudApiClient } from "./cloudApiClient.ts";
+import { MetaSocialClient } from "./metaSocialClient.ts";
 import { getCloudApiPricing } from "./pricing.ts";
 
 /**
@@ -28,20 +29,91 @@ export class OutboxDispatcher {
     constructor(private supabase: SupabaseClient) {}
 
     /**
-     * Envia imediatamente via Z-API sem passar pelo outbox.
-     * Usar no webhook handler para resposta instantânea ao paciente.
+     * Envia imediatamente via Z-API, Cloud API ou Meta Graph API (Instagram/FB).
      * Se falhar, lança exceção (quem chama decide se faz enqueue como fallback).
      */
-    async sendNow(tenant: any, phone: string, payload: { text: string; interactive?: any }, typingDelayMs = 0, quotedMsgId?: string, category: CloudApiBillingCategory = "service"): Promise<string | undefined> {
-        // Teste de carga (docs/DIAGNOSTICO_CONCORRENCIA_AGENTE.md): flag ESCOPADA POR
-        // TENANT (bot_config.outbound_dry_run), nunca global — um teste de carga não
-        // pode silenciar respostas reais de OUTROS tenants enquanto roda. Usada só
-        // durante o teste controlado, sempre revertida logo em seguida.
+    async sendNow(
+        tenant: any,
+        phone: string,
+        payload: { text: string; interactive?: any; channel?: string },
+        typingDelayMs = 0,
+        quotedMsgId?: string,
+        category: CloudApiBillingCategory = "service",
+        channel: string = "whatsapp"
+    ): Promise<string | undefined> {
+        const effectiveChannel = payload?.channel || channel || "whatsapp";
+
         if (tenant?.bot_config?.outbound_dry_run) {
             const fakeId = `dry-run-${crypto.randomUUID()}`;
-            console.log(`[OutboxDispatcher] DRY RUN (tenant ${tenant.id}) — não enviou de verdade para ${phone}: "${payload.text.substring(0, 60)}" (id simulado: ${fakeId})`);
+            console.log(`[OutboxDispatcher] DRY RUN (tenant ${tenant.id}) — não enviou de verdade para ${phone} (${effectiveChannel}): "${payload.text.substring(0, 60)}" (id simulado: ${fakeId})`);
             return fakeId;
         }
+
+        if (effectiveChannel === "instagram" || effectiveChannel === "facebook") {
+            const isInstagram = effectiveChannel === "instagram";
+            const pageQuery = isInstagram
+                ? this.supabase.from("tenant_meta_pages").select("page_access_token, instagram_account_id").eq("tenant_id", tenant.id).not("instagram_account_id", "is", null).eq("is_active", true).limit(1).maybeSingle()
+                : this.supabase.from("tenant_meta_pages").select("page_access_token").eq("tenant_id", tenant.id).eq("is_active", true).limit(1).maybeSingle();
+
+            const { data: metaPage, error: pageErr } = await pageQuery;
+
+            if (pageErr || !metaPage?.page_access_token) {
+                console.error(`[OutboxDispatcher] Sem credenciais Meta ativas para tenant ${tenant.id} (${effectiveChannel}). Não entregou para ${phone}`);
+                throw new Error(`Sem credenciais ativas do Meta/Page para o canal ${effectiveChannel}`);
+            }
+
+            if (isInstagram) {
+                const res = await MetaSocialClient.sendInstagramMessage(
+                    metaPage.page_access_token,
+                    metaPage.instagram_account_id,
+                    phone,
+                    payload.text
+                );
+                console.log(`[OutboxDispatcher] Instagram DM enviada com sucesso para ${phone} (msgId: ${res.messageId})`);
+                return res.messageId;
+            } else {
+                const res = await MetaSocialClient.sendFacebookMessage(
+                    metaPage.page_access_token,
+                    phone,
+                    payload.text
+                );
+                console.log(`[OutboxDispatcher] Facebook Messenger enviada com sucesso para ${phone} (msgId: ${res.messageId})`);
+                return res.messageId;
+            }
+        }
+
+        if (effectiveChannel === "livechat") {
+            console.log(`[OutboxDispatcher] Livechat dispatch para ${phone}: "${payload.text.substring(0, 60)}"`);
+
+            // Localizar a sessão pelo patient_phone para transmitir via Supabase Realtime Broadcast
+            const { data: session } = await this.supabase
+                .from('conversation_sessions')
+                .select('id')
+                .eq('tenant_id', tenant.id)
+                .eq('patient_phone', phone)
+                .maybeSingle();
+
+            const msgId = `livechat-${crypto.randomUUID()}`;
+
+            if (session?.id) {
+                const realtimeChannel = this.supabase.channel(`livechat:${session.id}`);
+                await realtimeChannel.send({
+                    type: 'broadcast',
+                    event: 'message',
+                    payload: {
+                        id: msgId,
+                        role: 'ai',
+                        content: payload.text,
+                        sender_name: tenant.name || 'Assistente Virtual',
+                        created_at: new Date().toISOString()
+                    }
+                });
+                console.log(`[OutboxDispatcher] Realtime broadcast enviado com sucesso para livechat:${session.id}`);
+            }
+
+            return msgId;
+        }
+
         if (tenant.whatsapp_provider === 'cloud_api' && tenant.cloud_api_phone_number_id && tenant.cloud_api_access_token) {
             const result = await sendCloudApiMessage(tenant, phone, payload, quotedMsgId);
             await this.trackCloudApiUsage(tenant.id, category);
@@ -52,7 +124,7 @@ export class OutboxDispatcher {
     }
 
     /**
-     * Envia uma sequência de bolhas de mensagem ao paciente com cadência de digitação (pausas humanas).
+     * Envia uma sequência de bolhas de mensagem ao paciente com cadência de digitação.
      * Se uma bolha intermediária falhar no envio síncrono, as bolhas restantes são enfileiradas no outbox.
      * Retorna a lista de bolhas efetivamente entregues ou enfileiradas.
      */
@@ -61,7 +133,8 @@ export class OutboxDispatcher {
         phone: string,
         bubbles: string[],
         interactive?: any,
-        category: CloudApiBillingCategory = "service"
+        category: CloudApiBillingCategory = "service",
+        channel: string = "whatsapp"
     ): Promise<string[]> {
         if (!bubbles || bubbles.length === 0) return [];
 
@@ -69,7 +142,7 @@ export class OutboxDispatcher {
         for (let i = 0; i < bubbles.length; i++) {
             const bubble = bubbles[i];
             const isLast = (i === bubbles.length - 1);
-            const payload: { text: string; interactive?: any } = { text: bubble };
+            const payload: { text: string; interactive?: any; channel?: string } = { text: bubble, channel };
             if (isLast && interactive) {
                 payload.interactive = interactive;
             }
@@ -77,16 +150,16 @@ export class OutboxDispatcher {
             const typingDelayMs = Math.min(2200, Math.max(800, bubble.length * 35));
 
             try {
-                await this.sendNow(tenant, phone, payload, typingDelayMs, undefined, category);
+                await this.sendNow(tenant, phone, payload, typingDelayMs, undefined, category, channel);
                 sentBubbles.push(bubble);
             } catch (err: any) {
                 console.warn(`[OutboxDispatcher] Falha no envio síncrono da bolha ${i + 1}/${bubbles.length}: ${err?.message}. Enfileirando restantes.`);
                 for (let j = i; j < bubbles.length; j++) {
                     const remBubble = bubbles[j];
                     const remIsLast = (j === bubbles.length - 1);
-                    const remPayload: { text: string; interactive?: any } = { text: remBubble };
+                    const remPayload: { text: string; interactive?: any; channel?: string } = { text: remBubble, channel };
                     if (remIsLast && interactive) remPayload.interactive = interactive;
-                    await this.enqueue(tenant.id, phone, remPayload);
+                    await this.enqueue(tenant.id, phone, remPayload, channel);
                     sentBubbles.push(remBubble);
                 }
                 break;
@@ -119,22 +192,21 @@ export class OutboxDispatcher {
 
     /**
      * Enfileira uma mensagem para entrega assíncrona.
-     * Substitui o sendZapiMessage() direto no index.ts.
      */
-    async enqueue(tenantId: string, phone: string, payload: { text: string; interactive?: any; quotedMsgId?: string }): Promise<void> {
+    async enqueue(tenantId: string, phone: string, payload: { text: string; interactive?: any; quotedMsgId?: string; channel?: string }, channel: string = "whatsapp"): Promise<void> {
+        const payloadWithChannel = { ...payload, channel: payload.channel || channel };
         const { error } = await this.supabase
             .from('message_outbox')
             .insert({
                 tenant_id: tenantId,
                 phone,
-                payload,
+                payload: payloadWithChannel,
                 status: 'pending',
                 attempts: 0,
                 next_attempt_at: new Date().toISOString()
             });
 
         if (error) {
-            // Falha ao enfileirar: logar mas não travar o fluxo principal
             console.error('[OutboxDispatcher] Failed to enqueue message:', error);
         }
     }
@@ -204,9 +276,29 @@ export class OutboxDispatcher {
 
         for (const msg of pending) {
             const tenant = (msg as any).tenants;
+            const channel = msg.payload?.channel || 'whatsapp';
 
             try {
-                if (tenant?.whatsapp_provider === 'cloud_api' && tenant?.cloud_api_phone_number_id && tenant?.cloud_api_access_token) {
+                if (channel === 'instagram' || channel === 'facebook') {
+                    const isInstagram = channel === 'instagram';
+                    const pageQuery = isInstagram
+                        ? this.supabase.from("tenant_meta_pages").select("page_access_token, instagram_account_id").eq("tenant_id", msg.tenant_id).not("instagram_account_id", "is", null).eq("is_active", true).limit(1).maybeSingle()
+                        : this.supabase.from("tenant_meta_pages").select("page_access_token").eq("tenant_id", msg.tenant_id).eq("is_active", true).limit(1).maybeSingle();
+
+                    const { data: metaPage, error: pageErr } = await pageQuery;
+
+                    if (pageErr || !metaPage?.page_access_token) {
+                        await this.markFailed(msg.id, `Missing Meta page token for channel ${channel}`);
+                        failed++;
+                        continue;
+                    }
+
+                    if (isInstagram) {
+                        await MetaSocialClient.sendInstagramMessage(metaPage.page_access_token, metaPage.instagram_account_id, msg.phone, msg.payload.text);
+                    } else {
+                        await MetaSocialClient.sendFacebookMessage(metaPage.page_access_token, msg.phone, msg.payload.text);
+                    }
+                } else if (tenant?.whatsapp_provider === 'cloud_api' && tenant?.cloud_api_phone_number_id && tenant?.cloud_api_access_token) {
                     await sendCloudApiMessage(tenant, msg.phone, msg.payload);
                 } else {
                     if (!tenant?.zapi_instance_id || !tenant?.zapi_token) {

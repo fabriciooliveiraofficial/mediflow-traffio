@@ -106,6 +106,7 @@ async function bookSlotAndNotify(
     slot: Omit<SlotOption, "id" | "title" | "description">,
     language: string,
     baseContext: any,
+    channel: string = "whatsapp",
 ): Promise<"replied" | "transferred"> {
     const { success, bookErrMessage } = await attemptBooking(supabase, tenantId, patientId, slot);
 
@@ -119,7 +120,7 @@ async function bookSlotAndNotify(
             { date: slot.date, start_time: slot.time, location_id: slot.location_id },
             professional, patientId, normalizeLanguage(language),
         );
-        await sendWithFallback(dispatcher, tenant, tenantId, phone, msg);
+        await sendWithFallback(dispatcher, tenant, tenantId, phone, msg, undefined, channel);
         await sessionManager.logMessage(sessionId, "assistant", msg);
         const ctx = { ...baseContext };
         delete ctx.pending_slots;
@@ -146,7 +147,7 @@ async function bookSlotAndNotify(
     if (alternatives.length) {
         const msg = SLOT_TAKEN_RETRY_MSG[language] || SLOT_TAKEN_RETRY_MSG.pt;
         const interactive = buildSlotInteractive(alternatives, language);
-        await sendWithFallback(dispatcher, tenant, tenantId, phone, msg, interactive);
+        await sendWithFallback(dispatcher, tenant, tenantId, phone, msg, interactive, channel);
         await sessionManager.logMessage(sessionId, "assistant", msg);
         ctx.pending_slots = alternatives.map((s: SlotOption) => s.id);
         ctx.pending_slot_titles = alternatives.map((s: SlotOption) => s.title);
@@ -159,7 +160,7 @@ async function bookSlotAndNotify(
     }
 
     const msg = SLOT_TAKEN_MSG[language] || SLOT_TAKEN_MSG.pt;
-    await sendWithFallback(dispatcher, tenant, tenantId, phone, msg);
+    await sendWithFallback(dispatcher, tenant, tenantId, phone, msg, undefined, channel);
     await sessionManager.logMessage(sessionId, "assistant", msg);
     delete ctx.pending_slots;
     delete ctx.pending_slot_titles;
@@ -335,10 +336,11 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
     try {
         const { data: session } = await supabase
             .from("conversation_sessions")
-            .select("context, recent_messages, platform_display_name")
+            .select("context, recent_messages, platform_display_name, channel")
             .eq("id", sessionId)
             .single();
         if (!session) return { matched: false };
+        const channel = (session as any).channel || "whatsapp";
 
         const context = session.context || {};
         const history = (session.recent_messages || []).filter((m: any) => m.role !== "internal");
@@ -394,7 +396,7 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
                     const date = formatDateForPatient(String((appointment as any).date), confirmationLanguage);
                     const time = String((appointment as any).start_time || "").substring(0, 5);
                     const msg = (REMINDER_CONFIRMED_MSG[confirmationLanguage] || REMINDER_CONFIRMED_MSG.pt)(patient?.full_name || "", date, time);
-                    await sendWithFallback(dispatcher, tenant, tenantId, phone, msg);
+                    await sendWithFallback(dispatcher, tenant, tenantId, phone, msg, undefined, channel);
                     await sessionManager.logMessage(sessionId, "assistant", msg);
                     await supabase
                         .from("conversation_sessions")
@@ -441,7 +443,7 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
                     if (resolved.patient) {
                         return {
                             matched: true,
-                            status: await bookSlotAndNotify(supabase, dispatcher, tenant, tenantId, sessionId, phone, sessionManager, resolved.patient.id, pendingSlotClick, language, context),
+                            status: await bookSlotAndNotify(supabase, dispatcher, tenant, tenantId, sessionId, phone, sessionManager, resolved.patient.id, pendingSlotClick, language, context, channel),
                         };
                     }
                 }
@@ -495,7 +497,7 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
             // quando não achou ficha existente E não tem nome confiável para criar uma.
             if (!resolved.patient && resolved.reason === "name_required") {
                 const msg = ASK_NAME_TO_BOOK_MSG[language] || ASK_NAME_TO_BOOK_MSG.pt;
-                await sendWithFallback(dispatcher, tenant, tenantId, phone, msg);
+                await sendWithFallback(dispatcher, tenant, tenantId, phone, msg, undefined, channel);
                 await sessionManager.logMessage(sessionId, "assistant", msg);
                 const ctx = { ...context };
                 ctx.pending_booking_slot = clickContent;
@@ -510,7 +512,7 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
 
             return {
                 matched: true,
-                status: await bookSlotAndNotify(supabase, dispatcher, tenant, tenantId, sessionId, phone, sessionManager, resolved.patient.id, slotClick, language, context),
+                status: await bookSlotAndNotify(supabase, dispatcher, tenant, tenantId, sessionId, phone, sessionManager, resolved.patient.id, slotClick, language, context, channel),
             };
         }
 
@@ -543,7 +545,7 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
                     { date: pendingWaitlist.date, start_time: pendingWaitlist.start_time, location_id: pendingWaitlist.location_id },
                     professional, pendingWaitlist.patient_id, normalizeLanguage(language),
                 );
-                await sendWithFallback(dispatcher, tenant, tenantId, phone, msg);
+                await sendWithFallback(dispatcher, tenant, tenantId, phone, msg, undefined, channel);
                 await sessionManager.logMessage(sessionId, "assistant", msg);
                 await supabase.from("waitlist").update({ status: "confirmed", updated_at: new Date().toISOString() }).eq("id", pendingWaitlist.waitlist_id);
                 await supabase.from("conversation_sessions")
@@ -565,7 +567,7 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
             if (alternatives.length) {
                 const retryMsg = SLOT_TAKEN_RETRY_MSG[language] || SLOT_TAKEN_RETRY_MSG.pt;
                 const interactive = buildSlotInteractive(alternatives, language);
-                await sendWithFallback(dispatcher, tenant, tenantId, phone, retryMsg, interactive);
+                await sendWithFallback(dispatcher, tenant, tenantId, phone, retryMsg, interactive, channel);
                 await sessionManager.logMessage(sessionId, "assistant", retryMsg);
                 ctx.pending_slots = alternatives.map((s: SlotOption) => s.id);
                 ctx.pending_slot_titles = alternatives.map((s: SlotOption) => s.title);
@@ -577,7 +579,7 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
             }
 
             const msg = WAITLIST_TAKEN_MSG[language] || WAITLIST_TAKEN_MSG.pt;
-            await sendWithFallback(dispatcher, tenant, tenantId, phone, msg);
+            await sendWithFallback(dispatcher, tenant, tenantId, phone, msg, undefined, channel);
             await sessionManager.logMessage(sessionId, "assistant", msg);
             await sessionManager.triggerHumanHandoff(sessionId, ctx, { reason: "tech", kind: "soft" });
             return { matched: true, status: "transferred" };
@@ -624,7 +626,7 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
 
             if (!slots.length) {
                 const msg = NO_SLOTS_MSG[language] || NO_SLOTS_MSG.pt;
-                await sendWithFallback(dispatcher, tenant, tenantId, phone, msg);
+                await sendWithFallback(dispatcher, tenant, tenantId, phone, msg, undefined, channel);
                 await sessionManager.logMessage(sessionId, "assistant", msg);
                 await sessionManager.triggerHumanHandoff(sessionId, ctx, { reason: "tech", kind: "soft" });
                 return { matched: true, status: "transferred" };
@@ -632,7 +634,7 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
 
             const msg = RECOVERY_OFFER_MSG[language] || RECOVERY_OFFER_MSG.pt;
             const interactive = buildSlotInteractive(slots, language);
-            await sendWithFallback(dispatcher, tenant, tenantId, phone, msg, interactive);
+            await sendWithFallback(dispatcher, tenant, tenantId, phone, msg, interactive, channel);
             await sessionManager.logMessage(sessionId, "assistant", msg);
             ctx.pending_slots = slots.map((s: SlotOption) => s.id);
             ctx.pending_slot_titles = slots.map((s: SlotOption) => s.title);
