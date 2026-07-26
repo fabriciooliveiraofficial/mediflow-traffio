@@ -1100,8 +1100,11 @@ export const AgendaMestra: React.FC = () => {
 
     const handleDelete = async (id: string) => {
         try {
-            const { error } = await supabase.from('appointments').update({ status: 'canceled' }).eq('id', id);
+            const { data, error } = await supabase.from('appointments').update({ status: 'canceled' }).eq('id', id).select('id');
             if (error) throw error;
+            if (!data || data.length === 0) {
+                throw new Error("Nenhum agendamento foi atualizado. Verifique as permissões de acesso.");
+            }
             setConfirmDelete(null);
             setEditingAppt(null);
             await fetchData();

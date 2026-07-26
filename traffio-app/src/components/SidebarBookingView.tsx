@@ -604,10 +604,11 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
             // 2. If rescheduling, clear the old slot FIRST to avoid overlap constraint violation
             // Note: Postgres constraint now unified to 'canceled' (American spelling)
             if (rescheduleFrom?.id) {
-                await supabase.from('appointments').update({
+                const { error: cancelErr } = await supabase.from('appointments').update({
                     status: 'canceled',
                     notes: t('sidebarBookingView.rescheduleNote', { date: selectedDate, time: selectedSlot.time })
-                }).eq('id', rescheduleFrom.id);
+                }).eq('id', rescheduleFrom.id).select('id');
+                if (cancelErr) throw cancelErr;
             }
 
             let bookingId = '';

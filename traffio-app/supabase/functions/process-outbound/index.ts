@@ -279,11 +279,12 @@ serve(async (req: Request) => {
       const appt = msg.reference_id ? apptMap[msg.reference_id] : null;
 
       // Lembrete de agendamento cancelado/reagendado não deve ser enviado
-      if (msg.template_key?.startsWith('appointment_reminder') && appt
-          && !['scheduled', 'confirmed'].includes(appt.status)) {
-        await supabase.from('outbound_message_queue')
-          .update({ status: 'cancelled', error_message: `Appointment status is '${appt.status}' — reminder skipped` }).eq('id', msg.id);
-        return;
+      if (msg.template_key?.startsWith('appointment_reminder')) {
+        if (!appt || !['scheduled', 'confirmed'].includes(appt.status)) {
+          await supabase.from('outbound_message_queue')
+            .update({ status: 'cancelled', error_message: `Appointment ${appt ? 'status is \'' + appt.status + '\'' : 'not found'} — reminder skipped` }).eq('id', msg.id);
+          return;
+        }
       }
 
       // NPS só se o agendamento ainda está 'completed'
