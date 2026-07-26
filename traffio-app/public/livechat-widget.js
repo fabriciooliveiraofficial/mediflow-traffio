@@ -1599,8 +1599,18 @@
       const data = await response.json();
       if (data.error) throw new Error(data.error);
 
-      // Atualizar id e data oficiais do banco
-      await loadHistory();
+      // Atualizar id oficial sem recarregar o histórico inteiro para evitar 
+      // que a mensagem suma (pois pode estar apenas na fila message_inbox).
+      const tempIdx = messagesList.findIndex((m) => m.id === tempMsg.id);
+      if (tempIdx !== -1) {
+        messagesList[tempIdx].id = data.message_id;
+        // Se o broadcast do Realtime chegou antes do fetch terminar, remove a temporária
+        const duplicateIdx = messagesList.findIndex((m, idx) => m.id === data.message_id && idx !== tempIdx);
+        if (duplicateIdx !== -1) {
+          messagesList.splice(tempIdx, 1);
+        }
+      }
+      renderMessages();
 
     } catch (err) {
       console.error("Erro ao enviar mensagem:", err);
