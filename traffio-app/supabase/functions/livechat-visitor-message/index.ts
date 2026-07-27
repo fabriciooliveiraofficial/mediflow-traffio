@@ -246,6 +246,39 @@ serve(async (req: Request) => {
       activeSessionId = crypto.randomUUID();
       isNewSession = true;
 
+      const cleanName = visitor_name.trim();
+      const cleanEmail = visitor_email.trim();
+      const cleanPhone = visitor_phone.trim();
+
+      // Cadastrar ou atualizar o lead na tabela de pacientes do tenant
+      try {
+        const { data: existingPt } = await supabase
+          .from('patients')
+          .select('id')
+          .eq('tenant_id', tenant_id)
+          .eq('phone', cleanPhone)
+          .maybeSingle();
+
+        if (existingPt) {
+          await supabase
+            .from('patients')
+            .update({ full_name: cleanName, email: cleanEmail })
+            .eq('id', existingPt.id);
+        } else {
+          await supabase
+            .from('patients')
+            .insert({
+              tenant_id,
+              full_name: cleanName,
+              email: cleanEmail,
+              phone: cleanPhone,
+              metadata: { source: 'livechat' }
+            });
+        }
+      } catch (ptErr) {
+        console.warn('[livechat-visitor-message] Alerta ao registrar paciente:', ptErr);
+      }
+
       // Telefone sintético único para a coluna de restrição no banco
       const syntheticPhone = `livechat-${crypto.randomUUID()}`;
 
@@ -258,9 +291,9 @@ serve(async (req: Request) => {
           channel: 'livechat',
           omnichannel_status: 'bot_active', // Encaminha para o Agente de IA / Fluxo Estruturado
           context: {
-            visitor_name: visitor_name.trim(),
-            visitor_email: visitor_email.trim(),
-            visitor_phone: visitor_phone.trim()
+            visitor_name: cleanName,
+            visitor_email: cleanEmail,
+            visitor_phone: cleanPhone
           }
         });
 
@@ -342,9 +375,10 @@ serve(async (req: Request) => {
 
     if (sessionErr || !sessionData) throw sessionErr || new Error('Sessão não encontrada.');
 
-    const msgId = crypto.randomUUID();
-    const createdAt = new Date().toISOString();
-    const formattedContent = fileObj ? (content || `[${messageType}]`) : content.trim();
+    let formattedContent = fileObj ? (content || `[${messageType}]`) : content.trim();
+    if (isNewSession && visitor_name) {
+      formattedContent = `📋 [Dados do Lead - Live Chat]\nNome: ${visitor_name.trim()}\nE-mail: ${visitor_email?.trim() || ''}\nTelefone: ${visitor_phone?.trim() || ''}\n\n${formattedContent}`;
+    }
 
     if (sessionData.omnichannel_status === 'human_active') {
       // FAST PATH: Atendimento Humano Ativo — grava direto em conversation_messages
