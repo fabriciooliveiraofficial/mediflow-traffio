@@ -1319,6 +1319,8 @@ export function buildAutonomousSystemPrompt(opts: {
     channel?: string;
     /** Nome do visitante capturado no formulário de lead (ex: livechat) */
     visitorName?: string | null;
+    visitorEmail?: string | null;
+    visitorPhone?: string | null;
 }): AutonomousSystemPrompt {
     const languageHint = opts.languageHint
         ? normalizeConversationLanguage(opts.languageHint)
@@ -1347,9 +1349,11 @@ export function buildAutonomousSystemPrompt(opts: {
         opts.stageGuidance ? `### CONTEXTO DA JORNADA DESTE PACIENTE (ajusta a abordagem, nunca a política de preço):\n${opts.stageGuidance}` : "",
         opts.flowStateHint ? `### ESTADO DO FLUXO DE AGENDAMENTO (continue DESTE ponto, não recomece):\n${opts.flowStateHint}` : "",
         opts.patientSnapshot ? `### PACIENTE NO SISTEMA (fonte da VERDADE — vale mais que a memória da conversa):\n${opts.patientSnapshot}\nPara "confirmar/quando é minha consulta": responda com o dado acima. Se acima diz que existe agendamento, ele EXISTE — confirme-o; nunca diga que falhou ou que o horário ficou indisponível.` : "",
-        opts.visitorName ? `### DADOS DO VISITANTE (via formulário inicial):\nO paciente já se identificou como "${opts.visitorName}". Chame-o por este nome e não pergunte o nome novamente, MESMO QUE o sistema acima diga que ele não tem nome.` : "",
+        opts.visitorName ? `### DADOS DO VISITANTE (via formulário inicial):\nO paciente já se identificou como "${opts.visitorName}"${opts.visitorEmail ? `, e-mail "${opts.visitorEmail}"` : ""}${opts.visitorPhone ? `, telefone "${opts.visitorPhone}"` : ""}. Chame-o por este nome e NÃO pergunte nome, telefone ou e-mail novamente, pois estes dados já foram informados.` : "",
         opts.channel && opts.channel !== "whatsapp"
-            ? `### OMNICHANNEL (${opts.channel.toUpperCase()}): O paciente está conversando via ${opts.channel.toUpperCase()}. Para localizar ou criar o cadastro na clínica, solicite o número de telefone (com DDD) e o e-mail do paciente (ex: "Para localizarmos ou criarmos o seu cadastro aqui na clínica, por favor, me informe o seu número de telefone e o seu e-mail"). JAMAIS pergunte especificamente por "WhatsApp" e NUNCA diga que os dados são para enviar "alertas", "avisos" ou "mensagens" — a única finalidade informada deve ser o cadastro.`
+            ? (opts.channel === "livechat" && opts.visitorName
+                ? `### OMNICHANNEL (LIVECHAT): O paciente está conversando via Live Chat e seus dados de cadastro (nome, telefone, e-mail) JÁ FORAM COLETADOS no formulário inicial. NUNCA solicite nome, telefone ou e-mail do paciente.`
+                : `### OMNICHANNEL (${opts.channel.toUpperCase()}): O paciente está conversando via ${opts.channel.toUpperCase()}. Para localizar ou criar o cadastro na clínica, solicite o número de telefone (com DDD) e o e-mail do paciente (ex: "Para localizarmos ou criarmos o seu cadastro aqui na clínica, por favor, me informe o seu número de telefone e o seu e-mail"). JAMAIS pergunte especificamente por "WhatsApp" e NUNCA diga que os dados são para enviar "alertas", "avisos" ou "mensagens" — a única finalidade informada deve ser o cadastro.`)
             : `### CANAL WHATSAPP: O paciente já está conversando pelo WhatsApp. Para completar o cadastro na clínica, solicite o e-mail dele de forma sutil (ex: "Para deixarmos o seu cadastro completo aqui na clínica, qual é o seu melhor e-mail?"). NUNCA mencione que a coleta do e-mail é para enviar "alertas", "avisos" ou "notificações".`,
         `Data de hoje: ${opts.todayStr} (fuso da clínica). Use-a para converter datas relativas ("amanhã", "semana que vem") ao chamar ferramentas.`,
         languageHint
@@ -1465,6 +1469,8 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             softHandoffNotice: isSoftHandoffQueued,
             channel: channel,
             visitorName: (session as any).platform_display_name || context.visitor_name,
+            visitorEmail: context.visitor_email,
+            visitorPhone: context.visitor_phone,
         });
 
         // Triagem em paralelo com o loop (não bloqueia a resposta)
