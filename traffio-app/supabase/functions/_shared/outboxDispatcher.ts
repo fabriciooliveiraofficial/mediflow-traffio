@@ -102,7 +102,7 @@ export class OutboxDispatcher {
                         role: 'ai',
                         content: payload.text,
                         interactive: payload.interactive || null,
-                        sender_name: tenant.name || 'Assistente Virtual',
+                        sender_name: tenant.name || 'Atendimento',
                         created_at: new Date().toISOString()
                     }
                 });

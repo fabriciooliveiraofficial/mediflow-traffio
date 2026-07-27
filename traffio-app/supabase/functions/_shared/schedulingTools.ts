@@ -16,6 +16,7 @@
  */
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import type { LlmTool, LlmToolCall } from "./llmProvider.ts";
+import { normalizePhoneNumber } from "./phoneNormalizer.ts";
 
 /** P-04: ponto único para SELECTs de tabelas multi-tenant. */
 function scopedQuery(supabase: SupabaseClient, table: string, tenantId: string, columns: string): any {
@@ -683,14 +684,15 @@ export const SCHEDULING_TOOLS: LlmTool[] = [
     },
     {
         name: "atualizar_cadastro_paciente",
-        description: "Cria ou atualiza a ficha do paciente desta conversa. Use assim que souber o nome completo — SEMPRE antes de agendar. O telefone já é conhecido pelo sistema; nunca peça telefone, CPF, RG ou documento.",
+        description: "Cria ou atualiza a ficha do paciente desta conversa. Use assim que souber o nome completo — SEMPRE antes de agendar. Em canais não-WhatsApp (Live Chat, Instagram, Messenger), solicite também telefone com DDD e/ou e-mail para o cadastro.",
         input_schema: {
             type: "object",
             properties: {
                 full_name: { type: "string", description: "Nome completo de quem será atendido, como o paciente informou." },
-                email:     { type: "string", description: "E-mail, se o paciente informar espontaneamente ou aceitar dar. Opcional." },
+                phone:     { type: "string", description: "Número de telefone com DDD (para cadastros vindos de canais não-WhatsApp). Opcional." },
+                email:     { type: "string", description: "E-mail do paciente. Opcional." },
                 birth_date:{ type: "string", description: "Data de nascimento YYYY-MM-DD, se informada. Opcional." },
-                notes:     { type: "string", description: "Observação clínica/contextual relevante dita pelo paciente (ex.: 'tem medo de dentista', 'dente quebrou ontem'). Opcional." },
+                notes:     { type: "string", description: "Observação clínica/contextual relevante dita pelo paciente. Opcional." },
             },
             required: ["full_name"],
         },
@@ -816,11 +818,22 @@ export async function executeSchedulingTool(
                 };
             }
 
-            const canonicalPhone = canonicalizePhone(phone) || phone;
+            let canonicalPhone = canonicalizePhone(phone) || phone;
+            if (input.phone?.trim()) {
+                const norm = normalizePhoneNumber(input.phone.trim());
+                if (norm?.e164) {
+                    canonicalPhone = norm.e164;
+                }
+            }
+
             const existing = await findPatient(supabase, tenantId, phone);
 
             if (existing) {
                 const updateData: Record<string, any> = { full_name: fullName };
+                if (input.phone?.trim()) {
+                    const norm = normalizePhoneNumber(input.phone.trim());
+                    if (norm?.e164) updateData.phone = norm.e164;
+                }
                 if (input.email?.trim()) updateData.email = input.email.trim();
                 if (input.birth_date?.trim()) updateData.birth_date = input.birth_date.trim();
                 if (input.notes?.trim()) updateData.notes = input.notes.trim();
