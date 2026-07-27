@@ -399,12 +399,15 @@ serve(async (req: Request) => {
 
     if (sessionErr || !sessionData) throw sessionErr || new Error('Sessão não encontrada.');
 
+    const msgId = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+
     let formattedContent = fileObj ? (content || `[${messageType}]`) : content.trim();
     const vNameStr = typeof visitor_name === 'string' ? visitor_name.trim() : '';
     if (isNewSession && vNameStr) {
       const vEmailStr = typeof visitor_email === 'string' ? visitor_email.trim() : '';
       const vPhoneStr = typeof visitor_phone === 'string' ? visitor_phone.trim() : '';
-      formattedContent = `📋 [Dados do Lead - Live Chat]\nNome: ${vNameStr}\nE-mail: ${vEmailStr}\nTelefone: ${vPhoneStr}\n\n${formattedContent}`;
+      formattedContent = `📋 [DADOS DO VISITANTE]\nNome: ${vNameStr}\nE-mail: ${vEmailStr}\nTelefone: ${vPhoneStr}\n\n${formattedContent}`;
     }
 
     if (sessionData.omnichannel_status === 'human_active') {
@@ -469,9 +472,9 @@ serve(async (req: Request) => {
     );
 
   } catch (error: any) {
-    console.error('livechat-visitor-message error:', error);
+    console.error('[livechat-visitor-message] Erro fatal:', error?.stack || error);
     return new Response(
-      JSON.stringify({ error: error.message || 'Erro interno no servidor.' }),
+      JSON.stringify({ error: error?.message || 'Erro interno no servidor.' }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
