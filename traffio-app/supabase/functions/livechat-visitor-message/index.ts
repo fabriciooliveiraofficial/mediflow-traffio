@@ -231,6 +231,20 @@ serve(async (req: Request) => {
       );
     }
 
+    // Validar existência do tenant no banco
+    const { data: tenantRow, error: tenantErr } = await supabase
+      .from('tenants')
+      .select('id')
+      .eq('id', tenant_id)
+      .maybeSingle();
+
+    if (tenantErr || !tenantRow) {
+      return new Response(
+        JSON.stringify({ error: 'Tenant (clínica) não encontrado ou ID de tenant inválido.' }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     let activeSessionId = (session_id && session_id !== 'null' && session_id !== 'undefined') ? session_id : null;
     let isNewSession = false;
 
@@ -301,7 +315,13 @@ serve(async (req: Request) => {
           }
         });
 
-      if (sessionError) throw sessionError;
+      if (sessionError) {
+        console.error('[livechat-visitor-message] Erro ao criar sessão:', sessionError);
+        return new Response(
+          JSON.stringify({ error: `Erro ao criar sessão: ${sessionError.message}` }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
       console.log(`[livechat-visitor-message] Nova sessão de livechat criada: ${activeSessionId}`);
     } else {
       // Sessão existente: preservar o atendimento em andamento.
