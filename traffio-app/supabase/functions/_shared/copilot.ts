@@ -69,7 +69,7 @@ function parseConversationLanguage(value: unknown): ConversationLanguage | null 
     if (typeof value !== "string") return null;
     const key = normalizeLanguageKey(value);
     if (["pt", "pt-br", "pt-pt", "portugues", "portuguese", "brazilian portuguese"].includes(key)) return "pt";
-    if (["en", "en-us", "en-gb", "english"].includes(key)) return "en";
+    if (["en", "en-us", "en-gb", "en-nz", "en-au", "english"].includes(key)) return "en";
     if (["es", "es-es", "es-mx", "espanol", "spanish"].includes(key)) return "es";
     return null;
 }
@@ -83,6 +83,19 @@ export function normalizeConversationLanguage(
     fallback: ConversationLanguage = "pt",
 ): ConversationLanguage {
     return parseConversationLanguage(value) ?? fallback;
+}
+
+/** Map tenant country code → default conversation language (used as fallback
+ *  when the patient's language can't be inferred from their message). */
+const COUNTRY_LANGUAGE_FALLBACK: Record<string, ConversationLanguage> = {
+    BR: "pt", PT: "pt",
+    US: "en", GB: "en", NZ: "en", AU: "en", CA: "en", IE: "en", ZA: "en",
+    MX: "es", ES: "es", AR: "es", CO: "es", CL: "es", PE: "es",
+};
+
+export function languageFallbackFromCountry(country: unknown): ConversationLanguage {
+    if (typeof country !== "string") return "pt";
+    return COUNTRY_LANGUAGE_FALLBACK[country.toUpperCase().trim()] ?? "pt";
 }
 
 // This is intentionally only a fallback for a malformed/unavailable triage
@@ -1413,7 +1426,8 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
         const context = session.context || {};
         const knownIntake = context.intake || {};
         const patientQuery = [...history].reverse().find((message: any) => message.role === "user")?.content;
-        const storedLanguage = normalizeConversationLanguage(context.language);
+        const tenantLangFallback = languageFallbackFromCountry((params.tenant as any)?.country);
+        const storedLanguage = normalizeConversationLanguage(context.language, tenantLangFallback);
         const turnLanguage = resolveTurnLanguage(patientQuery, storedLanguage);
         const turnLanguageIsConfident = isTurnLanguageConfident(patientQuery, context.language);
 
