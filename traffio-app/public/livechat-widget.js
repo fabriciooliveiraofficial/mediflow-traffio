@@ -852,7 +852,7 @@
   };
 
   // ── Localização: o idioma e o timezone do TENANT são a fonte de verdade ──
-  let tenantLocale = 'pt-BR';
+  let tenantLocale = 'en';
   let tenantTimezone = 'America/Sao_Paulo';
 
   const I18N = {
