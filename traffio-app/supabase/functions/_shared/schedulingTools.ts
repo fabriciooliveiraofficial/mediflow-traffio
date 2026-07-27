@@ -1082,7 +1082,7 @@ export async function executeSchedulingTool(
 
             // Ficha de quem SERÁ ATENDIDO (terceiros: cria dependente no mesmo telefone)
             const resolved = await resolvePatientForBooking(supabase, tenantId, phone, input.patient_name || null, patientDisplayName);
-            if (!resolved.patient) return { data: { success: false, error: "patient_create_failed" } };
+            if (!resolved.patient) return { data: { success: false, error: resolved.reason === "name_required" ? "patient_not_registered" : "patient_create_failed" } };
             if (resolved.ambiguous && !input.patient_name) {
                 return { data: { success: false, error: "multiple_patients_on_this_phone", patients: resolved.ambiguous, note: "Ask naturally for whom the appointment is and call agendar again with patient_name. Reply in the PATIENT'S language." } };
             }

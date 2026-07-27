@@ -506,11 +506,12 @@ export async function runCopilot(supabase: SupabaseClient, params: CopilotParams
 
         // A triagem precede o rascunho: o idioma do turno nunca pode depender
         // apenas de memória antiga ou da detecção implícita do modelo redator.
+        const searchPhone = context.visitor_phone || phone;
         const [routerModel, agentModel, journeyStage, patientSnapshot] = await Promise.all([
             getAiModelRouter(supabase),
             getAiModelAgent(supabase),
             fetchStageGuidance(supabase, sessionId),
-            buildPatientSnapshot(supabase, tenantId, phone, null),
+            buildPatientSnapshot(supabase, tenantId, searchPhone, null),
         ]);
         const personality = botConfig?.personality || "acolhedor";
         const instructions = botConfig?.global_instructions || "";
@@ -1457,12 +1458,13 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             .map((m: any) => `${m.role === "user" ? "PACIENTE" : "CLÍNICA"}: ${m.content}`)
             .join("\n");
 
+        const searchPhone = context.visitor_phone || phone;
         const [routerModel, agentModel, knowledgePacket, journeyStage, patientSnapshot] = await Promise.all([
             getAiModelRouter(supabase),
             getAiModelAgent(supabase),
             buildKnowledgePacket(supabase, tenantId, normalizeGlobalKnowledgeLanguage(turnLanguage), patientQuery),
             fetchStageGuidance(supabase, sessionId),
-            buildPatientSnapshot(supabase, tenantId, phone, timezone),
+            buildPatientSnapshot(supabase, tenantId, searchPhone, timezone),
         ]);
         const personality = botConfig?.personality || "acolhedor";
         const instructions = botConfig?.global_instructions || "";

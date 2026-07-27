@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { corsHeaders } from "../_shared/cors.ts";
+import { normalizePhoneNumber, getPhoneSearchVariations } from "../_shared/phoneNormalizer.ts";
 
 // Helper to keep task alive for fire-and-forget
 function runInBackground(task: Promise<unknown>) {
@@ -48,6 +49,7 @@ serve(async (req: Request) => {
     let visitor_email: string | null = null;
     let visitor_phone: string | null = null;
     let content = "";
+    let button_id: string | null = null;
     let fileObj: File | null = null;
     let action: string | null = null;
 
@@ -60,6 +62,7 @@ serve(async (req: Request) => {
       visitor_email = formData.get("visitor_email") as string;
       visitor_phone = formData.get("visitor_phone") as string;
       content = (formData.get("content") as string) || "";
+      button_id = (formData.get("button_id") as string) || null;
       fileObj = formData.get("file") as File;
       action = formData.get("action") as string;
     } else {
@@ -70,6 +73,7 @@ serve(async (req: Request) => {
       visitor_email = body.visitor_email;
       visitor_phone = body.visitor_phone;
       content = body.content || "";
+      button_id = body.button_id || null;
       action = body.action;
     }
 
@@ -234,7 +238,7 @@ serve(async (req: Request) => {
     // Validar existência do tenant no banco
     const { data: tenantRow, error: tenantErr } = await supabase
       .from('tenants')
-      .select('id')
+      .select('id, timezone, locale')
       .eq('id', tenant_id)
       .maybeSingle();
 
@@ -266,21 +270,33 @@ serve(async (req: Request) => {
 
       const cleanName = vName;
       const cleanEmail = vEmail;
-      const cleanPhone = vPhone;
+      
+      let defaultCountryCode = "55";
+      const tz = (tenantRow?.timezone || '').toLowerCase();
+      const loc = (tenantRow?.locale || '').toLowerCase();
+      if (tz.includes("auckland") || tz.includes("pacific") || loc.includes("nz")) {
+        defaultCountryCode = "64";
+      } else if (tz.includes("new_york") || tz.includes("chicago") || tz.includes("los_angeles") || loc.includes("us")) {
+        defaultCountryCode = "1";
+      }
+
+      const norm = normalizePhoneNumber(vPhone, defaultCountryCode);
+      const cleanPhone = norm ? norm.e164 : vPhone;
 
       // Cadastrar ou atualizar o lead na tabela de pacientes do tenant
       try {
+        const variations = getPhoneSearchVariations(cleanPhone);
         const { data: existingPt } = await supabase
           .from('patients')
           .select('id')
           .eq('tenant_id', tenant_id)
-          .eq('phone', cleanPhone)
+          .in('phone', variations.length ? variations : [cleanPhone])
           .maybeSingle();
 
         if (existingPt) {
           await supabase
             .from('patients')
-            .update({ full_name: cleanName, email: cleanEmail })
+            .update({ full_name: cleanName, email: cleanEmail, phone: cleanPhone })
             .eq('id', existingPt.id);
         } else {
           await supabase
@@ -424,12 +440,13 @@ serve(async (req: Request) => {
       if (msgError) throw msgError;
     } else {
       // BOT PATH: Grava na message_inbox para o process-inbox (IA / Fluxo Estruturado) processar
+      const inboxContent = (button_id && typeof button_id === 'string' && button_id.trim()) ? button_id.trim() : formattedContent;
       const { error: inboxErr } = await supabase
         .from('message_inbox')
         .insert({
           tenant_id,
           phone: sessionData.patient_phone,
-          content: formattedContent,
+          content: inboxContent,
           message_id: msgId,
           message_type: messageType,
           media_url: mediaUrl,
@@ -438,7 +455,7 @@ serve(async (req: Request) => {
         });
 
       if (inboxErr) throw inboxErr;
-      console.log(`[livechat-visitor-message] Mensagem enfileirada na message_inbox para ${sessionData.patient_phone}`);
+      console.log(`[livechat-visitor-message] Mensagem enfileirada na message_inbox para ${sessionData.patient_phone} (content: "${inboxContent}")`);
       
       // TRIGGER AI/PROCESS INBOX
       triggerInboxProcessing();

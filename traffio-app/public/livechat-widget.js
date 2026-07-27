@@ -1499,6 +1499,7 @@
     if (!btn || btn.disabled) return;
 
     const btnTitle = btn.getAttribute("data-btn-title");
+    const btnId = btn.getAttribute("data-btn-id");
     if (!btnTitle || !activeSessionId) return;
 
     const container = btn.closest(".traffio-chat-interactive-options");
@@ -1510,7 +1511,7 @@
     }
 
     chatInput.value = btnTitle;
-    handleSendMessage();
+    handleSendMessage(btnId || null);
   });
 
   function scrollToBottom() {
@@ -1547,7 +1548,7 @@
   });
 
   // ── Envio de Mensagem ──
-  async function handleSendMessage() {
+  async function handleSendMessage(buttonId = null) {
     const messageText = chatInput.value.trim();
     if (!messageText && !selectedFile) return;
 
@@ -1579,6 +1580,7 @@
         formData.append("session_id", activeSessionId);
         formData.append("tenant_id", tenantId);
         formData.append("content", messageText);
+        if (buttonId) formData.append("button_id", buttonId);
         formData.append("file", selectedFile);
 
         selectedFile = null;
@@ -1602,7 +1604,8 @@
           body: JSON.stringify({
             session_id: activeSessionId,
             tenant_id: tenantId,
-            content: messageText
+            content: messageText,
+            button_id: buttonId || null
           })
         });
       }
