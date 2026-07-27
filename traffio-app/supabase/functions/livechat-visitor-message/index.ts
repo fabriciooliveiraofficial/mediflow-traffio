@@ -236,7 +236,11 @@ serve(async (req: Request) => {
 
     // 2. Se for uma nova sessão, validar os campos obrigatórios (Nome, E-mail, Telefone)
     if (!activeSessionId) {
-      if (!visitor_name?.trim() || !visitor_email?.trim() || !visitor_phone?.trim()) {
+      const vName = typeof visitor_name === 'string' ? visitor_name.trim() : '';
+      const vEmail = typeof visitor_email === 'string' ? visitor_email.trim() : '';
+      const vPhone = typeof visitor_phone === 'string' ? visitor_phone.trim() : '';
+
+      if (!vName || !vEmail || !vPhone) {
         return new Response(
           JSON.stringify({ error: 'Nome, E-mail e Telefone são obrigatórios para iniciar o atendimento.' }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -246,9 +250,9 @@ serve(async (req: Request) => {
       activeSessionId = crypto.randomUUID();
       isNewSession = true;
 
-      const cleanName = visitor_name.trim();
-      const cleanEmail = visitor_email.trim();
-      const cleanPhone = visitor_phone.trim();
+      const cleanName = vName;
+      const cleanEmail = vEmail;
+      const cleanPhone = vPhone;
 
       // Cadastrar ou atualizar o lead na tabela de pacientes do tenant
       try {
@@ -376,8 +380,11 @@ serve(async (req: Request) => {
     if (sessionErr || !sessionData) throw sessionErr || new Error('Sessão não encontrada.');
 
     let formattedContent = fileObj ? (content || `[${messageType}]`) : content.trim();
-    if (isNewSession && visitor_name) {
-      formattedContent = `📋 [Dados do Lead - Live Chat]\nNome: ${visitor_name.trim()}\nE-mail: ${visitor_email?.trim() || ''}\nTelefone: ${visitor_phone?.trim() || ''}\n\n${formattedContent}`;
+    const vNameStr = typeof visitor_name === 'string' ? visitor_name.trim() : '';
+    if (isNewSession && vNameStr) {
+      const vEmailStr = typeof visitor_email === 'string' ? visitor_email.trim() : '';
+      const vPhoneStr = typeof visitor_phone === 'string' ? visitor_phone.trim() : '';
+      formattedContent = `📋 [Dados do Lead - Live Chat]\nNome: ${vNameStr}\nE-mail: ${vEmailStr}\nTelefone: ${vPhoneStr}\n\n${formattedContent}`;
     }
 
     if (sessionData.omnichannel_status === 'human_active') {
