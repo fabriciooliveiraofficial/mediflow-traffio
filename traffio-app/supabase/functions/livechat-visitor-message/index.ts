@@ -403,12 +403,6 @@ serve(async (req: Request) => {
     const createdAt = new Date().toISOString();
 
     let formattedContent = fileObj ? (content || `[${messageType}]`) : content.trim();
-    const vNameStr = typeof visitor_name === 'string' ? visitor_name.trim() : '';
-    if (isNewSession && vNameStr) {
-      const vEmailStr = typeof visitor_email === 'string' ? visitor_email.trim() : '';
-      const vPhoneStr = typeof visitor_phone === 'string' ? visitor_phone.trim() : '';
-      formattedContent = `📋 [DADOS DO VISITANTE]\nNome: ${vNameStr}\nE-mail: ${vEmailStr}\nTelefone: ${vPhoneStr}\n\n${formattedContent}`;
-    }
 
     if (sessionData.omnichannel_status === 'human_active') {
       // FAST PATH: Atendimento Humano Ativo — grava direto em conversation_messages
