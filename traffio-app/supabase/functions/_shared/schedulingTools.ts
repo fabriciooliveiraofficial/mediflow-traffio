@@ -881,7 +881,7 @@ export async function executeSchedulingTool(
                     data: {
                         success: false,
                         error: "patient_not_registered",
-                        note: "Before adding to waitlist, ask the patient's FULL name (first + last) in a natural, warm way and call atualizar_cadastro_paciente. Then call adicionar_lista_espera again.",
+                        note: "A ferramenta exige nome e sobrenome para adicionar à lista de espera, mas o paciente forneceu um nome incompleto. Use sua autonomia para pedir, de forma educada e fluida, o sobrenome que falta. Em seguida, chame atualizar_cadastro_paciente e tente adicionar_lista_espera novamente.",
                     },
                 };
             }
@@ -903,7 +903,7 @@ export async function executeSchedulingTool(
                     data: {
                         success: false,
                         error: "no_doctor_available",
-                        note: "Could not resolve a professional for this procedure. Offer to transfer to human.",
+                        note: "Não foi possível encontrar um profissional para este procedimento. Ofereça transferência para um atendente humano.",
                     },
                 };
             }
@@ -929,7 +929,7 @@ export async function executeSchedulingTool(
                 data: {
                     success: true,
                     waitlist_id: (createdWaitlist as any)?.id,
-                    note: "Confirm warmly that the patient is on the waitlist and will be notified as soon as a slot opens. Reply in the PATIENT'S language.",
+                    note: "Confirme de forma acolhedora que o paciente está na lista de espera e será notificado assim que abrir uma vaga.",
                 },
             };
         }
@@ -951,7 +951,7 @@ export async function executeSchedulingTool(
                 return {
                     data: {
                         needs_patient_name: true,
-                        note: "You do NOT know the lead's FULL name yet. Ask warmly for their FULL name (first and last name, e.g., 'Como posso te chamar?' / 'Qual é o seu nome completo?') BEFORE checking or offering available time slots. Reply in the PATIENT'S language.",
+                        note: "A ferramenta exige o nome completo (nome e sobrenome) ANTES de checar horários, mas o nome fornecido está incompleto. Use sua autonomia para pedir o último nome de forma educada e fluida.",
                     },
                 };
             }
@@ -985,7 +985,7 @@ export async function executeSchedulingTool(
                         data: {
                             needs_procedure: true,
                             procedures_offered: types.map(t => t.name),
-                            note: "You do NOT know yet which procedure the patient needs — do not offer times blindly. Ask warmly what brings them in / what they are looking for (you may hint a couple of options from procedures_offered) BEFORE checking availability. Never pick a procedure yourself. Reply in the PATIENT'S language.",
+                            note: "Você AINDA NÃO sabe qual procedimento o paciente deseja. Não ofereça horários às cegas. Pergunte de forma acolhedora o que ele busca ANTES de consultar a disponibilidade. Nunca escolha um procedimento por conta própria.",
                         },
                     };
                 }
@@ -1005,7 +1005,7 @@ export async function executeSchedulingTool(
                         data: {
                             requested_professional_does_not_perform: service.name,
                             professionals_who_perform: performers.map(p => ({ id: p.id, name: p.full_name })),
-                            note: "Gently inform the patient that the requested professional does not perform this procedure and offer the ones who do. Reply in the PATIENT'S language.",
+                            note: "Informe gentilmente ao paciente que o profissional solicitado não realiza este procedimento e ofereça as opções de profissionais disponíveis.",
                         },
                     };
                 }
@@ -1032,10 +1032,10 @@ export async function executeSchedulingTool(
                     available: availableForModel,
                     slots_formatted: slotsFormatted,
                     note: slots.length
-                        ? "Write the message to the patient INCLUDING the `slots_formatted` block EXACTLY as provided (copy it verbatim, keep the emoji and line breaks), then close with ONE short question asking which time works best. The same slots also go as clickable buttons automatically. If the patient picks a time by TEXT, call `agendar` immediately with that option's exact slot_id. Do NOT mention professional names unless the patient asked. Reply in the PATIENT'S language."
+                        ? "Envie a lista de horários ao paciente INCLUINDO o bloco `slots_formatted` EXATAMENTE como fornecido (copie integralmente, mantendo emojis e quebras de linha), e encerre com UMA pergunta curta pedindo o melhor horário. Os mesmos horários também são enviados como botões clicáveis automaticamente. Se o paciente escolher um horário por TEXTO, chame `agendar` imediatamente com o slot_id correto. Não mencione nomes de profissionais a menos que solicitado."
                         : (period
-                            ? "No available time slots in that period. Offer to check other periods or days — do not invent times."
-                            : "No available time slots in this period."),
+                            ? "Não há horários disponíveis nesse período. Ofereça verificar outros períodos ou dias — não invente horários."
+                            : "Não há horários disponíveis neste período."),
                 },
                 slots,
             };
@@ -1043,7 +1043,7 @@ export async function executeSchedulingTool(
 
         case "buscar_meus_agendamentos": {
             const patient = await findPatient(supabase, tenantId, phone);
-            if (!patient) return { data: { appointments: [], note: "Patient has no record at this clinic yet. Reply in the PATIENT'S language." } };
+            if (!patient) return { data: { appointments: [], note: "O paciente ainda não possui cadastro nesta clínica." } };
 
             // Bug de produção (2026-07-21): sem o relógio LOCAL da clínica, "hoje"
             // caía no default America/Sao_Paulo — perto da virada do dia, tenants
@@ -1062,7 +1062,7 @@ export async function executeSchedulingTool(
 
         case "agendar": {
             if (!isAffirmativeChoice(lastPatientMessage)) {
-                return { data: { success: false, error: "no_explicit_confirmation", note: "Ask a short, direct confirmation question before booking. Reply in the PATIENT'S language." } };
+                return { data: { success: false, error: "no_explicit_confirmation", note: "Faça uma pergunta de confirmação curta e direta antes de agendar." } };
             }
             // slot_id (de ver_disponibilidade) carrega doctor/location/type/date/time —
             // caminho preferido quando o paciente escolhe por texto em vez de clicar
@@ -1075,7 +1075,7 @@ export async function executeSchedulingTool(
                 start_time: fromSlot?.time ?? input.start_time,
             };
             if (!booking.doctor_id || !booking.location_id || !booking.date || !booking.start_time) {
-                return { data: { success: false, error: "missing_booking_fields", note: "Pass the exact slot_id from ver_disponibilidade (or all of doctor_id/location_id/date/start_time from tool results)." } };
+                return { data: { success: false, error: "missing_booking_fields", note: "Você deve fornecer o slot_id exato da ferramenta ver_disponibilidade (ou doctor_id, location_id, date e start_time completos)." } };
             }
             const referenceError = await validateSchedulingReferences(supabase, tenantId, booking.doctor_id, booking.location_id, booking.type_id);
             if (referenceError) return { data: { success: false, error: referenceError } };
@@ -1084,7 +1084,7 @@ export async function executeSchedulingTool(
             const resolved = await resolvePatientForBooking(supabase, tenantId, phone, input.patient_name || null, patientDisplayName);
             if (!resolved.patient) return { data: { success: false, error: resolved.reason === "name_required" ? "patient_not_registered" : "patient_create_failed" } };
             if (resolved.ambiguous && !input.patient_name) {
-                return { data: { success: false, error: "multiple_patients_on_this_phone", patients: resolved.ambiguous, note: "Ask naturally for whom the appointment is and call agendar again with patient_name. Reply in the PATIENT'S language." } };
+                return { data: { success: false, error: "multiple_patients_on_this_phone", patients: resolved.ambiguous, note: "Pergunte com naturalidade para quem é o agendamento e chame a ferramenta novamente informando o patient_name." } };
             }
             const patient = resolved.patient;
 
@@ -1099,7 +1099,7 @@ export async function executeSchedulingTool(
                     data: {
                         success: false,
                         error: "patient_not_registered",
-                        note: "Before booking, ask the patient's FULL name (first + last, not just a first name) in a natural, warm way and call atualizar_cadastro_paciente. Then call agendar again.",
+                        note: "Antes de agendar, a ferramenta exige o nome completo (nome e sobrenome). Peça o sobrenome de forma natural e acolhedora, chame atualizar_cadastro_paciente e depois chame agendar novamente.",
                     },
                 };
             }
@@ -1118,7 +1118,7 @@ export async function executeSchedulingTool(
             if ((data as any)?.success) {
                 const professional = await doctorDisplayName(supabase, tenantId, booking.doctor_id);
                 const confirmation_formatted = await assembleConfirmation(supabase, tenantId, booking as any, professional, language);
-                return { data: { ...(data as any), professional, confirmation_formatted, note: "Send the confirmation. Open with a short warm line (e.g. 'All set!' / 'Prontinho!' + ✅), then INCLUDE the `confirmation_formatted` block EXACTLY as provided (copy it verbatim — keep every emoji, label, bold and line break), and close with ONE warm line inviting them to message here if they need anything before the visit. Reply in the PATIENT'S language." } };
+                return { data: { ...(data as any), professional, confirmation_formatted, note: "Envie a confirmação. Inicie com uma frase curta e acolhedora (ex: 'Prontinho!'), INCLUA o bloco 'confirmation_formatted' EXATAMENTE como fornecido (copie integralmente com emojis e quebras de linha), e encerre convidando o paciente a avisar caso precise de algo antes da consulta." } };
             }
             // P-10 (idempotência): "confirmo" duplicado/retry não pode virar
             // "horário indisponível" quando quem ocupa o slot é o PRÓPRIO paciente.
@@ -1133,7 +1133,7 @@ export async function executeSchedulingTool(
                 if ((own as any[])?.length) {
                     const professional = await doctorDisplayName(supabase, tenantId, booking.doctor_id);
                     const confirmation_formatted = await assembleConfirmation(supabase, tenantId, booking as any, professional, language);
-                    return { data: { success: true, already_booked: true, professional, confirmation_formatted, note: "This appointment ALREADY EXISTS for this patient (duplicate confirmation). Reassure the patient it is confirmed — do not offer new slots. INCLUDE the `confirmation_formatted` block EXACTLY as provided (copy it verbatim). Reply in the PATIENT'S language." } };
+                    return { data: { success: true, already_booked: true, professional, confirmation_formatted, note: "Este agendamento JÁ EXISTE para este paciente (confirmação duplicada). Tranquilize o paciente de que já está confirmado. INCLUA o bloco 'confirmation_formatted' EXATAMENTE como fornecido." } };
                 }
                 // E4 (2026-07-24): conflito REAL (não é o próprio paciente) nunca fica
                 // sem próximo passo — busca alternativas FRESCAS e devolve prontas
@@ -1148,7 +1148,7 @@ export async function executeSchedulingTool(
                             ...(data as any),
                             alternatives: availableForModel,
                             slots_formatted,
-                            note: "This exact time was JUST taken by someone else. In ONE short warm line, tell the patient that time slot just filled up, then INCLUDE the `slots_formatted` block EXACTLY as provided (copy it verbatim, keep the emoji and line breaks), and close with ONE short question asking which of these works instead. The same alternatives also go as clickable buttons automatically. If the patient picks one by TEXT, call `agendar` again with that option's exact slot_id. Reply in the PATIENT'S language.",
+                            note: "Este horário acabou de ser ocupado por outra pessoa. Avise o paciente de forma breve e acolhedora, INCLUA o bloco 'slots_formatted' EXATAMENTE como fornecido, e pergunte qual das novas opções fica melhor.",
                         },
                         slots: alternatives,
                     };
@@ -1159,7 +1159,7 @@ export async function executeSchedulingTool(
 
         case "remarcar": {
             if (!isAffirmativeChoice(lastPatientMessage)) {
-                return { data: { success: false, error: "no_explicit_confirmation", note: "Ask a short, direct confirmation question before booking. Reply in the PATIENT'S language." } };
+                return { data: { success: false, error: "no_explicit_confirmation", note: "Faça uma pergunta de confirmação curta e direta antes de agendar." } };
             }
             const patient = await findPatient(supabase, tenantId, phone);
             if (!patient) return { data: { success: false, error: "patient_not_found" } };
@@ -1192,7 +1192,7 @@ export async function executeSchedulingTool(
                                 ...(booked as any),
                                 alternatives: availableForModel,
                                 slots_formatted,
-                                note: "This exact time was JUST taken by someone else. In ONE short warm line, tell the patient that time slot just filled up, then INCLUDE the `slots_formatted` block EXACTLY as provided (copy it verbatim), and close with ONE short question asking which of these works instead. If the patient picks one by TEXT, call `remarcar` again with that option's exact date/start_time (keep the same appointment_id). Reply in the PATIENT'S language.",
+                                note: "Este horário acabou de ser ocupado. Avise o paciente de forma breve, INCLUA o bloco 'slots_formatted' EXATAMENTE como fornecido, e pergunte qual das novas opções fica melhor.",
                             },
                             slots: alternatives,
                         };
@@ -1212,7 +1212,7 @@ export async function executeSchedulingTool(
             // isso também é falha de cancelamento e exige reconciliação.
             if (cancelErr || !(canceled as any[])?.length) {
                 console.error(`[RECONCILE] remarcar: novo horário criado, mas falha ao cancelar ${input.appointment_id}: ${cancelErr?.message || "appointment_not_in_tenant_or_patient"}`);
-                return { data: { success: true, rescheduled: true, new_appointment: booked, reconciliation_needed: true, note: "New time confirmed, but the old appointment could not be cancelled automatically. Tell the patient the new time is confirmed and the team will remove the duplicate. Reply in the PATIENT'S language." } };
+                return { data: { success: true, rescheduled: true, new_appointment: booked, reconciliation_needed: true, note: "Novo horário confirmado, mas o agendamento antigo não pôde ser cancelado automaticamente. Avise o paciente que o novo horário está confirmado e que a equipe removerá a duplicata." } };
             }
 
             return { data: { success: true, rescheduled: true, new_appointment: booked } };
