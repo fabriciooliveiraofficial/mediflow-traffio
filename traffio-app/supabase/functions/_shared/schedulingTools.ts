@@ -813,7 +813,7 @@ export async function executeSchedulingTool(
                     data: {
                         success: false,
                         error: "invalid_name",
-                        note: "Ask for the person's actual full name.",
+                        note: "Peça o nome completo e real do paciente.",
                     },
                 };
             }
