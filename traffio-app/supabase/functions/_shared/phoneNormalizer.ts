@@ -1,6 +1,10 @@
 /**
- * Normalizador e Utilitário de Telefones Internacionais (Brasil +55, EUA +1, Nova Zelândia +64)
+ * Normalizador e Utilitário de Telefones Internacionais
+ * Utiliza google-libphonenumber para suporte global robusto
  */
+import pkg from "npm:google-libphonenumber@3.2.38";
+const { PhoneNumberUtil, PhoneNumberFormat } = pkg;
+const phoneUtil = PhoneNumberUtil.getInstance();
 
 export interface NormalizedPhone {
     e164: string;          // Ex: "+5541988888888", "+12025550123", "+64211234567"
@@ -9,27 +13,63 @@ export interface NormalizedPhone {
     nationalNumber: string;// Ex: "41988888888", "2025550123", "211234567"
 }
 
+// Mapeamento de Código Numérico de País para Região ISO Alpha-2
+const COUNTRY_CODE_TO_REGION: Record<string, string> = {
+    "55": "BR",
+    "1": "US",
+    "64": "NZ",
+    "52": "MX",
+    "34": "ES",
+    "351": "PT",
+    "44": "GB",
+    "61": "AU",
+};
+
+/**
+ * Normaliza qualquer string de telefone recebida com base no código de país (ex: "55", "1", "64") ou ISO ("BR", "US").
+ */
 export function normalizePhoneNumber(raw: string | null | undefined, defaultCountryCode = "55"): NormalizedPhone | null {
     if (!raw) return null;
 
     const cleaned = raw.trim();
-    const hasPlus = cleaned.startsWith("+");
-    const digits = cleaned.replace(/\D/g, "");
+    if (!cleaned) return null;
 
+    // Determina a região ISO (ex: "BR", "US") a partir do defaultCountryCode se ele for numérico
+    let defaultRegion = "BR";
+    if (COUNTRY_CODE_TO_REGION[defaultCountryCode]) {
+        defaultRegion = COUNTRY_CODE_TO_REGION[defaultCountryCode];
+    } else if (defaultCountryCode.length === 2) {
+        defaultRegion = defaultCountryCode.toUpperCase();
+    }
+
+    try {
+        // Tenta parsear utilizando a libphonenumber
+        const parsed = phoneUtil.parseAndKeepRawInput(cleaned, defaultRegion);
+        if (phoneUtil.isValidNumber(parsed)) {
+            const e164 = phoneUtil.format(parsed, PhoneNumberFormat.E164); // Ex: "+5541988888888"
+            const digitsOnly = e164.replace(/\D/g, "");
+            const countryCode = String(parsed.getCountryCode() || defaultCountryCode);
+            const nationalNumber = String(parsed.getNationalNumber() || "");
+
+            return {
+                e164,
+                digitsOnly,
+                countryCode,
+                nationalNumber,
+            };
+        }
+    } catch {
+        // Fallback em caso de erro na biblioteca de parsing
+    }
+
+    // Fallback defensivo: regex tradicional para não quebrar chamadas legado
+    const digits = cleaned.replace(/\D/g, "");
     if (!digits || digits.length < 7) return null;
 
+    const hasPlus = cleaned.startsWith("+");
     let fullDigits = digits;
-
-    if (!hasPlus) {
-        if (digits.startsWith("55") && (digits.length === 12 || digits.length === 13)) {
-            fullDigits = digits;
-        } else if (digits.startsWith("1") && digits.length === 11) {
-            fullDigits = digits;
-        } else if (digits.startsWith("64") && (digits.length >= 10 && digits.length <= 11)) {
-            fullDigits = digits;
-        } else {
-            fullDigits = `${defaultCountryCode}${digits}`;
-        }
+    if (!hasPlus && !digits.startsWith(defaultCountryCode)) {
+        fullDigits = `${defaultCountryCode}${digits}`;
     }
 
     const e164 = `+${fullDigits}`;
@@ -58,8 +98,8 @@ export function normalizePhoneNumber(raw: string | null | undefined, defaultCoun
 /**
  * Retorna todas as variações prováveis do número para busca resiliente no banco de dados.
  */
-export function getPhoneSearchVariations(rawOrNormalized: string | null | undefined): string[] {
-    const normalized = normalizePhoneNumber(rawOrNormalized);
+export function getPhoneSearchVariations(rawOrNormalized: string | null | undefined, defaultCountryCode = "55"): string[] {
+    const normalized = normalizePhoneNumber(rawOrNormalized, defaultCountryCode);
     if (!normalized) {
         if (!rawOrNormalized) return [];
         const clean = rawOrNormalized.replace(/\D/g, "");
@@ -91,3 +131,4 @@ export function getPhoneSearchVariations(rawOrNormalized: string | null | undefi
 
     return Array.from(variations);
 }
+
