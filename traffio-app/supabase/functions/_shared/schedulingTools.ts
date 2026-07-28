@@ -1352,7 +1352,27 @@ async function findPatient(supabase: SupabaseClient, tenantId: string, phone: st
         .in("phone", phoneLookupCandidates(phone))
         .order("created_at", { ascending: true })
         .limit(1);
-    return (data as any[])?.[0] ?? null;
+    
+    if (data && data.length > 0) return data[0] as any;
+
+    // Fallback para sessões de livechat que usam telefone sintético (livechat-uuid)
+    if (phone.startsWith("livechat-")) {
+        const { data: session } = await scopedQuery(supabase, "conversation_sessions", tenantId, "context")
+            .eq("patient_phone", phone)
+            .limit(1)
+            .maybeSingle();
+
+        const visitorPhone = (session as any)?.context?.visitor_phone;
+        if (visitorPhone) {
+            const { data: fallbackData } = await scopedQuery(supabase, "patients", tenantId, "id")
+                .in("phone", phoneLookupCandidates(visitorPhone))
+                .order("created_at", { ascending: true })
+                .limit(1);
+            if (fallbackData && fallbackData.length > 0) return fallbackData[0] as any;
+        }
+    }
+    
+    return null;
 }
 
 /** Reautoriza todos os IDs que podem chegar do modelo ou de um slot serializado. */
