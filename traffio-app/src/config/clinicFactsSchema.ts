@@ -125,10 +125,16 @@ export const CLINIC_FACTS: readonly ClinicFactDefinition[] = [
         example: localized('Português, inglês e espanhol.', 'English, Portuguese, and Spanish.', 'Español, portugués e inglés.'),
     },
     {
-        key: 'contact_channels', category: 'logistics', section: 'logistics', type: 'short_text',
-        label: localized('Canais de contato', 'Contact channels', 'Canales de contacto'),
-        helpText: localized('Informe os canais oficiais e quando usar cada um.', 'List official channels and when each should be used.', 'Indique los canales oficiales y cuándo usar cada uno.'),
-        example: localized('WhatsApp para agendamento e telefone para urgências no horário comercial.', 'WhatsApp for booking and phone for urgent requests during business hours.', 'WhatsApp para citas y teléfono para urgencias en horario de atención.'),
+        key: 'contact_email', category: 'logistics', section: 'logistics', type: 'short_text',
+        label: localized('E-mail de contato', 'Contact email', 'Correo electrónico de contacto'),
+        helpText: localized('Informe o e-mail oficial da clínica para dúvidas, encaminhamento de documentos ou suporte.', 'Provide the clinic’s official email for inquiries, documents, or support.', 'Ingrese el correo oficial de la clínica para consultas, documentos o atención.'),
+        example: localized('contato@suaclinica.com.br', 'contact@yourclinic.com', 'contacto@suclinica.com'),
+    },
+    {
+        key: 'contact_channels', category: 'logistics', section: 'logistics', type: 'long_text',
+        label: localized('Canais e telefones de contato', 'Contact channels and phones', 'Canales y teléfonos de contacto'),
+        helpText: localized('Informe todos os canais oficiais (WhatsApp, e-mail, telefone fixo, SMS, Instagram, site) para orientação do paciente.', 'List all official channels (WhatsApp, email, landline, SMS, Instagram, website) for patient guidance.', 'Ingrese todos los canales oficiales (WhatsApp, correo, teléfono fijo, SMS, Instagram, sitio web) para orientación del paciente.'),
+        example: localized('E-mail: contato@clinica.com.br | Telefone/SMS: (11) 3333-4444 | WhatsApp: (11) 99999-8888 | Instagram: @clinica', 'Email: contact@clinic.com | Phone/SMS: (11) 3333-4444 | WhatsApp: (11) 99999-8888 | Instagram: @clinic', 'Correo: contacto@clinica.com | Teléfono/SMS: (11) 3333-4444 | WhatsApp: (11) 99999-8888 | Instagram: @clinica'),
     },
     {
         key: 'dental_anxiety_support', category: 'faq', section: 'clinical', type: 'long_text',
