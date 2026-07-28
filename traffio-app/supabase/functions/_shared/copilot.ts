@@ -751,14 +751,14 @@ type LanguageDriftMarker = { marker: string; pattern: RegExp };
 const LANGUAGE_DRIFT_MARKERS: Record<ConversationLanguage, readonly LanguageDriftMarker[]> = {
     pt: [
         { marker: "English appointment phrase", pattern: /\b(?:your appointment|thank you|please|tomorrow|available|would you|i(?:'m| am)|we(?:'ll| will)|confirmed?)\b/i },
-        { marker: "Spanish appointment phrase", pattern: /\b(?:gracias|por favor|ma[nñ]ana|hoy|su cita|disponible|confirmad[oa]|usted)\b/i },
+        { marker: "Spanish appointment phrase", pattern: /\b(?:gracias|ma[nñ]ana|hoy|su cita|disponible|usted)\b/i },
     ],
     en: [
-        { marker: "Portuguese appointment phrase", pattern: /\b(?:voc[eê]|amanh[ãa]|hoje|hor[aá]rios?|agendamento|avalia[cç][ãa]o|obrigad[oa]|n[aã]o|consulta confirmada)\b/i },
+        { marker: "Portuguese appointment phrase", pattern: /\b(?:voc[eê]|amanh[ãa]|hoje|hor[aá]rio|agendamento|avalia[cç][ãa]o|obrigad[oa]|n[aã]o)\b/i },
         { marker: "Spanish appointment phrase", pattern: /\b(?:gracias|por favor|ma[nñ]ana|hoy|su cita|disponible|confirmad[oa]|usted)\b/i },
     ],
     es: [
-        { marker: "Portuguese appointment phrase", pattern: /\b(?:voc[eê]|amanh[ãa]|hoje|hor[aá]rios?|agendamento|avalia[cç][ãa]o|obrigad[oa]|n[aã]o|consulta confirmada)\b/i },
+        { marker: "Portuguese appointment phrase", pattern: /\b(?:voc[eê]|amanh[ãa]|hoje|hor[aá]rio\b|agendamento|avalia[cç][ãa]o|obrigad[oa])\b/i },
         { marker: "English appointment phrase", pattern: /\b(?:your appointment|thank you|please|tomorrow|today|available|would you|i(?:'m| am)|we(?:'ll| will)|confirmed?)\b/i },
     ],
 };
@@ -1556,7 +1556,7 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             const nonResponderCalls = reply.toolCalls.filter(t => t.name !== "responder_paciente");
             for (const call of nonResponderCalls) {
                 toolsCalledSet.add(call.name);
-                const outcome = await executeSchedulingTool(supabase, tenantId, phone, session.platform_display_name, call, lastPatientMessage, turnLanguage);
+                const outcome = await executeSchedulingTool(supabase, tenantId, searchPhone, session.platform_display_name, call, lastPatientMessage, turnLanguage);
                 if (outcome.slots?.length) lastSlots = outcome.slots;
                 if (outcome.data?.reconciliation_needed) reconciliationNeeded = true;
                 if ((call.name === "agendar" || call.name === "remarcar") && outcome.data?.success) bookingConfirmed = true;

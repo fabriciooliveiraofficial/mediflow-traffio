@@ -343,6 +343,7 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
         const channel = (session as any).channel || "whatsapp";
 
         const context = session.context || {};
+        const searchPhone = (context as any)?.visitor_phone || phone;
         const history = (session.recent_messages || []).filter((m: any) => m.role !== "internal");
         const lastUserMsg = [...history].reverse().find((m: any) => m.role === "user");
         const rawContent: string = lastUserMsg?.content || "";
@@ -352,7 +353,7 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
         // Confirmação de lembrete: resposta curta e inequívoca nunca chega ao
         // LLM como se fosse a confirmação de um novo slot.
         if (isReminderConfirmation(rawContent)) {
-            const correlation = await findReminderConfirmationMarker(supabase, tenantId, phone, context);
+            const correlation = await findReminderConfirmationMarker(supabase, tenantId, searchPhone, context);
             if (correlation.queryFailed) {
                 console.error(`[structuredFlow] [${phone}] falha ao consultar correlação de lembrete`);
                 return { matched: true, status: "failed" };
@@ -439,7 +440,7 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
                     // Titular do telefone: identifica/atualiza pela ficha existente com
                     // o nome agora confirmado (resolvePatientForBooking cria OU
                     // atualiza em vez de duplicar — ver schedulingTools.ts).
-                    const resolved = await resolvePatientForBooking(supabase, tenantId, phone, null, rawContent.trim());
+                    const resolved = await resolvePatientForBooking(supabase, tenantId, searchPhone, null, rawContent.trim());
                     if (resolved.patient) {
                         return {
                             matched: true,
@@ -487,7 +488,7 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
             // o clique agenda na ficha do terceiro — nunca na do titular do telefone
             const forWhom = context?.intake?.for_whom;
             const resolved = await resolvePatientForBooking(
-                supabase, tenantId, phone,
+                supabase, tenantId, searchPhone,
                 plausiblePersonName(forWhom) ? forWhom : null,
                 session.platform_display_name);
 
