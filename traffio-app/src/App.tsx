@@ -150,7 +150,7 @@ function TenantApp() {
                 <Loader2 className="animate-spin text-brand-primary" size={32} />
               </div>
             }>
-              <Routes location={location}>
+              <Routes>
                 <Route index element={<Navigate to="today" replace />} />
                 <Route path="today" element={<TodayPage />} />
                 <Route path="dashboard" element={<Dashboard />} />

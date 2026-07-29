@@ -184,7 +184,10 @@ export function useAppUpdate() {
         safeRemoveStorage(window.localStorage, SKIPPED_VERSION_KEY);
 
         try {
-            await activateWaitingServiceWorker();
+            await Promise.race([
+                activateWaitingServiceWorker(),
+                new Promise((resolve) => setTimeout(resolve, 8000))
+            ]);
         } catch (error) {
             console.error('[AppUpdate] Failed to apply update cleanly:', error);
         } finally {

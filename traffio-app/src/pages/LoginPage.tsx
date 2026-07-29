@@ -48,7 +48,7 @@ export const LoginPage = () => {
                     .from('profiles')
                     .select('role')
                     .eq('id', currentSession.user.id)
-                    .single();
+                    .maybeSingle();
 
                 if (profile?.role === 'super_admin') {
                     navigate('/master/dashboard');

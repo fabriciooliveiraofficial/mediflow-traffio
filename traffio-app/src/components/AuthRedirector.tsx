@@ -17,9 +17,9 @@ export const AuthRedirector = () => {
                     .from('profiles')
                     .select('role')
                     .eq('id', user.id)
-                    .single();
+                    .maybeSingle();
 
-                const role = profile?.role;
+                const role = profile?.role || user.user_metadata?.role || user.app_metadata?.role;
                 const path = location.pathname;
 
                 // 1. Super Admin Redirection Rules
@@ -42,15 +42,13 @@ export const AuthRedirector = () => {
                         navigate('/dashboard', { replace: true });
                     }
                 }
-                // 3. Patient (And any unknown role) Redirection Rules
-                else {
+                // 3. Patient Redirection Rules
+                else if (role === 'patient') {
                     // Prevent access to master dashboard OR tenant dashboard
                     if (path.startsWith('/master') || path.startsWith('/dashboard')) {
                         console.warn('🛡️ [AuthRedirector] Patient attempted to access Staff area. Redirecting to Root...');
                         navigate('/', { replace: true });
                     }
-                    // For patients on '/' or '/login', we DO NOT redirect them to '/dashboard'.
-                    // They either stay on the landing page, or they log in to the SAAS portal directly.
                 }
             } else {
                 // Not logged in

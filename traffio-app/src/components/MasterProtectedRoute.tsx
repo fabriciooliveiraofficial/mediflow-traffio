@@ -27,7 +27,7 @@ export function MasterProtectedRoute() {
                 .from('profiles')
                 .select('role')
                 .eq('id', user.id)
-                .single();
+                .maybeSingle();
 
             console.log('🔒 [MasterProtect] Profile Check:', { id: user.id, role: profile?.role, error });
 
