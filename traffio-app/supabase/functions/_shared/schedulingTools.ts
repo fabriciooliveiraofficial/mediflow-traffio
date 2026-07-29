@@ -870,18 +870,29 @@ export async function executeSchedulingTool(
         case "adicionar_lista_espera": {
             const patient = await findPatient(supabase, tenantId, phone);
             let patName = "";
+            let patEmail = "";
+            let patPhone = "";
             if (patient) {
-                const { data: patData } = await scopedQuery(supabase, "patients", tenantId, "full_name")
+                const { data: patData } = await scopedQuery(supabase, "patients", tenantId, "full_name, email, phone")
                     .eq("id", patient.id)
                     .maybeSingle();
                 patName = (patData as any)?.full_name?.trim() || "";
+                patEmail = (patData as any)?.email?.trim() || "";
+                patPhone = (patData as any)?.phone?.trim() || "";
             }
-            if (!patient || !patName || patName === "Paciente WhatsApp" || !bookingGradeName(patName)) {
+
+            const missingInfo: string[] = [];
+            if (!patient || !patName || patName === "Paciente WhatsApp" || !bookingGradeName(patName)) missingInfo.push("Nome Completo");
+            if (!patPhone) missingInfo.push("Telefone");
+            if (!patEmail || !patEmail.includes("@")) missingInfo.push("E-mail válido");
+
+            if (missingInfo.length > 0) {
                 return {
                     data: {
                         success: false,
-                        error: "patient_not_registered",
-                        note: "A ferramenta exige nome e sobrenome para adicionar à lista de espera, mas o paciente forneceu um nome incompleto. Use sua autonomia para pedir, de forma educada e fluida, o sobrenome que falta. Em seguida, chame atualizar_cadastro_paciente e tente adicionar_lista_espera novamente.",
+                        error: "patient_info_incomplete",
+                        missing_fields: missingInfo,
+                        note: `A ferramenta exige o cadastro completo (Nome completo, Telefone e E-mail) para adicionar à lista de espera. Dados faltantes: ${missingInfo.join(", ")}. Peça as informações faltantes de forma educada e fluida, chame atualizar_cadastro_paciente e depois tente adicionar_lista_espera novamente.`,
                     },
                 };
             }
@@ -935,23 +946,38 @@ export async function executeSchedulingTool(
         }
 
         case "ver_disponibilidade": {
-            // Guard N1: Verificar se já sabemos o nome do lead antes de ofertar horários
+            // Guard N1: Verificar se já sabemos o nome completo, telefone e e-mail do lead antes de ofertar horários
             const existingPatient = await findPatient(supabase, tenantId, phone);
             let knownName: string | null = null;
+            let knownEmail: string | null = null;
+            let knownPhone: string | null = null;
+
             if (existingPatient) {
-                const { data: patData } = await scopedQuery(supabase, "patients", tenantId, "full_name")
+                const { data: patData } = await scopedQuery(supabase, "patients", tenantId, "full_name, email, phone")
                     .eq("id", existingPatient.id)
                     .maybeSingle();
                 if ((patData as any)?.full_name) {
                     knownName = (patData as any).full_name;
                 }
+                if ((patData as any)?.email) {
+                    knownEmail = (patData as any).email;
+                }
+                if ((patData as any)?.phone) {
+                    knownPhone = (patData as any).phone;
+                }
             }
 
-            if (!knownName || !bookingGradeName(knownName)) {
+            const missingInfo: string[] = [];
+            if (!knownName || !bookingGradeName(knownName)) missingInfo.push("Nome Completo (nome e sobrenome)");
+            if (!knownPhone) missingInfo.push("Telefone principal de contato");
+            if (!knownEmail || !knownEmail.includes("@")) missingInfo.push("E-mail válido");
+
+            if (missingInfo.length > 0) {
                 return {
                     data: {
-                        needs_patient_name: true,
-                        note: "A ferramenta exige o nome completo (nome e sobrenome) ANTES de checar horários, mas o nome fornecido está incompleto. Use sua autonomia para pedir o último nome de forma educada e fluida.",
+                        needs_patient_info: true,
+                        missing_fields: missingInfo,
+                        note: `A ferramenta exige que o cadastro contenha NOME COMPLETO, TELEFONE e E-MAIL ANTES de checar horários. Os seguintes dados estão ausentes/incompletos no cadastro: ${missingInfo.join(", ")}. Peça os dados faltantes ao paciente e chame 'atualizar_cadastro_paciente' antes de tentar consultar a disponibilidade novamente. NUNCA exiba datas/horários antes de obter e salvar essas informações.`,
                     },
                 };
             }
@@ -1088,18 +1114,27 @@ export async function executeSchedulingTool(
             }
             const patient = resolved.patient;
 
-            // Guard C3: do not allow booking if full_name is missing, generic "Paciente WhatsApp", or not plausible
-            const { data: patDetails } = await scopedQuery(supabase, "patients", tenantId, "full_name")
+            // Guard C3: do not allow booking if full_name, email or phone is missing/invalid
+            const { data: patDetails } = await scopedQuery(supabase, "patients", tenantId, "full_name, email, phone")
                 .eq("id", patient.id)
                 .maybeSingle();
 
             const patName = (patDetails as any)?.full_name?.trim();
-            if (!patName || patName === "Paciente WhatsApp" || !bookingGradeName(patName)) {
+            const patEmail = (patDetails as any)?.email?.trim();
+            const patPhone = (patDetails as any)?.phone?.trim();
+
+            const missingFields: string[] = [];
+            if (!patName || patName === "Paciente WhatsApp" || !bookingGradeName(patName)) missingFields.push("Nome Completo");
+            if (!patPhone) missingFields.push("Telefone");
+            if (!patEmail || !patEmail.includes("@")) missingFields.push("E-mail válido");
+
+            if (missingFields.length > 0) {
                 return {
                     data: {
                         success: false,
-                        error: "patient_not_registered",
-                        note: "Antes de agendar, a ferramenta exige o nome completo (nome e sobrenome). Peça o sobrenome de forma natural e acolhedora, chame atualizar_cadastro_paciente e depois chame agendar novamente.",
+                        error: "patient_info_incomplete",
+                        missing_fields: missingFields,
+                        note: `Antes de agendar, a ferramenta exige o cadastro completo do paciente (Nome completo, Telefone e E-mail). Faltam os dados: ${missingFields.join(", ")}. Peça essas informações ao paciente de forma natural, chame atualizar_cadastro_paciente e depois chame agendar novamente.`,
                     },
                 };
             }
