@@ -27,7 +27,6 @@ export const NotificationsPage = () => {
     const [smtpFrom, setSmtpFrom] = useState(tenant?.smtp_from || '');
     const [savingSmtp, setSavingSmtp] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
-    const [isUploadingImage, setIsUploadingImage] = useState(false);
 
     // ── Automações de notificação (canais, lembretes, NPS, recall, recuperação) ──
     // Fonte única compartilhada com o Dial de IA (Intelligence.tsx) — ver useBotConfig.
@@ -479,12 +478,14 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
 }) => {
     const { t } = useTranslation('tenantAdmin');
     const { showToast } = useToast();
+    const { tenant } = useTenant();
 
     // Add custom reminder states
     const [isAdding, setIsAdding] = useState(false);
     const [newOffset, setNewOffset] = useState<number>(2);
     const [newUnit, setNewUnit] = useState<'minutes' | 'hours' | 'days'>('hours');
     const [newDirection, setNewDirection] = useState<'before' | 'after'>('before');
+    const [isUploadingImage, setIsUploadingImage] = useState(false);
 
     const MAX_REMINDERS = 3;
     const MIN_SPACING_MINUTES = 60;
