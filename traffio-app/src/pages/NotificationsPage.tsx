@@ -27,6 +27,7 @@ export const NotificationsPage = () => {
     const [smtpFrom, setSmtpFrom] = useState(tenant?.smtp_from || '');
     const [savingSmtp, setSavingSmtp] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [isUploadingImage, setIsUploadingImage] = useState(false);
 
     // ── Automações de notificação (canais, lembretes, NPS, recall, recuperação) ──
     // Fonte única compartilhada com o Dial de IA (Intelligence.tsx) — ver useBotConfig.
@@ -954,7 +955,11 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
                                     {config.booking_confirmation_image_url && (
                                         <button
                                             type="button"
-                                            onClick={() => setConfig(prev => ({ ...prev, booking_confirmation_image_url: '' }))}
+                                            onClick={async () => {
+                                                setConfig(prev => ({ ...prev, booking_confirmation_image_url: '' }));
+                                                await saveConfig({ booking_confirmation_image_url: '' });
+                                                showToast('success', 'Imagem removida com sucesso!');
+                                            }}
                                             className="text-[10px] font-bold text-red-500 hover:underline flex items-center gap-1"
                                         >
                                             <Trash2 size={11} /> Remover Imagem
@@ -972,7 +977,11 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
                                         <div className="absolute inset-0 bg-graphite-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                             <button
                                                 type="button"
-                                                onClick={() => setConfig(prev => ({ ...prev, booking_confirmation_image_url: '' }))}
+                                                onClick={async () => {
+                                                    setConfig(prev => ({ ...prev, booking_confirmation_image_url: '' }));
+                                                    await saveConfig({ booking_confirmation_image_url: '' });
+                                                    showToast('success', 'Imagem removida com sucesso!');
+                                                }}
                                                 className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold shadow-md hover:bg-red-700 transition-colors"
                                             >
                                                 Remover Imagem
@@ -986,30 +995,44 @@ const AutomationSettings = ({ config, setConfig, onSave, saving }: {
                                             placeholder="Cole a URL da imagem ou faça upload..."
                                             value={config.booking_confirmation_image_url || ''}
                                             onChange={(e) => setConfig(prev => ({ ...prev, booking_confirmation_image_url: e.target.value }))}
+                                            onBlur={async (e) => {
+                                                if (e.target.value !== config.booking_confirmation_image_url) {
+                                                    await saveConfig({ booking_confirmation_image_url: e.target.value });
+                                                    showToast('success', 'URL da imagem salva com sucesso!');
+                                                }
+                                            }}
                                             className="flex-1 bg-ice-50 border border-ice-200 rounded-xl px-3 py-2 text-xs font-medium text-graphite-700 outline-none focus:border-blue-400 transition-colors"
+                                            disabled={isUploadingImage}
                                         />
-                                        <label className="px-3 py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl text-xs font-bold cursor-pointer transition-colors flex items-center gap-1.5 shrink-0">
-                                            <Upload size={14} />
-                                            Upload
+                                        <label className={`px-3 py-2 ${isUploadingImage ? 'bg-ice-100 text-graphite-400 cursor-not-allowed' : 'bg-blue-50 text-blue-600 hover:bg-blue-100 cursor-pointer'} rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 shrink-0`}>
+                                            {isUploadingImage ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                                            {isUploadingImage ? 'Enviando...' : 'Upload'}
                                             <input
                                                 type="file"
                                                 accept="image/*"
                                                 className="hidden"
+                                                disabled={isUploadingImage}
                                                 onChange={async (e) => {
                                                     const file = e.target.files?.[0];
                                                     if (!file || !tenant?.id) return;
                                                     try {
+                                                        setIsUploadingImage(true);
                                                         const ext = file.name.split('.').pop() || 'jpg';
                                                         const path = `${tenant.id}/confirmation/${Date.now()}.${ext}`;
                                                         const { data, error } = await supabase.storage
                                                             .from('chat-media')
                                                             .upload(path, file, { cacheControl: '3600', upsert: true });
                                                         if (error) throw error;
+                                                        
                                                         const { data: { publicUrl } } = supabase.storage.from('chat-media').getPublicUrl(data.path);
                                                         setConfig(prev => ({ ...prev, booking_confirmation_image_url: publicUrl }));
-                                                        showToast('success', 'Imagem enviada com sucesso!');
+                                                        await saveConfig({ booking_confirmation_image_url: publicUrl });
+                                                        showToast('success', 'Imagem salva e pronta para envio!');
                                                     } catch (err: any) {
                                                         showToast('error', 'Erro ao fazer upload da imagem: ' + err.message);
+                                                    } finally {
+                                                        setIsUploadingImage(false);
+                                                        if (e.target) e.target.value = ''; // Reset input to allow same file again
                                                     }
                                                 }}
                                             />
