@@ -120,7 +120,8 @@ async function bookSlotAndNotify(
             { date: slot.date, start_time: slot.time, location_id: slot.location_id },
             professional, patientId, normalizeLanguage(language),
         );
-        await sendWithFallback(dispatcher, tenant, tenantId, phone, msg, undefined, channel);
+        const confirmationImg = tenant?.bot_config?.booking_confirmation_image_url;
+        await sendWithFallback(dispatcher, tenant, tenantId, phone, msg, undefined, channel, confirmationImg);
         await sessionManager.logMessage(sessionId, "assistant", msg);
         const ctx = { ...baseContext };
         delete ctx.pending_slots;

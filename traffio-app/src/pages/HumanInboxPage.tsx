@@ -2895,11 +2895,13 @@ export function HumanInboxPage() {
     if (!selected || !confirmationMsg || !tenantId || !userId) return
     setConfirmationSending(true)
     const currentChannel = selected.channel || 'whatsapp'
+    const confirmationImg = (tenant as any)?.bot_config?.booking_confirmation_image_url
     const { data: { session: authSession } } = await supabase.auth.getSession()
     const res = await supabase.functions.invoke('send-human-message', {
       body: {
         session_id: selected.id,
         text: confirmationMsg,
+        ...(confirmationImg ? { media_url: confirmationImg, media_type: 'image' } : {}),
         tenant_id: tenantId,
         user_id: userId,
         ...(channel !== currentChannel ? { target_channel: channel } : {}),

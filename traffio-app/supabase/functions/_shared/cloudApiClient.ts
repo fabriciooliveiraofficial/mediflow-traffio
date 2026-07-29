@@ -61,6 +61,23 @@ export class CloudApiClient {
   }
 
   /**
+   * Send an image with optional caption
+   */
+  async sendImage(to: string, imageUrl: string, caption?: string, quotedMsgId?: string): Promise<any> {
+    const body: any = {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: this.formatPhone(to),
+      type: "image",
+      image: { link: imageUrl, ...(caption ? { caption } : {}) },
+    };
+    if (quotedMsgId) {
+      body.context = { message_id: quotedMsgId };
+    }
+    return this.postRequest('messages', body);
+  }
+
+  /**
    * Send interactive buttons (max 3)
    */
   async sendButtons(to: string, bodyText: string, buttons: Array<{ id: string, title: string }>): Promise<any> {

@@ -82,6 +82,7 @@ export interface BotConfig {
         en: string;
         es: string;
     };
+    booking_confirmation_image_url?: string;
     recovery_captions?: Record<string, { pt: string; en: string; es: string }>;
     /** F2 (docs/ROADMAP_PRODUTO_2026.md) — kill-switch das respostas automáticas
      * determinísticas a recovery/waitlist (clique de horário, "REMARCAR", "Sim").

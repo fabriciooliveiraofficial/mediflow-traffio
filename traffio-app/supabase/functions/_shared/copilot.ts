@@ -1542,6 +1542,8 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
         // agendamento na persistência, para que o procedimento não vaze para uma
         // próxima intenção ("implant evaluation" fantasma do reteste 2).
         let bookingConfirmed = false;
+        let confirmationMediaUrl: string | undefined = undefined;
+        let confirmationMediaText: string | undefined = undefined;
         const lastPatientMessage = String([...history].reverse().find((m: any) => m.role === "user")?.content || "");
         // Camada 1 — tudo que o agente PODE citar neste turno (validador de horários)
         const toolEvidence: string[] = [];
@@ -1569,7 +1571,13 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
                 const outcome = await executeSchedulingTool(supabase, tenantId, searchPhone, session.platform_display_name, call, lastPatientMessage, turnLanguage);
                 if (outcome.slots?.length) lastSlots = outcome.slots;
                 if (outcome.data?.reconciliation_needed) reconciliationNeeded = true;
-                if ((call.name === "agendar" || call.name === "remarcar") && outcome.data?.success) bookingConfirmed = true;
+                if ((call.name === "agendar" || call.name === "remarcar") && outcome.data?.success) {
+                    bookingConfirmed = true;
+                    if (outcome.data?.confirmation_image) {
+                        confirmationMediaUrl = outcome.data.confirmation_image;
+                        confirmationMediaText = outcome.data.confirmation_formatted;
+                    }
+                }
                 const resultJson = JSON.stringify(outcome.data);
                 toolEvidence.push(resultJson);
                 results.push({ type: "tool_result", tool_use_id: call.id, content: resultJson });
@@ -1808,7 +1816,7 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
 
         // ── Resposta normal em bolhas (com botões de horário acoplados na última bolha) ────────
         const interactive = lastSlots?.length ? buildSlotInteractive(lastSlots, language) : undefined;
-        const sentBubbles = await dispatcher.sendSequence(tenant, phone, bubbles, interactive, "service", channel);
+        const sentBubbles = await dispatcher.sendSequence(tenant, phone, bubbles, interactive, "service", channel, confirmationMediaUrl, confirmationMediaText);
         for (const bubbleText of sentBubbles) {
             await sessionManager.logMessage(sessionId, "assistant", bubbleText);
         }
@@ -1857,11 +1865,26 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
 }
 
 /** Envio com typing delay curto; se o envio síncrono falhar, cai para a fila com retry. */
-export async function sendWithFallback(dispatcher: OutboxDispatcher, tenant: any, tenantId: string, phone: string, text: string, interactive?: any, channel: string = "whatsapp"): Promise<void> {
+export async function sendWithFallback(
+    dispatcher: OutboxDispatcher,
+    tenant: any,
+    tenantId: string,
+    phone: string,
+    text: string,
+    interactive?: any,
+    channel: string = "whatsapp",
+    mediaUrl?: string
+): Promise<void> {
+    const payload: any = { text, interactive, channel };
+    if (mediaUrl) {
+        payload.media_url = mediaUrl;
+        payload.media_type = 'image';
+        payload.caption = text;
+    }
     try {
-        await dispatcher.sendNow(tenant, phone, { text, interactive, channel }, 1200, undefined, "service", channel);
+        await dispatcher.sendNow(tenant, phone, payload, 1200, undefined, "service", channel);
     } catch (sendErr: any) {
         console.warn(`[agent] sendNow falhou (${sendErr?.message}) — enfileirando com retry`);
-        await dispatcher.enqueue(tenantId, phone, { text, interactive, channel }, channel);
+        await dispatcher.enqueue(tenantId, phone, payload, channel);
     }
 }

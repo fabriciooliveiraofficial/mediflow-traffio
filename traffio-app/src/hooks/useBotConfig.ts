@@ -215,6 +215,7 @@ export function useBotConfig() {
                     nps_delay_minutes: savedConfig.nps_delay_minutes ?? 180,
                     default_notification_channel: savedConfig.default_notification_channel ?? 'whatsapp',
                     booking_confirmation_captions: savedConfig.booking_confirmation_captions || DEFAULT_BOOKING_CAPTIONS,
+                    booking_confirmation_image_url: savedConfig.booking_confirmation_image_url || '',
                     recall_enabled: savedConfig.recall_enabled ?? false,
                     recall_days: savedConfig.recall_days ?? 180,
                     custom_reminders: customReminders,

@@ -61,7 +61,7 @@ serve(async (req: Request) => {
 
   try {
     const body = await req.json();
-    const { session_id, text, tenant_id, user_id, replied_to_id, target_channel, patient_phone } = body;
+    const { session_id, text, media_url, media_type, tenant_id, user_id, replied_to_id, target_channel, patient_phone } = body;
 
     const hasPhoneEntry = !!(patient_phone && target_channel);
     if ((!session_id && !hasPhoneEntry) || !text?.trim() || !tenant_id || !user_id) {
@@ -327,7 +327,13 @@ serve(async (req: Request) => {
       // Sessões SMS guardam E.164 com '+'; WhatsApp usa apenas dígitos (no-op no fluxo normal)
       const waPhone = session.patient_phone.replace(/^\+/, '');
       try {
-        const waMsgId = await outbox.sendNow(tenantDetails, waPhone, { text: text.trim() }, 0, quotedMsgId);
+        const payloadObj: any = { text: text.trim() };
+        if (media_url) {
+          payloadObj.media_url = media_url;
+          payloadObj.media_type = media_type || 'image';
+          payloadObj.caption = text.trim();
+        }
+        const waMsgId = await outbox.sendNow(tenantDetails, waPhone, payloadObj, 0, quotedMsgId);
         console.log(`[send-human-message] Immediate dispatch success for ${waPhone}, waMsgId: ${waMsgId}`);
 
         if (dbMsgId && waMsgId) {
@@ -335,7 +341,13 @@ serve(async (req: Request) => {
         }
       } catch (dispatchErr: any) {
         console.error(`[send-human-message] Immediate dispatch failed, falling back to outbox:`, dispatchErr.message);
-        await outbox.enqueue(tenant_id, waPhone, { text: text.trim(), quotedMsgId });
+        const payloadObj: any = { text: text.trim(), quotedMsgId };
+        if (media_url) {
+          payloadObj.media_url = media_url;
+          payloadObj.media_type = media_type || 'image';
+          payloadObj.caption = text.trim();
+        }
+        await outbox.enqueue(tenant_id, waPhone, payloadObj);
       }
     }
 

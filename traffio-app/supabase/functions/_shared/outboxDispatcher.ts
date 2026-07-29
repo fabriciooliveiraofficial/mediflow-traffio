@@ -132,7 +132,9 @@ export class OutboxDispatcher {
         bubbles: string[],
         interactive?: any,
         category: CloudApiBillingCategory = "service",
-        channel: string = "whatsapp"
+        channel: string = "whatsapp",
+        mediaUrl?: string,
+        mediaAttachedText?: string
     ): Promise<string[]> {
         if (!bubbles || bubbles.length === 0) return [];
 
@@ -140,9 +142,30 @@ export class OutboxDispatcher {
         for (let i = 0; i < bubbles.length; i++) {
             const bubble = bubbles[i];
             const isLast = (i === bubbles.length - 1);
-            const payload: { text: string; interactive?: any; channel?: string } = { text: bubble, channel };
+            const payload: { text: string; interactive?: any; channel?: string; media_url?: string; media_type?: string; caption?: string } = { text: bubble, channel };
             if (isLast && interactive) {
                 payload.interactive = interactive;
+            }
+
+            let attachHere = false;
+            if (mediaUrl) {
+                if (mediaAttachedText) {
+                    const normalizedBubble = bubble.replace(/\s+/g, "");
+                    const normalizedTarget = mediaAttachedText.replace(/\s+/g, "");
+                    if (normalizedBubble.includes(normalizedTarget) || normalizedTarget.includes(normalizedBubble)) {
+                        attachHere = true;
+                    }
+                }
+                if (!attachHere && isLast) {
+                    attachHere = true;
+                }
+            }
+
+            if (attachHere) {
+                payload.media_url = mediaUrl;
+                payload.media_type = 'image';
+                payload.caption = bubble;
+                mediaUrl = undefined; // consume it
             }
 
             const typingDelayMs = Math.min(2200, Math.max(800, bubble.length * 35));
@@ -155,8 +178,30 @@ export class OutboxDispatcher {
                 for (let j = i; j < bubbles.length; j++) {
                     const remBubble = bubbles[j];
                     const remIsLast = (j === bubbles.length - 1);
-                    const remPayload: { text: string; interactive?: any; channel?: string } = { text: remBubble, channel };
+                    const remPayload: { text: string; interactive?: any; channel?: string; media_url?: string; media_type?: string; caption?: string } = { text: remBubble, channel };
                     if (remIsLast && interactive) remPayload.interactive = interactive;
+                    
+                    let remAttachHere = false;
+                    if (mediaUrl) {
+                        if (mediaAttachedText) {
+                            const normalizedBubble = remBubble.replace(/\s+/g, "");
+                            const normalizedTarget = mediaAttachedText.replace(/\s+/g, "");
+                            if (normalizedBubble.includes(normalizedTarget) || normalizedTarget.includes(normalizedBubble)) {
+                                remAttachHere = true;
+                            }
+                        }
+                        if (!remAttachHere && remIsLast) {
+                            remAttachHere = true;
+                        }
+                    }
+
+                    if (remAttachHere) {
+                        remPayload.media_url = mediaUrl;
+                        remPayload.media_type = 'image';
+                        remPayload.caption = remBubble;
+                        mediaUrl = undefined;
+                    }
+
                     await this.enqueue(tenant.id, phone, remPayload, channel);
                     sentBubbles.push(remBubble);
                 }
@@ -392,10 +437,19 @@ async function zapiDelete(baseUrl: string, clientToken: string, endpoint: string
 }
 
 async function sendZapiMessage(tenant: any, phone: string, payload: any, typingDelayMs = 0, quotedMsgId?: string): Promise<string | undefined> {
-    const { text, interactive } = payload;
+    const { text, interactive, media_url, media_type, caption } = payload;
     const finalQuotedMsgId = quotedMsgId || payload.quotedMsgId;
     const baseUrl = `https://api.z-api.io/instances/${tenant.zapi_instance_id}/token/${tenant.zapi_token}`;
     const clientToken = tenant.zapi_client_token;
+
+    if (media_url) {
+        return await sendZapiMedia(tenant, phone, {
+            media_url,
+            media_type: media_type || 'image',
+            caption: caption || text,
+            file_name: payload.file_name,
+        }, finalQuotedMsgId);
+    }
 
     // Try interactive (button/list) first; fall back to numbered text on any error.
     // Payloads conforme a doc oficial da Z-API (validado 14/07/2026):
@@ -461,12 +515,14 @@ function interactiveAsNumberedText(text: string, interactive: any): string {
 }
 
 async function sendCloudApiMessage(tenant: any, phone: string, payload: any, quotedMsgId?: string): Promise<string | undefined> {
-    const { text, interactive } = payload;
+    const { text, interactive, media_url, caption } = payload;
     const finalQuotedMsgId = quotedMsgId || payload.quotedMsgId;
     const client = new CloudApiClient(tenant.cloud_api_phone_number_id, tenant.cloud_api_access_token);
 
     let res;
-    if (interactive?.type === 'button') {
+    if (media_url) {
+        res = await client.sendImage(phone, media_url, caption || text, finalQuotedMsgId);
+    } else if (interactive?.type === 'button') {
         res = await client.sendButtons(phone, text, interactive.buttons);
     } else if (interactive?.type === 'list') {
         res = await client.sendList(

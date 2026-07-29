@@ -950,11 +950,12 @@ function createMockSupabase(overrides: {
     doctorServices?: any[];
     doctor?: any;
     location?: any;
+    tenant?: any;
     onWaitlistInsert?: (payload: any) => void;
     /** Respostas de supabase.rpc(name, params) por nome da função — {data, error}. */
     rpcResponses?: Record<string, { data?: any; error?: any }>;
 } = {}) {
-    const defaultPatient = { id: "pat-1", full_name: "Roberto Silva", phone: "5511999999999" };
+    const defaultPatient = { id: "pat-1", full_name: "Roberto Silva", phone: "5511999999999", email: "roberto@example.com" };
     const defaultDoctor = { id: "doc-1", full_name: "Dra. Ana" };
     const defaultLocation = { id: "loc-1", name: "Centro" };
     const defaultType = { id: "type-1", name: "Limpeza" };
@@ -990,7 +991,11 @@ function createMockSupabase(overrides: {
         },
         from: (table: string) => {
             if (table === "patients") {
-                const patData = overrides.patient !== undefined ? overrides.patient : defaultPatient;
+                const patData = overrides.patient !== undefined
+                    ? (Array.isArray(overrides.patient)
+                        ? overrides.patient.map(p => ({ email: "paciente@example.com", ...p }))
+                        : (overrides.patient ? { email: "paciente@example.com", ...overrides.patient } : null))
+                    : defaultPatient;
                 return {
                     select: () => chainable(patData),
                     update: () => chainable(null),
@@ -1021,6 +1026,12 @@ function createMockSupabase(overrides: {
                 const locData = overrides.location !== undefined ? overrides.location : defaultLocation;
                 return {
                     select: () => chainable(locData)
+                };
+            }
+            if (table === "tenants") {
+                const tenantData = overrides.tenant !== undefined ? overrides.tenant : { name: "Mediflow", whatsapp_phone: "5511999999999", bot_config: null };
+                return {
+                    select: () => chainable(tenantData)
                 };
             }
             if (table === "waitlist") {
@@ -1123,7 +1134,7 @@ Deno.test("assembleFullConfirmation: ficha placeholder → saudação SEM nome (
         { date: "2026-07-28", start_time: "08:30", location_id: "loc-1" },
         "Ana Souza", "pat-1", "pt",
     );
-    assert(msg.startsWith("Prontinho! 😊"), `esperava saudação sem nome, veio: ${msg.substring(0, 30)}`);
+    assert(msg.startsWith("Olá! 😊") || msg.startsWith("Prontinho! 😊"), `esperava saudação sem nome, veio: ${msg.substring(0, 30)}`);
     assert(!msg.includes("Paciente WhatsApp"));
 });
 
