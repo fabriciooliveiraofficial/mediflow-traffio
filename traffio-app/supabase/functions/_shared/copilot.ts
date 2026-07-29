@@ -640,10 +640,9 @@ const AUTONOMOUS_ADDENDUM = `
     3. Sempre pergunte pelo E-MAIL.
     Insista de forma natural pelos dados faltantes no máximo 3 vezes. Após a 3ª tentativa frustrada sem resposta/recusa do paciente, chame transfer_to_human. Assim que receber os 3 dados completos, chame a ferramenta 'atualizar_cadastro_paciente' IMEDIATAMENTE e só então consulte/exiba horários de agendamento.
   * CASO 2 — PACIENTE COM CADASTRO JÁ FEITO (já existem nome completo, telefone e e-mail no sistema):
-    1. Sempre confirme o NOME COMPLETO de forma amigável (ex: "Confirma para mim por favor se seu nome completo é X?").
-    2. Sempre confirme o TELEFONE.
-    3. Sempre confirme o E-MAIL.
-    Apenas após a confirmação positiva dos dados pelo paciente, prossiga para consultar e exibir as datas e horários de agendamento. NUNCA exiba horários antes desta validação.
+    1. Sempre confirme o NOME COMPLETO de forma amigável (ex: "Confirma para mim por favor se seu nome completo é X, telefone Y e e-mail Z?").
+    2. Envie a mensagem ao paciente e AGUARDE A RESPOSTA DELE no chat. É PROIBIDO chamar 'marcar_cadastro_confirmado' ou 'ver_disponibilidade' no mesmo turno em que faz a pergunta.
+    3. Apenas no turno SEGUINTE, quando o paciente responder confirmando os dados, chame a ferramenta 'marcar_cadastro_confirmado' IMEDIATAMENTE e só então consulte/exiba horários de agendamento com 'ver_disponibilidade'. NUNCA exiba horários nem chame a ferramenta de confirmação sem ter a resposta explícita do paciente!
 - SEM HORÁRIO NÃO É FIM DE PAPO: se não houver horário disponível, ou se nenhum dos horários servir para o paciente, ofereça a lista de espera com naturalidade ("te coloco na lista e aviso assim que abrir uma vaga — pode ser?") e use adicionar_lista_espera. Nunca encerre com "vou verificar".
 - CANCELAMENTO: você NUNCA cancela — use a ferramenta encaminhar_cancelamento sempre que o paciente quiser cancelar.
 - CONFIRMAÇÃO DE AGENDA: hedge ("talvez", "acho que", "vou ver", "maybe", "quizás") NÃO é confirmação. Faça uma pergunta curta e objetiva antes de agendar/remarcar; uma escolha concreta como "pode ser 9:00" é confirmação.
@@ -1568,7 +1567,10 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             const nonResponderCalls = reply.toolCalls.filter(t => t.name !== "responder_paciente");
             for (const call of nonResponderCalls) {
                 toolsCalledSet.add(call.name);
-                const outcome = await executeSchedulingTool(supabase, tenantId, searchPhone, session.platform_display_name, call, lastPatientMessage, turnLanguage);
+                const outcome = await executeSchedulingTool(supabase, tenantId, searchPhone, session.platform_display_name, call, lastPatientMessage, turnLanguage, context);
+                if (outcome.data?.registration_confirmed) {
+                    context.registration_confirmed = true;
+                }
                 if (outcome.slots?.length) lastSlots = outcome.slots;
                 if (outcome.data?.reconciliation_needed) reconciliationNeeded = true;
                 if ((call.name === "agendar" || call.name === "remarcar") && outcome.data?.success) {

@@ -1286,7 +1286,7 @@ Deno.test("E4: remarcar com conflito real e alternativas disponíveis — mesmo 
 
 // ── P2 (2026-07-24): ver_disponibilidade qualifica a necessidade antes de ofertar ──
 
-Deno.test("P2: ver_disponibilidade SEM procedimento e com >1 tipo ativo → needs_procedure (não oferta às cegas)", async () => {
+Deno.test("P2: ver_disponibilidade SEM procedimento em clínica multi-tipo pede qualificação antes de soltar agenda", async () => {
     const mockSupabase = createMockSupabase({
         appointmentType: [
             { id: "type-1", name: "Limpeza", duration_minutes: 30 },
@@ -1294,7 +1294,7 @@ Deno.test("P2: ver_disponibilidade SEM procedimento e com >1 tipo ativo → need
         ],
     });
     const call = { id: "vd1", name: "ver_disponibilidade", input: {} };
-    const res = await executeSchedulingTool(mockSupabase as any, "tenant-1", "5511999999999", "Fabricio", call as any, "quero agendar");
+    const res = await executeSchedulingTool(mockSupabase as any, "tenant-1", "5511999999999", "Fabricio", call as any, "quero agendar", "pt", { registration_confirmed: true });
     assertEquals(res.data.needs_procedure, true);
     assert(Array.isArray(res.data.procedures_offered) && res.data.procedures_offered.includes("Limpeza"));
     assertEquals(res.slots, undefined); // não ofereceu horário
@@ -1306,7 +1306,7 @@ Deno.test("P2: ver_disponibilidade SEM procedimento mas clínica tem 1 só tipo 
         rpcResponses: { find_next_available_dates: { data: [], error: null } },
     });
     const call = { id: "vd2", name: "ver_disponibilidade", input: {} };
-    const res = await executeSchedulingTool(mockSupabase as any, "tenant-1", "5511999999999", "Fabricio", call as any, "quero agendar");
+    const res = await executeSchedulingTool(mockSupabase as any, "tenant-1", "5511999999999", "Fabricio", call as any, "quero agendar", "pt", { registration_confirmed: true });
     assertEquals(res.data.needs_procedure, undefined); // NÃO pediu procedimento — seguiu com o único tipo
 });
 

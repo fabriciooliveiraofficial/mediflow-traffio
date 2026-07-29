@@ -767,6 +767,11 @@ export const SCHEDULING_TOOLS: LlmTool[] = [
         description: "Use SEMPRE que o paciente quiser cancelar um agendamento. Você NUNCA cancela diretamente — esta ferramenta encaminha para a equipe conforme o horário de atendimento.",
         input_schema: { type: "object", properties: {} },
     },
+    {
+        name: "marcar_cadastro_confirmado",
+        description: "Use para confirmar que você já validou/confirmou expressamente o Nome Completo, Telefone e E-mail com um paciente que já possui cadastro no sistema nesta conversa. OBRIGATÓRIO chamar esta ferramenta APÓS a confirmação positiva do paciente e ANTES de ver_disponibilidade.",
+        input_schema: { type: "object", properties: {} },
+    },
 ];
 
 // ─── Executor ────────────────────────────────────────────────────────────────
@@ -786,6 +791,7 @@ export async function executeSchedulingTool(
     call: LlmToolCall,
     lastPatientMessage: string = "",
     language: ConversationLanguage = "pt",
+    sessionContext: any = {},
 ): Promise<ToolExecOutcome> {
     const input = (call.input || {}) as any;
 
@@ -845,7 +851,7 @@ export async function executeSchedulingTool(
                     .eq("tenant_id", tenantId);
 
                 if (error) return { data: { success: false, error: error.message } };
-                return { data: { success: true, patient_id: existing.id, created: false } };
+                return { data: { success: true, patient_id: existing.id, created: false, registration_confirmed: true } };
             } else {
                 const insertData: Record<string, any> = {
                     tenant_id: tenantId,
@@ -863,8 +869,18 @@ export async function executeSchedulingTool(
                     .single();
 
                 if (error) return { data: { success: false, error: error.message } };
-                return { data: { success: true, patient_id: (created as any)?.id, created: true } };
+                return { data: { success: true, patient_id: (created as any)?.id, created: true, registration_confirmed: true } };
             }
+        }
+
+        case "marcar_cadastro_confirmado": {
+            return {
+                data: {
+                    success: true,
+                    registration_confirmed: true,
+                    note: "Cadastro confirmado com sucesso para a conversa atual. Agora você pode consultar a disponibilidade usando a ferramenta ver_disponibilidade.",
+                },
+            };
         }
 
         case "adicionar_lista_espera": {
@@ -986,7 +1002,18 @@ export async function executeSchedulingTool(
                     data: {
                         needs_patient_info: true,
                         missing_fields: missingInfo,
-                        note: `A ferramenta exige que o cadastro contenha NOME COMPLETO, TELEFONE e E-MAIL ANTES de checar horários. Os seguintes dados estão ausentes/incompletos no cadastro: ${missingInfo.join(", ")}. Peça os dados faltantes ao paciente e chame 'atualizar_cadastro_paciente' antes de tentar consultar a disponibilidade novamente. NUNCA exiba datas/horários antes de obter e salvar essas informações.`,
+                        note: `[HARD STOP - ATENÇÃO AGENTE] A ferramenta exige que o cadastro contenha NOME COMPLETO, TELEFONE e E-MAIL ANTES de checar horários. Dados ausentes: ${missingInfo.join(", ")}. PARE DE CHAMAR FERRAMENTAS AGORA. Chame a ferramenta 'responder_paciente' para solicitar os dados faltantes ao paciente e aguarde a resposta dele no próximo turno. NUNCA exiba datas/horários antes disso.`,
+                    },
+                };
+            }
+
+            // Guard N1.5: Se o paciente tem cadastro no BD, mas a confirmação NÃO foi feita nesta conversa/sessão
+            if (!sessionContext?.registration_confirmed) {
+                return {
+                    data: {
+                        needs_patient_confirmation: true,
+                        patient_info: { full_name: knownName, phone: knownPhone, email: knownEmail },
+                        note: `[HARD STOP - ATENÇÃO AGENTE] Os dados do paciente (${knownName}, ${knownPhone}, ${knownEmail}) constam no sistema, mas você AINDA NÃO OS CONFIRMOU com o paciente nesta conversa. PARE DE CHAMAR OUTRAS FERRAMENTAS NESTE TURNO. Use 'responder_paciente' AGORA para perguntar de forma amigável ao paciente se esses são os dados corretos dele. Apenas no turno seguinte, quando ele responder confirmando, você chamará 'marcar_cadastro_confirmado'. NUNCA exiba datas e horários nem chame 'marcar_cadastro_confirmado' no mesmo turno!`,
                     },
                 };
             }
