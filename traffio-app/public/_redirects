@@ -1,5 +1,0 @@
-# Exclude /assets/ from index.html SPA rewrite, returning 404 for missing static assets
-/assets/* /404.html 404
-
-# SPA fallback rule: route all other requests to index.html for client-side routing
-/* /index.html 200
