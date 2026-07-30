@@ -1345,6 +1345,7 @@ export function buildAutonomousSystemPrompt(opts: {
     visitorName?: string | null;
     visitorEmail?: string | null;
     visitorPhone?: string | null;
+    patientPhone?: string;
 }): AutonomousSystemPrompt {
     const languageHint = opts.languageHint
         ? normalizeConversationLanguage(opts.languageHint)
@@ -1378,7 +1379,7 @@ export function buildAutonomousSystemPrompt(opts: {
             ? (opts.channel === "livechat" && opts.visitorName
                 ? `### OMNICHANNEL (LIVECHAT): O paciente está conversando via Live Chat e seus dados de cadastro (nome, telefone, e-mail) JÁ FORAM COLETADOS no formulário inicial. NUNCA solicite nome, telefone ou e-mail do paciente.`
                 : `### OMNICHANNEL (${opts.channel.toUpperCase()}): O paciente está conversando via ${opts.channel.toUpperCase()}. Para localizar ou criar o cadastro na clínica, solicite o número de telefone (com DDD) e o e-mail do paciente (ex: "Para localizarmos ou criarmos o seu cadastro aqui na clínica, por favor, me informe o seu número de telefone e o seu e-mail"). JAMAIS pergunte especificamente por "WhatsApp" e NUNCA diga que os dados são para enviar "alertas", "avisos" ou "mensagens" — a única finalidade informada deve ser o cadastro.`)
-            : `### CANAL WHATSAPP: O paciente já está conversando pelo WhatsApp. Para completar o cadastro na clínica, solicite o e-mail dele de forma sutil (ex: "Para deixarmos o seu cadastro completo aqui na clínica, qual é o seu melhor e-mail?"). NUNCA mencione que a coleta do e-mail é para enviar "alertas", "avisos" ou "notificações".`,
+            : `### CANAL WHATSAPP: O paciente já está conversando pelo WhatsApp (número ${opts.patientPhone || "desconhecido"}). Para completar o cadastro, você DEVE confirmar expressamente se ele deseja usar ESSE número no cadastro E solicitar o e-mail de forma sutil (ex: "estou vendo que você fala do número ${opts.patientPhone || ""}, posso confirmar este para o seu cadastro? E qual seria o seu melhor e-mail?"). NUNCA assuma que o número está confirmado sem perguntar ao paciente. NUNCA mencione que a coleta é para enviar "alertas", "avisos" ou "notificações".`,
         `Data de hoje: ${opts.todayStr} (fuso da clínica). Use-a para converter datas relativas ("amanhã", "semana que vem") ao chamar ferramentas.`,
         languageHint
             ? `IDIOMA JÁ DETECTADO NESTA CONVERSA: ${LANG_NAME[languageHint]}. Mantenha esse idioma em TODAS as mensagens, inclusive após usar ferramentas (os retornos internos das ferramentas NÃO definem o idioma da resposta).`
@@ -1497,6 +1498,7 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             visitorName: (session as any).platform_display_name || context.visitor_name,
             visitorEmail: context.visitor_email,
             visitorPhone: context.visitor_phone,
+            patientPhone: searchPhone,
         });
 
         // Triagem em paralelo com o loop (não bloqueia a resposta)
@@ -1834,6 +1836,14 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
 
         // ── Resposta normal em bolhas (com botões de horário acoplados na última bolha) ────────
         const interactive = lastSlots?.length ? buildSlotInteractive(lastSlots, language) : undefined;
+        
+        // Se há uma imagem de confirmação e a mensagem foi dividida em múltiplas bolhas,
+        // nós as juntamos em uma única bolha para que o WhatsApp envie apenas UMA mensagem
+        // contendo a imagem e TODO o texto como legenda.
+        if (confirmationMediaUrl && bubbles.length > 1) {
+            bubbles = [bubbles.join('\n\n')];
+        }
+
         const sentBubbles = await dispatcher.sendSequence(tenant, phone, bubbles, interactive, "service", channel, confirmationMediaUrl, confirmationMediaText);
         for (const bubbleText of sentBubbles) {
             await sessionManager.logMessage(sessionId, "assistant", bubbleText);
