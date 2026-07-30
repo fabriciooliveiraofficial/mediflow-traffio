@@ -851,7 +851,7 @@ export async function executeSchedulingTool(
                     .eq("tenant_id", tenantId);
 
                 if (error) return { data: { success: false, error: error.message } };
-                return { data: { success: true, patient_id: existing.id, created: false, registration_confirmed: true } };
+                return { data: { success: true, patient_id: existing.id, created: false, note: "Cadastro atualizado. ATENÇÃO: A confirmação expressa dos dados (Nome, Telefone e E-mail) ainda é necessária caso não tenha sido feita." } };
             } else {
                 const insertData: Record<string, any> = {
                     tenant_id: tenantId,
