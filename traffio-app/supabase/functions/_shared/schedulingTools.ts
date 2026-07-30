@@ -869,7 +869,7 @@ export async function executeSchedulingTool(
                     .single();
 
                 if (error) return { data: { success: false, error: error.message } };
-                return { data: { success: true, patient_id: (created as any)?.id, created: true, registration_confirmed: true } };
+                return { data: { success: true, patient_id: (created as any)?.id, created: true, registration_confirmed: false, note: "Cadastro criado. ATENÇÃO: A confirmação expressa dos dados (Telefone e E-mail) ainda é OBRIGATÓRIA se não tiver sido feita. Se o paciente acabou de passar os dados, você deve validá-los confirmando o número e, no próximo turno, chamar 'marcar_cadastro_confirmado'." } };
             }
         }
 
@@ -997,24 +997,26 @@ export async function executeSchedulingTool(
             if (!knownPhone) missingInfo.push("Telefone principal de contato");
             if (!knownEmail || !knownEmail.includes("@")) missingInfo.push("E-mail válido");
 
-            if (missingInfo.length > 0) {
-                return {
-                    data: {
-                        needs_patient_info: true,
-                        missing_fields: missingInfo,
-                        note: `[HARD STOP - ATENÇÃO AGENTE] A ferramenta exige que o cadastro contenha NOME COMPLETO, TELEFONE e E-MAIL ANTES de checar horários. Dados ausentes: ${missingInfo.join(", ")}. PARE DE CHAMAR FERRAMENTAS AGORA. Chame a ferramenta 'responder_paciente' para solicitar os dados faltantes ao paciente e aguarde a resposta dele no próximo turno. NUNCA exiba datas/horários antes disso.`,
-                    },
-                };
-            }
+            const needsConfirmation = !sessionContext?.registration_confirmed;
 
-            // Guard N1.5: Se o paciente tem cadastro no BD, mas a confirmação NÃO foi feita nesta conversa/sessão
-            if (!sessionContext?.registration_confirmed) {
+            if (missingInfo.length > 0 || needsConfirmation) {
+                let note = "";
+                if (missingInfo.length > 0 && needsConfirmation) {
+                    note = `[HARD STOP - ATENÇÃO AGENTE] A ferramenta exige NOME COMPLETO, TELEFONE e E-MAIL ANTES de checar horários. Faltam: ${missingInfo.join(", ")}. Além disso, você AINDA NÃO CONFIRMOU os dados com o paciente nesta conversa. PARE DE CHAMAR FERRAMENTAS AGORA. Use 'responder_paciente' para pedir os dados faltantes E confirmar expressamente o telefone de contato ao mesmo tempo (ex: 'Prazer, estou vendo aqui que você entrou em contato usando o número ${knownPhone || phone}, posso confirmar esse número ou gostaria de atualizar? Aproveitando, qual seu ${missingInfo.join(" e ")}?'). Aguarde a resposta. NUNCA exiba horários antes disso.`;
+                } else if (missingInfo.length > 0) {
+                    note = `[HARD STOP - ATENÇÃO AGENTE] A ferramenta exige que o cadastro contenha NOME COMPLETO, TELEFONE e E-MAIL ANTES de checar horários. Dados ausentes: ${missingInfo.join(", ")}. PARE DE CHAMAR FERRAMENTAS AGORA. Chame a ferramenta 'responder_paciente' para solicitar os dados faltantes ao paciente e aguarde a resposta dele no próximo turno. NUNCA exiba datas/horários antes disso.`;
+                } else if (needsConfirmation) {
+                    note = `[HARD STOP - ATENÇÃO AGENTE] Os dados do paciente (${knownName}, ${knownPhone}, ${knownEmail}) constam no sistema, mas você AINDA NÃO OS CONFIRMOU com o paciente nesta conversa. PARE DE CHAMAR OUTRAS FERRAMENTAS NESTE TURNO. Use 'responder_paciente' AGORA para perguntar de forma amigável ao paciente se esses são os dados corretos dele, confirmando expressamente o telefone de contato (ex: 'Prazer ${knownName}, estou vendo aqui que você entrou em contato usando o número ${knownPhone}, posso confirmar esse número ou você gostaria de atualizar? E o seu e-mail continua sendo ${knownEmail}?'). Apenas no turno seguinte, quando ele responder confirmando, você chamará 'marcar_cadastro_confirmado'. NUNCA exiba datas e horários nem chame 'marcar_cadastro_confirmado' no mesmo turno!`;
+                }
+
                 return {
                     data: {
-                        needs_patient_confirmation: true,
-                        patient_info: { full_name: knownName, phone: knownPhone, email: knownEmail },
-                        note: `[HARD STOP - ATENÇÃO AGENTE] Os dados do paciente (${knownName}, ${knownPhone}, ${knownEmail}) constam no sistema, mas você AINDA NÃO OS CONFIRMOU com o paciente nesta conversa. PARE DE CHAMAR OUTRAS FERRAMENTAS NESTE TURNO. Use 'responder_paciente' AGORA para perguntar de forma amigável ao paciente se esses são os dados corretos dele, confirmando expressamente o telefone de contato (ex: 'Prazer ${knownName}, estou vendo aqui que você entrou em contato usando o número ${knownPhone}, posso confirmar esse número ou você gostaria de atualizar? E o seu e-mail continua sendo ${knownEmail}?'). Apenas no turno seguinte, quando ele responder confirmando, você chamará 'marcar_cadastro_confirmado'. NUNCA exiba datas e horários nem chame 'marcar_cadastro_confirmado' no mesmo turno!`,
-                    },
+                        needs_patient_info: missingInfo.length > 0,
+                        needs_patient_confirmation: needsConfirmation,
+                        missing_fields: missingInfo,
+                        patient_info: { full_name: knownName, phone: knownPhone || phone, email: knownEmail },
+                        note
+                    }
                 };
             }
 
