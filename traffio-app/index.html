@@ -13,6 +13,51 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Traffio" />
+
+    <!-- Self-Healing Script for Stale Deployment Assets / MIME Type Errors -->
+    <script>
+      (function() {
+        var RELOAD_KEY = 'traffio_asset_reload_ts';
+        function safeReload() {
+          var lastReload = sessionStorage.getItem(RELOAD_KEY);
+          var now = Date.now();
+          if (!lastReload || (now - parseInt(lastReload, 10)) > 10000) {
+            sessionStorage.setItem(RELOAD_KEY, now.toString());
+            console.warn('[Traffio] Stale asset or deployment mismatch detected. Reloading for latest build...');
+            window.location.reload();
+          }
+        }
+
+        // 1. Capture failed module script/css tags in DOM before execution
+        window.addEventListener('error', function(e) {
+          if (e.target && (e.target.tagName === 'SCRIPT' || e.target.tagName === 'LINK')) {
+            var src = e.target.src || e.target.href;
+            if (src && src.indexOf('/assets/') !== -1) {
+              safeReload();
+            }
+          }
+        }, true);
+
+        // 2. Catch Vite dynamic import preload failures
+        window.addEventListener('vite:preloadError', function(event) {
+          event.preventDefault();
+          safeReload();
+        });
+
+        // 3. Catch unhandled module import promise rejections
+        window.addEventListener('unhandledrejection', function(event) {
+          var reason = event && event.reason;
+          var msg = (reason && (reason.message || reason.toString())) || '';
+          if (msg.indexOf('Failed to fetch dynamically imported module') !== -1 ||
+              msg.indexOf('Importing a module script failed') !== -1 ||
+              msg.indexOf('text/html') !== -1 ||
+              msg.indexOf('Strict MIME type') !== -1) {
+            event.preventDefault();
+            safeReload();
+          }
+        });
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
