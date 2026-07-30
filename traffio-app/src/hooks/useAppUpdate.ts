@@ -226,6 +226,7 @@ export function useAppUpdate() {
 
             if (registration.waiting && navigator.serviceWorker.controller) {
                 markUpdateAvailable();
+                registration.waiting.postMessage({ type: 'SKIP_WAITING' });
             }
 
             registration.addEventListener('updatefound', () => {
@@ -235,18 +236,16 @@ export function useAppUpdate() {
                 worker.addEventListener('statechange', () => {
                     if (!disposed && worker.state === 'installed' && navigator.serviceWorker.controller) {
                         markUpdateAvailable();
+                        worker.postMessage({ type: 'SKIP_WAITING' });
                     }
                 });
             });
 
-            // Periodically check for service worker updates every 30 seconds
             updateIntervalId = window.setInterval(() => checkSWUpdate(registration), VERSION_CHECK_INTERVAL_MS);
 
-            // Also check on window focus
             const handleFocusUpdate = () => checkSWUpdate(registration);
             window.addEventListener('focus', handleFocusUpdate);
 
-            // And on visibility changes
             const handleVisibilityUpdate = () => {
                 if (document.visibilityState === 'visible') {
                     checkSWUpdate(registration);
