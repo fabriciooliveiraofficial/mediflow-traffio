@@ -1013,7 +1013,7 @@ export async function executeSchedulingTool(
                     data: {
                         needs_patient_confirmation: true,
                         patient_info: { full_name: knownName, phone: knownPhone, email: knownEmail },
-                        note: `[HARD STOP - ATENÇÃO AGENTE] Os dados do paciente (${knownName}, ${knownPhone}, ${knownEmail}) constam no sistema, mas você AINDA NÃO OS CONFIRMOU com o paciente nesta conversa. PARE DE CHAMAR OUTRAS FERRAMENTAS NESTE TURNO. Use 'responder_paciente' AGORA para perguntar de forma amigável ao paciente se esses são os dados corretos dele. Apenas no turno seguinte, quando ele responder confirmando, você chamará 'marcar_cadastro_confirmado'. NUNCA exiba datas e horários nem chame 'marcar_cadastro_confirmado' no mesmo turno!`,
+                        note: `[HARD STOP - ATENÇÃO AGENTE] Os dados do paciente (${knownName}, ${knownPhone}, ${knownEmail}) constam no sistema, mas você AINDA NÃO OS CONFIRMOU com o paciente nesta conversa. PARE DE CHAMAR OUTRAS FERRAMENTAS NESTE TURNO. Use 'responder_paciente' AGORA para perguntar de forma amigável ao paciente se esses são os dados corretos dele, confirmando expressamente o telefone de contato (ex: 'Prazer ${knownName}, estou vendo aqui que você entrou em contato usando o número ${knownPhone}, posso confirmar esse número ou você gostaria de atualizar? E o seu e-mail continua sendo ${knownEmail}?'). Apenas no turno seguinte, quando ele responder confirmando, você chamará 'marcar_cadastro_confirmado'. NUNCA exiba datas e horários nem chame 'marcar_cadastro_confirmado' no mesmo turno!`,
                     },
                 };
             }
