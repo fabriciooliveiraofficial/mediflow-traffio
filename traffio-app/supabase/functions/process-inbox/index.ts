@@ -376,7 +376,7 @@ async function processConversationTurn(
  
          // Trigger handoff para que o humano assuma o atendimento de mídia
          if (session.omnichannel_status !== 'human_active' && session.omnichannel_status !== 'queued') {
-           await sessionManager.triggerHumanHandoff(session.id);
+           await sessionManager.triggerHumanHandoff(session.id, undefined, { reason: "media", kind: "soft" });
          }
  
          await markMessages(supabase, messageIds, 'done');
@@ -460,7 +460,7 @@ async function processConversationTurn(
        } else {
          console.log(`[process-inbox] [${phone}] Routing message to human queue.`);
          if (session.omnichannel_status !== "human_active" && session.omnichannel_status !== "queued") {
-           await sessionManager.triggerHumanHandoff(session.id);
+           await sessionManager.triggerHumanHandoff(session.id, undefined, { reason: null, kind: null });
          }
        }
      }

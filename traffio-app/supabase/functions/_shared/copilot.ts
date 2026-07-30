@@ -1547,6 +1547,8 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
         // Camada 1 — tudo que o agente PODE citar neste turno (validador de horários)
         const toolEvidence: string[] = [];
 
+        let registrationMutatedThisTurn = false;
+
         for (let round = 0; round < MAX_TOOL_ROUNDS && reply.toolCalls.length > 0; round++) {
             const transferCall = reply.toolCalls.find(t => t.name === "transfer_to_human");
             if (transferCall) {
@@ -1566,6 +1568,20 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             const results: any[] = [];
             const nonResponderCalls = reply.toolCalls.filter(t => t.name !== "responder_paciente");
             for (const call of nonResponderCalls) {
+                if (call.name === "atualizar_cadastro_paciente" || call.name === "marcar_cadastro_confirmado") {
+                    registrationMutatedThisTurn = true;
+                }
+
+                if (call.name === "ver_disponibilidade" && registrationMutatedThisTurn) {
+                    const resultJson = JSON.stringify({
+                        error: "blocked_in_this_turn",
+                        note: "[HARD STOP] Você não pode chamar 'ver_disponibilidade' no MESMO TURNO em que chamou 'atualizar_cadastro_paciente' ou 'marcar_cadastro_confirmado'. Você DEVE usar 'responder_paciente' para falar com o paciente e AGUARDAR a resposta dele confirmando os dados. PARE DE CHAMAR FERRAMENTAS AGORA."
+                    });
+                    toolEvidence.push(resultJson);
+                    results.push({ type: "tool_result", tool_use_id: call.id, content: resultJson });
+                    continue;
+                }
+
                 toolsCalledSet.add(call.name);
                 const outcome = await executeSchedulingTool(supabase, tenantId, searchPhone, session.platform_display_name, call, lastPatientMessage, turnLanguage, context);
                 if (outcome.data?.registration_confirmed) {

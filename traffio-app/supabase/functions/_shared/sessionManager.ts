@@ -203,10 +203,10 @@ export class SessionManager {
     async triggerHumanHandoff(
         sessionId: string,
         contextUpdate?: any,
-        opts?: { reason?: HandoffReason; kind?: HandoffKind },
+        opts?: { reason?: HandoffReason | null; kind?: HandoffKind | null },
     ) {
-        const reason = opts?.reason ?? "tech";
-        const kind = opts?.kind ?? "hard";
+        const reason = opts && "reason" in opts ? opts.reason : "tech";
+        const kind = opts && "kind" in opts ? opts.kind : "hard";
         const updateData: any = {
             current_state: "HUMAN_HANDOFF",
             human_handoff: true,
