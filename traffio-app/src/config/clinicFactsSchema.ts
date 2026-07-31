@@ -47,6 +47,12 @@ const yesNoOptions: readonly ClinicFactOption[] = [
  */
 export const CLINIC_FACTS: readonly ClinicFactDefinition[] = [
     {
+        key: 'clinic_differentials', category: 'general', section: 'commercial', type: 'long_text',
+        label: localized('Diferenciais da clínica (Pitch de Vendas)', 'Clinic Differentials (Sales Pitch)', 'Diferenciales de la clínica (Argumento de venta)'),
+        helpText: localized('Descreva os pontos fortes da clínica (ex: anos de mercado, avaliações, credibilidade) para a IA usar como argumento de venda.', 'Describe the clinic\'s strengths (e.g., years in the market, reviews, credibility) for the AI to use as a sales pitch.', 'Describa los puntos fuertes de la clínica (ej. años en el mercado, reseñas, credibilidad) para que la IA los use como argumento de venta.'),
+        example: localized('Mais de 20 anos de mercado e 200 avaliações positivas, levando credibilidade e transformando vidas.', 'Over 20 years in the market and 200 positive reviews, providing credibility and transforming lives.', 'Más de 20 años en el mercado y 200 reseñas positivas, brindando credibilidad y transformando vidas.'),
+    },
+    {
         key: 'consultation_fee', category: 'policies', section: 'commercial', type: 'enum',
         label: localized('Status da avaliação', 'Consultation status', 'Estado de la consulta'),
         helpText: localized('Informe se a avaliação é gratuita ou paga. Não inclua valores.', 'Say whether the consultation is free or paid. Do not include amounts.', 'Indique si la consulta es gratuita o paga. No incluya importes.'),
