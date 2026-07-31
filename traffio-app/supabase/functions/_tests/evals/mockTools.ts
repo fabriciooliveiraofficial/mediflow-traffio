@@ -65,20 +65,29 @@ export function mockExecuteTool(call: LlmToolCall, opts: MockOptions = {}): { da
         case "buscar_meus_agendamentos":
             return { data: { appointments: [MOCK_APPOINTMENT] } };
 
+        // E-2 (2026-07-31): a confirmação NÃO passa mais pelo modelo. Em produção
+        // ela é montada a partir da mensagem personalizada do tenant e enviada
+        // pelo código (dispatchBookingConfirmation); o objeto `confirmation` é
+        // removido do tool_result antes de chegar ao modelo. O mock espelha isso:
+        // devolve só o note que manda o agente NÃO escrever confirmação.
         case "agendar":
             return {
                 data: {
                     success: true,
                     appointment_id: "novo-agendamento-mock",
                     professional: MOCK_DOCTOR.full_name,
-                    // Espelha o assembleConfirmation de produção: bloco pronto p/ o agente copiar.
-                    confirmation_formatted: `📝 *Appointment Details:*\n📅 *Date:* 07/16/2026\n🕒 *Time:* 09:00 am\n👨‍⚕️ *Doctor:* Dra. Ana Souza\n☎️ *Contact:* (11) 4000-1234\n📍 *Location:* Unidade Centro\n🗺️ *Get Directions:* https://maps.google.com/?q=Av.+Central+100`,
-                    note: "Send the confirmation. Open with a short warm line (e.g. 'All set!' / 'Prontinho!' + ✅), then INCLUDE the `confirmation_formatted` block EXACTLY as provided (copy it verbatim — keep every emoji, label, bold and line break), and close with ONE warm line inviting them to message here if they need anything. Reply in the PATIENT'S language.",
+                    note: "Agendamento confirmado. A mensagem de confirmação personalizada da clínica JÁ FOI ENVIADA automaticamente ao paciente — NÃO escreva nem repita nenhuma confirmação, nenhum detalhe do agendamento e nenhuma despedida. Não chame mais ferramentas.",
                 },
             };
 
         case "remarcar":
-            return { data: { success: true, rescheduled: true } };
+            return {
+                data: {
+                    success: true,
+                    rescheduled: true,
+                    note: "Remarcação confirmada. A mensagem de confirmação personalizada da clínica JÁ FOI ENVIADA automaticamente ao paciente — NÃO escreva nem repita nenhuma confirmação nem detalhe do agendamento. Não chame mais ferramentas.",
+                },
+            };
 
         default:
             return { data: { error: `unknown_tool:${call.name}` } };

@@ -17,6 +17,7 @@
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import type { LlmTool, LlmToolCall } from "./llmProvider.ts";
 import { normalizePhoneNumber } from "./phoneNormalizer.ts";
+import type { OutboxDispatcher } from "./outboxDispatcher.ts";
 
 /** P-04: ponto único para SELECTs de tabelas multi-tenant. */
 function scopedQuery(supabase: SupabaseClient, table: string, tenantId: string, columns: string): any {
@@ -1190,9 +1191,12 @@ export async function executeSchedulingTool(
             if (error) return { data: { success: false, error: error.message } };
             if ((data as any)?.success) {
                 const professional = await doctorDisplayName(supabase, tenantId, booking.doctor_id);
-                const confirmation = await assembleConfirmation(supabase, tenantId, { ...booking, id: (data as any)?.appointment_id }, professional, patient.id, language);
-                const confirmation_formatted = confirmation.text;
-                return { data: { ...(data as any), professional, confirmation_formatted, confirmation_image: confirmation.imageUrl, note: "Envie a mensagem de confirmação fornecida em 'confirmation_formatted' EXATAMENTE como fornecida ao paciente (copie integralmente com emojis e quebras de linha)." } };
+                // A confirmação é enviada pelo CÓDIGO (portão único), não pelo
+                // modelo — só a mensagem personalizada do tenant pode chegar ao
+                // paciente. `confirmation` volta aqui apenas para o chamador
+                // despachar; o modelo NÃO deve reescrevê-la nem repeti-la.
+                const confirmation = await buildBookingConfirmation(supabase, tenantId, { ...booking, id: (data as any)?.appointment_id }, professional, patient.id, language);
+                return { data: { ...(data as any), professional, confirmation, note: "Agendamento confirmado. A mensagem de confirmação personalizada da clínica JÁ FOI ENVIADA automaticamente ao paciente — NÃO escreva nem repita nenhuma confirmação, nenhum detalhe do agendamento e nenhuma despedida. Não chame mais ferramentas." } };
             }
             // P-10 (idempotência): "confirmo" duplicado/retry não pode virar
             // "horário indisponível" quando quem ocupa o slot é o PRÓPRIO paciente.
@@ -1206,9 +1210,8 @@ export async function executeSchedulingTool(
                     .limit(1);
                 if ((own as any[])?.length) {
                     const professional = await doctorDisplayName(supabase, tenantId, booking.doctor_id);
-                    const confirmation = await assembleConfirmation(supabase, tenantId, { ...booking, id: (own as any[])[0]?.id }, professional, patient.id, language);
-                    const confirmation_formatted = confirmation.text;
-                    return { data: { success: true, already_booked: true, professional, confirmation_formatted, confirmation_image: confirmation.imageUrl, note: "Este agendamento JÁ EXISTE para este paciente (confirmação duplicada). Tranquilize o paciente de que já está confirmado. INCLUA o bloco 'confirmation_formatted' EXATAMENTE como fornecido." } };
+                    const confirmation = await buildBookingConfirmation(supabase, tenantId, { ...booking, id: (own as any[])[0]?.id }, professional, patient.id, language);
+                    return { data: { success: true, already_booked: true, professional, confirmation, note: "Este agendamento JÁ EXISTE para este paciente (confirmação duplicada). A mensagem de confirmação personalizada da clínica JÁ FOI ENVIADA automaticamente — NÃO escreva nem repita nenhuma confirmação nem detalhe do agendamento. Não chame mais ferramentas." } };
                 }
                 // E4 (2026-07-24): conflito REAL (não é o próprio paciente) nunca fica
                 // sem próximo passo — busca alternativas FRESCAS e devolve prontas
@@ -1290,7 +1293,24 @@ export async function executeSchedulingTool(
                 return { data: { success: true, rescheduled: true, new_appointment: booked, reconciliation_needed: true, note: "Novo horário confirmado, mas o agendamento antigo não pôde ser cancelado automaticamente. Avise o paciente que o novo horário está confirmado e que a equipe removerá a duplicata." } };
             }
 
-            return { data: { success: true, rescheduled: true, new_appointment: booked } };
+            // Remarcação confirmada: o paciente recebe a MESMA mensagem
+            // personalizada do tenant que recebe num agendamento novo (antes
+            // desta correção `remarcar` não devolvia confirmação nenhuma e o
+            // modelo improvisava o texto).
+            const rescheduleProfessional = await doctorDisplayName(supabase, tenantId, input.doctor_id);
+            const rescheduleConfirmation = await buildBookingConfirmation(
+                supabase, tenantId,
+                { id: (booked as any)?.appointment_id, date: input.date, start_time: input.start_time, location_id: input.location_id },
+                rescheduleProfessional, patient.id, language,
+            );
+            return {
+                data: {
+                    success: true, rescheduled: true, new_appointment: booked,
+                    professional: rescheduleProfessional,
+                    confirmation: rescheduleConfirmation,
+                    note: "Remarcação confirmada. A mensagem de confirmação personalizada da clínica JÁ FOI ENVIADA automaticamente ao paciente — NÃO escreva nem repita nenhuma confirmação nem detalhe do agendamento. Não chame mais ferramentas.",
+                },
+            };
         }
 
         default:
@@ -1487,14 +1507,16 @@ export async function ensurePatient(
 }
 
 // ─── Mensagens determinísticas (caminho do clique — sem LLM) ─────────────────
-
-// Regra de produto: o nome do profissional aparece NA CONFIRMAÇÃO (o paciente
-// compra o procedimento; o profissional é informação de logística).
-export const SLOT_CONFIRM_MSG: Record<string, (date: string, time: string, professional?: string | null) => string> = {
-    pt: (d, t, p) => `Prontinho! Sua consulta está agendada para ${d} às ${t}${p ? ` com ${p}` : ""}. ✅\nQualquer coisa até lá, é só chamar por aqui!`,
-    en: (d, t, p) => `All set! Your appointment is booked for ${d} at ${t}${p ? ` with ${p}` : ""}. ✅\nIf you need anything before then, just message us here!`,
-    es: (d, t, p) => `¡Listo! Su cita quedó agendada para el ${d} a las ${t}${p ? ` con ${p}` : ""}. ✅\n¡Cualquier cosa hasta entonces, escríbanos por aquí!`,
-};
+//
+// ⚠️ REGRA DE PRODUTO (2026-07-31, decisão do usuário): a CONFIRMAÇÃO DE
+// AGENDAMENTO nunca pode ser um texto escrito aqui. A única fonte de verdade é
+// a mensagem que o tenant personalizou em Notificações → Confirmação de
+// Agendamento (bot_config.booking_confirmation_captions). A plataforma só
+// substitui as variáveis e entrega preservando ícones e quebras de linha.
+// Por isso SLOT_CONFIRM_MSG / CONFIRMATION_GREETING / buildConfirmationBlock
+// foram REMOVIDOS: existiam sem uso e foram exatamente o que vazou para o
+// paciente quando produção rodou uma versão anterior do bundle. Não recrie
+// nenhum texto de confirmação neste arquivo — use buildBookingConfirmation.
 
 /** Nome do profissional para mensagens de confirmação (null se não encontrado). */
 export async function doctorDisplayName(supabase: SupabaseClient, tenantId: string, doctorId: string | null | undefined): Promise<string | null> {
@@ -1581,44 +1603,120 @@ const CONFIRMATION_LABELS: Record<ConversationLanguage, Record<string, string>> 
     es: { header: "Detalles de la Cita", date: "Fecha", time: "Hora", doctor: "Profesional", contact: "Contacto", location: "Ubicación", directions: "Cómo Llegar" },
 };
 
-/** Monta o bloco de confirmação estruturado, só com as linhas cujos dados existem. */
-export function buildConfirmationBlock(opts: {
-    date: string;
-    time: string;
-    doctorName: string | null;
-    location: any;
-    contact: string | null;
-    clock: TenantClock;
-    language: ConversationLanguage;
-}): string {
-    const L = CONFIRMATION_LABELS[opts.language] || CONFIRMATION_LABELS.pt;
-    const lines: string[] = [`📝 *${L.header}:*`];
-    lines.push(`📅 *${L.date}:* ${formatDateForPatient(opts.date, opts.language)}`);
-    lines.push(`🕒 *${L.time}:* ${formatSlotTimeForPatient(opts.time, opts.clock.timeFormat)}`);
-    if (opts.doctorName?.trim()) lines.push(`👨‍⚕️ *${L.doctor}:* ${confirmationDoctorTitle(opts.doctorName)}`);
-    if (opts.contact?.trim()) lines.push(`☎️ *${L.contact}:* ${opts.contact.trim()}`);
-    if (opts.location?.name?.trim?.()) lines.push(`📍 *${L.location}:* ${opts.location.name.trim()}`);
-    const maps = confirmationMapsUrl(opts.location);
-    if (maps) lines.push(`🗺️ *${L.directions}:* ${maps}`);
+// ── Bloco de endereço para dúvidas de localização (E-?, 2026-07-31) ──────────
+// Fonte de verdade única: clinic_info#address (Inteligência → Logística e
+// acesso) — nunca locations.google_maps_url, que é dado interno usado só para
+// resolver fuso horário da clínica. Igual ao slots_formatted/confirmation_formatted,
+// o bloco já sai pronto (endereço numa linha, link do Maps noutra) para o
+// agente nunca precisar decidir layout sozinho.
+const URL_PATTERN = /https?:\/\/\S+/i;
+
+/** Separa "endereço + link" digitados juntos no campo livre em duas partes. */
+function splitAddressAndMapsUrl(raw: string): { address: string | null; mapsUrl: string | null } {
+    const value = (raw || "").trim();
+    if (!value) return { address: null, mapsUrl: null };
+    const match = value.match(URL_PATTERN);
+    if (!match) return { address: value, mapsUrl: null };
+    const mapsUrl = match[0].replace(/[)\]\s.,;]+$/, "");
+    const address = (value.slice(0, match.index) + value.slice((match.index || 0) + match[0].length))
+        .replace(/[-:|•]+\s*$/, "")
+        .replace(/^\s*[-:|•]+/, "")
+        .trim();
+    return { address: address || null, mapsUrl };
+}
+
+/** Valor cru de clinic_info#address (Inteligência → Logística e acesso). */
+async function clinicInfoAddressValue(supabase: SupabaseClient, tenantId: string): Promise<string | null> {
+    const { data } = await supabase
+        .from("clinic_info")
+        .select("value")
+        .eq("tenant_id", tenantId)
+        .eq("key", "address")
+        .eq("is_active", true)
+        .maybeSingle();
+    const raw = (data as any)?.value;
+    return raw && String(raw).trim() ? String(raw) : null;
+}
+
+/** Só o link do Maps que o tenant digitou em Logística e acesso (null se não houver). */
+export async function clinicInfoAddressMapsUrl(supabase: SupabaseClient, tenantId: string): Promise<string | null> {
+    const raw = await clinicInfoAddressValue(supabase, tenantId);
+    if (!raw) return null;
+    return splitAddressAndMapsUrl(raw).mapsUrl;
+}
+
+/**
+ * Monta o bloco de endereço a partir de clinic_info#address (Logística e
+ * acesso). Retorna null se o tenant não preencheu o campo — nesse caso o
+ * agente segue as regras normais (nunca inventa endereço).
+ */
+export async function buildLocationBlock(
+    supabase: SupabaseClient,
+    tenantId: string,
+    language: ConversationLanguage,
+): Promise<string | null> {
+    const raw = await clinicInfoAddressValue(supabase, tenantId);
+    if (!raw) return null;
+
+    const { address, mapsUrl } = splitAddressAndMapsUrl(raw);
+    if (!address && !mapsUrl) return null;
+
+    const L = CONFIRMATION_LABELS[language] || CONFIRMATION_LABELS.pt;
+    const lines: string[] = [];
+    if (address) lines.push(`📍 *${L.location}:* ${address}`);
+    if (mapsUrl) lines.push(`🗺️ *${L.directions}:* ${mapsUrl}`);
     return lines.join("\n");
 }
 
-export const DEFAULT_BOOKING_CAPTIONS: Record<ConversationLanguage, string> = {
-    pt: 'Olá {{nome_paciente}}! 😊\nSeu agendamento foi realizado com sucesso!\n\n---------------------------------------------------------------------\n📝 Detalhes da Consulta:\n📅 Data: {{data_agendamento}}\n🕒 Horário: {{horario_agendamento}}\n👨‍⚕️ Profissional: {{nome_do_profissional}}\n📍 Local: {{nome_local}}\n🗺️ Como Chegar: {{link_endereco}}\n\n🔗 SALA DE ESPERA VIRTUAL:\nAcesse para fazer seu check-in na hora da consulta:\n{{link_sala_espera}}\n\n💳 PAGAMENTO / CONFIRMAÇÃO:\nPara garantir sua vaga, realize o pagamento no link:\n{{link_pagamento}}\n\nNos vemos em breve! 💙\n---------------------------------------------------------------------',
-    en: 'Hi {{nome_paciente}}! 😊\nYour appointment has been successfully booked!\n\n---------------------------------------------------------------------\n📝 Appointment Details:\n📅 Date: {{data_agendamento}}\n🕒 Time: {{horario_agendamento}}\n👨‍⚕️ Professional: {{nome_do_profissional}}\n📍 Location: {{nome_local}}\n🗺️ How to Get There: {{link_endereco}}\n\n🔗 VIRTUAL WAITING ROOM:\nAccess this link to check-in at the time of your appointment:\n{{link_sala_espera}}\n\n💳 PAYMENT / CONFIRMATION:\nTo secure your spot, please complete the payment here:\n{{link_pagamento}}\n\nSee you soon! 💙\n---------------------------------------------------------------------',
-    es: '¡Hola {{nome_paciente}}! 😊\n¡Tu cita ha sido reservada con éxito!\n\n---------------------------------------------------------------------\n📝 Detalles de la Cita:\n📅 Fecha: {{data_agendamento}}\n🕒 Hora: {{horario_agendamento}}\n👨‍⚕️ Profesional: {{nome_do_profissional}}\n📍 Lugar: {{nome_local}}\n🗺️ Cómo llegar: {{link_endereco}}\n\n🔗 SALA DE ESPERA VIRTUAL:\nAccede para hacer tu check-in a la hora de tu cita:\n{{link_sala_espera}}\n\n💳 PAGO / CONFIRMACIÓN:\nPara asegurar tu turno, realiza el pago en el siguiente enlace:\n{{link_pagamento}}\n\n¡Nos vemos pronto! 💙\n---------------------------------------------------------------------',
-};
+/**
+ * Escolhe o template da confirmação SEM jamais cair num texto da plataforma.
+ * Ordem: idioma do lead → idioma padrão de envio do tenant → qualquer outro
+ * idioma que o TENANT preencheu. Campo em branco não conta como conteúdo.
+ * Retorna null quando o tenant não configurou nada — nesse caso nada é enviado
+ * (o chamador passa a conversa para a equipe humana).
+ */
+export function pickBookingTemplate(
+    captions: Record<string, string> | null | undefined,
+    language: ConversationLanguage,
+    notificationLocale?: string | null,
+): string | null {
+    if (!captions) return null;
+    const filled = (code?: string | null): string | null => {
+        if (!code) return null;
+        const value = captions[code];
+        return typeof value === "string" && value.trim() ? value : null;
+    };
+    return filled(language)
+        ?? filled(notificationLocale)
+        ?? filled("pt") ?? filled("en") ?? filled("es");
+}
 
-/** Busca os dados do tenant + local + contato e monta a confirmação personalizada. */
-export async function assembleConfirmation(
+export interface BookingConfirmation {
+    /** Texto do tenant com as variáveis já substituídas. */
+    text: string;
+    /** Imagem de capa configurada pelo tenant (null = mensagem de texto puro). */
+    imageUrl: string | null;
+}
+
+/**
+ * Monta a confirmação de agendamento a partir da mensagem que o TENANT
+ * personalizou em Notificações → Confirmação de Agendamento. A plataforma só
+ * substitui as variáveis; ícones, quebras de linha e estrutura são preservados
+ * exatamente como o tenant escreveu.
+ *
+ * Retorna null quando não há mensagem configurada em nenhum idioma — a
+ * plataforma NUNCA substitui isso por um texto próprio (regra de produto
+ * 2026-07-31).
+ */
+export async function buildBookingConfirmation(
     supabase: SupabaseClient,
     tenantId: string,
     booking: { id?: string; date: string; start_time: string; location_id: string },
     professional: string | null,
     patientId: string | null | undefined,
     language: ConversationLanguage,
-): Promise<{ text: string, imageUrl: string | null }> {
-    const [clock, { data: tenantData }, { data: loc }, firstName] = await Promise.all([
+): Promise<BookingConfirmation | null> {
+    const [clock, { data: tenantData }, { data: loc }, firstName, locationAddress] = await Promise.all([
         getTenantClock(supabase, tenantId),
         supabase.from("tenants").select("name, whatsapp_phone, bot_config").eq("id", tenantId).maybeSingle(),
         scopedQuery(
@@ -1626,16 +1724,27 @@ export async function assembleConfirmation(
             "name, phone, address, address_number, address_neighborhood, address_zip_code, google_maps_url",
         ).eq("id", booking.location_id).maybeSingle(),
         patientId ? patientFirstName(supabase, tenantId, patientId) : Promise.resolve(null),
+        // {{link_endereco}} é conteúdo que o PACIENTE vê: fonte de verdade é
+        // Inteligência → Logística e acesso (clinic_info#address), igual ao
+        // bloco de endereço do agente. locations.google_maps_url fica só como
+        // rede de segurança para quem ainda não migrou o link para lá.
+        clinicInfoAddressMapsUrl(supabase, tenantId),
     ]);
 
     const botConfig = (tenantData as any)?.bot_config;
-    const outboundLocale = botConfig?.notification_locale || language || 'pt';
-    const templates = botConfig?.booking_confirmation_captions || DEFAULT_BOOKING_CAPTIONS;
-    let template = templates[outboundLocale] || templates[language] || templates['pt'] || DEFAULT_BOOKING_CAPTIONS.pt;
+    const template = pickBookingTemplate(
+        botConfig?.booking_confirmation_captions,
+        language,
+        botConfig?.notification_locale,
+    );
+    if (!template) {
+        console.error(`[schedulingTools] tenant ${tenantId} sem mensagem de confirmação configurada (Notificações → Confirmação de Agendamento) — nada será enviado`);
+        return null;
+    }
 
     const doctorTitle = professional ? confirmationDoctorTitle(professional) : "";
     const locationName = (loc as any)?.name?.trim?.() || "";
-    const mapsUrl = confirmationMapsUrl(loc as any) || "";
+    const mapsUrl = locationAddress || confirmationMapsUrl(loc as any) || "";
     const dateStr = formatDateForPatient(booking.date, language);
     const timeStr = formatSlotTimeForPatient(booking.start_time, clock.timeFormat);
     
@@ -1692,17 +1801,13 @@ export async function assembleConfirmation(
     // Clean up empty greeting commas e.g. "Olá ! 😊" -> "Olá! 😊" or "Hi ! 😊" -> "Hi! 😊"
     message = message.replace(/\b(Olá|Hi|¡Hola)\s+!/g, '$1!');
 
-    return { text: message.trim(), imageUrl: botConfig?.booking_confirmation_image_url || null };
+    const text = message.trim();
+    if (!text) {
+        console.error(`[schedulingTools] tenant ${tenantId}: template de confirmação ficou vazio após substituir variáveis — nada será enviado`);
+        return null;
+    }
+    return { text, imageUrl: botConfig?.booking_confirmation_image_url || null };
 }
-
-// ── Confirmação COMPLETA (saudação + "agendado!" + bloco rico) ───────────────
-
-/** Saudação + linha "agendado com sucesso", por idioma. Nome opcional. */
-export const CONFIRMATION_GREETING: Record<ConversationLanguage, (firstName: string | null) => string> = {
-    en: (n) => `Hi${n ? ` ${n}` : ""}! 😊\nYour appointment has been successfully booked!`,
-    pt: (n) => `Prontinho${n ? `, ${n}` : ""}! 😊\nSeu agendamento foi confirmado com sucesso!`,
-    es: (n) => `¡Listo${n ? `, ${n}` : ""}! 😊\n¡Su cita quedó confirmada con éxito!`,
-};
 
 /** Primeiro nome plausível do paciente (para a saudação da confirmação). null se placeholder/ausente. */
 export async function patientFirstName(supabase: SupabaseClient, tenantId: string, patientId: string): Promise<string | null> {
@@ -1713,17 +1818,60 @@ export async function patientFirstName(supabase: SupabaseClient, tenantId: strin
 }
 
 /**
- * Confirmação COMPLETA pronta para enviar ao paciente.
- * Usa assembleConfirmation que agora suporta os templates customizáveis do bot_config.
+ * PORTÃO ÚNICO de envio da confirmação de agendamento — todos os caminhos
+ * (clique no botão, fechamento por texto/LLM, vaga de lista de espera) passam
+ * por aqui, para que o paciente receba exatamente a mesma coisa.
+ *
+ * Com imagem configurada: UMA única mensagem (imagem + texto inteiro como
+ * legenda), que é o "bloco único" pedido pelo usuário. Sem imagem: uma única
+ * mensagem de texto.
+ *
+ * Devolve o texto enviado (para o chamador registrar no histórico) ou null
+ * quando não há mensagem configurada — nesse caso NADA é enviado e o chamador
+ * deve passar a conversa para a equipe humana.
  */
-export async function assembleFullConfirmation(
+export async function sendBookingConfirmation(
     supabase: SupabaseClient,
+    dispatcher: OutboxDispatcher,
+    tenant: any,
     tenantId: string,
+    phone: string,
     booking: { id?: string; date: string; start_time: string; location_id: string },
     professional: string | null,
     patientId: string | null,
     language: ConversationLanguage,
-): Promise<string> {
-    const res = await assembleConfirmation(supabase, tenantId, booking, professional, patientId, language);
-    return res.text;
+    channel: string = "whatsapp",
+): Promise<string | null> {
+    const confirmation = await buildBookingConfirmation(
+        supabase, tenantId, booking, professional, patientId, language,
+    );
+    if (!confirmation) return null;
+    await dispatchBookingConfirmation(dispatcher, tenant, tenantId, phone, confirmation, channel);
+    return confirmation.text;
+}
+
+/**
+ * Entrega física da confirmação já montada — usada também pelo caminho do LLM,
+ * onde a ferramenta `agendar`/`remarcar` já montou o texto. Sempre UMA mensagem.
+ */
+export async function dispatchBookingConfirmation(
+    dispatcher: OutboxDispatcher,
+    tenant: any,
+    tenantId: string,
+    phone: string,
+    confirmation: BookingConfirmation,
+    channel: string = "whatsapp",
+): Promise<void> {
+    const payload: any = { text: confirmation.text, channel };
+    if (confirmation.imageUrl) {
+        payload.media_url = confirmation.imageUrl;
+        payload.media_type = "image";
+        payload.caption = confirmation.text;
+    }
+    try {
+        await dispatcher.sendNow(tenant, phone, payload, 1200, undefined, "service", channel);
+    } catch (sendErr: any) {
+        console.warn(`[schedulingTools] envio da confirmação falhou (${sendErr?.message}) — enfileirando com retry`);
+        await dispatcher.enqueue(tenantId, phone, payload, channel);
+    }
 }

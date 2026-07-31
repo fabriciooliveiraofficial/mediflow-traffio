@@ -420,6 +420,28 @@ serve(async (req: Request) => {
                     enqueuedCount += queueBatch.length;
                 }
             }
+
+            // ── LIMPEZA AUTO-CURÁVEL (Stale Queue & Anti-Duplicação) ───────────────
+            // Remove quaisquer lembretes pendentes deste agendamento que NÃO constem
+            // no lote válido recém-calculado (cobre alterações de configuração,
+            // desativações e transição do modelo legado 'reminder_24h' para o novo 'reminder_custom_%').
+            const validTypes = Array.from(new Set(queueBatch.map((item: any) => item.message_type)));
+            let cleanupQuery = supabase
+                .from("outbound_message_queue")
+                .delete()
+                .eq("reference_id", appt.id)
+                .eq("reference_type", "appointment")
+                .eq("status", "pending")
+                .like("message_type", "reminder_%");
+
+            if (validTypes.length > 0) {
+                cleanupQuery = cleanupQuery.not("message_type", "in", `(${validTypes.join(",")})`);
+            }
+
+            const { error: cleanupErr } = await cleanupQuery;
+            if (cleanupErr) {
+                console.error(`[schedule-reminders] Cleanup failed for Appt ${appt.id}:`, cleanupErr.message);
+            }
         }
 
         // ── NPS BACKFILL: rede de segurança para agendamentos concluídos ─────────

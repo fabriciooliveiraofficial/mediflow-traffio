@@ -111,6 +111,8 @@ serve(async (req: Request) => {
       await supabase.from('conversation_sessions').update({
         omnichannel_status: 'human_active',
         human_handoff: true,
+        handoff_reason: null,
+        handoff_kind: null,
         assigned_to_user_id: user_id,
         current_state: 'HUMAN_ACTIVE',
       }).eq('id', session_id);

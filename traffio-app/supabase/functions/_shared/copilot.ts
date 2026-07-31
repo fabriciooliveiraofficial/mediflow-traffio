@@ -25,7 +25,10 @@ import {
     todayInTz,
     AFTER_HOURS_CANCEL_MSG,
     plausiblePersonName,
+    buildLocationBlock,
+    dispatchBookingConfirmation,
     type SlotOption,
+    type BookingConfirmation,
 } from "./schedulingTools.ts";
 import { fetchStageGuidance } from "./journeyStage.ts";
 import { logAgentTurnEvent } from "./observabilityLayer.ts";
@@ -353,7 +356,7 @@ Quando o paciente pergunta sobre um tratamento ("quero saber mais sobre implante
 - Detalhe clínico só entra se aliviar um MEDO ESPECÍFICO que o paciente demonstrou (ex.: "dói?", "demora?"), e ainda assim no mínimo necessário e traduzido — nunca como abertura, nunca como aula.
 - O "como funciona" técnico é o território do dentista na avaliação. Seu papel é acolher a pessoa, se conectar com o que ela quer recuperar, e levá-la até lá. Nunca prometa o resultado (isso é do dentista) — fale do OBJETIVO do tratamento e deixe a avaliação confirmar o que é possível no caso dele.
 
-FORMATO É LIVRE: uma mensagem ou várias, curta ou detalhada, com ou sem lista — o que soar natural naquele momento da conversa. Não existe tamanho "certo".
+FORMATO É LIVRE quanto a tamanho e número de mensagens — uma ou várias, curta ou detalhada, com ou sem lista, o que soar natural naquele momento da conversa. Não existe tamanho "certo". EXCEÇÃO (diagramação de dados estruturados): quando a resposta reunir 2 ou mais dados estruturados (endereço, link, telefone, e-mail, horário de funcionamento), CADA DADO fica em SUA PRÓPRIA LINHA, com rótulo e emoji — nunca rótulo + dado + link espremidos na mesma linha. "Curto" é sobre quantidade de texto, nunca desculpa para comprimir dados diferentes numa única linha.
 
 O QUE NUNCA PODE (é isto que soa a robô):
 - Resposta genérica ou evasiva quando a informação existe no contexto.
@@ -407,7 +410,7 @@ export async function buildKnowledgePacket(
     patientQuery?: string,
 ): Promise<string> {
     const globalLanguage = normalizeGlobalKnowledgeLanguage(language);
-    const [services, info, globalKnowledge, kb, consultationFee] = await Promise.all([
+    const [services, info, globalKnowledge, kb, consultationFee, locationBlock] = await Promise.all([
         supabase.from("appointment_types")
             .select("name, duration_minutes")
             .eq("tenant_id", tenantId)
@@ -432,6 +435,12 @@ export async function buildKnowledgePacket(
             .eq("key", "consultation_fee")
             .eq("is_active", true)
             .maybeSingle(),
+        // E-1 (2026-07-31): bloco de endereço PRONTO (endereço + link do Maps já
+        // separados em linhas) — fonte única clinic_info#address (Inteligência →
+        // Logística e acesso). Nunca locations.google_maps_url (é dado interno,
+        // usado só para resolver o fuso da clínica). O agente COPIA verbatim em
+        // vez de decidir layout sozinho — mesmo padrão do slots_formatted.
+        buildLocationBlock(supabase, tenantId, normalizeConversationLanguage(language)),
     ]);
 
     const parts: string[] = [];
@@ -450,6 +459,10 @@ export async function buildKnowledgePacket(
         : baseInfoRows;
     if (infoRows.length) {
         const infoLines = infoRows
+            // "address" sai daqui: já é entregue formatado (linha própria +
+            // link do Maps) na seção LOCALIZAÇÃO DA CLÍNICA abaixo — manter os
+            // dois formatos do mesmo fato confundia o modelo sobre qual copiar.
+            .filter((i) => i.key !== "address")
             .map(i => {
                 if (i.key !== "consultation_fee") {
                     const value = String(i.value ?? "").trim().substring(0, MAX_CLINIC_INFO_CHARS);
@@ -462,6 +475,13 @@ export async function buildKnowledgePacket(
             })
             .filter((line): line is string => Boolean(line));
         if (infoLines.length) parts.push("INFORMAÇÕES DA CLÍNICA:\n" + infoLines.join("\n"));
+    }
+
+    if (locationBlock) {
+        parts.push(
+            "LOCALIZAÇÃO DA CLÍNICA (bloco pronto — se perguntarem endereço ou como chegar, copie EXATAMENTE, mantendo as quebras de linha):\n" +
+            locationBlock,
+        );
     }
 
     const tenantFactKeys = new Set(baseInfoRows.filter((row) => String(row.value ?? "").trim()).map((row) => row.key));
@@ -549,7 +569,7 @@ export async function runCopilot(supabase: SupabaseClient, params: CopilotParams
                 patientSnapshot ? `### PACIENTE NO SISTEMA (fonte da VERDADE — vale mais que a memória da conversa):\n${patientSnapshot}\nPara "confirmar/quando é minha consulta": responda com o dado acima; nunca diga que "está sendo finalizado" se o agendamento já existe, nem invente eventos de sistema.` : "",
                 "### REGRAS INEGOCIÁVEIS:",
                 "- Escreva APENAS o texto da resposta sugerida, nada mais (sem aspas, sem prefixos).",
-                "- Curto: no máximo 2 parágrafos breves, adequado para WhatsApp.",
+                "- Curto: no máximo 2 parágrafos breves, adequado para WhatsApp (isso limita a quantidade de texto, não impede quebrar linha — dado estruturado sempre em linha própria, ver regra de formatação da persona).",
                 "- RESPONDA A DÚVIDA DIRETAMENTE quando a informação estiver no CONTEXTO DA CLÍNICA. Resposta genérica de 'vou verificar' quando o dado existe no contexto é ERRADA.",
                 "- Se o dado necessário NÃO estiver no contexto, aí sim diga que vai confirmar com a equipe — e mesmo assim adiante o que o contexto permitir.",
                 "- NUNCA invente fato que não esteja no contexto: horário disponível, endereço, informação clínica.",
@@ -632,7 +652,7 @@ const AUTONOMOUS_ADDENDUM = `
 - QUALIFICAÇÃO OBRIGATÓRIA ANTES DE AGENDAR: NUNCA chame ver_disponibilidade nem agendar sem saber o PROCEDIMENTO/motivo QUE O PACIENTE PEDIU NESTA CONVERSA. Se a pessoa disser algo genérico como "quero agendar", "preciso de uma consulta", "quero marcar um horário" SEM dizer para quê, pergunte com naturalidade o que ela precisa ANTES de consultar horários (ex.: "Claro! Você está buscando uma avaliação, uma limpeza, ou tem algo específico que quer resolver?"). Se ela descrever uma DOR ou um DESEJO ("meu dente quebrou", "quero clarear os dentes", "sinto dor ao mastigar"), você JÁ SABE o procedimento — não pergunte de novo, avance. NUNCA assuma o procedimento por conta própria nem reaproveite o procedimento de um agendamento ANTERIOR/já concluído: cada nova intenção de agendar começa do zero na descoberta da necessidade (um paciente que já fez implante pode voltar querendo uma limpeza).
 - Use a ferramenta transfer_to_human SEMPRE que: o paciente pedir para falar com uma pessoa; a pergunta for clínica além do CONTEXTO (ex.: pedir diagnóstico ou prescrição); o paciente insistir em preço/valor após sua explicação preliminar; ou houver irritação/reclamação. ATENÇÃO: Se o paciente relatar DOR ou SINTOMA e quiser agendar uma consulta, NÃO transfira! Prossiga com o agendamento (dor é motivo comum para visita). NUNCA transfira o atendimento só porque o paciente enviou uma saudação inicial (como "olá", "oi") ou porque a necessidade dele ainda não está clara; nesses casos, você deve assumir a liderança e perguntar como pode ajudar.
 - Ao transferir por insistência em preços ou outro motivo, escreva também uma mensagem curta e acolhedora avisando que nossa equipe de atendimento assumirá a conversa em instantes no mesmo chat para ajudar com as dúvidas financeiras.
-- AGENDAMENTO (autônomo, SÓ via ferramentas): você é um ESPECIALISTA em agendamento — o paciente busca o PROCEDIMENTO e a solução, não um nome de profissional que ele não conhece. NUNCA pergunte "qual profissional você prefere?" a quem não pediu: chame ver_disponibilidade informando o procedimento (e o período, se o paciente indicou preferência como "de manhã") — o sistema encontra sozinho os profissionais habilitados e agrega os horários. Os horários retornados são enviados como botões clicáveis automaticamente: apresente-os em uma frase curta e convide a escolher. FECHAMENTO: quando o paciente escolher dia/horário por TEXTO (ex.: "9am", "segunda"), NÃO peça nova confirmação nem transfira — chame agendar imediatamente com o slot_id exato daquele horário (retornado por ver_disponibilidade; se os slot_id não estiverem mais no seu contexto, chame ver_disponibilidade de novo e então agendar). Use agendar/remarcar apenas com valores vindos das ferramentas. Use buscar_meus_agendamentos para consultar ou preparar remarcação. NUNCA cite um horário que não veio de ferramenta.
+- AGENDAMENTO (autônomo, SÓ via ferramentas): você é um ESPECIALISTA em agendamento — o paciente busca o PROCEDIMENTO e a solução, não um nome de profissional que ele não conhece. NUNCA pergunte "qual profissional você prefere?" a quem não pediu: chame ver_disponibilidade informando o procedimento (e o período, se o paciente indicou preferência como "de manhã") — o sistema encontra sozinho os profissionais habilitados e agrega os horários. Os horários retornados são enviados como botões clicáveis automaticamente: apresente-os em uma frase curta e convide a escolher. FECHAMENTO: quando o paciente escolher dia/horário por TEXTO (ex.: "9am", "segunda"), NÃO peça nova confirmação nem transfira — chame agendar imediatamente com o slot_id exato daquele horário (retornado por ver_disponibilidade; se os slot_id não estiverem mais no seu contexto, chame ver_disponibilidade de novo e então agendar). Use agendar/remarcar apenas com valores vindos das ferramentas. Use buscar_meus_agendamentos para consultar ou preparar remarcação. NUNCA cite um horário que não veio de ferramenta. ⚠️ CONFIRMAÇÃO: quando agendar/remarcar retornar sucesso, a mensagem de confirmação personalizada da clínica JÁ FOI ENVIADA ao paciente automaticamente pelo sistema. Você NÃO escreve confirmação: nada de "agendado com sucesso", nada de repetir data/horário/profissional/local, nada de despedida. Só a mensagem configurada pela clínica pode confirmar um agendamento — qualquer texto seu nesse momento seria uma mensagem duplicada.
 - CADASTRO DO PACIENTE E QUALIFICAÇÃO OBRIGATÓRIA (3 DADOS PRIMÁRIOS): É OBRIGATÓRIO ter e/ou confirmar os 3 dados antes de consultar ou exibir horários/datas de agendamento: 1) Nome Completo (nome e sobrenome), 2) Telefone (confirmado), 3) E-mail. SEM ESSES 3 DADOS COMPLETOS E CONFIRMADOS, VOCÊ JAMAIS DEVE EXIBIR DATAS E HORÁRIOS DE AGENDAMENTO!
   * CASO 1 — PACIENTE SEM CADASTRO COMPLETO (não tem os 3 dados registrados):
     1. Sempre pergunte e obtenha o NOME COMPLETO. Se o paciente disser apenas um nome (ex: "James"), você deve entender que a informação está incompleta e pedir com educação e objetividade o último nome/sobrenome.
@@ -1065,7 +1085,39 @@ export function validateAgentReply(text: string, opts: AgentReplyValidationOptio
     // é risco regulatório — diagnóstico e promessa são do dentista, nunca do agente.
     if (CLINICAL_PROMISE_PATTERN.test(text)) violations.push("promessa de resultado clínico (garantia/sem dor/cura) — reformule sem garantias");
 
+    // E-1 (2026-07-31): endereço (ou outro dado) colado na mesma linha do link
+    // — cada dado estruturado deve ter sua própria linha (ver LOCALIZAÇÃO DA
+    // CLÍNICA no knowledge packet, entregue já formatado para cópia verbatim).
+    if (hasCrampedStructuredData(text)) violations.push("dados estruturados amontoados na mesma linha do link (ex.: endereço + URL) — cada dado em sua própria linha");
+
     return violations;
+}
+
+// E-1 (2026-07-31): rótulo/dado e link espremidos na MESMA linha (ex.: "Nosso
+// endereço é [texto longo do endereço]: https://maps..."). O padrão correto —
+// visto em slots_formatted/confirmation_formatted — é uma linha por dado
+// ("📍 *Local:* ..." \n "🗺️ *Como Chegar:* ..."). Detecta pela URL: se sobra
+// texto substancial ANTES dela na mesma linha (depois de tirar emoji, negrito
+// markdown e as palavras de rótulo conhecidas em pt/en/es), é o endereço
+// inteiro colado no link, não um rótulo curto.
+const URL_IN_TEXT_PATTERN = /https?:\/\/\S+/i;
+const STRUCTURED_LABEL_WORDS = /\b(local|location|ubicaci[oó]n|endere[cç]o|address|direcci[oó]n|como chegar|how to get there|get directions|c[oó]mo llegar|contato|contact|contacto)\b/gi;
+
+/** E-1 (2026-07-31): endereço (ou outro dado) colado na mesma linha do link, em vez de cada dado em sua própria linha. */
+export function hasCrampedStructuredData(text: string): boolean {
+    const lines = (text || "").split("\n");
+    for (const line of lines) {
+        const match = line.match(URL_IN_TEXT_PATTERN);
+        if (!match || match.index === undefined) continue;
+        const before = line.slice(0, match.index)
+            .replace(/\p{Extended_Pictographic}/gu, "")
+            .replace(/\*/g, "")
+            .replace(STRUCTURED_LABEL_WORDS, "")
+            .replace(/[:\-–—|]+/g, "")
+            .trim();
+        if (before.length > 3) return true;
+    }
+    return false;
 }
 
 // P-05 — artefatos internos que jamais podem aparecer numa mensagem ao paciente
@@ -1543,8 +1595,9 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
         // agendamento na persistência, para que o procedimento não vaze para uma
         // próxima intenção ("implant evaluation" fantasma do reteste 2).
         let bookingConfirmed = false;
-        let confirmationMediaUrl: string | undefined = undefined;
-        let confirmationMediaText: string | undefined = undefined;
+        // Confirmação personalizada do tenant montada pela ferramenta neste turno.
+        // Ela é enviada pelo CÓDIGO (portão único), nunca redigida pelo modelo.
+        let bookingConfirmation: BookingConfirmation | null = null;
         const lastPatientMessage = String([...history].reverse().find((m: any) => m.role === "user")?.content || "");
         // Camada 1 — tudo que o agente PODE citar neste turno (validador de horários)
         const toolEvidence: string[] = [];
@@ -1593,12 +1646,13 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
                 if (outcome.data?.reconciliation_needed) reconciliationNeeded = true;
                 if ((call.name === "agendar" || call.name === "remarcar") && outcome.data?.success) {
                     bookingConfirmed = true;
-                    if (outcome.data?.confirmation_image) {
-                        confirmationMediaUrl = outcome.data.confirmation_image;
-                        confirmationMediaText = outcome.data.confirmation_formatted;
-                    }
+                    bookingConfirmation = (outcome.data?.confirmation as BookingConfirmation) || null;
                 }
-                const resultJson = JSON.stringify(outcome.data);
+                // A confirmação NUNCA vai para o modelo: ele não pode reescrever,
+                // resumir nem repetir a mensagem personalizada do tenant. Só o
+                // código a envia (portão único dispatchBookingConfirmation).
+                const { confirmation: _omitConfirmation, ...modelVisibleData } = (outcome.data || {}) as any;
+                const resultJson = JSON.stringify(modelVisibleData);
                 toolEvidence.push(resultJson);
                 results.push({ type: "tool_result", tool_use_id: call.id, content: resultJson });
             }
@@ -1662,7 +1716,10 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             .eq("tenant_id", tenantId)
             .eq("phone", phone)
             .eq("status", "pending");
-        if ((newerPending ?? 0) > 0) {
+        // Agendamento confirmado NESTE turno é fato consumado: a confirmação do
+        // tenant precisa sair mesmo que tenha chegado mensagem nova, senão o
+        // paciente fica agendado e sem aviso nenhum.
+        if ((newerPending ?? 0) > 0 && !bookingConfirmed) {
             console.log(`[agent] [${phone}] resposta descartada — ${newerPending} msg(s) nova(s) durante a geração`);
             await emitTrace({ turn_language: turnLanguage, bubbles: bubbles.length, handoff_reason: "deferred_newer_message" });
             return "defer";
@@ -1697,6 +1754,32 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             delete merged.pending_slots_at;
         }
         await supabase.from("conversation_sessions").update({ context: merged }).eq("id", sessionId);
+
+        // ── Confirmação de agendamento: SÓ a mensagem personalizada do tenant ──
+        // Regra de produto (2026-07-31): nem a plataforma nem o agente têm
+        // autorização para escrever a confirmação. O texto que o modelo redigiu
+        // neste turno é DESCARTADO — o paciente recebe exatamente o que está no
+        // campo Notificações → Confirmação de Agendamento, numa única mensagem
+        // (imagem com o texto como legenda, quando houver imagem). É o mesmo
+        // resultado do clique no botão de horário, agora também no fechamento
+        // por texto e na remarcação.
+        if (bookingConfirmed) {
+            if (!bookingConfirmation) {
+                console.error(`[agent] [${phone}] agendamento criado sem mensagem de confirmação configurada (Notificações → Confirmação de Agendamento) — handoff humano`);
+                await sessionManager.triggerHumanHandoff(sessionId, merged, { reason: "tech", kind: "hard" });
+                await emitTrace({ turn_language: language, handoff_reason: "tech", handoff_kind: "hard" });
+                return "transferred";
+            }
+            await dispatchBookingConfirmation(dispatcher, tenant, tenantId, phone, bookingConfirmation, channel);
+            await sessionManager.logMessage(sessionId, "assistant", bookingConfirmation.text);
+            await supabase
+                .from("conversation_sessions")
+                .update({ omnichannel_status: "bot_active", human_handoff: false, current_state: "BOT_ACTIVE" })
+                .eq("id", sessionId);
+            console.log(`[agent] [${phone}] confirmação personalizada do tenant enviada (bloco único${bookingConfirmation.imageUrl ? " com imagem" : ""})`);
+            await emitTrace({ turn_language: language, bubbles: 1 });
+            return "replied";
+        }
 
         // ── Cancelamento: regra de negócio por horário de atendimento ──────────
         // No expediente → transfere direto (momento de retenção é do humano).
@@ -1835,16 +1918,11 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
         }
 
         // ── Resposta normal em bolhas (com botões de horário acoplados na última bolha) ────────
+        // Nota: confirmação de agendamento NÃO passa por aqui — ela sai antes,
+        // pelo portão único, com o texto do tenant e nunca em várias bolhas.
         const interactive = lastSlots?.length ? buildSlotInteractive(lastSlots, language) : undefined;
-        
-        // Se há uma imagem de confirmação e a mensagem foi dividida em múltiplas bolhas,
-        // nós as juntamos em uma única bolha para que o WhatsApp envie apenas UMA mensagem
-        // contendo a imagem e TODO o texto como legenda.
-        if (confirmationMediaUrl && bubbles.length > 1) {
-            bubbles = [bubbles.join('\n\n')];
-        }
 
-        const sentBubbles = await dispatcher.sendSequence(tenant, phone, bubbles, interactive, "service", channel, confirmationMediaUrl, confirmationMediaText);
+        const sentBubbles = await dispatcher.sendSequence(tenant, phone, bubbles, interactive, "service", channel);
         for (const bubbleText of sentBubbles) {
             await sessionManager.logMessage(sessionId, "assistant", bubbleText);
         }

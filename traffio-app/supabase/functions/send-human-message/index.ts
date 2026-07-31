@@ -175,6 +175,8 @@ serve(async (req: Request) => {
         .update({
           omnichannel_status: 'human_active',
           human_handoff: true,
+          handoff_reason: null,
+          handoff_kind: null,
           assigned_to_user_id: user_id,
           current_state: 'HUMAN_ACTIVE'
         })

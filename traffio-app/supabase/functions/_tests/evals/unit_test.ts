@@ -1100,42 +1100,50 @@ Deno.test("buildPatientSnapshot: nome real cadastrado aparece normalmente", asyn
     assertEquals(snapshot?.includes("Paciente cadastrado: Fabricio Oliveira"), true);
 });
 
-// ── P3 (2026-07-24): assembleFullConfirmation — confirmação rica em todos os caminhos ──
-import { assembleFullConfirmation, patientFirstName } from "../../_shared/schedulingTools.ts";
+// ── E-2 (2026-07-31): a confirmação é SEMPRE a mensagem personalizada do tenant ──
+import { buildBookingConfirmation, patientFirstName } from "../../_shared/schedulingTools.ts";
 
-Deno.test("assembleFullConfirmation: saudação pelo primeiro nome + bloco estruturado (data/profissional/local)", async () => {
+/** bot_config com a mensagem que o tenant escreveu em Notificações. */
+const TENANT_CAPTIONS = {
+    booking_confirmation_captions: {
+        pt: "Olá {{nome_paciente}}! Sua consulta com {{nome_do_profissional}} é dia {{data_agendamento}} às {{horario_agendamento}} em {{nome_local}}.",
+        en: "Hi {{nome_paciente}}! Your appointment with {{nome_do_profissional}} is on {{data_agendamento}} at {{horario_agendamento}} — {{nome_local}}.",
+    },
+};
+
+Deno.test("buildBookingConfirmation: usa o texto do TENANT com as variáveis substituídas (nada escrito pela plataforma)", async () => {
     const mockSupabase = createMockSupabase({
         patient: { id: "pat-1", full_name: "Fabricio Oliveira", phone: "5511999999999" },
         doctor: { id: "doc-1", full_name: "Fabricio Pacheco" },
         location: { id: "loc-1", name: "Auckland Dental Care", google_maps_url: "https://maps.app.goo.gl/xyz" },
+        tenant: { name: "Auckland Dental", whatsapp_phone: "5511999999999", bot_config: TENANT_CAPTIONS },
     });
-    const msg = await assembleFullConfirmation(
+    const res = await buildBookingConfirmation(
         mockSupabase as any, "tenant-1",
         { date: "2026-07-28", start_time: "08:30", location_id: "loc-1" },
         "Fabricio Pacheco", "pat-1", "en",
     );
-    assert(msg.includes("Hi Fabricio! 😊"));             // saudação pelo PRIMEIRO nome
-    assert(msg.includes("successfully booked"));
-    assert(msg.includes("Appointment Details"));         // bloco estruturado
-    assert(msg.includes("Dr. Fabricio Pacheco"));
-    assert(msg.includes("Auckland Dental Care"));
-    assert(msg.includes("https://maps.app.goo.gl/xyz"));
+    assert(res, "esperava confirmação montada");
+    assertEquals(res!.text, "Hi Fabricio! Your appointment with Dr. Fabricio Pacheco is on 07/28/2026 at 08:30 — Auckland Dental Care.");
+    // Nenhum texto nosso vazou junto.
+    assert(!res!.text.includes("successfully booked"));
+    assert(!res!.text.includes("Appointment Details"));
 });
 
-Deno.test("assembleFullConfirmation: ficha placeholder → saudação SEM nome (nunca 'Hi Paciente WhatsApp')", async () => {
+Deno.test("buildBookingConfirmation: ficha placeholder → variável de nome vazia, nunca 'Paciente WhatsApp'", async () => {
     const mockSupabase = createMockSupabase({
         patient: { id: "pat-1", full_name: "Paciente WhatsApp", phone: "5511999999999" },
         location: { id: "loc-1", name: "Centro" },
+        tenant: { name: "Clínica X", whatsapp_phone: "5511999999999", bot_config: TENANT_CAPTIONS },
     });
-    const first = await patientFirstName(mockSupabase as any, "tenant-1", "pat-1");
-    assertEquals(first, null);
-    const msg = await assembleFullConfirmation(
+    assertEquals(await patientFirstName(mockSupabase as any, "tenant-1", "pat-1"), null);
+    const res = await buildBookingConfirmation(
         mockSupabase as any, "tenant-1",
         { date: "2026-07-28", start_time: "08:30", location_id: "loc-1" },
         "Ana Souza", "pat-1", "pt",
     );
-    assert(msg.startsWith("Olá! 😊") || msg.startsWith("Prontinho! 😊"), `esperava saudação sem nome, veio: ${msg.substring(0, 30)}`);
-    assert(!msg.includes("Paciente WhatsApp"));
+    assert(res);
+    assert(!res!.text.includes("Paciente WhatsApp"));
 });
 
 Deno.test("buildPatientSnapshot: família com um placeholder no meio mostra 'sem nome', nunca o placeholder cru", async () => {

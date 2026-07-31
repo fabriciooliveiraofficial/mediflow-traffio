@@ -241,13 +241,14 @@ async function processConversationTurn(
      // conversa ASSUMIDA (human_active) trava com o atendente. Uma conversa só
      // fechada volta ao roteamento normal (estruturado → IA → humano, conforme
      // o dial do tenant) — ver SessionManager.reopenClosedSession.
-     if (session.omnichannel_status === "closed") {
-       await sessionManager.reopenClosedSession(session.id);
-       session.omnichannel_status = "queued";
-       session.human_handoff = false;
-       session.handoff_kind = null;
-       console.log(`[process-inbox] [${phone}] sessão fechada reaberta por mensagem nova — roteamento normal`);
-     }
+      if (session.omnichannel_status === "closed") {
+        await sessionManager.reopenClosedSession(session.id);
+        session.omnichannel_status = "queued";
+        session.human_handoff = false;
+        session.handoff_kind = null;
+        session.handoff_reason = null;
+        console.log(`[process-inbox] [${phone}] sessão fechada reaberta por mensagem nova — roteamento normal`);
+      }
 
      let lastMessageSnippet = "";
      // F2 — resultado do pré-filtro determinístico (permanece 'unmatched' quando a
@@ -460,6 +461,8 @@ async function processConversationTurn(
        } else {
          console.log(`[process-inbox] [${phone}] Routing message to human queue.`);
          if (session.omnichannel_status !== "human_active" && session.omnichannel_status !== "queued") {
+           await sessionManager.triggerHumanHandoff(session.id, undefined, { reason: null, kind: null });
+         } else if (session.omnichannel_status === "queued" && session.handoff_reason === "tech") {
            await sessionManager.triggerHumanHandoff(session.id, undefined, { reason: null, kind: null });
          }
        }

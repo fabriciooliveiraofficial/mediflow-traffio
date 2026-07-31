@@ -35,7 +35,6 @@ import {
     doctorDisplayName,
     validateSchedulingReferences,
     getTenantClock,
-    SLOT_CONFIRM_MSG,
     SLOT_TAKEN_MSG,
     SLOT_TAKEN_RETRY_MSG,
     ASK_NAME_TO_BOOK_MSG,
@@ -43,7 +42,7 @@ import {
     BOOKING_REASON,
     isPendingSlotsFresh,
     findConflictAlternatives,
-    assembleFullConfirmation,
+    sendBookingConfirmation,
     type SlotOption,
 } from "./schedulingTools.ts";
 
@@ -111,24 +110,31 @@ async function bookSlotAndNotify(
     const { success, bookErrMessage } = await attemptBooking(supabase, tenantId, patientId, slot);
 
     if (success) {
-        // P3 (2026-07-24): confirmação RICA (saudação + bloco estruturado com
-        // data/horário/profissional/local/maps) — igual ao caminho LLM, nunca
-        // mais a mensagem curta de uma linha só.
+        // A confirmação é SEMPRE a mensagem que o tenant personalizou em
+        // Notificações → Confirmação de Agendamento (portão único
+        // sendBookingConfirmation). A plataforma não tem mensagem própria.
         const professional = await doctorDisplayName(supabase, tenantId, slot.doctor_id);
-        const msg = await assembleFullConfirmation(
-            supabase, tenantId,
+        const msg = await sendBookingConfirmation(
+            supabase, dispatcher, tenant, tenantId, phone,
             { date: slot.date, start_time: slot.time, location_id: slot.location_id },
-            professional, patientId, normalizeLanguage(language),
+            professional, patientId, normalizeLanguage(language), channel,
         );
-        const confirmationImg = tenant?.bot_config?.booking_confirmation_image_url;
-        await sendWithFallback(dispatcher, tenant, tenantId, phone, msg, undefined, channel, confirmationImg);
-        await sessionManager.logMessage(sessionId, "assistant", msg);
         const ctx = { ...baseContext };
         delete ctx.pending_slots;
         delete ctx.pending_slot_titles;
         delete ctx.pending_slots_at;
         delete ctx.pending_booking_slot;
         delete ctx.pending_booking_slot_at;
+
+        // Tenant sem mensagem configurada: NUNCA inventar um texto nosso — o
+        // agendamento existe, então quem fala com o paciente é a equipe humana.
+        if (!msg) {
+            console.error(`[structuredFlow] [${phone}] agendamento criado sem mensagem de confirmação configurada — handoff humano`);
+            await sessionManager.triggerHumanHandoff(sessionId, ctx, { reason: "tech", kind: "hard" });
+            return "transferred";
+        }
+
+        await sessionManager.logMessage(sessionId, "assistant", msg);
         await supabase
             .from("conversation_sessions")
             .update({ context: ctx, omnichannel_status: "bot_active", human_handoff: false })
@@ -540,16 +546,23 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
             delete ctx.pending_waitlist;
 
             if (ok) {
-                // P3 (2026-07-24): confirmação rica também na vaga de lista de espera.
+                // Vaga da lista de espera recebe a MESMA confirmação personalizada
+                // do tenant — inclusive a imagem, que antes não era enviada aqui.
                 const professional = await doctorDisplayName(supabase, tenantId, pendingWaitlist.doctor_id);
-                const msg = await assembleFullConfirmation(
-                    supabase, tenantId,
+                const msg = await sendBookingConfirmation(
+                    supabase, dispatcher, tenant, tenantId, phone,
                     { date: pendingWaitlist.date, start_time: pendingWaitlist.start_time, location_id: pendingWaitlist.location_id },
-                    professional, pendingWaitlist.patient_id, normalizeLanguage(language),
+                    professional, pendingWaitlist.patient_id, normalizeLanguage(language), channel,
                 );
-                await sendWithFallback(dispatcher, tenant, tenantId, phone, msg, undefined, channel);
-                await sessionManager.logMessage(sessionId, "assistant", msg);
                 await supabase.from("waitlist").update({ status: "confirmed", updated_at: new Date().toISOString() }).eq("id", pendingWaitlist.waitlist_id);
+
+                if (!msg) {
+                    console.error(`[structuredFlow] [${phone}] vaga confirmada sem mensagem de confirmação configurada — handoff humano`);
+                    await sessionManager.triggerHumanHandoff(sessionId, ctx, { reason: "tech", kind: "hard" });
+                    return { matched: true, status: "transferred" };
+                }
+
+                await sessionManager.logMessage(sessionId, "assistant", msg);
                 await supabase.from("conversation_sessions")
                     .update({ context: ctx, omnichannel_status: "bot_active", human_handoff: false })
                     .eq("id", sessionId);
