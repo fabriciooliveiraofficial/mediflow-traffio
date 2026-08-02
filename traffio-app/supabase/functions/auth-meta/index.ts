@@ -186,7 +186,7 @@ serve(async (req: Request) => {
       try {
         const pagesRes = await fetch(
           `https://graph.facebook.com/v21.0/me/accounts` +
-          `?fields=id,name,access_token,category,instagram_business_account{id,username,name}` +
+          `?fields=id,name,access_token,category,instagram_business_account{id,username,name,profile_picture_url}` +
           `&limit=50` +
           `&access_token=${longLivedToken}`
         );
@@ -211,6 +211,7 @@ serve(async (req: Request) => {
                   page_category:        page.category ?? null,
                   instagram_account_id: ig?.id ?? null,
                   instagram_username:   ig?.username ?? null,
+                  instagram_profile_picture_url: ig?.profile_picture_url ?? null,
                   token_type:           "page",
                   expires_at:           null,
                   last_refreshed_at:    new Date().toISOString(),

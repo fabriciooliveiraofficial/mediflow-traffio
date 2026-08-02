@@ -100,7 +100,7 @@ export const Dashboard: React.FC = () => {
         if (!tenant?.id) return;
         const { data } = await supabase
             .from('tenant_meta_pages')
-            .select('id, page_id, page_name, page_category, instagram_account_id, instagram_username, is_active, last_refreshed_at, scope_granted')
+            .select('id, page_id, page_name, page_category, instagram_account_id, instagram_username, instagram_profile_picture_url, is_active, last_refreshed_at, scope_granted')
             .eq('tenant_id', tenant.id)
             .order('page_name');
         setMetaPages(data ?? []);
@@ -608,9 +608,18 @@ export const Dashboard: React.FC = () => {
                                                                                     <span>Messenger</span>
                                                                                 </div>
                                                                                 {page.instagram_username && (
-                                                                                    <div className="flex items-center gap-1 px-2 py-0.5 bg-pink-50 text-[#E4405F] rounded-lg text-[9px] font-black uppercase tracking-wider">
-                                                                                        <Instagram size={10} />
-                                                                                        <span>Instagram (@{page.instagram_username})</span>
+                                                                                    <div className="flex flex-col gap-1.5">
+                                                                                        <div className="flex items-center gap-2 px-2 py-1.5 bg-pink-50 text-[#E4405F] rounded-lg text-[10px] font-black uppercase tracking-wider w-fit">
+                                                                                            {page.instagram_profile_picture_url ? (
+                                                                                                <img src={page.instagram_profile_picture_url} alt={page.instagram_username} className="w-5 h-5 rounded-full object-cover border border-pink-200" />
+                                                                                            ) : (
+                                                                                                <Instagram size={12} />
+                                                                                            )}
+                                                                                            <span>Instagram (@{page.instagram_username})</span>
+                                                                                        </div>
+                                                                                        <p className="text-[9px] font-medium text-pink-600/80 leading-tight max-w-[250px]">
+                                                                                            We use instagram_business_basic to display the connected clinic's avatar and username here.
+                                                                                        </p>
                                                                                     </div>
                                                                                 )}
                                                                             </div>
