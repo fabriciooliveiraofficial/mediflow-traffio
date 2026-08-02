@@ -26,7 +26,7 @@ import { sendWithFallback, resolveTurnLanguage } from "./copilot.ts";
 import {
     parseSlotClick,
     resolveSlotIdByTitle,
-    resolvePatientForBooking,
+    resolvePatientIdentity,
     plausiblePersonName,
     bookingGradeName,
     fetchAvailableSlots,
@@ -447,7 +447,7 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
                     // Titular do telefone: identifica/atualiza pela ficha existente com
                     // o nome agora confirmado (resolvePatientForBooking cria OU
                     // atualiza em vez de duplicar — ver schedulingTools.ts).
-                    const resolved = await resolvePatientForBooking(supabase, tenantId, searchPhone, null, rawContent.trim());
+                    const resolved = await resolvePatientIdentity(supabase, tenantId, channel, searchPhone, null, rawContent.trim());
                     if (resolved.patient) {
                         return {
                             matched: true,
@@ -494,8 +494,8 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
             // Se a conversa era para um terceiro (intake.for_whom = nome plausível),
             // o clique agenda na ficha do terceiro — nunca na do titular do telefone
             const forWhom = context?.intake?.for_whom;
-            const resolved = await resolvePatientForBooking(
-                supabase, tenantId, searchPhone,
+            const resolved = await resolvePatientIdentity(
+                supabase, tenantId, channel, searchPhone,
                 plausiblePersonName(forWhom) ? forWhom : null,
                 session.platform_display_name);
 

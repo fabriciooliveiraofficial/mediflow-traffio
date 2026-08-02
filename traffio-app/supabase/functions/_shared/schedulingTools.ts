@@ -18,6 +18,7 @@ import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import type { LlmTool, LlmToolCall } from "./llmProvider.ts";
 import { normalizePhoneNumber } from "./phoneNormalizer.ts";
 import type { OutboxDispatcher } from "./outboxDispatcher.ts";
+import { getOrCreateChannelIdentity, linkChannelIdentityToPatient } from "./identityResolution.ts";
 
 /** P-04: ponto único para SELECTs de tabelas multi-tenant. */
 function scopedQuery(supabase: SupabaseClient, table: string, tenantId: string, columns: string): any {
@@ -773,6 +774,11 @@ export const SCHEDULING_TOOLS: LlmTool[] = [
         description: "Use para confirmar que você já validou/confirmou expressamente o Nome Completo, Telefone e E-mail com um paciente que já possui cadastro no sistema nesta conversa. OBRIGATÓRIO chamar esta ferramenta APÓS a confirmação positiva do paciente e ANTES de ver_disponibilidade.",
         input_schema: { type: "object", properties: {} },
     },
+    {
+        name: "solicitar_exclusao_cadastro",
+        description: "Use SEMPRE que o paciente pedir para apagar/excluir seus dados ou cadastro da clínica (ex.: pedido de privacidade/LGPD). Você NUNCA exclui o cadastro diretamente — esta ferramenta apenas registra o pedido e encaminha para a equipe humana confirmar e concluir a exclusão.",
+        input_schema: { type: "object", properties: {} },
+    },
 ];
 
 // ─── Executor ────────────────────────────────────────────────────────────────
@@ -793,6 +799,7 @@ export async function executeSchedulingTool(
     lastPatientMessage: string = "",
     language: ConversationLanguage = "pt",
     sessionContext: any = {},
+    channel: string = "whatsapp",
 ): Promise<ToolExecOutcome> {
     const input = (call.input || {}) as any;
 
@@ -825,53 +832,86 @@ export async function executeSchedulingTool(
                 };
             }
 
-            let canonicalPhone = canonicalizePhone(phone) || phone;
+            // E-4 (2026-08-02): resolução multicanal + consciente de família —
+            // nunca mais "sobrescreve quem quer que já esteja nesse telefone".
+            // Passando fullName como forName: se já existe outra pessoa com esse
+            // MESMO telefone mas nome DIFERENTE (mãe já cadastrada, filho
+            // escrevendo agora), cria um dependente em vez de sobrescrever; se o
+            // nome BATE com um cadastro existente (inclusive o que esta mesma
+            // ferramenta acabou de criar segundos atrás), reaproveita — nunca
+            // duplica.
+            const resolved = await resolvePatientIdentity(
+                supabase, tenantId, channel, phone, fullName, null, input.phone?.trim() || null,
+            );
+
+            if (!resolved.patient) {
+                if (resolved.reason === "name_required") {
+                    return {
+                        data: {
+                            success: false,
+                            error: "surname_required",
+                            note: "Este telefone já tem outro cadastro com nome diferente — para não misturar fichas, é OBRIGATÓRIO o nome E sobrenome de quem está falando agora antes de criar o cadastro dele. Peça o sobrenome.",
+                        },
+                    };
+                }
+                return { data: { success: false, error: "patient_create_failed" } };
+            }
+
+            const updateData: Record<string, any> = { full_name: fullName };
             if (input.phone?.trim()) {
                 const norm = normalizePhoneNumber(input.phone.trim());
-                if (norm?.e164) {
-                    canonicalPhone = norm.e164;
+                if (norm?.e164) updateData.phone = norm.e164;
+            }
+            if (input.email?.trim()) updateData.email = input.email.trim();
+            if (input.birth_date?.trim()) updateData.birth_date = input.birth_date.trim();
+            if (input.notes?.trim()) updateData.notes = input.notes.trim();
+
+            // Passo 1 (E-3/E-4): se os dados já foram confirmados pelo paciente
+            // NESTA conversa e nada mudou, não regrava nada — elimina qualquer
+            // gatilho de "segunda checagem" desnecessária no mesmo cadastro.
+            if (sessionContext?.registration_confirmed) {
+                const { data: current } = await scopedQuery(supabase, "patients", tenantId, "full_name, phone, email, birth_date, notes")
+                    .eq("id", resolved.patient.id)
+                    .maybeSingle();
+                const nothingChanged = current && Object.entries(updateData).every(
+                    ([key, val]) => String((current as any)[key] ?? "") === String(val ?? ""),
+                );
+                if (nothingChanged) {
+                    return { data: { success: true, patient_id: resolved.patient.id, created: false, note: "Cadastro já estava atualizado e confirmado — nenhuma mudança necessária." } };
                 }
             }
 
-            const existing = await findPatient(supabase, tenantId, phone);
+            const { error } = await supabase
+                .from("patients")
+                .update(updateData)
+                .eq("id", resolved.patient.id)
+                .eq("tenant_id", tenantId);
 
-            if (existing) {
-                const updateData: Record<string, any> = { full_name: fullName };
-                if (input.phone?.trim()) {
-                    const norm = normalizePhoneNumber(input.phone.trim());
-                    if (norm?.e164) updateData.phone = norm.e164;
-                }
-                if (input.email?.trim()) updateData.email = input.email.trim();
-                if (input.birth_date?.trim()) updateData.birth_date = input.birth_date.trim();
-                if (input.notes?.trim()) updateData.notes = input.notes.trim();
-
-                const { error } = await supabase
-                    .from("patients")
-                    .update(updateData)
-                    .eq("id", existing.id)
-                    .eq("tenant_id", tenantId);
-
-                if (error) return { data: { success: false, error: error.message } };
-                return { data: { success: true, patient_id: existing.id, created: false, note: "Cadastro atualizado. ATENÇÃO: A confirmação expressa dos dados (Nome, Telefone e E-mail) ainda é necessária caso não tenha sido feita." } };
-            } else {
-                const insertData: Record<string, any> = {
-                    tenant_id: tenantId,
-                    phone: canonicalPhone,
-                    full_name: fullName,
+            // Passo 6 (E-4): erro cru de banco NUNCA vira texto livre para o
+            // modelo interpretar — é assim que "duplicate key" virava "esse
+            // e-mail já pertence a outro paciente" no teste de estresse.
+            if (error) {
+                console.error(`[schedulingTools] atualizar_cadastro_paciente falhou (patient ${resolved.patient.id}): ${error.message}`);
+                return {
+                    data: {
+                        success: false,
+                        error: "database_error",
+                        note: "Não foi possível salvar o cadastro agora. NÃO explique o motivo ao paciente (você não sabe qual foi) — peça desculpas de forma genérica e, se persistir, use transfer_to_human.",
+                    },
                 };
-                if (input.email?.trim()) insertData.email = input.email.trim();
-                if (input.birth_date?.trim()) insertData.birth_date = input.birth_date.trim();
-                if (input.notes?.trim()) insertData.notes = input.notes.trim();
-
-                const { data: created, error } = await supabase
-                    .from("patients")
-                    .insert(insertData)
-                    .select("id")
-                    .single();
-
-                if (error) return { data: { success: false, error: error.message } };
-                return { data: { success: true, patient_id: (created as any)?.id, created: true, registration_confirmed: false, note: "Cadastro criado. ATENÇÃO: A confirmação expressa dos dados (Telefone e E-mail) ainda é OBRIGATÓRIA se não tiver sido feita. Se o paciente acabou de passar os dados, você deve validá-los confirmando o número e, no próximo turno, chamar 'marcar_cadastro_confirmado'." } };
             }
+
+            return {
+                data: {
+                    success: true,
+                    patient_id: resolved.patient.id,
+                    created: Boolean(resolved.created),
+                    registration_confirmed: resolved.created ? false : undefined,
+                    note: resolved.created
+                        ? "Cadastro criado. ATENÇÃO: A confirmação expressa dos dados (Telefone e E-mail) ainda é OBRIGATÓRIA se não tiver sido feita. Se o paciente acabou de passar os dados, você deve validá-los confirmando o número e, no próximo turno, chamar 'marcar_cadastro_confirmado'."
+                        : "Cadastro atualizado. ATENÇÃO: A confirmação expressa dos dados (Nome, Telefone e E-mail) ainda é necessária caso não tenha sido feita.",
+                },
+            };
         }
 
         case "marcar_cadastro_confirmado": {
@@ -880,6 +920,22 @@ export async function executeSchedulingTool(
                     success: true,
                     registration_confirmed: true,
                     note: "Cadastro confirmado com sucesso para a conversa atual. Agora você pode consultar a disponibilidade usando a ferramenta ver_disponibilidade — inclusive chamando as duas ferramentas NESTE MESMO TURNO, se o paciente já indicou o período (ex.: ele respondeu confirmando os dados E disse 'de manhã' na mesma mensagem).",
+                },
+            };
+        }
+
+        // E-4 (2026-08-02), decisão do usuário (opção A): o agente NUNCA apaga um
+        // cadastro sozinho. Esta ferramenta só sinaliza o pedido; quem executa a
+        // exclusão de fato é sempre um humano. O chamador (copilot.ts) força
+        // handoff HARD assim que este tool_call aparece — nem chega a executar.
+        case "solicitar_exclusao_cadastro": {
+            const patient = await findPatient(supabase, tenantId, phone);
+            return {
+                data: {
+                    success: true,
+                    deletion_requested: true,
+                    patient_id: patient?.id || null,
+                    note: "Pedido de exclusão registrado para a equipe. Você NUNCA apaga cadastro sozinho.",
                 },
             };
         }
@@ -1146,7 +1202,7 @@ export async function executeSchedulingTool(
             if (referenceError) return { data: { success: false, error: referenceError } };
 
             // Ficha de quem SERÁ ATENDIDO (terceiros: cria dependente no mesmo telefone)
-            const resolved = await resolvePatientForBooking(supabase, tenantId, phone, input.patient_name || null, patientDisplayName);
+            const resolved = await resolvePatientIdentity(supabase, tenantId, channel, phone, input.patient_name || null, patientDisplayName);
             if (!resolved.patient) return { data: { success: false, error: resolved.reason === "name_required" ? "patient_not_registered" : "patient_create_failed" } };
             if (resolved.ambiguous && !input.patient_name) {
                 return { data: { success: false, error: "multiple_patients_on_this_phone", patients: resolved.ambiguous, note: "Pergunte com naturalidade para quem é o agendamento e chame a ferramenta novamente informando o patient_name." } };
@@ -1436,6 +1492,65 @@ export async function resolvePatientForBooking(
         .single();
     if (error) { console.error(`[schedulingTools] ensure paciente falhou: ${error.message}`); return { patient: null }; }
     return { patient: created as any, created: true };
+}
+
+// ── Identidade multicanal (E-4, 2026-08-02) ───────────────────────────────
+// O mesmo paciente pode escrever pelo WhatsApp, Instagram, Messenger ou Live
+// Chat. Só o WhatsApp entrega um identificador CONCRETO (telefone real); os
+// demais canais entregam um id interno da plataforma (sender id da Meta, uuid
+// de sessão do livechat) que NUNCA deve ser tratado como telefone. Esta camada
+// fica por cima de resolvePatientForBooking (família/telefone, já testado e
+// inalterado) e finalmente liga a tabela channel_identities — criada em
+// 20260724180000_create_channel_identities.sql mas nunca conectada a nenhum
+// código até agora.
+
+/**
+ * Resolve o paciente certo para QUALQUER canal, mesclando com um cadastro de
+ * OUTRO canal sempre que um telefone REAL for conhecido nesta conversa —
+ * nunca usando o identificador sintético do canal (sender id, uuid) como se
+ * fosse telefone.
+ *
+ * @param channelUserId identificador bruto do webhook (telefone no WhatsApp;
+ *   sender id no Instagram/Messenger; uuid de sessão no Live Chat).
+ * @param realPhone telefone REAL informado nesta conversa (ex.: input.phone
+ *   digitado pelo paciente em um canal não-WhatsApp). Se omitido e o canal for
+ *   "whatsapp", o próprio channelUserId é usado (ele já É o telefone real).
+ */
+export async function resolvePatientIdentity(
+    supabase: SupabaseClient,
+    tenantId: string,
+    channel: string,
+    channelUserId: string,
+    forName: string | null | undefined,
+    fallbackDisplayName: string | null | undefined,
+    realPhone?: string | null,
+): Promise<{ patient: { id: string } | null; ambiguous?: string[]; created?: boolean; reason?: "name_required" }> {
+    const identity = await getOrCreateChannelIdentity(supabase, { tenantId, channel, channelUserId });
+
+    // Fast path: este canal já está ligado a um paciente E não há pedido
+    // explícito de terceiro — cobre a imensa maioria dos turnos depois do
+    // primeiro contato, sem nenhuma consulta extra por telefone/nome.
+    if (identity?.patient_id && !forName?.trim()) {
+        return { patient: { id: identity.patient_id } };
+    }
+
+    // Telefone real para casar/mesclar entre canais: o que foi digitado nesta
+    // conversa vence sempre. Sem telefone real ainda, cai no channelUserId
+    // (telefone de verdade no WhatsApp; sender id/uuid nos demais canais) —
+    // preserva o comportamento seguro de sempre criar/achar uma ficha, mesmo
+    // antes de o paciente informar um telefone real. Assim que ele informar,
+    // a MESMA identidade de canal passa a resolver pelo telefone real e
+    // funde com um cadastro de outro canal em vez de duplicar.
+    const phoneForLookup = realPhone?.trim() || channelUserId;
+
+    const resolved = phoneForLookup
+        ? await resolvePatientForBooking(supabase, tenantId, phoneForLookup, forName, fallbackDisplayName)
+        : { patient: null, reason: "name_required" as const };
+
+    if (resolved.patient && identity) {
+        await linkChannelIdentityToPatient(supabase, identity.id, resolved.patient.id);
+    }
+    return resolved;
 }
 
 async function findPatient(supabase: SupabaseClient, tenantId: string, phone: string): Promise<{ id: string } | null> {

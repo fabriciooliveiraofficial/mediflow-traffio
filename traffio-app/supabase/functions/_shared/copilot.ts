@@ -665,6 +665,9 @@ const AUTONOMOUS_ADDENDUM = `
     3. Apenas no turno SEGUINTE, quando o paciente responder confirmando os dados, chame a ferramenta 'marcar_cadastro_confirmado' IMEDIATAMENTE e só então consulte/exiba horários de agendamento com 'ver_disponibilidade'. NUNCA exiba horários nem chame a ferramenta de confirmação sem ter a resposta explícita do paciente!
 - SEM HORÁRIO NÃO É FIM DE PAPO: se não houver horário disponível, ou se nenhum dos horários servir para o paciente, ofereça a lista de espera com naturalidade ("te coloco na lista e aviso assim que abrir uma vaga — pode ser?") e use adicionar_lista_espera. Nunca encerre com "vou verificar".
 - CANCELAMENTO: você NUNCA cancela — use a ferramenta encaminhar_cancelamento sempre que o paciente quiser cancelar.
+- EXCLUSÃO DE CADASTRO/DADOS: você NUNCA apaga cadastro ou dado do paciente sozinho, mesmo se ele insistir ou alegar direito de privacidade/LGPD — use a ferramenta solicitar_exclusao_cadastro sempre que o paciente pedir para apagar/excluir seus dados, e informe que a equipe vai confirmar e concluir. Jamais diga "apaguei" ou "excluí" — isso nunca acontece nesta ferramenta.
+- MESMO TELEFONE, PESSOA DIFERENTE (família): se atualizar_cadastro_paciente ou agendar devolver que o telefone já tem um cadastro com NOME DIFERENTE do que a pessoa acabou de informar, isso é normal (telefone compartilhado — pai, mãe, cônjuge, filho, idoso) e NUNCA é motivo de alarme ou de dizer que "já existe cadastro com este nome/e-mail". Simplesmente prossiga: a ferramenta já cria a ficha certa para essa nova pessoa, vinculada ao mesmo telefone. Só pergunte "é para você ou para outra pessoa?" se a ferramenta pedir explicitamente o sobrenome (nota de erro "surname_required").
+- IDENTIDADE E ERRO DE FERRAMENTA: se atualizar_cadastro_paciente/agendar falhar com error diferente de "multiple_patients_on_this_phone"/"surname_required", NUNCA explique o motivo ao paciente nem invente uma causa (nunca diga "esse e-mail já pertence a outra pessoa", "já está cadastrado em outro nome" ou qualquer variação) — você não sabe a causa real. Peça desculpas de forma genérica e tente de novo; se persistir, use transfer_to_human.
 - CONFIRMAÇÃO DE AGENDA: hedge ("talvez", "acho que", "vou ver", "maybe", "quizás") NÃO é confirmação. Faça uma pergunta curta e objetiva antes de agendar/remarcar; uma escolha concreta como "pode ser 9:00" é confirmação.
 - POLÍTICAS (cancelamento, atraso, preparo, convênio, garantia): só afirme o que está no CONTEXTO DA CLÍNICA. Se não estiver lá, diga que a equipe confirma e ofereça transfer_to_human. Nunca complete política de memória.
 - AGENDAR PARA TERCEIROS: se a consulta é para OUTRA pessoa (filho, cônjuge, parente), pergunte o nome completo de quem será atendido (com naturalidade, se ainda não tiver) e passe em patient_name ao chamar agendar — a ficha certa é criada/achada vinculada ao mesmo telefone. Quem fala é o responsável pelo contato; nunca peça documento (CPF/RG) no chat.
@@ -781,6 +784,14 @@ const TIME_MENTION_PATTERN = /\b([01]?\d|2[0-3]):[0-5]\d\b/g;
 // `toolCallFailedThisTurn`, pega qualquer beco futuro do mesmo formato:
 // prometer uma verificação iminente sem tê-la de fato executado.
 const PROMISE_PATTERN = /\b(j[aá] vou verificar|vou verificar|vou consultar|j[aá] verifico|deixa(?:-me| eu)? ver|s[oó] um momento|um momento|aguarde um (?:momento|instante)|j[aá] te (?:mostro|envio|passo)|te (?:mostro|envio|passo) em seguida|let me check|i'?ll check|checking now|one moment|hold on|give me a (?:moment|second)|voy a verificar|ya verifico|d[ée]jame ver|ya te (?:muestro|env[ií]o))\b/i;
+
+// E-4 (2026-08-02, teste de estresse): o agente afirmou "esse e-mail já está
+// vinculado a outro cadastro" sem NENHUMA ferramenta ter checado isso — pura
+// alucinação (confirmado: não existe consulta por e-mail no fluxo, nem
+// trigger de banco relacionada). A única fonte legítima para essa alegação é
+// a ferramenta devolver "multiple_patients_on_this_phone" — sem esse marcador
+// na evidência do turno, a alegação é bloqueada e a resposta é regenerada.
+const IDENTITY_CONFLICT_PATTERN = /\b(already (?:registered|linked|used|taken|associated) (?:with|to|under) (?:another|a different)|belongs to (?:another|a different) (?:patient|person|file|account)|cadastrad[oa] (?:para|em|com) outr[oa] (?:paciente|pessoa|cadastro|ficha)|vinculad[oa] a outr[oa] (?:paciente|pessoa|cadastro|ficha)|pertence a outr[oa] (?:paciente|pessoa|cadastro|ficha)|j[aá] est[aá] (?:cadastrad[oa]|vinculad[oa]|registrad[oa]) (?:para|em|com|a) outr[oa]|ya est[aá] (?:registrad[oa]|vinculad[oa]|asociad[oa]) (?:con|a) otr[oa])\b/i;
 type LanguageDriftMarker = { marker: string; pattern: RegExp };
 
 // Markers must be language-specific enough to avoid names, procedure names and
@@ -1106,6 +1117,14 @@ export function validateAgentReply(text: string, opts: AgentReplyValidationOptio
     // só uma nova mensagem do paciente dispara o próximo turno.
     if (opts.toolCallFailedThisTurn && PROMISE_PATTERN.test(text)) {
         violations.push("promessa de ação sem execução — uma ferramenta falhou/foi bloqueada neste turno; resolva agora (pergunte o que falta ou responda com o que já se sabe) em vez de pedir para o paciente esperar por algo que não foi executado");
+    }
+
+    // E-4 (2026-08-02): alegação de que um dado (e-mail/telefone/cadastro)
+    // pertence a OUTRO paciente sem nenhuma ferramenta ter confirmado isso.
+    // Única fonte legítima: o marcador "multiple_patients_on_this_phone" na
+    // evidência do turno (retorno real de agendar/atualizar_cadastro_paciente).
+    if (IDENTITY_CONFLICT_PATTERN.test(text) && !opts.evidence.includes("multiple_patients_on_this_phone")) {
+        violations.push("alegação de que o cadastro/e-mail/telefone pertence a outro paciente sem nenhuma ferramenta ter confirmado isso — nunca afirme conflito de identidade sem fonte");
     }
 
     return violations;
@@ -1636,6 +1655,9 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
         let lastSlots: SlotOption[] | null = null;
         let transferReason: string | null = null;
         let cancelRequested = false;
+        // E-4 (2026-08-02), decisão do usuário (opção A): pedido de exclusão de
+        // cadastro NUNCA é executado pelo agente — só sinalizado e transferido.
+        let deletionRequested = false;
         let reconciliationNeeded = false;
         // P2 (2026-07-24): agendamento concluído NESTE turno → limpar o intake de
         // agendamento na persistência, para que o procedimento não vaze para uma
@@ -1671,6 +1693,10 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
                 cancelRequested = true;
                 break;
             }
+            if (reply.toolCalls.some(t => t.name === "solicitar_exclusao_cadastro")) {
+                deletionRequested = true;
+                break;
+            }
             // Se o modelo chamou responder_paciente junto ou sozinho, extraímos e encerramos o loop de ferramentas
             if (reply.toolCalls.some(t => t.name === "responder_paciente") && !reply.toolCalls.some(t => t.name !== "responder_paciente")) {
                 break;
@@ -1692,7 +1718,7 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
                 }
 
                 toolsCalledSet.add(call.name);
-                const outcome = await executeSchedulingTool(supabase, tenantId, searchPhone, session.platform_display_name, call, lastPatientMessage, turnLanguage, context);
+                const outcome = await executeSchedulingTool(supabase, tenantId, searchPhone, session.platform_display_name, call, lastPatientMessage, turnLanguage, context, channel);
                 if (outcome.data?.error) {
                     toolCallFailedThisTurn = true;
                 }
@@ -1842,6 +1868,22 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             console.log(`[agent] [${phone}] confirmação personalizada do tenant enviada (bloco único${bookingConfirmation.imageUrl ? " com imagem" : ""})`);
             await emitTrace({ turn_language: language, bubbles: 1 });
             return "replied";
+        }
+
+        // ── Exclusão de cadastro: SEMPRE humano, nunca o agente ─────────────────
+        // E-4 (2026-08-02), decisão do usuário (opção A): o agente só sinaliza e
+        // transfere — nenhuma exclusão acontece nesta ferramenta nem por conta
+        // própria do modelo, em nenhuma circunstância.
+        if (deletionRequested) {
+            const deletionDrifted = Boolean(text) && detectLanguageDrift(text, language).length > 0;
+            if (deletionDrifted) console.warn(`[agent] [${phone}] mensagem de exclusão com deriva de idioma — usando texto canônico`);
+            const msg = (text && !deletionDrifted) ? text : (HANDOFF_MSG[language] || HANDOFF_MSG.pt);
+            await dispatcher.sendSequence(tenant, phone, [msg], undefined, "service", channel);
+            await sessionManager.logMessage(sessionId, "assistant", msg);
+            await sessionManager.triggerHumanHandoff(sessionId, merged, { reason: "data_deletion", kind: "hard" });
+            console.log(`[agent] [${phone}] pedido de exclusão de cadastro encaminhado para a equipe`);
+            await emitTrace({ turn_language: turnLanguage, bubbles: bubbles.length, handoff_reason: "data_deletion", handoff_kind: "hard" });
+            return "transferred";
         }
 
         // ── Cancelamento: regra de negócio por horário de atendimento ──────────

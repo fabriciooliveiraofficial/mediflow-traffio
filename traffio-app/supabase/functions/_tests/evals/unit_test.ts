@@ -1004,6 +1004,24 @@ function createMockSupabase(overrides: {
                     }),
                 };
             }
+            // E-4 (2026-08-02): resolvePatientIdentity consulta channel_identities
+            // ANTES de tudo. Mock "sempre novo, sem patient_id" — preserva o
+            // comportamento anterior (cai direto na resolução por telefone/nome)
+            // para não reescrever as expectativas dos testes já existentes.
+            if (table === "channel_identities") {
+                return {
+                    select: () => chainable(null),
+                    insert: () => ({
+                        select: () => ({
+                            single: async () => ({
+                                data: { id: "identity-mock-1", tenant_id: "tenant-1", channel: "whatsapp", channel_user_id: "mock", patient_id: null, platform_meta: {} },
+                                error: null,
+                            }),
+                        }),
+                    }),
+                    update: () => chainable(null),
+                };
+            }
             if (table === "appointment_types") {
                 const typeData = overrides.appointmentType !== undefined ? overrides.appointmentType : defaultType;
                 return {

@@ -4,7 +4,8 @@ export type HandoffKind = "soft" | "hard";
 export type HandoffReason =
     | "knowledge_gap" | "media" | "tech"                                   // soft
     | "human_request" | "clinical" | "emergency" | "complaint"
-    | "price_insistence" | "jailbreak" | "cancel" | "reconciliation";      // hard
+    | "price_insistence" | "jailbreak" | "cancel" | "reconciliation"
+    | "data_deletion";                                                     // hard
 
 /**
  * Determina se a sessão está em handoff estrito (hard).
