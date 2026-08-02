@@ -90,7 +90,8 @@ serve(async (req: Request) => {
       `?client_id=${clientId}` +
       `&redirect_uri=${encodeURIComponent(redirectUri)}` +
       `&state=${encodedState}` +
-      `&scope=${encodeURIComponent(scopes)}`;
+      `&scope=${encodeURIComponent(scopes)}` +
+      `&auth_type=rerequest`;
 
     return Response.redirect(authUrl, 302);
   }
@@ -147,7 +148,7 @@ serve(async (req: Request) => {
     // 3. Buscar páginas com tokens + conta Instagram vinculada
     const pagesRes = await fetch(
       `https://graph.facebook.com/v21.0/me/accounts` +
-      `?fields=id,name,access_token,category,instagram_business_account{id,username,name}` +
+      `?fields=id,name,access_token,category,instagram_business_account{id,username,name,profile_picture_url}` +
       `&limit=50` +
       `&access_token=${userToken}`
     );
@@ -174,6 +175,7 @@ serve(async (req: Request) => {
             page_category:        page.category ?? null,
             instagram_account_id: ig?.id ?? null,
             instagram_username:   ig?.username ?? null,
+            instagram_profile_picture_url: ig?.profile_picture_url ?? null,
             token_type:           "page",
             expires_at:           null,          // Page tokens não expiram
             last_refreshed_at:    new Date().toISOString(),

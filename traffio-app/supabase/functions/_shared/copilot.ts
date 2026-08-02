@@ -785,6 +785,19 @@ const TIME_MENTION_PATTERN = /\b([01]?\d|2[0-3]):[0-5]\d\b/g;
 // prometer uma verificação iminente sem tê-la de fato executado.
 const PROMISE_PATTERN = /\b(j[aá] vou verificar|vou verificar|vou consultar|j[aá] verifico|deixa(?:-me| eu)? ver|s[oó] um momento|um momento|aguarde um (?:momento|instante)|j[aá] te (?:mostro|envio|passo)|te (?:mostro|envio|passo) em seguida|let me check|i'?ll check|checking now|one moment|hold on|give me a (?:moment|second)|voy a verificar|ya verifico|d[ée]jame ver|ya te (?:muestro|env[ií]o))\b/i;
 
+// E-4 (2026-08-02): estados normais do fluxo — a ferramenta pede um dado ou
+// uma escolha, NUNCA uma falha real. Disparar toolCallFailedThisTurn nesses
+// casos reprovava respostas corretas (ex.: "let me check the available
+// times") e derrubava o turno em handoff no primeiro obstáculo pequeno. Só o
+// que NÃO está nesta lista (erro de banco/infra/RPC, ou qualquer código
+// futuro desconhecido) conta como falha de verdade — default seguro.
+export const EXPECTED_FLOW_ERROR_CODES = new Set([
+    "invalid_name", "surname_required", "patient_info_incomplete",
+    "missing_booking_fields", "no_explicit_confirmation",
+    "multiple_patients_on_this_phone", "no_doctor_available",
+    "no_professionals_available", "patient_not_found", "patient_not_registered",
+]);
+
 // E-4 (2026-08-02, teste de estresse): o agente afirmou "esse e-mail já está
 // vinculado a outro cadastro" sem NENHUMA ferramenta ter checado isso — pura
 // alucinação (confirmado: não existe consulta por e-mail no fluxo, nem
@@ -1719,7 +1732,16 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
 
                 toolsCalledSet.add(call.name);
                 const outcome = await executeSchedulingTool(supabase, tenantId, searchPhone, session.platform_display_name, call, lastPatientMessage, turnLanguage, context, channel);
-                if (outcome.data?.error) {
+                // E-4 (2026-08-02): correção de calibragem do E-3. A checagem
+                // original disparava em QUALQUER `error`, inclusive estados
+                // normais do fluxo (falta dado, pediu confirmação, telefone
+                // ambíguo) — isso fazia até frases corretas tipo "let me check
+                // the available times" serem reprovadas e o turno cair em
+                // handoff no primeiro obstáculo pequeno. Só conta como falha
+                // real o que a ferramenta NÃO espera que aconteça (erro de
+                // banco/infra/RPC) — nunca um estado que já pede uma pergunta
+                // de acompanhamento normal.
+                if (outcome.data?.error && !EXPECTED_FLOW_ERROR_CODES.has(outcome.data.error)) {
                     toolCallFailedThisTurn = true;
                 }
                 if (outcome.data?.registration_confirmed) {

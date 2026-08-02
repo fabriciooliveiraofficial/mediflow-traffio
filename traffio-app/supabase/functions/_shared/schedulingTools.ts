@@ -866,19 +866,29 @@ export async function executeSchedulingTool(
             if (input.birth_date?.trim()) updateData.birth_date = input.birth_date.trim();
             if (input.notes?.trim()) updateData.notes = input.notes.trim();
 
+            // E-4 (2026-08-02, teste de estresse): antes o sistema confiava
+            // cegamente que o modelo repassava cada campo no input desta
+            // ferramenta — o e-mail que o paciente confirmou em prosa nunca
+            // chegou aqui, o cadastro nasceu sem ele, e ninguém percebeu até
+            // ver_disponibilidade contradizer a confirmação que acabara de
+            // acontecer. Agora sempre buscamos o estado ATUAL antes de decidir
+            // qualquer coisa — é a única forma de saber o que falta de verdade.
+            const { data: current } = await scopedQuery(supabase, "patients", tenantId, "full_name, phone, email, birth_date, notes")
+                .eq("id", resolved.patient.id)
+                .maybeSingle();
+
             // Passo 1 (E-3/E-4): se os dados já foram confirmados pelo paciente
-            // NESTA conversa e nada mudou, não regrava nada — elimina qualquer
-            // gatilho de "segunda checagem" desnecessária no mesmo cadastro.
-            if (sessionContext?.registration_confirmed) {
-                const { data: current } = await scopedQuery(supabase, "patients", tenantId, "full_name, phone, email, birth_date, notes")
-                    .eq("id", resolved.patient.id)
-                    .maybeSingle();
-                const nothingChanged = current && Object.entries(updateData).every(
-                    ([key, val]) => String((current as any)[key] ?? "") === String(val ?? ""),
-                );
-                if (nothingChanged) {
-                    return { data: { success: true, patient_id: resolved.patient.id, created: false, note: "Cadastro já estava atualizado e confirmado — nenhuma mudança necessária." } };
-                }
+            // NESTA conversa e nada mudou, não regrava nada. Endurecido (E-4):
+            // NUNCA pula a escrita se um dos 3 campos-núcleo (nome/telefone/
+            // e-mail) ainda estiver vazio no banco — mesmo que updateData não
+            // toque nele, isso não pode virar desculpa para reportar sucesso
+            // com um cadastro incompleto.
+            const coreFieldsComplete = Boolean((current as any)?.full_name?.trim() && (current as any)?.phone?.trim() && (current as any)?.email?.trim());
+            const nothingChanged = current && coreFieldsComplete && Object.entries(updateData).every(
+                ([key, val]) => String((current as any)[key] ?? "") === String(val ?? ""),
+            );
+            if (sessionContext?.registration_confirmed && nothingChanged) {
+                return { data: { success: true, patient_id: resolved.patient.id, created: false, patient: { full_name: (current as any).full_name, phone: (current as any).phone, email: (current as any).email }, note: "Cadastro já estava atualizado e confirmado — nenhuma mudança necessária." } };
             }
 
             const { error } = await supabase
@@ -901,15 +911,30 @@ export async function executeSchedulingTool(
                 };
             }
 
+            // E-4: o que REALMENTE ficou salvo — merge de current + o que
+            // acabou de ser escrito. É isso, não o input desta chamada, que
+            // decide se algo ainda falta.
+            const persisted = {
+                full_name: updateData.full_name ?? (current as any)?.full_name ?? null,
+                phone: updateData.phone ?? (current as any)?.phone ?? null,
+                email: updateData.email ?? (current as any)?.email ?? null,
+            };
+            const stillMissing: string[] = [];
+            if (!persisted.phone?.trim()) stillMissing.push("phone");
+            if (!persisted.email?.trim()) stillMissing.push("email");
+
             return {
                 data: {
                     success: true,
                     patient_id: resolved.patient.id,
                     created: Boolean(resolved.created),
                     registration_confirmed: resolved.created ? false : undefined,
-                    note: resolved.created
-                        ? "Cadastro criado. ATENÇÃO: A confirmação expressa dos dados (Telefone e E-mail) ainda é OBRIGATÓRIA se não tiver sido feita. Se o paciente acabou de passar os dados, você deve validá-los confirmando o número e, no próximo turno, chamar 'marcar_cadastro_confirmado'."
-                        : "Cadastro atualizado. ATENÇÃO: A confirmação expressa dos dados (Nome, Telefone e E-mail) ainda é necessária caso não tenha sido feita.",
+                    patient: persisted,
+                    note: stillMissing.length
+                        ? `ATENÇÃO: o cadastro foi salvo, mas ${stillMissing.join(" e ")} ainda NÃO ${stillMissing.length > 1 ? "estão salvos" : "está salvo"} no sistema (campo "patient" acima mostra o que existe de verdade). Se o paciente já informou ${stillMissing.length > 1 ? "esses dados" : "esse dado"} nesta conversa, chame 'atualizar_cadastro_paciente' NOVAMENTE agora mesmo incluindo ${stillMissing.length > 1 ? "os campos que faltam" : "o campo que falta"} — NUNCA prossiga para ver_disponibilidade nem diga ao paciente que está tudo confirmado enquanto isso não estiver resolvido.`
+                        : (resolved.created
+                            ? "Cadastro criado com nome, telefone e e-mail salvos. ATENÇÃO: A confirmação expressa dos dados ainda é OBRIGATÓRIA se não tiver sido feita. Se o paciente acabou de passar os dados, você deve validá-los confirmando o número e, no próximo turno, chamar 'marcar_cadastro_confirmado'."
+                            : "Cadastro atualizado com nome, telefone e e-mail salvos. ATENÇÃO: A confirmação expressa dos dados ainda é necessária caso não tenha sido feita."),
                 },
             };
         }
@@ -941,7 +966,10 @@ export async function executeSchedulingTool(
         }
 
         case "adicionar_lista_espera": {
-            const patient = await findPatient(supabase, tenantId, phone);
+            // E-4 (2026-08-02): mesma identidade multicanal/família de
+            // atualizar_cadastro_paciente e agendar — nunca mais lê um
+            // paciente diferente de onde o cadastro foi gravado.
+            const { patient } = await resolvePatientIdentity(supabase, tenantId, channel, phone, null, patientDisplayName);
             if (!patient) {
                 return {
                     data: {
@@ -1029,7 +1057,10 @@ export async function executeSchedulingTool(
 
         case "ver_disponibilidade": {
             // Guard N1: Verificar se já sabemos o nome completo, telefone e e-mail do lead antes de ofertar horários
-            const existingPatient = await findPatient(supabase, tenantId, phone);
+            // E-4 (2026-08-02): mesma identidade multicanal/família de
+            // atualizar_cadastro_paciente — fecha a divergência entre onde o
+            // cadastro é GRAVADO e de onde ele é LIDO.
+            const { patient: existingPatient } = await resolvePatientIdentity(supabase, tenantId, channel, phone, null, patientDisplayName);
             let knownName: string | null = null;
             let knownEmail: string | null = null;
             let knownPhone: string | null = null;
@@ -1057,11 +1088,21 @@ export async function executeSchedulingTool(
             const needsConfirmation = !sessionContext?.registration_confirmed;
 
             if (missingInfo.length > 0 || needsConfirmation) {
+                // E-4 (2026-08-02, teste de estresse): a nota antiga sempre mandava
+                // "peça ao paciente de novo" — mesmo quando ele JÁ tinha acabado de
+                // fornecer e confirmar o dado na mesma conversa, e a ferramenta de
+                // cadastro só não o salvou (o modelo esqueceu de repassar o campo).
+                // Isso produzia uma contradição sem saída (o agente "lembra" de ter
+                // confirmado, o sistema diz que falta) que só terminava em handoff.
+                // Agora a instrução é: se já está na conversa, GRAVE — não pergunte de novo.
+                const missingHint = missingInfo.length > 0
+                    ? ` Se o paciente JÁ informou ${missingInfo.length > 1 ? "esses dados" : "esse dado"} nesta conversa, NÃO pergunte de novo — chame 'atualizar_cadastro_paciente' AGORA incluindo ${missingInfo.length > 1 ? "os campos que faltam" : "o campo que falta"} (isso pode acontecer se um campo não foi salvo antes). Só pergunte ao paciente se ele genuinamente ainda não disse.`
+                    : "";
                 let note = "";
                 if (missingInfo.length > 0 && needsConfirmation) {
-                    note = `[HARD STOP - ATENÇÃO AGENTE] A ferramenta exige NOME COMPLETO, TELEFONE e E-MAIL ANTES de checar horários. Faltam: ${missingInfo.join(", ")}. Além disso, você AINDA NÃO CONFIRMOU os dados com o paciente nesta conversa. PARE DE CHAMAR FERRAMENTAS AGORA. Use 'responder_paciente' para pedir os dados faltantes E confirmar expressamente o telefone de contato ao mesmo tempo (ex: 'Prazer, estou vendo aqui que você entrou em contato usando o número ${knownPhone || phone}, posso confirmar esse número ou gostaria de atualizar? Aproveitando, qual seu ${missingInfo.join(" e ")}?'). Aguarde a resposta. NUNCA exiba horários antes disso.`;
+                    note = `[HARD STOP - ATENÇÃO AGENTE] A ferramenta exige NOME COMPLETO, TELEFONE e E-MAIL ANTES de checar horários. Faltam: ${missingInfo.join(", ")}.${missingHint} Além disso, você AINDA NÃO CONFIRMOU os dados com o paciente nesta conversa. PARE DE CHAMAR FERRAMENTAS AGORA. Use 'responder_paciente' para pedir os dados genuinamente faltantes E confirmar expressamente o telefone de contato ao mesmo tempo (ex: 'Prazer, estou vendo aqui que você entrou em contato usando o número ${knownPhone || phone}, posso confirmar esse número ou gostaria de atualizar? Aproveitando, qual seu ${missingInfo.join(" e ")}?'). Aguarde a resposta. NUNCA exiba horários antes disso.`;
                 } else if (missingInfo.length > 0) {
-                    note = `[HARD STOP - ATENÇÃO AGENTE] A ferramenta exige que o cadastro contenha NOME COMPLETO, TELEFONE e E-MAIL ANTES de checar horários. Dados ausentes: ${missingInfo.join(", ")}. PARE DE CHAMAR FERRAMENTAS AGORA. Chame a ferramenta 'responder_paciente' para solicitar os dados faltantes ao paciente e aguarde a resposta dele no próximo turno. NUNCA exiba datas/horários antes disso.`;
+                    note = `[HARD STOP - ATENÇÃO AGENTE] A ferramenta exige que o cadastro contenha NOME COMPLETO, TELEFONE e E-MAIL ANTES de checar horários. Dados ausentes: ${missingInfo.join(", ")}.${missingHint} PARE DE CHAMAR FERRAMENTAS AGORA. Se o dado genuinamente não foi dito ainda, chame 'responder_paciente' para solicitá-lo e aguarde a resposta dele no próximo turno. NUNCA exiba datas/horários antes disso.`;
                 } else if (needsConfirmation) {
                     note = `[HARD STOP - ATENÇÃO AGENTE] Os dados do paciente (${knownName}, ${knownPhone}, ${knownEmail}) constam no sistema, mas você AINDA NÃO OS CONFIRMOU com o paciente nesta conversa. PARE DE CHAMAR OUTRAS FERRAMENTAS NESTE TURNO. Use 'responder_paciente' AGORA para perguntar de forma amigável ao paciente se esses são os dados corretos dele, confirmando expressamente o telefone de contato (ex: 'Prazer ${knownName}, estou vendo aqui que você entrou em contato usando o número ${knownPhone}, posso confirmar esse número ou você gostaria de atualizar? E o seu e-mail continua sendo ${knownEmail}?'). Apenas no turno seguinte, quando ele responder confirmando, você chamará 'marcar_cadastro_confirmado'. NUNCA exiba datas e horários nem chame 'marcar_cadastro_confirmado' no mesmo turno!`;
                 }
@@ -1295,7 +1336,8 @@ export async function executeSchedulingTool(
             if (!isAffirmativeChoice(lastPatientMessage)) {
                 return { data: { success: false, error: "no_explicit_confirmation", note: "Faça uma pergunta de confirmação curta e direta antes de agendar." } };
             }
-            const patient = await findPatient(supabase, tenantId, phone);
+            // E-4 (2026-08-02): mesma identidade multicanal/família das demais ferramentas.
+            const { patient } = await resolvePatientIdentity(supabase, tenantId, channel, phone, null, patientDisplayName);
             if (!patient) return { data: { success: false, error: "patient_not_found" } };
             const referenceError = await validateSchedulingReferences(supabase, tenantId, input.doctor_id, input.location_id, null);
             if (referenceError) return { data: { success: false, error: referenceError } };

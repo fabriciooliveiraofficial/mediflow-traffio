@@ -35,7 +35,7 @@ export class OutboxDispatcher {
     async sendNow(
         tenant: any,
         phone: string,
-        payload: { text: string; interactive?: any; channel?: string },
+        payload: { text: string; interactive?: any; channel?: string; media_url?: string; media_type?: string; caption?: string },
         typingDelayMs = 0,
         quotedMsgId?: string,
         category: CloudApiBillingCategory = "service",
@@ -60,6 +60,26 @@ export class OutboxDispatcher {
             if (pageErr || !metaPage?.page_access_token) {
                 console.error(`[OutboxDispatcher] Sem credenciais Meta ativas para tenant ${tenant.id} (${effectiveChannel}). Não entregou para ${phone}`);
                 throw new Error(`Sem credenciais ativas do Meta/Page para o canal ${effectiveChannel}`);
+            }
+
+            // E-5 (2026-08-02): a API da Meta (Messenger/Instagram) NÃO aceita
+            // anexo + texto no mesmo "message" object — confirmado na
+            // documentação oficial, diferente do WhatsApp (que aceita
+            // type:image + caption numa mensagem só). O mais próximo possível
+            // de "bloco único" nesses dois canais é a imagem seguida
+            // IMEDIATAMENTE pelo texto, sem pausa entre as duas. Falha no
+            // envio da imagem nunca deve bloquear a confirmação em si — o
+            // texto (o dado que importa) sempre sai, mesmo sem a capa.
+            if (payload?.media_url) {
+                try {
+                    if (isInstagram) {
+                        await MetaSocialClient.sendInstagramAttachment(metaPage.page_access_token, phone, payload.media_url, payload.media_type || "image");
+                    } else {
+                        await MetaSocialClient.sendFacebookAttachment(metaPage.page_access_token, phone, payload.media_url, payload.media_type || "image");
+                    }
+                } catch (mediaErr: any) {
+                    console.error(`[OutboxDispatcher] Falha ao enviar imagem via ${effectiveChannel} para ${phone}: ${mediaErr?.message} — seguindo só com o texto`);
+                }
             }
 
             const metaButtons = extractButtonsFromInteractive(payload?.interactive);
@@ -101,6 +121,12 @@ export class OutboxDispatcher {
                         id: msgId,
                         role: 'ai',
                         content: payload.text,
+                        // E-5 (2026-08-02): o widget (public/livechat-widget.js)
+                        // já sabe renderizar texto + imagem na MESMA bolha
+                        // (message_type:"image" + media_url) — só faltava o
+                        // backend preencher esses campos no broadcast.
+                        message_type: payload.media_url ? 'image' : undefined,
+                        media_url: payload.media_url || undefined,
                         interactive: payload.interactive || null,
                         sender_name: tenant.name || 'Atendimento',
                         created_at: new Date().toISOString()

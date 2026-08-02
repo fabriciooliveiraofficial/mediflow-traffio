@@ -1336,6 +1336,22 @@ Deno.test("P2: ver_disponibilidade SEM procedimento mas clínica tem 1 só tipo 
     assertEquals(res.data.needs_procedure, undefined); // NÃO pediu procedimento — seguiu com o único tipo
 });
 
+Deno.test("E-4-bis (2026-08-02): ver_disponibilidade com cadastro completo (nome+telefone+e-mail) e confirmado — libera sem NENHUM HARD STOP", async () => {
+    // Reproduz o final feliz da cadeia do teste de estresse: uma vez que
+    // atualizar_cadastro_paciente salvou os 3 campos e marcar_cadastro_confirmado
+    // rodou, ver_disponibilidade não pode mais contradizer isso.
+    const mockSupabase = createMockSupabase({
+        patient: { id: "pat-1", full_name: "Fabio Radovanski", phone: "14049257024", email: "fabriciooliveiraoficial@hotmail.com" },
+        appointmentType: { id: "type-1", name: "Implante", duration_minutes: 45 },
+        rpcResponses: { find_next_available_dates: { data: [], error: null } },
+    });
+    const call = { id: "vd4", name: "ver_disponibilidade", input: { procedure: "implante" } };
+    const res = await executeSchedulingTool(mockSupabase as any, "tenant-1", "14049257024", "Fabio", call as any, "yes", "en", { registration_confirmed: true });
+    assertEquals(res.data.needs_patient_info, undefined);
+    assertEquals(res.data.needs_patient_confirmation, undefined);
+    assertEquals(res.data.needs_procedure, undefined);
+});
+
 Deno.test("P2: ver_disponibilidade COM procedimento resolvível não dispara o guard", async () => {
     const mockSupabase = createMockSupabase({
         appointmentType: { id: "type-1", name: "Limpeza", duration_minutes: 30 },

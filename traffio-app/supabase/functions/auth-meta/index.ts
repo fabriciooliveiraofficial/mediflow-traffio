@@ -76,7 +76,7 @@ serve(async (req: Request) => {
 
     const fbAuthUrl = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${metaClientId}&redirect_uri=${encodeURIComponent(
       redirectUri
-    )}&state=${encodedState}&scope=${encodeURIComponent(scopes.join(","))}`;
+    )}&state=${encodedState}&scope=${encodeURIComponent(scopes.join(","))}&auth_type=rerequest`;
 
     return Response.redirect(fbAuthUrl, 302);
   }
