@@ -1,2135 +1,1847 @@
 [
   {
-    "event_message": "shutdown",
-    "event_type": "Shutdown",
-    "execution_id": "a42f9ec4-ec4f-4316-8c53-c1a5bcfd4d19",
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "execution_id": "07a6f029-c67c-455c-adc0-212e0aa66e4a",
     "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "ec151110-7874-4476-859f-740ca08745c1",
-    "level": "log",
-    "timestamp": 1785503140887000
+    "id": "b65d042d-2471-44be-8433-031bb381066d",
+    "level": "info",
+    "timestamp": 1785678760646000
   },
   {
     "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
     "event_type": "Log",
-    "execution_id": "5385839b-bdeb-4a3a-9b03-67e3eb1d571b",
+    "execution_id": "07a6f029-c67c-455c-adc0-212e0aa66e4a",
     "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "7a4289f7-43b2-4df1-8b6e-c46fe476d8db",
+    "id": "c8c66785-a531-44a7-b26a-7b4d35cae95a",
     "level": "info",
-    "timestamp": 1785503140884000
+    "timestamp": 1785678760646000
   },
   {
-    "event_message": "Listening on http://localhost:9999/\n",
-    "event_type": "Log",
-    "execution_id": "5385839b-bdeb-4a3a-9b03-67e3eb1d571b",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "6e771668-c6d6-427e-b7d7-71782532c1f9",
-    "level": "info",
-    "timestamp": 1785503140884000
-  },
-  {
-    "event_message": "booted (time: 78ms)",
+    "event_message": "booted (time: 32ms)",
     "event_type": "Boot",
-    "execution_id": "5385839b-bdeb-4a3a-9b03-67e3eb1d571b",
+    "execution_id": "07a6f029-c67c-455c-adc0-212e0aa66e4a",
     "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "2c06b0b3-8258-40b1-a2b1-f5ed07a8297d",
+    "id": "e1398a5b-a8ae-4534-b111-222dbc06c9e6",
     "level": "log",
-    "timestamp": 1785503140830000
+    "timestamp": 1785678760606000
   },
   {
     "event_message": "shutdown",
     "event_type": "Shutdown",
-    "execution_id": "bc3e2345-a83f-4eec-89df-81edf3fe1270",
+    "execution_id": "4e69a6d5-35eb-40b8-9f30-7dd7a5a408a3",
     "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "cfa7abb9-50bd-465c-b953-b0f9c812aa63",
+    "id": "de676aa0-31ac-4449-9b11-d8feb4e78aef",
     "level": "log",
-    "timestamp": 1785503130251000
-  },
-  {
-    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
-    "event_type": "Log",
-    "execution_id": "b85c8f13-6273-4550-9982-032f8585f9f4",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "24d188a6-d51e-48a4-bb45-14c9f1e65487",
-    "level": "info",
-    "timestamp": 1785503122372000
-  },
-  {
-    "event_message": "✅ [OutboxDispatcher] /send-text success: 200\n",
-    "event_type": "Log",
-    "execution_id": "b85c8f13-6273-4550-9982-032f8585f9f4",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "e614713f-b021-4b5a-98d0-c33f26905569",
-    "level": "info",
-    "timestamp": 1785503122181000
-  },
-  {
-    "event_message": "[process-inbox] [554198933579] Fused 1 msg(s): \"01/08 · 08:30\"\n",
-    "event_type": "Log",
-    "execution_id": "b85c8f13-6273-4550-9982-032f8585f9f4",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "da20c69c-33fa-446a-bb54-53a933d5643c",
-    "level": "info",
-    "timestamp": 1785503120963000
+    "timestamp": 1785678760438000
   },
   {
     "event_message": "shutdown",
     "event_type": "Shutdown",
-    "execution_id": "bad3fa7d-37bd-4d0e-aa64-20f044650bf6",
+    "execution_id": "dffadf0a-868a-4457-a653-0d1755fa69a2",
     "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "9e173480-231e-464c-9a4c-4007e99f67f1",
+    "id": "3e6f9afc-e2ac-4a33-9b92-a1de7163736f",
     "level": "log",
-    "timestamp": 1785503120592000
+    "timestamp": 1785678740483000
   },
   {
     "event_message": "Listening on http://localhost:9999/\n",
     "event_type": "Log",
-    "execution_id": "b85c8f13-6273-4550-9982-032f8585f9f4",
+    "execution_id": "679a51eb-d2ca-4fbe-90f7-422c29c2a0b0",
     "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "23d809b5-c0b8-47cc-9bce-32d3b3b12835",
+    "id": "d1d7a7d6-9987-4e01-a37d-1f942ba7f3c6",
     "level": "info",
-    "timestamp": 1785503120528000
+    "timestamp": 1785678740463000
   },
   {
     "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
     "event_type": "Log",
-    "execution_id": "b85c8f13-6273-4550-9982-032f8585f9f4",
+    "execution_id": "679a51eb-d2ca-4fbe-90f7-422c29c2a0b0",
     "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "ce879aad-ff6b-490e-afb3-19cd09cd4b92",
+    "id": "521e54a1-ad9b-4fa1-9c88-e336fd8bbd42",
     "level": "info",
-    "timestamp": 1785503120527000
-  },
-  {
-    "event_message": "booted (time: 100ms)",
-    "event_type": "Boot",
-    "execution_id": "b85c8f13-6273-4550-9982-032f8585f9f4",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "f099860e-be3e-4b98-9707-aee9e7665d96",
-    "level": "log",
-    "timestamp": 1785503120482000
-  },
-  {
-    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
-    "event_type": "Log",
-    "execution_id": "a352f4d0-3a89-46f8-a223-cd23cbd8e7d1",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "8b81737f-2996-4d80-b7c0-1f09303110b5",
-    "level": "info",
-    "timestamp": 1785503110127000
-  },
-  {
-    "event_message": "[process-inbox] [554198933579] AI debounce: last msg 3186ms ago (< 10000ms) — deferring\n",
-    "event_type": "Log",
-    "execution_id": "a352f4d0-3a89-46f8-a223-cd23cbd8e7d1",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "f42d9d09-a684-4c5e-845b-b4143a98712b",
-    "level": "info",
-    "timestamp": 1785503109805000
-  },
-  {
-    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
-    "event_type": "Log",
-    "execution_id": "a352f4d0-3a89-46f8-a223-cd23cbd8e7d1",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "68d3f6a2-7bce-46ea-a6be-a4e7c7f8a337",
-    "level": "info",
-    "timestamp": 1785503108613000
-  },
-  {
-    "event_message": "Listening on http://localhost:9999/\n",
-    "event_type": "Log",
-    "execution_id": "a352f4d0-3a89-46f8-a223-cd23cbd8e7d1",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "aff5fb16-3593-44c3-865c-abd28ada076f",
-    "level": "info",
-    "timestamp": 1785503108613000
-  },
-  {
-    "event_message": "booted (time: 69ms)",
-    "event_type": "Boot",
-    "execution_id": "a352f4d0-3a89-46f8-a223-cd23cbd8e7d1",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "24b73b40-be2a-47db-80e1-a5c34f5a0548",
-    "level": "log",
-    "timestamp": 1785503108558000
-  },
-  {
-    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
-    "event_type": "Log",
-    "execution_id": "cb1b1189-8adf-4f04-a59b-a25eb06253c1",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "032b5770-2894-4534-9ced-6d0e897e73de",
-    "level": "info",
-    "timestamp": 1785503107513000
-  },
-  {
-    "event_message": "Listening on http://localhost:9999/\n",
-    "event_type": "Log",
-    "execution_id": "cb1b1189-8adf-4f04-a59b-a25eb06253c1",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "50eeb052-9886-4f24-9fcb-c161e91845b6",
-    "level": "info",
-    "timestamp": 1785503107513000
-  },
-  {
-    "event_message": "booted (time: 39ms)",
-    "event_type": "Boot",
-    "execution_id": "cb1b1189-8adf-4f04-a59b-a25eb06253c1",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "26b996ac-cfd0-44e5-9347-51dcded183af",
-    "level": "log",
-    "timestamp": 1785503107470000
-  },
-  {
-    "event_message": "shutdown",
-    "event_type": "Shutdown",
-    "execution_id": "7d64b4e3-bfea-4a8d-a9f9-bc56bf4049fe",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "d4bde524-01ca-4ee5-ad54-3ae09cf78a30",
-    "level": "log",
-    "timestamp": 1785503106730000
-  },
-  {
-    "event_message": "Listening on http://localhost:9999/\n",
-    "event_type": "Log",
-    "execution_id": "7b6b95ac-59a9-48b5-96c2-077d9a56d787",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "8b366726-28c4-4fd0-a0cf-d826e640ed54",
-    "level": "info",
-    "timestamp": 1785503100773000
-  },
-  {
-    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
-    "event_type": "Log",
-    "execution_id": "7b6b95ac-59a9-48b5-96c2-077d9a56d787",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "2a5a2cb7-791c-46b1-aebb-97c5e8f3e1e1",
-    "level": "info",
-    "timestamp": 1785503100773000
-  },
-  {
-    "event_message": "booted (time: 186ms)",
-    "event_type": "Boot",
-    "execution_id": "7b6b95ac-59a9-48b5-96c2-077d9a56d787",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "868b98b0-15c0-4e47-9dc2-a823dab558d6",
-    "level": "log",
-    "timestamp": 1785503100658000
-  },
-  {
-    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
-    "event_type": "Log",
-    "execution_id": "8e2a3488-93d0-45af-b3b6-9ffad930c808",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "bd6591cb-c8ef-470c-9acc-cac4d991bbed",
-    "level": "info",
-    "timestamp": 1785503093922000
-  },
-  {
-    "event_message": "✅ [OutboxDispatcher] /send-option-list success: 200\n",
-    "event_type": "Log",
-    "execution_id": "8e2a3488-93d0-45af-b3b6-9ffad930c808",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "589de7e7-a312-47a8-aabc-9b3ece668f95",
-    "level": "info",
-    "timestamp": 1785503093489000
-  },
-  {
-    "event_message": "✅ [OutboxDispatcher] /send-text success: 200\n",
-    "event_type": "Log",
-    "execution_id": "8e2a3488-93d0-45af-b3b6-9ffad930c808",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "8a92dfd6-7945-4533-8867-35bbf0786ea2",
-    "level": "info",
-    "timestamp": 1785503092198000
-  },
-  {
-    "event_message": "✅ [OutboxDispatcher] /send-text success: 200\n",
-    "event_type": "Log",
-    "execution_id": "8e2a3488-93d0-45af-b3b6-9ffad930c808",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "3c7b6a32-e8e4-4b41-b0ae-82f3f9001153",
-    "level": "info",
-    "timestamp": 1785503091028000
-  },
-  {
-    "event_message": "[llmProvider] agent_reply: claude-sonnet-5 — in=3054 out=239 cacheRead=14660 cacheWrite=0 tools=1 retries=0 3721ms\n",
-    "event_type": "Log",
-    "execution_id": "8e2a3488-93d0-45af-b3b6-9ffad930c808",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "f01699ef-dda5-498b-8b8e-a19309c6dad5",
-    "level": "info",
-    "timestamp": 1785503090433000
-  },
-  {
-    "event_message": "[schedulingTools] slots do RPC vieram como objeto: {\"time\":\"08:30\",\"available\":true,\"block_type\":\"prime\"}\n",
-    "event_type": "Log",
-    "execution_id": "8e2a3488-93d0-45af-b3b6-9ffad930c808",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "7d97a3c9-f6ce-469f-b907-e7df1314c129",
-    "level": "info",
-    "timestamp": 1785503086712000
-  },
-  {
-    "event_message": "[llmProvider] agent_reply: claude-sonnet-5 — in=1507 out=392 cacheRead=14660 cacheWrite=0 tools=2 retries=0 5218ms\n",
-    "event_type": "Log",
-    "execution_id": "8e2a3488-93d0-45af-b3b6-9ffad930c808",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "dab79bfc-12ef-4ac9-be1b-a15569bac2f1",
-    "level": "info",
-    "timestamp": 1785503086161000
-  },
-  {
-    "event_message": "shutdown",
-    "event_type": "Shutdown",
-    "execution_id": "e59df894-15ac-4b2f-9f80-ea5ef7b73618",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "42c3e829-99d4-41ce-a88f-e19ffa20c610",
-    "level": "log",
-    "timestamp": 1785503083382000
-  },
-  {
-    "event_message": "[llmProvider] agent_triage: claude-haiku-4-5-20251001 — in=705 out=72 tools=0 retries=0 1147ms\n",
-    "event_type": "Log",
-    "execution_id": "8e2a3488-93d0-45af-b3b6-9ffad930c808",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "2fdc085b-9f77-4647-b3d5-11e8f4b621a6",
-    "level": "info",
-    "timestamp": 1785503082092000
-  },
-  {
-    "event_message": "[process-inbox] [554198933579] Fused 1 msg(s): \"fabriciooliveiraofficial@gmail.com\"\n",
-    "event_type": "Log",
-    "execution_id": "8e2a3488-93d0-45af-b3b6-9ffad930c808",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "d916b8d2-6628-4c72-810b-83865e62ca65",
-    "level": "info",
-    "timestamp": 1785503080582000
-  },
-  {
-    "event_message": "Listening on http://localhost:9999/\n",
-    "event_type": "Log",
-    "execution_id": "8e2a3488-93d0-45af-b3b6-9ffad930c808",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "82695977-4d1c-46c2-af56-95e30ae69d29",
-    "level": "info",
-    "timestamp": 1785503080423000
-  },
-  {
-    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
-    "event_type": "Log",
-    "execution_id": "8e2a3488-93d0-45af-b3b6-9ffad930c808",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "541cb1fa-7775-4488-9006-ab3e29e2a5c3",
-    "level": "info",
-    "timestamp": 1785503080422000
-  },
-  {
-    "event_message": "booted (time: 38ms)",
-    "event_type": "Boot",
-    "execution_id": "8e2a3488-93d0-45af-b3b6-9ffad930c808",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "3141b183-03cc-4a95-988c-f1f3823b264f",
-    "level": "log",
-    "timestamp": 1785503080378000
-  },
-  {
-    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
-    "event_type": "Log",
-    "execution_id": "cbb9bb9e-7c15-4a64-bfd9-c6d5a4f7096f",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "9bc6a0e8-04ba-433c-90a4-e734f4b464b1",
-    "level": "info",
-    "timestamp": 1785503072101000
-  },
-  {
-    "event_message": "[process-inbox] [554198933579] AI debounce: last msg 2980ms ago (< 10000ms) — deferring\n",
-    "event_type": "Log",
-    "execution_id": "cbb9bb9e-7c15-4a64-bfd9-c6d5a4f7096f",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "26889884-2dc7-45d2-bebb-0df65b8acb8a",
-    "level": "info",
-    "timestamp": 1785503071547000
-  },
-  {
-    "event_message": "Listening on http://localhost:9999/\n",
-    "event_type": "Log",
-    "execution_id": "cbb9bb9e-7c15-4a64-bfd9-c6d5a4f7096f",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "a36dd4c0-04d7-4bda-9d0f-bb1d101fceb6",
-    "level": "info",
-    "timestamp": 1785503070606000
-  },
-  {
-    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
-    "event_type": "Log",
-    "execution_id": "cbb9bb9e-7c15-4a64-bfd9-c6d5a4f7096f",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "6342d609-092b-4676-bba1-763ba9c14ed6",
-    "level": "info",
-    "timestamp": 1785503070605000
-  },
-  {
-    "event_message": "booted (time: 90ms)",
-    "event_type": "Boot",
-    "execution_id": "cbb9bb9e-7c15-4a64-bfd9-c6d5a4f7096f",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "8c6e1da3-515b-45c7-a808-dd1b8f3dc79e",
-    "level": "log",
-    "timestamp": 1785503070550000
-  },
-  {
-    "event_message": "Listening on http://localhost:9999/\n",
-    "event_type": "Log",
-    "execution_id": "84814bbe-6e5d-4657-aefa-db194e792e79",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "084a0dc3-39ec-4b13-9ce7-e7c8eb36c81e",
-    "level": "info",
-    "timestamp": 1785503069016000
-  },
-  {
-    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
-    "event_type": "Log",
-    "execution_id": "84814bbe-6e5d-4657-aefa-db194e792e79",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "a56881cd-0fb5-48f5-b7ae-5cac7f621845",
-    "level": "info",
-    "timestamp": 1785503069015000
-  },
-  {
-    "event_message": "booted (time: 105ms)",
-    "event_type": "Boot",
-    "execution_id": "84814bbe-6e5d-4657-aefa-db194e792e79",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "9fd780d5-6ac8-4029-8638-a55c6016dfe5",
-    "level": "log",
-    "timestamp": 1785503068943000
-  },
-  {
-    "event_message": "shutdown",
-    "event_type": "Shutdown",
-    "execution_id": "fef03d8d-e138-47f6-aa46-2025b775ac0b",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "ac48e601-3c50-4779-9fda-3dc3d2ca535a",
-    "level": "log",
-    "timestamp": 1785503065009000
-  },
-  {
-    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
-    "event_type": "Log",
-    "execution_id": "60555826-128a-4f29-ab26-8ce58c88ae63",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "8684afd0-e808-41ee-adae-f54e926f0672",
-    "level": "info",
-    "timestamp": 1785503060431000
-  },
-  {
-    "event_message": "Listening on http://localhost:9999/\n",
-    "event_type": "Log",
-    "execution_id": "60555826-128a-4f29-ab26-8ce58c88ae63",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "2d473239-ad0d-44e6-814d-58beedd010e6",
-    "level": "info",
-    "timestamp": 1785503060431000
-  },
-  {
-    "event_message": "booted (time: 36ms)",
-    "event_type": "Boot",
-    "execution_id": "60555826-128a-4f29-ab26-8ce58c88ae63",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "a53cbf93-f97c-47b6-881c-dbf6e47e101d",
-    "level": "log",
-    "timestamp": 1785503060391000
-  },
-  {
-    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
-    "event_type": "Log",
-    "execution_id": "0bfae635-3e18-4c04-9e08-1415f68b15dc",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "dc0a0b93-d859-4f28-8cef-cdf92d84ac9e",
-    "level": "info",
-    "timestamp": 1785503057202000
-  },
-  {
-    "event_message": "✅ [OutboxDispatcher] /send-text success: 200\n",
-    "event_type": "Log",
-    "execution_id": "0bfae635-3e18-4c04-9e08-1415f68b15dc",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "befe6a33-ba0a-4d8a-b5c9-70a31abbc1f4",
-    "level": "info",
-    "timestamp": 1785503056749000
-  },
-  {
-    "event_message": "[llmProvider] agent_reply: claude-sonnet-5 — in=1986 out=328 cacheRead=14660 cacheWrite=0 tools=1 retries=0 5493ms\n",
-    "event_type": "Log",
-    "execution_id": "0bfae635-3e18-4c04-9e08-1415f68b15dc",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "3e8cbf1e-3157-4889-baef-d3978b09c9ae",
-    "level": "info",
-    "timestamp": 1785503056077000
-  },
-  {
-    "event_message": "[llmProvider] agent_reply: claude-sonnet-5 — in=1474 out=416 cacheRead=14660 cacheWrite=0 tools=1 retries=0 7807ms\n",
-    "event_type": "Log",
-    "execution_id": "0bfae635-3e18-4c04-9e08-1415f68b15dc",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "ab6775dc-cf62-4f80-9414-49c5d3701688",
-    "level": "info",
-    "timestamp": 1785503050451000
-  },
-  {
-    "event_message": "[llmProvider] agent_triage: claude-haiku-4-5-20251001 — in=683 out=72 tools=0 retries=0 780ms\n",
-    "event_type": "Log",
-    "execution_id": "0bfae635-3e18-4c04-9e08-1415f68b15dc",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "ee85f6f8-5d7f-461a-afe9-933cbca8365c",
-    "level": "info",
-    "timestamp": 1785503043330000
-  },
-  {
-    "event_message": "[process-inbox] [554198933579] Fused 1 msg(s): \"quais os horários disponíveis?\"\n",
-    "event_type": "Log",
-    "execution_id": "0bfae635-3e18-4c04-9e08-1415f68b15dc",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "eafafb16-9446-48ec-9245-80f213b79735",
-    "level": "info",
-    "timestamp": 1785503041756000
-  },
-  {
-    "event_message": "shutdown",
-    "event_type": "Shutdown",
-    "execution_id": "45140b67-224e-43e9-b8f3-290ce93896d0",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "63dbd2f6-7c26-4d57-a652-e0d5cf9e20f2",
-    "level": "log",
-    "timestamp": 1785503041544000
-  },
-  {
-    "event_message": "Listening on http://localhost:9999/\n",
-    "event_type": "Log",
-    "execution_id": "0bfae635-3e18-4c04-9e08-1415f68b15dc",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "8dd7faf9-5fc0-4c78-8b68-9319d783244a",
-    "level": "info",
-    "timestamp": 1785503041378000
-  },
-  {
-    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
-    "event_type": "Log",
-    "execution_id": "0bfae635-3e18-4c04-9e08-1415f68b15dc",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "79309909-cb10-4a2f-91c3-9bcc874cdff4",
-    "level": "info",
-    "timestamp": 1785503041377000
-  },
-  {
-    "event_message": "shutdown",
-    "event_type": "Shutdown",
-    "execution_id": "77491230-8540-4037-99f0-9514f71d663c",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "94bc6670-fb2e-444f-bbb8-b200ce210d1e",
-    "level": "log",
-    "timestamp": 1785503041288000
-  },
-  {
-    "event_message": "booted (time: 74ms)",
-    "event_type": "Boot",
-    "execution_id": "0bfae635-3e18-4c04-9e08-1415f68b15dc",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "ee06030d-2d9f-4e8a-827c-2f5c9c6905c3",
-    "level": "log",
-    "timestamp": 1785503041274000
-  },
-  {
-    "event_message": "shutdown",
-    "event_type": "Shutdown",
-    "execution_id": "803e9887-f2dd-4d53-91f2-dc27ef73b8e9",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "37b163d3-4cf1-4e1a-8a77-37a223bb6da5",
-    "level": "log",
-    "timestamp": 1785503041259000
-  },
-  {
-    "event_message": "shutdown",
-    "event_type": "Shutdown",
-    "execution_id": "e1dacb09-0335-4299-8f88-5f5403668509",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "7efd0a6a-99b7-4790-9ded-153ba6294dc0",
-    "level": "log",
-    "timestamp": 1785503039917000
-  },
-  {
-    "event_message": "shutdown",
-    "event_type": "Shutdown",
-    "execution_id": "e65593ee-5e3e-4104-a95e-46880cf47a94",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "e7cd806c-63f3-4fc1-bfa3-6616db7cc7ad",
-    "level": "log",
-    "timestamp": 1785503036791000
-  },
-  {
-    "event_message": "shutdown",
-    "event_type": "Shutdown",
-    "execution_id": "e0120f8d-ace8-481a-9e1b-956118a3d251",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "fc190158-21de-4b5f-abd2-c0d1fbb7a82c",
-    "level": "log",
-    "timestamp": 1785503036468000
-  },
-  {
-    "event_message": "shutdown",
-    "event_type": "Shutdown",
-    "execution_id": "752c73ee-e5d2-4551-b73d-78d9deef4d46",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "10eda672-344e-4b27-bd73-fbae24c4d235",
-    "level": "log",
-    "timestamp": 1785503034886000
-  },
-  {
-    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
-    "event_type": "Log",
-    "execution_id": "3682dd24-8e54-44e9-92ca-9449441f8343",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "3c9a040f-f70b-4877-a56e-fcda2d0a83dd",
-    "level": "info",
-    "timestamp": 1785503023892000
-  },
-  {
-    "event_message": "[process-inbox] [554198933579] AI debounce: last msg 3319ms ago (< 10000ms) — deferring\n",
-    "event_type": "Log",
-    "execution_id": "3682dd24-8e54-44e9-92ca-9449441f8343",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "d17a9b2a-6dd8-4445-a7cc-a3585d4da8f7",
-    "level": "info",
-    "timestamp": 1785503023577000
-  },
-  {
-    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
-    "event_type": "Log",
-    "execution_id": "3682dd24-8e54-44e9-92ca-9449441f8343",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "2678efdf-0494-4a61-9213-6cc9cde3fcc8",
-    "level": "info",
-    "timestamp": 1785503022582000
-  },
-  {
-    "event_message": "Listening on http://localhost:9999/\n",
-    "event_type": "Log",
-    "execution_id": "3682dd24-8e54-44e9-92ca-9449441f8343",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "ddc611b3-b047-4001-9b9c-3de434d5b6ec",
-    "level": "info",
-    "timestamp": 1785503022582000
-  },
-  {
-    "event_message": "booted (time: 81ms)",
-    "event_type": "Boot",
-    "execution_id": "3682dd24-8e54-44e9-92ca-9449441f8343",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "194ed48d-06f5-45a1-a13e-3e3ea6e4fe38",
-    "level": "log",
-    "timestamp": 1785503022527000
-  },
-  {
-    "event_message": "Listening on http://localhost:9999/\n",
-    "event_type": "Log",
-    "execution_id": "7beec715-0c2a-47c9-9177-0f92046808ad",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "8fd4c474-4494-4142-a256-1ac252aa723c",
-    "level": "info",
-    "timestamp": 1785503021003000
-  },
-  {
-    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
-    "event_type": "Log",
-    "execution_id": "7beec715-0c2a-47c9-9177-0f92046808ad",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "f61a0078-3275-47d2-936f-b4900d19a8fa",
-    "level": "info",
-    "timestamp": 1785503021002000
-  },
-  {
-    "event_message": "booted (time: 31ms)",
-    "event_type": "Boot",
-    "execution_id": "7beec715-0c2a-47c9-9177-0f92046808ad",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "5741a7a0-ed4a-4365-840e-67eb9089d377",
-    "level": "log",
-    "timestamp": 1785503020943000
-  },
-  {
-    "event_message": "shutdown",
-    "event_type": "Shutdown",
-    "execution_id": "6da9bc2b-ff71-455c-8fa9-ab64f96826dd",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "6959b82c-602b-40dc-a3d4-c24f3f06a552",
-    "level": "log",
-    "timestamp": 1785503020914000
-  },
-  {
-    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
-    "event_type": "Log",
-    "execution_id": "34735756-4444-4580-bb31-c8752108794a",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "06cd7f37-a37e-493b-955c-26f241314c7e",
-    "level": "info",
-    "timestamp": 1785503020582000
-  },
-  {
-    "event_message": "Listening on http://localhost:9999/\n",
-    "event_type": "Log",
-    "execution_id": "34735756-4444-4580-bb31-c8752108794a",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "a81ab90b-b38b-4098-b390-2a9dddb6e901",
-    "level": "info",
-    "timestamp": 1785503020582000
-  },
-  {
-    "event_message": "booted (time: 59ms)",
-    "event_type": "Boot",
-    "execution_id": "34735756-4444-4580-bb31-c8752108794a",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "5aa9d11d-a154-429d-a532-8abae591191d",
-    "level": "log",
-    "timestamp": 1785503020504000
-  },
-  {
-    "event_message": "shutdown",
-    "event_type": "Shutdown",
-    "execution_id": "32023d05-fce6-471b-821f-d3fdadf5d6d0",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "b5a0947c-4468-4f3a-8e1e-58b7bddd4db2",
-    "level": "log",
-    "timestamp": 1785503020107000
-  },
-  {
-    "event_message": "shutdown",
-    "event_type": "Shutdown",
-    "execution_id": "846bd2d1-e5a4-4195-b2c1-a5bb9c50418f",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "f5929ce0-38b0-493d-9afb-30cab7dbcb6d",
-    "level": "log",
-    "timestamp": 1785503019301000
-  },
-  {
-    "event_message": "shutdown",
-    "event_type": "Shutdown",
-    "execution_id": "b6896b70-fa77-4513-8652-4e911f82bf25",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "8965f9bb-ae41-4e37-a958-70581360abe6",
-    "level": "log",
-    "timestamp": 1785503014312000
-  },
-  {
-    "event_message": "shutdown",
-    "event_type": "Shutdown",
-    "execution_id": "6b77e06a-9d7f-484f-9b1b-cbb5beebfaff",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "872b0d84-6d2d-4189-93fd-7943dd59fcce",
-    "level": "log",
-    "timestamp": 1785503012659000
-  },
-  {
-    "event_message": "shutdown",
-    "event_type": "Shutdown",
-    "execution_id": "934adeb7-c414-4722-9509-5d3d3d2b4eec",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "06348eda-f5f6-4e9e-a8eb-ae3c61733cd6",
-    "level": "log",
-    "timestamp": 1785503002213000
-  },
-  {
-    "event_message": "Listening on http://localhost:9999/\n",
-    "event_type": "Log",
-    "execution_id": "e15a8eb3-32df-493d-b28d-9e305d7668eb",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "fa1954e4-f46f-4d2a-94b1-6fccb6023d89",
-    "level": "info",
-    "timestamp": 1785503001259000
-  },
-  {
-    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
-    "event_type": "Log",
-    "execution_id": "e15a8eb3-32df-493d-b28d-9e305d7668eb",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "1e4f31e8-e651-45cb-a33e-451c9c21cfbc",
-    "level": "info",
-    "timestamp": 1785503001258000
-  },
-  {
-    "event_message": "booted (time: 54ms)",
-    "event_type": "Boot",
-    "execution_id": "e15a8eb3-32df-493d-b28d-9e305d7668eb",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "b43db3af-4622-4ef4-be2e-fe31599456b6",
-    "level": "log",
-    "timestamp": 1785503000380000
-  },
-  {
-    "event_message": "shutdown",
-    "event_type": "Shutdown",
-    "execution_id": "c38f9faf-9105-4d3e-9362-32f3a621ec82",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "0af96324-f2c1-4f72-8b7a-f0c60365cc1d",
-    "level": "log",
-    "timestamp": 1785503000327000
-  },
-  {
-    "event_message": "shutdown",
-    "event_type": "Shutdown",
-    "execution_id": "f442e1f0-94f3-46b5-8578-5e1bf668541b",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "25860958-7361-4f7e-a90a-723a7bb2aa46",
-    "level": "log",
-    "timestamp": 1785502998483000
-  },
-  {
-    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
-    "event_type": "Log",
-    "execution_id": "252eaba9-5e0a-4a72-aee0-a56c2ad47b3c",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "bc5b8e41-afac-4981-8384-3a37d24c048e",
-    "level": "info",
-    "timestamp": 1785502989382000
-  },
-  {
-    "event_message": "✅ [OutboxDispatcher] /send-text success: 200\n",
-    "event_type": "Log",
-    "execution_id": "252eaba9-5e0a-4a72-aee0-a56c2ad47b3c",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "201518ca-0606-44cc-8df2-7bda42574f99",
-    "level": "info",
-    "timestamp": 1785502989049000
-  },
-  {
-    "event_message": "✅ [OutboxDispatcher] /send-text success: 200\n",
-    "event_type": "Log",
-    "execution_id": "252eaba9-5e0a-4a72-aee0-a56c2ad47b3c",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "611ae52c-e813-4255-bcfb-4b9e256b105c",
-    "level": "info",
-    "timestamp": 1785502988320000
-  },
-  {
-    "event_message": "[llmProvider] agent_reply: claude-sonnet-5 — in=1384 out=393 cacheRead=14660 cacheWrite=0 tools=1 retries=0 6468ms\n",
-    "event_type": "Log",
-    "execution_id": "252eaba9-5e0a-4a72-aee0-a56c2ad47b3c",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "7498248a-d2c9-4274-aa17-9565cf66aea6",
-    "level": "info",
-    "timestamp": 1785502987709000
-  },
-  {
-    "event_message": "[llmProvider] agent_triage: claude-haiku-4-5-20251001 — in=618 out=72 tools=0 retries=0 948ms\n",
-    "event_type": "Log",
-    "execution_id": "252eaba9-5e0a-4a72-aee0-a56c2ad47b3c",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "32e9bf62-bc0e-49ba-8f62-fe46bff1e40d",
-    "level": "info",
-    "timestamp": 1785502982189000
-  },
-  {
-    "event_message": "[process-inbox] [554198933579] Fused 1 msg(s): \"Fabricio Santos Oliveira\"\n",
-    "event_type": "Log",
-    "execution_id": "252eaba9-5e0a-4a72-aee0-a56c2ad47b3c",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "a5a3cd2f-ae3e-4aa1-b44b-7ee0a43e34c2",
-    "level": "info",
-    "timestamp": 1785502980700000
-  },
-  {
-    "event_message": "Listening on http://localhost:9999/\n",
-    "event_type": "Log",
-    "execution_id": "252eaba9-5e0a-4a72-aee0-a56c2ad47b3c",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "27b197d1-1ce2-433f-9d40-c64b3f8bdf11",
-    "level": "info",
-    "timestamp": 1785502980429000
-  },
-  {
-    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
-    "event_type": "Log",
-    "execution_id": "252eaba9-5e0a-4a72-aee0-a56c2ad47b3c",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "d4a889f6-648e-4432-a0bb-ddf6e89e0a5c",
-    "level": "info",
-    "timestamp": 1785502980428000
-  },
-  {
-    "event_message": "booted (time: 48ms)",
-    "event_type": "Boot",
-    "execution_id": "252eaba9-5e0a-4a72-aee0-a56c2ad47b3c",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "1b6a9cec-0d8c-4d9b-8d0c-64491143e524",
-    "level": "log",
-    "timestamp": 1785502980344000
-  },
-  {
-    "event_message": "shutdown",
-    "event_type": "Shutdown",
-    "execution_id": "906db19e-fcbe-4b27-99df-639b7a96621a",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "384f60a7-e984-4334-9b8d-2b4c008ad038",
-    "level": "log",
-    "timestamp": 1785502976175000
-  },
-  {
-    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
-    "event_type": "Log",
-    "execution_id": "5b698137-555f-495e-b011-18210b9d37ec",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "e79e14ef-62a7-4fe6-8387-4f1c26449a06",
-    "level": "info",
-    "timestamp": 1785502970499000
-  },
-  {
-    "event_message": "[process-inbox] [554198933579] AI debounce: last msg 3705ms ago (< 10000ms) — deferring\n",
-    "event_type": "Log",
-    "execution_id": "5b698137-555f-495e-b011-18210b9d37ec",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "6323e9ef-ca2b-473f-bb93-32732cc67b41",
-    "level": "info",
-    "timestamp": 1785502969681000
-  },
-  {
-    "event_message": "Listening on http://localhost:9999/\n",
-    "event_type": "Log",
-    "execution_id": "5b698137-555f-495e-b011-18210b9d37ec",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "6af09341-61fe-4fb4-ac26-7865aefea3f5",
-    "level": "info",
-    "timestamp": 1785502968253000
-  },
-  {
-    "event_message": "Listening on http://localhost:9999/\n",
-    "event_type": "Log",
-    "execution_id": "5b698137-555f-495e-b011-18210b9d37ec",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "6af09341-61fe-4fb4-ac26-7865aefea3f5",
-    "level": "info",
-    "timestamp": 1785502968253000
-  },
-  {
-    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
-    "event_type": "Log",
-    "execution_id": "5b698137-555f-495e-b011-18210b9d37ec",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "ad3d8a77-c732-4547-b634-5b34d19eedec",
-    "level": "info",
-    "timestamp": 1785502968252000
-  },
-  {
-    "event_message": "booted (time: 77ms)",
-    "event_type": "Boot",
-    "execution_id": "5b698137-555f-495e-b011-18210b9d37ec",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "d95f2e67-1fda-4ced-8f46-3bb2224f9d7f",
-    "level": "log",
-    "timestamp": 1785502968196000
-  },
-  {
-    "event_message": "shutdown",
-    "event_type": "Shutdown",
-    "execution_id": "e7c03684-b276-4a22-9fe0-93167cc9ab89",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "2b521ddd-c322-4b8f-93f1-f56566c644d6",
-    "level": "log",
-    "timestamp": 1785502960678000
-  },
-  {
-    "event_message": "Listening on http://localhost:9999/\n",
-    "event_type": "Log",
-    "execution_id": "38e3b28c-f5fe-4151-be40-d61c151fc4af",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "faa7867d-4d0d-4dc0-b345-b1b0a3e4d11d",
-    "level": "info",
-    "timestamp": 1785502960604000
-  },
-  {
-    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
-    "event_type": "Log",
-    "execution_id": "38e3b28c-f5fe-4151-be40-d61c151fc4af",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "3d9e4358-d62c-49c8-b02c-530c9a3dea05",
-    "level": "info",
-    "timestamp": 1785502960604000
-  },
-  {
-    "event_message": "booted (time: 34ms)",
-    "event_type": "Boot",
-    "execution_id": "38e3b28c-f5fe-4151-be40-d61c151fc4af",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "eac68b44-e7ea-494e-b0b1-b9e947db0133",
-    "level": "log",
-    "timestamp": 1785502960559000
-  },
-  {
-    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
-    "event_type": "Log",
-    "execution_id": "a42f9ec4-ec4f-4316-8c53-c1a5bcfd4d19",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "38e08182-254e-4bab-bd64-eacd567275bb",
-    "level": "info",
-    "timestamp": 1785502949339000
-  },
-  {
-    "event_message": "✅ [OutboxDispatcher] /send-text success: 200\n",
-    "event_type": "Log",
-    "execution_id": "a42f9ec4-ec4f-4316-8c53-c1a5bcfd4d19",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "7f520b25-b773-4367-9698-d3dde139f240",
-    "level": "info",
-    "timestamp": 1785502949074000
-  },
-  {
-    "event_message": "[llmProvider] agent_reply: claude-sonnet-5 — in=1301 out=156 cacheRead=3128 cacheWrite=11532 tools=1 retries=0 4792ms\n",
-    "event_type": "Log",
-    "execution_id": "a42f9ec4-ec4f-4316-8c53-c1a5bcfd4d19",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "b0f096de-2ac2-4934-8d4e-84b4584ee45d",
-    "level": "info",
-    "timestamp": 1785502948192000
-  },
-  {
-    "event_message": "[llmProvider] agent_triage: claude-haiku-4-5-20251001 — in=562 out=72 tools=0 retries=0 879ms\n",
-    "event_type": "Log",
-    "execution_id": "a42f9ec4-ec4f-4316-8c53-c1a5bcfd4d19",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "7e469c1e-db72-4a3f-8ebe-2e1e8915ce8a",
-    "level": "info",
-    "timestamp": 1785502944298000
-  },
-  {
-    "event_message": "[process-inbox] [554198933579] Fused 1 msg(s): \"Fabricio\"\n",
-    "event_type": "Log",
-    "execution_id": "a42f9ec4-ec4f-4316-8c53-c1a5bcfd4d19",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "d2b242ad-0188-4e2c-8084-737a541921ff",
-    "level": "info",
-    "timestamp": 1785502942668000
-  },
-  {
-    "event_message": "Listening on http://localhost:9999/\n",
-    "event_type": "Log",
-    "execution_id": "a42f9ec4-ec4f-4316-8c53-c1a5bcfd4d19",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "c2ca1f0d-bd14-4fdf-a300-e71a97982180",
-    "level": "info",
-    "timestamp": 1785502940564000
-  },
-  {
-    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
-    "event_type": "Log",
-    "execution_id": "a42f9ec4-ec4f-4316-8c53-c1a5bcfd4d19",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "860648df-857c-44b5-962c-d4cb6e31c79a",
-    "level": "info",
-    "timestamp": 1785502940563000
+    "timestamp": 1785678740463000
   },
   {
     "event_message": "booted (time: 50ms)",
     "event_type": "Boot",
-    "execution_id": "a42f9ec4-ec4f-4316-8c53-c1a5bcfd4d19",
+    "execution_id": "679a51eb-d2ca-4fbe-90f7-422c29c2a0b0",
     "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "ab7d83e0-1417-4e97-9805-6f6d931008ac",
+    "id": "dd329877-229f-4ed0-899a-cb380de831f7",
     "level": "log",
-    "timestamp": 1785502940487000
+    "timestamp": 1785678740419000
   },
   {
-    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
-    "event_type": "Log",
-    "execution_id": "bc3e2345-a83f-4eec-89df-81edf3fe1270",
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "72927b64-6971-4163-aa3d-b1eab765e3c9",
     "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "f1de1ae4-446b-4ec4-b05f-c0fff7671de1",
-    "level": "info",
-    "timestamp": 1785502931403000
+    "id": "bbc499d9-e1bc-4612-95cb-c44851e8817e",
+    "level": "log",
+    "timestamp": 1785678737625000
   },
   {
-    "event_message": "[process-inbox] [554198933579] AI debounce: last msg 2806ms ago (< 10000ms) — deferring\n",
-    "event_type": "Log",
-    "execution_id": "bc3e2345-a83f-4eec-89df-81edf3fe1270",
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "0656bc8a-32f6-4212-b511-1fe4be242c5e",
     "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "699a4c12-945e-4152-8ae6-d7b01f807254",
-    "level": "info",
-    "timestamp": 1785502931059000
+    "id": "9952bb91-438c-407e-aafa-928ff844fa3d",
+    "level": "log",
+    "timestamp": 1785678736518000
   },
   {
     "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
     "event_type": "Log",
-    "execution_id": "bc3e2345-a83f-4eec-89df-81edf3fe1270",
+    "execution_id": "e14abe2c-cd9b-4691-b276-f7be8e7fd585",
     "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "3acf0229-9e0c-4872-b273-8bc418e64083",
+    "id": "2ed433e5-4def-4648-a960-e232cb406671",
     "level": "info",
-    "timestamp": 1785502930289000
+    "timestamp": 1785678720786000
   },
   {
     "event_message": "Listening on http://localhost:9999/\n",
     "event_type": "Log",
-    "execution_id": "bc3e2345-a83f-4eec-89df-81edf3fe1270",
+    "execution_id": "e14abe2c-cd9b-4691-b276-f7be8e7fd585",
     "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "d3b327c6-be85-4b25-8b14-5908fe53ae83",
+    "id": "55e57fbf-8a2f-497e-8796-9509090d6a61",
     "level": "info",
-    "timestamp": 1785502930289000
-  },
-  {
-    "event_message": "booted (time: 75ms)",
-    "event_type": "Boot",
-    "execution_id": "bc3e2345-a83f-4eec-89df-81edf3fe1270",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "2e6d57fb-dd14-45f7-82e3-289a138e1d16",
-    "level": "log",
-    "timestamp": 1785502930235000
-  },
-  {
-    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
-    "event_type": "Log",
-    "execution_id": "906db19e-fcbe-4b27-99df-639b7a96621a",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "3179c3a0-1546-4369-94b6-604698f2a757",
-    "level": "info",
-    "timestamp": 1785502928645000
-  },
-  {
-    "event_message": "Listening on http://localhost:9999/\n",
-    "event_type": "Log",
-    "execution_id": "906db19e-fcbe-4b27-99df-639b7a96621a",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "e6b0c21f-5393-4648-9633-2c5e7dd3e6ad",
-    "level": "info",
-    "timestamp": 1785502928645000
-  },
-  {
-    "event_message": "booted (time: 31ms)",
-    "event_type": "Boot",
-    "execution_id": "906db19e-fcbe-4b27-99df-639b7a96621a",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "db68c4fd-a770-4acd-a8d0-5ea46d3384f8",
-    "level": "log",
-    "timestamp": 1785502928601000
-  },
-  {
-    "event_message": "Listening on http://localhost:9999/\n",
-    "event_type": "Log",
-    "execution_id": "bad3fa7d-37bd-4d0e-aa64-20f044650bf6",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "bf6106c6-f934-44d0-bbcc-9d74ff719b84",
-    "level": "info",
-    "timestamp": 1785502920629000
-  },
-  {
-    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
-    "event_type": "Log",
-    "execution_id": "bad3fa7d-37bd-4d0e-aa64-20f044650bf6",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "74344346-3152-4a38-9231-7ea991eec223",
-    "level": "info",
-    "timestamp": 1785502920628000
+    "timestamp": 1785678720786000
   },
   {
     "event_message": "booted (time: 35ms)",
     "event_type": "Boot",
-    "execution_id": "bad3fa7d-37bd-4d0e-aa64-20f044650bf6",
+    "execution_id": "e14abe2c-cd9b-4691-b276-f7be8e7fd585",
     "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "ca259d41-aae0-4b1b-9d43-9d928a9a25a4",
+    "id": "7012918d-e48e-4890-bf1a-d78c80967ff9",
     "level": "log",
-    "timestamp": 1785502920581000
+    "timestamp": 1785678720733000
   },
   {
     "event_message": "shutdown",
     "event_type": "Shutdown",
-    "execution_id": "77da73b8-5953-4fa1-985b-c3ff961f07e3",
+    "execution_id": "9a636707-abd0-466b-b118-7601e90f0bbc",
     "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "0d94e972-8b8f-4a53-890b-5561d581e93e",
+    "id": "64685704-17f0-4c69-9562-6be9f3914006",
     "level": "log",
-    "timestamp": 1785502920448000
-  },
-  {
-    "event_message": "Listening on http://localhost:9999/\n",
-    "event_type": "Log",
-    "execution_id": "7d64b4e3-bfea-4a8d-a9f9-bc56bf4049fe",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "b63dda3f-d559-4998-8e6e-63be01c5f10e",
-    "level": "info",
-    "timestamp": 1785502906568000
-  },
-  {
-    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
-    "event_type": "Log",
-    "execution_id": "7d64b4e3-bfea-4a8d-a9f9-bc56bf4049fe",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "e55fd2b9-f323-48e3-9884-bb318dc8597b",
-    "level": "info",
-    "timestamp": 1785502906567000
-  },
-  {
-    "event_message": "booted (time: 58ms)",
-    "event_type": "Boot",
-    "execution_id": "7d64b4e3-bfea-4a8d-a9f9-bc56bf4049fe",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "63aa73e1-b565-4756-941d-e4ef3dcb2f0a",
-    "level": "log",
-    "timestamp": 1785502906353000
+    "timestamp": 1785678720302000
   },
   {
     "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
     "event_type": "Log",
-    "execution_id": "fef03d8d-e138-47f6-aa46-2025b775ac0b",
+    "execution_id": "12f71556-7a2c-453f-b847-5b9a377185c9",
     "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "ae53f36a-c3bb-4914-ab91-7bf4f58665fa",
+    "id": "9f4ca28d-8bfc-4dfc-aa35-95a1149c63d2",
     "level": "info",
-    "timestamp": 1785502905384000
+    "timestamp": 1785678713617000
   },
   {
     "event_message": "✅ [OutboxDispatcher] /send-text success: 200\n",
     "event_type": "Log",
-    "execution_id": "fef03d8d-e138-47f6-aa46-2025b775ac0b",
+    "execution_id": "12f71556-7a2c-453f-b847-5b9a377185c9",
     "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "4765c12a-9e88-416b-8de0-914fcf981f94",
+    "id": "06ee0571-9b67-44de-99dd-ff1808e58aef",
     "level": "info",
-    "timestamp": 1785502902688000
+    "timestamp": 1785678713148000
   },
   {
     "event_message": "✅ [OutboxDispatcher] /send-text success: 200\n",
     "event_type": "Log",
-    "execution_id": "fef03d8d-e138-47f6-aa46-2025b775ac0b",
+    "execution_id": "12f71556-7a2c-453f-b847-5b9a377185c9",
     "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "0d766232-06f7-4988-9562-3fa062746d76",
+    "id": "8f3fb494-6c2f-4d5d-a445-88c595d3f4cd",
     "level": "info",
-    "timestamp": 1785502901045000
+    "timestamp": 1785678711824000
+  },
+  {
+    "event_message": "[llmProvider] agent_reply: claude-sonnet-5 — in=2588 out=136 cacheRead=16074 cacheWrite=0 tools=1 retries=0 2147ms\n",
+    "event_type": "Log",
+    "execution_id": "12f71556-7a2c-453f-b847-5b9a377185c9",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "da72e8c1-321b-4198-a64d-8bf65682804e",
+    "level": "info",
+    "timestamp": 1785678711200000
+  },
+  {
+    "event_message": "[llmProvider] agent_reply: claude-sonnet-5 — in=1484 out=639 cacheRead=16074 cacheWrite=0 tools=3 retries=0 7057ms\n",
+    "event_type": "Log",
+    "execution_id": "12f71556-7a2c-453f-b847-5b9a377185c9",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "5e6b4a4b-2a1b-44b6-adc9-1ac54934e0a0",
+    "level": "info",
+    "timestamp": 1785678708911000
   },
   {
     "event_message": "shutdown",
     "event_type": "Shutdown",
-    "execution_id": "62041f71-80d5-4cbb-a923-1f10f242b6d8",
+    "execution_id": "a5f69481-02c8-42e4-8887-b30d62d3b2ee",
     "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "564b9b42-05fb-4067-968b-7d22cbb96e0f",
+    "id": "dd491260-7e11-4f79-96ea-76fa8c4a9cb1",
     "level": "log",
-    "timestamp": 1785502900380000
+    "timestamp": 1785678706677000
+  },
+  {
+    "event_message": "[llmProvider] agent_triage: claude-haiku-4-5-20251001 — in=500 out=74 tools=0 retries=0 990ms\n",
+    "event_type": "Log",
+    "execution_id": "12f71556-7a2c-453f-b847-5b9a377185c9",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "9244bb1d-878b-43c7-80cf-1704bef0009a",
+    "level": "info",
+    "timestamp": 1785678702851000
+  },
+  {
+    "event_message": "[process-inbox] [554198933579] Fused 1 msg(s): \"manhã\"\n",
+    "event_type": "Log",
+    "execution_id": "12f71556-7a2c-453f-b847-5b9a377185c9",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "cc88b5b1-ba15-4936-ad87-7e67643ab6aa",
+    "level": "info",
+    "timestamp": 1785678701065000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "execution_id": "12f71556-7a2c-453f-b847-5b9a377185c9",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "cb614749-d649-4c33-b3ba-2e48187a8746",
+    "level": "info",
+    "timestamp": 1785678700776000
+  },
+  {
+    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
+    "event_type": "Log",
+    "execution_id": "12f71556-7a2c-453f-b847-5b9a377185c9",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "5979a6ab-9606-4765-b223-f699edf784c5",
+    "level": "info",
+    "timestamp": 1785678700775000
+  },
+  {
+    "event_message": "booted (time: 57ms)",
+    "event_type": "Boot",
+    "execution_id": "12f71556-7a2c-453f-b847-5b9a377185c9",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "29df5559-69a7-4185-b31a-9303d0aa149b",
+    "level": "log",
+    "timestamp": 1785678700723000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "ac4d3a11-4149-48dd-9ed4-3927fc171fa7",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "e3ab724b-44f4-4982-a0ab-13c4c4100f63",
+    "level": "log",
+    "timestamp": 1785678700272000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "e80bb75f-e561-46f9-a515-7ba054007d02",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "e8d3d788-336c-4742-8ca6-ba59f6a87c60",
+    "level": "log",
+    "timestamp": 1785678695661000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "05d8563b-5c1f-4e47-9766-54d1ec28197d",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "33918e51-6e83-45cd-a7fc-8824ae6269c9",
+    "level": "log",
+    "timestamp": 1785678694006000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "cf6bc23b-bb06-4338-acff-12d92e06e1ae",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "39d87e49-5b65-4e3a-907b-0d2ad7783998",
+    "level": "log",
+    "timestamp": 1785678693212000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "7e8771e4-6cbd-49c1-9941-49bd8be790ab",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "29077c16-5ad6-4f09-9154-da76d2906a48",
+    "level": "log",
+    "timestamp": 1785678691686000
+  },
+  {
+    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
+    "event_type": "Log",
+    "execution_id": "3ad69f61-6aff-4827-b47a-95efa3294a19",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "a925154d-ad31-4b72-8941-58a800ed6840",
+    "level": "info",
+    "timestamp": 1785678688392000
+  },
+  {
+    "event_message": "[process-inbox] [554198933579] AI debounce: last msg 2758ms ago (< 10000ms) — deferring\n",
+    "event_type": "Log",
+    "execution_id": "3ad69f61-6aff-4827-b47a-95efa3294a19",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "b0dc3b4f-0a2a-4980-9fca-9dad6a8eb009",
+    "level": "info",
+    "timestamp": 1785678688049000
+  },
+  {
+    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
+    "event_type": "Log",
+    "execution_id": "3ad69f61-6aff-4827-b47a-95efa3294a19",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "98b8bb77-f2da-4370-9ec7-f80bd80fa4d1",
+    "level": "info",
+    "timestamp": 1785678687233000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "execution_id": "3ad69f61-6aff-4827-b47a-95efa3294a19",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "358a0515-8a08-44b6-9d97-73a96701d6a4",
+    "level": "info",
+    "timestamp": 1785678687233000
+  },
+  {
+    "event_message": "booted (time: 85ms)",
+    "event_type": "Boot",
+    "execution_id": "3ad69f61-6aff-4827-b47a-95efa3294a19",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "cf781bb4-b325-4eeb-92bf-aa71bcdc8e38",
+    "level": "log",
+    "timestamp": 1785678687173000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "execution_id": "c582f8a2-59c9-4987-8147-0b1c18d91b17",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "41c40315-5d24-4816-86cc-65868ff339ef",
+    "level": "info",
+    "timestamp": 1785678685606000
+  },
+  {
+    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
+    "event_type": "Log",
+    "execution_id": "c582f8a2-59c9-4987-8147-0b1c18d91b17",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "cf5fb102-3ac5-40e9-93fd-c52789c87e9b",
+    "level": "info",
+    "timestamp": 1785678685606000
+  },
+  {
+    "event_message": "booted (time: 35ms)",
+    "event_type": "Boot",
+    "execution_id": "c582f8a2-59c9-4987-8147-0b1c18d91b17",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "e646835a-8e87-4899-b0ad-683b862dc6a1",
+    "level": "log",
+    "timestamp": 1785678685565000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "execution_id": "6e8added-96a3-4b6b-9cd9-d78a81fc013e",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "40333fd0-b425-4dd2-8e52-8f32ea27a43e",
+    "level": "info",
+    "timestamp": 1785678680718000
+  },
+  {
+    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
+    "event_type": "Log",
+    "execution_id": "6e8added-96a3-4b6b-9cd9-d78a81fc013e",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "74b8d603-3fd0-4715-b2fd-148e4715cb83",
+    "level": "info",
+    "timestamp": 1785678680717000
+  },
+  {
+    "event_message": "booted (time: 50ms)",
+    "event_type": "Boot",
+    "execution_id": "6e8added-96a3-4b6b-9cd9-d78a81fc013e",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "7b8983e5-1761-4d62-8bc1-4b136de5b17f",
+    "level": "log",
+    "timestamp": 1785678680670000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "32312a5e-6156-4192-b517-99401711169d",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "17b4047a-44a5-498b-935d-42905f0e3a40",
+    "level": "log",
+    "timestamp": 1785678680468000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "d91386f9-9bcf-4f85-8b80-f85d3c5644c9",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "3ffba5f5-d7f7-447a-9850-ea6c7419ed7a",
+    "level": "log",
+    "timestamp": 1785678668808000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "79881b0c-515c-4cc8-9585-2293246f6916",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "be18e9f0-0085-4dfa-9cc2-6353bbc646a7",
+    "level": "log",
+    "timestamp": 1785678667244000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "execution_id": "cb77ef5a-a30f-4a6b-abcf-8349b8fe8ca4",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "2a7069dc-c44a-421c-95fb-e0560f5e5faf",
+    "level": "info",
+    "timestamp": 1785678662652000
+  },
+  {
+    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
+    "event_type": "Log",
+    "execution_id": "cb77ef5a-a30f-4a6b-abcf-8349b8fe8ca4",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "b20cded7-cd9b-44fd-aa7c-1236688783bc",
+    "level": "info",
+    "timestamp": 1785678662652000
+  },
+  {
+    "event_message": "booted (time: 35ms)",
+    "event_type": "Boot",
+    "execution_id": "cb77ef5a-a30f-4a6b-abcf-8349b8fe8ca4",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "b9c471c3-f3e5-48c7-9ac4-45dde91898b8",
+    "level": "log",
+    "timestamp": 1785678662608000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "68e16c9d-1971-41e1-81ee-1d86a8f9120f",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "16a59be2-7a9c-4ab9-9d3a-f64a2c8b2015",
+    "level": "log",
+    "timestamp": 1785678660395000
+  },
+  {
+    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
+    "event_type": "Log",
+    "execution_id": "9db27c03-da57-4047-aa1b-c0aabfbfba15",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "4c6feedf-30a4-4669-8c82-fdc8462f9145",
+    "level": "info",
+    "timestamp": 1785678658017000
   },
   {
     "event_message": "✅ [OutboxDispatcher] /send-text success: 200\n",
     "event_type": "Log",
-    "execution_id": "fef03d8d-e138-47f6-aa46-2025b775ac0b",
+    "execution_id": "9db27c03-da57-4047-aa1b-c0aabfbfba15",
     "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "c82f4a06-7946-4b66-9ae2-bf371b865078",
+    "id": "aef975bd-2860-447b-b3ec-434501d18e21",
     "level": "info",
-    "timestamp": 1785502899424000
+    "timestamp": 1785678657150000
   },
   {
-    "event_message": "[llmProvider] agent_reply: claude-sonnet-5 — in=757 out=1031 cacheRead=14374 cacheWrite=0 tools=1 retries=0 14818ms\n",
+    "event_message": "✅ [OutboxDispatcher] /send-text success: 200\n",
     "event_type": "Log",
-    "execution_id": "fef03d8d-e138-47f6-aa46-2025b775ac0b",
+    "execution_id": "9db27c03-da57-4047-aa1b-c0aabfbfba15",
     "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "28921a53-6a4e-4d80-8023-bdf896ce8407",
+    "id": "25c1692b-b011-492c-8cbf-d7129bb00ea8",
     "level": "info",
-    "timestamp": 1785502894750000
+    "timestamp": 1785678655519000
+  },
+  {
+    "event_message": "✅ [OutboxDispatcher] /send-text success: 200\n",
+    "event_type": "Log",
+    "execution_id": "9db27c03-da57-4047-aa1b-c0aabfbfba15",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "50d83743-19f8-4bdd-93eb-53f34fa1930c",
+    "level": "info",
+    "timestamp": 1785678654446000
+  },
+  {
+    "event_message": "[llmProvider] agent_reply: claude-sonnet-5 — in=2986 out=213 cacheRead=16074 cacheWrite=0 tools=1 retries=0 3084ms\n",
+    "event_type": "Log",
+    "execution_id": "9db27c03-da57-4047-aa1b-c0aabfbfba15",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "7555343a-b6c7-47a1-9b2d-ec4e39d70f3e",
+    "level": "info",
+    "timestamp": 1785678653692000
+  },
+  {
+    "event_message": "[llmProvider] agent_reply: claude-sonnet-5 — in=1667 out=853 cacheRead=16074 cacheWrite=0 tools=3 retries=0 7922ms\n",
+    "event_type": "Log",
+    "execution_id": "9db27c03-da57-4047-aa1b-c0aabfbfba15",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "d2ee1fab-3daa-41d2-90a0-43a0bcfe2fb2",
+    "level": "info",
+    "timestamp": 1785678650452000
+  },
+  {
+    "event_message": "[llmProvider] agent_triage: claude-haiku-4-5-20251001 — in=630 out=72 tools=0 retries=0 819ms\n",
+    "event_type": "Log",
+    "execution_id": "9db27c03-da57-4047-aa1b-c0aabfbfba15",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "e87179ad-2e39-4ba1-88a7-eddb72e7f3be",
+    "level": "info",
+    "timestamp": 1785678643346000
+  },
+  {
+    "event_message": "[process-inbox] [554198933579] Fused 1 msg(s): \"fabriciooliveiraofficial@gmail.com\"\n",
+    "event_type": "Log",
+    "execution_id": "9db27c03-da57-4047-aa1b-c0aabfbfba15",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "8b8c29cc-a6fe-4c32-99b9-1578d61a0235",
+    "level": "info",
+    "timestamp": 1785678640848000
   },
   {
     "event_message": "Listening on http://localhost:9999/\n",
     "event_type": "Log",
-    "execution_id": "e59df894-15ac-4b2f-9f80-ea5ef7b73618",
+    "execution_id": "9db27c03-da57-4047-aa1b-c0aabfbfba15",
     "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "ac856043-7c50-4341-9bc7-6529d97a05d8",
+    "id": "7a0e8b71-c155-4f08-82b5-c43523de40e6",
     "level": "info",
-    "timestamp": 1785502883446000
+    "timestamp": 1785678640585000
   },
   {
     "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
     "event_type": "Log",
-    "execution_id": "e59df894-15ac-4b2f-9f80-ea5ef7b73618",
+    "execution_id": "9db27c03-da57-4047-aa1b-c0aabfbfba15",
     "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "d21fb07a-b327-4323-85e0-b793671948ce",
+    "id": "336a847a-1b48-4f1b-95f7-76f65053f0e7",
     "level": "info",
-    "timestamp": 1785502883445000
+    "timestamp": 1785678640584000
+  },
+  {
+    "event_message": "booted (time: 56ms)",
+    "event_type": "Boot",
+    "execution_id": "9db27c03-da57-4047-aa1b-c0aabfbfba15",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "f0a93e15-4e81-44f7-b244-740cdb0fb720",
+    "level": "log",
+    "timestamp": 1785678640513000
   },
   {
     "event_message": "shutdown",
     "event_type": "Shutdown",
-    "execution_id": "b5ab62b6-ec4b-4873-b186-188df3f67bb4",
+    "execution_id": "55017fed-e077-454b-83b4-9bf1d9addd06",
     "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "3ce36391-d601-428e-ab17-74224f246971",
+    "id": "c277c392-3377-4731-b6ec-a3980d7a157c",
     "level": "log",
-    "timestamp": 1785502883419000
-  },
-  {
-    "event_message": "booted (time: 97ms)",
-    "event_type": "Boot",
-    "execution_id": "e59df894-15ac-4b2f-9f80-ea5ef7b73618",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "46ce62f6-db40-4d10-b4f2-098ce633a777",
-    "level": "log",
-    "timestamp": 1785502883275000
-  },
-  {
-    "event_message": "[llmProvider] agent_triage: claude-haiku-4-5-20251001 — in=270 out=72 tools=0 retries=0 3197ms\n",
-    "event_type": "Log",
-    "execution_id": "fef03d8d-e138-47f6-aa46-2025b775ac0b",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "11d6e762-d4fe-47d9-8fbf-1fbdc9115c7c",
-    "level": "info",
-    "timestamp": 1785502882782000
-  },
-  {
-    "event_message": "[process-inbox] [554198933579] Fused 6 msg(s): \"bgom dia!\nvi seu anúncio de implante e quero saber mais\nqual o plrocedimento?\nqu\"\n",
-    "event_type": "Log",
-    "execution_id": "fef03d8d-e138-47f6-aa46-2025b775ac0b",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "1b4bf3f2-9e62-4f40-881b-198262e6dd6d",
-    "level": "info",
-    "timestamp": 1785502869916000
-  },
-  {
-    "event_message": "Listening on http://localhost:9999/\n",
-    "event_type": "Log",
-    "execution_id": "fef03d8d-e138-47f6-aa46-2025b775ac0b",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "81901b23-0bef-4c0f-8680-fdf8b0a356dc",
-    "level": "info",
-    "timestamp": 1785502864949000
-  },
-  {
-    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
-    "event_type": "Log",
-    "execution_id": "fef03d8d-e138-47f6-aa46-2025b775ac0b",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "9f9f086a-b48f-470e-a6c5-1e152d2a952f",
-    "level": "info",
-    "timestamp": 1785502864949000
-  },
-  {
-    "event_message": "booted (time: 89ms)",
-    "event_type": "Boot",
-    "execution_id": "fef03d8d-e138-47f6-aa46-2025b775ac0b",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "043f3fb7-d997-4b53-9a1a-b6f996c0b2ca",
-    "level": "log",
-    "timestamp": 1785502864879000
-  },
-  {
-    "event_message": "shutdown",
-    "event_type": "Shutdown",
-    "execution_id": "8a9e0b09-3928-46a3-86c9-8728b2eaf38e",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "95b14e68-f7d8-4a85-a185-2d8e02c24b8c",
-    "level": "log",
-    "timestamp": 1785502862227000
+    "timestamp": 1785678640425000
   },
   {
     "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
     "event_type": "Log",
-    "execution_id": "752c73ee-e5d2-4551-b73d-78d9deef4d46",
+    "execution_id": "bca408ad-77d6-4515-9eed-981f809dd959",
     "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "f23c4d6b-69e1-42de-bb80-320a44a8a62f",
+    "id": "39076f1d-a5c4-4030-a627-aa20b4f0ce3e",
     "level": "info",
-    "timestamp": 1785502844347000
+    "timestamp": 1785678631349000
   },
   {
-    "event_message": "[agent] [554198933579] resposta descartada — 3 msg(s) nova(s) durante a geração\n",
+    "event_message": "[process-inbox] [554198933579] AI debounce: last msg 2606ms ago (< 10000ms) — deferring\n",
     "event_type": "Log",
-    "execution_id": "752c73ee-e5d2-4551-b73d-78d9deef4d46",
+    "execution_id": "bca408ad-77d6-4515-9eed-981f809dd959",
     "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "f59bfc5d-db44-46eb-84fd-7b94ef73dd41",
+    "id": "d26d74fd-479a-41c0-8da3-92f50558d0c8",
     "level": "info",
-    "timestamp": 1785502844266000
-  },
-  {
-    "event_message": "[llmProvider] agent_reply: claude-sonnet-5 — in=681 out=558 cacheRead=14374 cacheWrite=0 tools=1 retries=0 8472ms\n",
-    "event_type": "Log",
-    "execution_id": "752c73ee-e5d2-4551-b73d-78d9deef4d46",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "486ee11d-7e2b-48b5-b2f8-d28b1bd50e4b",
-    "level": "info",
-    "timestamp": 1785502844151000
-  },
-  {
-    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
-    "event_type": "Log",
-    "execution_id": "45140b67-224e-43e9-b8f3-290ce93896d0",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "7ea689df-addf-46b0-9241-08cd08bfcca7",
-    "level": "info",
-    "timestamp": 1785502841904000
-  },
-  {
-    "event_message": "[process-inbox] [554198933579] Lock busy, skipping\n",
-    "event_type": "Log",
-    "execution_id": "45140b67-224e-43e9-b8f3-290ce93896d0",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "4ef267a7-6fa6-4442-a0a1-8d3c21e02116",
-    "level": "info",
-    "timestamp": 1785502841904000
+    "timestamp": 1785678631038000
   },
   {
     "event_message": "Listening on http://localhost:9999/\n",
     "event_type": "Log",
-    "execution_id": "45140b67-224e-43e9-b8f3-290ce93896d0",
+    "execution_id": "bca408ad-77d6-4515-9eed-981f809dd959",
     "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "e2720b0f-daf3-4bed-b882-d1714073cbe8",
+    "id": "cc0d0b47-982c-42fc-aa65-1cebd0c3afbf",
     "level": "info",
-    "timestamp": 1785502841583000
+    "timestamp": 1785678630373000
   },
   {
     "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
     "event_type": "Log",
-    "execution_id": "45140b67-224e-43e9-b8f3-290ce93896d0",
+    "execution_id": "bca408ad-77d6-4515-9eed-981f809dd959",
     "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "46bd631d-6fa2-4829-9c79-9f48af36d0ba",
+    "id": "aae9ac9e-4b19-4cf3-841c-f672b972b9a3",
     "level": "info",
-    "timestamp": 1785502841582000
+    "timestamp": 1785678630372000
   },
   {
-    "event_message": "booted (time: 79ms)",
+    "event_message": "booted (time: 92ms)",
     "event_type": "Boot",
-    "execution_id": "45140b67-224e-43e9-b8f3-290ce93896d0",
+    "execution_id": "bca408ad-77d6-4515-9eed-981f809dd959",
     "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "552c02e7-3b1e-4b00-81cb-e7ef1b3f8acf",
+    "id": "b690380c-cc7c-42ac-ac8f-f6c665930036",
     "level": "log",
-    "timestamp": 1785502841529000
-  },
-  {
-    "event_message": "[process-inbox] [554198933579] Lock busy, skipping\n",
-    "event_type": "Log",
-    "execution_id": "803e9887-f2dd-4d53-91f2-dc27ef73b8e9",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "82f3cd4c-4464-4518-b368-288901ebfd9c",
-    "level": "info",
-    "timestamp": 1785502841428000
-  },
-  {
-    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
-    "event_type": "Log",
-    "execution_id": "803e9887-f2dd-4d53-91f2-dc27ef73b8e9",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "22dad57e-a4b6-48ec-8510-560b2e48a544",
-    "level": "info",
-    "timestamp": 1785502841428000
-  },
-  {
-    "event_message": "[process-inbox] [554198933579] Lock busy, skipping\n",
-    "event_type": "Log",
-    "execution_id": "77491230-8540-4037-99f0-9514f71d663c",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "af6c0d1d-9b9a-4095-b12e-dc6deeabadbf",
-    "level": "info",
-    "timestamp": 1785502841424000
-  },
-  {
-    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
-    "event_type": "Log",
-    "execution_id": "77491230-8540-4037-99f0-9514f71d663c",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "e2e71083-aef9-4a38-a039-eacf9f88be9b",
-    "level": "info",
-    "timestamp": 1785502841424000
-  },
-  {
-    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
-    "event_type": "Log",
-    "execution_id": "77491230-8540-4037-99f0-9514f71d663c",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "c40c6779-a356-4dbb-87dc-3b1b520190be",
-    "level": "info",
-    "timestamp": 1785502841285000
+    "timestamp": 1785678630311000
   },
   {
     "event_message": "Listening on http://localhost:9999/\n",
     "event_type": "Log",
-    "execution_id": "77491230-8540-4037-99f0-9514f71d663c",
+    "execution_id": "772db305-04ee-470d-85c9-0dd54bbe2589",
     "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "13d34b34-c356-406f-a176-78c0661d6fb6",
+    "id": "4b9352c3-42bb-47fa-b535-f93caf95971a",
     "level": "info",
-    "timestamp": 1785502841285000
-  },
-  {
-    "event_message": "Listening on http://localhost:9999/\n",
-    "event_type": "Log",
-    "execution_id": "803e9887-f2dd-4d53-91f2-dc27ef73b8e9",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "67fce0eb-4607-490d-9f60-57385394ac07",
-    "level": "info",
-    "timestamp": 1785502841284000
+    "timestamp": 1785678628702000
   },
   {
     "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
     "event_type": "Log",
-    "execution_id": "803e9887-f2dd-4d53-91f2-dc27ef73b8e9",
+    "execution_id": "772db305-04ee-470d-85c9-0dd54bbe2589",
     "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "e7662b22-f603-4170-a411-d67f92418b6e",
+    "id": "8534c8a7-3a15-4cbf-8fad-0f1858544c61",
     "level": "info",
-    "timestamp": 1785502841284000
-  },
-  {
-    "event_message": "booted (time: 33ms)",
-    "event_type": "Boot",
-    "execution_id": "77491230-8540-4037-99f0-9514f71d663c",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "4d7fb023-d524-4140-a9ee-734ef7fc638a",
-    "level": "log",
-    "timestamp": 1785502841245000
-  },
-  {
-    "event_message": "booted (time: 38ms)",
-    "event_type": "Boot",
-    "execution_id": "803e9887-f2dd-4d53-91f2-dc27ef73b8e9",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "4b3faf8a-50a7-40e4-b7b6-1212d2c411a3",
-    "level": "log",
-    "timestamp": 1785502841243000
-  },
-  {
-    "event_message": "shutdown",
-    "event_type": "Shutdown",
-    "execution_id": "ef6727f5-0204-4306-8447-cb01c80df1d8",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "0c25ab0e-ccd5-405a-953b-af0ab78d429a",
-    "level": "log",
-    "timestamp": 1785502840224000
-  },
-  {
-    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
-    "event_type": "Log",
-    "execution_id": "e1dacb09-0335-4299-8f88-5f5403668509",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "583401fe-571a-46ce-9b7e-85d8078c89e6",
-    "level": "info",
-    "timestamp": 1785502840098000
-  },
-  {
-    "event_message": "[process-inbox] [554198933579] Lock busy, skipping\n",
-    "event_type": "Log",
-    "execution_id": "e1dacb09-0335-4299-8f88-5f5403668509",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "fa205397-6139-4c6f-93fb-5b55a931c8b2",
-    "level": "info",
-    "timestamp": 1785502840098000
-  },
-  {
-    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
-    "event_type": "Log",
-    "execution_id": "e1dacb09-0335-4299-8f88-5f5403668509",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "d9b95089-511c-4191-8129-11ac0b4d97b4",
-    "level": "info",
-    "timestamp": 1785502839951000
-  },
-  {
-    "event_message": "Listening on http://localhost:9999/\n",
-    "event_type": "Log",
-    "execution_id": "e1dacb09-0335-4299-8f88-5f5403668509",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "770728b5-fa1c-40f7-a426-c03b6e3b6217",
-    "level": "info",
-    "timestamp": 1785502839951000
-  },
-  {
-    "event_message": "booted (time: 77ms)",
-    "event_type": "Boot",
-    "execution_id": "e1dacb09-0335-4299-8f88-5f5403668509",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "e6499948-ffc9-4dff-9247-82ace9b64127",
-    "level": "log",
-    "timestamp": 1785502839906000
-  },
-  {
-    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
-    "event_type": "Log",
-    "execution_id": "e65593ee-5e3e-4104-a95e-46880cf47a94",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "6e15a190-3599-4caf-82f5-fd3c98c45d23",
-    "level": "info",
-    "timestamp": 1785502837666000
-  },
-  {
-    "event_message": "[process-inbox] [554198933579] Lock busy, skipping\n",
-    "event_type": "Log",
-    "execution_id": "e65593ee-5e3e-4104-a95e-46880cf47a94",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "947ab959-084d-4f80-90b2-252dc2793d06",
-    "level": "info",
-    "timestamp": 1785502837666000
-  },
-  {
-    "event_message": "Listening on http://localhost:9999/\n",
-    "event_type": "Log",
-    "execution_id": "e65593ee-5e3e-4104-a95e-46880cf47a94",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "eaed7a22-fd6d-48b9-af14-0650b051928c",
-    "level": "info",
-    "timestamp": 1785502836853000
-  },
-  {
-    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
-    "event_type": "Log",
-    "execution_id": "e65593ee-5e3e-4104-a95e-46880cf47a94",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "c07dd20f-ec0a-432b-9a6d-1c5b515e3e2e",
-    "level": "info",
-    "timestamp": 1785502836852000
-  },
-  {
-    "event_message": "[process-inbox] [554198933579] Lock busy, skipping\n",
-    "event_type": "Log",
-    "execution_id": "e0120f8d-ace8-481a-9e1b-956118a3d251",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "f14f0dae-3a06-4bf0-b43b-ec1ac638d916",
-    "level": "info",
-    "timestamp": 1785502836844000
-  },
-  {
-    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
-    "event_type": "Log",
-    "execution_id": "e0120f8d-ace8-481a-9e1b-956118a3d251",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "b738bf0f-f608-42a7-8cef-cfad5bc7437a",
-    "level": "info",
-    "timestamp": 1785502836844000
-  },
-  {
-    "event_message": "booted (time: 75ms)",
-    "event_type": "Boot",
-    "execution_id": "e65593ee-5e3e-4104-a95e-46880cf47a94",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "f4c4b4b2-7cf6-4eda-8a9d-7296c5d1a4c8",
-    "level": "log",
-    "timestamp": 1785502836776000
-  },
-  {
-    "event_message": "Listening on http://localhost:9999/\n",
-    "event_type": "Log",
-    "execution_id": "e0120f8d-ace8-481a-9e1b-956118a3d251",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "200e04b5-24cc-49c8-9696-cf1d6b7331d6",
-    "level": "info",
-    "timestamp": 1785502836507000
-  },
-  {
-    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
-    "event_type": "Log",
-    "execution_id": "e0120f8d-ace8-481a-9e1b-956118a3d251",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "c3bc2b6e-b400-4ba2-9203-ad8032895d30",
-    "level": "info",
-    "timestamp": 1785502836506000
-  },
-  {
-    "event_message": "[llmProvider] agent_triage: claude-haiku-4-5-20251001 — in=213 out=72 tools=0 retries=0 850ms\n",
-    "event_type": "Log",
-    "execution_id": "752c73ee-e5d2-4551-b73d-78d9deef4d46",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "9663bad8-51c8-4242-b6d3-95c8ea9d5b97",
-    "level": "info",
-    "timestamp": 1785502836467000
-  },
-  {
-    "event_message": "booted (time: 76ms)",
-    "event_type": "Boot",
-    "execution_id": "e0120f8d-ace8-481a-9e1b-956118a3d251",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "8d929f63-316b-4866-9664-3c38836dadd9",
-    "level": "log",
-    "timestamp": 1785502836450000
-  },
-  {
-    "event_message": "[process-inbox] [554198933579] Fused 3 msg(s): \"bgom dia!\nvi seu anúncio de implante e quero saber mais\nqual o plrocedimento?\"\n",
-    "event_type": "Log",
-    "execution_id": "752c73ee-e5d2-4551-b73d-78d9deef4d46",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "1c537c21-b950-49ad-8ac3-7ed0d98bdfbc",
-    "level": "info",
-    "timestamp": 1785502835201000
-  },
-  {
-    "event_message": "Listening on http://localhost:9999/\n",
-    "event_type": "Log",
-    "execution_id": "752c73ee-e5d2-4551-b73d-78d9deef4d46",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "2e584525-637c-4aaf-a0ba-03a50e6db386",
-    "level": "info",
-    "timestamp": 1785502834911000
-  },
-  {
-    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
-    "event_type": "Log",
-    "execution_id": "752c73ee-e5d2-4551-b73d-78d9deef4d46",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "69781149-194f-4f62-84cd-f02d9aa156a2",
-    "level": "info",
-    "timestamp": 1785502834910000
-  },
-  {
-    "event_message": "booted (time: 60ms)",
-    "event_type": "Boot",
-    "execution_id": "752c73ee-e5d2-4551-b73d-78d9deef4d46",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "fded6af3-5838-43d0-a303-470ac9fb829e",
-    "level": "log",
-    "timestamp": 1785502834866000
-  },
-  {
-    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
-    "event_type": "Log",
-    "execution_id": "6da9bc2b-ff71-455c-8fa9-ab64f96826dd",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "4517b67e-df22-41fd-8de5-4b4980fe6bf3",
-    "level": "info",
-    "timestamp": 1785502822015000
-  },
-  {
-    "event_message": "[process-inbox] [554198933579] AI debounce: last msg 3720ms ago (< 10000ms) — deferring\n",
-    "event_type": "Log",
-    "execution_id": "6da9bc2b-ff71-455c-8fa9-ab64f96826dd",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "9a0cc0f5-879f-45d1-9c3c-4a45cc9412d1",
-    "level": "info",
-    "timestamp": 1785502821939000
-  },
-  {
-    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
-    "event_type": "Log",
-    "execution_id": "32023d05-fce6-471b-821f-d3fdadf5d6d0",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "fde03db6-bb81-44ea-a137-585598b1282c",
-    "level": "info",
-    "timestamp": 1785502821279000
-  },
-  {
-    "event_message": "[process-inbox] [554198933579] AI debounce: last msg 2731ms ago (< 10000ms) — deferring\n",
-    "event_type": "Log",
-    "execution_id": "32023d05-fce6-471b-821f-d3fdadf5d6d0",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "18437ea1-27bd-4d72-be0b-5759fc8769a4",
-    "level": "info",
-    "timestamp": 1785502820950000
-  },
-  {
-    "event_message": "Listening on http://localhost:9999/\n",
-    "event_type": "Log",
-    "execution_id": "6da9bc2b-ff71-455c-8fa9-ab64f96826dd",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "7f7820fb-1996-4a0d-a65f-766acf22a162",
-    "level": "info",
-    "timestamp": 1785502820832000
-  },
-  {
-    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
-    "event_type": "Log",
-    "execution_id": "6da9bc2b-ff71-455c-8fa9-ab64f96826dd",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "572c9998-1e6d-4f2c-9b8c-f02471cade2a",
-    "level": "info",
-    "timestamp": 1785502820831000
-  },
-  {
-    "event_message": "booted (time: 59ms)",
-    "event_type": "Boot",
-    "execution_id": "6da9bc2b-ff71-455c-8fa9-ab64f96826dd",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "16661d59-2fe3-4c0f-9039-a8377921bf29",
-    "level": "log",
-    "timestamp": 1785502820752000
-  },
-  {
-    "event_message": "shutdown",
-    "event_type": "Shutdown",
-    "execution_id": "1972cf36-8e15-460d-b804-543cd95c1479",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "6023490d-0d18-4557-9510-db6f76d8c738",
-    "level": "log",
-    "timestamp": 1785502820583000
-  },
-  {
-    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
-    "event_type": "Log",
-    "execution_id": "32023d05-fce6-471b-821f-d3fdadf5d6d0",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "c9cdb5a6-7ddb-4210-807a-97ba2afca0cf",
-    "level": "info",
-    "timestamp": 1785502820146000
-  },
-  {
-    "event_message": "Listening on http://localhost:9999/\n",
-    "event_type": "Log",
-    "execution_id": "32023d05-fce6-471b-821f-d3fdadf5d6d0",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "f07bbcba-1247-4779-83ef-f1ea5ca3efb5",
-    "level": "info",
-    "timestamp": 1785502820146000
-  },
-  {
-    "event_message": "booted (time: 72ms)",
-    "event_type": "Boot",
-    "execution_id": "32023d05-fce6-471b-821f-d3fdadf5d6d0",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "c242cfd7-885a-4091-8630-f8ee397e632a",
-    "level": "log",
-    "timestamp": 1785502820090000
-  },
-  {
-    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
-    "event_type": "Log",
-    "execution_id": "6b77e06a-9d7f-484f-9b1b-cbb5beebfaff",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "bdab372e-0f19-4520-bd09-aece463e15e5",
-    "level": "info",
-    "timestamp": 1785502819685000
-  },
-  {
-    "event_message": "[agent] [554198933579] resposta descartada — 2 msg(s) nova(s) durante a geração\n",
-    "event_type": "Log",
-    "execution_id": "6b77e06a-9d7f-484f-9b1b-cbb5beebfaff",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "34e94a12-9dc8-4626-af3f-2ac75a3e7642",
-    "level": "info",
-    "timestamp": 1785502819561000
-  },
-  {
-    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
-    "event_type": "Log",
-    "execution_id": "846bd2d1-e5a4-4195-b2c1-a5bb9c50418f",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "9d1969a1-c727-40c0-ba00-1ae9ae164f6c",
-    "level": "info",
-    "timestamp": 1785502819547000
-  },
-  {
-    "event_message": "[process-inbox] [554198933579] Lock busy, skipping\n",
-    "event_type": "Log",
-    "execution_id": "846bd2d1-e5a4-4195-b2c1-a5bb9c50418f",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "ea93d6ae-d72d-4a41-bd35-f60c501247e2",
-    "level": "info",
-    "timestamp": 1785502819547000
-  },
-  {
-    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
-    "event_type": "Log",
-    "execution_id": "846bd2d1-e5a4-4195-b2c1-a5bb9c50418f",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "9d1969a1-c727-40c0-ba00-1ae9ae164f6c",
-    "level": "info",
-    "timestamp": 1785502819547000
-  },
-  {
-    "event_message": "[process-inbox] [554198933579] Lock busy, skipping\n",
-    "event_type": "Log",
-    "execution_id": "846bd2d1-e5a4-4195-b2c1-a5bb9c50418f",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "ea93d6ae-d72d-4a41-bd35-f60c501247e2",
-    "level": "info",
-    "timestamp": 1785502819547000
-  },
-  {
-    "event_message": "[llmProvider] agent_reply: claude-sonnet-5 — in=637 out=221 cacheRead=0 cacheWrite=14374 tools=1 retries=0 5507ms\n",
-    "event_type": "Log",
-    "execution_id": "6b77e06a-9d7f-484f-9b1b-cbb5beebfaff",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "75605bde-746a-4cec-81f5-62a0b840c068",
-    "level": "info",
-    "timestamp": 1785502819466000
-  },
-  {
-    "event_message": "Listening on http://localhost:9999/\n",
-    "event_type": "Log",
-    "execution_id": "846bd2d1-e5a4-4195-b2c1-a5bb9c50418f",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "01835f41-25c6-4199-9a14-a97ba6eae816",
-    "level": "info",
-    "timestamp": 1785502819359000
-  },
-  {
-    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
-    "event_type": "Log",
-    "execution_id": "846bd2d1-e5a4-4195-b2c1-a5bb9c50418f",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "8a64d53b-cbca-4d77-be83-3045a75c62be",
-    "level": "info",
-    "timestamp": 1785502819358000
-  },
-  {
-    "event_message": "booted (time: 61ms)",
-    "event_type": "Boot",
-    "execution_id": "846bd2d1-e5a4-4195-b2c1-a5bb9c50418f",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "64b8ecb2-0b28-4526-b2d0-0756a431c77a",
-    "level": "log",
-    "timestamp": 1785502819283000
-  },
-  {
-    "event_message": "[llmProvider] agent_triage: claude-haiku-4-5-20251001 — in=180 out=43 tools=0 retries=0 1074ms\n",
-    "event_type": "Log",
-    "execution_id": "6b77e06a-9d7f-484f-9b1b-cbb5beebfaff",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "88f94473-6e8c-4c56-98f2-dcae1f15b916",
-    "level": "info",
-    "timestamp": 1785502815027000
-  },
-  {
-    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
-    "event_type": "Log",
-    "execution_id": "b6896b70-fa77-4513-8652-4e911f82bf25",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "c32f169f-e4fa-4c63-a797-f8a8a2ce5826",
-    "level": "info",
-    "timestamp": 1785502814714000
-  },
-  {
-    "event_message": "[process-inbox] [554198933579] Lock busy, skipping\n",
-    "event_type": "Log",
-    "execution_id": "b6896b70-fa77-4513-8652-4e911f82bf25",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "ec0be5fe-a42c-4609-83ab-b00a0bbdda36",
-    "level": "info",
-    "timestamp": 1785502814714000
-  },
-  {
-    "event_message": "Listening on http://localhost:9999/\n",
-    "event_type": "Log",
-    "execution_id": "b6896b70-fa77-4513-8652-4e911f82bf25",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "32d9ae89-9d60-403f-b4dd-a9a0951d252c",
-    "level": "info",
-    "timestamp": 1785502814350000
-  },
-  {
-    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
-    "event_type": "Log",
-    "execution_id": "b6896b70-fa77-4513-8652-4e911f82bf25",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "1ead65dd-5929-4b0d-9581-bb103262b9ef",
-    "level": "info",
-    "timestamp": 1785502814349000
-  },
-  {
-    "event_message": "booted (time: 70ms)",
-    "event_type": "Boot",
-    "execution_id": "b6896b70-fa77-4513-8652-4e911f82bf25",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "c5b29354-3c74-4d86-8d27-ecbc5a42226d",
-    "level": "log",
-    "timestamp": 1785502814293000
-  },
-  {
-    "event_message": "[process-inbox] [554198933579] Fused 1 msg(s): \"bgom dia!\"\n",
-    "event_type": "Log",
-    "execution_id": "6b77e06a-9d7f-484f-9b1b-cbb5beebfaff",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "b791d091-1fb8-4679-a123-54c3e95c3902",
-    "level": "info",
-    "timestamp": 1785502813150000
-  },
-  {
-    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
-    "event_type": "Log",
-    "execution_id": "6b77e06a-9d7f-484f-9b1b-cbb5beebfaff",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "3a79c305-c749-420f-a613-f7f3fcc3dfec",
-    "level": "info",
-    "timestamp": 1785502812702000
-  },
-  {
-    "event_message": "Listening on http://localhost:9999/\n",
-    "event_type": "Log",
-    "execution_id": "6b77e06a-9d7f-484f-9b1b-cbb5beebfaff",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "28a774b5-0171-4f7c-a379-4e4f71375266",
-    "level": "info",
-    "timestamp": 1785502812702000
-  },
-  {
-    "event_message": "booted (time: 41ms)",
-    "event_type": "Boot",
-    "execution_id": "6b77e06a-9d7f-484f-9b1b-cbb5beebfaff",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "6169c60a-8844-4f39-ac21-9c691bcef1d8",
-    "level": "log",
-    "timestamp": 1785502812645000
-  },
-  {
-    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
-    "event_type": "Log",
-    "execution_id": "934adeb7-c414-4722-9509-5d3d3d2b4eec",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "f864d43c-8d83-43cc-8edb-21cc23966740",
-    "level": "info",
-    "timestamp": 1785502802685000
-  },
-  {
-    "event_message": "[process-inbox] [554198933579] AI debounce: last msg 4399ms ago (< 10000ms) — deferring\n",
-    "event_type": "Log",
-    "execution_id": "934adeb7-c414-4722-9509-5d3d3d2b4eec",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "a0035d21-c0e5-482f-8fe4-a5e54a0a0dc9",
-    "level": "info",
-    "timestamp": 1785502802584000
-  },
-  {
-    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
-    "event_type": "Log",
-    "execution_id": "c38f9faf-9105-4d3e-9362-32f3a621ec82",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "6b2f4b7e-3706-401e-818f-aa58756045d2",
-    "level": "info",
-    "timestamp": 1785502802467000
-  },
-  {
-    "event_message": "Listening on http://localhost:9999/\n",
-    "event_type": "Log",
-    "execution_id": "934adeb7-c414-4722-9509-5d3d3d2b4eec",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "6c1ccb06-3c38-4d05-9d33-ca6967303c6d",
-    "level": "info",
-    "timestamp": 1785502802252000
-  },
-  {
-    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
-    "event_type": "Log",
-    "execution_id": "934adeb7-c414-4722-9509-5d3d3d2b4eec",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "9341f3c8-ca53-4017-95fa-09027a1c13f5",
-    "level": "info",
-    "timestamp": 1785502802252000
-  },
-  {
-    "event_message": "booted (time: 33ms)",
-    "event_type": "Boot",
-    "execution_id": "934adeb7-c414-4722-9509-5d3d3d2b4eec",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "a4bc972e-e431-49ab-af4b-03b1d8c7ebbb",
-    "level": "log",
-    "timestamp": 1785502802200000
-  },
-  {
-    "event_message": "[process-inbox] [554198933579] AI debounce: last msg 3931ms ago (< 10000ms) — deferring\n",
-    "event_type": "Log",
-    "execution_id": "c38f9faf-9105-4d3e-9362-32f3a621ec82",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "c83d1106-d405-4ec6-b0e2-543782149d9d",
-    "level": "info",
-    "timestamp": 1785502802117000
-  },
-  {
-    "event_message": "Listening on http://localhost:9999/\n",
-    "event_type": "Log",
-    "execution_id": "c38f9faf-9105-4d3e-9362-32f3a621ec82",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "229e26f3-c591-4b4b-943f-73f9dd112c19",
-    "level": "info",
-    "timestamp": 1785502800683000
-  },
-  {
-    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
-    "event_type": "Log",
-    "execution_id": "c38f9faf-9105-4d3e-9362-32f3a621ec82",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "21484185-355b-4c64-aee5-28a245bdc5b2",
-    "level": "info",
-    "timestamp": 1785502800677000
-  },
-  {
-    "event_message": "shutdown",
-    "event_type": "Shutdown",
-    "execution_id": "bcc667aa-0e33-42eb-9d32-86b8a34f398a",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "cb7f7319-d248-4c59-adb5-fc45cdcc5ba8",
-    "level": "log",
-    "timestamp": 1785502800448000
-  },
-  {
-    "event_message": "booted (time: 246ms)",
-    "event_type": "Boot",
-    "execution_id": "c38f9faf-9105-4d3e-9362-32f3a621ec82",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "45ad0ac0-77e9-4940-8bdf-d90e933adb02",
-    "level": "log",
-    "timestamp": 1785502800304000
-  },
-  {
-    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
-    "event_type": "Log",
-    "execution_id": "f442e1f0-94f3-46b5-8578-5e1bf668541b",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "63cd5120-da81-423c-aab1-191dcfc580e9",
-    "level": "info",
-    "timestamp": 1785502798516000
-  },
-  {
-    "event_message": "Listening on http://localhost:9999/\n",
-    "event_type": "Log",
-    "execution_id": "f442e1f0-94f3-46b5-8578-5e1bf668541b",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "58d95cde-ea90-4620-8195-544c4cfff101",
-    "level": "info",
-    "timestamp": 1785502798516000
-  },
-  {
-    "event_message": "booted (time: 44ms)",
-    "event_type": "Boot",
-    "execution_id": "f442e1f0-94f3-46b5-8578-5e1bf668541b",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "daaa0bac-2863-4abb-b107-219d240ac401",
-    "level": "log",
-    "timestamp": 1785502798473000
-  },
-  {
-    "event_message": "shutdown",
-    "event_type": "Shutdown",
-    "execution_id": "c638494d-c23b-44f2-acc7-15964b183880",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "b474c607-4e7c-49c0-8d8a-2f69f85c8389",
-    "level": "log",
-    "timestamp": 1785502780326000
-  },
-  {
-    "event_message": "Listening on http://localhost:9999/\n",
-    "event_type": "Log",
-    "execution_id": "e7c03684-b276-4a22-9fe0-93167cc9ab89",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "f0d912e9-1e38-47cb-b28c-a170ae6415ab",
-    "level": "info",
-    "timestamp": 1785502760707000
-  },
-  {
-    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
-    "event_type": "Log",
-    "execution_id": "e7c03684-b276-4a22-9fe0-93167cc9ab89",
-    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "dd709a67-8647-4f38-bf46-52098c095e38",
-    "level": "info",
-    "timestamp": 1785502760707000
+    "timestamp": 1785678628702000
   },
   {
     "event_message": "booted (time: 43ms)",
     "event_type": "Boot",
-    "execution_id": "e7c03684-b276-4a22-9fe0-93167cc9ab89",
+    "execution_id": "772db305-04ee-470d-85c9-0dd54bbe2589",
     "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "4a5a9303-fc5e-433d-9ae7-d04f9a55f94b",
+    "id": "90704b7f-be33-4665-8afc-ea8a0dd1ff64",
     "level": "log",
-    "timestamp": 1785502760662000
+    "timestamp": 1785678628661000
+  },
+  {
+    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
+    "event_type": "Log",
+    "execution_id": "d84d3e46-6646-43a9-ae89-32d8adc5d897",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "6e31a481-855f-4e9d-9490-c7795900fcb3",
+    "level": "info",
+    "timestamp": 1785678626888000
+  },
+  {
+    "event_message": "✅ [OutboxDispatcher] /send-text success: 200\n",
+    "event_type": "Log",
+    "execution_id": "d84d3e46-6646-43a9-ae89-32d8adc5d897",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "58cc9c06-04e8-47bc-8b47-234669bfd891",
+    "level": "info",
+    "timestamp": 1785678626415000
+  },
+  {
+    "event_message": "✅ [OutboxDispatcher] /send-text success: 200\n",
+    "event_type": "Log",
+    "execution_id": "d84d3e46-6646-43a9-ae89-32d8adc5d897",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "256b9687-31f5-4ecb-b62d-541e2bfe4032",
+    "level": "info",
+    "timestamp": 1785678625013000
+  },
+  {
+    "event_message": "[llmProvider] agent_reply: claude-sonnet-5 — in=1727 out=201 cacheRead=16074 cacheWrite=0 tools=1 retries=0 2854ms\n",
+    "event_type": "Log",
+    "execution_id": "d84d3e46-6646-43a9-ae89-32d8adc5d897",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "4355d94a-6547-4c57-9776-7d63c2e4fd42",
+    "level": "info",
+    "timestamp": 1785678624406000
+  },
+  {
+    "event_message": "[llmProvider] agent_triage: claude-haiku-4-5-20251001 — in=685 out=72 tools=0 retries=0 764ms\n",
+    "event_type": "Log",
+    "execution_id": "d84d3e46-6646-43a9-ae89-32d8adc5d897",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "d1eb0fe4-659a-486d-9d23-79c93ed4d279",
+    "level": "info",
+    "timestamp": 1785678622278000
+  },
+  {
+    "event_message": "[process-inbox] [554198933579] Fused 1 msg(s): \"sim pode confirmar.\"\n",
+    "event_type": "Log",
+    "execution_id": "d84d3e46-6646-43a9-ae89-32d8adc5d897",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "2e619e2e-9dde-422e-a995-8d426219020a",
+    "level": "info",
+    "timestamp": 1785678620783000
   },
   {
     "event_message": "shutdown",
     "event_type": "Shutdown",
-    "execution_id": "a9d56283-565a-471a-ace1-b638ca4733ea",
+    "execution_id": "00512d56-4847-4c86-adad-16337d881d6d",
     "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "77300803-08a8-4dba-bda6-b6bed9eac922",
+    "id": "63c0d982-d12a-4671-a461-c73935430226",
     "level": "log",
-    "timestamp": 1785502760479000
+    "timestamp": 1785678620584000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "execution_id": "d84d3e46-6646-43a9-ae89-32d8adc5d897",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "405fdda1-2b96-4708-87bf-cea99e66eff1",
+    "level": "info",
+    "timestamp": 1785678620506000
+  },
+  {
+    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
+    "event_type": "Log",
+    "execution_id": "d84d3e46-6646-43a9-ae89-32d8adc5d897",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "139dddf0-c53a-467e-b4d3-a13d721acd62",
+    "level": "info",
+    "timestamp": 1785678620506000
+  },
+  {
+    "event_message": "booted (time: 47ms)",
+    "event_type": "Boot",
+    "execution_id": "d84d3e46-6646-43a9-ae89-32d8adc5d897",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "95839f94-faa4-4d76-b5df-2c572a0ca20b",
+    "level": "log",
+    "timestamp": 1785678620452000
+  },
+  {
+    "event_message": "[process-inbox] [554198933579] AI debounce: last msg 3456ms ago (< 10000ms) — deferring\n",
+    "event_type": "Log",
+    "execution_id": "80887958-8896-417d-b0eb-1d96857a03d9",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "f88703b8-f7f5-424c-8f69-c02794d9c2ed",
+    "level": "info",
+    "timestamp": 1785678613977000
+  },
+  {
+    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
+    "event_type": "Log",
+    "execution_id": "80887958-8896-417d-b0eb-1d96857a03d9",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "7220cba2-d9ce-419c-9062-322abb5e0ded",
+    "level": "info",
+    "timestamp": 1785678612495000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "execution_id": "80887958-8896-417d-b0eb-1d96857a03d9",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "44e6c708-10fa-462d-8632-773e4dfb9696",
+    "level": "info",
+    "timestamp": 1785678612495000
+  },
+  {
+    "event_message": "booted (time: 70ms)",
+    "event_type": "Boot",
+    "execution_id": "80887958-8896-417d-b0eb-1d96857a03d9",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "87ea13ad-6be8-4d99-8acf-c793fdc7972e",
+    "level": "log",
+    "timestamp": 1785678612444000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "execution_id": "14cfc7aa-7d5b-4526-9f0a-833024687374",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "7ea8c413-1a42-47c7-b469-9e5059076a45",
+    "level": "info",
+    "timestamp": 1785678610928000
+  },
+  {
+    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
+    "event_type": "Log",
+    "execution_id": "14cfc7aa-7d5b-4526-9f0a-833024687374",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "59663160-7169-48f0-96f8-e7bca4ff6236",
+    "level": "info",
+    "timestamp": 1785678610927000
+  },
+  {
+    "event_message": "booted (time: 57ms)",
+    "event_type": "Boot",
+    "execution_id": "14cfc7aa-7d5b-4526-9f0a-833024687374",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "73000f6a-2485-47ac-aa81-b46de4afac28",
+    "level": "log",
+    "timestamp": 1785678610854000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "execution_id": "179e631d-bfd8-41f3-ae7d-0d90153e4dc3",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "70c5558c-1def-43a0-8acc-e91c2d144620",
+    "level": "info",
+    "timestamp": 1785678600859000
+  },
+  {
+    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
+    "event_type": "Log",
+    "execution_id": "179e631d-bfd8-41f3-ae7d-0d90153e4dc3",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "088cbebc-7056-4e46-9bf5-01b5518b3002",
+    "level": "info",
+    "timestamp": 1785678600858000
+  },
+  {
+    "event_message": "booted (time: 34ms)",
+    "event_type": "Boot",
+    "execution_id": "179e631d-bfd8-41f3-ae7d-0d90153e4dc3",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "72e0b727-5ce9-4d7e-a040-90cfb6551aa3",
+    "level": "log",
+    "timestamp": 1785678600816000
   },
   {
     "event_message": "shutdown",
     "event_type": "Shutdown",
-    "execution_id": "e11b0977-a977-46e2-b210-b150f809b024",
+    "execution_id": "b91d4751-9ff3-4fec-b443-30108624c4c9",
     "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "d2e52070-fbad-4f36-9c21-833bb8f97b90",
+    "id": "a832ce7f-eef8-4290-b322-d2b60421900c",
     "level": "log",
-    "timestamp": 1785502740402000
+    "timestamp": 1785678600365000
+  },
+  {
+    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
+    "event_type": "Log",
+    "execution_id": "ad72f6a5-b9d9-46e1-899a-69057b6e3d52",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "a83c0fdf-32e5-4d2c-a269-c69030d59bbc",
+    "level": "info",
+    "timestamp": 1785678588284000
+  },
+  {
+    "event_message": "✅ [OutboxDispatcher] /send-text success: 200\n",
+    "event_type": "Log",
+    "execution_id": "ad72f6a5-b9d9-46e1-899a-69057b6e3d52",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "c85477c0-dbc1-4f86-825f-10316a4b1438",
+    "level": "info",
+    "timestamp": 1785678587926000
+  },
+  {
+    "event_message": "✅ [OutboxDispatcher] /send-text success: 200\n",
+    "event_type": "Log",
+    "execution_id": "ad72f6a5-b9d9-46e1-899a-69057b6e3d52",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "ec0a71f9-83fc-40b3-a279-f3805bc7ceb2",
+    "level": "info",
+    "timestamp": 1785678587045000
+  },
+  {
+    "event_message": "[llmProvider] agent_reply: claude-sonnet-5 — in=1770 out=169 cacheRead=16074 cacheWrite=0 tools=1 retries=0 2226ms\n",
+    "event_type": "Log",
+    "execution_id": "ad72f6a5-b9d9-46e1-899a-69057b6e3d52",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "75c563c5-2515-4c71-8471-f8a7a7174d91",
+    "level": "info",
+    "timestamp": 1785678586464000
+  },
+  {
+    "event_message": "[llmProvider] agent_reply: claude-sonnet-5 — in=1421 out=162 cacheRead=16074 cacheWrite=0 tools=1 retries=0 2624ms\n",
+    "event_type": "Log",
+    "execution_id": "ad72f6a5-b9d9-46e1-899a-69057b6e3d52",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "3fb9011d-1207-45fc-87ad-d555e765536f",
+    "level": "info",
+    "timestamp": 1785678584076000
+  },
+  {
+    "event_message": "[llmProvider] agent_triage: claude-haiku-4-5-20251001 — in=593 out=72 tools=0 retries=0 933ms\n",
+    "event_type": "Log",
+    "execution_id": "ad72f6a5-b9d9-46e1-899a-69057b6e3d52",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "b2ed7104-9249-44d0-9c41-b70d24044772",
+    "level": "info",
+    "timestamp": 1785678582320000
+  },
+  {
+    "event_message": "[process-inbox] [554198933579] Fused 2 msg(s): \"vc fala português?\nFabricio Santos Oliveira\"\n",
+    "event_type": "Log",
+    "execution_id": "ad72f6a5-b9d9-46e1-899a-69057b6e3d52",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "4dcd02cb-5440-4717-b423-d679863b419a",
+    "level": "info",
+    "timestamp": 1785678580868000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "execution_id": "ad72f6a5-b9d9-46e1-899a-69057b6e3d52",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "0eafaa81-c4b1-46f5-a33e-dbe4d7ac7edc",
+    "level": "info",
+    "timestamp": 1785678580456000
+  },
+  {
+    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
+    "event_type": "Log",
+    "execution_id": "ad72f6a5-b9d9-46e1-899a-69057b6e3d52",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "9ad904fc-65ad-4c6b-96b9-dba9256b05fc",
+    "level": "info",
+    "timestamp": 1785678580455000
+  },
+  {
+    "event_message": "booted (time: 34ms)",
+    "event_type": "Boot",
+    "execution_id": "ad72f6a5-b9d9-46e1-899a-69057b6e3d52",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "c3ba8188-a19e-4b33-b4e3-6cb0a63be035",
+    "level": "log",
+    "timestamp": 1785678580409000
   },
   {
     "event_message": "shutdown",
     "event_type": "Shutdown",
-    "execution_id": "e11b0977-a977-46e2-b210-b150f809b024",
+    "execution_id": "55e9471d-3291-4a6b-8a80-a68ffbc1b239",
     "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
-    "id": "d2e52070-fbad-4f36-9c21-833bb8f97b90",
+    "id": "1aaa43c4-5033-48e9-921c-a1d919d30bd4",
     "level": "log",
-    "timestamp": 1785502740402000
+    "timestamp": 1785678580352000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "55e9471d-3291-4a6b-8a80-a68ffbc1b239",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "1aaa43c4-5033-48e9-921c-a1d919d30bd4",
+    "level": "log",
+    "timestamp": 1785678580352000
+  },
+  {
+    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
+    "event_type": "Log",
+    "execution_id": "52ab40e6-335b-4858-98b8-cdf037c8b4cd",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "55b78dba-287f-4694-abdf-544a373987a0",
+    "level": "info",
+    "timestamp": 1785678564662000
+  },
+  {
+    "event_message": "[process-inbox] [554198933579] AI debounce: last msg 4351ms ago (< 10000ms) — deferring\n",
+    "event_type": "Log",
+    "execution_id": "52ab40e6-335b-4858-98b8-cdf037c8b4cd",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "b92553bf-0ebc-420e-9f5c-e093397884ec",
+    "level": "info",
+    "timestamp": 1785678564583000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "execution_id": "52ab40e6-335b-4858-98b8-cdf037c8b4cd",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "63381cff-ab9f-4b1a-b59f-b27af3d9cf2a",
+    "level": "info",
+    "timestamp": 1785678564307000
+  },
+  {
+    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
+    "event_type": "Log",
+    "execution_id": "52ab40e6-335b-4858-98b8-cdf037c8b4cd",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "050612a3-08a4-4eba-94dd-59a49257446a",
+    "level": "info",
+    "timestamp": 1785678564306000
+  },
+  {
+    "event_message": "booted (time: 59ms)",
+    "event_type": "Boot",
+    "execution_id": "52ab40e6-335b-4858-98b8-cdf037c8b4cd",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "449bb3cb-ac73-4d6c-9f34-30cf1f762a92",
+    "level": "log",
+    "timestamp": 1785678564265000
+  },
+  {
+    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
+    "event_type": "Log",
+    "execution_id": "4e69a6d5-35eb-40b8-9f30-7dd7a5a408a3",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "edd12ccc-41aa-4d7f-80e2-c1f06417f581",
+    "level": "info",
+    "timestamp": 1785678564101000
+  },
+  {
+    "event_message": "[agent] [554198933579] resposta descartada — 1 msg(s) nova(s) durante a geração\n",
+    "event_type": "Log",
+    "execution_id": "4e69a6d5-35eb-40b8-9f30-7dd7a5a408a3",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "576e9722-2d95-4a22-bd3a-81f1e140e1f0",
+    "level": "info",
+    "timestamp": 1785678564012000
+  },
+  {
+    "event_message": "[llmProvider] agent_reply: claude-sonnet-5 — in=1393 out=108 cacheRead=16074 cacheWrite=0 tools=0 retries=0 2599ms\n",
+    "event_type": "Log",
+    "execution_id": "4e69a6d5-35eb-40b8-9f30-7dd7a5a408a3",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "78c08574-168e-48e1-b562-497f36507ba9",
+    "level": "info",
+    "timestamp": 1785678563946000
+  },
+  {
+    "event_message": "[process-inbox] [554198933579] Lock busy, skipping\n",
+    "event_type": "Log",
+    "execution_id": "a9fd4fa3-29b3-4f29-809e-64e6dd1bcfe6",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "4637344d-8920-44e2-9bad-98ffa7d02fc3",
+    "level": "info",
+    "timestamp": 1785678562488000
+  },
+  {
+    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
+    "event_type": "Log",
+    "execution_id": "a9fd4fa3-29b3-4f29-809e-64e6dd1bcfe6",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "f7cc0bb8-4f2c-49b3-b11b-104387f7e3f3",
+    "level": "info",
+    "timestamp": 1785678562488000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "execution_id": "a9fd4fa3-29b3-4f29-809e-64e6dd1bcfe6",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "01a124da-d21a-427d-bdc4-bcba3a56af35",
+    "level": "info",
+    "timestamp": 1785678562168000
+  },
+  {
+    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
+    "event_type": "Log",
+    "execution_id": "a9fd4fa3-29b3-4f29-809e-64e6dd1bcfe6",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "6a1bb0ec-9b1f-4303-b475-413880ad8893",
+    "level": "info",
+    "timestamp": 1785678562167000
+  },
+  {
+    "event_message": "[llmProvider] agent_triage: claude-haiku-4-5-20251001 — in=574 out=72 tools=0 retries=0 801ms\n",
+    "event_type": "Log",
+    "execution_id": "4e69a6d5-35eb-40b8-9f30-7dd7a5a408a3",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "184e743f-9958-49ed-83f4-ed56953da96d",
+    "level": "info",
+    "timestamp": 1785678562148000
+  },
+  {
+    "event_message": "booted (time: 75ms)",
+    "event_type": "Boot",
+    "execution_id": "a9fd4fa3-29b3-4f29-809e-64e6dd1bcfe6",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "20f46915-c40b-41e9-8439-aa4fb0deb944",
+    "level": "log",
+    "timestamp": 1785678562114000
+  },
+  {
+    "event_message": "[process-inbox] [554198933579] Fused 1 msg(s): \"vc fala português?\"\n",
+    "event_type": "Log",
+    "execution_id": "4e69a6d5-35eb-40b8-9f30-7dd7a5a408a3",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "83702e48-e136-4f7e-9f54-f1fe4e5e588f",
+    "level": "info",
+    "timestamp": 1785678560758000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "execution_id": "4e69a6d5-35eb-40b8-9f30-7dd7a5a408a3",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "f0f1faec-3f81-4f63-b092-4b8d507de40f",
+    "level": "info",
+    "timestamp": 1785678560467000
+  },
+  {
+    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
+    "event_type": "Log",
+    "execution_id": "4e69a6d5-35eb-40b8-9f30-7dd7a5a408a3",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "f7de4e3c-431e-4592-8c9a-1a7d1ce305c2",
+    "level": "info",
+    "timestamp": 1785678560466000
+  },
+  {
+    "event_message": "booted (time: 35ms)",
+    "event_type": "Boot",
+    "execution_id": "4e69a6d5-35eb-40b8-9f30-7dd7a5a408a3",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "cf80d687-4019-4e30-85cf-c7d194d8e1ba",
+    "level": "log",
+    "timestamp": 1785678560426000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "978faab6-866b-4ec0-9dd9-20bea0deda0f",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "5d1fb8a9-412a-4981-8935-fa18a83a9f86",
+    "level": "log",
+    "timestamp": 1785678560418000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "18e1c990-1b5c-4c7a-aa58-3550e828c221",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "7e73058f-54e5-4080-a265-8224edd3ccef",
+    "level": "log",
+    "timestamp": 1785678540932000
+  },
+  {
+    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
+    "event_type": "Log",
+    "execution_id": "dffadf0a-868a-4457-a653-0d1755fa69a2",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "36193523-a146-4b92-b538-74025cd67fed",
+    "level": "info",
+    "timestamp": 1785678540866000
+  },
+  {
+    "event_message": "[process-inbox] [554198933579] AI debounce: last msg 4991ms ago (< 10000ms) — deferring\n",
+    "event_type": "Log",
+    "execution_id": "dffadf0a-868a-4457-a653-0d1755fa69a2",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "d1e6d51a-53a4-4cca-a147-f771b15766d7",
+    "level": "info",
+    "timestamp": 1785678540775000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "execution_id": "dffadf0a-868a-4457-a653-0d1755fa69a2",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "42473f3b-4415-4572-817b-c8675e40182d",
+    "level": "info",
+    "timestamp": 1785678540513000
+  },
+  {
+    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
+    "event_type": "Log",
+    "execution_id": "dffadf0a-868a-4457-a653-0d1755fa69a2",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "f23b8e9a-6e5a-46b4-a178-fa12395a73d5",
+    "level": "info",
+    "timestamp": 1785678540513000
+  },
+  {
+    "event_message": "booted (time: 33ms)",
+    "event_type": "Boot",
+    "execution_id": "dffadf0a-868a-4457-a653-0d1755fa69a2",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "51ac25b9-7086-41ae-8231-82359b976ac6",
+    "level": "log",
+    "timestamp": 1785678540471000
+  },
+  {
+    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
+    "event_type": "Log",
+    "execution_id": "72927b64-6971-4163-aa3d-b1eab765e3c9",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "1c0433a2-2205-4324-8ab4-be9b4bd6af54",
+    "level": "info",
+    "timestamp": 1785678539573000
+  },
+  {
+    "event_message": "[process-inbox] [554198933579] AI debounce: last msg 3259ms ago (< 10000ms) — deferring\n",
+    "event_type": "Log",
+    "execution_id": "72927b64-6971-4163-aa3d-b1eab765e3c9",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "4ee14842-df76-4f52-9cd7-a3b88e041876",
+    "level": "info",
+    "timestamp": 1785678539043000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "execution_id": "72927b64-6971-4163-aa3d-b1eab765e3c9",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "84615f9c-9b5e-406e-97ee-128213d7bd4c",
+    "level": "info",
+    "timestamp": 1785678537661000
+  },
+  {
+    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
+    "event_type": "Log",
+    "execution_id": "72927b64-6971-4163-aa3d-b1eab765e3c9",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "0435a466-4324-4c72-ad65-98fc86b41821",
+    "level": "info",
+    "timestamp": 1785678537660000
+  },
+  {
+    "event_message": "booted (time: 76ms)",
+    "event_type": "Boot",
+    "execution_id": "72927b64-6971-4163-aa3d-b1eab765e3c9",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "841f441c-52bd-42e4-844e-34417fad9a96",
+    "level": "log",
+    "timestamp": 1785678537608000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "execution_id": "0656bc8a-32f6-4212-b511-1fe4be242c5e",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "3b3454d5-4fe3-4a17-920b-7930a510836e",
+    "level": "info",
+    "timestamp": 1785678536546000
+  },
+  {
+    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
+    "event_type": "Log",
+    "execution_id": "0656bc8a-32f6-4212-b511-1fe4be242c5e",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "be836931-76c2-40cf-bb80-8bca7979df16",
+    "level": "info",
+    "timestamp": 1785678536545000
+  },
+  {
+    "event_message": "booted (time: 36ms)",
+    "event_type": "Boot",
+    "execution_id": "0656bc8a-32f6-4212-b511-1fe4be242c5e",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "50190787-4feb-4530-8fc6-23517e1efe39",
+    "level": "log",
+    "timestamp": 1785678536506000
+  },
+  {
+    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
+    "event_type": "Log",
+    "execution_id": "9a636707-abd0-466b-b118-7601e90f0bbc",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "7fe398b0-ae8d-4297-b724-57235c5ec96a",
+    "level": "info",
+    "timestamp": 1785678534681000
+  },
+  {
+    "event_message": "✅ [OutboxDispatcher] /send-text success: 200\n",
+    "event_type": "Log",
+    "execution_id": "9a636707-abd0-466b-b118-7601e90f0bbc",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "43742925-701c-4af9-8242-38c95a45bf8a",
+    "level": "info",
+    "timestamp": 1785678533887000
+  },
+  {
+    "event_message": "✅ [OutboxDispatcher] /send-text success: 200\n",
+    "event_type": "Log",
+    "execution_id": "9a636707-abd0-466b-b118-7601e90f0bbc",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "09dad701-2306-4d8e-92eb-aa162ee23000",
+    "level": "info",
+    "timestamp": 1785678532267000
+  },
+  {
+    "event_message": "✅ [OutboxDispatcher] /send-text success: 200\n",
+    "event_type": "Log",
+    "execution_id": "9a636707-abd0-466b-b118-7601e90f0bbc",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "bae7c9d3-f31b-4bf6-8dd3-f09b607292e6",
+    "level": "info",
+    "timestamp": 1785678530641000
+  },
+  {
+    "event_message": "[llmProvider] agent_reply: claude-sonnet-5 — in=1081 out=698 cacheRead=16074 cacheWrite=0 tools=1 retries=0 9363ms\n",
+    "event_type": "Log",
+    "execution_id": "9a636707-abd0-466b-b118-7601e90f0bbc",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "450d2f48-2fd4-4c74-bd14-fde593169c3e",
+    "level": "info",
+    "timestamp": 1785678530056000
+  },
+  {
+    "event_message": "[llmProvider] agent_triage: claude-haiku-4-5-20251001 — in=347 out=72 tools=0 retries=0 825ms\n",
+    "event_type": "Log",
+    "execution_id": "9a636707-abd0-466b-b118-7601e90f0bbc",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "366f084a-d4f4-4ec3-bd3b-f739ee40795e",
+    "level": "info",
+    "timestamp": 1785678521529000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "9e111d34-0631-4ca0-958f-27e87513587f",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "5e74a6d2-919d-488d-a52d-f124c8e06776",
+    "level": "log",
+    "timestamp": 1785678520480000
+  },
+  {
+    "event_message": "[process-inbox] [554198933579] Fused 3 msg(s): \"quero mais informaçõers por favor\nqual o preço\nquanto tempo leva o procedimento?\"\n",
+    "event_type": "Log",
+    "execution_id": "9a636707-abd0-466b-b118-7601e90f0bbc",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "f13ce975-efd3-4b6a-87a2-a26735e6eea1",
+    "level": "info",
+    "timestamp": 1785678520458000
+  },
+  {
+    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
+    "event_type": "Log",
+    "execution_id": "9a636707-abd0-466b-b118-7601e90f0bbc",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "3299accf-c834-47e6-b155-8e3e71eeddf3",
+    "level": "info",
+    "timestamp": 1785678520326000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "execution_id": "9a636707-abd0-466b-b118-7601e90f0bbc",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "807070cd-3fd8-4f8f-824c-93d45db5f68c",
+    "level": "info",
+    "timestamp": 1785678520326000
+  },
+  {
+    "event_message": "booted (time: 56ms)",
+    "event_type": "Boot",
+    "execution_id": "9a636707-abd0-466b-b118-7601e90f0bbc",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "68dff1fe-0ad3-4c5d-8e57-e53188e1f77e",
+    "level": "log",
+    "timestamp": 1785678520286000
+  },
+  {
+    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
+    "event_type": "Log",
+    "execution_id": "a5f69481-02c8-42e4-8887-b30d62d3b2ee",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "209b4cbe-5cdf-486e-bb35-cda204f82fbd",
+    "level": "info",
+    "timestamp": 1785678517612000
+  },
+  {
+    "event_message": "[agent] [554198933579] resposta descartada — 1 msg(s) nova(s) durante a geração\n",
+    "event_type": "Log",
+    "execution_id": "a5f69481-02c8-42e4-8887-b30d62d3b2ee",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "92368a1b-854a-43e4-8ce4-b34b511a04a4",
+    "level": "info",
+    "timestamp": 1785678517532000
+  },
+  {
+    "event_message": "[llmProvider] agent_reply: claude-sonnet-5 — in=1040 out=370 cacheRead=3295 cacheWrite=12779 tools=1 retries=0 9808ms\n",
+    "event_type": "Log",
+    "execution_id": "a5f69481-02c8-42e4-8887-b30d62d3b2ee",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "054d16f2-eef9-4d58-89eb-ccf653f9a832",
+    "level": "info",
+    "timestamp": 1785678517450000
+  },
+  {
+    "event_message": "[llmProvider] agent_triage: claude-haiku-4-5-20251001 — in=318 out=72 tools=0 retries=0 735ms\n",
+    "event_type": "Log",
+    "execution_id": "a5f69481-02c8-42e4-8887-b30d62d3b2ee",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "484fc5f7-bf57-4880-abf8-34d870240d70",
+    "level": "info",
+    "timestamp": 1785678508377000
+  },
+  {
+    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
+    "event_type": "Log",
+    "execution_id": "d91386f9-9bcf-4f85-8b80-f85d3c5644c9",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "921ae228-7618-4767-92f1-f2e3ac438142",
+    "level": "info",
+    "timestamp": 1785678508314000
+  },
+  {
+    "event_message": "[process-inbox] [554198933579] Lock busy, skipping\n",
+    "event_type": "Log",
+    "execution_id": "d91386f9-9bcf-4f85-8b80-f85d3c5644c9",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "5ec60c70-fcf7-4989-b475-15e209ab034c",
+    "level": "info",
+    "timestamp": 1785678508314000
+  },
+  {
+    "event_message": "[process-inbox] [554198933579] Fused 2 msg(s): \"quero mais informaçõers por favor\nqual o preço\"\n",
+    "event_type": "Log",
+    "execution_id": "a5f69481-02c8-42e4-8887-b30d62d3b2ee",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "4c8bda47-d273-43b4-afcf-9756771676a7",
+    "level": "info",
+    "timestamp": 1785678506931000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "execution_id": "a5f69481-02c8-42e4-8887-b30d62d3b2ee",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "1f47a4c9-d4e5-40d3-a5b6-a402e743e1a1",
+    "level": "info",
+    "timestamp": 1785678506674000
+  },
+  {
+    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
+    "event_type": "Log",
+    "execution_id": "a5f69481-02c8-42e4-8887-b30d62d3b2ee",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "62f45169-ca42-425b-b5e7-b067b0b48bf6",
+    "level": "info",
+    "timestamp": 1785678506673000
+  },
+  {
+    "event_message": "booted (time: 77ms)",
+    "event_type": "Boot",
+    "execution_id": "a5f69481-02c8-42e4-8887-b30d62d3b2ee",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "a185a12b-2d07-4344-b036-504402ae7585",
+    "level": "log",
+    "timestamp": 1785678506600000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "5e35dc15-8648-4a0a-999b-5f801fbd1fcf",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "42afbac5-0578-4448-b052-0e2506e442b2",
+    "level": "log",
+    "timestamp": 1785678500966000
+  },
+  {
+    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
+    "event_type": "Log",
+    "execution_id": "ac4d3a11-4149-48dd-9ed4-3927fc171fa7",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "c3f8da20-752d-4dcf-bc9f-9a5f387ae460",
+    "level": "info",
+    "timestamp": 1785678500596000
+  },
+  {
+    "event_message": "[process-inbox] [554198933579] AI debounce: last msg 6767ms ago (< 10000ms) — deferring\n",
+    "event_type": "Log",
+    "execution_id": "ac4d3a11-4149-48dd-9ed4-3927fc171fa7",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "ca27541c-a27c-425f-afff-d8ae0e05d8e5",
+    "level": "info",
+    "timestamp": 1785678500537000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "execution_id": "ac4d3a11-4149-48dd-9ed4-3927fc171fa7",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "29fca7fd-1086-4ef6-a301-0e00737f2d7d",
+    "level": "info",
+    "timestamp": 1785678500305000
+  },
+  {
+    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
+    "event_type": "Log",
+    "execution_id": "ac4d3a11-4149-48dd-9ed4-3927fc171fa7",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "35ec56ae-34a3-41f2-a2df-6cf7c864dc01",
+    "level": "info",
+    "timestamp": 1785678500305000
+  },
+  {
+    "event_message": "booted (time: 38ms)",
+    "event_type": "Boot",
+    "execution_id": "ac4d3a11-4149-48dd-9ed4-3927fc171fa7",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "7f699057-9f80-4747-b142-d44940fd01bc",
+    "level": "log",
+    "timestamp": 1785678500260000
+  },
+  {
+    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
+    "event_type": "Log",
+    "execution_id": "e80bb75f-e561-46f9-a515-7ba054007d02",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "a9552d16-a60e-42a3-a9ca-9db7e3106054",
+    "level": "info",
+    "timestamp": 1785678497396000
+  },
+  {
+    "event_message": "[process-inbox] [554198933579] AI debounce: last msg 3336ms ago (< 10000ms) — deferring\n",
+    "event_type": "Log",
+    "execution_id": "e80bb75f-e561-46f9-a515-7ba054007d02",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "ae566d34-130c-4ced-b8e7-e38122e21b66",
+    "level": "info",
+    "timestamp": 1785678497106000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "execution_id": "e80bb75f-e561-46f9-a515-7ba054007d02",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "18420dac-d51b-4236-bad7-3a26d779bc85",
+    "level": "info",
+    "timestamp": 1785678495719000
+  },
+  {
+    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
+    "event_type": "Log",
+    "execution_id": "e80bb75f-e561-46f9-a515-7ba054007d02",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "8a860097-b766-4ed8-a102-facda985ca3b",
+    "level": "info",
+    "timestamp": 1785678495718000
+  },
+  {
+    "event_message": "booted (time: 74ms)",
+    "event_type": "Boot",
+    "execution_id": "e80bb75f-e561-46f9-a515-7ba054007d02",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "de5e928b-96f7-4e8e-9741-7c03feb4a50a",
+    "level": "log",
+    "timestamp": 1785678495638000
+  },
+  {
+    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
+    "event_type": "Log",
+    "execution_id": "cf6bc23b-bb06-4338-acff-12d92e06e1ae",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "2c8b4498-02fd-4091-ac78-87a67c66ef07",
+    "level": "info",
+    "timestamp": 1785678494678000
+  },
+  {
+    "event_message": "[process-inbox] [554198933579] AI debounce: last msg 3041ms ago (< 10000ms) — deferring\n",
+    "event_type": "Log",
+    "execution_id": "cf6bc23b-bb06-4338-acff-12d92e06e1ae",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "8ec31409-5036-4772-b8b5-c3693367d624",
+    "level": "info",
+    "timestamp": 1785678494127000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "execution_id": "05d8563b-5c1f-4e47-9766-54d1ec28197d",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "cdf47792-0a9e-48be-9a9d-aec5537c3577",
+    "level": "info",
+    "timestamp": 1785678494035000
+  },
+  {
+    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
+    "event_type": "Log",
+    "execution_id": "05d8563b-5c1f-4e47-9766-54d1ec28197d",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "db0b7d54-440d-41cb-9e06-5e19490635f7",
+    "level": "info",
+    "timestamp": 1785678494034000
+  },
+  {
+    "event_message": "booted (time: 35ms)",
+    "event_type": "Boot",
+    "execution_id": "05d8563b-5c1f-4e47-9766-54d1ec28197d",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "c1e1c40a-01bd-4582-a8b5-fa4580a8a909",
+    "level": "log",
+    "timestamp": 1785678493994000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "execution_id": "cf6bc23b-bb06-4338-acff-12d92e06e1ae",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "d1dc480b-5666-4ff0-b8b2-dbbeae0d9759",
+    "level": "info",
+    "timestamp": 1785678493252000
+  },
+  {
+    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
+    "event_type": "Log",
+    "execution_id": "cf6bc23b-bb06-4338-acff-12d92e06e1ae",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "2e38890e-eee6-433a-a0bc-1d8ab9984b5c",
+    "level": "info",
+    "timestamp": 1785678493251000
+  },
+  {
+    "event_message": "booted (time: 79ms)",
+    "event_type": "Boot",
+    "execution_id": "cf6bc23b-bb06-4338-acff-12d92e06e1ae",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "e4ded162-7963-444d-a394-7400958d2ddb",
+    "level": "log",
+    "timestamp": 1785678493195000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "execution_id": "7e8771e4-6cbd-49c1-9941-49bd8be790ab",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "b60aeaa9-ed47-4838-b374-81d107320eab",
+    "level": "info",
+    "timestamp": 1785678491687000
+  },
+  {
+    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
+    "event_type": "Log",
+    "execution_id": "7e8771e4-6cbd-49c1-9941-49bd8be790ab",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "a14e51ed-6f81-46a6-a1c2-b19db5df369e",
+    "level": "info",
+    "timestamp": 1785678491686000
+  },
+  {
+    "event_message": "booted (time: 52ms)",
+    "event_type": "Boot",
+    "execution_id": "7e8771e4-6cbd-49c1-9941-49bd8be790ab",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "0a44e356-7020-4fe2-b47a-1b84ad171ab2",
+    "level": "log",
+    "timestamp": 1785678491618000
+  },
+  {
+    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
+    "event_type": "Log",
+    "execution_id": "32312a5e-6156-4192-b517-99401711169d",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "0af11ea1-76b9-46cf-98b1-ee3a503770e5",
+    "level": "info",
+    "timestamp": 1785678486633000
+  },
+  {
+    "event_message": "✅ [OutboxDispatcher] /send-text success: 200\n",
+    "event_type": "Log",
+    "execution_id": "32312a5e-6156-4192-b517-99401711169d",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "e7986993-045b-4c50-a0ca-fdee59fc3ddf",
+    "level": "info",
+    "timestamp": 1785678486300000
+  },
+  {
+    "event_message": "[llmProvider] agent_reply: claude-sonnet-5 — in=807 out=232 cacheRead=0 cacheWrite=16058 tools=0 retries=0 4290ms\n",
+    "event_type": "Log",
+    "execution_id": "32312a5e-6156-4192-b517-99401711169d",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "822583eb-7668-4723-8edf-98a3792688ef",
+    "level": "info",
+    "timestamp": 1785678485732000
+  },
+  {
+    "event_message": "[llmProvider] agent_triage: claude-haiku-4-5-20251001 — in=189 out=72 tools=0 retries=0 1807ms\n",
+    "event_type": "Log",
+    "execution_id": "32312a5e-6156-4192-b517-99401711169d",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "822ef934-2ec3-41e5-b79d-2f341f2a8544",
+    "level": "info",
+    "timestamp": 1785678483232000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "2fccef63-37d0-4c35-a1a7-67091fa15388",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "2c9f6f6a-107f-4749-a11b-b81f934de235",
+    "level": "log",
+    "timestamp": 1785678481502000
+  },
+  {
+    "event_message": "[process-inbox] [554198933579] Fused 1 msg(s): \"olá, ví seu anuncio sobre implante.\"\n",
+    "event_type": "Log",
+    "execution_id": "32312a5e-6156-4192-b517-99401711169d",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "006a12b7-afa2-41a9-b0fc-a474c263d90d",
+    "level": "info",
+    "timestamp": 1785678480911000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "execution_id": "32312a5e-6156-4192-b517-99401711169d",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "984aa614-9a2c-4cc9-8a99-5e7e55c36e43",
+    "level": "info",
+    "timestamp": 1785678480611000
+  },
+  {
+    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
+    "event_type": "Log",
+    "execution_id": "32312a5e-6156-4192-b517-99401711169d",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "341b26ec-887c-4a2b-8316-fbbcbb0a2ad8",
+    "level": "info",
+    "timestamp": 1785678480610000
+  },
+  {
+    "event_message": "booted (time: 55ms)",
+    "event_type": "Boot",
+    "execution_id": "32312a5e-6156-4192-b517-99401711169d",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "c4a736d8-68ef-4760-8d1e-752f06a4a012",
+    "level": "log",
+    "timestamp": 1785678480405000
+  },
+  {
+    "event_message": "[process-inbox] Processed 1 conversation(s), 0 failed\n",
+    "event_type": "Log",
+    "execution_id": "d91386f9-9bcf-4f85-8b80-f85d3c5644c9",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "8e824452-2ed7-47bc-bbac-7bcc7e69b214",
+    "level": "info",
+    "timestamp": 1785678471426000
+  },
+  {
+    "event_message": "[process-inbox] [554198933579] AI debounce: last msg 3718ms ago (< 10000ms) — deferring\n",
+    "event_type": "Log",
+    "execution_id": "d91386f9-9bcf-4f85-8b80-f85d3c5644c9",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "c9156d8e-4f88-4184-86bd-2bac50f4612b",
+    "level": "info",
+    "timestamp": 1785678470605000
+  },
+  {
+    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
+    "event_type": "Log",
+    "execution_id": "d91386f9-9bcf-4f85-8b80-f85d3c5644c9",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "d6f17e7d-e34e-4af9-8c50-8059617261d9",
+    "level": "info",
+    "timestamp": 1785678468846000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "execution_id": "d91386f9-9bcf-4f85-8b80-f85d3c5644c9",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "0ba65380-d8c4-4bed-ad0e-0069d3bb2bff",
+    "level": "info",
+    "timestamp": 1785678468846000
+  },
+  {
+    "event_message": "booted (time: 76ms)",
+    "event_type": "Boot",
+    "execution_id": "d91386f9-9bcf-4f85-8b80-f85d3c5644c9",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "b1af9052-ce9d-45aa-9cf6-9a52846b7d86",
+    "level": "log",
+    "timestamp": 1785678468792000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "execution_id": "79881b0c-515c-4cc8-9585-2293246f6916",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "c71ef24e-9275-4d38-a959-2b77f8373e41",
+    "level": "info",
+    "timestamp": 1785678467273000
+  },
+  {
+    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
+    "event_type": "Log",
+    "execution_id": "79881b0c-515c-4cc8-9585-2293246f6916",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "8b5417f4-35d2-40a8-aed8-e99c6ed68856",
+    "level": "info",
+    "timestamp": 1785678467272000
+  },
+  {
+    "event_message": "booted (time: 58ms)",
+    "event_type": "Boot",
+    "execution_id": "79881b0c-515c-4cc8-9585-2293246f6916",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "e6604d2f-5616-4e4c-ab30-8a2c33857ed6",
+    "level": "log",
+    "timestamp": 1785678467193000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "3d964c33-fb8a-4f71-890d-060f6629c388",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "ddee539b-2862-4d74-b6e9-fd7590a6873f",
+    "level": "log",
+    "timestamp": 1785678460551000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "execution_id": "68e16c9d-1971-41e1-81ee-1d86a8f9120f",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "3b7753fe-41ce-4735-b452-0fb74886291f",
+    "level": "info",
+    "timestamp": 1785678460423000
+  },
+  {
+    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
+    "event_type": "Log",
+    "execution_id": "68e16c9d-1971-41e1-81ee-1d86a8f9120f",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "2d5955b0-7c01-41c4-ac42-7e08af0ff2bf",
+    "level": "info",
+    "timestamp": 1785678460422000
+  },
+  {
+    "event_message": "booted (time: 45ms)",
+    "event_type": "Boot",
+    "execution_id": "68e16c9d-1971-41e1-81ee-1d86a8f9120f",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "f3fdbae9-adcc-4b35-bc77-b6e0eb0e4c46",
+    "level": "log",
+    "timestamp": 1785678460381000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "c04466a0-18bd-44df-9f67-46119869b439",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "b768386b-18eb-4d72-9269-24450bd35b1a",
+    "level": "log",
+    "timestamp": 1785678440483000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "execution_id": "55017fed-e077-454b-83b4-9bf1d9addd06",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "55935baf-f8c2-446f-ac5e-1a8bf701e0f0",
+    "level": "info",
+    "timestamp": 1785678440455000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "execution_id": "55017fed-e077-454b-83b4-9bf1d9addd06",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "55935baf-f8c2-446f-ac5e-1a8bf701e0f0",
+    "level": "info",
+    "timestamp": 1785678440455000
+  },
+  {
+    "event_message": "process-inbox v1 — Debounce + Fusion Worker — Initialized\n",
+    "event_type": "Log",
+    "execution_id": "55017fed-e077-454b-83b4-9bf1d9addd06",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "e0ca722a-d9e0-4ce6-a5bd-bf0b54413c3b",
+    "level": "info",
+    "timestamp": 1785678440455000
+  },
+  {
+    "event_message": "booted (time: 33ms)",
+    "event_type": "Boot",
+    "execution_id": "55017fed-e077-454b-83b4-9bf1d9addd06",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "7f95c0be-c315-478c-b98b-1e6fc105d501",
+    "level": "log",
+    "timestamp": 1785678440416000
+  },
+  {
+    "event_message": "booted (time: 33ms)",
+    "event_type": "Boot",
+    "execution_id": "55017fed-e077-454b-83b4-9bf1d9addd06",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "7f95c0be-c315-478c-b98b-1e6fc105d501",
+    "level": "log",
+    "timestamp": 1785678440416000
+  },
+  {
+    "event_message": "booted (time: 33ms)",
+    "event_type": "Boot",
+    "execution_id": "55017fed-e077-454b-83b4-9bf1d9addd06",
+    "function_id": "df84d675-f6c0-4dc3-9d44-7d8e5aa033e0",
+    "id": "7f95c0be-c315-478c-b98b-1e6fc105d501",
+    "level": "log",
+    "timestamp": 1785678440416000
   }
 ]
