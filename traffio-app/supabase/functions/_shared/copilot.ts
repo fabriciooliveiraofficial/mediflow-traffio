@@ -773,6 +773,14 @@ const LANG_NAME = CONVERSATION_LANGUAGE_NAMES;
 // Reprovou → 1 regeneração corretiva → ainda reprovado → handoff humano.
 const PRICE_LEAK_PATTERN = /(r\$|us\$|\$\s?\d|€|\d+[.,]\d{2}\b|\b\d{3,}\s?(reais|dólares|dolares|euros)\b|\b(custa|cuesta|costs?)\s+\d)/i;
 const TIME_MENTION_PATTERN = /\b([01]?\d|2[0-3]):[0-5]\d\b/g;
+
+// E-3 (2026-07-31, teste de estresse): o agente disse "já vou verificar os
+// horários... e te mostro em seguida" e a conversa morreu — a ferramenta que
+// cumpriria a promessa tinha sido bloqueada/falhou NESTE MESMO turno, então
+// nada mais chegaria ao paciente sem uma nova mensagem dele. Combinado com
+// `toolCallFailedThisTurn`, pega qualquer beco futuro do mesmo formato:
+// prometer uma verificação iminente sem tê-la de fato executado.
+const PROMISE_PATTERN = /\b(j[aá] vou verificar|vou verificar|vou consultar|j[aá] verifico|deixa(?:-me| eu)? ver|s[oó] um momento|um momento|aguarde um (?:momento|instante)|j[aá] te (?:mostro|envio|passo)|te (?:mostro|envio|passo) em seguida|let me check|i'?ll check|checking now|one moment|hold on|give me a (?:moment|second)|voy a verificar|ya verifico|d[ée]jame ver|ya te (?:muestro|env[ií]o))\b/i;
 type LanguageDriftMarker = { marker: string; pattern: RegExp };
 
 // Markers must be language-specific enough to avoid names, procedure names and
@@ -1006,6 +1014,8 @@ export interface AgentReplyValidationOptions {
     patientLastMessage?: string;
     /** buildPatientSnapshot output only; do not use untrusted transcript text here. */
     appointmentEvidence?: string | null;
+    /** E-3 (2026-07-31): alguma ferramenta de dados falhou/foi bloqueada NESTE turno — combina com PROMISE_PATTERN para pegar promessa sem execução. */
+    toolCallFailedThisTurn?: boolean;
 }
 
 /**
@@ -1089,6 +1099,14 @@ export function validateAgentReply(text: string, opts: AgentReplyValidationOptio
     // — cada dado estruturado deve ter sua própria linha (ver LOCALIZAÇÃO DA
     // CLÍNICA no knowledge packet, entregue já formatado para cópia verbatim).
     if (hasCrampedStructuredData(text)) violations.push("dados estruturados amontoados na mesma linha do link (ex.: endereço + URL) — cada dado em sua própria linha");
+
+    // E-3 (2026-07-31): promessa de verificação iminente ("já vou verificar...")
+    // quando a ferramenta que cumpriria essa promessa falhou/foi bloqueada NESTE
+    // turno — sem isso a conversa morre esperando algo que nunca chega, porque
+    // só uma nova mensagem do paciente dispara o próximo turno.
+    if (opts.toolCallFailedThisTurn && PROMISE_PATTERN.test(text)) {
+        violations.push("promessa de ação sem execução — uma ferramenta falhou/foi bloqueada neste turno; resolva agora (pergunte o que falta ou responda com o que já se sabe) em vez de pedir para o paciente esperar por algo que não foi executado");
+    }
 
     return violations;
 }
@@ -1450,6 +1468,34 @@ export function buildAutonomousSystemPrompt(opts: {
     return { text, cachePrefix };
 }
 
+// E-3 (2026-07-31): ferramentas de cadastro (atualizar_cadastro_paciente /
+// marcar_cadastro_confirmado) executam ANTES das demais no mesmo lote de
+// tool_calls, para que o estado de confirmação já esteja atualizado quando
+// ver_disponibilidade for avaliada logo em seguida — mesmo dentro do MESMO
+// turno (ex.: paciente responde "manhã" fechando cadastro e período juntos).
+export const REGISTRATION_TOOLS = new Set(["atualizar_cadastro_paciente", "marcar_cadastro_confirmado"]);
+
+export function orderRegistrationToolsFirst<T extends { name: string }>(calls: T[]): T[] {
+    return [...calls].sort((a, b) => Number(REGISTRATION_TOOLS.has(b.name)) - Number(REGISTRATION_TOOLS.has(a.name)));
+}
+
+/**
+ * E-3 (2026-07-31): decide se `ver_disponibilidade` deve ser bloqueada NESTE
+ * turno. Só bloqueia quando dados de cadastro ACABARAM de chegar
+ * (atualizar_cadastro_paciente) e ainda não foram confirmados pelo paciente —
+ * nunca por `marcar_cadastro_confirmado` ter rodado, que é a própria
+ * confirmação (bug original: as duas ferramentas eram tratadas como o mesmo
+ * gatilho, então confirmar o cadastro bloqueava a checagem de horário no
+ * mesmo turno, e a conversa morria numa promessa sem execução).
+ */
+export function shouldBlockAvailabilityCheck(
+    toolName: string,
+    justUpdatedRegistrationThisTurn: boolean,
+    registrationConfirmed: boolean,
+): boolean {
+    return toolName === "ver_disponibilidade" && justUpdatedRegistrationThisTurn && !registrationConfirmed;
+}
+
 export async function runAutonomousAgent(supabase: SupabaseClient, params: AutonomousParams): Promise<AutonomousStatus> {
     const { tenantId, sessionId, phone, clinicName, botConfig, tenant, sessionManager, timezone } = params;
     const dispatcher = new OutboxDispatcher(supabase);
@@ -1601,8 +1647,19 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
         const lastPatientMessage = String([...history].reverse().find((m: any) => m.role === "user")?.content || "");
         // Camada 1 — tudo que o agente PODE citar neste turno (validador de horários)
         const toolEvidence: string[] = [];
+        // E-3 (2026-07-31): alguma ferramenta de dados falhou/foi bloqueada este
+        // turno — alimenta o guard anti-promessa-sem-execução no validador final.
+        let toolCallFailedThisTurn = false;
 
-        let registrationMutatedThisTurn = false;
+        // E-3 (2026-07-31): "atualizar_cadastro_paciente" só ACABOU de coletar o
+        // dado — ainda precisa da confirmação expressa do paciente antes de
+        // mostrar horário (regra de negócio real, mantida). Já
+        // "marcar_cadastro_confirmado" É a própria confirmação: a partir dela
+        // ver_disponibilidade deve seguir livre, inclusive no MESMO turno (é
+        // exatamente o que a nota da ferramenta promete ao modelo). O estado
+        // que decide é sempre context.registration_confirmed — nunca uma
+        // contagem cega de "alguma ferramenta de cadastro rodou este turno".
+        let justUpdatedRegistrationThisTurn = false;
 
         for (let round = 0; round < MAX_TOOL_ROUNDS && reply.toolCalls.length > 0; round++) {
             const transferCall = reply.toolCalls.find(t => t.name === "transfer_to_human");
@@ -1621,26 +1678,32 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
 
             convo.push({ role: "assistant", content: reply.rawContent });
             const results: any[] = [];
-            const nonResponderCalls = reply.toolCalls.filter(t => t.name !== "responder_paciente");
+            const nonResponderCalls = orderRegistrationToolsFirst(reply.toolCalls.filter(t => t.name !== "responder_paciente"));
             for (const call of nonResponderCalls) {
-                if (call.name === "atualizar_cadastro_paciente" || call.name === "marcar_cadastro_confirmado") {
-                    registrationMutatedThisTurn = true;
-                }
-
-                if (call.name === "ver_disponibilidade" && registrationMutatedThisTurn) {
+                if (shouldBlockAvailabilityCheck(call.name, justUpdatedRegistrationThisTurn, Boolean(context.registration_confirmed))) {
                     const resultJson = JSON.stringify({
                         error: "blocked_in_this_turn",
-                        note: "[HARD STOP] Você não pode chamar 'ver_disponibilidade' no MESMO TURNO em que chamou 'atualizar_cadastro_paciente' ou 'marcar_cadastro_confirmado'. Você DEVE usar 'responder_paciente' para falar com o paciente e AGUARDAR a resposta dele confirmando os dados. PARE DE CHAMAR FERRAMENTAS AGORA."
+                        note: "[HARD STOP] Os dados do cadastro foram informados agora, mas ainda NÃO foram confirmados pelo paciente. Você DEVE usar 'responder_paciente' para confirmar os dados com o paciente e AGUARDAR a resposta dele. PARE DE CHAMAR FERRAMENTAS AGORA."
                     });
                     toolEvidence.push(resultJson);
                     results.push({ type: "tool_result", tool_use_id: call.id, content: resultJson });
+                    toolCallFailedThisTurn = true;
                     continue;
                 }
 
                 toolsCalledSet.add(call.name);
                 const outcome = await executeSchedulingTool(supabase, tenantId, searchPhone, session.platform_display_name, call, lastPatientMessage, turnLanguage, context);
+                if (outcome.data?.error) {
+                    toolCallFailedThisTurn = true;
+                }
                 if (outcome.data?.registration_confirmed) {
                     context.registration_confirmed = true;
+                }
+                // Só atualizar_cadastro_paciente liga o freio (dado ACABOU de
+                // chegar, ainda não confirmado); marcar_cadastro_confirmado é a
+                // própria confirmação e nunca deve travar o que vem depois dela.
+                if (call.name === "atualizar_cadastro_paciente" && !context.registration_confirmed) {
+                    justUpdatedRegistrationThisTurn = true;
                 }
                 if (outcome.slots?.length) lastSlots = outcome.slots;
                 if (outcome.data?.reconciliation_needed) reconciliationNeeded = true;
@@ -1834,6 +1897,7 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
                 policyEvidence: knowledgePacket,
                 patientLastMessage: lastPatientMessage,
                 appointmentEvidence: patientSnapshot,
+                toolCallFailedThisTurn,
             });
             violations.push(...bubbleViolations);
         }
@@ -1890,6 +1954,7 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
                         policyEvidence: knowledgePacket,
                         patientLastMessage: lastPatientMessage,
                         appointmentEvidence: patientSnapshot,
+                        toolCallFailedThisTurn,
                     }));
                 }
                 if (isNearDuplicateReply(fixedText, lastAssistant)) fixedViolations.push("ainda em loop após regeneração");

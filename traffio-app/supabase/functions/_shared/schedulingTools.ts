@@ -879,7 +879,7 @@ export async function executeSchedulingTool(
                 data: {
                     success: true,
                     registration_confirmed: true,
-                    note: "Cadastro confirmado com sucesso para a conversa atual. Agora você pode consultar a disponibilidade usando a ferramenta ver_disponibilidade.",
+                    note: "Cadastro confirmado com sucesso para a conversa atual. Agora você pode consultar a disponibilidade usando a ferramenta ver_disponibilidade — inclusive chamando as duas ferramentas NESTE MESMO TURNO, se o paciente já indicou o período (ex.: ele respondeu confirmando os dados E disse 'de manhã' na mesma mensagem).",
                 },
             };
         }
