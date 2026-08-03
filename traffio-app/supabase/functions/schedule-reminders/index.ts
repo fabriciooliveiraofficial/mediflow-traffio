@@ -185,8 +185,16 @@ serve(async (req: Request) => {
                 for (const s of sessions ?? []) {
                     if (seenPhones.has(s.patient_phone)) continue;
                     seenPhones.add(s.patient_phone);
-                    // livechat não tem canal de notificação — fallback para whatsapp
-                    const ch = (s.channel === "livechat" || !s.channel) ? "whatsapp" : s.channel;
+                    // E-6 (2026-08-02): Live Chat nunca teve canal de notificação
+                    // próprio — o "fallback para whatsapp" antigo mandava o
+                    // lembrete para o telefone SINTÉTICO da sessão
+                    // (livechat-<uuid>), que não existe, e o lembrete morria
+                    // silenciosamente. Deixar SEM entrada aqui: resolveEligibleChannels
+                    // (channelResolver.ts) cai automaticamente para o e-mail
+                    // cadastrado quando não sobra nenhuma preferência viável —
+                    // a mesma correção usada para Instagram/Facebook.
+                    if (s.channel === "livechat") continue;
+                    const ch = s.channel || "whatsapp";
                     const recipientId = (ch === "instagram" || ch === "facebook")
                         ? (s.platform_user_id ?? s.patient_phone)
                         : s.patient_phone;

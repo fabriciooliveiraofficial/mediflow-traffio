@@ -18,8 +18,8 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
-import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { sendTenantEmail } from "../_shared/emailClient.ts";
 import { OutboxDispatcher } from "../_shared/outboxDispatcher.ts";
 import { SessionManager } from "../_shared/sessionManager.ts";
 import { MetaSocialClient } from "../_shared/metaSocialClient.ts";
@@ -472,30 +472,20 @@ async function resolveTargetSession(
 }
 
 /**
- * Envia o e-mail de confirmação usando o SMTP próprio do tenant,
- * com fallback para o SMTP global do sistema (secrets SMTP_*).
+ * Envia o e-mail de confirmação usando o SMTP próprio do tenant, com
+ * fallback para o SMTP global do sistema (secrets SMTP_*).
+ *
+ * E-6 (2026-08-02, teste de estresse): esta função tinha sua PRÓPRIA cópia
+ * inteira da lógica de envio (resolução de SMTP do tenant/global, cliente
+ * denomailer, assunto montado à mão com "${clinicName}" sem nenhuma proteção)
+ * — uma segunda implementação do mesmo conceito de _shared/emailClient.ts,
+ * com o mesmo bug real de codificação de cabeçalho do denomailer (assunto/
+ * remetente não-ASCII quebra sem fechar o encoded-word e o e-mail inteiro
+ * chega ilegível). Delega para sendTenantEmail — fonte única, já protegida
+ * (asciiSafeHeaderText) — em vez de manter duas cópias que podem divergir.
  */
 async function sendConfirmationEmail(tenantDetails: any, to: string, message: string): Promise<void> {
-  let hostname = tenantDetails?.smtp_host;
-  let port = tenantDetails?.smtp_port ? Number(tenantDetails.smtp_port) : 465;
-  let username = tenantDetails?.smtp_user;
-  let password = tenantDetails?.smtp_pass;
-  let from = tenantDetails?.smtp_from || username;
   const clinicName = tenantDetails?.name || 'Traffio';
-
-  const hasTenantSMTP = hostname && username && password;
-  if (!hasTenantSMTP) {
-    hostname = Deno.env.get('SMTP_HOST') ?? '';
-    port = Number(Deno.env.get('SMTP_PORT') ?? '465');
-    username = Deno.env.get('SMTP_USER') ?? '';
-    password = Deno.env.get('SMTP_PASS') ?? '';
-    from = Deno.env.get('SMTP_FROM') ?? username;
-  }
-
-  if (!hostname || !username || !password) {
-    throw new Error('SMTP não configurado para este tenant (e sem SMTP global disponível).');
-  }
-
   const escaped = message
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -511,24 +501,10 @@ async function sendConfirmationEmail(tenantDetails: any, to: string, message: st
     </div>
   `;
 
-  const client = new SMTPClient({
-    connection: {
-      hostname,
-      port,
-      tls: port === 465,
-      auth: { username, password },
-    },
+  await sendTenantEmail(tenantDetails, {
+    to,
+    subject: `Confirmação de Agendamento - ${clinicName}`,
+    text: message,
+    html,
   });
-
-  try {
-    await client.send({
-      from: `${clinicName} <${from}>`,
-      to,
-      subject: `Confirmação de Agendamento - ${clinicName}`,
-      content: message,
-      html,
-    });
-  } finally {
-    await client.close();
-  }
 }

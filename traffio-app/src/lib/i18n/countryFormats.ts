@@ -182,3 +182,32 @@ export function getLanguageForCountry(code: string | null | undefined): 'pt-BR' 
     const normalized = (code || '').toUpperCase() as CountryCode;
     return COUNTRY_TO_LANGUAGE[normalized] || 'pt-BR';
 }
+
+/** Detects a matching CountryCode from an address suggestion object or address string. */
+export function detectCountryFromSuggestion(suggestion: { countryCode?: string; country?: string; label?: string } | string | null | undefined): CountryCode | null {
+    if (!suggestion) return null;
+    if (typeof suggestion === 'object') {
+        if (suggestion.countryCode) {
+            const cc = suggestion.countryCode.toUpperCase();
+            if (cc in COUNTRIES) return cc as CountryCode;
+        }
+        if (suggestion.country) {
+            const cStr = suggestion.country.toLowerCase();
+            if (cStr.includes('brazil') || cStr.includes('brasil')) return 'BR';
+            if (cStr.includes('united states') || cStr.includes('usa') || cStr.includes('u.s.')) return 'US';
+            if (cStr.includes('new zealand') || cStr.includes('nova zelândia') || cStr.includes('nova zelandia')) return 'NZ';
+            if (cStr.includes('mexico') || cStr.includes('méxico')) return 'MX';
+        }
+        if (suggestion.label) {
+            return detectCountryFromSuggestion(suggestion.label);
+        }
+    } else if (typeof suggestion === 'string') {
+        const str = suggestion.toLowerCase();
+        if (str.includes('brazil') || str.includes('brasil')) return 'BR';
+        if (str.includes('united states') || str.includes('usa') || str.includes('u.s.a')) return 'US';
+        if (str.includes('new zealand') || str.includes('nova zelândia') || str.includes('nova zelandia')) return 'NZ';
+        if (str.includes('mexico') || str.includes('méxico')) return 'MX';
+    }
+    return null;
+}
+

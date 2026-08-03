@@ -851,9 +851,96 @@
     is_active: true
   };
 
-  // ── Localização: o idioma e o timezone do TENANT são a fonte de verdade ──
+  // ── Localização: o idioma, timezone e país do TENANT são a fonte de verdade ──
   let tenantLocale = 'en';
   let tenantTimezone = 'America/Sao_Paulo';
+  let tenantCountry = 'BR';
+
+  const COUNTRY_WIDGET_FORMATS = {
+    BR: {
+      code: 'BR',
+      dialCode: '+55',
+      phonePlaceholder: '(41) 99000-0000',
+      docLabel: 'CPF',
+      docPlaceholder: '000.000.000-00',
+      docMask: '###.###.###-##'
+    },
+    US: {
+      code: 'US',
+      dialCode: '+1',
+      phonePlaceholder: '(404) 925-7024',
+      docLabel: 'SSN',
+      docPlaceholder: '000-00-0000',
+      docMask: '###-##-####'
+    },
+    NZ: {
+      code: 'NZ',
+      dialCode: '+64',
+      phonePlaceholder: '21 123 4567',
+      docLabel: 'IRD',
+      docPlaceholder: '000-000-000',
+      docMask: '###-###-###'
+    },
+    MX: {
+      code: 'MX',
+      dialCode: '+52',
+      phonePlaceholder: '55 1234 5678',
+      docLabel: 'RFC',
+      docPlaceholder: 'XAXX010101000',
+      docMask: null
+    }
+  };
+
+  function getWidgetCountryDef(code) {
+    const c = (code || 'BR').toUpperCase();
+    return COUNTRY_WIDGET_FORMATS[c] || COUNTRY_WIDGET_FORMATS.BR;
+  }
+
+  function applyWidgetMask(rawValue, mask) {
+    if (!mask) return rawValue;
+    const digits = rawValue.replace(/\D/g, "");
+    let result = "";
+    let digitIndex = 0;
+    for (let i = 0; i < mask.length; i++) {
+      if (digitIndex >= digits.length) break;
+      if (mask[i] === "#") {
+        result += digits[digitIndex];
+        digitIndex++;
+      } else {
+        result += mask[i];
+      }
+    }
+    return result;
+  }
+
+  function formatWidgetPhone(rawValue, countryCode) {
+    const digits = rawValue.replace(/\D/g, "");
+    if (countryCode === 'BR') {
+      if (digits.length <= 10) {
+        return applyWidgetMask(digits, "(##) ####-####");
+      }
+      return applyWidgetMask(digits.slice(0, 11), "(##) #####-####");
+    } else if (countryCode === 'US') {
+      return applyWidgetMask(digits.slice(0, 10), "(###) ###-####");
+    } else if (countryCode === 'NZ') {
+      if (digits.length <= 8) {
+        return applyWidgetMask(digits, "## ### ####");
+      }
+      return applyWidgetMask(digits.slice(0, 10), "### ### ####");
+    } else if (countryCode === 'MX') {
+      return applyWidgetMask(digits.slice(0, 10), "## #### ####");
+    }
+    return rawValue;
+  }
+
+  function formatWidgetDoc(rawValue, countryCode) {
+    if (!rawValue) return "";
+    const cDef = getWidgetCountryDef(countryCode);
+    if (cDef.docMask) {
+      return applyWidgetMask(rawValue, cDef.docMask);
+    }
+    return rawValue.toUpperCase().replace(/\s+/g, "");
+  }
 
   const I18N = {
     pt: {
@@ -1005,13 +1092,14 @@
         chatConfig = cached.config;
         if (cached.locale) tenantLocale = cached.locale;
         if (cached.timezone) tenantTimezone = cached.timezone;
+        if (cached.country) tenantCountry = cached.country;
         return true;
       }
     } catch (err) { /* cache corrompido é ignorado */ }
     return false;
   }
 
-  // Buscar configuração do widget + idioma/timezone do tenant (fonte de verdade).
+  // Buscar configuração do widget + idioma/timezone/país do tenant (fonte de verdade).
   // Usa fetch puro: não depende do carregamento da biblioteca Supabase via CDN.
   async function fetchConfig() {
     if (!supabaseUrl || !supabaseAnonKey) return false;
@@ -1029,11 +1117,13 @@
         if (data.config) chatConfig = data.config;
         if (data.locale) tenantLocale = data.locale;
         if (data.timezone) tenantTimezone = data.timezone;
+        if (data.country) tenantCountry = data.country;
         try {
           localStorage.setItem(CFG_CACHE_KEY, JSON.stringify({
             config: chatConfig,
             locale: tenantLocale,
-            timezone: tenantTimezone
+            timezone: tenantTimezone,
+            country: tenantCountry
           }));
         } catch (err) { /* storage cheio/indisponível é ignorado */ }
         return true;
@@ -1188,6 +1278,7 @@
 
   // ── Renderizador do Formulário de Registro ──
   function showRegistrationForm() {
+    const countryDef = getWidgetCountryDef(tenantCountry);
     chatFooter.style.display = "none";
     endBtn.style.display = "none";
     chatBody.innerHTML = `
@@ -1206,12 +1297,33 @@
           </div>
           <div class="traffio-chat-form-group" style="margin-top: 10px;">
             <label for="traffio-reg-phone">${escapeHtml(t('phoneLabel'))}</label>
-            <input type="tel" id="traffio-reg-phone" required placeholder="${escapeHtml(t('phonePlaceholder'))}" />
+            <div style="display: flex; align-items: center; background: #fff; border: 1px solid #cbd5e1; border-radius: 10px; overflow: hidden;">
+              <span style="padding: 10px 12px; font-size: 13px; font-weight: 700; color: #475569; background: #f8fafc; border-right: 1px solid #cbd5e1; user-select: none;">${escapeHtml(countryDef.dialCode)}</span>
+              <input type="tel" id="traffio-reg-phone" required placeholder="${escapeHtml(countryDef.phonePlaceholder)}" style="border: none; border-radius: 0; flex: 1;" />
+            </div>
+          </div>
+          <div class="traffio-chat-form-group" style="margin-top: 10px;">
+            <label for="traffio-reg-doc">${escapeHtml(countryDef.docLabel)} *</label>
+            <input type="text" id="traffio-reg-doc" required placeholder="${escapeHtml(countryDef.docPlaceholder)}" />
           </div>
           <button type="submit" class="traffio-chat-form-btn" id="traffio-reg-submit">${escapeHtml(t('startChat'))}</button>
         </form>
       </div>
     `;
+
+    const phoneInput = document.getElementById("traffio-reg-phone");
+    if (phoneInput) {
+      phoneInput.addEventListener("input", (e) => {
+        e.target.value = formatWidgetPhone(e.target.value, tenantCountry);
+      });
+    }
+
+    const docInput = document.getElementById("traffio-reg-doc");
+    if (docInput) {
+      docInput.addEventListener("input", (e) => {
+        e.target.value = formatWidgetDoc(e.target.value, tenantCountry);
+      });
+    }
 
     const regForm = document.getElementById("traffio-reg-form");
     regForm.addEventListener("submit", async (e) => {
@@ -1222,7 +1334,9 @@
 
       const nameVal = document.getElementById("traffio-reg-name").value;
       const emailVal = document.getElementById("traffio-reg-email").value;
-      const phoneVal = document.getElementById("traffio-reg-phone").value;
+      const phoneRaw = document.getElementById("traffio-reg-phone").value;
+      const phoneVal = countryDef.dialCode + ' ' + phoneRaw;
+      const docVal = document.getElementById("traffio-reg-doc") ? document.getElementById("traffio-reg-doc").value : "";
 
       try {
         // Chamar a Edge Function para criar a sessão
@@ -1237,6 +1351,7 @@
             visitor_name: nameVal,
             visitor_email: emailVal,
             visitor_phone: phoneVal,
+            visitor_national_id: docVal,
             content: t('initialMessage')
           })
         });

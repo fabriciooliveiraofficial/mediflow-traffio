@@ -5,7 +5,7 @@ import { IntlPostalInput } from './intl/IntlPostalInput';
 import { IntlPhoneInput } from './intl/IntlPhoneInput';
 import type { AddressSuggestion } from '../services/addressService';
 import { MapPin } from 'lucide-react';
-import { DEFAULT_COUNTRY, type CountryCode } from '../lib/i18n/countryFormats';
+import { DEFAULT_COUNTRY, type CountryCode, detectCountryFromSuggestion, getCountry } from '../lib/i18n/countryFormats';
 import type { ClinicLocation } from '../services/locationService';
 
 interface TenantAddressFormProps {
@@ -45,11 +45,18 @@ export function TenantAddressForm({ initialData, onSave, country = DEFAULT_COUNT
     const handlePostalLookup = (result: AddressSuggestion) => {
         setAddress(result.label);
         setNeighborhood(result.neighborhood || '');
-        triggerSave({
+        const detectedCountry = detectCountryFromSuggestion(result);
+        const updates: any = {
             address_zip_code: cep,
             address: result.label,
             address_neighborhood: result.neighborhood
-        });
+        };
+        if (detectedCountry) {
+            updates.country = detectedCountry;
+            updates.locale = getCountry(detectedCountry).locale;
+            updates.currency = getCountry(detectedCountry).currency;
+        }
+        triggerSave(updates);
     };
 
     const handleAddressSelect = (s: AddressSuggestion) => {
@@ -58,14 +65,32 @@ export function TenantAddressForm({ initialData, onSave, country = DEFAULT_COUNT
         if (s.number) setNumber(s.number);
         if (s.postcode) setCep(s.postcode);
 
-        triggerSave({
+        const detectedCountry = detectCountryFromSuggestion(s);
+        const updates: any = {
             address: s.label,
             address_neighborhood: s.neighborhood || '',
             address_number: s.number || number,
             address_zip_code: s.postcode || cep,
             latitude: s.latitude,
             longitude: s.longitude
-        });
+        };
+        if (detectedCountry) {
+            updates.country = detectedCountry;
+            updates.locale = getCountry(detectedCountry).locale;
+            updates.currency = getCountry(detectedCountry).currency;
+        }
+        triggerSave(updates);
+    };
+
+    const handleAddressBlur = () => {
+        const detectedCountry = detectCountryFromSuggestion(address);
+        const updates: any = { address };
+        if (detectedCountry) {
+            updates.country = detectedCountry;
+            updates.locale = getCountry(detectedCountry).locale;
+            updates.currency = getCountry(detectedCountry).currency;
+        }
+        triggerSave(updates);
     };
 
     const handlePhoneChange = (value: string) => {
@@ -95,7 +120,7 @@ export function TenantAddressForm({ initialData, onSave, country = DEFAULT_COUNT
                         value={address}
                         onChange={setAddress}
                         onSelect={handleAddressSelect}
-                        onBlur={() => triggerSave({ address })}
+                        onBlur={handleAddressBlur}
                         country={country}
                         placeholder={t('tenantAddressForm.streetPlaceholder')}
                         showCepLookup={false} // We have a dedicated field now

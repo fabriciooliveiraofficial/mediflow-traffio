@@ -48,6 +48,7 @@ serve(async (req: Request) => {
     let visitor_name: string | null = null;
     let visitor_email: string | null = null;
     let visitor_phone: string | null = null;
+    let visitor_national_id: string | null = null;
     let content = "";
     let button_id: string | null = null;
     let fileObj: File | null = null;
@@ -61,6 +62,7 @@ serve(async (req: Request) => {
       visitor_name = formData.get("visitor_name") as string;
       visitor_email = formData.get("visitor_email") as string;
       visitor_phone = formData.get("visitor_phone") as string;
+      visitor_national_id = (formData.get("visitor_national_id") || formData.get("visitor_doc")) as string;
       content = (formData.get("content") as string) || "";
       button_id = (formData.get("button_id") as string) || null;
       fileObj = formData.get("file") as File;
@@ -72,6 +74,7 @@ serve(async (req: Request) => {
       visitor_name = body.visitor_name;
       visitor_email = body.visitor_email;
       visitor_phone = body.visitor_phone;
+      visitor_national_id = body.visitor_national_id || body.visitor_doc || null;
       content = body.content || "";
       button_id = body.button_id || null;
       action = body.action;
@@ -94,7 +97,7 @@ serve(async (req: Request) => {
           .maybeSingle(),
         supabase
           .from('tenants')
-          .select('locale, timezone')
+          .select('locale, timezone, country')
           .eq('id', tenant_id)
           .maybeSingle()
       ]);
@@ -104,7 +107,8 @@ serve(async (req: Request) => {
           success: true,
           config: config ?? null,
           locale: tenant?.locale ?? 'pt-BR',
-          timezone: tenant?.timezone ?? 'America/Sao_Paulo'
+          timezone: tenant?.timezone ?? 'America/Sao_Paulo',
+          country: tenant?.country ?? 'BR'
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -238,7 +242,7 @@ serve(async (req: Request) => {
     // Validar existência do tenant no banco
     const { data: tenantRow, error: tenantErr } = await supabase
       .from('tenants')
-      .select('id, timezone, locale')
+      .select('id, timezone, locale, country')
       .eq('id', tenant_id)
       .maybeSingle();
 
@@ -257,6 +261,7 @@ serve(async (req: Request) => {
       const vName = typeof visitor_name === 'string' ? visitor_name.trim() : '';
       const vEmail = typeof visitor_email === 'string' ? visitor_email.trim() : '';
       const vPhone = typeof visitor_phone === 'string' ? visitor_phone.trim() : '';
+      const vDoc = typeof visitor_national_id === 'string' ? visitor_national_id.trim() : '';
 
       if (!vName || !vEmail || !vPhone) {
         return new Response(
@@ -270,18 +275,27 @@ serve(async (req: Request) => {
 
       const cleanName = vName;
       const cleanEmail = vEmail;
+      const tenantCountry = (tenantRow?.country || 'BR').toUpperCase();
       
       let defaultCountryCode = "55";
-      const tz = (tenantRow?.timezone || '').toLowerCase();
-      const loc = (tenantRow?.locale || '').toLowerCase();
-      if (tz.includes("auckland") || tz.includes("pacific") || loc.includes("nz")) {
+      if (tenantCountry === 'NZ' || tenantRow?.locale?.includes('nz')) {
         defaultCountryCode = "64";
-      } else if (tz.includes("new_york") || tz.includes("chicago") || tz.includes("los_angeles") || loc.includes("us")) {
+      } else if (tenantCountry === 'US' || tenantRow?.locale?.includes('us')) {
         defaultCountryCode = "1";
+      } else if (tenantCountry === 'MX' || tenantRow?.locale?.includes('mx')) {
+        defaultCountryCode = "52";
       }
 
       const norm = normalizePhoneNumber(vPhone, defaultCountryCode);
       const cleanPhone = norm ? norm.e164 : vPhone;
+
+      const docTypeMap: Record<string, string> = {
+        BR: 'cpf',
+        US: 'ssn',
+        NZ: 'ird',
+        MX: 'rfc'
+      };
+      const nationalIdType = docTypeMap[tenantCountry] || 'cpf';
 
       // Cadastrar ou atualizar o lead na tabela de pacientes do tenant
       try {
@@ -293,19 +307,29 @@ serve(async (req: Request) => {
           .in('phone', variations.length ? variations : [cleanPhone])
           .maybeSingle();
 
+        const ptData: any = {
+          full_name: cleanName,
+          email: cleanEmail,
+          phone: cleanPhone,
+          country: tenantCountry,
+          national_id: vDoc || null,
+          national_id_type: nationalIdType
+        };
+        if (tenantCountry === 'BR' && vDoc) {
+          ptData.cpf = vDoc;
+        }
+
         if (existingPt) {
           await supabase
             .from('patients')
-            .update({ full_name: cleanName, email: cleanEmail, phone: cleanPhone })
+            .update(ptData)
             .eq('id', existingPt.id);
         } else {
           await supabase
             .from('patients')
             .insert({
               tenant_id,
-              full_name: cleanName,
-              email: cleanEmail,
-              phone: cleanPhone,
+              ...ptData,
               metadata: { source: 'livechat' }
             });
         }

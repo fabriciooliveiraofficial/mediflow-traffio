@@ -26,7 +26,7 @@ import { logPlatform } from "../_shared/logger.ts";
 import { sendTenantEmail, isValidEmail } from "../_shared/emailClient.ts";
 import { getEmailSubject, renderEmailHtml, buildIcsAttachment } from "../_shared/emailTemplates.ts";
 import { isBlockedByQuietHours } from "../_shared/tenantTime.ts";
-import { getDefaultChannel } from "../_shared/channelResolver.ts";
+import { getDefaultChannel, filterChannelsByMatrix, type ChannelInfo } from "../_shared/channelResolver.ts";
 import { SessionManager } from "../_shared/sessionManager.ts";
 
 console.log("process-outbound v4.1 — Fair-claim + canal padrão do tenant Initialized");
@@ -301,25 +301,29 @@ serve(async (req: Request) => {
       // (bot_config.default_notification_channel) sobre a ordem fixa antiga
       // (WhatsApp → SMS → E-mail) — é o que torna o canal padrão efetivo
       // também para mensagens já enfileiradas com config desatualizada.
+      //
+      // E-6 (2026-08-02): reusa filterChannelsByMatrix (channelResolver.ts) em
+      // vez de reimplementar a checagem da matriz aqui — é a mesma lição que
+      // já custou caro neste projeto (E-2/E-3): duas cópias do mesmo conceito
+      // divergem cedo ou tarde. Instagram/Facebook nunca aparecem nesta lista
+      // de candidatos (não sustentam automação atrasada — restrição real da
+      // janela de 24h da Meta), então esta função nunca precisa filtrá-los;
+      // filterChannelsByMatrix cuida disso mesmo assim, de graça.
       const defaultChannel = getDefaultChannel(tenant?.bot_config);
       const pickFallbackChannel = async (
         automationKey: 'nps' | 'recovery',
       ): Promise<{ channel: string; recipientId: string } | null> => {
-        const candidates = [defaultChannel, 'whatsapp', 'sms', 'email'].filter((c, i, arr) => arr.indexOf(c) === i);
-        for (const ch of candidates) {
-          const row = channelMatrix[ch];
-          const enabled = (automationKey === 'recovery' && ch === 'whatsapp' && row?.recovery === undefined)
-            ? true
-            : row?.[automationKey] === true;
-          if (!enabled) continue;
-          if (ch === 'email') {
-            const email = await resolvePatientEmail(msg.tenant_id, msg.patient_phone);
-            if (!email) continue;
-            return { channel: 'email', recipientId: email };
-          }
-          return { channel: ch, recipientId: msg.patient_phone };
-        }
-        return null;
+        const resolvedEmail = await resolvePatientEmail(msg.tenant_id, msg.patient_phone);
+        const candidateOrder = [defaultChannel, 'whatsapp', 'sms', 'email'].filter((c, i, arr) => arr.indexOf(c) === i);
+        const candidates: ChannelInfo[] = candidateOrder
+          .map((ch) => ({ channel: ch as ChannelInfo["channel"], recipientId: ch === 'email' ? (resolvedEmail || '') : msg.patient_phone }))
+          .filter((c) => c.channel !== 'email' || !!c.recipientId); // sem e-mail válido, nem tenta
+
+        // filterChannelsByMatrix já trata a retrocompatibilidade de Recuperação
+        // (config antiga sem 'recovery' em channel_automations.whatsapp = ligado
+        // por padrão) — mesma regra histórica, agora numa fonte só.
+        const eligible = filterChannelsByMatrix(candidates, channelMatrix, automationKey);
+        return eligible[0] ? { channel: eligible[0].channel, recipientId: eligible[0].recipientId } : null;
       };
 
       // ── Guard da Matriz de Canais: NPS ────────────────────────────────────
@@ -330,7 +334,13 @@ serve(async (req: Request) => {
       if (msg.message_type === 'nps_survey' || msg.template_key === 'nps_survey') {
         const ch = msg.notification_channel ?? defaultChannel;
         const row = channelMatrix[ch];
-        if (row !== undefined && row?.nps !== true) {
+        // E-6 (2026-08-02): Instagram/Facebook NUNCA sustentam automação
+        // atrasada (janela de 24h da Meta) — bloqueados sempre, mesmo que
+        // `row` seja undefined (eles nunca aparecem na matriz por design; a
+        // trigger SQL enqueue_nps_on_completion pode enfileirar com esse canal
+        // espelhando a mesma regra antiga — esta é a rede de segurança).
+        const blockedForAutomation = ch === 'instagram' || ch === 'facebook' || (row !== undefined && row?.nps !== true);
+        if (blockedForAutomation) {
           const fallback = await pickFallbackChannel('nps');
           if (!fallback) {
             await supabase.from('outbound_message_queue')
@@ -349,7 +359,9 @@ serve(async (req: Request) => {
       if (msg.template_key?.startsWith('appointment_reminder')) {
         const ch = msg.notification_channel ?? 'whatsapp';
         const row = channelMatrix[ch];
-        if (row !== undefined && row?.no_show !== true) {
+        // E-6 (2026-08-02): mesma rede de segurança do guard de NPS acima.
+        const blockedForAutomation = ch === 'instagram' || ch === 'facebook' || (row !== undefined && row?.no_show !== true);
+        if (blockedForAutomation) {
           await supabase.from('outbound_message_queue')
             .update({ status: 'cancelled', error_message: `Reminders disabled for channel '${ch}' in channel matrix` }).eq('id', msg.id);
           return;

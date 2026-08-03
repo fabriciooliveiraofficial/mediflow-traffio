@@ -941,6 +941,9 @@ export const Settings = () => {
                                                         onSave={(updates: any) => {
                                                             setTenants(prev => prev.map(tn => tn.id === tenant.id ? { ...tn, ...updates } : tn));
                                                             handleSaveTenant(tenant.id, updates, true);
+                                                            if (updates.country && currentTenant?.id === tenant.id) {
+                                                                updateTenantContext({ country: updates.country, locale: updates.locale, currency: updates.currency });
+                                                            }
                                                         }}
                                                     />
                                                 </div>
