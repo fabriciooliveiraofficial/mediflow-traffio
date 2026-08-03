@@ -923,10 +923,15 @@
     } else if (countryCode === 'US') {
       return applyWidgetMask(digits.slice(0, 10), "(###) ###-####");
     } else if (countryCode === 'NZ') {
-      if (digits.length <= 8) {
-        return applyWidgetMask(digits, "## ### ####");
+      let d = digits;
+      // Se o visitante digitar o 0 inicial (ex: 021 123 4567), remove o 0 pois o +64 já está no prefixo
+      if (d.startsWith('0') && d.length > 1) {
+        d = d.slice(1);
       }
-      return applyWidgetMask(digits.slice(0, 10), "### ### ####");
+      if (d.length <= 9) {
+        return applyWidgetMask(d, "## ### ####");
+      }
+      return applyWidgetMask(d.slice(0, 10), "## #### ####");
     } else if (countryCode === 'MX') {
       return applyWidgetMask(digits.slice(0, 10), "## #### ####");
     }
