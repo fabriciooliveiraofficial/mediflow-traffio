@@ -1251,6 +1251,15 @@
     if (chatPill) {
       chatPill.textContent = cfgText('pill_text', 'pill');
     }
+
+    // Se o formulário já foi renderizado, atualiza o código do país
+    const phoneCodeSpan = document.getElementById("traffio-reg-phone-code");
+    const phoneInputEl = document.getElementById("traffio-reg-phone");
+    if (phoneCodeSpan && phoneInputEl) {
+      const countryDef = getWidgetCountryDef(tenantCountry);
+      phoneCodeSpan.textContent = countryDef.dialCode;
+      phoneInputEl.placeholder = countryDef.phonePlaceholder;
+    }
   }
 
   // Cabeçalho dinâmico: título/subtítulo das configurações; quando um atendente
@@ -1298,13 +1307,9 @@
           <div class="traffio-chat-form-group" style="margin-top: 10px;">
             <label for="traffio-reg-phone">${escapeHtml(t('phoneLabel'))}</label>
             <div style="display: flex; align-items: center; background: #fff; border: 1px solid #cbd5e1; border-radius: 10px; overflow: hidden;">
-              <span style="padding: 10px 12px; font-size: 13px; font-weight: 700; color: #475569; background: #f8fafc; border-right: 1px solid #cbd5e1; user-select: none;">${escapeHtml(countryDef.dialCode)}</span>
+              <span id="traffio-reg-phone-code" style="padding: 10px 12px; font-size: 13px; font-weight: 700; color: #475569; background: #f8fafc; border-right: 1px solid #cbd5e1; user-select: none;">${escapeHtml(countryDef.dialCode)}</span>
               <input type="tel" id="traffio-reg-phone" required placeholder="${escapeHtml(countryDef.phonePlaceholder)}" style="border: none; border-radius: 0; flex: 1;" />
             </div>
-          </div>
-          <div class="traffio-chat-form-group" style="margin-top: 10px;">
-            <label for="traffio-reg-doc">${escapeHtml(countryDef.docLabel)} *</label>
-            <input type="text" id="traffio-reg-doc" required placeholder="${escapeHtml(countryDef.docPlaceholder)}" />
           </div>
           <button type="submit" class="traffio-chat-form-btn" id="traffio-reg-submit">${escapeHtml(t('startChat'))}</button>
         </form>
@@ -1315,13 +1320,6 @@
     if (phoneInput) {
       phoneInput.addEventListener("input", (e) => {
         e.target.value = formatWidgetPhone(e.target.value, tenantCountry);
-      });
-    }
-
-    const docInput = document.getElementById("traffio-reg-doc");
-    if (docInput) {
-      docInput.addEventListener("input", (e) => {
-        e.target.value = formatWidgetDoc(e.target.value, tenantCountry);
       });
     }
 
@@ -1336,7 +1334,6 @@
       const emailVal = document.getElementById("traffio-reg-email").value;
       const phoneRaw = document.getElementById("traffio-reg-phone").value;
       const phoneVal = countryDef.dialCode + ' ' + phoneRaw;
-      const docVal = document.getElementById("traffio-reg-doc") ? document.getElementById("traffio-reg-doc").value : "";
 
       try {
         // Chamar a Edge Function para criar a sessão
@@ -1351,7 +1348,6 @@
             visitor_name: nameVal,
             visitor_email: emailVal,
             visitor_phone: phoneVal,
-            visitor_national_id: docVal,
             content: t('initialMessage')
           })
         });
