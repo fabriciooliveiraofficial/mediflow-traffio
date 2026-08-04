@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next';
 import { Badge, Button, IconButton, EmptyState, PageHeader } from '../components/ui';
 import { FollowUpTimelineDrawer } from '../components/crm/FollowUpTimelineDrawer';
 import { WorkQueue } from '../components/crm/WorkQueue';
+import { LostReasonModal } from '../components/crm/LostReasonModal';
 
 export interface CrmJourneyIdentity {
   channel: 'whatsapp' | 'instagram' | 'facebook' | 'livechat' | 'sms' | 'phone';
@@ -41,6 +42,7 @@ export interface CrmJourney {
   appointments_count: number;
   no_show_count: number;
   next_appointment_at: string | null;
+  next_appointment_status: string | null;
   priority_score: number;
   next_action_at: string | null;
   next_action_type: string | null;
@@ -53,8 +55,6 @@ export interface CrmJourney {
   conversation_sessions: { channel: string | null; context: any; patient_phone: string; platform_display_name: string | null } | null;
   crm_journey_identities: CrmJourneyIdentity[];
 }
-
-const LOST_REASONS = ['price', 'competitor', 'no_response', 'gave_up', 'other'] as const;
 
 export function FollowUpBoard() {
   const { t } = useTranslation('crm');
@@ -70,7 +70,7 @@ export function FollowUpBoard() {
   const [search, setSearch] = useState('');
 
   const [saleModal, setSaleModal] = useState<{ id: string; procedure: string; value: string } | null>(null);
-  const [lostModal, setLostModal] = useState<{ id: string; reason: string } | null>(null);
+  const [lostModal, setLostModal] = useState<{ id: string; name?: string } | null>(null);
   const [selectedJourney, setSelectedJourney] = useState<CrmJourney | null>(null);
 
   const { metrics, isLoading: loadingMetrics, refetch: refetchMetrics } = useFollowUpMetrics({
@@ -96,11 +96,12 @@ export function FollowUpBoard() {
   }, [tenant?.id]);
 
   const loadBoard = async () => {
+    if (!tenant?.id) return;
     setLoading(true);
     const { data, error } = await supabase
       .from('crm_journeys')
       .select('*, patients(full_name, phone), conversation_sessions(channel, context, patient_phone, platform_display_name), crm_journey_identities(channel, identifier, display_name)')
-      .eq('tenant_id', tenant!.id)
+      .eq('tenant_id', tenant.id)
       .order('last_event_at', { ascending: false })
       .limit(1000);
 
@@ -224,7 +225,8 @@ export function FollowUpBoard() {
       return;
     }
     if (stage === 'lost') {
-      setLostModal({ id, reason: '' });
+      const journey = journeys.find(j => j.id === id);
+      setLostModal({ id, name: journey ? displayName(journey) : undefined });
       return;
     }
     moveStage(id, stage);
@@ -237,9 +239,9 @@ export function FollowUpBoard() {
     setSaleModal(null);
   };
 
-  const handleSaveLostReason = () => {
-    if (!lostModal || !lostModal.reason) return;
-    moveStage(lostModal.id, 'lost', {}, lostModal.reason);
+  const handleSaveLostReason = (reason: string, notes?: string) => {
+    if (!lostModal) return;
+    moveStage(lostModal.id, 'lost', notes ? { lost_notes: notes } : {}, reason);
     setLostModal(null);
   };
 
@@ -400,8 +402,11 @@ export function FollowUpBoard() {
                         {j.appointments_count > 1 && (
                           <Badge accent="neutral" size="sm">{t('followUp.appointmentsBadge', { count: j.appointments_count })}</Badge>
                         )}
+                        {j.next_appointment_status === 'confirmed' && (
+                          <Badge accent="success" size="sm">Consulta Confirmada</Badge>
+                        )}
                         {j.no_show_count > 0 && (
-                          <Badge accent="error" size="sm"><AlertTriangle className="w-3 h-3" />{j.no_show_count}</Badge>
+                          <Badge accent="error" size="sm"><AlertTriangle className="w-3 h-3" />No-show ({j.no_show_count})</Badge>
                         )}
                         {j.origin === 'walk_in' && <Badge accent="purple" size="sm">{t('followUp.originBadge.walkIn')}</Badge>}
                         {j.origin === 'recall' && <Badge accent="purple" size="sm">{t('followUp.originBadge.recall')}</Badge>}
@@ -475,43 +480,12 @@ export function FollowUpBoard() {
       )}
 
       {/* Lost Reason Modal */}
-      {lostModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl border border-white/20 animate-in zoom-in-95 duration-200">
-            <div className="p-6 border-b border-ice-100 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-accent-error/10 flex items-center justify-center">
-                  <X className="w-5 h-5 text-accent-error" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-black text-graphite-900">{t('followUp.lostModal.title')}</h3>
-                  <p className="text-xs text-graphite-500 font-medium">{t('followUp.lostModal.subtitle')}</p>
-                </div>
-              </div>
-              <IconButton onClick={() => setLostModal(null)}><X className="w-5 h-5" /></IconButton>
-            </div>
-            <div className="p-6 space-y-2">
-              {LOST_REASONS.map(reason => (
-                <button
-                  key={reason}
-                  onClick={() => setLostModal({ ...lostModal, reason })}
-                  className={`w-full text-left px-4 py-3 rounded-xl border text-sm font-bold transition-all ${
-                    lostModal.reason === reason ? 'bg-accent-error/10 border-accent-error text-accent-error' : 'bg-ice-50 border-ice-200 text-graphite-600 hover:border-ice-300'
-                  }`}
-                >
-                  {t(`followUp.${LOST_REASON_LABEL_KEYS[reason]}`)}
-                </button>
-              ))}
-            </div>
-            <div className="p-6 bg-ice-50 rounded-b-3xl flex gap-3">
-              <Button variant="ghost" className="flex-1 justify-center" onClick={() => setLostModal(null)}>{t('followUp.saleModal.cancel')}</Button>
-              <Button variant="danger" className="flex-1 justify-center" disabled={!lostModal.reason} onClick={handleSaveLostReason}>
-                <Save className="w-4 h-4" />{t('followUp.lostModal.save')}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <LostReasonModal
+        isOpen={!!lostModal}
+        onClose={() => setLostModal(null)}
+        onConfirm={handleSaveLostReason}
+        leadName={lostModal?.name}
+      />
 
       {/* Timeline Drawer */}
       {selectedJourney && (

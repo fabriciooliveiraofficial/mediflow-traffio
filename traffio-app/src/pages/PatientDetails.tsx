@@ -607,7 +607,7 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
                                             {call.status === 'missed' && t('patientDetails.calls.missedSuffix')}
                                         </p>
                                         <p className="text-xs text-graphite-400">
-                                            {formatDateTime(call.started_at, { dateStyle: 'medium', timeStyle: 'short' })}
+                                            {formatDateTime(call.started_at)}
                                             {call.duration_seconds && ` · ${Math.floor(call.duration_seconds / 60)}m${call.duration_seconds % 60}s`}
                                         </p>
                                     </div>
@@ -1067,7 +1067,7 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
                                             <div key={budget.id} className="p-4 rounded-xl border border-ice-100 bg-ice-50/30 flex items-center justify-between">
                                                 <div>
                                                     <p className="text-xs font-black text-graphite-900">{budget.notes || t('patientDetails.sidebar.dentalBudgetFallbackName')}</p>
-                                                    <p className="text-[10px] font-bold text-graphite-400 uppercase">{t(`dentalBudgetStatus.${budget.status}`, budget.status)}</p>
+                                                    <p className="text-[10px] font-bold text-graphite-400 uppercase">{t(`dentalBudgetStatus.${budget.status}`, { defaultValue: budget.status })}</p>
                                                 </div>
                                                 <div className="text-right">
                                                     <p className="text-xs font-black text-emerald-600">

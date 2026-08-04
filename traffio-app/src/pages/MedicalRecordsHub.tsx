@@ -95,7 +95,7 @@ export const MedicalRecordsHub = () => {
     const { t, i18n } = useTranslation('medical');
     const { tenant } = useTenant();
     const { showToast } = useToast();
-    const { formatDate, formatDateTime, formatTime } = useLocaleFormat();
+    const { formatDate, formatTime } = useLocaleFormat();
 
     const [patients, setPatients] = useState<Patient[]>([]);
     const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
@@ -594,7 +594,7 @@ export const MedicalRecordsHub = () => {
                                                             <div className="flex items-center justify-between mb-4">
                                                                 <div className="flex items-center gap-3">
                                                                     <div className="px-3 py-1 bg-brand-primary/10 text-brand-primary rounded-lg text-[10px] font-black uppercase tracking-widest">
-                                                                        {t(`recordsHub.form.eventOptions.${record.event_type}`, record.event_type)}
+                                                                        {t(`recordsHub.form.eventOptions.${record.event_type}`, { defaultValue: record.event_type })}
                                                                     </div>
                                                                     <span className="text-xs font-bold text-graphite-300 flex items-center gap-1">
                                                                         <Clock size={12} /> {formatDate(record.created_at)}

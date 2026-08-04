@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
 import { clsx } from 'clsx';
 import { KANBAN_STAGES, STAGE_LABEL_KEYS } from '../lib/kanbanStages';
+import { LostReasonModal } from './crm/LostReasonModal';
 
 interface ConversationSession {
   id: string;
@@ -60,7 +61,8 @@ export function SidebarLeadClassifyView({ onBack, session, onUpdate }: SidebarLe
     session.revenue_estimated ? String(session.revenue_estimated) : ''
   );
   const [newTag, setNewTag] = useState('');
-
+  const [showLostModal, setShowLostModal] = useState(false);
+  
   // Track whether the user is actively saving so we don't overwrite their in-progress edits
   const savingRef = useRef(false);
 
@@ -107,16 +109,36 @@ export function SidebarLeadClassifyView({ onBack, session, onUpdate }: SidebarLe
   };
 
   const handleSave = async () => {
+    if (kanbanStage === 'Perdido') {
+      setShowLostModal(true);
+      return;
+    }
+    await performSave();
+  };
+
+  const handleConfirmLost = async (lostReason: string, lostNotes?: string) => {
+    setShowLostModal(false);
+    await performSave(lostReason, lostNotes);
+  };
+
+  const performSave = async (lostReason?: string, lostNotes?: string) => {
     setSaving(true);
     savingRef.current = true;
     try {
-      const tags = {
+      const tags: any = {
         ...(session.tags || {}),
         temperature,
         priority,
         labels,
         notes,
       };
+
+      if (lostReason) {
+        tags.lost_reason = lostReason;
+      }
+      if (lostNotes) {
+        tags.lost_notes = lostNotes;
+      }
 
       const revenueNum = revenue ? parseFloat(revenue.replace(',', '.')) : null;
 
@@ -306,6 +328,12 @@ export function SidebarLeadClassifyView({ onBack, session, onUpdate }: SidebarLe
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : t('sidebarLeadClassifyView.saveClassification')}
         </button>
       </div>
+
+      <LostReasonModal
+        isOpen={showLostModal}
+        onClose={() => setShowLostModal(false)}
+        onConfirm={handleConfirmLost}
+      />
     </div>
   );
 }

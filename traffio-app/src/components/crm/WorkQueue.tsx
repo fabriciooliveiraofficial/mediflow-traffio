@@ -238,8 +238,11 @@ export function WorkQueue({
                                     {channels.filter(c => channels.length > 1 || !['whatsapp', 'phone', 'sms'].includes(c)).map(c => (
                                         <Badge key={c} accent="info" size="sm">{t(`followUp.channelChip.${c}`, { defaultValue: c })}</Badge>
                                     ))}
+                                    {j.next_appointment_status === 'confirmed' && (
+                                        <Badge accent="success" size="sm">Consulta Confirmada</Badge>
+                                    )}
                                     {j.no_show_count > 0 && (
-                                        <Badge accent="error" size="sm"><AlertTriangle className="w-3 h-3" />{j.no_show_count}</Badge>
+                                        <Badge accent="error" size="sm"><AlertTriangle className="w-3 h-3" />No-show ({j.no_show_count})</Badge>
                                     )}
                                     {stratum === 'scheduled' && j.next_action_at && (
                                         <Badge accent="indigo" size="sm">

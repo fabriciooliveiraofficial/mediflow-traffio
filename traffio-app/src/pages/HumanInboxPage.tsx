@@ -228,6 +228,7 @@ function ConversationRow({
   onClick: () => void
 }) {
   const { t } = useTranslation('communications')
+  const { tenant } = useTenant()
   const TEMPERATURE_MAP: Record<string, { label: string; icon: string; className: string }> = {
     cold: { label: t('humanInbox.temperature.cold'),   icon: '❄️', className: 'bg-blue-50 text-blue-700 border-blue-100' },
     warm: { label: t('humanInbox.temperature.warm'),   icon: '🌤️', className: 'bg-amber-50 text-amber-700 border-amber-100' },
@@ -1598,6 +1599,7 @@ function PatientPanel({
   preFill, onPreFillChange, enabledChannels, defaultChannel
 }: PatientPanelProps) {
   const { t } = useTranslation('communications');
+  const { tenant } = useTenant();
   const [waitlistCount, setWaitlistCount] = useState(0);
 
   useEffect(() => {

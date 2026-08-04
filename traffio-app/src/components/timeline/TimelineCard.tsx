@@ -58,7 +58,7 @@ export const TimelineCard: React.FC<TimelineCardProps> = ({ event, onExplain }) 
                         </span>
                         <span className="text-[10px] font-bold text-graphite-400 flex items-center gap-1">
                             <Clock size={10} />
-                            {formatDateTime(event.date, { dateStyle: 'medium', timeStyle: 'short' })}
+                            {formatDateTime(event.date)}
                         </span>
                     </div>
                 </div>

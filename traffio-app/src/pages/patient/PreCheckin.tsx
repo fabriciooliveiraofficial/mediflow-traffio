@@ -20,7 +20,6 @@ import type { Patient, Appointment } from '../../types/patient';
 import { docLabel, formatDoc } from '../../lib/i18n/doc';
 import { resolvePatientCountry } from '../../lib/i18n/countryFormats';
 import { formatNational } from '../../lib/i18n/phone';
-import { DEFAULT_COUNTRY, type CountryCode } from '../../lib/i18n/countryFormats';
 import { useApplyDefaultLanguage } from '../../hooks/useLang';
 
 type Step = 'loading' | 'geofence_check' | 'verify_data' | 'verify_insurance' | 'complete';

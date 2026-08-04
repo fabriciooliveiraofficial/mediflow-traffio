@@ -38,9 +38,10 @@ export function SidebarDirectoryView({ onBack }: SidebarDirectoryViewProps) {
   }, [tenant?.id]);
 
   const loadLocations = async () => {
+    if (!tenant?.id) return;
     setLoadingLoc(true);
     try {
-      const data = await locationService.getAll(tenant!.id);
+      const data = await locationService.getAll(tenant.id);
       setLocations(data.filter(l => l.is_active));
     } catch (err) {
       console.error(err);
@@ -50,9 +51,10 @@ export function SidebarDirectoryView({ onBack }: SidebarDirectoryViewProps) {
   };
 
   const loadProfessionals = async () => {
+    if (!tenant?.id) return;
     setLoadingProf(true);
     try {
-      const data = await professionalService.getAll(tenant!.id);
+      const data = await professionalService.getAll(tenant.id);
       setProfessionals(data.filter(p => p.is_active));
     } catch (err) {
       console.error(err);
