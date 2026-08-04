@@ -1437,7 +1437,7 @@ export const Settings = () => {
                                                     )}
                                                 </div>
                                             )}
-                                            {loc.phone && <span className="text-xs text-graphite-500 font-medium">{phoneFlag(loc.phone)} {formatPhone(loc.phone)}</span>}
+                                            {loc.phone && <span className="text-xs text-graphite-500 font-medium">{phoneFlag(loc.phone, currentTenant?.country as CountryCode)} {formatPhone(loc.phone, currentTenant?.country as CountryCode)}</span>}
                                         </div>
                                     </div>
                                 ))}

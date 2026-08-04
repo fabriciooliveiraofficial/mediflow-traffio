@@ -479,9 +479,9 @@ export const MedicalRecordsHub = () => {
                                     "text-[10px] font-medium uppercase tracking-wider",
                                     selectedPatient?.id === patient.id ? "text-white/70" : "text-graphite-400"
                                 )}>
-                                    {docLabel((patient.country as CountryCode) || (patient.cpf ? 'BR' : DEFAULT_COUNTRY))}: {
+                                    {docLabel((patient.country as CountryCode) || (tenant?.country as CountryCode) || (patient.cpf ? 'BR' : DEFAULT_COUNTRY))}: {
                                         patient.national_id || patient.cpf
-                                            ? formatDoc(patient.national_id || patient.cpf, (patient.country as CountryCode) || (patient.cpf ? 'BR' : DEFAULT_COUNTRY))
+                                            ? formatDoc(patient.national_id || patient.cpf, (patient.country as CountryCode) || (tenant?.country as CountryCode) || (patient.cpf ? 'BR' : DEFAULT_COUNTRY))
                                             : '---'
                                     }
                                 </p>
@@ -634,10 +634,10 @@ export const MedicalRecordsHub = () => {
                                                     <InfoField label={t('recordsHub.details.fullName')} value={selectedPatient.full_name} />
                                                     <div className="grid grid-cols-2 gap-4">
                                                         <InfoField
-                                                            label={docLabel((selectedPatient.country as CountryCode) || (selectedPatient.cpf ? 'BR' : DEFAULT_COUNTRY))}
+                                                            label={docLabel((selectedPatient.country as CountryCode) || (tenant?.country as CountryCode) || (selectedPatient.cpf ? 'BR' : DEFAULT_COUNTRY))}
                                                             value={
                                                                 selectedPatient.national_id || selectedPatient.cpf
-                                                                    ? formatDoc(selectedPatient.national_id || selectedPatient.cpf, (selectedPatient.country as CountryCode) || (selectedPatient.cpf ? 'BR' : DEFAULT_COUNTRY))
+                                                                    ? formatDoc(selectedPatient.national_id || selectedPatient.cpf, (selectedPatient.country as CountryCode) || (tenant?.country as CountryCode) || (selectedPatient.cpf ? 'BR' : DEFAULT_COUNTRY))
                                                                     : t('recordsHub.details.notInformed')
                                                             }
                                                         />
@@ -663,7 +663,7 @@ export const MedicalRecordsHub = () => {
                                                     />
                                                     <InfoField
                                                         label={t('recordsHub.details.phone')}
-                                                        value={formatNational(selectedPatient.phone) || selectedPatient.phone}
+                                                        value={formatNational(selectedPatient.phone, (selectedPatient.country as CountryCode) || (tenant?.country as CountryCode) || DEFAULT_COUNTRY) || selectedPatient.phone}
                                                         icon={<Phone size={14} className="text-graphite-300" />}
                                                     />
                                                 </div>

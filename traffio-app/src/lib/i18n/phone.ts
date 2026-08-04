@@ -28,11 +28,12 @@ export function toE164(rawInput: string, country: CountryCode): string | null {
     }
 }
 
-/** Formats an E.164 number for national display (e.g. "(41) 99775-9569"). */
-export function formatNational(e164: string | null | undefined): string {
+/** Formats an E.164 (or local) number for national display (e.g. "(41) 99775-9569"). */
+export function formatNational(e164: string | null | undefined, fallbackCountry?: CountryCode): string {
     if (!e164) return '';
     try {
-        const parsed = parsePhoneNumberFromString(e164);
+        const region = fallbackCountry ? getCountry(fallbackCountry).phone.region : undefined;
+        const parsed = parsePhoneNumberFromString(e164, region as never);
         if (!parsed) return e164;
         return parsed.formatNational();
     } catch {
@@ -40,11 +41,12 @@ export function formatNational(e164: string | null | undefined): string {
     }
 }
 
-/** Formats an E.164 number for international display (e.g. "+55 41 99775-9569"). */
-export function formatInternational(e164: string | null | undefined): string {
+/** Formats an E.164 (or local) number for international display (e.g. "+55 41 99775-9569"). */
+export function formatInternational(e164: string | null | undefined, fallbackCountry?: CountryCode): string {
     if (!e164) return '';
     try {
-        const parsed = parsePhoneNumberFromString(e164);
+        const region = fallbackCountry ? getCountry(fallbackCountry).phone.region : undefined;
+        const parsed = parsePhoneNumberFromString(e164, region as never);
         if (!parsed) return e164;
         return parsed.formatInternational();
     } catch {

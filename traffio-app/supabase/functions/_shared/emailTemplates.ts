@@ -7,9 +7,9 @@
  * em um layout de e-mail consistente e resolvemos o assunto por idioma.
  */
 
-type EmailLocale = "pt" | "en" | "es";
+export type EmailLocale = "pt" | "en" | "es";
 
-function normalizeLocale(locale: string | null | undefined): EmailLocale {
+export function normalizeLocale(locale: string | null | undefined): EmailLocale {
   const l = (locale || "pt").toLowerCase();
   if (l.startsWith("en")) return "en";
   if (l.startsWith("es")) return "es";

@@ -9,6 +9,8 @@ import { useToast } from '../contexts/ToastContext';
 import { waitlistService } from '../services/waitlistService';
 import type { WaitlistEntry } from '../services/waitlistService';
 import { clsx } from 'clsx';
+import { useTenant } from '../contexts/TenantContext';
+import { type CountryCode } from '../lib/i18n/countryFormats';
 
 interface WaitlistDrawerProps {
     open: boolean;
@@ -20,6 +22,7 @@ interface WaitlistDrawerProps {
 export function WaitlistDrawer({ open, onClose, tenantId, onCountChange }: WaitlistDrawerProps) {
     const { t, i18n } = useTranslation('agenda');
     const { showToast, showConfirm } = useToast();
+    const { tenant } = useTenant();
     const locale = getIntlLocale(i18n.language);
 
     const [loading, setLoading] = useState(false);
@@ -177,7 +180,7 @@ export function WaitlistDrawer({ open, onClose, tenantId, onCountChange }: Waitl
                                                         <p className="text-sm font-bold text-graphite-900 truncate">{entry.patients?.full_name || '—'}</p>
                                                         <span className="text-[10px] font-bold text-graphite-300 whitespace-nowrap shrink-0">{waitingLabel(entry.created_at)}</span>
                                                     </div>
-                                                    <p className="text-[11px] text-graphite-400 font-medium">{formatPhone(entry.patients?.phone || '')}</p>
+                                                    <p className="text-[11px] text-graphite-400 font-medium">{formatPhone(entry.patients?.phone || '', tenant?.country as CountryCode)}</p>
                                                     <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                                                         <span className="inline-flex items-center gap-1.5 bg-ice-50 text-graphite-700 px-2 py-0.5 rounded-md text-[10px] font-bold">
                                                             <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: entry.doctors?.color || '#1152d4' }} />

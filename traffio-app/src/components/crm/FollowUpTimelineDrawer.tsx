@@ -76,9 +76,9 @@ export function FollowUpTimelineDrawer({ journey, onClose }: FollowUpTimelineDra
 
             const candidates: MergeCandidate[] = (data || []).map((j: any) => {
                 const identityName = (j.crm_journey_identities || []).find((i: any) => i.display_name)?.display_name;
-                const label = j.patients?.full_name || identityName || formatPhone(j.lead_phone || '');
+                const label = j.patients?.full_name || identityName || formatPhone(j.lead_phone || '', tenant?.country as CountryCode);
                 const channels = [...new Set((j.crm_journey_identities || []).map((i: any) => i.channel))].join(', ');
-                const sublabel = j.patients?.phone ? formatPhone(j.patients.phone) : (channels || formatPhone(j.lead_phone || ''));
+                const sublabel = j.patients?.phone ? formatPhone(j.patients.phone, tenant?.country as CountryCode) : (channels || formatPhone(j.lead_phone || '', tenant?.country as CountryCode));
                 return { id: j.id, label, sublabel, stage_id: j.stage_id };
             });
             setMergeCandidates(candidates);
@@ -227,7 +227,7 @@ export function FollowUpTimelineDrawer({ journey, onClose }: FollowUpTimelineDra
                                     {displayName || t('timeline.unknownLead', { defaultValue: 'Lead Desconhecido' })}
                                 </h2>
                                 <p className="text-xs font-bold text-graphite-500 flex items-center gap-1 mt-0.5">
-                                    {phoneFlag(phone)} {formatPhone(phone)}
+                                    {phoneFlag(phone, tenant?.country as CountryCode)} {formatPhone(phone, tenant?.country as CountryCode)}
                                 </p>
                             </div>
                         </div>

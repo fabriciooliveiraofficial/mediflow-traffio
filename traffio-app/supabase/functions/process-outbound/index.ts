@@ -24,7 +24,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { getSmsPricing } from "../_shared/pricing.ts";
 import { logPlatform } from "../_shared/logger.ts";
 import { sendTenantEmail, isValidEmail } from "../_shared/emailClient.ts";
-import { getEmailSubject, renderEmailHtml, buildIcsAttachment } from "../_shared/emailTemplates.ts";
+import { getEmailSubject, renderEmailHtml, buildIcsAttachment, normalizeLocale, type EmailLocale } from "../_shared/emailTemplates.ts";
 import { isBlockedByQuietHours } from "../_shared/tenantTime.ts";
 import { getDefaultChannel, filterChannelsByMatrix, type ChannelInfo } from "../_shared/channelResolver.ts";
 import { SessionManager } from "../_shared/sessionManager.ts";
@@ -88,11 +88,19 @@ function classifyCloudApiCategory(templateKey: string | undefined | null): Cloud
 
 // Resolve a caption personalizada do bot_config do tenant para um lembrete.
 // Retorna null se não houver caption configurada para este template/idioma.
+//
+// IMPORTANTE: quando o idioma pedido não tem caption preenchida e cai no
+// fallback (pt→en→es), o `locale` retornado reflete o idioma REALMENTE usado
+// no texto — não o idioma nominal do tenant. Chamado assim, o assunto/rodapé/
+// botão do e-mail (que não têm esse fallback, só traduções estáticas prontas)
+// ficam no MESMO idioma do corpo, em vez de anunciar um idioma cujo conteúdo
+// nem existe (bug real: corpo em EN por fallback, botão em ES porque só olhava
+// o idioma nominal do tenant).
 function resolveTenantCaption(
   templateKey: string,
   botConfig: any,
   locale: string,
-): string | null {
+): { text: string; locale: EmailLocale } | null {
   if (!botConfig) return null;
 
   let captionObj: any = null;
@@ -118,13 +126,17 @@ function resolveTenantCaption(
 
   if (!captionObj) return null;
 
-  let text = '';
   if (typeof captionObj === 'string') {
-    text = captionObj;
-  } else if (typeof captionObj === 'object') {
-    text = captionObj[locale] || captionObj['pt'] || captionObj['en'] || captionObj['es'] || '';
+    return captionObj ? { text: captionObj, locale: normalizeLocale(locale) } : null;
   }
-  return text || null;
+  if (typeof captionObj === 'object') {
+    const nominal = normalizeLocale(locale);
+    const fallbackOrder: EmailLocale[] = [nominal, 'pt', 'en', 'es'].filter((l, i, arr) => arr.indexOf(l) === i) as EmailLocale[];
+    for (const lang of fallbackOrder) {
+      if (captionObj[lang]) return { text: captionObj[lang], locale: lang };
+    }
+  }
+  return null;
 }
 
 // Pool de concorrência limitada — sem dependências externas.
@@ -391,15 +403,21 @@ serve(async (req: Request) => {
         }
 
         // ── Renderizar texto: override manual → caption do tenant → template padrão ──
+        // Idioma: vars da mensagem → idioma padrão do tenant (página Inteligência) → pt
+        const nominalLocale = (msg.template_vars?.locale || tenant?.bot_config?.notification_locale || 'pt') as string;
+        // Idioma REALMENTE usado no corpo (pode divergir do nominal — ver
+        // resolveTenantCaption). É este que deve orientar assunto/rodapé/botão
+        // do e-mail, para nunca anunciar um idioma que o corpo não está usando.
+        let resolvedLocale: string = nominalLocale;
         let text = "";
         if (msg.is_edited && msg.template_vars?.override_message) {
           text = msg.template_vars.override_message;
         } else {
-          // Idioma: vars da mensagem → idioma padrão do tenant (página Inteligência) → pt
-          const locale = (msg.template_vars?.locale || tenant?.bot_config?.notification_locale || 'pt') as string;
+          const locale = nominalLocale;
           const customCaption = resolveTenantCaption(msg.template_key, tenant?.bot_config, locale);
           if (customCaption) {
-            text = renderCustomCaptionFromVars(customCaption, msg.template_vars);
+            text = renderCustomCaptionFromVars(customCaption.text, msg.template_vars);
+            resolvedLocale = customCaption.locale;
           } else if (msg.notification_channel === 'sms') {
             text = getSmsTemplate(msg.template_key, { ...msg.template_vars, locale });
           } else {
@@ -512,7 +530,10 @@ serve(async (req: Request) => {
               : await resolvePatientEmail(msg.tenant_id, msg.patient_phone);
             if (!to) throw new Error(`No e-mail address found for patient ${msg.patient_phone}`);
 
-            const emailLocale = (msg.template_vars?.locale || tenant?.bot_config?.notification_locale || 'pt') as string;
+            // Usa o idioma REALMENTE resolvido para o corpo (resolvedLocale), não
+            // o nominal do tenant — evita assunto/rodapé/botão em um idioma cujo
+            // conteúdo não existe e por isso caiu em fallback no corpo.
+            const emailLocale = resolvedLocale;
             const subject = getEmailSubject(msg.template_key, msg.template_vars, emailLocale);
 
             const isReminder = !!msg.template_key?.startsWith('appointment_reminder');

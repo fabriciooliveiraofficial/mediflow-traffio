@@ -6,6 +6,8 @@ import { ptBR } from 'date-fns/locale';
 import type { PatientFunnelRow, FunnelStage } from '../../hooks/usePatientFunnel';
 import { clsx } from 'clsx';
 import { formatPhone, phoneFlag } from '../../lib/formatPhone';
+import { useTenant } from '../../contexts/TenantContext';
+import { type CountryCode } from '../../lib/i18n/countryFormats';
 
 interface PatientStageCardProps {
     patient: PatientFunnelRow;
@@ -23,6 +25,7 @@ export const PatientStageCard: React.FC<PatientStageCardProps> = ({
     onStartConversation 
 }) => {
     const { t } = useTranslation('automations');
+    const { tenant } = useTenant();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     const stages: { key: FunnelStage; label: string }[] = [
@@ -51,7 +54,7 @@ export const PatientStageCard: React.FC<PatientStageCardProps> = ({
             <div className="flex justify-between items-start mb-3">
                 <div className="overflow-hidden">
                     <h4 className="font-black text-sm text-graphite-900 truncate pr-6">{patient.patient_name}</h4>
-                    <span className="text-[10px] font-bold text-graphite-400 block tracking-tight">{phoneFlag(patient.patient_phone)} {formatPhone(patient.patient_phone)}</span>
+                    <span className="text-[10px] font-bold text-graphite-400 block tracking-tight">{phoneFlag(patient.patient_phone, tenant?.country as CountryCode)} {formatPhone(patient.patient_phone, tenant?.country as CountryCode)}</span>
                 </div>
                 
                 <div className="relative">

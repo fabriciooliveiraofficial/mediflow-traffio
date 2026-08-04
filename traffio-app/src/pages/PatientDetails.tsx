@@ -278,9 +278,9 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
                             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-graphite-500 font-medium">
                                 <span className="flex items-center gap-2">
                                     <FileText size={16} className="text-brand-primary" />
-                                    {docLabel((patient.country as CountryCode) || (patient.cpf ? 'BR' : DEFAULT_COUNTRY))}: {
+                                    {docLabel((patient.country as CountryCode) || (tenant?.country as CountryCode) || (patient.cpf ? 'BR' : DEFAULT_COUNTRY))}: {
                                         patient.national_id || patient.cpf
-                                            ? formatDoc(patient.national_id || patient.cpf, (patient.country as CountryCode) || (patient.cpf ? 'BR' : DEFAULT_COUNTRY))
+                                            ? formatDoc(patient.national_id || patient.cpf, (patient.country as CountryCode) || (tenant?.country as CountryCode) || (patient.cpf ? 'BR' : DEFAULT_COUNTRY))
                                             : t('patientDetails.docNotInformed')
                                     }
                                 </span>
@@ -304,7 +304,7 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <p className="text-xs font-black text-graphite-400 uppercase tracking-wider">{t('patientDetails.mobileLabel')}</p>
-                                    <p className="font-bold text-graphite-900">{formatNational(patient.mobile) || patient.mobile || t('patientDetails.mobileNotRegistered')}</p>
+                                    <p className="font-bold text-graphite-900">{formatNational(patient.mobile, (patient.country as CountryCode) || (tenant?.country as CountryCode) || DEFAULT_COUNTRY) || patient.mobile || t('patientDetails.mobileNotRegistered')}</p>
                                 </div>
                                 {/* I.1 — Click-to-call: dispara o softphone via evento global */}
                                 {patient.mobile && (tenant as any)?.telnyx_enabled && (

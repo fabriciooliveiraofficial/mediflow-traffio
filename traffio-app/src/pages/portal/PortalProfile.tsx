@@ -89,7 +89,7 @@ export function PortalProfile() {
                             <div className="flex items-center gap-4 text-gray-600">
                                 <Phone className="text-gray-400" size={20} />
                                 <div>
-                                    <p className="text-sm font-medium text-gray-900">{patient.phone ? `${phoneFlag(patient.phone)} ${formatPhone(patient.phone)}` : t('profile.notInformed')}</p>
+                                    <p className="text-sm font-medium text-gray-900">{patient.phone ? `${phoneFlag(patient.phone, tenant?.country)} ${formatPhone(patient.phone, tenant?.country)}` : t('profile.notInformed')}</p>
                                     <p className="text-xs text-gray-500">{t('profile.phone')}</p>
                                 </div>
                             </div>

@@ -129,7 +129,7 @@ export function FollowUpBoard() {
       );
     }
     const phone = j.lead_phone || j.patients?.phone || j.conversation_sessions?.patient_phone || '';
-    return `${phoneFlag(phone)} ${formatPhone(phone)}`;
+    return `${phoneFlag(phone, tenant?.country as CountryCode)} ${formatPhone(phone, tenant?.country as CountryCode)}`;
   };
 
   // Subtítulo: telefone quando houver; senão o rótulo do canal principal
@@ -137,13 +137,13 @@ export function FollowUpBoard() {
     const phoneIdentity = (j.crm_journey_identities || []).find(i => i.channel === 'whatsapp' || i.channel === 'sms' || i.channel === 'phone');
     const phone = j.patients?.phone || phoneIdentity?.identifier
       || (j.conversation_sessions?.channel === 'whatsapp' || !j.conversation_sessions?.channel ? j.lead_phone : null);
-    if (phone) return formatPhone(phone);
+    if (phone) return formatPhone(phone, tenant?.country as CountryCode);
 
     const channel = j.conversation_sessions?.channel;
     if (channel === 'instagram') return t('followUp.channelLabel.instagram', { username: j.conversation_sessions?.context?.username || t('followUp.directFallback') });
     if (channel === 'facebook') return t('followUp.channelLabel.facebook');
     if (channel === 'livechat') return t('followUp.channelLabel.livechat');
-    return formatPhone(j.lead_phone || '');
+    return formatPhone(j.lead_phone || '', tenant?.country as CountryCode);
   };
 
   // Canais conectados ao card (deduplica por canal para os chips)

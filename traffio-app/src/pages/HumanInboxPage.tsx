@@ -292,7 +292,7 @@ function ConversationRow({
                 ? patientName
                 : (session.channel === 'livechat' || session.channel === 'instagram' || session.channel === 'facebook')
                 ? (session.context?.visitor_name || session.context?.username || session.context?.name || fallbackName(session.channel))
-                : `${phoneFlag(session.patient_phone)} ${formatPhone(session.patient_phone)}`}
+                : `${phoneFlag(session.patient_phone, tenant?.country as CountryCode)} ${formatPhone(session.patient_phone, tenant?.country as CountryCode)}`}
             </span>
             <div className="flex items-center gap-2 shrink-0">
               <span className={clsx('text-[11px]', slaColor(session.updated_at))}>
@@ -310,7 +310,7 @@ function ConversationRow({
             </p>
           ) : (
             patientName && (
-              <p className="text-[11px] text-gray-400 truncate mt-0.5">{formatPhone(session.patient_phone)}</p>
+              <p className="text-[11px] text-gray-400 truncate mt-0.5">{formatPhone(session.patient_phone, tenant?.country as CountryCode)}</p>
             )
           )}
 
@@ -1793,7 +1793,7 @@ function PatientPanel({
             <p className="text-xs text-gray-500">
               {['instagram', 'facebook', 'livechat'].includes(session.channel || '')
                 ? (session.channel === 'instagram' ? `${t('humanInbox.channels.instagram')}: @${session.context?.username || 'Direct'}` : session.channel === 'facebook' ? t('humanInbox.channels.facebookMessenger') : t('humanInbox.channels.liveChat'))
-                : formatPhone(session.patient_phone)}
+                : formatPhone(session.patient_phone, tenant?.country as CountryCode)}
             </p>
           </div>
         </div>
@@ -1868,9 +1868,9 @@ function PatientPanel({
       <div className="p-4 border-b border-gray-100 space-y-2">
           <div className="flex items-center gap-2 text-xs text-gray-600">
             <CreditCard className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-            <span>{docLabel((patient?.country as CountryCode) || (patient?.cpf ? 'BR' : DEFAULT_COUNTRY))}: <span className="font-medium">
+            <span>{docLabel((patient?.country as CountryCode) || (tenant?.country as CountryCode) || (patient?.cpf ? 'BR' : DEFAULT_COUNTRY))}: <span className="font-medium">
               {patient?.national_id || patient?.cpf
-                ? maskDoc(formatDoc(patient.national_id || patient.cpf || '', (patient?.country as CountryCode) || (patient?.cpf ? 'BR' : DEFAULT_COUNTRY)))
+                ? maskDoc(formatDoc(patient.national_id || patient.cpf || '', (patient?.country as CountryCode) || (tenant?.country as CountryCode) || (patient?.cpf ? 'BR' : DEFAULT_COUNTRY)))
                 : '—'}
             </span></span>
           </div>
@@ -3388,7 +3388,7 @@ export function HumanInboxPage() {
                     ? patient.full_name
                     : (selected.channel === 'livechat' || selected.channel === 'instagram' || selected.channel === 'facebook')
                     ? (selected.context?.visitor_name || selected.context?.username || selected.context?.name || (selected.channel === 'instagram' ? t('humanInbox.fallbackNames.instagramUser') : selected.channel === 'facebook' ? t('humanInbox.fallbackNames.messengerUser') : t('humanInbox.fallbackNames.webVisitor')))
-                    : `${phoneFlag(selected.patient_phone)} ${formatPhone(selected.patient_phone)}`}
+                    : `${phoneFlag(selected.patient_phone, tenant?.country as CountryCode)} ${formatPhone(selected.patient_phone, tenant?.country as CountryCode)}`}
                 </p>
                 <div className="flex items-center gap-2 mt-0.5">
                   <StatusBadge status={selected.omnichannel_status} />
@@ -3803,7 +3803,7 @@ export function HumanInboxPage() {
                               {patientNames[s.patient_phone] ?? (
                                 ['instagram', 'facebook', 'livechat'].includes(s.channel || '')
                                   ? (s.context?.visitor_name || s.context?.username || s.context?.name || (s.channel === 'instagram' ? t('humanInbox.fallbackNames.instagramUser') : s.channel === 'facebook' ? t('humanInbox.fallbackNames.messengerUser') : t('humanInbox.fallbackNames.webVisitor')))
-                                  : formatPhone(s.patient_phone)
+                                  : formatPhone(s.patient_phone, tenant?.country as CountryCode)
                               )}
                             </p>
                             <p className="text-[10px] text-gray-400 truncate">

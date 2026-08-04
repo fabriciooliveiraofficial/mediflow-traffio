@@ -20,12 +20,14 @@ import { useToast } from '../contexts/ToastContext';
 import { useTranslation } from 'react-i18next';
 import { useLocaleFormat } from '../hooks/useLocaleFormat';
 import { ConfirmActionModal } from '../components/shared/ConfirmActionModal';
+import { useTenant } from '../contexts/TenantContext';
 
 export const CrmLeads: React.FC = () => {
     const { t } = useTranslation('crm');
     const navigate = useNavigate();
     const { formatDate: formatLocaleDate } = useLocaleFormat();
     const { showToast } = useToast();
+    const { tenant } = useTenant();
     const [patients, setPatients] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -184,9 +186,9 @@ export const CrmLeads: React.FC = () => {
                                                 <div>
                                                     <p className="font-bold text-graphite-900">{patient.full_name}</p>
                                                     <p className="text-xs text-graphite-400 font-medium">
-                                                        {docLabel((patient.country as CountryCode) || (patient.cpf ? 'BR' : DEFAULT_COUNTRY))}: {
+                                                        {docLabel((patient.country as CountryCode) || (tenant?.country as CountryCode) || (patient.cpf ? 'BR' : DEFAULT_COUNTRY))}: {
                                                             patient.national_id || patient.cpf
-                                                                ? formatDoc(patient.national_id || patient.cpf, (patient.country as CountryCode) || (patient.cpf ? 'BR' : DEFAULT_COUNTRY))
+                                                                ? formatDoc(patient.national_id || patient.cpf, (patient.country as CountryCode) || (tenant?.country as CountryCode) || (patient.cpf ? 'BR' : DEFAULT_COUNTRY))
                                                                 : '---'
                                                         }
                                                     </p>
@@ -197,7 +199,7 @@ export const CrmLeads: React.FC = () => {
                                             <div className="space-y-1">
                                                 <div className="flex items-center gap-2 text-xs font-medium text-graphite-700">
                                                     <Phone size={12} className="text-graphite-400" />
-                                                    {phoneFlag(patient.phone || patient.mobile)} {formatPhone(patient.phone || patient.mobile)}
+                                                    {phoneFlag(patient.phone || patient.mobile, tenant?.country as CountryCode)} {formatPhone(patient.phone || patient.mobile, tenant?.country as CountryCode)}
                                                 </div>
                                                 <div className="flex items-center gap-2 text-xs font-medium text-graphite-700">
                                                     <Mail size={12} className="text-graphite-400" />

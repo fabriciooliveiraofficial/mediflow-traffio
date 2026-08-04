@@ -117,7 +117,7 @@ export const PatientLookupModal: React.FC<PatientLookupModalProps> = ({ isOpen, 
                                                         <FileText size={10} /> {patient.cpf || t('patientLookup.noCpf')}
                                                     </span>
                                                     <span className="text-[11px] text-graphite-400 flex items-center gap-1">
-                                                        <Phone size={10} /> {formatPhone(patient.phone) || t('patientLookup.noPhone')}
+                                                        <Phone size={10} /> {formatPhone(patient.phone, tenant?.country as CountryCode) || t('patientLookup.noPhone')}
                                                     </span>
                                                 </div>
                                             </div>

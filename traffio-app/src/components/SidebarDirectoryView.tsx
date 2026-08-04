@@ -174,7 +174,7 @@ export function SidebarDirectoryView({ onBack }: SidebarDirectoryViewProps) {
                 {loc.phone && (
                   <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
                     <Phone size={11} className="shrink-0" />
-                    <a href={`tel:${loc.phone}`} className="text-blue-600 hover:underline">{phoneFlag(loc.phone)} {formatPhone(loc.phone)}</a>
+                    <a href={`tel:${loc.phone}`} className="text-blue-600 hover:underline">{phoneFlag(loc.phone, tenant?.country as CountryCode)} {formatPhone(loc.phone, tenant?.country as CountryCode)}</a>
                   </div>
                 )}
                 {formatHours(loc) && (
