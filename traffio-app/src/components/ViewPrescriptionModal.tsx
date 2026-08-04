@@ -2,12 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, ClipboardList, Printer, Calendar, Hash } from 'lucide-react';
 import { useLocaleFormat } from '../hooks/useLocaleFormat';
-
-interface Medication {
-    name: string;
-    dosage: string;
-    instructions: string;
-}
+import { normalizePrescriptionContent } from '../lib/prescriptions';
 
 interface ViewPrescriptionModalProps {
     isOpen: boolean;
@@ -25,7 +20,7 @@ export const ViewPrescriptionModal: React.FC<ViewPrescriptionModalProps> = ({
 
     if (!isOpen || !prescription) return null;
 
-    const medications: Medication[] = prescription.content_json?.medications || [];
+    const { medications, freeText } = normalizePrescriptionContent(prescription.content_json);
 
     return (
         <>
@@ -83,21 +78,28 @@ export const ViewPrescriptionModal: React.FC<ViewPrescriptionModalProps> = ({
                                 </h4>
 
                                 <div className="space-y-6">
-                                    {medications.length === 0 ? (
+                                    {medications.length === 0 && !freeText ? (
                                         <p className="text-sm text-graphite-400 italic text-center">{t('viewPrescriptionModal.noMedications')}</p>
                                     ) : (
-                                        medications.map((med, idx) => (
-                                            <div key={idx} className="space-y-2 border-b border-dashed border-ice-200 pb-6 last:border-0">
-                                                <div className="flex items-start gap-3">
-                                                    <span className="text-sm font-black text-graphite-900 mt-0.5">{idx + 1}.</span>
-                                                    <div className="space-y-1">
-                                                        <p className="text-base font-black text-graphite-900 uppercase tracking-tight">{med.name}</p>
-                                                        <p className="text-sm font-bold text-brand-primary">{med.dosage}</p>
-                                                        <p className="text-sm text-graphite-500 font-medium italic">{med.instructions}</p>
+                                        <>
+                                            {medications.map((med, idx) => (
+                                                <div key={idx} className="space-y-2 border-b border-dashed border-ice-200 pb-6 last:border-0">
+                                                    <div className="flex items-start gap-3">
+                                                        <span className="text-sm font-black text-graphite-900 mt-0.5">{idx + 1}.</span>
+                                                        <div className="space-y-1">
+                                                            <p className="text-base font-black text-graphite-900 uppercase tracking-tight">{med.name}</p>
+                                                            <p className="text-sm font-bold text-brand-primary">{med.dosage}</p>
+                                                            <p className="text-sm text-graphite-500 font-medium italic">{med.instructions}</p>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        ))
+                                            ))}
+                                            {freeText && (
+                                                <p className="text-sm text-graphite-700 font-medium leading-relaxed whitespace-pre-wrap italic">
+                                                    {freeText}
+                                                </p>
+                                            )}
+                                        </>
                                     )}
                                 </div>
                             </div>

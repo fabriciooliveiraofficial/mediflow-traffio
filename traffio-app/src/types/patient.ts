@@ -11,14 +11,13 @@ export interface Patient {
     country?: string | null;
     email: string | null;
     phone: string | null;
-    mobile?: string | null;
     birth_date: string | null;
     gender: string | null;
     address_json: Record<string, unknown> | null;
     type: 'particular' | 'insurance';
     insurance_provider: string | null;
     insurance_card: string | null;
-    medical_notes: string | null;
+    notes: string | null;
     preferred_locale?: string | null;
     created_at: string;
     updated_at: string;
@@ -47,7 +46,7 @@ export interface Appointment {
     created_at: string;
     updated_at: string;
     // Joined fields (optional, from queries)
-    patient?: Pick<Patient, 'full_name' | 'mobile' | 'type' | 'insurance_provider'>;
+    patient?: Pick<Patient, 'full_name' | 'phone' | 'type' | 'insurance_provider'>;
 }
 
 // ─── Medical Records ───────────────────────────────────
@@ -73,19 +72,14 @@ export interface MedicalRecord {
 
 export interface Prescription {
     id: string;
-    medical_record_id: string;
-    content_json: PrescriptionItem[];
+    patient_id: string;
+    medical_record_id: string | null;
+    // Formato normalizado por lib/prescriptions.ts#normalizePrescriptionContent —
+    // ver esse módulo para os formatos legados que podem estar gravados aqui.
+    content_json: unknown;
     pdf_url: string | null;
     external_provider_id: string | null;
     created_at: string;
-}
-
-export interface PrescriptionItem {
-    medication: string;
-    dosage: string;
-    frequency: string;
-    duration: string;
-    notes?: string;
 }
 
 export interface Attachment {

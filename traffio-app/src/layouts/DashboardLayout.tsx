@@ -245,7 +245,7 @@ export const DashboardLayout = ({ children }: {
         // 2. Injetar Odontologia se aplicável
         if (specialties.includes('dental')) {
             const dentalItems: NavItem[] = [
-                { id: 'odontology', label: t('nav.odontology'), icon: Activity, badge: 'New', group: 'clinico' },
+                { id: 'odontology', label: t('nav.odontology'), icon: Activity, badge: t('nav.badgeNew'), group: 'clinico' },
                 { id: 'odontogram', label: t('nav.odontogram'), icon: Activity, isSubItem: true, parentId: 'odontology', group: 'clinico' }
             ];
             items.splice(insertionPoint, 0, ...dentalItems);
@@ -254,7 +254,7 @@ export const DashboardLayout = ({ children }: {
 
         // 3. Injetar Prontuário se aplicável
         if (specialties.includes('general')) {
-            const medicalRecordItem: NavItem = { id: 'medical-records', label: t('nav.medicalRecords'), icon: Stethoscope, badge: 'New', group: 'clinico' };
+            const medicalRecordItem: NavItem = { id: 'medical-records', label: t('nav.medicalRecords'), icon: Stethoscope, badge: t('nav.badgeNew'), group: 'clinico' };
             items.splice(insertionPoint, 0, medicalRecordItem);
             insertionPoint += 1;
         }
@@ -262,7 +262,7 @@ export const DashboardLayout = ({ children }: {
         // 4. Injetar Nutrição se aplicável
         if (specialties.includes('nutrition')) {
             const nutritionItems: NavItem[] = [
-                { id: 'nutrition', label: t('nav.nutrition'), icon: Apple, badge: 'New', group: 'clinico' },
+                { id: 'nutrition', label: t('nav.nutrition'), icon: Apple, badge: t('nav.badgeNew'), group: 'clinico' },
                 { id: 'nutrition-plan', label: t('nav.nutritionPlan'), icon: Apple, isSubItem: true, parentId: 'nutrition', group: 'clinico' }
             ];
             items.splice(insertionPoint, 0, ...nutritionItems);

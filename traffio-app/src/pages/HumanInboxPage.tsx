@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase'
 import { formatPhone, phoneFlag } from '../lib/formatPhone'
 import { formatDisplayDate } from '../lib/dateUtils'
 import { formatDoc, docLabel } from '../lib/i18n/doc'
+import { resolvePatientCountry } from '../lib/i18n/countryFormats'
 import { DEFAULT_COUNTRY, type CountryCode } from '../lib/i18n/countryFormats'
 import {
   MessageCircle, Clock, User, Send, Inbox,
@@ -1868,9 +1869,9 @@ function PatientPanel({
       <div className="p-4 border-b border-gray-100 space-y-2">
           <div className="flex items-center gap-2 text-xs text-gray-600">
             <CreditCard className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-            <span>{docLabel((patient?.country as CountryCode) || (tenant?.country as CountryCode) || (patient?.cpf ? 'BR' : DEFAULT_COUNTRY))}: <span className="font-medium">
+            <span>{docLabel(resolvePatientCountry(patient?.country, tenant?.country, patient?.cpf, patient?.national_id))}: <span className="font-medium">
               {patient?.national_id || patient?.cpf
-                ? maskDoc(formatDoc(patient.national_id || patient.cpf || '', (patient?.country as CountryCode) || (tenant?.country as CountryCode) || (patient?.cpf ? 'BR' : DEFAULT_COUNTRY)))
+                ? maskDoc(formatDoc(patient.national_id || patient.cpf || '', resolvePatientCountry(patient?.country, tenant?.country, patient?.cpf, patient?.national_id)))
                 : '—'}
             </span></span>
           </div>

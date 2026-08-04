@@ -30,7 +30,7 @@ export const DicomViewerModal: React.FC<DicomViewerModalProps> = ({ isOpen, onCl
                 </div>
                 
                 <div className="flex-1 overflow-auto p-4 md:p-8">
-                    <DicomViewer fileUrl={fileUrl || "https://images.unsplash.com/photo-1579154235828-4019a5ca884c?q=80&w=1000&auto=format&fit=crop"} />
+                    <DicomViewer fileUrl={fileUrl} />
                 </div>
             </div>
         </div>

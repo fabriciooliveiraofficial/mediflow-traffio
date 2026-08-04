@@ -133,7 +133,8 @@
       "signatureLabel": "Digital Signature",
       "authenticatedVia": "Authenticated via Traffio Security Hub",
       "reprint": "Reprint Prescription",
-      "downloadPdf": "Download PDF"
+      "downloadPdf": "Download PDF",
+      "close": "Close"
     },
     "files": {
       "addDocument": "Add New Document",
@@ -445,7 +446,8 @@
   },
   "dicomViewer": {
     "emptyState": "No DICOM exam selected",
-    "seriesImages": "Image Series"
+    "seriesImages": "Image Series",
+    "reset": "Reset"
   },
   "anthropometryForm": {
     "toasts": {
@@ -587,5 +589,38 @@
     "attachmentSubtitle": "Attachment",
     "prescriptionFallback": "Prescription",
     "medicationsCount": "{{count}} medication(s)"
+  },
+  "timelineCard": {
+    "types": {
+      "consultation": "Consultation",
+      "prescription": "Prescription",
+      "exam_result": "Exam"
+    },
+    "details": "Details",
+    "aiExplain": "AI Explain"
+  },
+  "dentalRecalls": {
+    "reasons": {
+      "semiannualCleaning": "Semiannual Cleaning"
+    },
+    "due": {
+      "today": "Today"
+    }
+  },
+  "documentPreviewModal": {
+    "title": "Document Preview",
+    "downloadOriginal": "Download Original",
+    "loading": "Loading document...",
+    "unsupportedTitle": "Unsupported preview",
+    "unsupportedSubtitle": "This file type ({{type}}) cannot be previewed here.",
+    "downloadNow": "Download Now",
+    "loadError": "Could not load the document.",
+    "close": "Close"
+  },
+  "dentalBudgetStatus": {
+    "draft": "Draft",
+    "sent": "Sent",
+    "approved": "Approved",
+    "rejected": "Rejected"
   }
 }

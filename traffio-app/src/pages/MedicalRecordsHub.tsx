@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
     Search, 
     User, 
@@ -26,7 +27,8 @@ import {
     BookOpen,
     Shield,
     Eye,
-    Loader2
+    Loader2,
+    X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -37,9 +39,11 @@ import { useToast } from '../contexts/ToastContext';
 import { clsx } from 'clsx';
 import { formatDisplayDate } from '../lib/dateUtils';
 import { formatDoc, docLabel } from '../lib/i18n/doc';
+import { resolvePatientCountry } from '../lib/i18n/countryFormats';
 import { formatNational } from '../lib/i18n/phone';
 import { DEFAULT_COUNTRY, type CountryCode } from '../lib/i18n/countryFormats';
-import { formatInTimezone } from '../lib/timezoneUtils';
+import { useLocaleFormat } from '../hooks/useLocaleFormat';
+import { normalizePrescriptionContent, prescriptionSummary } from '../lib/prescriptions';
 
 interface Patient {
     id: string;
@@ -91,7 +95,8 @@ export const MedicalRecordsHub = () => {
     const { t, i18n } = useTranslation('medical');
     const { tenant } = useTenant();
     const { showToast } = useToast();
-    
+    const { formatDate, formatDateTime, formatTime } = useLocaleFormat();
+
     const [patients, setPatients] = useState<Patient[]>([]);
     const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -208,11 +213,7 @@ export const MedicalRecordsHub = () => {
                 .insert([{
                     tenant_id: tenant.id,
                     patient_id: selectedPatient.id,
-                    content_json: { 
-                        content: prescriptionContent,
-                        patient_name: selectedPatient.full_name,
-                        date: new Date().toISOString()
-                    },
+                    content_json: { freeText: prescriptionContent },
                 }])
                 .select()
                 .single();
@@ -423,7 +424,7 @@ export const MedicalRecordsHub = () => {
                         </div>
                         <div className="flex items-end gap-2">
                              <span className="text-xs font-black text-graphite-300 uppercase shrink-0">{t('recordsHub.print.dateLabel')}</span>
-                             <div className="flex-1 border-b border-ice-200 pb-1 font-bold text-graphite-900">{formatInTimezone(new Date(), tenant?.timezone || 'America/Sao_Paulo', { dateStyle: 'short' }, 'pt-BR')}</div>
+                             <div className="flex-1 border-b border-ice-200 pb-1 font-bold text-graphite-900">{formatDate(new Date())}</div>
                         </div>
                     </div>
 
@@ -479,9 +480,9 @@ export const MedicalRecordsHub = () => {
                                     "text-[10px] font-medium uppercase tracking-wider",
                                     selectedPatient?.id === patient.id ? "text-white/70" : "text-graphite-400"
                                 )}>
-                                    {docLabel((patient.country as CountryCode) || (tenant?.country as CountryCode) || (patient.cpf ? 'BR' : DEFAULT_COUNTRY))}: {
+                                    {docLabel(resolvePatientCountry(patient.country, tenant?.country, patient.cpf, patient.national_id))}: {
                                         patient.national_id || patient.cpf
-                                            ? formatDoc(patient.national_id || patient.cpf, (patient.country as CountryCode) || (tenant?.country as CountryCode) || (patient.cpf ? 'BR' : DEFAULT_COUNTRY))
+                                            ? formatDoc(patient.national_id || patient.cpf, resolvePatientCountry(patient.country, tenant?.country, patient.cpf, patient.national_id))
                                             : '---'
                                     }
                                 </p>
@@ -593,15 +594,12 @@ export const MedicalRecordsHub = () => {
                                                             <div className="flex items-center justify-between mb-4">
                                                                 <div className="flex items-center gap-3">
                                                                     <div className="px-3 py-1 bg-brand-primary/10 text-brand-primary rounded-lg text-[10px] font-black uppercase tracking-widest">
-                                                                        {record.event_type}
+                                                                        {t(`recordsHub.form.eventOptions.${record.event_type}`, record.event_type)}
                                                                     </div>
                                                                     <span className="text-xs font-bold text-graphite-300 flex items-center gap-1">
-                                                                        <Clock size={12} /> {new Date(record.created_at).toLocaleDateString('pt-BR')}
+                                                                        <Clock size={12} /> {formatDate(record.created_at)}
                                                                     </span>
                                                                 </div>
-                                                                <button className="text-graphite-300 hover:text-brand-primary transition-colors border-none bg-transparent cursor-pointer">
-                                                                    <ChevronRight size={20} />
-                                                                </button>
                                                             </div>
                                                             <h4 className="text-lg font-black tracking-tight text-graphite-900 mb-2">{record.title}</h4>
                                                             <p className="text-sm text-graphite-500 leading-relaxed font-medium">{record.description}</p>
@@ -634,10 +632,10 @@ export const MedicalRecordsHub = () => {
                                                     <InfoField label={t('recordsHub.details.fullName')} value={selectedPatient.full_name} />
                                                     <div className="grid grid-cols-2 gap-4">
                                                         <InfoField
-                                                            label={docLabel((selectedPatient.country as CountryCode) || (tenant?.country as CountryCode) || (selectedPatient.cpf ? 'BR' : DEFAULT_COUNTRY))}
+                                                            label={docLabel(resolvePatientCountry(selectedPatient.country, tenant?.country, selectedPatient.cpf, selectedPatient.national_id))}
                                                             value={
                                                                 selectedPatient.national_id || selectedPatient.cpf
-                                                                    ? formatDoc(selectedPatient.national_id || selectedPatient.cpf, (selectedPatient.country as CountryCode) || (tenant?.country as CountryCode) || (selectedPatient.cpf ? 'BR' : DEFAULT_COUNTRY))
+                                                                    ? formatDoc(selectedPatient.national_id || selectedPatient.cpf, resolvePatientCountry(selectedPatient.country, tenant?.country, selectedPatient.cpf, selectedPatient.national_id))
                                                                     : t('recordsHub.details.notInformed')
                                                             }
                                                         />
@@ -753,7 +751,7 @@ export const MedicalRecordsHub = () => {
                                                 <Trash2 size={16} /> {t('recordsHub.details.deletePatient')}
                                             </button>
                                             <button
-                                                onClick={() => showToast(t('recordsHub.toasts.editComingSoon'), 'info')}
+                                                onClick={() => showToast('info', t('recordsHub.toasts.editComingSoon'))}
                                                 className="px-8 py-3 bg-brand-primary text-white rounded-2xl font-black text-sm flex items-center gap-2 hover:opacity-90 transition-all cursor-pointer shadow-lg shadow-brand-primary/10"
                                             >
                                                 <Plus size={18} /> {t('recordsHub.details.editRegistration')}
@@ -794,7 +792,7 @@ export const MedicalRecordsHub = () => {
                                                     </div>
                                                     <div>
                                                         <label className="block text-[10px] font-black uppercase tracking-widest text-graphite-400 mb-2 ml-1">{t('recordsHub.form.dateLabel')}</label>
-                                                        <div className="p-4 bg-ice-50 border-none rounded-2xl font-bold text-sm text-graphite-400">{t('recordsHub.form.todayPrefix', { date: formatInTimezone(new Date(), tenant?.timezone || 'America/Sao_Paulo', { dateStyle: 'short' }, 'pt-BR') })}</div>
+                                                        <div className="p-4 bg-ice-50 border-none rounded-2xl font-bold text-sm text-graphite-400">{t('recordsHub.form.todayPrefix', { date: formatDate(new Date()) })}</div>
                                                     </div>
                                                 </div>
 
@@ -963,7 +961,7 @@ export const MedicalRecordsHub = () => {
                                                                             {new Date(presc.created_at).toLocaleDateString(getIntlLocale(i18n.language), { day: '2-digit', month: 'long', year: 'numeric' })}
                                                                         </p>
                                                                         <h4 className="text-sm font-black text-graphite-900">
-                                                                            {t('recordsHub.prescriptionsList.digitalPrescription', { time: new Date(presc.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) })}
+                                                                            {t('recordsHub.prescriptionsList.digitalPrescription', { time: formatTime(presc.created_at) })}
                                                                         </h4>
                                                                     </div>
                                                                 </div>
@@ -979,7 +977,7 @@ export const MedicalRecordsHub = () => {
                                                             </div>
                                                             <div className="mt-4 pt-4 border-t border-ice-50 flex gap-2">
                                                                 <span className="text-xs font-bold text-graphite-400 truncate max-w-[200px]">
-                                                                    {presc.content_json?.content?.substring(0, 80)}...
+                                                                    {prescriptionSummary(presc.content_json)}
                                                                 </span>
                                                             </div>
                                                         </div>
@@ -988,11 +986,16 @@ export const MedicalRecordsHub = () => {
                                             </div>
                                         </div>
 
-                                        {/* Right: Quick View Modal Overlay */}
+                                        {/* Right: Quick View Modal Overlay — renderizado via portal em document.body:
+                                            este bloco fica dentro de motion.div key="view-prescriptions", que anima
+                                            translateX. Um ancestral com transform vira containing block para
+                                            position:fixed, então sem o portal esse overlay renderizava clipado/preso
+                                            dentro da coluna rolável em vez de cobrir a tela inteira. */}
+                                        {createPortal(
                                         <AnimatePresence>
                                             {selectedPrescriptionForView && (
                                                 <div className="fixed inset-0 z-50 flex items-center justify-center p-6 sm:p-12">
-                                                    <motion.div 
+                                                    <motion.div
                                                         initial={{ opacity: 0 }}
                                                         animate={{ opacity: 1 }}
                                                         exit={{ opacity: 0 }}
@@ -1014,9 +1017,10 @@ export const MedicalRecordsHub = () => {
                                                             </div>
                                                             <button
                                                                 onClick={() => setSelectedPrescriptionForView(null)}
-                                                                className="p-3 hover:bg-white rounded-2xl transition-all border-none bg-transparent cursor-pointer text-graphite-400 group"
+                                                                aria-label={t('recordsHub.prescriptionViewer.close')}
+                                                                className="p-3 bg-white border border-ice-200 rounded-2xl transition-all cursor-pointer text-graphite-500 hover:text-rose-500 hover:border-rose-200"
                                                             >
-                                                                <Plus size={28} className="rotate-45 group-hover:text-rose-500 transition-colors" />
+                                                                <X size={22} />
                                                             </button>
                                                         </div>
 
@@ -1040,17 +1044,29 @@ export const MedicalRecordsHub = () => {
                                                                     <div className="flex justify-between items-center">
                                                                         <div>
                                                                             <span className="font-black uppercase text-[10px] text-slate-400 block mb-1">{t('recordsHub.prescriptionViewer.patientLabel')}</span>
-                                                                            <span className="font-black text-lg text-slate-900">{selectedPrescriptionForView.content_json?.patient_name}</span>
+                                                                            <span className="font-black text-lg text-slate-900">{selectedPatient?.full_name}</span>
                                                                         </div>
                                                                         <div className="text-right">
                                                                             <span className="font-black uppercase text-[10px] text-slate-400 block mb-1">{t('recordsHub.prescriptionViewer.issueDate')}</span>
-                                                                            <span className="font-bold text-slate-700">{new Date(selectedPrescriptionForView.created_at).toLocaleDateString('pt-BR')}</span>
+                                                                            <span className="font-bold text-slate-700">{formatDate(selectedPrescriptionForView.created_at)}</span>
                                                                         </div>
                                                                     </div>
                                                                 </div>
-                                                                
-                                                                <div className="flex-1 text-slate-800 whitespace-pre-wrap font-medium leading-relaxed italic text-lg pt-6">
-                                                                    {selectedPrescriptionForView.content_json?.content}
+
+                                                                <div className="flex-1 text-slate-800 font-medium leading-relaxed text-lg pt-6 space-y-4">
+                                                                    {(() => {
+                                                                        const { medications, freeText } = normalizePrescriptionContent(selectedPrescriptionForView.content_json);
+                                                                        if (medications.length > 0) {
+                                                                            return medications.map((med, idx) => (
+                                                                                <div key={idx} className="space-y-0.5">
+                                                                                    <p className="font-black uppercase">{idx + 1}. {med.name}</p>
+                                                                                    {med.dosage && <p className="text-base">{med.dosage}</p>}
+                                                                                    {med.instructions && <p className="text-base italic text-slate-600">{med.instructions}</p>}
+                                                                                </div>
+                                                                            ));
+                                                                        }
+                                                                        return <p className="whitespace-pre-wrap italic">{freeText}</p>;
+                                                                    })()}
                                                                 </div>
 
                                                                 <div className="mt-12 pt-8 border-t-2 border-slate-100 text-center relative">
@@ -1067,7 +1083,11 @@ export const MedicalRecordsHub = () => {
                                                         <div className="p-8 border-t border-ice-100 flex gap-4 bg-white">
                                                             <button
                                                                 onClick={() => {
-                                                                    setPrescriptionContent(selectedPrescriptionForView.content_json?.content);
+                                                                    const { medications, freeText } = normalizePrescriptionContent(selectedPrescriptionForView.content_json);
+                                                                    const asText = medications.length > 0
+                                                                        ? medications.map(m => [m.name, m.dosage, m.instructions].filter(Boolean).join(' — ')).join('\n')
+                                                                        : (freeText || '');
+                                                                    setPrescriptionContent(asText);
                                                                     setView('prescription');
                                                                     setSelectedPrescriptionForView(null);
                                                                 }}
@@ -1085,7 +1105,9 @@ export const MedicalRecordsHub = () => {
                                                     </motion.div>
                                                 </div>
                                             )}
-                                        </AnimatePresence>
+                                        </AnimatePresence>,
+                                        document.body
+                                        )}
                                     </motion.div>
                                 )}
                                 {view === 'files' && (
@@ -1155,7 +1177,7 @@ export const MedicalRecordsHub = () => {
                                                         <div className="flex-1 overflow-hidden">
                                                             <p className="font-bold text-sm truncate text-graphite-900" title={doc.name}>{doc.name}</p>
                                                             <p className="text-[10px] font-medium text-graphite-400 uppercase tracking-widest mt-1">
-                                                                {(doc.file_size / 1024 / 1024).toFixed(2)} MB • {new Date(doc.created_at).toLocaleDateString('pt-BR')}
+                                                                {(doc.file_size / 1024 / 1024).toFixed(2)} MB • {formatDate(doc.created_at)}
                                                             </p>
                                                         </div>
                                                     </div>
@@ -1216,9 +1238,10 @@ export const MedicalRecordsHub = () => {
                                             setPreviewDoc(null);
                                             setPreviewUrl(null);
                                         }}
+                                        aria-label={t('recordsHub.prescriptionViewer.close')}
                                         className="p-4 bg-rose-50 text-rose-500 rounded-2xl hover:bg-rose-100 transition-all border-none cursor-pointer flex items-center justify-center"
                                     >
-                                        <Plus size={24} className="rotate-45" />
+                                        <X size={24} />
                                     </button>
                                 </div>
                             </div>

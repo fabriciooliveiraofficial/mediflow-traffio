@@ -18,6 +18,7 @@ import { QRPassGenerator } from '../../components/QRPassGenerator';
 import { useGeofence } from '../../hooks/useGeofence';
 import type { Patient, Appointment } from '../../types/patient';
 import { docLabel, formatDoc } from '../../lib/i18n/doc';
+import { resolvePatientCountry } from '../../lib/i18n/countryFormats';
 import { formatNational } from '../../lib/i18n/phone';
 import { DEFAULT_COUNTRY, type CountryCode } from '../../lib/i18n/countryFormats';
 import { useApplyDefaultLanguage } from '../../hooks/useLang';
@@ -346,18 +347,18 @@ export const PreCheckin: React.FC = () => {
                                 </div>
                                 <div className="flex justify-between py-2 border-b border-ice-50">
                                     <span className="text-xs font-bold text-graphite-400">
-                                        {docLabel((patient.country as CountryCode) || (tenantData?.country as CountryCode) || (patient.cpf ? 'BR' : DEFAULT_COUNTRY))}
+                                        {docLabel(resolvePatientCountry(patient.country, tenantData?.country, patient.cpf, patient.national_id))}
                                     </span>
                                     <span className="text-sm font-bold text-graphite-900">
                                         {patient.national_id || patient.cpf 
-                                            ? formatDoc(patient.national_id || patient.cpf, (patient.country as CountryCode) || (tenantData?.country as CountryCode) || (patient.cpf ? 'BR' : DEFAULT_COUNTRY))
-                                            : '---'}
+                                            ? formatDoc(patient.national_id || patient.cpf, resolvePatientCountry(patient.country, tenantData?.country, patient.cpf, patient.national_id))
+                                            : t('preCheckin.docNotInformed')}
                                     </span>
                                 </div>
                                 <div className="flex justify-between py-2 border-b border-ice-50">
                                     <span className="text-xs font-bold text-graphite-400">{t('preCheckin.verifyData.mobile')}</span>
                                     <span className="text-sm font-bold text-graphite-900">
-                                        {formatNational(patient.mobile || patient.phone, (patient.country as CountryCode) || (tenantData?.country as CountryCode) || DEFAULT_COUNTRY) || patient.mobile || patient.phone || '---'}
+                                        {formatNational(patient.phone, resolvePatientCountry(patient.country, tenantData?.country, patient.cpf, patient.national_id)) || patient.phone || '---'}
                                     </span>
                                 </div>
                                 <div className="flex justify-between py-2">

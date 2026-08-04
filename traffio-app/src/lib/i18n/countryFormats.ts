@@ -170,6 +170,33 @@ export function getCurrencyForCountry(code: string | null | undefined): string {
     return getCountry(code).currency;
 }
 
+/**
+ * Resolves the true display country for a patient, working around the database's 
+ * hardcoded 'BR' default for legacy or booking-widget created patients in foreign clinics.
+ */
+export function resolvePatientCountry(
+    patientCountry: string | null | undefined, 
+    tenantCountry: string | null | undefined, 
+    patientCpf?: string | null,
+    patientNationalId?: string | null
+): CountryCode {
+    const pc = (patientCountry || '') as CountryCode;
+    const tc = (tenantCountry || '') as CountryCode;
+    
+    // If the patient's country is exactly the DB default 'BR',
+    // but the clinic is NOT in Brazil, AND the patient hasn't filled a CPF,
+    // it's highly likely they are a local patient who inherited the DB default.
+    // We check !patientCpf because legacy BR patients HAVE a CPF. 
+    // Generic documents go into national_id, so if they only have national_id 
+    // and they are in NZ, we should format it as NZ (IRD).
+    if (pc === 'BR' && tc && tc !== 'BR' && !patientCpf) {
+        return tc;
+    }
+    
+    // Otherwise, respect explicitly set patient country or fallback chain
+    return pc || tc || (patientCpf ? 'BR' : DEFAULT_COUNTRY);
+}
+
 /** UI language each country maps to by default (Pilar 2 — see TASKLIST-I18N-LANGUAGE.md). */
 export const COUNTRY_TO_LANGUAGE: Record<CountryCode, 'pt-BR' | 'en' | 'es'> = {
     BR: 'pt-BR',

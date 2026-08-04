@@ -133,7 +133,8 @@
       "signatureLabel": "Assinatura Digital",
       "authenticatedVia": "Autenticado via Traffio Security Hub",
       "reprint": "Re-imprimir Prescrição",
-      "downloadPdf": "Baixar PDF"
+      "downloadPdf": "Baixar PDF",
+      "close": "Fechar"
     },
     "files": {
       "addDocument": "Adicionar Novo Documento",
@@ -445,7 +446,8 @@
   },
   "dicomViewer": {
     "emptyState": "Nenhum exame DICOM selecionado",
-    "seriesImages": "Série Imagens"
+    "seriesImages": "Série Imagens",
+    "reset": "Redefinir"
   },
   "anthropometryForm": {
     "toasts": {
@@ -587,5 +589,38 @@
     "attachmentSubtitle": "Anexo",
     "prescriptionFallback": "Prescrição",
     "medicationsCount": "{{count}} medicamento(s)"
+  },
+  "timelineCard": {
+    "types": {
+      "consultation": "Consulta",
+      "prescription": "Receita",
+      "exam_result": "Exame"
+    },
+    "details": "Detalhes",
+    "aiExplain": "Explicar com IA"
+  },
+  "dentalRecalls": {
+    "reasons": {
+      "semiannualCleaning": "Limpeza Semestral"
+    },
+    "due": {
+      "today": "Hoje"
+    }
+  },
+  "documentPreviewModal": {
+    "title": "Visualizar Documento",
+    "downloadOriginal": "Baixar Original",
+    "loading": "Carregando documento...",
+    "unsupportedTitle": "Pré-visualização não suportada",
+    "unsupportedSubtitle": "Este tipo de arquivo ({{type}}) não pode ser visualizado aqui.",
+    "downloadNow": "Baixar Agora",
+    "loadError": "Não foi possível carregar o documento.",
+    "close": "Fechar"
+  },
+  "dentalBudgetStatus": {
+    "draft": "Rascunho",
+    "sent": "Enviado",
+    "approved": "Aprovado",
+    "rejected": "Rejeitado"
   }
 }

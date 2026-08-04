@@ -157,12 +157,12 @@ export const OdontologyHub: React.FC = () => {
                                         </div>
                                         <div>
                                             <p className="font-black text-sm text-graphite-900">{recall.full_name}</p>
-                                            <p className="text-[10px] text-graphite-400 font-bold uppercase tracking-widest">{recall.recall_reason}</p>
+                                            <p className="text-[10px] text-graphite-400 font-bold uppercase tracking-widest">{t(`dentalRecalls.reasons.${recall.recall_reason_key}`)}</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-4">
                                         <div className="text-right hidden sm:block">
-                                            <p className="text-xs font-black text-graphite-900">{recall.due_date}</p>
+                                            <p className="text-xs font-black text-graphite-900">{t(`dentalRecalls.due.${recall.due_date_key}`)}</p>
                                             <p className="text-[10px] text-brand-primary font-bold">{t('odontologyHub.overdue')}</p>
                                         </div>
                                         <div className="w-10 h-10 rounded-xl bg-ice-50 flex items-center justify-center text-graphite-400 group-hover:bg-brand-primary/10 group-hover:text-brand-primary transition-all">

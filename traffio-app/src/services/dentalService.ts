@@ -130,6 +130,6 @@ export const dentalService = {
             .select('*')
             .limit(5);
         if (error) throw error;
-        return data.map(p => ({ ...p, recall_reason: 'Limpeza Semestral', due_date: 'Hoje' }));
+        return data.map(p => ({ ...p, recall_reason_key: 'semiannualCleaning', due_date_key: 'today' }));
     }
 };

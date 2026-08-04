@@ -295,6 +295,7 @@
       "subtitle": "Até 24x sem Cartão"
     },
     "installmentsLabel": "Número de Parcelas",
+    "installmentValue": "{{count}}x de {{amount}}",
     "generatePaymentLink": "Gerar Link de Pagamento",
     "sendDrCashStudy": "Enviar Estudo Dr. Cash",
     "operationStarted": "Operação Iniciada!",

@@ -295,6 +295,7 @@
       "subtitle": "Hasta 24 Cuotas sin Tarjeta"
     },
     "installmentsLabel": "Número de Cuotas",
+    "installmentValue": "{{count}}x de {{amount}}",
     "generatePaymentLink": "Generar Enlace de Pago",
     "sendDrCashStudy": "Enviar Estudio Dr. Cash",
     "operationStarted": "¡Operación Iniciada!",

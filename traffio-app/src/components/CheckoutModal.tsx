@@ -14,6 +14,8 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { drCashService } from '../services/drCashService';
 import { useToast } from '../contexts/ToastContext';
+import { useTenant } from '../contexts/TenantContext';
+import { useTenantMoney } from '../hooks/useTenantMoney';
 
 interface CheckoutModalProps {
     isOpen: boolean;
@@ -36,6 +38,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 }) => {
     const { t } = useTranslation('agenda');
     const { showToast } = useToast();
+    const { tenant } = useTenant();
+    const { currency, format: formatMoney } = useTenantMoney();
+    const isBrTenant = (tenant?.country || 'BR') === 'BR';
     const [method, setMethod] = useState<PaymentMethod>('credit_card');
     const [amount, setAmount] = useState(initialAmount);
     const [installments, setInstallments] = useState(1);
@@ -126,7 +131,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                                 <div className="bg-brand-primary/5 p-6 rounded-3xl border border-brand-primary/10 text-center">
                                     <p className="text-[10px] font-black text-brand-primary uppercase tracking-widest mb-1">{t('checkoutModal.amountToReceiveLabel')}</p>
                                     <div className="flex items-center justify-center gap-2">
-                                        <span className="text-lg font-bold text-brand-primary mt-2">R$</span>
+                                        <span className="text-lg font-bold text-brand-primary mt-2">{currency}</span>
                                         <input 
                                             type="number" 
                                             value={amount}
@@ -137,8 +142,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                                 </div>
 
                                 {/* Method Selection */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <button 
+                                <div className={`grid grid-cols-1 gap-4 ${isBrTenant ? 'sm:grid-cols-2' : ''}`}>
+                                    <button
                                         onClick={() => setMethod('credit_card')}
                                         className={`p-6 rounded-[32px] border-2 text-left transition-all relative overflow-hidden group ${
                                             method === 'credit_card' ? 'border-brand-primary bg-brand-primary/5' : 'border-ice-100 hover:border-ice-200'
@@ -152,26 +157,30 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                                         {method === 'credit_card' && <div className="absolute top-4 right-4 text-brand-primary"><CheckCircle2 size={20} /></div>}
                                     </button>
 
-                                    <button 
-                                        onClick={() => setMethod('financing')}
-                                        className={`p-6 rounded-[32px] border-2 text-left transition-all relative overflow-hidden group ${
-                                            method === 'financing' ? 'border-emerald-500 bg-emerald-500/5' : 'border-ice-100 hover:border-ice-200'
-                                        }`}
-                                    >
-                                        <div className={`p-3 w-fit rounded-2xl mb-4 ${method === 'financing' ? 'bg-emerald-500 text-white' : 'bg-ice-50 text-graphite-400'}`}>
-                                            <Building2 size={24} />
-                                        </div>
-                                        <h4 className="font-black text-graphite-900 mb-1">{t('checkoutModal.financing.title')}</h4>
-                                        <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-tighter">{t('checkoutModal.financing.subtitle')}</p>
-                                        {method === 'financing' && <div className="absolute top-4 right-4 text-emerald-500"><CheckCircle2 size={20} /></div>}
-                                    </button>
+                                    {isBrTenant && (
+                                        <button
+                                            onClick={() => setMethod('financing')}
+                                            className={`p-6 rounded-[32px] border-2 text-left transition-all relative overflow-hidden group ${
+                                                method === 'financing' ? 'border-emerald-500 bg-emerald-500/5' : 'border-ice-100 hover:border-ice-200'
+                                            }`}
+                                        >
+                                            <div className={`p-3 w-fit rounded-2xl mb-4 ${method === 'financing' ? 'bg-emerald-500 text-white' : 'bg-ice-50 text-graphite-400'}`}>
+                                                <Building2 size={24} />
+                                            </div>
+                                            <h4 className="font-black text-graphite-900 mb-1">{t('checkoutModal.financing.title')}</h4>
+                                            <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-tighter">{t('checkoutModal.financing.subtitle')}</p>
+                                            {method === 'financing' && <div className="absolute top-4 right-4 text-emerald-500"><CheckCircle2 size={20} /></div>}
+                                        </button>
+                                    )}
                                 </div>
 
                                 {/* Simulation Area */}
                                 <div className="space-y-4">
                                     <div className="flex items-center justify-between">
                                         <label className="text-[10px] font-black text-graphite-400 uppercase tracking-wider">{t('checkoutModal.installmentsLabel')}</label>
-                                        <span className="text-xs font-bold text-brand-primary">{installments}x de {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(amount / installments)}</span>
+                                        <span className="text-xs font-bold text-brand-primary">
+                                            {t('checkoutModal.installmentValue', { count: installments, amount: formatMoney(amount / installments) })}
+                                        </span>
                                     </div>
                                     <input 
                                         type="range" 

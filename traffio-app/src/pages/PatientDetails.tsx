@@ -18,9 +18,10 @@ import {
     Calculator,
     Scan,
     Apple,
-    TrendingUp,
     Wallet,
-    ExternalLink
+    ExternalLink,
+    Eye,
+    Download
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { NewMedicalRecordModal } from '../components/NewMedicalRecordModal';
@@ -32,17 +33,21 @@ import { UploadDocumentModal } from '../components/UploadDocumentModal';
 import { ViewPrescriptionModal } from '../components/ViewPrescriptionModal';
 import { Odontogram } from '../components/dental/Odontogram';
 import { NewDentalBudgetModal } from '../components/dental/NewDentalBudgetModal';
-import { DicomViewer } from '../components/dental/DicomViewer';
 import { AnthropometryForm } from '../components/nutrition/AnthropometryForm';
 import { CheckoutModal } from '../components/CheckoutModal';
+import { DocumentPreviewModal } from '../components/shared/DocumentPreviewModal';
 import { dentalService } from '../services/dentalService';
 import { useToast } from '../contexts/ToastContext';
 import { useTenant } from '../contexts/TenantContext';
+import { useLocaleFormat } from '../hooks/useLocaleFormat';
+import { useTenantMoney } from '../hooks/useTenantMoney';
 import { formatDisplayDate } from '../lib/dateUtils';
 import { formatDoc, docLabel } from '../lib/i18n/doc';
-import { formatNational } from '../lib/i18n/phone';
+import { resolvePatientCountry } from '../lib/i18n/countryFormats';
+import { formatNational, toE164 } from '../lib/i18n/phone';
 import { DEFAULT_COUNTRY, type CountryCode } from '../lib/i18n/countryFormats';
 import { ChannelPreferenceSelector } from '../components/channel/ChannelPreferenceSelector';
+import { prescriptionSummary } from '../lib/prescriptions';
 
 interface PatientDetailsProps {
     patientId: string;
@@ -52,6 +57,8 @@ interface PatientDetailsProps {
 export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBack }) => {
     const { t } = useTranslation('medical');
     const { tenant } = useTenant();
+    const { formatDate, formatDateTime } = useLocaleFormat();
+    const { format: formatMoney } = useTenantMoney();
     const [activeTab, setActiveTab] = useState<'timeline' | 'medical-record' | 'dental' | 'exams' | 'nutrition' | 'calls'>('timeline');
     const [callRecords, setCallRecords]   = useState<any[]>([]);
     const [callsLoading, setCallsLoading] = useState(false);
@@ -63,6 +70,7 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
     const [isViewPrescriptionOpen, setIsViewPrescriptionOpen] = useState(false);
     const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
     const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
+    const [previewDoc, setPreviewDoc] = useState<any>(null);
     const [dentalBudgets, setDentalBudgets] = useState<any[]>([]);
     const [selectedPrescription, setSelectedPrescription] = useState<any>(null);
     const [explainTerm, setExplainTerm] = useState<string | null>(null);
@@ -73,21 +81,25 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
 
     const { showToast } = useToast();
     const { events: timelineEvents, loading: timelineLoading, refresh: refreshTimeline } = usePatientTimeline(patientId);
+    const consultationEvents = timelineEvents.filter(e => e.type === 'consultation');
 
     // I.4 — Buscar histórico de chamadas do paciente
     useEffect(() => {
-        if (activeTab !== 'calls' || !patient) return;
+        if (activeTab !== 'calls' || !patient || !tenant?.id) return;
         setCallsLoading(true);
-        const phone = patient.mobile || patient.phone || '';
-        if (!phone) { setCallsLoading(false); return; }
+        const country = (patient.country as CountryCode) || (tenant?.country as CountryCode) || DEFAULT_COUNTRY;
+        const e164 = patient.phone ? toE164(patient.phone, country) : null;
+        const phone = e164 || patient.phone || '';
+        if (!phone) { setCallsLoading(false); setCallRecords([]); return; }
         supabase
             .from('call_records')
             .select('id, direction, from_number, to_number, status, duration_seconds, started_at, answered_at, call_notes')
+            .eq('tenant_id', tenant.id)
             .or(`from_number.eq.${phone},to_number.eq.${phone}`)
             .order('started_at', { ascending: false })
             .limit(20)
             .then(({ data }) => { setCallRecords(data ?? []); setCallsLoading(false); });
-    }, [activeTab, patient]);
+    }, [activeTab, patient, tenant?.id, tenant?.country]);
 
     useEffect(() => {
         fetchPatientData();
@@ -252,7 +264,7 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
                             <div className="flex items-center gap-1.5 px-2 py-1 bg-amber-50 rounded-lg border border-amber-100 mt-2">
                                 <History size={10} className="text-amber-600" />
                                 <span className="text-[9px] font-black text-amber-700 uppercase">
-                                    {t('patientDetails.recallPrefix', { date: new Date(patient.last_visit_at).toLocaleDateString('pt-BR') })}
+                                    {t('patientDetails.recallPrefix', { date: formatDate(patient.last_visit_at) })}
                                 </span>
                             </div>
                         )}
@@ -278,9 +290,9 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
                             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-graphite-500 font-medium">
                                 <span className="flex items-center gap-2">
                                     <FileText size={16} className="text-brand-primary" />
-                                    {docLabel((patient.country as CountryCode) || (tenant?.country as CountryCode) || (patient.cpf ? 'BR' : DEFAULT_COUNTRY))}: {
+                                    {docLabel(resolvePatientCountry(patient.country, tenant?.country, patient.cpf, patient.national_id))}: {
                                         patient.national_id || patient.cpf
-                                            ? formatDoc(patient.national_id || patient.cpf, (patient.country as CountryCode) || (tenant?.country as CountryCode) || (patient.cpf ? 'BR' : DEFAULT_COUNTRY))
+                                            ? formatDoc(patient.national_id || patient.cpf, resolvePatientCountry(patient.country, tenant?.country, patient.cpf, patient.national_id))
                                             : t('patientDetails.docNotInformed')
                                     }
                                 </span>
@@ -288,10 +300,10 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
                                     <Calendar size={16} className="text-brand-primary" />
                                     {t('patientDetails.birthDatePrefix', { date: formatDisplayDate(patient.birth_date) || '--/--/----' })}
                                 </span>
-                                {patient.insurance_card && (
+                                {(patient.insurance_card_number || patient.insurance_card) && (
                                     <span className="flex items-center gap-2">
                                         <ShieldCheck size={16} className="text-emerald-500" />
-                                        {t('patientDetails.cardPrefix', { card: patient.insurance_card })}
+                                        {t('patientDetails.cardPrefix', { card: patient.insurance_card_number || patient.insurance_card })}
                                     </span>
                                 )}
                             </div>
@@ -304,14 +316,14 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <p className="text-xs font-black text-graphite-400 uppercase tracking-wider">{t('patientDetails.mobileLabel')}</p>
-                                    <p className="font-bold text-graphite-900">{formatNational(patient.mobile, (patient.country as CountryCode) || (tenant?.country as CountryCode) || DEFAULT_COUNTRY) || patient.mobile || t('patientDetails.mobileNotRegistered')}</p>
+                                    <p className="font-bold text-graphite-900">{formatNational(patient.phone, resolvePatientCountry(patient.country, tenant?.country, patient.cpf, patient.national_id)) || patient.phone || t('patientDetails.mobileNotRegistered')}</p>
                                 </div>
                                 {/* I.1 — Click-to-call: dispara o softphone via evento global */}
-                                {patient.mobile && (tenant as any)?.telnyx_enabled && (
+                                {patient.phone && (tenant as any)?.telnyx_enabled && (
                                     <button
-                                        onClick={() => window.dispatchEvent(new CustomEvent('softphone:dial', { detail: { number: patient.mobile } }))}
+                                        onClick={() => window.dispatchEvent(new CustomEvent('softphone:dial', { detail: { number: patient.phone } }))}
                                         className="w-9 h-9 rounded-xl bg-green-500 hover:bg-green-600 flex items-center justify-center text-white transition-colors border-none cursor-pointer shrink-0"
-                                        title={t('patientDetails.callTitle', { number: patient.mobile })}
+                                        title={t('patientDetails.callTitle', { number: patient.phone })}
                                     >
                                         <Phone size={16} />
                                     </button>
@@ -329,11 +341,11 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
                         </div>
 
                         {/* Preferências de Notificação */}
-                        {tenant?.id && (patient.mobile || patient.phone) && (
+                        {tenant?.id && patient.phone && (
                             <div className="p-5 rounded-2xl bg-ice-50 border border-ice-100">
                                 <ChannelPreferenceSelector
                                     tenantId={tenant.id}
-                                    patientPhone={patient.mobile || patient.phone}
+                                    patientPhone={patient.phone}
                                     enabledChannels={tenant.bot_config?.enabled_channels}
                                 />
                             </div>
@@ -398,7 +410,7 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
             {/* Content Tabs / Sections */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Left Column: Timeline / Specialized Views */}
-                <div className="lg:col-span-2 space-y-6">
+                <div className="lg:col-span-2 min-w-0 space-y-6">
                     {activeTab === 'timeline' && (
                         <>
                             <div className="flex items-center gap-3 mb-4">
@@ -466,7 +478,7 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
                                             {call.status === 'missed' && t('patientDetails.calls.missedSuffix')}
                                         </p>
                                         <p className="text-xs text-graphite-400">
-                                            {new Date(call.started_at).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                            {formatDateTime(call.started_at, { dateStyle: 'medium', timeStyle: 'short' })}
                                             {call.duration_seconds && ` · ${Math.floor(call.duration_seconds / 60)}m${call.duration_seconds % 60}s`}
                                         </p>
                                     </div>
@@ -483,12 +495,49 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
                     )}
 
                     {activeTab === 'medical-record' && (
-                        <div className="bg-white border border-ice-100 rounded-[32px] p-12 text-center space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                             <div className="w-20 h-20 rounded-full bg-ice-50 flex items-center justify-center mx-auto text-brand-primary">
-                                <FileText size={40} />
-                            </div>
-                            <h3 className="text-xl font-black text-graphite-900">{t('patientDetails.medicalRecord.title')}</h3>
-                            <p className="text-sm text-graphite-500 max-w-xs mx-auto">{t('patientDetails.medicalRecord.subtitle')}</p>
+                        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            {timelineLoading ? (
+                                <div className="space-y-4">
+                                    {[1, 2].map(i => <div key={i} className="h-40 bg-ice-100 rounded-[28px] animate-pulse" />)}
+                                </div>
+                            ) : consultationEvents.length === 0 ? (
+                                <div className="bg-white border border-ice-100 rounded-[32px] p-12 text-center space-y-4">
+                                    <div className="w-20 h-20 rounded-full bg-ice-50 flex items-center justify-center mx-auto text-brand-primary">
+                                        <FileText size={40} />
+                                    </div>
+                                    <h3 className="text-xl font-black text-graphite-900">{t('patientDetails.medicalRecord.title')}</h3>
+                                    <p className="text-sm text-graphite-500 max-w-xs mx-auto">{t('patientDetails.medicalRecord.subtitle')}</p>
+                                    <button
+                                        onClick={() => setIsRecordModalOpen(true)}
+                                        className="px-6 py-3 bg-brand-primary text-white rounded-2xl font-black text-sm hover:scale-105 transition-all border-none cursor-pointer"
+                                    >
+                                        <Plus size={16} className="inline mr-1" /> {t('patientDetails.newEvolution')}
+                                    </button>
+                                </div>
+                            ) : (
+                                consultationEvents.map((event) => {
+                                    const soap = (event.data as any)?.soap_notes;
+                                    return (
+                                        <div key={event.id} className="bg-white border border-ice-100 rounded-[28px] p-6 shadow-sm">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <h4 className="font-black text-graphite-900">{event.title}</h4>
+                                                <span className="text-xs font-bold text-graphite-400 shrink-0">{formatDate(event.date)}</span>
+                                            </div>
+                                            {event.subtitle && (
+                                                <p className="text-sm text-graphite-500 italic mb-4">{event.subtitle}</p>
+                                            )}
+                                            {soap && (
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                    {soap.s && <SoapField label={t('newMedicalRecordModal.subjective.label')} text={soap.s} />}
+                                                    {soap.o && <SoapField label={t('newMedicalRecordModal.objective.label')} text={soap.o} />}
+                                                    {soap.a && <SoapField label={t('newMedicalRecordModal.assessment.label')} text={soap.a} />}
+                                                    {soap.p && <SoapField label={t('newMedicalRecordModal.plan.label')} text={soap.p} />}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })
+                            )}
                         </div>
                     )}
 
@@ -523,7 +572,44 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
 
                     {activeTab === 'exams' && (
                         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                             <DicomViewer fileUrl="mock" />
+                            {historyLoading ? (
+                                <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {[1, 2, 3].map(i => <div key={i} className="h-32 bg-ice-100 rounded-[28px] animate-pulse" />)}
+                                </div>
+                            ) : exams.length === 0 ? (
+                                <div className="bg-white border border-ice-100 rounded-[32px] p-12 text-center space-y-3">
+                                    <div className="w-16 h-16 rounded-full bg-ice-50 flex items-center justify-center mx-auto">
+                                        <FlaskConical size={28} className="text-graphite-300" />
+                                    </div>
+                                    <p className="font-black text-graphite-500">{t('patientDetails.sidebar.examsEmpty')}</p>
+                                    <button
+                                        onClick={() => setIsExamModalOpen(true)}
+                                        className="px-6 py-3 bg-emerald-500 text-white rounded-2xl font-black text-sm hover:scale-105 transition-all border-none cursor-pointer"
+                                    >
+                                        <Plus size={16} className="inline mr-1" /> {t('patientDetails.sidebar.examsTitle')}
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {exams.map((exam) => (
+                                        <button
+                                            key={exam.id}
+                                            onClick={() => setPreviewDoc(exam)}
+                                            className="bg-white p-5 rounded-[28px] border border-ice-100 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all text-left border-none cursor-pointer flex flex-col gap-3"
+                                        >
+                                            <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                                                <FlaskConical size={24} />
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="font-bold text-sm truncate text-graphite-900" title={exam.filename}>{exam.filename}</p>
+                                                <p className="text-[10px] font-medium text-graphite-400 uppercase tracking-widest mt-1">
+                                                    {formatDate(exam.created_at)}
+                                                </p>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -533,12 +619,6 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
                                 <div>
                                     <h3 className="text-xl font-black">{t('patientDetails.nutrition.title')}</h3>
                                     <p className="text-sm opacity-80 font-medium">{t('patientDetails.nutrition.subtitle')}</p>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <button className="flex items-center gap-2 bg-white/20 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-white/30 transition-all border-none cursor-pointer">
-                                        <TrendingUp size={18} />
-                                        <span>{t('patientDetails.nutrition.evolution')}</span>
-                                    </button>
                                 </div>
                             </div>
                             <AnthropometryForm 
@@ -553,12 +633,12 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
 
                     {/* AI Explain Modal */}
                     {explainTerm && (
-                        <AIExplainButton term={explainTerm} />
+                        <AIExplainButton term={explainTerm} onClose={() => setExplainTerm(null)} />
                     )}
                 </div>
 
                 {/* Right Column: Quick Info */}
-                <div className="space-y-6">
+                <div className="min-w-0 space-y-6">
                     {/* Receitas */}
                     <div className="bg-white rounded-2xl border border-ice-200 overflow-hidden shadow-sm">
                         <div className="p-5 border-b border-ice-100 flex items-center justify-between bg-ice-50/30">
@@ -594,10 +674,12 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
                                                 <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-brand-primary shadow-sm border border-ice-100">
                                                     <Pill size={14} />
                                                 </div>
-                                                <div>
-                                                    <p className="text-[11px] font-black text-graphite-900 leading-tight">{t('patientDetails.sidebar.prescriptionName')}</p>
+                                                <div className="min-w-0">
+                                                    <p className="text-[11px] font-black text-graphite-900 leading-tight truncate">
+                                                        {prescriptionSummary(presc.content_json) || t('patientDetails.sidebar.prescriptionName')}
+                                                    </p>
                                                     <p className="text-[9px] font-bold text-graphite-400">
-                                                        {new Date(presc.created_at).toLocaleDateString('pt-BR')}
+                                                        {formatDate(presc.created_at)}
                                                     </p>
                                                 </div>
                                             </div>
@@ -606,9 +688,9 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
                                                     setSelectedPrescription(presc);
                                                     setIsViewPrescriptionOpen(true);
                                                 }}
-                                                className="p-1.5 opacity-0 group-hover:opacity-100 bg-white border border-ice-200 rounded-lg text-graphite-400 hover:text-brand-primary transition-all cursor-pointer"
+                                                className="p-1.5 bg-white border border-ice-200 rounded-lg text-graphite-400 hover:text-brand-primary transition-all cursor-pointer shrink-0"
                                             >
-                                                <FileText size={12} />
+                                                <Eye size={12} />
                                             </button>
                                         </div>
                                     ))}
@@ -650,7 +732,7 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
                                             
                                             <div className="flex justify-between items-start mb-2">
                                                 <div>
-                                                    <p className="text-xs font-black text-graphite-900">{prop.installments}x {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(prop.amount)}</p>
+                                                    <p className="text-xs font-black text-graphite-900">{prop.installments}x {formatMoney(prop.amount)}</p>
                                                     <p className="text-[9px] font-bold text-graphite-400 uppercase tracking-widest">{prop.provider}</p>
                                                 </div>
                                                 <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${
@@ -715,21 +797,20 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
                                                 <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-emerald-500 shadow-sm border border-ice-100">
                                                     <FlaskConical size={14} />
                                                 </div>
-                                                <div className="max-w-[120px]">
+                                                <div className="min-w-0 flex-1" title={exam.filename}>
                                                     <p className="text-[11px] font-black text-graphite-900 leading-tight truncate">{exam.filename}</p>
                                                     <p className="text-[9px] font-bold text-graphite-400">
-                                                        {new Date(exam.created_at).toLocaleDateString('pt-BR')}
+                                                        {formatDate(exam.created_at)}
                                                     </p>
                                                 </div>
                                             </div>
-                                            <a 
-                                                href={exam.file_url} 
-                                                target="_blank" 
-                                                rel="noopener noreferrer"
-                                                className="p-1.5 opacity-0 group-hover:opacity-100 bg-white border border-ice-200 rounded-lg text-graphite-400 hover:text-emerald-500 transition-all cursor-pointer"
+                                            <button
+                                                onClick={() => setPreviewDoc(exam)}
+                                                className="p-1.5 bg-white border border-ice-200 rounded-lg text-graphite-400 hover:text-emerald-500 transition-all cursor-pointer shrink-0"
+                                                title={t('documentPreviewModal.title')}
                                             >
-                                                <FileText size={12} />
-                                            </a>
+                                                <Eye size={12} />
+                                            </button>
                                         </div>
                                     ))}
                                 </div>
@@ -752,17 +833,17 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
                                         <p className="text-xs text-graphite-400 font-medium text-center py-4">{t('patientDetails.sidebar.dentalBudgetsEmpty')}</p>
                                     ) : (
                                         dentalBudgets.map((budget: any) => (
-                                            <div key={budget.id} className="p-4 rounded-xl border border-ice-100 bg-ice-50/30 flex items-center justify-between group hover:border-emerald-200 transition-all cursor-pointer">
+                                            <div key={budget.id} className="p-4 rounded-xl border border-ice-100 bg-ice-50/30 flex items-center justify-between">
                                                 <div>
-                                                    <p className="text-xs font-black text-graphite-900">{budget.description || t('patientDetails.sidebar.dentalBudgetFallbackName')}</p>
-                                                    <p className="text-[10px] font-bold text-graphite-400 uppercase">{budget.status}</p>
+                                                    <p className="text-xs font-black text-graphite-900">{budget.notes || t('patientDetails.sidebar.dentalBudgetFallbackName')}</p>
+                                                    <p className="text-[10px] font-bold text-graphite-400 uppercase">{t(`dentalBudgetStatus.${budget.status}`, budget.status)}</p>
                                                 </div>
                                                 <div className="text-right">
                                                     <p className="text-xs font-black text-emerald-600">
-                                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(budget.total_amount)}
+                                                        {formatMoney(budget.total_amount)}
                                                     </p>
                                                     <p className="text-[9px] font-bold text-graphite-400">
-                                                        {new Date(budget.created_at).toLocaleDateString('pt-BR')}
+                                                        {formatDate(budget.created_at)}
                                                     </p>
                                                 </div>
                                             </div>
@@ -815,9 +896,25 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
                 onClose={() => { setIsCheckoutModalOpen(false); fetchHistoryData(); }}
                 patientId={patientId}
                 patientName={patient.full_name}
-                initialAmount={2500} // Mock amount or pull from last budget
+                initialAmount={dentalBudgets[0]?.total_amount || financingProposals[0]?.amount || 0}
                 tenantId={tenant?.id || ''}
+            />
+
+            <DocumentPreviewModal
+                isOpen={!!previewDoc}
+                onClose={() => setPreviewDoc(null)}
+                bucket="documents"
+                filePath={previewDoc?.file_path}
+                fileName={previewDoc?.filename || ''}
+                fileType={previewDoc?.file_type}
             />
         </div>
     );
 };
+
+const SoapField = ({ label, text }: { label: string; text: string }) => (
+    <div className="p-3 bg-ice-50/60 rounded-xl border border-ice-100">
+        <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest mb-1">{label}</p>
+        <p className="text-sm text-graphite-700 leading-relaxed">{text}</p>
+    </div>
+);

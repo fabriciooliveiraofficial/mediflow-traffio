@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { X, Save, ClipboardList, Plus, Trash2, Pill } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
+import { useTenant } from '../contexts/TenantContext';
 
 interface NewPrescriptionModalProps {
     isOpen: boolean;
@@ -25,6 +26,7 @@ export const NewPrescriptionModal: React.FC<NewPrescriptionModalProps> = ({
 }) => {
     const { t } = useTranslation('medical');
     const { showToast } = useToast();
+    const { tenant } = useTenant();
     const [loading, setLoading] = useState(false);
     const [medications, setMedications] = useState<Medication[]>([
         { name: '', dosage: '', instructions: '' }
@@ -55,25 +57,20 @@ export const NewPrescriptionModal: React.FC<NewPrescriptionModalProps> = ({
             return;
         }
 
+        if (!tenant?.id) {
+            showToast('error', t('newPrescriptionModal.toasts.noSession'));
+            return;
+        }
+
         setLoading(true);
 
         try {
-            // Get current member/tenant context
-            const { data: memberData } = await supabase
-                .from('members')
-                .select('user_id, tenant_id')
-                .limit(1)
-                .single();
-
-            if (!memberData) throw new Error(t('newPrescriptionModal.toasts.noSession'));
-
             const { error } = await supabase
                 .from('prescriptions')
                 .insert([{
                     patient_id: patientId,
-                    tenant_id: memberData.tenant_id,
+                    tenant_id: tenant.id,
                     content_json: { medications: validMeds },
-                    // medical_record_id: null // Independent prescription
                 }]);
 
             if (error) throw error;

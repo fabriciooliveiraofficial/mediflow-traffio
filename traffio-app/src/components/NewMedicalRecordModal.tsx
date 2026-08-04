@@ -265,7 +265,7 @@ export const NewMedicalRecordModal: React.FC<NewMedicalRecordModalProps> = ({
                                             {history.map((rec) => (
                                                 <div key={rec.id} className="bg-white rounded-xl p-3 border border-ice-100 space-y-1.5">
                                                     <p className="text-[10px] font-bold text-graphite-400">
-                                                        {new Date(rec.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                        {formatDate(rec.created_at, { day: '2-digit', month: 'short', year: 'numeric' })}
                                                     </p>
                                                     {rec.soap_notes && (
                                                         <>

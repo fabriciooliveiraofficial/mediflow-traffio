@@ -1,12 +1,13 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     Stethoscope,
     Pill,
     FlaskConical,
     Clock,
-    ChevronRight,
 } from 'lucide-react';
 import type { TimelineEvent, MedicalRecord } from '../../types/patient';
+import { useLocaleFormat } from '../../hooks/useLocaleFormat';
 
 interface TimelineCardProps {
     event: TimelineEvent;
@@ -16,25 +17,24 @@ interface TimelineCardProps {
 const TYPE_CONFIG = {
     consultation: {
         icon: Stethoscope,
-        label: 'Consulta',
         badgeClass: 'bg-brand-secondary/30 text-brand-primary',
         dotClass: 'bg-brand-primary',
     },
     prescription: {
         icon: Pill,
-        label: 'Receita',
         badgeClass: 'bg-emerald-100 text-emerald-700',
         dotClass: 'bg-emerald-500',
     },
     exam_result: {
         icon: FlaskConical,
-        label: 'Exame',
         badgeClass: 'bg-sky-100 text-sky-700',
         dotClass: 'bg-sky-500',
     },
 };
 
 export const TimelineCard: React.FC<TimelineCardProps> = ({ event, onExplain }) => {
+    const { t } = useTranslation('medical');
+    const { formatDateTime } = useLocaleFormat();
     const config = TYPE_CONFIG[event.type];
     const Icon = config.icon;
 
@@ -54,22 +54,13 @@ export const TimelineCard: React.FC<TimelineCardProps> = ({ event, onExplain }) 
                     <div className="flex items-center gap-2">
                         <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-black uppercase ${config.badgeClass}`}>
                             <Icon size={12} />
-                            {config.label}
+                            {t(`timelineCard.types.${event.type}`)}
                         </span>
                         <span className="text-[10px] font-bold text-graphite-400 flex items-center gap-1">
                             <Clock size={10} />
-                            {new Date(event.date).toLocaleDateString('pt-BR', {
-                                day: '2-digit',
-                                month: 'short',
-                                year: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                            })}
+                            {formatDateTime(event.date, { dateStyle: 'medium', timeStyle: 'short' })}
                         </span>
                     </div>
-                    <button className="text-[10px] font-bold text-brand-primary hover:underline bg-transparent border-none cursor-pointer flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                        Detalhes <ChevronRight size={10} />
-                    </button>
                 </div>
 
                 {/* Title */}
@@ -80,7 +71,7 @@ export const TimelineCard: React.FC<TimelineCardProps> = ({ event, onExplain }) 
                             onClick={() => onExplain(event.title)}
                             className="ml-2 px-1.5 py-0.5 text-[8px] font-black bg-brand-primary/10 text-brand-primary rounded uppercase hover:bg-brand-primary hover:text-white transition-all border-none cursor-pointer"
                         >
-                            IA Explain
+                            {t('timelineCard.aiExplain')}
                         </button>
                     )}
                 </h4>

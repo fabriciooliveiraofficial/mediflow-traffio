@@ -2,6 +2,16 @@ import { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabase';
 import type { MedicalRecord, Prescription, TimelineEvent } from '../types/patient';
+import { prescriptionSummary } from '../lib/prescriptions';
+
+interface DocumentRow {
+    id: string;
+    filename: string;
+    file_url: string;
+    file_type: string | null;
+    category: string | null;
+    created_at: string;
+}
 
 export function usePatientTimeline(patientId: string) {
     const { t } = useTranslation('medical');
@@ -12,24 +22,27 @@ export function usePatientTimeline(patientId: string) {
         try {
             setLoading(true);
 
-            // Fetch medical records
-            const { data: records } = await supabase
-                .from('medical_records')
-                .select('*')
-                .eq('patient_id', patientId)
-                .order('created_at', { ascending: false });
-
-            // Fetch prescriptions linked to those records
-            const recordIds = (records ?? []).map(r => r.id);
-            let prescriptions: Prescription[] = [];
-            if (recordIds.length > 0) {
-                const { data: rxData } = await supabase
+            const [{ data: records }, { data: rxData }, { data: docsData }] = await Promise.all([
+                supabase
+                    .from('medical_records')
+                    .select('*')
+                    .eq('patient_id', patientId)
+                    .order('created_at', { ascending: false }),
+                supabase
                     .from('prescriptions')
                     .select('*')
-                    .in('medical_record_id', recordIds)
-                    .order('created_at', { ascending: false });
-                prescriptions = (rxData ?? []) as Prescription[];
-            }
+                    .eq('patient_id', patientId)
+                    .order('created_at', { ascending: false }),
+                supabase
+                    .from('documents')
+                    .select('id, filename, file_url, file_type, category, created_at')
+                    .eq('patient_id', patientId)
+                    .eq('category', 'exam_result')
+                    .order('created_at', { ascending: false }),
+            ]);
+
+            const prescriptions = (rxData ?? []) as Prescription[];
+            const documents = (docsData ?? []) as DocumentRow[];
 
             // Build unified timeline
             const timeline: TimelineEvent[] = [];
@@ -43,31 +56,28 @@ export function usePatientTimeline(patientId: string) {
                     subtitle: (record as any).description || record.soap_notes?.s || null,
                     data: record,
                 });
-
-                // Check for attachments (exam results)
-                if (record.attachments_json?.length > 0) {
-                    for (const attachment of record.attachments_json) {
-                        timeline.push({
-                            id: `${record.id}-att-${attachment.name}`,
-                            type: 'exam_result',
-                            date: attachment.uploaded_at || record.created_at,
-                            title: attachment.name,
-                            subtitle: attachment.type === 'lab_result' ? t('patientTimeline.labResultSubtitle') : t('patientTimeline.attachmentSubtitle'),
-                            data: attachment,
-                        });
-                    }
-                }
             }
 
             for (const rx of prescriptions) {
-                const medications = rx.content_json?.map(m => m.medication).join(', ') || t('patientTimeline.prescriptionFallback');
+                const summary = prescriptionSummary(rx.content_json);
                 timeline.push({
                     id: rx.id,
                     type: 'prescription',
                     date: rx.created_at,
-                    title: medications,
-                    subtitle: t('patientTimeline.medicationsCount', { count: rx.content_json?.length || 0 }),
+                    title: summary || t('patientTimeline.prescriptionFallback'),
+                    subtitle: t('patientTimeline.medicationsCount', { count: (rx.content_json as any)?.medications?.length || 0 }),
                     data: rx,
+                });
+            }
+
+            for (const doc of documents) {
+                timeline.push({
+                    id: doc.id,
+                    type: 'exam_result',
+                    date: doc.created_at,
+                    title: doc.filename,
+                    subtitle: t('patientTimeline.attachmentSubtitle'),
+                    data: { name: doc.filename, url: doc.file_url, type: (doc.file_type as any) || 'pdf', uploaded_at: doc.created_at },
                 });
             }
 

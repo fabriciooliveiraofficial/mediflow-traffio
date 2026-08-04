@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { X, Upload, Save, FlaskConical, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
+import { useTenant } from '../contexts/TenantContext';
 
 interface UploadDocumentModalProps {
     isOpen: boolean;
@@ -19,6 +20,7 @@ export const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({
 }) => {
     const { t } = useTranslation('medical');
     const { showToast } = useToast();
+    const { tenant } = useTenant();
     const [loading, setLoading] = useState(false);
     const [file, setFile] = useState<File | null>(null);
     const [description, setDescription] = useState('');
@@ -29,35 +31,35 @@ export const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({
             showToast('error', t('uploadDocumentModal.toasts.fileRequired'));
             return;
         }
+        if (!tenant?.id) {
+            showToast('error', t('uploadDocumentModal.toasts.noSession'));
+            return;
+        }
 
         setLoading(true);
 
         try {
-            // 1. Get current member context
-            const { data: memberData } = await supabase
-                .from('members')
-                .select('user_id, tenant_id')
-                .limit(1)
-                .single();
+            const { data: { user } } = await supabase.auth.getUser();
 
-            if (!memberData) throw new Error(t('uploadDocumentModal.toasts.noSession'));
+            // 1. Upload real do arquivo para o Storage (bucket privado 'documents')
+            const filePath = `${tenant.id}/${patientId}/${Date.now()}_${file.name}`;
+            const { error: uploadError } = await supabase.storage
+                .from('documents')
+                .upload(filePath, file);
 
-            // 2. Upload file to Storage (MOCK VERSION)
-            // In a real scenario, we'd use supabase.storage.from('exams').upload(...)
-            // For now, we'll create a local URL that works in the current browser session
-            
-            const fileUrl = URL.createObjectURL(file);
+            if (uploadError) throw uploadError;
 
+            // 2. Metadados na tabela documents
             const { error } = await supabase
                 .from('documents')
                 .insert([{
                     patient_id: patientId,
-                    tenant_id: memberData.tenant_id,
+                    tenant_id: tenant.id,
                     filename: description || file.name,
-                    file_url: fileUrl,
+                    file_path: filePath,
                     file_type: file.type,
                     category: 'exam_result',
-                    uploaded_by: memberData.user_id
+                    uploaded_by: user?.id,
                 }]);
 
             if (error) throw error;

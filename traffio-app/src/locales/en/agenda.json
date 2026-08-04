@@ -295,6 +295,7 @@
       "subtitle": "Up to 24 Installments without a Card"
     },
     "installmentsLabel": "Number of Installments",
+    "installmentValue": "{{count}}x {{amount}}",
     "generatePaymentLink": "Generate Payment Link",
     "sendDrCashStudy": "Send Dr. Cash Study",
     "operationStarted": "Operation Started!",

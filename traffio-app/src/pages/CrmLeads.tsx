@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatPhone, phoneFlag } from '../lib/formatPhone';
 import { formatDoc, docLabel } from '../lib/i18n/doc';
+import { resolvePatientCountry } from '../lib/i18n/countryFormats';
 import { DEFAULT_COUNTRY, type CountryCode } from '../lib/i18n/countryFormats';
 import {
     Search,
@@ -186,9 +187,9 @@ export const CrmLeads: React.FC = () => {
                                                 <div>
                                                     <p className="font-bold text-graphite-900">{patient.full_name}</p>
                                                     <p className="text-xs text-graphite-400 font-medium">
-                                                        {docLabel((patient.country as CountryCode) || (tenant?.country as CountryCode) || (patient.cpf ? 'BR' : DEFAULT_COUNTRY))}: {
+                                                        {docLabel(resolvePatientCountry(patient.country, tenant?.country, patient.cpf, patient.national_id))}: {
                                                             patient.national_id || patient.cpf
-                                                                ? formatDoc(patient.national_id || patient.cpf, (patient.country as CountryCode) || (tenant?.country as CountryCode) || (patient.cpf ? 'BR' : DEFAULT_COUNTRY))
+                                                                ? formatDoc(patient.national_id || patient.cpf, resolvePatientCountry(patient.country, tenant?.country, patient.cpf, patient.national_id))
                                                                 : '---'
                                                         }
                                                     </p>

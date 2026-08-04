@@ -5,6 +5,7 @@ import { dentalService } from '../../services/dentalService';
 import type { DentalBudgetItem } from '../../services/dentalService';
 import { useToast } from '../../contexts/ToastContext';
 import { useTenant } from '../../contexts/TenantContext';
+import { useTenantMoney } from '../../hooks/useTenantMoney';
 
 interface NewDentalBudgetModalProps {
     isOpen: boolean;
@@ -23,6 +24,7 @@ export const NewDentalBudgetModal: React.FC<NewDentalBudgetModalProps> = ({
 }) => {
     const { t } = useTranslation('medical');
     const { tenant } = useTenant();
+    const { format: formatMoney } = useTenantMoney();
     const { showToast } = useToast();
     const [loading, setLoading] = useState(false);
 
@@ -191,7 +193,7 @@ export const NewDentalBudgetModal: React.FC<NewDentalBudgetModalProps> = ({
                                                 />
                                             </td>
                                             <td className="px-4 py-3 font-black text-xs text-graphite-900">
-                                                R$ {item.total_price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                {formatMoney(item.total_price)}
                                             </td>
                                             <td className="px-4 py-3 text-center">
                                                 <button 
@@ -246,11 +248,11 @@ export const NewDentalBudgetModal: React.FC<NewDentalBudgetModalProps> = ({
                             <div className="pt-8 border-t border-ice-200 mt-8">
                                 <div className="flex items-center justify-between mb-2">
                                     <span className="text-xs font-bold text-graphite-400">{t('dentalModals.newBudget.subtotal')}</span>
-                                    <span className="text-sm font-black text-graphite-900">R$ {totalBudget.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                    <span className="text-sm font-black text-graphite-900">{formatMoney(totalBudget)}</span>
                                 </div>
                                 <div className="flex items-center justify-between">
                                     <span className="text-base font-black text-graphite-900">{t('dentalModals.newBudget.totalValue')}</span>
-                                    <span className="text-2xl font-black text-brand-primary">R$ {totalBudget.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                    <span className="text-2xl font-black text-brand-primary">{formatMoney(totalBudget)}</span>
                                 </div>
                             </div>
                         </div>
