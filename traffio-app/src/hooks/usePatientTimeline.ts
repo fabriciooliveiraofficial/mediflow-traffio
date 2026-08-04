@@ -27,17 +27,20 @@ export function usePatientTimeline(patientId: string) {
                     .from('medical_records')
                     .select('*')
                     .eq('patient_id', patientId)
+                    .is('voided_at', null)
                     .order('created_at', { ascending: false }),
                 supabase
                     .from('prescriptions')
                     .select('*')
                     .eq('patient_id', patientId)
+                    .is('voided_at', null)
                     .order('created_at', { ascending: false }),
                 supabase
                     .from('documents')
                     .select('id, filename, file_url, file_type, category, created_at')
                     .eq('patient_id', patientId)
                     .eq('category', 'exam_result')
+                    .is('deleted_at', null)
                     .order('created_at', { ascending: false }),
             ]);
 

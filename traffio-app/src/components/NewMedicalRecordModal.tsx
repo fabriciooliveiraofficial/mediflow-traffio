@@ -4,6 +4,7 @@ import { X, Save, Stethoscope, FileText, Activity, Brain, ClipboardList, Upload,
 import { useToast } from '../contexts/ToastContext';
 import { useLocaleFormat } from '../hooks/useLocaleFormat';
 import { supabase } from '../lib/supabase';
+import { logClinicalAction } from '../lib/clinicalAudit';
 
 interface NewMedicalRecordModalProps {
     isOpen: boolean;
@@ -11,6 +12,9 @@ interface NewMedicalRecordModalProps {
     onSuccess: () => void;
     patientId: string;
     patientCpf?: string;
+    /** Emenda um registro existente em vez de criar um novo — prontuário não se
+     * sobrescreve: o original permanece, esta emenda é um novo registro linkado a ele. */
+    amendingRecord?: { id: string; soap_notes: any } | null;
 }
 
 export const NewMedicalRecordModal: React.FC<NewMedicalRecordModalProps> = ({
@@ -18,7 +22,8 @@ export const NewMedicalRecordModal: React.FC<NewMedicalRecordModalProps> = ({
     onClose,
     onSuccess,
     patientId,
-    patientCpf
+    patientCpf,
+    amendingRecord
 }) => {
     const { t } = useTranslation('medical');
     const { showToast } = useToast();
@@ -26,12 +31,16 @@ export const NewMedicalRecordModal: React.FC<NewMedicalRecordModalProps> = ({
     const [loading, setLoading] = useState(false);
     const [history, setHistory] = useState<any[]>([]);
     const [file, setFile] = useState<File | null>(null);
-    const [soap, setSoap] = useState({
-        s: '',
-        o: '',
-        a: '',
-        p: ''
-    });
+    // Prefill vem só da montagem inicial — o pai monta este componente com
+    // key={amendingRecord?.id ?? 'new'}, então trocar de alvo (nova evolução vs.
+    // corrigir evolução X) remonta o componente com estado limpo, sem precisar
+    // sincronizar via effect.
+    const [soap, setSoap] = useState(() => amendingRecord?.soap_notes ? {
+        s: amendingRecord.soap_notes.s || '',
+        o: amendingRecord.soap_notes.o || '',
+        a: amendingRecord.soap_notes.a || '',
+        p: amendingRecord.soap_notes.p || '',
+    } : { s: '', o: '', a: '', p: '' });
 
     useEffect(() => {
         if (isOpen && patientId) {
@@ -39,6 +48,7 @@ export const NewMedicalRecordModal: React.FC<NewMedicalRecordModalProps> = ({
                 .from('medical_records')
                 .select('id, soap_notes, created_at, content')
                 .eq('patient_id', patientId)
+                .is('voided_at', null)
                 .order('created_at', { ascending: false })
                 .limit(5)
                 .then(({ data }) => setHistory(data || []));
@@ -79,20 +89,32 @@ export const NewMedicalRecordModal: React.FC<NewMedicalRecordModalProps> = ({
                 }
             }
 
-            const { error } = await supabase
+            const { data: inserted, error } = await supabase
                 .from('medical_records')
                 .insert([{
                     patient_id: patientId,
                     doctor_id: resolvedDoctorId,
                     tenant_id: memberData.tenant_id,
                     soap_notes: soap,
+                    amends_id: amendingRecord?.id || null,
                     content: t('newMedicalRecordModal.contentPrefix', { date: formatDate(new Date()) })
-                }]);
+                }])
+                .select('id')
+                .single();
 
             if (error) throw error;
 
+            if (inserted) {
+                logClinicalAction({
+                    tenantId: memberData.tenant_id,
+                    entityType: 'medical_record',
+                    entityId: inserted.id,
+                    action: amendingRecord ? 'amended' : 'created',
+                    reason: amendingRecord ? t('newMedicalRecordModal.amendReasonAudit', { id: amendingRecord.id.slice(0, 8) }) : null,
+                });
+            }
 
-            showToast('success', t('newMedicalRecordModal.toasts.saved'));
+            showToast('success', t(amendingRecord ? 'newMedicalRecordModal.toasts.amended' : 'newMedicalRecordModal.toasts.saved'));
             onSuccess();
             onClose();
             setSoap({ s: '', o: '', a: '', p: '' });
@@ -125,9 +147,11 @@ export const NewMedicalRecordModal: React.FC<NewMedicalRecordModalProps> = ({
                                 <div>
                                     <h3 className="text-xl font-black text-graphite-900 tracking-tight flex items-center gap-2">
                                         <Stethoscope className="text-brand-primary" size={24} />
-                                        {t('newMedicalRecordModal.title')}
+                                        {t(amendingRecord ? 'newMedicalRecordModal.amendTitle' : 'newMedicalRecordModal.title')}
                                     </h3>
-                                    <p className="text-sm text-graphite-400 font-medium">{t('newMedicalRecordModal.subtitle')}</p>
+                                    <p className="text-sm text-graphite-400 font-medium">
+                                        {t(amendingRecord ? 'newMedicalRecordModal.amendSubtitle' : 'newMedicalRecordModal.subtitle')}
+                                    </p>
                                 </div>
                                 <div className="flex items-center gap-3">
                                     <button
@@ -248,7 +272,7 @@ export const NewMedicalRecordModal: React.FC<NewMedicalRecordModalProps> = ({
                                             disabled={loading}
                                             className="flex-[2] bg-brand-primary text-white py-3.5 rounded-2xl font-bold shadow-xl shadow-brand-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed border-none cursor-pointer"
                                         >
-                                            {loading ? t('newMedicalRecordModal.saving') : (<><Save size={18} /><span>{t('newMedicalRecordModal.save')}</span></>)}
+                                            {loading ? t('newMedicalRecordModal.saving') : (<><Save size={18} /><span>{t(amendingRecord ? 'newMedicalRecordModal.saveAmend' : 'newMedicalRecordModal.save')}</span></>)}
                                         </button>
                                     </div>
                                 </form>

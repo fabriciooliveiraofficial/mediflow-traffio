@@ -411,7 +411,14 @@
     },
     "medicalRecord": {
       "title": "Medical Record History",
-      "subtitle": "View all clinical notes as a continuous document."
+      "subtitle": "View all clinical notes as a continuous document.",
+      "edit": "Edit",
+      "void": "Void",
+      "amendmentBadge": "Correction",
+      "voidedBadge": "Voided",
+      "voidedReasonPrefix": "Reason:",
+      "hideVoided": "Hide voided entries",
+      "showVoided": "Show voided entries ({{count}})"
     },
     "dental": {
       "title": "Dental Chart",
@@ -436,13 +443,33 @@
       "examsEmpty": "Awaiting lab attachments.",
       "dentalBudgetsTitle": "Treatment Plans",
       "dentalBudgetsEmpty": "No estimates generated.",
-      "dentalBudgetFallbackName": "Treatment Plan"
+      "dentalBudgetFallbackName": "Treatment Plan",
+      "view": "View",
+      "reissue": "Reissue",
+      "void": "Void",
+      "replace": "Replace",
+      "delete": "Delete"
     },
     "toasts": {
       "historyLoadErrorPrefix": "Error loading history: ",
       "idocsCpfRequired": "The patient's CPF is required to query iDocs.",
-      "idocsOpening": "Opening exams on iDoc (Radio Memory)..."
-    }
+      "idocsOpening": "Opening exams on iDoc (Radio Memory)...",
+      "voidError": "Error voiding: ",
+      "voided": "Voided — the original stays in the record for audit purposes.",
+      "examDeleted": "Document deleted — it stays in storage for audit purposes.",
+      "reissueError": "Error reissuing prescription: ",
+      "reissued": "Prescription reissued. The previous one was voided."
+    },
+    "voidModal": {
+      "medicalRecordTitle": "Void this clinical note?",
+      "prescriptionTitle": "Void this prescription?",
+      "documentTitle": "Delete this document?",
+      "description": "This does not erase \"{{label}}\" — it stays in the record, marked as voided, with the reason below.",
+      "confirmVoid": "Void",
+      "confirmDelete": "Delete"
+    },
+    "reissueVoidReason": "Voided due to reissue",
+    "reissueReasonAudit": "Reissue of prescription #{{id}}"
   },
   "dicomViewer": {
     "emptyState": "No DICOM exam selected",
@@ -490,12 +517,17 @@
     "contentPrefix": "SOAP Note - {{date}}",
     "toasts": {
       "saved": "Note recorded successfully!",
+      "amended": "Correction recorded — the original note was kept for the record.",
       "saveErrorPrefix": "Error recording note: ",
       "idocsCpfRequired": "The patient's CPF is required to query iDocs.",
       "idocsOpening": "Opening exams on iDoc (Radio Memory)..."
     },
     "title": "New Clinical Note",
     "subtitle": "SOAP Method (Subjective, Objective, Assessment, Plan)",
+    "amendTitle": "Correct Clinical Note",
+    "amendSubtitle": "The original note is kept — this creates a linked correction.",
+    "amendReasonAudit": "Correction of note #{{id}}",
+    "saveAmend": "Save Correction",
     "idocs": "iDocs",
     "subjective": {
       "label": "(S) Subjective",
@@ -558,7 +590,8 @@
       "fileRequired": "Select a file to upload.",
       "noSession": "Session not found.",
       "saved": "Exam attached successfully! (Simulation Mode)",
-      "saveErrorPrefix": "Error attaching exam: "
+      "saveErrorPrefix": "Error attaching exam: ",
+      "replaced": "Document replaced — the previous version was archived."
     },
     "title": "Attach Exam",
     "subtitle": "Upload lab results or images",
@@ -568,7 +601,12 @@
     "fileSelectPlaceholder": "Click to select",
     "fileHint": "PDF, JPG, PNG, or DICOM (max 10MB)",
     "cancel": "Cancel",
-    "save": "SAVE EXAM"
+    "save": "SAVE EXAM",
+    "replaceTitle": "Replace Document",
+    "replaceSubtitle": "The previous version will be archived, not deleted.",
+    "replaceSave": "Save New Version",
+    "replacedReasonAudit": "Replaced by a new version",
+    "replacedByAudit": "Replaced by document #{{id}}"
   },
   "aiExplainButton": {
     "trigger": "Explain with AI",
@@ -622,5 +660,10 @@
     "sent": "Sent",
     "approved": "Approved",
     "rejected": "Rejected"
+  },
+  "voidReasonModal": {
+    "reasonLabel": "Reason",
+    "reasonPlaceholder": "Explain what happened and why this action is needed...",
+    "cancel": "Cancel"
   }
 }

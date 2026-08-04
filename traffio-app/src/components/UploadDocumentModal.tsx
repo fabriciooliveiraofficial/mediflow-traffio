@@ -4,26 +4,34 @@ import { X, Upload, Save, FlaskConical, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
 import { useTenant } from '../contexts/TenantContext';
+import { logClinicalAction } from '../lib/clinicalAudit';
 
 interface UploadDocumentModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSuccess: () => void;
     patientId: string;
+    /** Substitui um exame existente por uma nova versão em vez de criar um novo:
+     * o documento antigo é arquivado (soft-delete) e linkado à nova versão. */
+    replacingDocument?: { id: string; version: number; filename: string } | null;
 }
 
 export const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({
     isOpen,
     onClose,
     onSuccess,
-    patientId
+    patientId,
+    replacingDocument
 }) => {
     const { t } = useTranslation('medical');
     const { showToast } = useToast();
     const { tenant } = useTenant();
     const [loading, setLoading] = useState(false);
     const [file, setFile] = useState<File | null>(null);
-    const [description, setDescription] = useState('');
+    // Prefill vem só da montagem inicial — o pai monta este componente com
+    // key={replacingDocument?.id ?? 'new'}, então trocar de alvo remonta o
+    // componente com estado limpo, sem precisar sincronizar via effect.
+    const [description, setDescription] = useState(() => replacingDocument?.filename || '');
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -50,7 +58,7 @@ export const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({
             if (uploadError) throw uploadError;
 
             // 2. Metadados na tabela documents
-            const { error } = await supabase
+            const { data: inserted, error } = await supabase
                 .from('documents')
                 .insert([{
                     patient_id: patientId,
@@ -60,11 +68,43 @@ export const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({
                     file_type: file.type,
                     category: 'exam_result',
                     uploaded_by: user?.id,
-                }]);
+                    replaces_id: replacingDocument?.id || null,
+                    version: replacingDocument ? replacingDocument.version + 1 : 1,
+                }])
+                .select('id')
+                .single();
 
             if (error) throw error;
 
-            showToast('success', t('uploadDocumentModal.toasts.saved'));
+            // 3. Se é substituição, arquiva a versão anterior (soft-delete — nunca some do Storage)
+            if (replacingDocument) {
+                await supabase
+                    .from('documents')
+                    .update({
+                        deleted_at: new Date().toISOString(),
+                        deleted_reason: t('uploadDocumentModal.replacedReasonAudit'),
+                        deleted_by: user?.id,
+                    })
+                    .eq('id', replacingDocument.id);
+
+                await logClinicalAction({
+                    tenantId: tenant.id,
+                    entityType: 'document',
+                    entityId: replacingDocument.id,
+                    action: 'replaced',
+                    reason: inserted ? t('uploadDocumentModal.replacedByAudit', { id: inserted.id.slice(0, 8) }) : undefined,
+                });
+            }
+            if (inserted) {
+                await logClinicalAction({
+                    tenantId: tenant.id,
+                    entityType: 'document',
+                    entityId: inserted.id,
+                    action: 'created',
+                });
+            }
+
+            showToast('success', t(replacingDocument ? 'uploadDocumentModal.toasts.replaced' : 'uploadDocumentModal.toasts.saved'));
             onSuccess();
             onClose();
             setFile(null);
@@ -96,9 +136,11 @@ export const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({
                         <div>
                             <h3 className="text-xl font-black text-graphite-900 tracking-tight flex items-center gap-2">
                                 <FlaskConical className="text-emerald-500" size={24} />
-                                {t('uploadDocumentModal.title')}
+                                {t(replacingDocument ? 'uploadDocumentModal.replaceTitle' : 'uploadDocumentModal.title')}
                             </h3>
-                            <p className="text-sm text-graphite-400 font-medium">{t('uploadDocumentModal.subtitle')}</p>
+                            <p className="text-sm text-graphite-400 font-medium">
+                                {t(replacingDocument ? 'uploadDocumentModal.replaceSubtitle' : 'uploadDocumentModal.subtitle')}
+                            </p>
                         </div>
                         <button
                             onClick={onClose}
@@ -161,7 +203,7 @@ export const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({
                                 {loading ? (
                                     <Loader2 className="animate-spin" size={18} />
                                 ) : (
-                                    <><Save size={18} /><span>{t('uploadDocumentModal.save')}</span></>
+                                    <><Save size={18} /><span>{t(replacingDocument ? 'uploadDocumentModal.replaceSave' : 'uploadDocumentModal.save')}</span></>
                                 )}
                             </button>
                         </div>

@@ -21,7 +21,11 @@ import {
     Wallet,
     ExternalLink,
     Eye,
-    Download
+    Pencil,
+    Ban,
+    RefreshCw,
+    Trash2,
+    History as HistoryIcon
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { NewMedicalRecordModal } from '../components/NewMedicalRecordModal';
@@ -36,6 +40,7 @@ import { NewDentalBudgetModal } from '../components/dental/NewDentalBudgetModal'
 import { AnthropometryForm } from '../components/nutrition/AnthropometryForm';
 import { CheckoutModal } from '../components/CheckoutModal';
 import { DocumentPreviewModal } from '../components/shared/DocumentPreviewModal';
+import { VoidReasonModal } from '../components/shared/VoidReasonModal';
 import { dentalService } from '../services/dentalService';
 import { useToast } from '../contexts/ToastContext';
 import { useTenant } from '../contexts/TenantContext';
@@ -48,6 +53,7 @@ import { formatNational, toE164 } from '../lib/i18n/phone';
 import { DEFAULT_COUNTRY, type CountryCode } from '../lib/i18n/countryFormats';
 import { ChannelPreferenceSelector } from '../components/channel/ChannelPreferenceSelector';
 import { prescriptionSummary } from '../lib/prescriptions';
+import { logClinicalAction } from '../lib/clinicalAudit';
 
 interface PatientDetailsProps {
     patientId: string;
@@ -78,10 +84,15 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
     const [exams, setExams] = useState<any[]>([]);
     const [financingProposals, setFinancingProposals] = useState<any[]>([]);
     const [historyLoading, setHistoryLoading] = useState(true);
+    const [medicalRecords, setMedicalRecords] = useState<any[]>([]);
+    const [medicalRecordsLoading, setMedicalRecordsLoading] = useState(true);
+    const [showVoidedRecords, setShowVoidedRecords] = useState(false);
+    const [amendingRecord, setAmendingRecord] = useState<any>(null);
+    const [voidTarget, setVoidTarget] = useState<{ type: 'medical_record' | 'prescription' | 'document'; id: string; label: string } | null>(null);
+    const [replacingExam, setReplacingExam] = useState<any>(null);
 
     const { showToast } = useToast();
     const { events: timelineEvents, loading: timelineLoading, refresh: refreshTimeline } = usePatientTimeline(patientId);
-    const consultationEvents = timelineEvents.filter(e => e.type === 'consultation');
 
     // I.4 — Buscar histórico de chamadas do paciente
     useEffect(() => {
@@ -129,6 +140,9 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
         if (activeTab !== 'timeline') {
             fetchHistoryData();
         }
+        if (activeTab === 'medical-record') {
+            fetchMedicalRecords();
+        }
     }, [activeTab]);
 
     const fetchPatientData = async () => {
@@ -159,21 +173,23 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
         try {
             setHistoryLoading(true);
             
-            // Fetch Prescriptions
+            // Fetch Prescriptions (ativas — anuladas ficam fora da lista rápida, mas seguem no audit log)
             const { data: prescriptionsData } = await supabase
                 .from('prescriptions')
                 .select('*')
                 .eq('patient_id', patientId)
+                .is('voided_at', null)
                 .order('created_at', { ascending: false });
 
             setPrescriptions(prescriptionsData || []);
 
-            // Fetch Exams
+            // Fetch Exams (não excluídos; mostra só a versão mais recente de cada documento)
             const { data: examsData } = await supabase
                 .from('documents')
                 .select('*')
                 .eq('patient_id', patientId)
                 .eq('category', 'exam_result')
+                .is('deleted_at', null)
                 .order('created_at', { ascending: false });
 
             setExams(examsData || []);
@@ -198,6 +214,119 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
         } finally {
             setHistoryLoading(false);
         }
+    };
+
+    const fetchMedicalRecords = async () => {
+        try {
+            setMedicalRecordsLoading(true);
+            const { data } = await supabase
+                .from('medical_records')
+                .select('*')
+                .eq('patient_id', patientId)
+                .order('created_at', { ascending: false });
+            setMedicalRecords(data || []);
+        } catch (error) {
+            console.error('Error fetching medical records:', error);
+        } finally {
+            setMedicalRecordsLoading(false);
+        }
+    };
+
+    const handleVoidConfirm = async (reason: string) => {
+        if (!voidTarget || !tenant?.id) return;
+        const { data: { user } } = await supabase.auth.getUser();
+        const table = voidTarget.type === 'medical_record' ? 'medical_records' : 'prescriptions';
+        const { error } = await supabase
+            .from(table)
+            .update({ voided_at: new Date().toISOString(), voided_reason: reason, voided_by: user?.id })
+            .eq('id', voidTarget.id);
+
+        if (error) {
+            showToast('error', t('patientDetails.toasts.voidError') + error.message);
+            return;
+        }
+
+        await logClinicalAction({
+            tenantId: tenant.id,
+            entityType: voidTarget.type,
+            entityId: voidTarget.id,
+            action: 'voided',
+            reason,
+        });
+
+        showToast('success', t('patientDetails.toasts.voided'));
+        setVoidTarget(null);
+        if (voidTarget.type === 'medical_record') fetchMedicalRecords();
+        fetchHistoryData();
+        refreshTimeline();
+    };
+
+    const handleDeleteExamConfirm = async (reason: string) => {
+        if (!voidTarget || !tenant?.id || voidTarget.type !== 'document') return;
+        const { data: { user } } = await supabase.auth.getUser();
+        const { error } = await supabase
+            .from('documents')
+            .update({ deleted_at: new Date().toISOString(), deleted_reason: reason, deleted_by: user?.id })
+            .eq('id', voidTarget.id);
+
+        if (error) {
+            showToast('error', t('patientDetails.toasts.voidError') + error.message);
+            return;
+        }
+
+        await logClinicalAction({
+            tenantId: tenant.id,
+            entityType: 'document',
+            entityId: voidTarget.id,
+            action: 'soft_deleted',
+            reason,
+        });
+
+        showToast('success', t('patientDetails.toasts.examDeleted'));
+        setVoidTarget(null);
+        fetchHistoryData();
+        refreshTimeline();
+    };
+
+    const handleReissuePrescription = async (presc: any) => {
+        if (!tenant?.id) return;
+        const { data: { user } } = await supabase.auth.getUser();
+
+        // 1. Anula a receita original
+        const { error: voidError } = await supabase
+            .from('prescriptions')
+            .update({ voided_at: new Date().toISOString(), voided_reason: t('patientDetails.reissueVoidReason'), voided_by: user?.id })
+            .eq('id', presc.id);
+        if (voidError) {
+            showToast('error', t('patientDetails.toasts.voidError') + voidError.message);
+            return;
+        }
+
+        // 2. Cria a nova, linkada à anterior
+        const { data: inserted, error: insertError } = await supabase
+            .from('prescriptions')
+            .insert([{
+                patient_id: patientId,
+                tenant_id: tenant.id,
+                content_json: presc.content_json,
+                reissued_from_id: presc.id,
+            }])
+            .select('id')
+            .single();
+
+        if (insertError) {
+            showToast('error', t('patientDetails.toasts.reissueError') + insertError.message);
+            return;
+        }
+
+        await logClinicalAction({ tenantId: tenant.id, entityType: 'prescription', entityId: presc.id, action: 'voided', reason: t('patientDetails.reissueVoidReason') });
+        if (inserted) {
+            await logClinicalAction({ tenantId: tenant.id, entityType: 'prescription', entityId: inserted.id, action: 'reissued', reason: t('patientDetails.reissueReasonAudit', { id: presc.id.slice(0, 8) }) });
+        }
+
+        showToast('success', t('patientDetails.toasts.reissued'));
+        fetchHistoryData();
+        refreshTimeline();
     };
 
     const handleOpenIDocs = () => {
@@ -494,52 +623,101 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
                         </div>
                     )}
 
-                    {activeTab === 'medical-record' && (
-                        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                            {timelineLoading ? (
-                                <div className="space-y-4">
-                                    {[1, 2].map(i => <div key={i} className="h-40 bg-ice-100 rounded-[28px] animate-pulse" />)}
-                                </div>
-                            ) : consultationEvents.length === 0 ? (
-                                <div className="bg-white border border-ice-100 rounded-[32px] p-12 text-center space-y-4">
-                                    <div className="w-20 h-20 rounded-full bg-ice-50 flex items-center justify-center mx-auto text-brand-primary">
-                                        <FileText size={40} />
-                                    </div>
-                                    <h3 className="text-xl font-black text-graphite-900">{t('patientDetails.medicalRecord.title')}</h3>
-                                    <p className="text-sm text-graphite-500 max-w-xs mx-auto">{t('patientDetails.medicalRecord.subtitle')}</p>
+                    {activeTab === 'medical-record' && (() => {
+                        const voidedCount = medicalRecords.filter(r => r.voided_at).length;
+                        const visibleRecords = medicalRecords.filter(r => showVoidedRecords || !r.voided_at);
+                        return (
+                            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                {voidedCount > 0 && (
                                     <button
-                                        onClick={() => setIsRecordModalOpen(true)}
-                                        className="px-6 py-3 bg-brand-primary text-white rounded-2xl font-black text-sm hover:scale-105 transition-all border-none cursor-pointer"
+                                        onClick={() => setShowVoidedRecords(v => !v)}
+                                        className="flex items-center gap-1.5 text-[10px] font-black text-graphite-400 hover:text-graphite-700 uppercase tracking-wider bg-transparent border-none cursor-pointer"
                                     >
-                                        <Plus size={16} className="inline mr-1" /> {t('patientDetails.newEvolution')}
+                                        <HistoryIcon size={12} />
+                                        {showVoidedRecords ? t('patientDetails.medicalRecord.hideVoided') : t('patientDetails.medicalRecord.showVoided', { count: voidedCount })}
                                     </button>
-                                </div>
-                            ) : (
-                                consultationEvents.map((event) => {
-                                    const soap = (event.data as any)?.soap_notes;
-                                    return (
-                                        <div key={event.id} className="bg-white border border-ice-100 rounded-[28px] p-6 shadow-sm">
-                                            <div className="flex items-center justify-between mb-3">
-                                                <h4 className="font-black text-graphite-900">{event.title}</h4>
-                                                <span className="text-xs font-bold text-graphite-400 shrink-0">{formatDate(event.date)}</span>
-                                            </div>
-                                            {event.subtitle && (
-                                                <p className="text-sm text-graphite-500 italic mb-4">{event.subtitle}</p>
-                                            )}
-                                            {soap && (
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                                    {soap.s && <SoapField label={t('newMedicalRecordModal.subjective.label')} text={soap.s} />}
-                                                    {soap.o && <SoapField label={t('newMedicalRecordModal.objective.label')} text={soap.o} />}
-                                                    {soap.a && <SoapField label={t('newMedicalRecordModal.assessment.label')} text={soap.a} />}
-                                                    {soap.p && <SoapField label={t('newMedicalRecordModal.plan.label')} text={soap.p} />}
-                                                </div>
-                                            )}
+                                )}
+                                {medicalRecordsLoading ? (
+                                    <div className="space-y-4">
+                                        {[1, 2].map(i => <div key={i} className="h-40 bg-ice-100 rounded-[28px] animate-pulse" />)}
+                                    </div>
+                                ) : visibleRecords.length === 0 ? (
+                                    <div className="bg-white border border-ice-100 rounded-[32px] p-12 text-center space-y-4">
+                                        <div className="w-20 h-20 rounded-full bg-ice-50 flex items-center justify-center mx-auto text-brand-primary">
+                                            <FileText size={40} />
                                         </div>
-                                    );
-                                })
-                            )}
-                        </div>
-                    )}
+                                        <h3 className="text-xl font-black text-graphite-900">{t('patientDetails.medicalRecord.title')}</h3>
+                                        <p className="text-sm text-graphite-500 max-w-xs mx-auto">{t('patientDetails.medicalRecord.subtitle')}</p>
+                                        <button
+                                            onClick={() => { setAmendingRecord(null); setIsRecordModalOpen(true); }}
+                                            className="px-6 py-3 bg-brand-primary text-white rounded-2xl font-black text-sm hover:scale-105 transition-all border-none cursor-pointer"
+                                        >
+                                            <Plus size={16} className="inline mr-1" /> {t('patientDetails.newEvolution')}
+                                        </button>
+                                    </div>
+                                ) : (
+                                    visibleRecords.map((record) => {
+                                        const soap = record.soap_notes;
+                                        const title = record.title || soap?.a || t('patientTimeline.consultationFallback');
+                                        const isVoided = !!record.voided_at;
+                                        return (
+                                            <div key={record.id} className={`bg-white border rounded-[28px] p-6 shadow-sm ${isVoided ? 'border-rose-100 opacity-60' : 'border-ice-100'}`}>
+                                                <div className="flex items-center justify-between mb-3 gap-3">
+                                                    <div className="flex items-center gap-2 min-w-0">
+                                                        <h4 className="font-black text-graphite-900 truncate">{title}</h4>
+                                                        {record.amends_id && (
+                                                            <span className="px-2 py-0.5 bg-sky-50 text-sky-600 rounded text-[9px] font-black uppercase shrink-0">
+                                                                {t('patientDetails.medicalRecord.amendmentBadge')}
+                                                            </span>
+                                                        )}
+                                                        {isVoided && (
+                                                            <span className="px-2 py-0.5 bg-rose-50 text-rose-600 rounded text-[9px] font-black uppercase shrink-0">
+                                                                {t('patientDetails.medicalRecord.voidedBadge')}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex items-center gap-2 shrink-0">
+                                                        <span className="text-xs font-bold text-graphite-400">{formatDate(record.created_at)}</span>
+                                                        {!isVoided && (
+                                                            <>
+                                                                <button
+                                                                    onClick={() => { setAmendingRecord(record); setIsRecordModalOpen(true); }}
+                                                                    title={t('patientDetails.medicalRecord.edit')}
+                                                                    className="p-1.5 bg-ice-50 hover:bg-brand-primary hover:text-white text-graphite-400 rounded-lg transition-all cursor-pointer border-none"
+                                                                >
+                                                                    <Pencil size={12} />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => setVoidTarget({ type: 'medical_record', id: record.id, label: title })}
+                                                                    title={t('patientDetails.medicalRecord.void')}
+                                                                    className="p-1.5 bg-ice-50 hover:bg-rose-500 hover:text-white text-graphite-400 rounded-lg transition-all cursor-pointer border-none"
+                                                                >
+                                                                    <Ban size={12} />
+                                                                </button>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                {isVoided && record.voided_reason && (
+                                                    <p className="text-xs text-rose-500 font-medium italic mb-3">
+                                                        {t('patientDetails.medicalRecord.voidedReasonPrefix')} {record.voided_reason}
+                                                    </p>
+                                                )}
+                                                {soap && (
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                        {soap.s && <SoapField label={t('newMedicalRecordModal.subjective.label')} text={soap.s} />}
+                                                        {soap.o && <SoapField label={t('newMedicalRecordModal.objective.label')} text={soap.o} />}
+                                                        {soap.a && <SoapField label={t('newMedicalRecordModal.assessment.label')} text={soap.a} />}
+                                                        {soap.p && <SoapField label={t('newMedicalRecordModal.plan.label')} text={soap.p} />}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        );
+                    })()}
 
                     {activeTab === 'dental' && (
                         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
@@ -592,21 +770,41 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
                             ) : (
                                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                                     {exams.map((exam) => (
-                                        <button
+                                        <div
                                             key={exam.id}
-                                            onClick={() => setPreviewDoc(exam)}
-                                            className="bg-white p-5 rounded-[28px] border border-ice-100 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all text-left border-none cursor-pointer flex flex-col gap-3"
+                                            className="group relative bg-white p-5 rounded-[28px] border border-ice-100 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all flex flex-col gap-3"
                                         >
-                                            <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
-                                                <FlaskConical size={24} />
+                                            <div className="absolute top-3 right-3 flex items-center gap-1">
+                                                <button
+                                                    onClick={() => { setReplacingExam({ id: exam.id, version: exam.version || 1, filename: exam.filename }); setIsExamModalOpen(true); }}
+                                                    title={t('patientDetails.sidebar.replace')}
+                                                    className="p-1.5 bg-white border border-ice-200 rounded-lg text-graphite-400 hover:text-indigo-600 transition-all cursor-pointer"
+                                                >
+                                                    <RefreshCw size={12} />
+                                                </button>
+                                                <button
+                                                    onClick={() => setVoidTarget({ type: 'document', id: exam.id, label: exam.filename })}
+                                                    title={t('patientDetails.sidebar.delete')}
+                                                    className="p-1.5 bg-white border border-ice-200 rounded-lg text-graphite-400 hover:text-rose-500 transition-all cursor-pointer"
+                                                >
+                                                    <Trash2 size={12} />
+                                                </button>
                                             </div>
-                                            <div className="min-w-0">
-                                                <p className="font-bold text-sm truncate text-graphite-900" title={exam.filename}>{exam.filename}</p>
-                                                <p className="text-[10px] font-medium text-graphite-400 uppercase tracking-widest mt-1">
-                                                    {formatDate(exam.created_at)}
-                                                </p>
-                                            </div>
-                                        </button>
+                                            <button
+                                                onClick={() => setPreviewDoc(exam)}
+                                                className="bg-transparent border-none cursor-pointer text-left p-0 flex flex-col gap-3"
+                                            >
+                                                <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                                                    <FlaskConical size={24} />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="font-bold text-sm truncate text-graphite-900" title={exam.filename}>{exam.filename}</p>
+                                                    <p className="text-[10px] font-medium text-graphite-400 uppercase tracking-widest mt-1">
+                                                        {formatDate(exam.created_at)}
+                                                    </p>
+                                                </div>
+                                            </button>
+                                        </div>
                                     ))}
                                 </div>
                             )}
@@ -683,15 +881,32 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
                                                     </p>
                                                 </div>
                                             </div>
-                                            <button 
-                                                onClick={() => {
-                                                    setSelectedPrescription(presc);
-                                                    setIsViewPrescriptionOpen(true);
-                                                }}
-                                                className="p-1.5 bg-white border border-ice-200 rounded-lg text-graphite-400 hover:text-brand-primary transition-all cursor-pointer shrink-0"
-                                            >
-                                                <Eye size={12} />
-                                            </button>
+                                            <div className="flex items-center gap-1 shrink-0">
+                                                <button
+                                                    onClick={() => {
+                                                        setSelectedPrescription(presc);
+                                                        setIsViewPrescriptionOpen(true);
+                                                    }}
+                                                    title={t('patientDetails.sidebar.view')}
+                                                    className="p-1.5 bg-white border border-ice-200 rounded-lg text-graphite-400 hover:text-brand-primary transition-all cursor-pointer"
+                                                >
+                                                    <Eye size={12} />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleReissuePrescription(presc)}
+                                                    title={t('patientDetails.sidebar.reissue')}
+                                                    className="p-1.5 bg-white border border-ice-200 rounded-lg text-graphite-400 hover:text-emerald-600 transition-all cursor-pointer"
+                                                >
+                                                    <RefreshCw size={12} />
+                                                </button>
+                                                <button
+                                                    onClick={() => setVoidTarget({ type: 'prescription', id: presc.id, label: prescriptionSummary(presc.content_json) || t('patientDetails.sidebar.prescriptionName') })}
+                                                    title={t('patientDetails.sidebar.void')}
+                                                    className="p-1.5 bg-white border border-ice-200 rounded-lg text-graphite-400 hover:text-rose-500 transition-all cursor-pointer"
+                                                >
+                                                    <Ban size={12} />
+                                                </button>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -804,13 +1019,29 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
                                                     </p>
                                                 </div>
                                             </div>
-                                            <button
-                                                onClick={() => setPreviewDoc(exam)}
-                                                className="p-1.5 bg-white border border-ice-200 rounded-lg text-graphite-400 hover:text-emerald-500 transition-all cursor-pointer shrink-0"
-                                                title={t('documentPreviewModal.title')}
-                                            >
-                                                <Eye size={12} />
-                                            </button>
+                                            <div className="flex items-center gap-1 shrink-0">
+                                                <button
+                                                    onClick={() => setPreviewDoc(exam)}
+                                                    className="p-1.5 bg-white border border-ice-200 rounded-lg text-graphite-400 hover:text-emerald-500 transition-all cursor-pointer"
+                                                    title={t('documentPreviewModal.title')}
+                                                >
+                                                    <Eye size={12} />
+                                                </button>
+                                                <button
+                                                    onClick={() => { setReplacingExam({ id: exam.id, version: exam.version || 1, filename: exam.filename }); setIsExamModalOpen(true); }}
+                                                    className="p-1.5 bg-white border border-ice-200 rounded-lg text-graphite-400 hover:text-indigo-600 transition-all cursor-pointer"
+                                                    title={t('patientDetails.sidebar.replace')}
+                                                >
+                                                    <RefreshCw size={12} />
+                                                </button>
+                                                <button
+                                                    onClick={() => setVoidTarget({ type: 'document', id: exam.id, label: exam.filename })}
+                                                    className="p-1.5 bg-white border border-ice-200 rounded-lg text-graphite-400 hover:text-rose-500 transition-all cursor-pointer"
+                                                    title={t('patientDetails.sidebar.delete')}
+                                                >
+                                                    <Trash2 size={12} />
+                                                </button>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -857,11 +1088,13 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
             </div>
 
             <NewMedicalRecordModal
+                key={amendingRecord?.id ?? 'new'}
                 isOpen={isRecordModalOpen}
-                onClose={() => setIsRecordModalOpen(false)}
-                onSuccess={() => { fetchPatientData(); refreshTimeline(); }}
+                onClose={() => { setIsRecordModalOpen(false); setAmendingRecord(null); }}
+                onSuccess={() => { fetchPatientData(); fetchMedicalRecords(); refreshTimeline(); }}
                 patientId={patientId}
                 patientCpf={patient?.cpf}
+                amendingRecord={amendingRecord}
             />
 
             <NewPrescriptionModal
@@ -872,10 +1105,12 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
             />
 
             <UploadDocumentModal
+                key={replacingExam?.id ?? 'new'}
                 isOpen={isExamModalOpen}
-                onClose={() => setIsExamModalOpen(false)}
-                onSuccess={() => { fetchHistoryData(); }}
+                onClose={() => { setIsExamModalOpen(false); setReplacingExam(null); }}
+                onSuccess={() => { fetchHistoryData(); refreshTimeline(); }}
                 patientId={patientId}
+                replacingDocument={replacingExam}
             />
 
             <ViewPrescriptionModal
@@ -907,6 +1142,19 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
                 filePath={previewDoc?.file_path}
                 fileName={previewDoc?.filename || ''}
                 fileType={previewDoc?.file_type}
+            />
+
+            <VoidReasonModal
+                isOpen={!!voidTarget}
+                onClose={() => setVoidTarget(null)}
+                onConfirm={voidTarget?.type === 'document' ? handleDeleteExamConfirm : handleVoidConfirm}
+                title={
+                    voidTarget?.type === 'medical_record' ? t('patientDetails.voidModal.medicalRecordTitle')
+                    : voidTarget?.type === 'prescription' ? t('patientDetails.voidModal.prescriptionTitle')
+                    : t('patientDetails.voidModal.documentTitle')
+                }
+                description={t('patientDetails.voidModal.description', { label: voidTarget?.label || '' })}
+                confirmLabel={voidTarget?.type === 'document' ? t('patientDetails.voidModal.confirmDelete') : t('patientDetails.voidModal.confirmVoid')}
             />
         </div>
     );

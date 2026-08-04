@@ -411,7 +411,14 @@
     },
     "medicalRecord": {
       "title": "Histórico de Prontuário",
-      "subtitle": "Visualize todas as evoluções clínicas em formato de documento contínuo."
+      "subtitle": "Visualize todas as evoluções clínicas em formato de documento contínuo.",
+      "edit": "Editar",
+      "void": "Anular",
+      "amendmentBadge": "Correção",
+      "voidedBadge": "Anulada",
+      "voidedReasonPrefix": "Motivo:",
+      "hideVoided": "Ocultar anuladas",
+      "showVoided": "Ver anuladas ({{count}})"
     },
     "dental": {
       "title": "Mapa Odontológico",
@@ -436,13 +443,33 @@
       "examsEmpty": "Aguardando anexos de laboratório.",
       "dentalBudgetsTitle": "Planos de Tratamento",
       "dentalBudgetsEmpty": "Nenhum orçamento gerado.",
-      "dentalBudgetFallbackName": "Plano de Tratamento"
+      "dentalBudgetFallbackName": "Plano de Tratamento",
+      "view": "Ver",
+      "reissue": "Reemitir",
+      "void": "Anular",
+      "replace": "Substituir",
+      "delete": "Excluir"
     },
     "toasts": {
       "historyLoadErrorPrefix": "Erro ao carregar histórico: ",
       "idocsCpfRequired": "CPF do paciente é necessário para consulta no iDocs.",
-      "idocsOpening": "Abrindo exames no iDoc (Radio Memory)..."
-    }
+      "idocsOpening": "Abrindo exames no iDoc (Radio Memory)...",
+      "voidError": "Erro ao anular: ",
+      "voided": "Anulado — o original permanece no histórico para fins de auditoria.",
+      "examDeleted": "Documento excluído — ele permanece no armazenamento para fins de auditoria.",
+      "reissueError": "Erro ao reemitir receita: ",
+      "reissued": "Receita reemitida. A anterior foi anulada."
+    },
+    "voidModal": {
+      "medicalRecordTitle": "Anular esta evolução clínica?",
+      "prescriptionTitle": "Anular esta receita?",
+      "documentTitle": "Excluir este documento?",
+      "description": "Isto não apaga \"{{label}}\" — ele permanece no histórico, marcado como anulado, com o motivo abaixo.",
+      "confirmVoid": "Anular",
+      "confirmDelete": "Excluir"
+    },
+    "reissueVoidReason": "Anulada por reemissão",
+    "reissueReasonAudit": "Reemissão da receita #{{id}}"
   },
   "dicomViewer": {
     "emptyState": "Nenhum exame DICOM selecionado",
@@ -490,12 +517,17 @@
     "contentPrefix": "Evolução SOAP - {{date}}",
     "toasts": {
       "saved": "Evolução registrada com sucesso!",
+      "amended": "Correção registrada — a evolução original foi mantida no histórico.",
       "saveErrorPrefix": "Erro ao registrar evolução: ",
       "idocsCpfRequired": "CPF do paciente é necessário para consulta no iDocs.",
       "idocsOpening": "Abrindo exames no iDoc (Radio Memory)..."
     },
     "title": "Nova Evolução Clínica",
     "subtitle": "Método SOAP (Subjetivo, Objetivo, Avaliação, Plano)",
+    "amendTitle": "Corrigir Evolução Clínica",
+    "amendSubtitle": "A evolução original é mantida — isto cria uma correção linkada a ela.",
+    "amendReasonAudit": "Correção da evolução #{{id}}",
+    "saveAmend": "Salvar Correção",
     "idocs": "iDocs",
     "subjective": {
       "label": "(S) Subjetivo",
@@ -558,7 +590,8 @@
       "fileRequired": "Selecione um arquivo para upload.",
       "noSession": "Sessão não encontrada.",
       "saved": "Exame anexado com sucesso! (Modo Simulação)",
-      "saveErrorPrefix": "Erro ao anexar exame: "
+      "saveErrorPrefix": "Erro ao anexar exame: ",
+      "replaced": "Documento substituído — a versão anterior foi arquivada."
     },
     "title": "Anexar Exame",
     "subtitle": "Envie resultados de laboratório ou imagens",
@@ -568,7 +601,12 @@
     "fileSelectPlaceholder": "Clique para selecionar",
     "fileHint": "PDF, JPG, PNG ou DICOM (máx 10MB)",
     "cancel": "Cancelar",
-    "save": "SALVAR EXAME"
+    "save": "SALVAR EXAME",
+    "replaceTitle": "Substituir Documento",
+    "replaceSubtitle": "A versão anterior será arquivada, não excluída.",
+    "replaceSave": "Salvar Nova Versão",
+    "replacedReasonAudit": "Substituído por uma nova versão",
+    "replacedByAudit": "Substituído pelo documento #{{id}}"
   },
   "aiExplainButton": {
     "trigger": "Explicar com IA",
@@ -622,5 +660,10 @@
     "sent": "Enviado",
     "approved": "Aprovado",
     "rejected": "Rejeitado"
+  },
+  "voidReasonModal": {
+    "reasonLabel": "Motivo",
+    "reasonPlaceholder": "Explique o que aconteceu e por que essa ação é necessária...",
+    "cancel": "Cancelar"
   }
 }
