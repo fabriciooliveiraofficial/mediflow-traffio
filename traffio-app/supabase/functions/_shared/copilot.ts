@@ -690,6 +690,7 @@ const AUTONOMOUS_ADDENDUM = `
 - IDIOMA E ENTIDADES (CONTROLE RÍGIDO DE IDIOMA): O agente JAMAIS deve começar um atendimento em um idioma e alterá-lo no meio da conversa sem razão (ex: mudar de português para espanhol de repente). Você deve SEMPRE responder no exato idioma em que o paciente iniciou a conversa. Para que você mude de idioma durante o atendimento, o paciente deve SOLICITAR A MUDANÇA DE FORMA EXPRESSA (ex: "Can we speak in English?", "Podemos hablar en español?"). Sem solicitação expressa, a deriva/mudança de idioma é ESTRITAMENTE PROIBIDA. Sobre entidades: nunca traduza nome próprio (paciente, profissional, clínica), dose, endereço ou horário — preserve o valor exato da fonte ao trocar de idioma. Nome de PROCEDIMENTO/SERVIÇO (ex.: "Avaliação inicial") NÃO é nome próprio: parafraseie no idioma do paciente (ex.: "initial evaluation") em vez de citar o rótulo cru da fonte.
 - RETOMADA APÓS INTERRUPÇÃO: se a conversa foi retomada e já existe um agendamento em andamento (ver ESTADO DO FLUXO DE AGENDAMENTO abaixo, se houver), resuma o último estado confirmed numa frase curta e pergunte só a decisão pendente — nunca recomece do zero repetindo perguntas já respondidas.
 - NUNCA ofereça canal (vídeo chamada, intérprete de Libras, atendimento por outro app) ou recurso que não esteja explicitamente disponível no CONTEXTO DA CLÍNICA para este tenant — se o paciente pedir algo assim, diga com sinceridade o que está disponível hoje.
+- IMAGEM ANEXADA (quando houver): seu papel com imagem é estritamente administrativo — ler carteirinha de convênio, comprovante, print de agendamento/conversa/formulário e extrair a informação pedida. Você NUNCA opina, descreve, avalia ou comenta sobre saúde, diagnóstico ou aparência (dente, boca, pele, ferimento, radiografia) mesmo que a imagem pareça mostrar algo assim — se a imagem não for claramente um documento administrativo, isso não deveria ter chegado até você; trate como se não tivesse visto conteúdo algum e siga o atendimento normalmente pelo texto.
 `.trim();
 
 export const RESPONDER_PACIENTE_TOOL: LlmTool = {
@@ -767,6 +768,13 @@ interface AutonomousParams extends CopilotParams {
     sessionManager: any;
     /** Fuso do tenant — datas relativas ("amanhã") e horário de atendimento */
     timezone?: string | null;
+    /**
+     * Fase 1 (Visão, 2026-08-13) — imagem do turno ATUAL já classificada como
+     * "administrative" pela Camada 1 (ver _shared/imageClassifier.ts). Nunca
+     * uma imagem clínica chega aqui. Usada uma única vez neste turno (não é
+     * persistida no histórico) — controla custo e evita reenvio em turnos futuros.
+     */
+    currentTurnImage?: { url: string } | null;
 }
 
 const MAX_TOOL_ROUNDS = 4;
@@ -1050,6 +1058,13 @@ export interface AgentReplyValidationOptions {
     appointmentEvidence?: string | null;
     /** E-3 (2026-07-31): alguma ferramenta de dados falhou/foi bloqueada NESTE turno — combina com PROMISE_PATTERN para pegar promessa sem execução. */
     toolCallFailedThisTurn?: boolean;
+    /**
+     * Camada 5 (Fase 1 — Visão, 2026-08-13): havia uma imagem anexada neste
+     * turno. Defesa redundante — a Camada 1 (imageClassifier.ts) já devia ter
+     * barrado qualquer imagem clínica antes de chegar ao modelo; isto pega o
+     * caso do modelo comentar sobre saúde/aparência mesmo com imagem administrativa.
+     */
+    hadImage?: boolean;
 }
 
 /**
@@ -1150,6 +1165,13 @@ export function validateAgentReply(text: string, opts: AgentReplyValidationOptio
         violations.push("alegação de que o cadastro/e-mail/telefone pertence a outro paciente sem nenhuma ferramenta ter confirmado isso — nunca afirme conflito de identidade sem fonte");
     }
 
+    // Camada 5 (Fase 1 — Visão, 2026-08-13): defesa redundante — a Camada 1
+    // já devia ter barrado imagem clínica antes de chegar ao modelo. Pega o
+    // caso do modelo comentar sobre saúde/aparência mesmo assim.
+    if (opts.hadImage && IMAGE_OBSERVATION_PATTERN.test(text) && CLINICAL_BODY_TERM_PATTERN.test(text)) {
+        violations.push("comentário clínico sobre imagem anexada (avaliação de saúde/aparência) — papel com imagem é estritamente ler documento administrativo");
+    }
+
     return violations;
 }
 
@@ -1189,7 +1211,15 @@ const INTERNAL_LEAK_PATTERN = new RegExp([
 ].join("|"), "i");
 
 // P-07 — léxico de garantia clínica (pt/en/es)
-const CLINICAL_PROMISE_PATTERN = /\b(garant\w+ (que|o resultado|resultado)|100%\s*(sem dor|seguro|de sucesso|painless|success)|sem dor nenhuma|não vai doer nada|totalmente indolor|cura garantida|resultado perfeito garantido|we guarantee|painless procedure guaranteed|guaranteed results?|le garantizamos|sin ningún dolor garantizado)\b/i;
+const CLINICAL_PROMISE_PATTERN = /\b(garant\w+ (que|o resultado|resultado)|100%\s*(sem dor|seguro|de sucesso|painless|success)|sem dor nenhuma|não vai doer nada|totalmente indolor|cura garantida|resultado perfeito garantido|we guarantee|painless procedure guaranteed|guaranteed results?|le garantizamos|sin ningún dolor garantizado)\b/i
+
+// Camada 5 (Fase 1 — Visão, 2026-08-13) — só usados juntos, e só quando
+// opts.hadImage é true: pega o modelo se referindo ao que "viu" na imagem
+// (IMAGE_OBSERVATION_PATTERN) ao mesmo tempo que fala de algo clínico
+// (CLINICAL_BODY_TERM_PATTERN). Defesa redundante — a Camada 1 já deveria
+// ter barrado a imagem clínica antes de chegar ao modelo.
+const IMAGE_OBSERVATION_PATTERN = /\b(pela (imagem|foto)|na (imagem|foto)|nessa (imagem|foto)|olhando (a imagem|a foto|para (a imagem|a foto))|analisando (a imagem|a foto)|vendo (a imagem|a foto)|looking at (the |your )?(image|photo|picture)|from (the|your) (image|photo)|i (can )?see (in|from) (the|your) (image|photo)|en (la|su) (imagen|foto))\b/i;
+const CLINICAL_BODY_TERM_PATTERN = /\b(dente\w*|gengiva\w*|boca|tooth|teeth|gum\w*|mouth|pele|skin|les[ãa]o\w*|ferida\w*|infec[çc][ãa]o\w*|infection\w*|c[áa]rie\w*|cavit(y|ies)|inflama[çc][ãa]o\w*|inflammation|mancha\w*|discoloration|inchaço\w*|swelling|sangramento|bleeding|radiografia|x-?ray)\b/i;;
 
 // P-15 (Onda 3) — hostilidade/sarcasmo/ameaça na resposta, nunca revide abuso (pt/en/es)
 const HOSTILE_TONE_PATTERN = /\b(voc[eê]\s+[ée]\s+(um|uma)\s*(idiota|burr[oa]|in[uú]til)|c[aá]le(?:-se|se)|o problema [ée] seu|n[aã]o [ée] meu problema|se vira|shut up|you'?re (?:being\s+|an?\s+)?(?:idiot|stupid|useless)|c[aá]llate|es tu problema|no es mi problema)\b/i;
@@ -1696,8 +1726,21 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
 
         // ── Loop agentic: modelo decide ferramenta → executamos → devolvemos ───
         const tools = [RESPONDER_PACIENTE_TOOL, TRANSFER_TOOL, ...SCHEDULING_TOOLS];
+        const currentTurnText = `Conversa até agora:\n${transcript}\n\nResponda à última mensagem do paciente.`;
+        // Fase 1 (Visão, 2026-08-13): quando há imagem administrativa elegível
+        // neste turno (Camada 1 já filtrou — nunca é uma imagem clínica), o
+        // turno atual vira um array [texto, imagem] em vez de string simples.
+        // Sem imagem, comportamento idêntico ao de antes.
         const convo: { role: "user" | "assistant"; content: string | any[] }[] = [
-            { role: "user", content: `Conversa até agora:\n${transcript}\n\nResponda à última mensagem do paciente.` },
+            {
+                role: "user",
+                content: params.currentTurnImage
+                    ? [
+                        { type: "text", text: currentTurnText },
+                        { type: "image", source: { type: "url", url: params.currentTurnImage.url } },
+                    ]
+                    : currentTurnText,
+            },
         ];
 
         // ⚠️ PROMPT CACHING: as 4 chamadas a agentChat/claudeChat NESTE turno
@@ -2009,6 +2052,7 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
                 patientLastMessage: lastPatientMessage,
                 appointmentEvidence: patientSnapshot,
                 toolCallFailedThisTurn,
+                hadImage: !!params.currentTurnImage,
             });
             violations.push(...bubbleViolations);
         }
@@ -2066,6 +2110,7 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
                         patientLastMessage: lastPatientMessage,
                         appointmentEvidence: patientSnapshot,
                         toolCallFailedThisTurn,
+                        hadImage: !!params.currentTurnImage,
                     }));
                 }
                 if (isNearDuplicateReply(fixedText, lastAssistant)) fixedViolations.push("ainda em loop após regeneração");

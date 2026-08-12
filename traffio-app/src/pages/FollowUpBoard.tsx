@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import {
@@ -208,6 +208,74 @@ export function FollowUpBoard() {
     }
   };
 
+  // --- Lógica de Auto-Scroll Horizontal no Drag and Drop ---
+  const pipelineContainerRef = useRef<HTMLDivElement | null>(null);
+  const autoScrollAnimRef = useRef<number | null>(null);
+  const scrollSpeedRef = useRef<number>(0);
+
+  const stopAutoScroll = useCallback(() => {
+    if (autoScrollAnimRef.current !== null) {
+      cancelAnimationFrame(autoScrollAnimRef.current);
+      autoScrollAnimRef.current = null;
+    }
+    scrollSpeedRef.current = 0;
+  }, []);
+
+  const startAutoScroll = useCallback(() => {
+    if (autoScrollAnimRef.current !== null) return;
+
+    const loop = () => {
+      if (pipelineContainerRef.current && scrollSpeedRef.current !== 0) {
+        pipelineContainerRef.current.scrollLeft += scrollSpeedRef.current;
+        autoScrollAnimRef.current = requestAnimationFrame(loop);
+      } else {
+        stopAutoScroll();
+      }
+    };
+
+    autoScrollAnimRef.current = requestAnimationFrame(loop);
+  }, [stopAutoScroll]);
+
+  const handleBoardDragOver = (e: React.DragEvent) => {
+    e.preventDefault(); // Necessário para permitir o drop em contêineres e nos filhos
+    if (!pipelineContainerRef.current) return;
+
+    const container = pipelineContainerRef.current;
+    const rect = container.getBoundingClientRect();
+    const mouseX = e.clientX;
+    const threshold = 120; // Zona de disparo em pixels das bordas esquerda e direita
+    const maxSpeed = 24;   // Velocidade máxima em px/frame
+
+    const distRight = rect.right - mouseX;
+    const distLeft = mouseX - rect.left;
+
+    if (distRight < threshold && distRight > 0) {
+      // Mouse perto da borda direita -> rolar para a direita
+      const intensity = 1 - Math.max(0, distRight) / threshold;
+      scrollSpeedRef.current = Math.max(4, Math.round(intensity * maxSpeed));
+      startAutoScroll();
+    } else if (distLeft < threshold && distLeft > 0) {
+      // Mouse perto da borda esquerda -> rolar para a esquerda
+      const intensity = 1 - Math.max(0, distLeft) / threshold;
+      scrollSpeedRef.current = -Math.max(4, Math.round(intensity * maxSpeed));
+      startAutoScroll();
+    } else {
+      // No centro -> parar rolagem
+      stopAutoScroll();
+    }
+  };
+
+  const handleDragEnd = () => {
+    stopAutoScroll();
+  };
+
+  useEffect(() => {
+    return () => {
+      stopAutoScroll();
+    };
+  }, [stopAutoScroll]);
+  // ---------------------------------------------------------
+
   const handleDragStart = (e: React.DragEvent, id: string) => {
     e.dataTransfer.setData('journey_id', id);
   };
@@ -216,6 +284,7 @@ export function FollowUpBoard() {
 
   const handleDrop = async (e: React.DragEvent, stage: CrmStageId) => {
     e.preventDefault();
+    stopAutoScroll();
     const id = e.dataTransfer.getData('journey_id');
     if (!id || !tenant?.id) return;
 
@@ -341,7 +410,11 @@ export function FollowUpBoard() {
 
         {/* Pipeline (kanban) — visão de mapa */}
         {view === 'pipeline' && (
-        <div className="flex gap-5 h-full items-start overflow-x-auto pb-6">
+        <div
+          className="flex gap-5 h-full items-start overflow-x-auto pb-6"
+          ref={pipelineContainerRef}
+          onDragOver={handleBoardDragOver}
+        >
           {CRM_STAGES.map(stage => {
             const columnJourneys = filteredJourneys.filter(j => j.stage_id === stage);
             const StageIcon = CRM_STAGE_ICONS[stage];
@@ -369,6 +442,7 @@ export function FollowUpBoard() {
                       key={j.id}
                       draggable
                       onDragStart={(e) => handleDragStart(e, j.id)}
+                      onDragEnd={handleDragEnd}
                       onClick={() => setSelectedJourney(j)}
                       className="group bg-white p-4 rounded-2xl shadow-float border border-ice-100 cursor-grab active:cursor-grabbing hover:border-brand-primary/40 hover:-translate-y-0.5 transition-all duration-300 animate-in fade-in slide-in-from-bottom-2"
                     >

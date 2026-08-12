@@ -1650,7 +1650,7 @@ Deno.test("isTurnLanguageConfident: idioma já persistido de turno anterior = co
 });
 
 // ── Download de mídia recebida (fundação p/ imagem/áudio/documento) ────────
-import { extensionFor, resolveInboundMedia } from "../../_shared/inboundMediaDownloader.ts";
+import { extensionFor, resolveInboundMedia, pickPrimaryMedia, buildHumanCaption } from "../../_shared/inboundMediaDownloader.ts";
 
 function fakeSupabase(opts: { uploadError?: any } = {}) {
     const uploaded: { path: string; bytes: any; options: any }[] = [];
@@ -1773,6 +1773,60 @@ Deno.test("resolveInboundMedia: falha no upload do Storage → retorna null", as
     assertEquals(result, null);
 });
 
+// ── pickPrimaryMedia / buildHumanCaption — bug de produção 2026-08-12 ──────
+// Mídia enviada JUNTO com texto no mesmo turno perdia a referência
+// (media_url virava null na linha salva) — nem o atendente humano
+// conseguia ver a foto depois, revendo a conversa.
+
+Deno.test("pickPrimaryMedia: texto + imagem no mesmo lote — escolhe a imagem", () => {
+    const messages = [
+        { message_type: "text", content: "pode atualizar meu e-mail?" },
+        { message_type: "image", content: "[image]", media_url: "https://chat-media.example/foto.jpg" },
+    ];
+    const picked = pickPrimaryMedia(messages);
+    assertEquals(picked?.media_url, "https://chat-media.example/foto.jpg");
+});
+
+Deno.test("pickPrimaryMedia: só texto, sem mídia — retorna undefined", () => {
+    const messages = [{ message_type: "text", content: "oi" }];
+    assertEquals(pickPrimaryMedia(messages), undefined);
+});
+
+Deno.test("pickPrimaryMedia: áudio já transcrito NÃO é escolhido (UI de audio esconde o texto atrás do player)", () => {
+    const messages = [
+        { message_type: "audio", content: "quero remarcar pra segunda", media_url: "https://chat-media.example/audio.ogg", _transcribed: true },
+    ];
+    assertEquals(pickPrimaryMedia(messages), undefined);
+});
+
+Deno.test("pickPrimaryMedia: duas mídias no lote — escolhe a primeira (limitação conhecida, documentada)", () => {
+    const messages = [
+        { message_type: "image", content: "[image]", media_url: "https://chat-media.example/foto1.jpg" },
+        { message_type: "image", content: "[image]", media_url: "https://chat-media.example/foto2.jpg" },
+    ];
+    assertEquals(pickPrimaryMedia(messages)?.media_url, "https://chat-media.example/foto1.jpg");
+});
+
+Deno.test("pickPrimaryMedia: mensagem sem media_url é ignorada mesmo se não for texto", () => {
+    const messages = [{ message_type: "image", content: "[image]", media_url: null }];
+    assertEquals(pickPrimaryMedia(messages), undefined);
+});
+
+Deno.test("buildHumanCaption: junta só o que o paciente digitou, ignora marcador de mídia e áudio transcrito", () => {
+    const messages = [
+        { message_type: "text", content: "i made a typo." },
+        { message_type: "text", content: "can you update my email?" },
+        { message_type: "image", content: "[image]", media_url: "https://chat-media.example/foto.jpg" },
+        { message_type: "audio", content: "isso não deveria aparecer", _transcribed: true },
+    ];
+    assertEquals(buildHumanCaption(messages), "i made a typo.\ncan you update my email?");
+});
+
+Deno.test("buildHumanCaption: sem texto digitado — string vazia", () => {
+    const messages = [{ message_type: "image", content: "[image]", media_url: "https://chat-media.example/foto.jpg" }];
+    assertEquals(buildHumanCaption(messages), "");
+});
+
 // ── Multi-canal (Instagram/Facebook/Live Chat usam o mesmo resolvedor) ─────
 
 Deno.test("resolveInboundMedia: canal instagram usa downloadZapi mesmo em tenant Cloud API (anexo da Meta não é id opaco)", async () => {
@@ -1829,4 +1883,88 @@ Deno.test("resolveInboundMedia: canal livechat retorna null sem chamar nenhum do
     assertEquals(zapiCalled, false);
     assertEquals(cloudApiCalled, false);
     assertEquals(supabase.calls.length, 0);
+});
+
+// ── classifyImage / pickVisionEligibleImage (Fase 1 — Visão, 2026-08-13) ──
+// Camada 1 do framework de segurança: qualquer dúvida ou falha vira
+// "clinical" — nunca "administrative" por omissão. Nunca lança.
+import { classifyImage, pickVisionEligibleImage } from "../../_shared/imageClassifier.ts";
+
+Deno.test("classifyImage: resposta 'administrative' retorna administrative", async () => {
+    const category = await classifyImage(null as any, "tenant-1", "https://chat-media.example/doc.jpg", "claude-haiku-4-5-20251001", {
+        claudeJsonFn: async <T,>() => ({ category: "administrative" } as T),
+    });
+    assertEquals(category, "administrative");
+});
+
+Deno.test("classifyImage: resposta 'clinical' retorna clinical", async () => {
+    const category = await classifyImage(null as any, "tenant-1", "https://chat-media.example/tooth.jpg", "claude-haiku-4-5-20251001", {
+        claudeJsonFn: async <T,>() => ({ category: "clinical" } as T),
+    });
+    assertEquals(category, "clinical");
+});
+
+Deno.test("classifyImage: fail-safe — resposta ausente/nula vira clinical", async () => {
+    const category = await classifyImage(null as any, "tenant-1", "https://chat-media.example/x.jpg", "claude-haiku-4-5-20251001", {
+        claudeJsonFn: async () => null,
+    });
+    assertEquals(category, "clinical");
+});
+
+Deno.test("classifyImage: fail-safe — categoria desconhecida/lixo vira clinical", async () => {
+    const category = await classifyImage(null as any, "tenant-1", "https://chat-media.example/x.jpg", "claude-haiku-4-5-20251001", {
+        claudeJsonFn: async <T,>() => ({ category: "something-else" } as T),
+    });
+    assertEquals(category, "clinical");
+});
+
+Deno.test("classifyImage: fail-safe — exceção/timeout na chamada vira clinical, nunca lança", async () => {
+    const category = await classifyImage(null as any, "tenant-1", "https://chat-media.example/x.jpg", "claude-haiku-4-5-20251001", {
+        claudeJsonFn: async () => { throw new Error("timeout"); },
+    });
+    assertEquals(category, "clinical");
+});
+
+Deno.test("pickVisionEligibleImage: escolhe a primeira imagem marcada _visionEligible", () => {
+    const messages = [
+        { message_type: "text", content: "oi", media_url: null },
+        { message_type: "image", media_url: "https://chat-media.example/doc.jpg", _visionEligible: true },
+    ];
+    assertEquals(pickVisionEligibleImage(messages)?.media_url, "https://chat-media.example/doc.jpg");
+});
+
+Deno.test("pickVisionEligibleImage: imagem clínica (sem _visionEligible) nunca é escolhida", () => {
+    const messages = [
+        { message_type: "image", media_url: "https://chat-media.example/tooth.jpg", _visionEligible: false },
+    ];
+    assertEquals(pickVisionEligibleImage(messages), undefined);
+});
+
+Deno.test("pickVisionEligibleImage: sem imagens no lote retorna undefined", () => {
+    const messages = [{ message_type: "text", content: "oi", media_url: null }];
+    assertEquals(pickVisionEligibleImage(messages), undefined);
+});
+
+// ── validateAgentReply Camada 5 (Fase 1 — Visão, 2026-08-13) — defesa
+// redundante: pega o modelo comentando saúde/aparência a partir de uma
+// imagem anexada, mesmo que a Camada 1 já devesse ter barrado isso antes. ──
+Deno.test("validateAgentReply: comentário clínico sobre imagem anexada reprova quando hadImage=true", () => {
+    const v = validateAgentReply("Vendo a foto, notei que seu dente está com uma cárie visível.", {
+        language: "pt", evidence: "", policyEvidence: "", hadImage: true,
+    });
+    assert(v.some((item) => item.includes("clínico sobre imagem")));
+});
+
+Deno.test("validateAgentReply: mesmo texto sem hadImage não reprova por esta regra", () => {
+    const v = validateAgentReply("Vendo a foto, notei que seu dente está com uma cárie visível.", {
+        language: "pt", evidence: "", policyEvidence: "", hadImage: false,
+    });
+    assertEquals(v.filter((item) => item.includes("clínico sobre imagem")), []);
+});
+
+Deno.test("validateAgentReply: leitura administrativa de imagem (sem termo clínico) aprova mesmo com hadImage=true", () => {
+    const v = validateAgentReply("Pela imagem, vi que sua carteirinha é do plano Amil, número 12345.", {
+        language: "pt", evidence: "", policyEvidence: "", hadImage: true,
+    });
+    assertEquals(v.filter((item) => item.includes("clínico sobre imagem")), []);
 });

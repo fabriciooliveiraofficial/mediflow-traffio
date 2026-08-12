@@ -27,8 +27,10 @@ import { runCopilot, runAutonomousAgent, wrapUntrustedContent, sendWithFallback,
 import { tryStructuredFlow } from "../_shared/structuredFlow.ts";
 import { logAgentTurnEvent } from "../_shared/observabilityLayer.ts";
 import { runWithConcurrencyLimit } from "../_shared/concurrencyPool.ts";
-import { resolveInboundMedia } from "../_shared/inboundMediaDownloader.ts";
+import { resolveInboundMedia, pickPrimaryMedia, buildHumanCaption } from "../_shared/inboundMediaDownloader.ts";
 import { transcribeAudio } from "../_shared/audioTranscriber.ts";
+import { classifyImage, pickVisionEligibleImage } from "../_shared/imageClassifier.ts";
+import { getAiModelRouter } from "../_shared/masterConfig.ts";
 
 // How long to wait after the last message before processing (ms).
 // Gives the patient time to finish typing multiple messages.
@@ -354,28 +356,53 @@ async function processConversationTurn(
        }
 
      } else {
-       // --- 4c. Transcrição de áudio — deixa a IA responder ao que o
-       // paciente falou em vez de cair direto em reconhecimento automático +
-       // fila humana (Erro 3, 2026-08-13). Roda ANTES da fusão de conteúdo:
-       // uma transcrição bem-sucedida com confiança suficiente promove a
-       // mensagem pro fluxo normal (hasTypedText abaixo); qualquer falha ou
-       // baixa confiança deixa a mensagem intacta — ela segue o caminho de
-       // hoje, sem nenhuma mudança (isMediaOnly + Camada 3 + fila humana).
-       // Nunca mistura os dois: transcribeAudio/resolveInboundMedia nunca
-       // lançam, então esse loop nunca derruba o turno.
+       // --- 4c. Resolve mídia + transcreve áudio — roda ANTES da fusão de
+       // conteúdo. Cobre dois problemas:
+       // (a) Erro 3 (2026-08-13): áudio transcrito com confiança suficiente
+       //     entra no fluxo normal como texto, em vez de cair direto em
+       //     reconhecimento automático + fila humana.
+       // (b) Bug de produção 2026-08-12: mídia enviada JUNTO com texto (ex.:
+       //     "atualiza meu e-mail" + uma foto) nunca tinha o arquivo baixado
+       //     nem a referência preservada — a linha salva ficava com
+       //     media_url=null, e nem o atendente humano conseguia ver a foto
+       //     depois. Resolver aqui, pra QUALQUER mídia não-textual do lote
+       //     (não só áudio), corrige os dois: garante uma URL estável e
+       //     permite anexá-la na mensagem fundida logo abaixo.
+       // resolveInboundMedia/transcribeAudio nunca lançam — este loop nunca
+       // derruba o turno.
        for (const msg of messages) {
-         if (String(msg.message_type || "").toLowerCase() !== "audio" || !msg.media_url) continue;
-         const resolvedAudio = await resolveInboundMedia(supabase, tenantRow, { mediaUrl: msg.media_url, messageType: "audio" }, msg.message_id || msg.id, { channel: session.channel });
-         if (!resolvedAudio) continue;
-         msg.media_url = resolvedAudio.mediaUrl;
-         msg.mime_type = resolvedAudio.mimeType;
-         msg.file_size = resolvedAudio.fileSize;
-         msg._mediaResolved = true;
-         const transcript = await transcribeAudio(supabase, resolvedAudio.mediaUrl, `${msg.message_id || msg.id}.ogg`);
-         if (transcript?.text) {
-           console.log(`[process-inbox] [${phone}] Áudio transcrito: "${transcript.text.substring(0, 80)}"`);
-           msg.content = transcript.text;
-           msg._transcribed = true;
+         const msgType = String(msg.message_type || "").toLowerCase();
+         if (msgType === "text" || !msg.media_url) continue;
+
+         const resolved = await resolveInboundMedia(supabase, tenantRow, { mediaUrl: msg.media_url, messageType: msgType }, msg.message_id || msg.id, { channel: session.channel });
+         if (resolved) {
+           msg.media_url = resolved.mediaUrl;
+           msg.mime_type = resolved.mimeType;
+           msg.file_size = resolved.fileSize;
+           msg._mediaResolved = true;
+         }
+
+         if (msgType === "audio") {
+           const transcript = await transcribeAudio(supabase, msg.media_url, `${msg.message_id || msg.id}.ogg`);
+           if (transcript?.text) {
+             console.log(`[process-inbox] [${phone}] Áudio transcrito: "${transcript.text.substring(0, 80)}"`);
+             msg.content = transcript.text;
+             msg._transcribed = true;
+           }
+         }
+
+         // Fase 1 (Visão, 2026-08-13) — Camada 1 do framework de segurança:
+         // classifica ANTES de qualquer coisa. Imagem clínica NUNCA é marcada
+         // como elegível — segue o caminho de hoje (Camada 3 + fila humana,
+         // ou só o texto da legenda se houver). Só imagem administrativa
+         // (documento) passa a ser mostrada à IA.
+         if (msgType === "image") {
+           const routerModel = await getAiModelRouter(supabase);
+           const category = await classifyImage(supabase, tenantId, msg.media_url, routerModel);
+           console.log(`[process-inbox] [${phone}] Imagem classificada: ${category}`);
+           if (category === "administrative") {
+             msg._visionEligible = true;
+           }
          }
        }
 
@@ -390,11 +417,19 @@ async function processConversationTurn(
        console.log(`[process-inbox] [${phone}] Fused ${messages.length} msg(s): "${fusedContent.substring(0, 80)}"`);
        lastMessageSnippet = fusedContent;
 
+       // Preserva a referência da mídia PRINCIPAL do lote na mensagem fundida
+       // — sem isto, o media_url some ao virar uma linha só de texto (bug de
+       // produção 2026-08-12). Ver pickPrimaryMedia/buildHumanCaption em
+       // inboundMediaDownloader.ts para a lógica e o porquê.
+       const primaryMedia = pickPrimaryMedia(messages);
+       const humanCaption = buildHumanCaption(messages);
+
        // --- 5b. Media/voice guard — categorizar e salvar mídia para visibilidade humana ---
        // Z-API e Cloud API entregam mídia com content vazio ou markers tipo [áudio].
        // Categorizamos para que o atendente veja no chat, mesmo que o bot não processe.
        const hasTypedText = messages.some((m: any) => {
          if (m._transcribed) return true;
+         if (m._visionEligible) return true;
          return String(m.message_type || "text").toLowerCase() === "text" && !!m.content?.trim() && !/^\[(áudio|audio|imagem|image|vídeo|video|documento|document|sticker|figurinha)\]$/i.test(m.content.trim());
        });
        const isMediaOnly = !hasTypedText;
@@ -467,7 +502,12 @@ async function processConversationTurn(
  
        // --- 7. Log message to history ---
        await sessionManager.logMessage(session.id, "user", fusedContent, {
-         whatsapp_message_id: messages[0]?.message_id
+         whatsapp_message_id: messages[0]?.message_id,
+         message_type: primaryMedia ? String(primaryMedia.message_type).toLowerCase() : undefined,
+         media_url: primaryMedia?.media_url,
+         mime_type: primaryMedia?.mime_type,
+         file_size: primaryMedia?.file_size,
+         caption: primaryMedia ? (humanCaption || primaryMedia.caption || null) : undefined,
        });
 
        // --- 7b. F2: pré-filtro determinístico universal — roda para QUALQUER dial.
@@ -505,6 +545,7 @@ async function processConversationTurn(
          // uma checagem inline solta: mantenha a função nomeada, que é travada
          // por teste. A IA responde diretamente; fail-safe: qualquer resultado
          // que não seja uma resposta entregue termina com o paciente na fila humana.
+         const visionEligibleImage = pickVisionEligibleImage(messages);
          autonomousStatus = await runAutonomousAgent(supabase, {
            tenantId,
            sessionId: session.id,
@@ -514,6 +555,7 @@ async function processConversationTurn(
            tenant: tenantRow,
            sessionManager,
            timezone: tenantRow?.timezone,
+           currentTurnImage: visionEligibleImage ? { url: visionEligibleImage.media_url as string } : undefined,
          });
 
          if (autonomousStatus === "defer") {
