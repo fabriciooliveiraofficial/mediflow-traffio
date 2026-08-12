@@ -304,7 +304,8 @@
     "toasts": {
       "calling": "Calling: {{name}}",
       "noPatientInQueue": "No patient in the queue.",
-      "patientRegistered": "Patient registered!"
+      "patientRegistered": "Patient registered!",
+      "statusUpdateError": "Could not update the status. Please try again."
     }
   },
   "sidebarPatientEditView": {

@@ -536,6 +536,102 @@ Deno.test("embedText: timeout retorna null e aborta fetch", async () => {
     assert(aborted);
 });
 
+// ── transcribeAudio (Erro 3, 2026-08-13) — nunca lança, nunca deixa a IA
+// responder a partir de um texto incerto (chave ausente/falha/baixa
+// confiança sempre viram null, mesmo tratamento). ─────────────────────────
+import { transcribeAudio } from "../../_shared/audioTranscriber.ts";
+
+Deno.test("transcribeAudio: sucesso retorna texto e idioma detectado", async () => {
+    let whisperBody: any = null;
+    const result = await transcribeAudio(null as any, "https://storage.example/audio.ogg", "audio.ogg", {
+        resolveApiKey: async () => "test-key",
+        fetchFn: async (input: any, init?: any) => {
+            if (String(input).includes("storage.example")) {
+                return new Response(new Blob(["fake-audio-bytes"]), { status: 200 });
+            }
+            whisperBody = init?.body;
+            return new Response(JSON.stringify({
+                text: "quero marcar uma avaliação",
+                language: "portuguese",
+                segments: [{ no_speech_prob: 0.05 }],
+            }), { status: 200 });
+        },
+    });
+    assertEquals(result?.text, "quero marcar uma avaliação");
+    assertEquals(result?.language, "portuguese");
+    assert(whisperBody instanceof FormData);
+});
+
+Deno.test("transcribeAudio: chave ausente retorna null sem baixar nada", async () => {
+    let fetched = false;
+    const result = await transcribeAudio(null as any, "https://storage.example/audio.ogg", "audio.ogg", {
+        resolveApiKey: async () => "",
+        fetchFn: async () => { fetched = true; return new Response(); },
+    });
+    assertEquals(result, null);
+    assertEquals(fetched, false);
+});
+
+Deno.test("transcribeAudio: download do áudio falha (HTTP não-ok) retorna null", async () => {
+    const result = await transcribeAudio(null as any, "https://storage.example/audio.ogg", "audio.ogg", {
+        resolveApiKey: async () => "test-key",
+        fetchFn: async () => new Response("not found", { status: 404 }),
+    });
+    assertEquals(result, null);
+});
+
+Deno.test("transcribeAudio: Whisper responde HTTP não-ok retorna null", async () => {
+    const result = await transcribeAudio(null as any, "https://storage.example/audio.ogg", "audio.ogg", {
+        resolveApiKey: async () => "test-key",
+        fetchFn: async (input: any) => {
+            if (String(input).includes("storage.example")) return new Response(new Blob(["bytes"]), { status: 200 });
+            return new Response("rate limited", { status: 429 });
+        },
+    });
+    assertEquals(result, null);
+});
+
+Deno.test("transcribeAudio: transcrição vazia retorna null", async () => {
+    const result = await transcribeAudio(null as any, "https://storage.example/audio.ogg", "audio.ogg", {
+        resolveApiKey: async () => "test-key",
+        fetchFn: async (input: any) => {
+            if (String(input).includes("storage.example")) return new Response(new Blob(["bytes"]), { status: 200 });
+            return new Response(JSON.stringify({ text: "   ", segments: [] }), { status: 200 });
+        },
+    });
+    assertEquals(result, null);
+});
+
+Deno.test("transcribeAudio: baixa confiança (no_speech_prob médio alto) retorna null — cai pra fila humana, nunca pra IA", async () => {
+    const result = await transcribeAudio(null as any, "https://storage.example/audio.ogg", "audio.ogg", {
+        resolveApiKey: async () => "test-key",
+        fetchFn: async (input: any) => {
+            if (String(input).includes("storage.example")) return new Response(new Blob(["bytes"]), { status: 200 });
+            return new Response(JSON.stringify({
+                text: "texto duvidoso, provavelmente ruído",
+                segments: [{ no_speech_prob: 0.9 }, { no_speech_prob: 0.8 }],
+            }), { status: 200 });
+        },
+    });
+    assertEquals(result, null);
+});
+
+Deno.test("transcribeAudio: timeout retorna null e aborta fetch", async () => {
+    let aborted = false;
+    const result = await transcribeAudio(null as any, "https://storage.example/audio.ogg", "audio.ogg", {
+        resolveApiKey: async () => "test-key",
+        timeoutMs: 5,
+        fetchFn: (_input, init: any) => new Promise((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => {
+                aborted = true;
+                reject(new DOMException("aborted", "AbortError"));
+            });
+        }),
+    });
+    assertEquals(result, null);
+    assert(aborted);
+});
+
 // ── Onda 3: tom, acessibilidade, contexto (matriz de comportamentos) ─────────
 // ── Onda 4: riscos emergentes 2026 (jailbreak, poisoning) ────────────────────
 import { computeJailbreakRiskDelta, hasInsensitiveTone, shouldUseAccessibleMode } from "../../_shared/copilot.ts";
@@ -732,6 +828,7 @@ Deno.test("buildAutonomousSystemPrompt: instructions/knowledgePacket diferentes 
 import {
     formatSlotsForPatient,
     formatSlotTimeForPatient,
+    getRelativeDayLabel,
     executeSchedulingTool,
     type TenantClock,
 } from "../../_shared/schedulingTools.ts";
@@ -847,6 +944,51 @@ Deno.test("formatSlotsForPatient: 2 dias agrupados", () => {
     const formatted = formatSlotsForPatient(available, { clock, language: "en" });
     assert(formatted.includes("tomorrow 📅 07/23/2026"));
     assert(formatted.includes("Friday 📅 07/24/2026"));
+});
+
+// ── getRelativeDayLabel — hoje/amanhã/ontem/dia da semana/"há N dias" ───────
+// Bug de produção 2026-08-12: buildPatientSnapshot mandava só a data ISO crua
+// pro modelo, que tinha que adivinhar sozinho se era passado ou futuro — numa
+// clínica de fuso distante (Pacific/Auckland), a IA descreveu um agendamento
+// de ONTEM como se fosse "amanhã". Esta função existe pra tirar essa inferência
+// das mãos do modelo.
+
+Deno.test("getRelativeDayLabel: hoje/amanhã/ontem nos 3 idiomas", () => {
+    assertEquals(getRelativeDayLabel("2026-08-12", "2026-08-12", "pt"), "hoje");
+    assertEquals(getRelativeDayLabel("2026-08-12", "2026-08-12", "en"), "today");
+    assertEquals(getRelativeDayLabel("2026-08-12", "2026-08-12", "es"), "hoy");
+
+    assertEquals(getRelativeDayLabel("2026-08-13", "2026-08-12", "pt"), "amanhã");
+    assertEquals(getRelativeDayLabel("2026-08-13", "2026-08-12", "en"), "tomorrow");
+    assertEquals(getRelativeDayLabel("2026-08-13", "2026-08-12", "es"), "mañana");
+
+    assertEquals(getRelativeDayLabel("2026-08-11", "2026-08-12", "pt"), "ontem");
+    assertEquals(getRelativeDayLabel("2026-08-11", "2026-08-12", "en"), "yesterday");
+    assertEquals(getRelativeDayLabel("2026-08-11", "2026-08-12", "es"), "ayer");
+});
+
+Deno.test("getRelativeDayLabel: bug real — agendamento de ontem NUNCA pode virar 'amanhã'", () => {
+    // Reproduz exatamente o incidente: appointment em 2026-08-12, mas o
+    // relógio da clínica (Pacific/Auckland) já virou 2026-08-13.
+    const label = getRelativeDayLabel("2026-08-12", "2026-08-13", "en");
+    assertEquals(label, "yesterday");
+    assert(label !== "tomorrow");
+});
+
+Deno.test("getRelativeDayLabel: dia da semana pra D+2..D+6 (futuro) continua funcionando", () => {
+    assertEquals(getRelativeDayLabel("2026-08-14", "2026-08-12", "en"), "Friday");
+});
+
+Deno.test("getRelativeDayLabel: 'há N dias' para passado além de ontem, nos 3 idiomas", () => {
+    assertEquals(getRelativeDayLabel("2026-08-05", "2026-08-12", "pt"), "há 7 dias");
+    assertEquals(getRelativeDayLabel("2026-08-05", "2026-08-12", "en"), "7 days ago");
+    assertEquals(getRelativeDayLabel("2026-08-05", "2026-08-12", "es"), "hace 7 días");
+});
+
+Deno.test("getRelativeDayLabel: entrada inválida ou vazia retorna null, nunca lança", () => {
+    assertEquals(getRelativeDayLabel("", "2026-08-12", "pt"), null);
+    assertEquals(getRelativeDayLabel("2026-08-12", "", "pt"), null);
+    assertEquals(getRelativeDayLabel("data-invalida", "2026-08-12", "pt"), null);
 });
 
 // ── Onda 3: C1.4 — Horário 14:00 em 12h ("02:00 pm") passa no validador ─────
@@ -970,6 +1112,7 @@ function createMockSupabase(overrides: {
             or: () => obj,
             ilike: () => obj,
             gte: () => obj,
+            lt: () => obj,
             not: () => obj,
             limit: () => obj,
             order: () => obj,
@@ -1504,4 +1647,186 @@ Deno.test("isTurnLanguageConfident: mensagem bate num hint de idioma = confianç
 Deno.test("isTurnLanguageConfident: idioma já persistido de turno anterior = confiança mesmo com mensagem ambígua", () => {
     assertEquals(isTurnLanguageConfident("Morning", "en"), true);
     assertEquals(isTurnLanguageConfident("ok", "es"), true);
+});
+
+// ── Download de mídia recebida (fundação p/ imagem/áudio/documento) ────────
+import { extensionFor, resolveInboundMedia } from "../../_shared/inboundMediaDownloader.ts";
+
+function fakeSupabase(opts: { uploadError?: any } = {}) {
+    const uploaded: { path: string; bytes: any; options: any }[] = [];
+    return {
+        calls: uploaded,
+        storage: {
+            from: (bucket: string) => ({
+                upload: async (path: string, bytes: any, options: any) => {
+                    uploaded.push({ path, bytes, options });
+                    if (opts.uploadError) return { error: opts.uploadError };
+                    return { error: null };
+                },
+                getPublicUrl: (path: string) => ({
+                    data: { publicUrl: `https://storage.example/${bucket}/${path}` },
+                }),
+            }),
+        },
+    };
+}
+
+Deno.test("extensionFor: mapeia mime conhecido, cai para default por message_type senão", () => {
+    assertEquals(extensionFor("image/jpeg", "image"), "jpg");
+    assertEquals(extensionFor("audio/ogg; codecs=opus", "audio"), "ogg");
+    assertEquals(extensionFor("application/pdf", "document"), "pdf");
+    assertEquals(extensionFor(null, "audio"), "ogg");
+    assertEquals(extensionFor("application/x-nonsense", "video"), "mp4");
+    assertEquals(extensionFor(null, "unknown-type"), "bin");
+});
+
+Deno.test("resolveInboundMedia: sem mediaUrl retorna null sem chamar download", async () => {
+    let called = false;
+    const supabase = fakeSupabase();
+    const result = await resolveInboundMedia(
+        supabase as any,
+        { id: "tenant-1", whatsapp_provider: "zapi" },
+        { mediaUrl: null, messageType: "text" },
+        "msg-1",
+        { downloadZapi: async () => { called = true; return { bytes: new ArrayBuffer(1), contentType: "image/jpeg" }; } },
+    );
+    assertEquals(result, null);
+    assertEquals(called, false);
+});
+
+Deno.test("resolveInboundMedia: Z-API — baixa, sobe pro chat-media e devolve URL estável", async () => {
+    const supabase = fakeSupabase();
+    const bytes = new TextEncoder().encode("fake-image-bytes").buffer;
+    const result = await resolveInboundMedia(
+        supabase as any,
+        { id: "tenant-1", whatsapp_provider: "zapi" },
+        { mediaUrl: "https://zapi.example/media/abc.jpg", messageType: "image" },
+        "msg-42",
+        { downloadZapi: async (url) => {
+            assertEquals(url, "https://zapi.example/media/abc.jpg");
+            return { bytes, contentType: "image/jpeg" };
+        } },
+    );
+    assertEquals(result?.mimeType, "image/jpeg");
+    assertEquals(result?.fileSize, bytes.byteLength);
+    assertEquals(result?.mediaUrl, "https://storage.example/chat-media/tenant-1/whatsapp/msg-42.jpg");
+    assertEquals(supabase.calls[0].path, "tenant-1/whatsapp/msg-42.jpg");
+});
+
+Deno.test("resolveInboundMedia: Cloud API — usa downloadCloudApi (id opaco), não downloadZapi", async () => {
+    const supabase = fakeSupabase();
+    let zapiCalled = false;
+    const bytes = new TextEncoder().encode("fake-audio-bytes").buffer;
+    const result = await resolveInboundMedia(
+        supabase as any,
+        { id: "tenant-2", whatsapp_provider: "cloud_api", cloud_api_access_token: "tok-123" },
+        { mediaUrl: "wamid.opaque-media-id", messageType: "audio" },
+        "msg-7",
+        {
+            downloadZapi: async () => { zapiCalled = true; throw new Error("não deveria ser chamado"); },
+            downloadCloudApi: async (mediaId, token) => {
+                assertEquals(mediaId, "wamid.opaque-media-id");
+                assertEquals(token, "tok-123");
+                return { bytes, contentType: "audio/ogg" };
+            },
+        },
+    );
+    assertEquals(zapiCalled, false);
+    assertEquals(result?.mediaUrl, "https://storage.example/chat-media/tenant-2/whatsapp/msg-7.ogg");
+});
+
+Deno.test("resolveInboundMedia: download falha → retorna null, nunca lança", async () => {
+    const supabase = fakeSupabase();
+    const result = await resolveInboundMedia(
+        supabase as any,
+        { id: "tenant-1", whatsapp_provider: "zapi" },
+        { mediaUrl: "https://zapi.example/expired.jpg", messageType: "image" },
+        "msg-1",
+        { downloadZapi: async () => { throw new Error("404 expired"); } },
+    );
+    assertEquals(result, null);
+});
+
+Deno.test("resolveInboundMedia: arquivo maior que o limite → retorna null sem tentar upload", async () => {
+    const supabase = fakeSupabase();
+    const tooBig = new ArrayBuffer(17 * 1024 * 1024); // 17MB > limite de 16MB
+    const result = await resolveInboundMedia(
+        supabase as any,
+        { id: "tenant-1", whatsapp_provider: "zapi" },
+        { mediaUrl: "https://zapi.example/big.mp4", messageType: "video" },
+        "msg-1",
+        { downloadZapi: async () => ({ bytes: tooBig, contentType: "video/mp4" }) },
+    );
+    assertEquals(result, null);
+    assertEquals(supabase.calls.length, 0);
+});
+
+Deno.test("resolveInboundMedia: falha no upload do Storage → retorna null", async () => {
+    const supabase = fakeSupabase({ uploadError: new Error("bucket indisponível") });
+    const result = await resolveInboundMedia(
+        supabase as any,
+        { id: "tenant-1", whatsapp_provider: "zapi" },
+        { mediaUrl: "https://zapi.example/a.jpg", messageType: "image" },
+        "msg-1",
+        { downloadZapi: async () => ({ bytes: new ArrayBuffer(10), contentType: "image/jpeg" }) },
+    );
+    assertEquals(result, null);
+});
+
+// ── Multi-canal (Instagram/Facebook/Live Chat usam o mesmo resolvedor) ─────
+
+Deno.test("resolveInboundMedia: canal instagram usa downloadZapi mesmo em tenant Cloud API (anexo da Meta não é id opaco)", async () => {
+    const supabase = fakeSupabase();
+    let cloudApiCalled = false;
+    const bytes = new TextEncoder().encode("ig-attachment-bytes").buffer;
+    const result = await resolveInboundMedia(
+        supabase as any,
+        { id: "tenant-3", whatsapp_provider: "cloud_api", cloud_api_access_token: "tok-999" },
+        { mediaUrl: "https://scontent.xx.fbcdn.net/attachment.jpg", messageType: "image" },
+        "msg-ig-1",
+        {
+            channel: "instagram",
+            downloadCloudApi: async () => { cloudApiCalled = true; throw new Error("não deveria ser chamado para instagram"); },
+            downloadZapi: async (url) => {
+                assertEquals(url, "https://scontent.xx.fbcdn.net/attachment.jpg");
+                return { bytes, contentType: "image/jpeg" };
+            },
+        },
+    );
+    assertEquals(cloudApiCalled, false);
+    assertEquals(result?.mediaUrl, "https://storage.example/chat-media/tenant-3/instagram/msg-ig-1.jpg");
+});
+
+Deno.test("resolveInboundMedia: canal facebook — mesmo tratamento, path com /facebook/", async () => {
+    const supabase = fakeSupabase();
+    const bytes = new TextEncoder().encode("fb-attachment-bytes").buffer;
+    const result = await resolveInboundMedia(
+        supabase as any,
+        { id: "tenant-3", whatsapp_provider: "zapi" },
+        { mediaUrl: "https://scontent.xx.fbcdn.net/audio.mp4", messageType: "audio" },
+        "msg-fb-1",
+        { channel: "facebook", downloadZapi: async () => ({ bytes, contentType: "audio/mpeg" }) },
+    );
+    assertEquals(result?.mediaUrl, "https://storage.example/chat-media/tenant-3/facebook/msg-fb-1.mp3");
+});
+
+Deno.test("resolveInboundMedia: canal livechat retorna null sem chamar nenhum downloader (URL já é permanente)", async () => {
+    const supabase = fakeSupabase();
+    let zapiCalled = false;
+    let cloudApiCalled = false;
+    const result = await resolveInboundMedia(
+        supabase as any,
+        { id: "tenant-4", whatsapp_provider: "zapi" },
+        { mediaUrl: "https://storage.example/chat-media/tenant-4/livechat/images/123.jpg", messageType: "image" },
+        "msg-lc-1",
+        {
+            channel: "livechat",
+            downloadZapi: async () => { zapiCalled = true; return { bytes: new ArrayBuffer(1), contentType: "image/jpeg" }; },
+            downloadCloudApi: async () => { cloudApiCalled = true; return { bytes: new ArrayBuffer(1), contentType: "image/jpeg" }; },
+        },
+    );
+    assertEquals(result, null);
+    assertEquals(zapiCalled, false);
+    assertEquals(cloudApiCalled, false);
+    assertEquals(supabase.calls.length, 0);
 });

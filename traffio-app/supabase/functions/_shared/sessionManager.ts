@@ -64,6 +64,7 @@ export interface Session {
     handoff_at?: string | null;
     updated_at: string;
     omnichannel_status: string;
+    channel?: string;
 }
 
 export class SessionManager {

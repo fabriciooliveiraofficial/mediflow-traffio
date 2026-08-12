@@ -123,6 +123,33 @@ Deno.test("atualizar_cadastro_paciente: registration_confirmed=true e os 3 campo
     assertEquals(mock.updated.length, 0, "os 3 campos-núcleo já estão completos e idênticos — não deveria regravar");
 });
 
+// ── atualizar_cadastro_paciente: telefone nunca volta com "+" (bug 2026-08-12) ──
+// normalizePhoneNumber() tinha o país-padrão fixo em "55" (Brasil): um paciente
+// de qualquer outro país que confirmasse o telefone sem "+" (o formato que o
+// WhatsApp já entrega em todo o resto do sistema) tinha o número CORROMPIDO
+// como se fosse brasileiro, e o "+" que a função sempre devolvia sobrescrevia
+// o telefone canônico gravado segundos antes na criação — escondendo o
+// histórico do paciente na próxima conversa. canonicalizePhone só mantém os
+// dígitos como vieram, nunca inventa país.
+
+Deno.test("atualizar_cadastro_paciente: telefone da Nova Zelândia sem '+' não é corrompido como brasileiro", async () => {
+    const mock = buildMock({ patients: [] });
+    const call = { id: "c1", name: "atualizar_cadastro_paciente", input: { full_name: "Fabricio Oliveira", phone: "6421234567", email: "f@example.com" } };
+    const res = await executeSchedulingTool(mock as any, "tenant-nz", "6421234567", "Fabricio", call as any, "yes", "en", {}, "whatsapp");
+    assertEquals(res.data.success, true);
+    assertEquals(res.data.patient.phone, "6421234567");
+    assert(!String(res.data.patient.phone).startsWith("+"));
+    assert(!String(res.data.patient.phone).startsWith("55"), "não pode ganhar o prefixo do Brasil");
+});
+
+Deno.test("atualizar_cadastro_paciente: telefone confirmado com '+' na frente é gravado canônico (sem '+')", async () => {
+    const mock = buildMock({ patients: [] });
+    const call = { id: "c1", name: "atualizar_cadastro_paciente", input: { full_name: "Fabricio Oliveira", phone: "+554198933579", email: "f@example.com" } };
+    const res = await executeSchedulingTool(mock as any, "tenant-1", "554198933579", "Fabricio", call as any, "yes", "en", {}, "whatsapp");
+    assertEquals(res.data.success, true);
+    assertEquals(res.data.patient.phone, "554198933579");
+});
+
 // ── ver_disponibilidade: guard orienta a gravar, nunca contradiz uma confirmação real ──
 
 Deno.test("ver_disponibilidade: e-mail ausente — a nota manda GRAVAR se já foi dito, não perguntar de novo (elimina a contradição que causava handoff)", async () => {

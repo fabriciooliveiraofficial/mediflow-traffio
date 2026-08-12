@@ -23,6 +23,7 @@ import {
     buildSlotInteractive,
     isWithinBusinessHours,
     todayInTz,
+    getRelativeDayLabel,
     AFTER_HOURS_CANCEL_MSG,
     plausiblePersonName,
     buildLocationBlock,
@@ -1307,15 +1308,34 @@ export async function buildPatientSnapshot(
 
     if (!patients?.length) return null;
 
+    const todayStr = todayInTz(timezone || undefined);
+
     const { data: appts } = await supabase
         .from("appointments")
         .select("patient_id, date, start_time, status, doctors:doctor_id(full_name), appointment_types:type_id(name)")
         .eq("tenant_id", tenantId)
         .in("patient_id", (patients as any[]).map(p => p.id))
-        .gte("date", todayInTz(timezone || undefined))
+        .gte("date", todayStr)
         .not("status", "in", '("canceled","cancelled","noshow","no_show")')
         .order("date", { ascending: true })
         .limit(8);
+
+    // Histórico recente (últimos 30 dias) — sem isto, o modelo só enxerga o
+    // futuro e trata um paciente que esteve na clínica ontem como se fosse
+    // novo (bug de produção 2026-08-12: avaliação de implante feita ontem
+    // ficava invisível, e a data era descrita como "amanhã" por falta de
+    // qualquer referência real de passado/futuro no snapshot).
+    const pastSinceStr = new Date(new Date(todayStr + "T00:00:00Z").getTime() - 30 * 24 * 60 * 60 * 1000)
+        .toISOString().split("T")[0];
+    const { data: pastAppts } = await supabase
+        .from("appointments")
+        .select("patient_id, date, start_time, status, doctors:doctor_id(full_name), appointment_types:type_id(name)")
+        .eq("tenant_id", tenantId)
+        .in("patient_id", (patients as any[]).map(p => p.id))
+        .lt("date", todayStr)
+        .gte("date", pastSinceStr)
+        .order("date", { ascending: false })
+        .limit(5);
 
     // Ficha placeholder ("Paciente WhatsApp") ou nome implausível ("minha filha")
     // NUNCA pode aparecer como se fosse o nome real do paciente — o modelo
@@ -1336,17 +1356,35 @@ export async function buildPatientSnapshot(
         lines.push(`ATENÇÃO: ${patients.length} pacientes cadastrados com este número (provável família): ${names.join(", ")}.`);
         lines.push("Se não estiver claro pelo contexto com quem você fala ou de quem é a consulta, pergunte o nome com naturalidade antes de confirmar detalhes.");
     }
+    const nameById = new Map((patients as any[]).map(p => [p.id, displayName(p.full_name) || "sem nome"]));
+    // Rótulo relativo calculado no fuso REAL do tenant (nunca deixar o modelo
+    // inferir sozinho "hoje/amanhã/ontem" — é exatamente aí que ele erra em
+    // clínicas de fuso distante do Brasil, ex.: Pacific/Auckland).
+    const relLabel = (dateStr: string): string => {
+        const rel = getRelativeDayLabel(dateStr, todayStr, "pt");
+        return rel ? ` (${rel})` : "";
+    };
+
     if (appts?.length) {
-        const nameById = new Map((patients as any[]).map(p => [p.id, displayName(p.full_name) || "sem nome"]));
         lines.push("AGENDAMENTOS ATIVOS (estado REAL do sistema agora):");
         for (const a of appts as any[]) {
             const hhmm = String(a.start_time).substring(0, 5);
             const who = patients.length > 1 ? ` [paciente: ${nameById.get(a.patient_id)}]` : "";
-            lines.push(`- ${a.date} às ${hhmm} — ${a.appointment_types?.name || "consulta"} com ${a.doctors?.full_name || "profissional"} (${a.status})${who}`);
+            lines.push(`- ${a.date}${relLabel(a.date)} às ${hhmm} — ${a.appointment_types?.name || "consulta"} com ${a.doctors?.full_name || "profissional"} (${a.status})${who}`);
         }
     } else {
         lines.push("AGENDAMENTOS ATIVOS: nenhum agendamento futuro no sistema.");
     }
+
+    if (pastAppts?.length) {
+        lines.push("HISTÓRICO RECENTE (últimos 30 dias — use para reconhecer o paciente e dar continuidade, NUNCA descreva como futuro):");
+        for (const a of pastAppts as any[]) {
+            const hhmm = String(a.start_time).substring(0, 5);
+            const who = patients.length > 1 ? ` [paciente: ${nameById.get(a.patient_id)}]` : "";
+            lines.push(`- ${a.date}${relLabel(a.date)} às ${hhmm} — ${a.appointment_types?.name || "consulta"} com ${a.doctors?.full_name || "profissional"} (${a.status})${who}`);
+        }
+    }
+
     return lines.join("\n");
 }
 

@@ -16,7 +16,6 @@
  */
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import type { LlmTool, LlmToolCall } from "./llmProvider.ts";
-import { normalizePhoneNumber } from "./phoneNormalizer.ts";
 import type { OutboxDispatcher } from "./outboxDispatcher.ts";
 import { getOrCreateChannelIdentity, linkChannelIdentityToPatient } from "./identityResolution.ts";
 
@@ -54,7 +53,16 @@ export function formatSlotTimeForPatient(time: string, timeFormat: TenantTimeFor
     return `${hFormatted}:${mStr} ${suffix}`;
 }
 
-function getRelativeDayLabel(dateStr: string, todayStr: string, language: ConversationLanguage): string | null {
+/**
+ * Rótulo relativo determinístico (hoje/amanhã/ontem/dia da semana/"há N dias"),
+ * calculado contra `todayStr` (já resolvido no fuso real do tenant via
+ * todayInTz/getTenantClock — nunca o relógio do servidor). Existe para que o
+ * modelo NUNCA precise inferir sozinho se uma data é passada ou futura — em
+ * clínicas de fuso muito diferente do Brasil (ex.: Pacific/Auckland, UTC+12/13),
+ * essa inferência "no olho" é onde a IA mais erra (bug de produção 2026-08-12:
+ * agendamento de ontem descrito como "amanhã").
+ */
+export function getRelativeDayLabel(dateStr: string, todayStr: string, language: ConversationLanguage): string | null {
     if (!dateStr || !todayStr) return null;
     const d = new Date(dateStr + "T00:00:00Z");
     const t = new Date(todayStr + "T00:00:00Z");
@@ -72,6 +80,11 @@ function getRelativeDayLabel(dateStr: string, todayStr: string, language: Conver
         if (language === "es") return "mañana";
         return "amanhã";
     }
+    if (diffDays === -1) {
+        if (language === "en") return "yesterday";
+        if (language === "es") return "ayer";
+        return "ontem";
+    }
     if (diffDays >= 2 && diffDays <= 6) {
         const dayIndex = d.getUTCDay();
         const daysOfWeek: Record<ConversationLanguage, string[]> = {
@@ -80,6 +93,12 @@ function getRelativeDayLabel(dateStr: string, todayStr: string, language: Conver
             es: ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"],
         };
         return daysOfWeek[language]?.[dayIndex] || null;
+    }
+    if (diffDays <= -2) {
+        const n = Math.abs(diffDays);
+        if (language === "en") return `${n} days ago`;
+        if (language === "es") return `hace ${n} días`;
+        return `há ${n} dias`;
     }
     return null;
 }
@@ -859,8 +878,20 @@ export async function executeSchedulingTool(
 
             const updateData: Record<string, any> = { full_name: fullName };
             if (input.phone?.trim()) {
-                const norm = normalizePhoneNumber(input.phone.trim());
-                if (norm?.e164) updateData.phone = norm.e164;
+                // Bug de produção (2026-08-12): normalizePhoneNumber() aqui usava o
+                // default de país fixo em "55" (Brasil) — para um paciente de
+                // qualquer outro país que digitasse o telefone sem "+" na frente
+                // (o formato que o WhatsApp já entrega em todo o resto do sistema),
+                // o número era silenciosamente adulterado como se fosse brasileiro
+                // (ex.: NZ "6421234567" virava "+556421234567"). Além disso, o "+"
+                // que essa função sempre devolve sobrescrevia o telefone canônico
+                // (sem "+") que resolvePatientIdentity acabava de gravar segundos
+                // antes, escondendo o histórico do paciente na próxima conversa.
+                // canonicalizePhone não adivinha país — só mantém os dígitos como
+                // vieram — e é a mesma função já usada na criação do cadastro e na
+                // busca por telefone (phoneLookupCandidates).
+                const canonical = canonicalizePhone(input.phone.trim());
+                if (canonical) updateData.phone = canonical;
             }
             if (input.email?.trim()) updateData.email = input.email.trim();
             if (input.birth_date?.trim()) updateData.birth_date = input.birth_date.trim();

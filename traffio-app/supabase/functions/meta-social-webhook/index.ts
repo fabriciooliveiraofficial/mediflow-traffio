@@ -20,6 +20,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { upsertChannelPreference } from "../_shared/upsertChannelPreference.ts";
 import { getMetaVerifyToken } from "../_shared/masterConfig.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { resolveInboundMedia } from "../_shared/inboundMediaDownloader.ts";
 
 console.log("meta-social-webhook v1 — Instagram DM + Facebook Messenger — Initialized");
 
@@ -275,12 +276,23 @@ async function processMessagingEvent(
     // evitando os 30s de latência do process-inbox cron.
     if (existingSession.omnichannel_status === "human_active") {
       console.log(`[meta-social-webhook] ${channel} | ${senderId} | human_active — logging directly to conversation`);
+
+      // Baixa e re-hospeda o anexo da Meta (mesma lógica do whatsapp-bot/
+      // process-inbox) — este arquivo já processa cada entrada de forma
+      // síncrona antes de responder 200 à Meta, então um await direto aqui é
+      // consistente com o resto do handler, sem precisar de background task.
+      const resolvedMedia = mediaUrl
+        ? await resolveInboundMedia(supabase, { id: tenantId }, { mediaUrl, messageType }, messageId, { channel })
+        : null;
+
       await supabase.from("conversation_messages").insert({
         session_id:          existingSession.id,
         role:                "user",
         content:             text,
         message_type:        messageType,
-        media_url:           mediaUrl,
+        media_url:           resolvedMedia?.mediaUrl ?? mediaUrl,
+        mime_type:           resolvedMedia?.mimeType,
+        file_size:           resolvedMedia?.fileSize,
         caption:             caption,
         whatsapp_message_id: messageId,
       });
@@ -314,6 +326,7 @@ async function processMessagingEvent(
     message_type: messageType,
     media_url:    mediaUrl,
     caption:      caption,
+    channel:      channel,
     status:       "pending",
     received_at:  new Date(validTimestamp).toISOString(),
   });

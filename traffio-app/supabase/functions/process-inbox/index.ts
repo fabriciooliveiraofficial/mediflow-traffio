@@ -23,10 +23,12 @@ import { TenantResolver } from "../_shared/tenantResolver.ts";
 import { SessionManager, isHardHandoffSession, isAutonomousAgentTurn } from "../_shared/sessionManager.ts";
 import { OutboxDispatcher } from "../_shared/outboxDispatcher.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { runCopilot, runAutonomousAgent, wrapUntrustedContent } from "../_shared/copilot.ts";
+import { runCopilot, runAutonomousAgent, wrapUntrustedContent, sendWithFallback, normalizeConversationLanguage, type ConversationLanguage } from "../_shared/copilot.ts";
 import { tryStructuredFlow } from "../_shared/structuredFlow.ts";
 import { logAgentTurnEvent } from "../_shared/observabilityLayer.ts";
 import { runWithConcurrencyLimit } from "../_shared/concurrencyPool.ts";
+import { resolveInboundMedia } from "../_shared/inboundMediaDownloader.ts";
+import { transcribeAudio } from "../_shared/audioTranscriber.ts";
 
 // How long to wait after the last message before processing (ms).
 // Gives the patient time to finish typing multiple messages.
@@ -58,6 +60,23 @@ const WORKER_CONCURRENCY = Number(Deno.env.get("INBOX_WORKER_CONCURRENCY")) || 5
 // precisa ser alto o bastante para não estrangular um tenant sozinho.
 // Ajustável sem novo deploy via Supabase Secret INBOX_PER_TENANT_CAP.
 const PER_TENANT_CAP = Number(Deno.env.get("INBOX_PER_TENANT_CAP")) || 50;
+
+// Camada 3 (reconhecimento automático de mídia) — mensagem fixa, zero LLM, zero
+// risco de alucinação: só avisa que a mídia chegou, nunca tenta interpretar o
+// conteúdo. Mesmo padrão de Record<ConversationLanguage, ...> já usado em
+// structuredFlow.ts para outras confirmações determinísticas.
+const MEDIA_ACK_LABEL: Record<string, Record<ConversationLanguage, string>> = {
+  image:    { pt: "sua foto",         en: "your photo",        es: "tu foto" },
+  audio:    { pt: "seu áudio",        en: "your audio message", es: "tu audio" },
+  video:    { pt: "seu vídeo",        en: "your video",        es: "tu video" },
+  document: { pt: "seu arquivo",      en: "your file",         es: "tu archivo" },
+  sticker:  { pt: "seu sticker",      en: "your sticker",      es: "tu sticker" },
+};
+const MEDIA_ACK_TEMPLATE: Record<ConversationLanguage, (label: string) => string> = {
+  pt: (label) => `Recebemos ${label}! 😊 Nossa equipe vai revisar e te responder em breve.`,
+  en: (label) => `We received ${label}! 😊 Our team will take a look and get back to you shortly.`,
+  es: (label) => `¡Recibimos ${label}! 😊 Nuestro equipo lo revisará y te responderá en breve.`,
+};
 
 console.log("process-inbox v1 — Debounce + Fusion Worker — Initialized");
 
@@ -291,11 +310,20 @@ async function processConversationTurn(
          };
          const mediaMatch = msg.content?.trim().match(/^\[(áudio|audio|imagem|image|vídeo|video|documento|document|sticker|figurinha)\]$/i);
          const detectedType = mediaMatch ? typeMap[mediaMatch[1].toLowerCase()] : (msg.message_type || 'text');
- 
+
+         // Baixa e re-hospeda a mídia (URL da Z-API expira; da Cloud API nem é
+         // URL — é um id opaco). Nunca lança: em falha, cai para o valor cru
+         // (msg.media_url), exatamente o comportamento de antes desta mudança.
+         const resolvedMedia = msg.media_url
+           ? await resolveInboundMedia(supabase, tenantRow, { mediaUrl: msg.media_url, messageType: detectedType }, msg.message_id || msg.id, { channel: session.channel })
+           : null;
+
          await sessionManager.logMessage(session.id, 'user', msg.caption || msg.content || `[${detectedType}]`, {
            whatsapp_message_id: msg.message_id,
            message_type: detectedType,
-           media_url: msg.media_url,
+           media_url: resolvedMedia?.mediaUrl ?? msg.media_url,
+           mime_type: resolvedMedia?.mimeType,
+           file_size: resolvedMedia?.fileSize,
            caption: msg.caption
          });
        }
@@ -326,60 +354,113 @@ async function processConversationTurn(
        }
 
      } else {
+       // --- 4c. Transcrição de áudio — deixa a IA responder ao que o
+       // paciente falou em vez de cair direto em reconhecimento automático +
+       // fila humana (Erro 3, 2026-08-13). Roda ANTES da fusão de conteúdo:
+       // uma transcrição bem-sucedida com confiança suficiente promove a
+       // mensagem pro fluxo normal (hasTypedText abaixo); qualquer falha ou
+       // baixa confiança deixa a mensagem intacta — ela segue o caminho de
+       // hoje, sem nenhuma mudança (isMediaOnly + Camada 3 + fila humana).
+       // Nunca mistura os dois: transcribeAudio/resolveInboundMedia nunca
+       // lançam, então esse loop nunca derruba o turno.
+       for (const msg of messages) {
+         if (String(msg.message_type || "").toLowerCase() !== "audio" || !msg.media_url) continue;
+         const resolvedAudio = await resolveInboundMedia(supabase, tenantRow, { mediaUrl: msg.media_url, messageType: "audio" }, msg.message_id || msg.id, { channel: session.channel });
+         if (!resolvedAudio) continue;
+         msg.media_url = resolvedAudio.mediaUrl;
+         msg.mime_type = resolvedAudio.mimeType;
+         msg.file_size = resolvedAudio.fileSize;
+         msg._mediaResolved = true;
+         const transcript = await transcribeAudio(supabase, resolvedAudio.mediaUrl, `${msg.message_id || msg.id}.ogg`);
+         if (transcript?.text) {
+           console.log(`[process-inbox] [${phone}] Áudio transcrito: "${transcript.text.substring(0, 80)}"`);
+           msg.content = transcript.text;
+           msg._transcribed = true;
+         }
+       }
+
        // --- 5. Context Fusion: merge multiple messages into one coherent user turn ---
        const fusedContent = messages.map((m: any) => {
+         if (m._transcribed) return m.content; // fala real do paciente, verificada — não é "conteúdo de mídia não confiável"
          const type = String(m.message_type || "text").toLowerCase();
          const content = m.caption || m.content || `[${type}]`;
          return type === "text" ? content : wrapUntrustedContent(content, type);
        }).join("\n");
- 
+
        console.log(`[process-inbox] [${phone}] Fused ${messages.length} msg(s): "${fusedContent.substring(0, 80)}"`);
        lastMessageSnippet = fusedContent;
- 
+
        // --- 5b. Media/voice guard — categorizar e salvar mídia para visibilidade humana ---
        // Z-API e Cloud API entregam mídia com content vazio ou markers tipo [áudio].
        // Categorizamos para que o atendente veja no chat, mesmo que o bot não processe.
-       const mediaMatch = messages.length === 1
-         ? messages[0]?.content?.trim().match(/^\[(áudio|audio|imagem|image|vídeo|video|documento|document|sticker|figurinha)\]$/i)
-         : null;
-       const hasTypedText = messages.some((m: any) => String(m.message_type || "text").toLowerCase() === "text" && !!m.content?.trim() && !/^\[(áudio|audio|imagem|image|vídeo|video|documento|document|sticker|figurinha)\]$/i.test(m.content.trim()));
+       const hasTypedText = messages.some((m: any) => {
+         if (m._transcribed) return true;
+         return String(m.message_type || "text").toLowerCase() === "text" && !!m.content?.trim() && !/^\[(áudio|audio|imagem|image|vídeo|video|documento|document|sticker|figurinha)\]$/i.test(m.content.trim());
+       });
        const isMediaOnly = !hasTypedText;
- 
+
        if (isMediaOnly) {
          const typeMap: Record<string, string> = {
            audio: 'audio', áudio: 'audio', image: 'image', imagem: 'image',
            video: 'video', vídeo: 'video', document: 'document', documento: 'document',
            sticker: 'sticker', figurinha: 'sticker'
          };
-         const detectedType = mediaMatch
-           ? typeMap[mediaMatch[1].toLowerCase()]
-           : String(messages[0]?.message_type || 'text').toLowerCase();
- 
-         console.log(`[process-inbox] [${phone}] Media detected (${detectedType}) — saving for human visibility`);
-         
-         // Buscar URL de mídia do message_inbox (se disponível)
-         const { data: rawMsg } = await supabase
-           .from('message_inbox')
-           .select('media_url, caption')
-           .in('id', messageIds)
-           .not('media_url', 'is', null)
-           .limit(1)
-           .maybeSingle();
- 
-         const incomingWaId = messages[0]?.message_id;
- 
-         await sessionManager.logMessage(session.id, 'user', rawMsg?.caption || fusedContent || `[${detectedType}]`, {
-           whatsapp_message_id: incomingWaId,
-           message_type: detectedType,
-           media_url: rawMsg?.media_url,
-           caption: rawMsg?.caption
-         });
- 
-         // Trigger handoff para que o humano assuma o atendimento de mídia
+         const mediaPlaceholderRe = /^\[(áudio|audio|imagem|image|vídeo|video|documento|document|sticker|figurinha)\]$/i;
+
+         console.log(`[process-inbox] [${phone}] Media-only turn: ${messages.length} item(s) — resolvendo cada um individualmente`);
+
+         // Registra CADA mensagem do lote — um lote pode conter mais de uma
+         // mídia (ex.: áudio + foto mandados em sequência e fundidos pelo
+         // debounce). Antes desta correção, o código buscava só UMA linha de
+         // message_inbox (sem ordenação, .limit(1)) para o lote inteiro —
+         // quando chegavam 2 mídias juntas, uma era descartada e a outra podia
+         // ser salva com o tipo/identidade errados (bug de produção 2026-08-12:
+         // um áudio+foto virou uma única mensagem "audio" com o arquivo da foto
+         // dentro). Mesma lógica por mensagem do ramo hard-handoff acima.
+         let firstDetectedType: string | null = null;
+         for (const msg of messages) {
+           const mediaMatch = msg.content?.trim().match(mediaPlaceholderRe);
+           const detectedType = mediaMatch
+             ? typeMap[mediaMatch[1].toLowerCase()]
+             : String(msg.message_type || 'text').toLowerCase();
+           if (!firstDetectedType) firstDetectedType = detectedType;
+
+           // Áudio que passou pelo pré-processamento de transcrição (acima)
+           // já está resolvido — evita baixar/subir o mesmo arquivo de novo.
+           const resolvedMedia = msg._mediaResolved
+             ? { mediaUrl: msg.media_url, mimeType: msg.mime_type, fileSize: msg.file_size }
+             : msg.media_url
+             ? await resolveInboundMedia(supabase, tenantRow, { mediaUrl: msg.media_url, messageType: detectedType }, msg.message_id || msg.id, { channel: session.channel })
+             : null;
+
+           await sessionManager.logMessage(session.id, 'user', msg.caption || msg.content || `[${detectedType}]`, {
+             whatsapp_message_id: msg.message_id,
+             message_type: detectedType,
+             media_url: resolvedMedia?.mediaUrl ?? msg.media_url,
+             mime_type: resolvedMedia?.mimeType,
+             file_size: resolvedMedia?.fileSize,
+             caption: msg.caption
+           });
+         }
+
+         // Trigger handoff + reconhecimento automático — uma vez só pro lote
+         // inteiro (não por mensagem), e só na PRIMEIRA vez que a
+         // sessão entra na fila (a condição abaixo garante isso: uma vez queued/
+         // human_active, turnos seguintes com mais mídia não re-disparam nada).
+         // Mensagem fixa (zero LLM, zero risco de alucinação) — só avisa que a
+         // mídia chegou, nunca tenta interpretar o conteúdo. Funciona nos 4
+         // canais porque sendWithFallback/OutboxDispatcher já sabem entregar por
+         // canal a partir de session.channel.
          if (session.omnichannel_status !== 'human_active' && session.omnichannel_status !== 'queued') {
            await sessionManager.triggerHumanHandoff(session.id, undefined, { reason: "media", kind: "soft" });
+
+           const ackLang = normalizeConversationLanguage(session.context?.language);
+           const ackLabel = (MEDIA_ACK_LABEL[firstDetectedType ?? 'document'] ?? MEDIA_ACK_LABEL.document)[ackLang];
+           const dispatcher = new OutboxDispatcher(supabase);
+           await sendWithFallback(dispatcher, tenantRow, tenantId, phone, MEDIA_ACK_TEMPLATE[ackLang](ackLabel), undefined, session.channel)
+             .catch((e: any) => console.warn(`[process-inbox] [${phone}] reconhecimento de mídia falhou (non-fatal): ${e?.message}`));
          }
- 
+
          await markMessages(supabase, messageIds, 'done');
          return;
        }

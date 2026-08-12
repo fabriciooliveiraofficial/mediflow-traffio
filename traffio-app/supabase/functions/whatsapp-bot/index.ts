@@ -22,6 +22,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { runCopilot } from "../_shared/copilot.ts";
 import { extractZapiContent, extractCloudApiContent } from "../_shared/inboundParser.ts";
 import { compensateIdempotencyMarker } from "../_shared/webhookIdempotency.ts";
+import { resolveInboundMedia } from "../_shared/inboundMediaDownloader.ts";
 
 console.log("whatsapp-bot v6 — Inbox Pattern + Dual Provider — Initialized");
 
@@ -138,7 +139,7 @@ async function handleZapi(supabase: any, body: any): Promise<Response> {
   if (session?.omnichannel_status === "human_active") {
     console.log(`[whatsapp-bot] Z-API: [${phone}] human_active — logging directly to conversation`);
     // Inserir direto em conversation_messages para que o atendente humano veja em tempo real
-    await supabase.from("conversation_messages").insert({
+    const { data: insertedMsg } = await supabase.from("conversation_messages").insert({
       session_id:          session.id,
       role:                "user",
       content:             content,
@@ -146,7 +147,22 @@ async function handleZapi(supabase: any, body: any): Promise<Response> {
       media_url:           mediaUrl,
       caption:             caption,
       whatsapp_message_id: messageId,
-    });
+    }).select("id").single();
+
+    // Mídia nunca atrasa o webhook (meta é <100ms, ver cabeçalho do arquivo) —
+    // resolve a URL estável em segundo plano e atualiza a linha já inserida.
+    if (mediaUrl && insertedMsg?.id) {
+      runInBackground(
+        resolveInboundMedia(supabase, tenant, { mediaUrl, messageType }, messageId)
+          .then((resolved: any) => {
+            if (!resolved) return;
+            return supabase.from("conversation_messages")
+              .update({ media_url: resolved.mediaUrl, mime_type: resolved.mimeType, file_size: resolved.fileSize })
+              .eq("id", insertedMsg.id);
+          })
+          .catch((e: any) => console.warn(`[whatsapp-bot] Z-API: media resolve background falhou: ${e?.message}`)),
+      );
+    }
     // Atualizar rolling memory
     const recentMessages = await getRecentMessages(supabase, session.id);
     recentMessages.push({ role: "user", content, timestamp: new Date().toISOString() });
@@ -266,7 +282,7 @@ async function handleCloudApi(supabase: any, body: any): Promise<Response> {
 
     if (session?.omnichannel_status === "human_active") {
       console.log(`[whatsapp-bot] Cloud API: [${phone}] human_active — logging directly`);
-      await supabase.from("conversation_messages").insert({
+      const { data: insertedMsg } = await supabase.from("conversation_messages").insert({
         session_id:          session.id,
         role:                "user",
         content:             content,
@@ -274,7 +290,23 @@ async function handleCloudApi(supabase: any, body: any): Promise<Response> {
         media_url:           mediaUrl,
         caption:             caption,
         whatsapp_message_id: msgId,
-      });
+      }).select("id").single();
+
+      // Mídia nunca atrasa o webhook — resolve em segundo plano (ver mesmo
+      // padrão em handleZapi). Aqui mediaUrl é na verdade o id opaco da Meta;
+      // resolveInboundMedia sabe resolvê-lo em duas etapas via Graph API.
+      if (mediaUrl && insertedMsg?.id) {
+        runInBackground(
+          resolveInboundMedia(supabase, tenant, { mediaUrl, messageType }, msgId)
+            .then((resolved: any) => {
+              if (!resolved) return;
+              return supabase.from("conversation_messages")
+                .update({ media_url: resolved.mediaUrl, mime_type: resolved.mimeType, file_size: resolved.fileSize })
+                .eq("id", insertedMsg.id);
+            })
+            .catch((e: any) => console.warn(`[whatsapp-bot] Cloud API: media resolve background falhou: ${e?.message}`)),
+        );
+      }
       const recentMessages = await getRecentMessages(supabase, session.id);
       recentMessages.push({ role: "user", content, timestamp: new Date().toISOString() });
       const trimmed = recentMessages.length > 20 ? recentMessages.slice(-20) : recentMessages;

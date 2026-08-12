@@ -72,7 +72,11 @@ export const ReceptionDashboard = () => {
     const handleStatusChange = async (id: string, newStatus: string) => {
         const updates: any = { status: newStatus };
         if (newStatus === 'checkin_done') updates.checkin_at = new Date().toISOString();
-        await supabase.from('appointments').update(updates).eq('id', id);
+        const { error } = await supabase.from('appointments').update(updates).eq('id', id);
+        if (error) {
+            showToast('error', t('receptionDashboard.toasts.statusUpdateError'));
+            console.error('[ReceptionDashboard] handleStatusChange failed:', error);
+        }
         fetchAppointments();
     };
 
