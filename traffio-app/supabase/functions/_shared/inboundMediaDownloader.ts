@@ -62,6 +62,18 @@ export function extensionFor(mimeType: string | null | undefined, messageType: s
   return FALLBACK_EXTENSION_BY_TYPE[messageType] ?? "bin";
 }
 
+/**
+ * Fase 2 (Arquivos, 2026-08-13) — Instagram/Messenger nunca expõem nome de
+ * arquivo no payload de anexo da Meta (só `attachment.payload.url`), e não
+ * há como pedir isso à API. Quando `file_name` chega null do canal, sintetiza
+ * um nome legível a partir do mime_type JÁ RESOLVIDO pelo download real (não
+ * do webhook) — pelo menos tira o atendente humano do rótulo genérico
+ * "Documento" sempre igual, mesmo sem o nome original do arquivo.
+ */
+export function synthesizeFileName(mimeType: string | null | undefined, messageType: string): string {
+  return `arquivo.${extensionFor(mimeType, messageType)}`;
+}
+
 async function fetchWithTimeout(url: string, init: RequestInit = {}): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), DOWNLOAD_TIMEOUT_MS);

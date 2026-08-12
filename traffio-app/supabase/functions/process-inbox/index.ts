@@ -27,7 +27,7 @@ import { runCopilot, runAutonomousAgent, wrapUntrustedContent, sendWithFallback,
 import { tryStructuredFlow } from "../_shared/structuredFlow.ts";
 import { logAgentTurnEvent } from "../_shared/observabilityLayer.ts";
 import { runWithConcurrencyLimit } from "../_shared/concurrencyPool.ts";
-import { resolveInboundMedia, pickPrimaryMedia, buildHumanCaption } from "../_shared/inboundMediaDownloader.ts";
+import { resolveInboundMedia, pickPrimaryMedia, buildHumanCaption, synthesizeFileName } from "../_shared/inboundMediaDownloader.ts";
 import { transcribeAudio } from "../_shared/audioTranscriber.ts";
 import { classifyImage, pickVisionEligibleImage } from "../_shared/imageClassifier.ts";
 import { classifyDocument, pickEligibleDocument, MAX_DOC_BYTES_FOR_AI } from "../_shared/documentClassifier.ts";
@@ -386,6 +386,15 @@ async function processConversationTurn(
            msg.mime_type = resolved.mimeType;
            msg.file_size = resolved.fileSize;
            msg._mediaResolved = true;
+         }
+
+         // Fase 2 (Arquivos, 2026-08-13) — Instagram/Messenger nunca mandam
+         // nome de arquivo (a Meta não expõe isso no payload de anexo); sem
+         // isto, o atendente humano sempre veria "Documento" genérico nesses
+         // 2 canais, ao contrário de WhatsApp/Live Chat (que já capturam o
+         // nome real). Só sintetiza quando o canal realmente não deu nome.
+         if (msgType === "document" && !msg.file_name) {
+           msg.file_name = synthesizeFileName(msg.mime_type, msgType);
          }
 
          if (msgType === "audio") {

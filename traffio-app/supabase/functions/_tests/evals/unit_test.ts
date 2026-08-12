@@ -1650,7 +1650,7 @@ Deno.test("isTurnLanguageConfident: idioma já persistido de turno anterior = co
 });
 
 // ── Download de mídia recebida (fundação p/ imagem/áudio/documento) ────────
-import { extensionFor, resolveInboundMedia, pickPrimaryMedia, buildHumanCaption } from "../../_shared/inboundMediaDownloader.ts";
+import { extensionFor, resolveInboundMedia, pickPrimaryMedia, buildHumanCaption, synthesizeFileName } from "../../_shared/inboundMediaDownloader.ts";
 
 function fakeSupabase(opts: { uploadError?: any } = {}) {
     const uploaded: { path: string; bytes: any; options: any }[] = [];
@@ -1678,6 +1678,18 @@ Deno.test("extensionFor: mapeia mime conhecido, cai para default por message_typ
     assertEquals(extensionFor(null, "audio"), "ogg");
     assertEquals(extensionFor("application/x-nonsense", "video"), "mp4");
     assertEquals(extensionFor(null, "unknown-type"), "bin");
+});
+
+// ── synthesizeFileName (Fase 2, 2026-08-13) — Instagram/Messenger nunca
+// mandam nome de arquivo; sem isto o atendente sempre veria "Documento"
+// genérico nesses 2 canais, ao contrário de WhatsApp/Live Chat. ───────────
+Deno.test("synthesizeFileName: sintetiza a partir do mime_type real resolvido", () => {
+    assertEquals(synthesizeFileName("application/pdf", "document"), "arquivo.pdf");
+    assertEquals(synthesizeFileName("application/vnd.openxmlformats-officedocument.wordprocessingml.document", "document"), "arquivo.docx");
+});
+
+Deno.test("synthesizeFileName: sem mime_type nenhum, cai no fallback por message_type ('document' -> pdf)", () => {
+    assertEquals(synthesizeFileName(null, "document"), "arquivo.pdf");
 });
 
 Deno.test("resolveInboundMedia: sem mediaUrl retorna null sem chamar download", async () => {
