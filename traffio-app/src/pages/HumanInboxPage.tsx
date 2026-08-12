@@ -2502,13 +2502,13 @@ export function HumanInboxPage() {
     return () => { supabase.removeChannel(ch) }
   }, [tenantId, loadSessions, userId])
 
-  // ── Polling fallback (Reduced frequency for safety) ──
+  // ── Polling fallback (Optimized frequency to preserve DB resources) ──
   useEffect(() => {
     if (!tenantId) return
     const interval = setInterval(async () => {
       // Use silent load to avoid flickering
       await loadSessions(tenantId || undefined, userId || undefined, true)
-    }, 15000) // 15s is enough as a fallback
+    }, 60000) // 60s fallback (Realtime handles instant updates)
     return () => clearInterval(interval)
   }, [tenantId, loadSessions, userId])
 
@@ -2634,7 +2634,7 @@ export function HumanInboxPage() {
     return () => { supabase.removeChannel(ch) }
   }, [selected?.id])
 
-  // ── Polling fallback: fetch new messages every 5s ──
+  // ── Polling fallback: fetch new messages every 60s (safety net) ──
   useEffect(() => {
     if (!selected) return
     const interval = setInterval(async () => {
