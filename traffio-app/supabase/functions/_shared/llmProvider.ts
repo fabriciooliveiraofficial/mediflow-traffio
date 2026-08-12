@@ -185,29 +185,42 @@ export function applyCacheToTools<T extends object>(tools: readonly T[]): T[] {
 // virava "handoff em massa" em vez de "espera curta e recupera".
 const RETRY_BASE_MS = 1000;
 const RETRY_MAX_MS = 30_000;
+// Piso de espera entre tentativas. Bug de produção (2026-08-12): a Anthropic
+// responde 529 (overloaded) COM o header `retry-after: 0`; o código honrava
+// esse 0 ao pé da letra e disparava as 4 tentativas praticamente coladas
+// ("retry 1/4 em 0ms" ... "retry 4/4 em 0ms"), martelando um servidor já
+// sobrecarregado e desistindo em ~12s. Sem espera real, o retry não é retry.
+// Um piso também protege do "full jitter" sortear um valor quase nulo.
+const RETRY_MIN_MS = 750;
 
 /**
- * Delay do próximo retry em 429/5xx. Honra `retry-after` do servidor quando
- * presente (limitado a RETRY_MAX_MS — um servidor pedindo minutos de espera
- * não deve travar o turno inteiro). Sem header, usa "full jitter" (AWS):
- * uniforme entre 0 e min(RETRY_MAX_MS, RETRY_BASE_MS * 2^attempt) — espalha
- * os retries no tempo em vez de todos os workers baterem de novo no mesmo
+ * Delay do próximo retry em 429/5xx. Honra `retry-after` do servidor apenas
+ * quando ele pede uma espera REAL (> 0), limitado a RETRY_MAX_MS — um servidor
+ * pedindo minutos não deve travar o turno inteiro, e um pedindo zero não deve
+ * anular o backoff. Caso contrário usa "full jitter" (AWS): uniforme entre
+ * RETRY_MIN_MS e min(RETRY_MAX_MS, RETRY_BASE_MS * 2^attempt) — espalha os
+ * retries no tempo em vez de todos os workers baterem de novo no mesmo
  * instante (relevante com concorrência: várias conversas podem levar 429 ao
  * mesmo tempo). Pura e exportada para ser testável sem rede/timers reais.
  */
 export function computeRetryDelayMs(
     attempt: number,
-    opts: { retryAfterHeader?: string | null; baseMs?: number; maxMs?: number; random?: () => number } = {},
+    opts: { retryAfterHeader?: string | null; baseMs?: number; maxMs?: number; minMs?: number; random?: () => number } = {},
 ): number {
     const maxMs = opts.maxMs ?? RETRY_MAX_MS;
+    const minMs = Math.min(opts.minMs ?? RETRY_MIN_MS, maxMs);
     if (opts.retryAfterHeader) {
         const seconds = Number(opts.retryAfterHeader);
-        if (Number.isFinite(seconds) && seconds >= 0) return Math.min(seconds * 1000, maxMs);
+        // `>= 0` virava 0ms com `retry-after: 0`. Só um pedido de espera real
+        // (> 0) substitui o backoff exponencial; 0/negativo/inválido cai nele.
+        if (Number.isFinite(seconds) && seconds > 0) {
+            return Math.min(Math.max(seconds * 1000, minMs), maxMs);
+        }
     }
     const baseMs = opts.baseMs ?? RETRY_BASE_MS;
     const random = opts.random ?? Math.random;
     const cap = Math.min(maxMs, baseMs * Math.pow(2, attempt));
-    return Math.round(random() * cap);
+    return Math.round(Math.max(random() * cap, minMs));
 }
 
 export async function claudeChat(supabase: SupabaseClient, req: LlmRequest): Promise<LlmResult> {
