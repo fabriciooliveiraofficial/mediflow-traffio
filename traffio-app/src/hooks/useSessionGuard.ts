@@ -31,6 +31,7 @@ export function useSessionGuard() {
     const [kicked, setKicked] = useState(false);
     const registrationAttempted = useRef(false);
     const heartbeatTimer = useRef<NodeJS.Timeout | null>(null);
+    const isLoggingOutRef = useRef(false);
 
     // Obter ou criar token de sessão único para este perfil do navegador
     const getSessionToken = useCallback((): string => {
@@ -44,6 +45,8 @@ export function useSessionGuard() {
 
     // Desativa a sessão atual (ex: no logout manual)
     const deactivateCurrentSession = useCallback(async () => {
+        isLoggingOutRef.current = true;
+        setKicked(false);
         const token = localStorage.getItem(SESSION_TOKEN_KEY);
         if (token && user) {
             try {
@@ -62,6 +65,7 @@ export function useSessionGuard() {
 
     // Função para verificar se a sessão continua ativa
     const checkValidity = useCallback(async () => {
+        if (isLoggingOutRef.current) return;
         const token = localStorage.getItem(SESSION_TOKEN_KEY);
         if (!token || !user) return;
 
@@ -70,7 +74,7 @@ export function useSessionGuard() {
                 p_session_id: token
             });
 
-            if (!error && isValid === false) {
+            if (!error && isValid === false && !isLoggingOutRef.current) {
                 console.warn('[SessionGuard] Sessão invalidada (verificação de validade).');
                 setKicked(true);
                 if (heartbeatTimer.current) {
@@ -86,6 +90,7 @@ export function useSessionGuard() {
     useEffect(() => {
         // Se não houver usuário logado ou tenant, não inicia segurança de sessão
         if (!user || !tenant?.id) {
+            isLoggingOutRef.current = false;
             if (heartbeatTimer.current) {
                 clearInterval(heartbeatTimer.current);
                 heartbeatTimer.current = null;
@@ -129,8 +134,9 @@ export function useSessionGuard() {
                         table: 'active_sessions',
                         filter: `session_id=eq.${token}`
                     }, (payload: any) => {
+                        if (isLoggingOutRef.current) return;
                         console.log('[SessionGuard] Realtime payload:', payload);
-                        if (payload.new && payload.new.is_current === false) {
+                        if (payload.new && payload.new.is_current === false && !isLoggingOutRef.current) {
                             console.warn('[SessionGuard] Sessão invalidada em tempo real por outro dispositivo.');
                             setKicked(true);
                             if (heartbeatTimer.current) {
@@ -147,6 +153,7 @@ export function useSessionGuard() {
                 }
 
                 heartbeatTimer.current = setInterval(async () => {
+                    if (isLoggingOutRef.current) return;
                     try {
                         const { data: isValid, error: hbError } = await supabase.rpc('session_heartbeat', {
                             p_session_id: token
@@ -157,7 +164,7 @@ export function useSessionGuard() {
                             return;
                         }
 
-                        if (isValid === false) {
+                        if (isValid === false && !isLoggingOutRef.current) {
                             console.warn('[SessionGuard] Sessão invalidada por outro login (heartbeat).');
                             setKicked(true);
                             if (heartbeatTimer.current) {
@@ -180,17 +187,17 @@ export function useSessionGuard() {
 
         // 4. Ouvinte de visibilidade da página para checagem imediata quando o usuário clica de volta na aba
         const handleVisibilityChange = () => {
-            if (document.visibilityState === 'visible') {
+            if (document.visibilityState === 'visible' && !isLoggingOutRef.current) {
                 checkValidity();
             }
         };
 
         document.addEventListener('visibilitychange', handleVisibilityChange);
-        window.addEventListener('focus', checkValidity);
+        window.addEventListener('focus', handleVisibilityChange);
 
         return () => {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
-            window.removeEventListener('focus', checkValidity);
+            window.removeEventListener('focus', handleVisibilityChange);
             if (channel) {
                 supabase.removeChannel(channel);
             }

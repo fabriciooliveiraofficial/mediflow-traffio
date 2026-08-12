@@ -38,6 +38,7 @@ import { useTranslation } from 'react-i18next'
 import { useTenant } from '../contexts/TenantContext'
 import { useAuth } from '../contexts/AuthContext'
 import { usePermissions, PERMISSION_MAP } from '../hooks/usePermissions'
+import { useSessionGuard } from '../hooks/useSessionGuard'
 import { Activity } from 'lucide-react'
 import { TenantClock } from '../components/ui/TenantClock'
 
@@ -119,6 +120,7 @@ export const DashboardLayout = ({ children }: {
     const { tenant, loading: isTenantLoading, userRole } = useTenant()
     const { user: authUser } = useAuth()
     const { can } = usePermissions()
+    const { deactivateCurrentSession } = useSessionGuard()
     const location = useLocation()
     const activeScreen = location.pathname.split('/')[2] || 'today'
     const [isSidebarOpen, setIsSidebarOpen] = useState(true)
@@ -305,15 +307,7 @@ export const DashboardLayout = ({ children }: {
     };
 
     const handleSignOut = async () => {
-        const token = localStorage.getItem('traffio_session_token')
-        if (token) {
-            try {
-                await supabase.rpc('deactivate_session', { p_session_id: token })
-            } catch (err) {
-                console.error('[DashboardLayout] Erro ao desativar sessão no logout:', err)
-            }
-            localStorage.removeItem('traffio_session_token')
-        }
+        await deactivateCurrentSession()
         await supabase.auth.signOut()
         navigate('/login', { replace: true })
     }
