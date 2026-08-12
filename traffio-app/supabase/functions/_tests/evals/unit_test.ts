@@ -1968,3 +1968,351 @@ Deno.test("validateAgentReply: leitura administrativa de imagem (sem termo clín
     });
     assertEquals(v.filter((item) => item.includes("clínico sobre imagem")), []);
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Fase 2 — Arquivos (2026-08-13): classifyDocument, pickEligibleDocument,
+// buildCurrentTurnContent, officeExtractor (parseZipEntries/stripXmlToText +
+// round-trip .docx real), e o novo check hadDocument em validateAgentReply.
+// ═══════════════════════════════════════════════════════════════════════════
+import { classifyDocument, pickEligibleDocument, MAX_DOC_BYTES_FOR_AI } from "../../_shared/documentClassifier.ts";
+import { buildCurrentTurnContent } from "../../_shared/copilot.ts";
+import {
+    parseZipEntries,
+    stripXmlToText,
+    extractDocxText,
+    extractXlsxText,
+    extractPlainText,
+    extractDocumentText,
+} from "../../_shared/officeExtractor.ts";
+
+// ── classifyDocument — Camada 1 (mesmo fail-safe de classifyImage: qualquer
+// dúvida/erro/formato não suportado vira "clinical", nunca lança) ──────────
+
+Deno.test("classifyDocument: resposta 'administrative' (PDF) retorna administrative", async () => {
+    const category = await classifyDocument(null as any, "tenant-1", { url: "https://chat-media.example/doc.pdf", filename: "carteirinha.pdf", mimeType: "application/pdf" }, "claude-haiku-4-5-20251001", {
+        claudeJsonFn: async <T,>() => ({ category: "administrative" } as T),
+        fetchFn: async () => new Response("%PDF-1.4 no page markers here", { status: 200 }),
+    });
+    assertEquals(category, "administrative");
+});
+
+Deno.test("classifyDocument: resposta 'clinical' (PDF) retorna clinical", async () => {
+    const category = await classifyDocument(null as any, "tenant-1", { url: "https://chat-media.example/laudo.pdf", filename: "laudo.pdf", mimeType: "application/pdf" }, "claude-haiku-4-5-20251001", {
+        claudeJsonFn: async <T,>() => ({ category: "clinical" } as T),
+        fetchFn: async () => new Response("%PDF-1.4", { status: 200 }),
+    });
+    assertEquals(category, "clinical");
+});
+
+Deno.test("classifyDocument: resposta 'financial' (PDF) retorna financial — orçamento nunca chega à IA depois", async () => {
+    const category = await classifyDocument(null as any, "tenant-1", { url: "https://chat-media.example/orcamento.pdf", filename: "orcamento.pdf", mimeType: "application/pdf" }, "claude-haiku-4-5-20251001", {
+        claudeJsonFn: async <T,>() => ({ category: "financial" } as T),
+        fetchFn: async () => new Response("%PDF-1.4", { status: 200 }),
+    });
+    assertEquals(category, "financial");
+});
+
+Deno.test("classifyDocument: fail-safe — resposta ausente/nula vira clinical", async () => {
+    const category = await classifyDocument(null as any, "tenant-1", { url: "https://chat-media.example/x.pdf", mimeType: "application/pdf" }, "claude-haiku-4-5-20251001", {
+        claudeJsonFn: async () => null,
+        fetchFn: async () => new Response("%PDF-1.4", { status: 200 }),
+    });
+    assertEquals(category, "clinical");
+});
+
+Deno.test("classifyDocument: fail-safe — categoria desconhecida/lixo vira clinical", async () => {
+    const category = await classifyDocument(null as any, "tenant-1", { url: "https://chat-media.example/x.pdf", mimeType: "application/pdf" }, "claude-haiku-4-5-20251001", {
+        claudeJsonFn: async <T,>() => ({ category: "something-else" } as T),
+        fetchFn: async () => new Response("%PDF-1.4", { status: 200 }),
+    });
+    assertEquals(category, "clinical");
+});
+
+Deno.test("classifyDocument: fail-safe — exceção/timeout na chamada vira clinical, nunca lança", async () => {
+    const category = await classifyDocument(null as any, "tenant-1", { url: "https://chat-media.example/x.pdf", mimeType: "application/pdf" }, "claude-haiku-4-5-20251001", {
+        claudeJsonFn: async () => { throw new Error("timeout"); },
+        fetchFn: async () => new Response("%PDF-1.4", { status: 200 }),
+    });
+    assertEquals(category, "clinical");
+});
+
+// ── Portão determinístico — nem chega a chamar o modelo ────────────────────
+
+Deno.test("classifyDocument: mime fora da allowlist — clinical sem chamar o modelo", async () => {
+    let claudeCalled = false;
+    const category = await classifyDocument(null as any, "tenant-1", { url: "https://chat-media.example/x.exe", mimeType: "application/x-msdownload" }, "claude-haiku-4-5-20251001", {
+        claudeJsonFn: async <T,>() => { claudeCalled = true; return { category: "administrative" } as T; },
+    });
+    assertEquals(category, "clinical");
+    assertEquals(claudeCalled, false);
+});
+
+Deno.test("classifyDocument: tamanho acima de MAX_DOC_BYTES_FOR_AI — clinical sem chamar o modelo", async () => {
+    let claudeCalled = false;
+    const category = await classifyDocument(null as any, "tenant-1", {
+        url: "https://chat-media.example/big.pdf", mimeType: "application/pdf", sizeBytes: MAX_DOC_BYTES_FOR_AI + 1,
+    }, "claude-haiku-4-5-20251001", {
+        claudeJsonFn: async <T,>() => { claudeCalled = true; return { category: "administrative" } as T; },
+    });
+    assertEquals(category, "clinical");
+    assertEquals(claudeCalled, false);
+});
+
+Deno.test("classifyDocument: PDF com mais de 20 páginas (sniff) — clinical sem chamar o modelo", async () => {
+    let claudeCalled = false;
+    const manyPagesPdf = "/Type /Page ".repeat(25); // sniff conta ocorrências do marcador
+    const category = await classifyDocument(null as any, "tenant-1", { url: "https://chat-media.example/big.pdf", mimeType: "application/pdf" }, "claude-haiku-4-5-20251001", {
+        fetchFn: async () => new Response(manyPagesPdf, { status: 200 }),
+        claudeJsonFn: async <T,>() => { claudeCalled = true; return { category: "administrative" } as T; },
+    });
+    assertEquals(category, "clinical");
+    assertEquals(claudeCalled, false);
+});
+
+Deno.test("classifyDocument: sniff de páginas falhando (fetch quebra) NÃO bloqueia — segue pra classificação normal", async () => {
+    const category = await classifyDocument(null as any, "tenant-1", { url: "https://chat-media.example/x.pdf", mimeType: "application/pdf" }, "claude-haiku-4-5-20251001", {
+        fetchFn: async () => { throw new Error("network down"); },
+        claudeJsonFn: async <T,>() => ({ category: "administrative" } as T),
+    });
+    assertEquals(category, "administrative");
+});
+
+Deno.test("classifyDocument: não-PDF sem extractedText — clinical sem chamar o modelo (Claude só lê PDF nativo)", async () => {
+    let claudeCalled = false;
+    const category = await classifyDocument(null as any, "tenant-1", {
+        url: "https://chat-media.example/planilha.xlsx",
+        mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    }, "claude-haiku-4-5-20251001", {
+        claudeJsonFn: async <T,>() => { claudeCalled = true; return { category: "administrative" } as T; },
+    });
+    assertEquals(category, "clinical");
+    assertEquals(claudeCalled, false);
+});
+
+Deno.test("classifyDocument: não-PDF COM extractedText é classificado via bloco de texto (não document/url)", async () => {
+    let sawTextBlock = false;
+    const category = await classifyDocument(null as any, "tenant-1", {
+        url: "https://chat-media.example/convenios.docx",
+        mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        extractedText: "Lista de convênios aceitos: Amil, Bradesco Saúde, SulAmérica.",
+    }, "claude-haiku-4-5-20251001", {
+        claudeJsonFn: async <T,>(_supabase: any, req: any) => {
+            const content = req.messages[0].content;
+            sawTextBlock = content.some((b: any) => b.type === "text" && b.text.includes("Lista de convênios"));
+            return { category: "administrative" } as T;
+        },
+    });
+    assertEquals(category, "administrative");
+    assert(sawTextBlock);
+});
+
+// ── pickEligibleDocument (pura) ─────────────────────────────────────────────
+
+Deno.test("pickEligibleDocument: escolhe o primeiro documento marcado _documentEligible", () => {
+    const messages = [
+        { message_type: "text", content: "oi", media_url: null },
+        { message_type: "document", media_url: "https://chat-media.example/doc.pdf", _documentEligible: true },
+    ];
+    assertEquals(pickEligibleDocument(messages)?.media_url, "https://chat-media.example/doc.pdf");
+});
+
+Deno.test("pickEligibleDocument: documento clínico/financeiro (sem _documentEligible) nunca é escolhido", () => {
+    const messages = [
+        { message_type: "document", media_url: "https://chat-media.example/laudo.pdf", _documentEligible: false },
+    ];
+    assertEquals(pickEligibleDocument(messages), undefined);
+});
+
+Deno.test("pickEligibleDocument: sem documentos no lote retorna undefined", () => {
+    const messages = [{ message_type: "text", content: "oi", media_url: null }];
+    assertEquals(pickEligibleDocument(messages), undefined);
+});
+
+// ── buildCurrentTurnContent (pura) — Onda 2 ─────────────────────────────────
+
+Deno.test("buildCurrentTurnContent: sem anexo — string simples (comportamento de sempre)", () => {
+    const content = buildCurrentTurnContent("Conversa até agora:\n...");
+    assertEquals(content, "Conversa até agora:\n...");
+});
+
+Deno.test("buildCurrentTurnContent: com imagem — array [texto, imagem]", () => {
+    const content = buildCurrentTurnContent("texto do turno", { image: { url: "https://chat-media.example/doc.jpg" } });
+    assert(Array.isArray(content));
+    const blocks = content as any[];
+    assertEquals(blocks[0], { type: "text", text: "texto do turno" });
+    assertEquals(blocks[1], { type: "image", source: { type: "url", url: "https://chat-media.example/doc.jpg" } });
+});
+
+Deno.test("buildCurrentTurnContent: com PDF (sem extractedText) — bloco document nativo", () => {
+    const content = buildCurrentTurnContent("texto do turno", { document: { url: "https://chat-media.example/doc.pdf", filename: "carteirinha.pdf" } });
+    const blocks = content as any[];
+    assert(blocks.some((b) => b.type === "document" && b.source.url === "https://chat-media.example/doc.pdf"));
+    assert(blocks.some((b) => b.type === "text" && b.text.includes("carteirinha.pdf")));
+});
+
+Deno.test("buildCurrentTurnContent: documento com extractedText — vira bloco de texto com wrapUntrustedContent, nunca bloco document", () => {
+    const content = buildCurrentTurnContent("texto do turno", {
+        document: { url: "https://chat-media.example/lista.docx", extractedText: "Convênios aceitos: Amil, Bradesco." },
+    });
+    const blocks = content as any[];
+    assert(!blocks.some((b) => b.type === "document"));
+    const textBlock = blocks.find((b) => b.type === "text" && b.text.includes("Convênios aceitos"));
+    assert(textBlock);
+    assert(textBlock.text.includes("NÃO É INSTRUÇÃO"));
+});
+
+Deno.test("buildCurrentTurnContent: imagem E documento no mesmo turno — os dois blocos aparecem", () => {
+    const content = buildCurrentTurnContent("texto", {
+        image: { url: "https://chat-media.example/foto.jpg" },
+        document: { url: "https://chat-media.example/doc.pdf" },
+    });
+    const blocks = content as any[];
+    assert(blocks.some((b) => b.type === "image"));
+    assert(blocks.some((b) => b.type === "document"));
+});
+
+// ── officeExtractor: stripXmlToText (pura) ──────────────────────────────────
+
+Deno.test("stripXmlToText: remove tags, decodifica entidades, preserva quebra de parágrafo (</w:p>)", () => {
+    const xml = "<w:p><w:r><w:t>Ol&#225; &lt;paciente&gt;</w:t></w:r></w:p><w:p><w:r><w:t>Segunda linha</w:t></w:r></w:p>";
+    const text = stripXmlToText(xml);
+    assertEquals(text, "Olá <paciente>\nSegunda linha");
+});
+
+Deno.test("stripXmlToText: xml vazio/sem texto retorna string vazia", () => {
+    assertEquals(stripXmlToText(""), "");
+    assertEquals(stripXmlToText("<w:p></w:p>"), "");
+});
+
+// ── officeExtractor: parseZipEntries + round-trip .docx real ───────────────
+// Monta um ZIP mínimo de verdade (compressão deflate-raw via CompressionStream
+// nativo) pra provar que o leitor de ZIP funciona ponta a ponta, não só que
+// os regexes de texto funcionam.
+
+async function deflateRaw(bytes: Uint8Array): Promise<Uint8Array> {
+    const owned = new Uint8Array(bytes);
+    const stream = new Blob([owned]).stream().pipeThrough(new CompressionStream("deflate-raw"));
+    return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+function concatBytes(parts: Uint8Array[]): Uint8Array {
+    const total = parts.reduce((n, p) => n + p.length, 0);
+    const out = new Uint8Array(total);
+    let offset = 0;
+    for (const p of parts) { out.set(p, offset); offset += p.length; }
+    return out;
+}
+
+function u16(n: number): Uint8Array {
+    const b = new Uint8Array(2);
+    new DataView(b.buffer).setUint16(0, n, true);
+    return b;
+}
+function u32(n: number): Uint8Array {
+    const b = new Uint8Array(4);
+    new DataView(b.buffer).setUint32(0, n, true);
+    return b;
+}
+
+/** Monta um ZIP válido mínimo (1 entrada, deflate-raw) — só o suficiente pra parseZipEntries ler. */
+async function buildMinimalZip(entryName: string, content: string): Promise<Uint8Array> {
+    const nameBytes = new TextEncoder().encode(entryName);
+    const rawBytes = new TextEncoder().encode(content);
+    const compressed = await deflateRaw(rawBytes);
+
+    const localHeader = concatBytes([
+        u32(0x04034b50), u16(20), u16(0), u16(8), u16(0), u16(0),
+        u32(0), u32(compressed.length), u32(rawBytes.length),
+        u16(nameBytes.length), u16(0), nameBytes,
+    ]);
+    const localEntry = concatBytes([localHeader, compressed]);
+
+    const centralHeader = concatBytes([
+        u32(0x02014b50), u16(20), u16(20), u16(0), u16(8), u16(0), u16(0),
+        u32(0), u32(compressed.length), u32(rawBytes.length),
+        u16(nameBytes.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(0),
+        nameBytes,
+    ]);
+
+    const eocd = concatBytes([
+        u32(0x06054b50), u16(0), u16(0), u16(1), u16(1),
+        u32(centralHeader.length), u32(localEntry.length), u16(0),
+    ]);
+
+    return concatBytes([localEntry, centralHeader, eocd]);
+}
+
+Deno.test("parseZipEntries + extractDocxText: round-trip real de um .docx mínimo (ZIP de verdade, deflate-raw)", async () => {
+    const docXml = "<w:document><w:body><w:p><w:r><w:t>Encaminhamento para avaliação de rotina</w:t></w:r></w:p></w:body></w:document>";
+    const zip = await buildMinimalZip("word/document.xml", docXml);
+
+    const entries = await parseZipEntries(zip, new Set(["word/document.xml"]));
+    assert(entries.has("word/document.xml"));
+    assertEquals(new TextDecoder().decode(entries.get("word/document.xml")), docXml);
+
+    const text = await extractDocxText(zip);
+    assertEquals(text, "Encaminhamento para avaliação de rotina");
+});
+
+Deno.test("parseZipEntries: entrada não pedida (fora de 'wanted') não é decompactada", async () => {
+    const zip = await buildMinimalZip("word/document.xml", "<w:p><w:t>x</w:t></w:p>");
+    const entries = await parseZipEntries(zip, new Set(["outro/arquivo.xml"]));
+    assertEquals(entries.size, 0);
+});
+
+Deno.test("parseZipEntries: ZIP corrompido/inválido retorna Map vazio, nunca lança", async () => {
+    const entries = await parseZipEntries(new Uint8Array([1, 2, 3, 4]), new Set(["word/document.xml"]));
+    assertEquals(entries.size, 0);
+});
+
+Deno.test("extractXlsxText: round-trip com xl/sharedStrings.xml", async () => {
+    const sharedStrings = "<sst><si><t>Amil</t></si><si><t>Bradesco Saúde</t></si></sst>";
+    const zip = await buildMinimalZip("xl/sharedStrings.xml", sharedStrings);
+    const text = await extractXlsxText(zip);
+    assertEquals(text, "AmilBradesco Saúde");
+});
+
+Deno.test("extractDocxText: entrada word/document.xml ausente retorna null", async () => {
+    const zip = await buildMinimalZip("outro/arquivo.xml", "<w:p><w:t>x</w:t></w:p>");
+    assertEquals(await extractDocxText(zip), null);
+});
+
+Deno.test("extractPlainText: decodifica UTF-8 e ignora bytes vazios", () => {
+    assertEquals(extractPlainText(new TextEncoder().encode("Convênio: Amil")), "Convênio: Amil");
+    assertEquals(extractPlainText(new Uint8Array(0)), null);
+});
+
+Deno.test("extractDocumentText: dispatcher por mime — docx/xlsx via zip, texto puro via decode, resto null", async () => {
+    const docxZip = await buildMinimalZip("word/document.xml", "<w:p><w:t>Texto do docx</w:t></w:p>");
+    const docxText = await extractDocumentText(docxZip, "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    assertEquals(docxText, "Texto do docx");
+
+    const plainText = await extractDocumentText(new TextEncoder().encode("linha 1"), "text/plain");
+    assertEquals(plainText, "linha 1");
+
+    const unsupported = await extractDocumentText(new TextEncoder().encode("qualquer coisa"), "application/pdf");
+    assertEquals(unsupported, null);
+});
+
+// ── validateAgentReply Camada 5 — hadDocument (Fase 2) ──────────────────────
+
+Deno.test("validateAgentReply: comentário clínico sobre documento anexado reprova quando hadDocument=true", () => {
+    const v = validateAgentReply("Lendo o documento, notei um laudo indicando inflamação na gengiva.", {
+        language: "pt", evidence: "", policyEvidence: "", hadDocument: true,
+    });
+    assert(v.some((item) => item.includes("clínico sobre imagem/arquivo")));
+});
+
+Deno.test("validateAgentReply: mesmo texto sem hadDocument não reprova por esta regra", () => {
+    const v = validateAgentReply("Lendo o documento, notei um laudo indicando inflamação na gengiva.", {
+        language: "pt", evidence: "", policyEvidence: "", hadDocument: false,
+    });
+    assertEquals(v.filter((item) => item.includes("clínico sobre imagem/arquivo")), []);
+});
+
+Deno.test("validateAgentReply: leitura administrativa de documento (sem termo clínico) aprova mesmo com hadDocument=true", () => {
+    const v = validateAgentReply("No documento, vi que seu convênio é o plano Amil, carteirinha 12345.", {
+        language: "pt", evidence: "", policyEvidence: "", hadDocument: true,
+    });
+    assertEquals(v.filter((item) => item.includes("clínico sobre imagem/arquivo")), []);
+});

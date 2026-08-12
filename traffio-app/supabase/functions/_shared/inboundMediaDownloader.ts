@@ -192,6 +192,8 @@ export interface FusedBatchMessage {
   media_url?: string | null;
   mime_type?: string | null;
   file_size?: number | null;
+  /** Nome original do arquivo (Fase 2 — Arquivos, 2026-08-13). Só documento tem. */
+  file_name?: string | null;
   /** true quando content foi substituído pela transcrição de um áudio (audioTranscriber.ts). */
   _transcribed?: boolean;
 }

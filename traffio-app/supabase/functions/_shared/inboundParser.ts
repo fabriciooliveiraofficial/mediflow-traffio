@@ -20,6 +20,10 @@ export interface InboundContent {
     caption: string | null;
     /** true quando o evento é resposta a botão/lista — nunca pode virar "Empty event" */
     isInteractiveReply: boolean;
+    /** Nome original do arquivo (Fase 2 — Arquivos, 2026-08-13). Só documento tem; null para o resto. */
+    fileName: string | null;
+    /** Mime type declarado pelo provedor (Fase 2 — Arquivos, 2026-08-13). Só documento tem; null para o resto. */
+    mimeType: string | null;
 }
 
 /**
@@ -34,6 +38,8 @@ export function extractZapiContent(body: any): InboundContent {
             mediaUrl: null,
             caption: null,
             isInteractiveReply: false,
+            fileName: null,
+            mimeType: null,
         };
     }
 
@@ -49,6 +55,8 @@ export function extractZapiContent(body: any): InboundContent {
             mediaUrl: null,
             caption: null,
             isInteractiveReply: true,
+            fileName: null,
+            mimeType: null,
         };
     }
 
@@ -64,6 +72,8 @@ export function extractZapiContent(body: any): InboundContent {
             mediaUrl: null,
             caption: null,
             isInteractiveReply: true,
+            fileName: null,
+            mimeType: null,
         };
     }
 
@@ -80,12 +90,19 @@ export function extractZapiContent(body: any): InboundContent {
             mediaUrl: null,
             caption: null,
             isInteractiveReply: true,
+            fileName: null,
+            mimeType: null,
         };
     }
 
     // 4. Mídia
     const mediaUrl = body.image?.imageUrl || body.audio?.audioUrl || body.video?.videoUrl || body.document?.documentUrl || body.sticker?.stickerUrl || null;
     const caption = body.image?.caption || body.video?.caption || body.document?.caption || null;
+    // Fase 2 (Arquivos, 2026-08-13): a Z-API expõe o nome original só no objeto
+    // `document` — `fileName` é o campo documentado; `title` é um fallback visto
+    // em alguns payloads reais. image/audio/video não carregam nome de arquivo.
+    const fileName = body.document?.fileName || body.document?.title || null;
+    const mimeType = body.document?.mimeType || null;
     let messageType = "text";
     if (body.image) messageType = "image";
     else if (body.audio) messageType = "audio";
@@ -105,6 +122,8 @@ export function extractZapiContent(body: any): InboundContent {
         mediaUrl,
         caption,
         isInteractiveReply: false,
+        fileName,
+        mimeType,
     };
 }
 
@@ -120,6 +139,8 @@ export function extractCloudApiContent(msg: any): InboundContent {
             mediaUrl: null,
             caption: null,
             isInteractiveReply: false,
+            fileName: null,
+            mimeType: null,
         };
     }
 
@@ -130,6 +151,8 @@ export function extractCloudApiContent(msg: any): InboundContent {
     let mediaUrl: string | null = null;
     let caption: string | null = null;
     let isInteractiveReply = false;
+    let fileName: string | null = null;
+    let mimeType: string | null = null;
 
     if (msgType === "interactive") {
         isInteractiveReply = true;
@@ -168,7 +191,13 @@ export function extractCloudApiContent(msg: any): InboundContent {
     } else if (msgType === "document") {
         mediaUrl = msg.document?.id || null;
         messageType = "document";
-        content = msg.document?.filename || "[documento]";
+        fileName = msg.document?.filename || null;
+        mimeType = msg.document?.mime_type || null;
+        // Fase 2 (Arquivos, 2026-08-13): a Cloud API expõe caption em document
+        // igual expõe em image/video — antes esta linha nunca era lida, então
+        // uma legenda mandada junto de um PDF pela Cloud API se perdia.
+        caption = msg.document?.caption || null;
+        content = caption || fileName || "[documento]";
     } else if (msgType === "sticker") {
         mediaUrl = msg.sticker?.id || null;
         messageType = "sticker";
@@ -184,5 +213,7 @@ export function extractCloudApiContent(msg: any): InboundContent {
         mediaUrl,
         caption,
         isInteractiveReply,
+        fileName,
+        mimeType,
     };
 }

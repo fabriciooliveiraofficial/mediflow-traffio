@@ -100,7 +100,7 @@ async function handleZapi(supabase: any, body: any): Promise<Response> {
 
   // --- EXTRACT CONTENT VIA INBOUND PARSER ---
   const parsed = extractZapiContent(body);
-  const { content, mediaUrl, caption, messageType, interactiveTitle, isInteractiveReply } = parsed;
+  const { content, mediaUrl, caption, messageType, interactiveTitle, isInteractiveReply, fileName, mimeType } = parsed;
 
   if (!instanceId || !phone || (!content && !isInteractiveReply)) {
     console.log(`[whatsapp-bot] Z-API: [${phone}] ignored=empty_event | content=${content} type=${body.type} payload=${JSON.stringify(body).substring(0, 900)}`);
@@ -146,6 +146,8 @@ async function handleZapi(supabase: any, body: any): Promise<Response> {
       message_type:        messageType,
       media_url:           mediaUrl,
       caption:             caption,
+      file_name:           fileName,
+      mime_type:           mimeType,
       whatsapp_message_id: messageId,
     }).select("id").single();
 
@@ -188,6 +190,8 @@ async function handleZapi(supabase: any, body: any): Promise<Response> {
       message_type: messageType,
       media_url:    mediaUrl,
       caption:      caption ?? interactiveTitle,
+      file_name:    fileName,
+      mime_type:    mimeType,
       received_at:  new Date().toISOString(),
       status:       "pending",
     });
@@ -258,7 +262,7 @@ async function handleCloudApi(supabase: any, body: any): Promise<Response> {
 
     // --- EXTRACT CONTENT VIA INBOUND PARSER ---
     const parsed = extractCloudApiContent(msg);
-    const { content, mediaUrl, caption, messageType, interactiveTitle, isInteractiveReply } = parsed;
+    const { content, mediaUrl, caption, messageType, interactiveTitle, isInteractiveReply, fileName, mimeType } = parsed;
 
     if (!content && !isInteractiveReply) continue;
 
@@ -289,6 +293,8 @@ async function handleCloudApi(supabase: any, body: any): Promise<Response> {
         message_type:        messageType,
         media_url:           mediaUrl,
         caption:             caption,
+        file_name:           fileName,
+        mime_type:           mimeType,
         whatsapp_message_id: msgId,
       }).select("id").single();
 
@@ -328,6 +334,8 @@ async function handleCloudApi(supabase: any, body: any): Promise<Response> {
         message_type: messageType,
         media_url:    mediaUrl,
         caption:      caption ?? interactiveTitle,
+        file_name:    fileName,
+        mime_type:    mimeType,
         received_at:  timestamp,
         status:       "pending",
       });

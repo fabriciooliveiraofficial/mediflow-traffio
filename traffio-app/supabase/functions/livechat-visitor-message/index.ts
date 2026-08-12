@@ -474,6 +474,8 @@ serve(async (req: Request) => {
           message_id: msgId,
           message_type: messageType,
           media_url: mediaUrl,
+          file_name: fileObj ? fileObj.name : null,
+          mime_type: fileObj ? fileObj.type : null,
           channel: 'livechat',
           status: 'pending',
           received_at: createdAt

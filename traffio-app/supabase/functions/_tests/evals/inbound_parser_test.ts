@@ -103,6 +103,45 @@ Deno.test("inboundParser — Z-API empty payload", () => {
     assertEquals(parsed.isInteractiveReply, false);
 });
 
+// ── Fase 2 (Arquivos, 2026-08-13) — fileName/mimeType nunca eram capturados;
+// o nome do arquivo se perdia no fio inteiro pra Z-API. ─────────────────────
+
+Deno.test("inboundParser — Z-API documento com nome, mime e legenda", () => {
+    const body = {
+        document: {
+            documentUrl: "http://example.com/orcamento.pdf",
+            fileName: "orcamento-implante.pdf",
+            mimeType: "application/pdf",
+            caption: "segue o orçamento",
+        },
+    };
+    const parsed = extractZapiContent(body);
+    assertEquals(parsed.messageType, "document");
+    assertEquals(parsed.mediaUrl, "http://example.com/orcamento.pdf");
+    assertEquals(parsed.fileName, "orcamento-implante.pdf");
+    assertEquals(parsed.mimeType, "application/pdf");
+    assertEquals(parsed.caption, "segue o orçamento");
+    assertEquals(parsed.content, "segue o orçamento");
+});
+
+Deno.test("inboundParser — Z-API documento usa 'title' como fallback de fileName", () => {
+    const body = {
+        document: { documentUrl: "http://example.com/carteirinha.pdf", title: "carteirinha.pdf" },
+    };
+    const parsed = extractZapiContent(body);
+    assertEquals(parsed.fileName, "carteirinha.pdf");
+    assertEquals(parsed.mimeType, null);
+});
+
+Deno.test("inboundParser — Z-API imagem/áudio nunca têm fileName/mimeType", () => {
+    const parsedImg = extractZapiContent({ image: { imageUrl: "http://example.com/a.jpg" } });
+    assertEquals(parsedImg.fileName, null);
+    assertEquals(parsedImg.mimeType, null);
+    const parsedAudio = extractZapiContent({ audio: { audioUrl: "http://example.com/a.ogg" } });
+    assertEquals(parsedAudio.fileName, null);
+    assertEquals(parsedAudio.mimeType, null);
+});
+
 Deno.test("inboundParser — Cloud API button reply", () => {
     const msg = {
         type: "interactive",
@@ -139,6 +178,40 @@ Deno.test("inboundParser — Cloud API text message", () => {
     const parsed = extractCloudApiContent(msg);
     assertEquals(parsed.content, "Can I get a quote?");
     assertEquals(parsed.isInteractiveReply, false);
+});
+
+// ── Fase 2 (Arquivos, 2026-08-13) — Cloud API já lia filename (só como
+// fallback de content), mas NUNCA lia document.caption: uma legenda mandada
+// junto de um PDF pela Cloud API se perdia silenciosamente. ────────────────
+
+Deno.test("inboundParser — Cloud API documento com legenda usa a legenda como content, mas preserva fileName", () => {
+    const msg = {
+        type: "document",
+        document: { id: "media-id-123", filename: "encaminhamento.pdf", mime_type: "application/pdf", caption: "meu encaminhamento" },
+    };
+    const parsed = extractCloudApiContent(msg);
+    assertEquals(parsed.messageType, "document");
+    assertEquals(parsed.mediaUrl, "media-id-123");
+    assertEquals(parsed.fileName, "encaminhamento.pdf");
+    assertEquals(parsed.mimeType, "application/pdf");
+    assertEquals(parsed.caption, "meu encaminhamento");
+    assertEquals(parsed.content, "meu encaminhamento");
+});
+
+Deno.test("inboundParser — Cloud API documento sem legenda cai no filename, depois no marcador genérico", () => {
+    const withFilename = extractCloudApiContent({ type: "document", document: { id: "m1", filename: "raio-x.pdf" } });
+    assertEquals(withFilename.content, "raio-x.pdf");
+    assertEquals(withFilename.caption, null);
+
+    const withoutFilename = extractCloudApiContent({ type: "document", document: { id: "m2" } });
+    assertEquals(withoutFilename.content, "[documento]");
+    assertEquals(withoutFilename.fileName, null);
+});
+
+Deno.test("inboundParser — Cloud API imagem/áudio nunca têm fileName", () => {
+    const parsedImg = extractCloudApiContent({ type: "image", image: { id: "m1" } });
+    assertEquals(parsedImg.fileName, null);
+    assertEquals(parsedImg.mimeType, null);
 });
 
 // ─── Tests for resolveSlotIdByTitle ──────────────────────────────────────────

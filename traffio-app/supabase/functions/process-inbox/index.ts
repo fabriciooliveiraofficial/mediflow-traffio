@@ -30,6 +30,8 @@ import { runWithConcurrencyLimit } from "../_shared/concurrencyPool.ts";
 import { resolveInboundMedia, pickPrimaryMedia, buildHumanCaption } from "../_shared/inboundMediaDownloader.ts";
 import { transcribeAudio } from "../_shared/audioTranscriber.ts";
 import { classifyImage, pickVisionEligibleImage } from "../_shared/imageClassifier.ts";
+import { classifyDocument, pickEligibleDocument, MAX_DOC_BYTES_FOR_AI } from "../_shared/documentClassifier.ts";
+import { extractDocumentText } from "../_shared/officeExtractor.ts";
 import { getAiModelRouter } from "../_shared/masterConfig.ts";
 
 // How long to wait after the last message before processing (ms).
@@ -224,7 +226,7 @@ async function processConversationTurn(
     // --- 3. Fetch all pending messages for this phone up to debounce cutoff ---
     const { data: messages, error: msgError } = await supabase
       .from("message_inbox")
-      .select("id, content, received_at, message_id, media_url, message_type, caption")
+      .select("id, content, received_at, message_id, media_url, message_type, caption, file_name, mime_type")
       .eq("tenant_id", tenantId)
       .eq("phone", phone)
       .eq("status", "pending")
@@ -324,12 +326,16 @@ async function processConversationTurn(
            whatsapp_message_id: msg.message_id,
            message_type: detectedType,
            media_url: resolvedMedia?.mediaUrl ?? msg.media_url,
-           mime_type: resolvedMedia?.mimeType,
+           // resolvedMedia.mimeType (do content-type real baixado) tem prioridade;
+           // msg.mime_type (declarado no webhook, Fase 2 — Arquivos, 2026-08-13) é
+           // o fallback quando resolveInboundMedia falhou/retornou null.
+           mime_type: resolvedMedia?.mimeType ?? msg.mime_type,
            file_size: resolvedMedia?.fileSize,
+           file_name: msg.file_name,
            caption: msg.caption
          });
        }
- 
+
        const lastMsg = messages[messages.length - 1];
        lastMessageSnippet = lastMsg.caption || lastMsg.content || `[${lastMsg.message_type || 'mídia'}]`;
 
@@ -404,6 +410,38 @@ async function processConversationTurn(
              msg._visionEligible = true;
            }
          }
+
+         // Fase 2 (Arquivos, 2026-08-13) — Camada 1, mesmo desenho da imagem:
+         // classifica ANTES de qualquer coisa; documento clínico/financeiro
+         // NUNCA é marcado elegível. PDF vai direto pro classificador (o
+         // Claude lê nativamente via URL). .docx/.xlsx/.txt/.csv/.md (Onda 3)
+         // precisam de texto extraído ANTES — o Claude não lê esses formatos
+         // nativamente; sem extração bem-sucedida, documentClassifier já
+         // recusa sozinho (defesa em profundidade), mas evitamos a chamada
+         // de LLM em vão quando já sabemos que não há texto.
+         if (msgType === "document") {
+           const isPdf = msg.mime_type === "application/pdf" || /\.pdf$/i.test(msg.file_name || "");
+           let extractedText: string | null = null;
+           if (!isPdf && msg.media_url) {
+             extractedText = await downloadAndExtractDocumentText(msg.media_url, msg.mime_type, msg.file_size);
+           }
+
+           if (isPdf || extractedText) {
+             const routerModel = await getAiModelRouter(supabase);
+             const category = await classifyDocument(supabase, tenantId, {
+               url: msg.media_url,
+               filename: msg.file_name,
+               mimeType: msg.mime_type,
+               sizeBytes: msg.file_size,
+               extractedText,
+             }, routerModel);
+             console.log(`[process-inbox] [${phone}] Documento classificado: ${category}`);
+             if (category === "administrative") {
+               msg._documentEligible = true;
+               msg._extractedDocText = extractedText;
+             }
+           }
+         }
        }
 
        // --- 5. Context Fusion: merge multiple messages into one coherent user turn ---
@@ -430,6 +468,7 @@ async function processConversationTurn(
        const hasTypedText = messages.some((m: any) => {
          if (m._transcribed) return true;
          if (m._visionEligible) return true;
+         if (m._documentEligible) return true;
          return String(m.message_type || "text").toLowerCase() === "text" && !!m.content?.trim() && !/^\[(áudio|audio|imagem|image|vídeo|video|documento|document|sticker|figurinha)\]$/i.test(m.content.trim());
        });
        const isMediaOnly = !hasTypedText;
@@ -472,8 +511,9 @@ async function processConversationTurn(
              whatsapp_message_id: msg.message_id,
              message_type: detectedType,
              media_url: resolvedMedia?.mediaUrl ?? msg.media_url,
-             mime_type: resolvedMedia?.mimeType,
+             mime_type: resolvedMedia?.mimeType ?? msg.mime_type,
              file_size: resolvedMedia?.fileSize,
+             file_name: msg.file_name,
              caption: msg.caption
            });
          }
@@ -507,6 +547,7 @@ async function processConversationTurn(
          media_url: primaryMedia?.media_url,
          mime_type: primaryMedia?.mime_type,
          file_size: primaryMedia?.file_size,
+         file_name: primaryMedia?.file_name,
          caption: primaryMedia ? (humanCaption || primaryMedia.caption || null) : undefined,
        });
 
@@ -546,6 +587,7 @@ async function processConversationTurn(
          // por teste. A IA responde diretamente; fail-safe: qualquer resultado
          // que não seja uma resposta entregue termina com o paciente na fila humana.
          const visionEligibleImage = pickVisionEligibleImage(messages);
+         const eligibleDocument = pickEligibleDocument(messages);
          autonomousStatus = await runAutonomousAgent(supabase, {
            tenantId,
            sessionId: session.id,
@@ -556,6 +598,9 @@ async function processConversationTurn(
            sessionManager,
            timezone: tenantRow?.timezone,
            currentTurnImage: visionEligibleImage ? { url: visionEligibleImage.media_url as string } : undefined,
+           currentTurnDocument: eligibleDocument
+             ? { url: eligibleDocument.media_url as string, filename: eligibleDocument.file_name, extractedText: (eligibleDocument as any)._extractedDocText }
+             : undefined,
          });
 
          if (autonomousStatus === "defer") {
@@ -636,4 +681,36 @@ async function markMessages(supabase: any, ids: string[], status: string) {
     .from("message_inbox")
     .update({ status })
     .in("id", ids);
+}
+
+// Fase 2 (Arquivos, Onda 3, 2026-08-13) — baixa os bytes de um .docx/.xlsx/
+// .txt/.csv/.md já re-hospedado (URL estável do chat-media) e extrai o
+// texto. Nunca lança: qualquer falha (rede, timeout, ZIP corrompido, formato
+// não suportado) retorna null — quem chama trata como "sem extração" e o
+// documento segue o caminho de hoje (Camada 3 + fila humana).
+const DOC_DOWNLOAD_TIMEOUT_MS = 8_000;
+
+async function downloadAndExtractDocumentText(
+  url: string,
+  mimeType: string | null | undefined,
+  sizeBytes: number | null | undefined,
+): Promise<string | null> {
+  if (sizeBytes != null && sizeBytes > MAX_DOC_BYTES_FOR_AI) return null;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), DOC_DOWNLOAD_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) return null;
+    const contentLength = Number(res.headers.get("content-length") || 0);
+    if (contentLength > MAX_DOC_BYTES_FOR_AI) return null;
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    if (bytes.byteLength > MAX_DOC_BYTES_FOR_AI) return null;
+    return await extractDocumentText(bytes, mimeType);
+  } catch (error: any) {
+    console.warn(`[process-inbox] extração de texto falhou (${error?.message ?? error})`);
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
 }
