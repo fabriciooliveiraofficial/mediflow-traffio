@@ -1,13 +1,13 @@
 /**
  * check-recall — Edge Function (Supabase Cron, daily at 9h UTC)
- * v2.0 — Reescrito para schema real + outbound_message_queue
+ * v3.0 — outbound_reminder_registry + pgmq (via RPC outbound_enqueue_message)
  *
  * Lógica:
  *   1. Para cada tenant com recall_enabled = true no bot_config:
  *      a. Lê recall_days (padrão: 180 dias)
  *      b. Encontra pacientes com last_visit_at < agora - recall_days
  *      c. Verifica cooldown: não enviar se já foi recalled nos últimos recall_days/2 dias
- *      d. Enfileira mensagem 'recall' na outbound_message_queue
+ *      d. Enfileira mensagem 'recall' via outbound_enqueue_message (registro + pgmq)
  *   2. Respeita quiet hours (8h–22h no timezone do tenant)
  *   3. Processa até 30 pacientes por tenant por execução (batching)
  */
@@ -70,13 +70,16 @@ serve(async (req: Request) => {
                 if (!patient.phone) continue;
 
                 // 3. Verificar cooldown — não enviar se já foi recall-ado recentemente
+                // 'processing' não existe mais como status: com pgmq, uma mensagem
+                // em voo continua 'pending' no registro (o estado "sendo processada
+                // agora" vive só na visibilidade do pgmq, não numa coluna aqui).
                 const { count: recentCount } = await supabase
-                    .from("outbound_message_queue")
+                    .from("outbound_reminder_registry")
                     .select("*", { count: "exact", head: true })
                     .eq("tenant_id",   tenant.id)
                     .eq("patient_phone", patient.phone)
                     .eq("template_key", "recall")
-                    .in("status", ["pending", "sent", "processing"])
+                    .in("status", ["pending", "sent"])
                     .gte("created_at", cooldownDate.toISOString());
 
                 if (recentCount && recentCount > 0) {
@@ -136,27 +139,25 @@ serve(async (req: Request) => {
                     return "pt";
                 })();
 
-                // 6. Enfileirar recall
-                const { error: insertErr } = await supabase
-                    .from("outbound_message_queue")
-                    .insert({
-                        tenant_id:            tenant.id,
-                        patient_phone:        patient.phone,
-                        message_type:         "recall",
-                        template_key:         "recall",
-                        template_vars: {
-                            patient_name: patient.full_name || "Paciente",
-                            clinic_name:  tenant.name,
-                            locale,
-                        },
-                        scheduled_at:         scheduledAt,
-                        reference_id:         null,
-                        reference_type:       "patient",
-                        status:               "pending",
-                        notification_channel: channel,
-                        channel_recipient_id: recipientId,
-                        is_edited:            false,
-                    });
+                // 6. Enfileirar recall (RPC: grava registro + pgmq.send na mesma
+                // transação — insert direto na tabela não existe mais)
+                const { error: insertErr } = await supabase.rpc("outbound_enqueue_message", {
+                    p_tenant_id:            tenant.id,
+                    p_patient_phone:        patient.phone,
+                    p_message_type:         "recall",
+                    p_template_key:         "recall",
+                    p_template_vars: {
+                        patient_name: patient.full_name || "Paciente",
+                        clinic_name:  tenant.name,
+                        locale,
+                    },
+                    p_scheduled_at:         scheduledAt,
+                    p_reference_id:         null,
+                    p_reference_type:       "patient",
+                    p_notification_channel: channel,
+                    p_channel_recipient_id: recipientId,
+                    p_is_edited:            false,
+                });
 
                 if (insertErr) {
                     console.error(`[check-recall] Insert failed for ${patient.phone}:`, insertErr.message);

@@ -282,7 +282,7 @@ async function findReminderConfirmationMarker(
     let data: any[] | null = null;
 
     const primary = await supabase
-        .from("outbound_message_queue")
+        .from("outbound_reminder_registry")
         .select(select)
         .eq("tenant_id", tenantId)
         .eq("status", "sent")
@@ -298,7 +298,7 @@ async function findReminderConfirmationMarker(
     // fallback em memória, sem varrer pacientes ou agenda inteira.
     if (!data.length) {
         const fallback = await supabase
-            .from("outbound_message_queue")
+            .from("outbound_reminder_registry")
             .select(select)
             .eq("tenant_id", tenantId)
             .eq("status", "sent")

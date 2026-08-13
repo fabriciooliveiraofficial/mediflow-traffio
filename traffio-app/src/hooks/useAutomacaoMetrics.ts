@@ -29,7 +29,7 @@ export function useAutomacaoMetrics({ tenantId, dateRange }: MetricsOptions) {
 
             // 1. Current period — Outbound stats
             const { data: qData } = await supabase
-                .from('outbound_message_queue')
+                .from('outbound_reminder_registry')
                 .select('message_type, status, template_key, template_vars, created_at, sent_at')
                 .eq('tenant_id', tenantId)
                 .gte('created_at', startStr)
@@ -37,7 +37,7 @@ export function useAutomacaoMetrics({ tenantId, dateRange }: MetricsOptions) {
 
             // 2. Previous period — Outbound stats (for trends)
             const { data: qPrev } = await supabase
-                .from('outbound_message_queue')
+                .from('outbound_reminder_registry')
                 .select('message_type, status')
                 .eq('tenant_id', tenantId)
                 .gte('created_at', prevStart)

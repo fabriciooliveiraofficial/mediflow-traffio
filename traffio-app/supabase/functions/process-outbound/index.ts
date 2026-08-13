@@ -4,13 +4,16 @@
  * Outbound Worker: Scheduled Messages Processor — Multi-Canal (escala)
  *
  * Flow:
- *   1. claim_outbound_messages() — reivindica um lote justo e atômico (SKIP LOCKED +
- *      cap por tenant). Substitui SELECT + advisory lock + UPDATE processing por mensagem.
+ *   1. outbound_claim_messages() — pgmq.read() com visibility timeout (claim
+ *      atômico; mensagem não confirmada reaparece sozinha, sem reaper escrito
+ *      à mão) + justiça por tenant replicada em SQL (cap por tenant).
  *   2. Batch-fetch de tenants, status de agendamentos, páginas Meta e números SMS
  *      (1 query cada para o lote inteiro — sem N+1).
  *   3. Envio em paralelo com concorrência limitada.
  *   4. Roteamento por notification_channel (whatsapp / instagram / facebook / sms).
- *   5. Atualiza status individualmente (seguro contra reenvio em caso de crash).
+ *   5. Desfecho grava em outbound_reminder_registry (status visível ao usuário)
+ *      e sai da fila viva do pgmq via outbound_archive_message (sucesso/falha
+ *      definitiva) ou outbound_release_for_retry (falha transitória, backoff).
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -25,11 +28,11 @@ import { getSmsPricing } from "../_shared/pricing.ts";
 import { logPlatform } from "../_shared/logger.ts";
 import { sendTenantEmail, isValidEmail } from "../_shared/emailClient.ts";
 import { getEmailSubject, renderEmailHtml, buildIcsAttachment, normalizeLocale, type EmailLocale } from "../_shared/emailTemplates.ts";
-import { isBlockedByQuietHours } from "../_shared/tenantTime.ts";
+import { shouldDeferForQuietHours } from "../_shared/tenantTime.ts";
 import { getDefaultChannel, filterChannelsByMatrix, type ChannelInfo } from "../_shared/channelResolver.ts";
 import { SessionManager } from "../_shared/sessionManager.ts";
 
-console.log("process-outbound v4.1 — Fair-claim + canal padrão do tenant Initialized");
+console.log("process-outbound v5.0 — pgmq + canal padrão do tenant Initialized");
 
 // Substitui {{placeholders}} pelo valor real das template_vars do agendamento
 function renderCustomCaptionFromVars(template: string, vars: any): string {
@@ -159,11 +162,20 @@ serve(async (req: Request) => {
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   const supabase           = createClient(supabaseUrl, supabaseServiceKey);
 
+  // Desfecho definitivo (sent/failed/cancelled): grava no registro (visível
+  // ao usuário) e arquiva no pgmq (sai da fila viva — nunca mais reprocessa).
+  const finalizeMessage = async (msg: any, status: 'sent' | 'failed' | 'cancelled', errorMessage: string | null, extra?: Record<string, any>) => {
+    await supabase.from('outbound_reminder_registry')
+      .update({ status, error_message: errorMessage, ...extra }).eq('id', msg.id);
+    await supabase.rpc('outbound_archive_message', { p_msg_id: msg.msg_id });
+  };
+
   try {
-    // 1. Reivindicar lote justo e atômico (1 round-trip; já marca como 'processing')
-    const { data: queue, error: claimErr } = await supabase.rpc("claim_outbound_messages", {
+    // 1. Reivindicar lote justo (pgmq.read + cap por tenant em SQL)
+    const { data: queue, error: claimErr } = await supabase.rpc("outbound_claim_messages", {
       p_batch_size:     150,
       p_per_tenant_cap: 15,
+      p_vt_seconds:     120,
     });
     if (claimErr) throw claimErr;
     if (!queue?.length) {
@@ -269,10 +281,16 @@ serve(async (req: Request) => {
       const tenant = tenantMap[msg.tenant_id];
 
       // ── Quiet Hours (timezone do tenant, com grace window de 30min) ──
+      // O silêncio existe para impedir envio em hora imprópria por ATRASO de
+      // processamento. Quando o próprio scheduled_at já cai dentro da janela,
+      // foi o produtor que escolheu aquele horário de propósito (lembrete
+      // ancorado à consulta: consulta 08:30 → lembrete de 1h antes às 07:30).
+      // Vetar nesse caso destruía exatamente o lembrete configurado pela
+      // clínica. A mensagem CONTINUA na fila viva do pgmq — só libera a
+      // visibilidade de novo, sem tocar o registro (status já é 'pending').
       const tenantTimezone = tenant?.timezone || 'America/Sao_Paulo';
-      if (isBlockedByQuietHours(new Date(), tenantTimezone)) {
-        await supabase.from('outbound_message_queue')
-          .update({ status: 'pending', claimed_at: null }).eq('id', msg.id);
+      if (shouldDeferForQuietHours(msg.scheduled_at, new Date(), tenantTimezone)) {
+        await supabase.rpc('outbound_release_now', { p_msg_id: msg.msg_id });
         return;
       }
 
@@ -283,8 +301,7 @@ serve(async (req: Request) => {
       // são entregues normalmente pelo canal escolhido.
       const isManualAgentSend = !!(msg.is_edited && msg.template_vars?.override_message);
       if ((msg.message_type === 'booking_confirmed' || msg.template_key === 'booking_confirmed') && !isManualAgentSend) {
-        await supabase.from('outbound_message_queue')
-          .update({ status: 'cancelled', error_message: 'Duplicate of manual confirmation' }).eq('id', msg.id);
+        await finalizeMessage(msg, 'cancelled', 'Duplicate of manual confirmation');
         return;
       }
 
@@ -293,16 +310,14 @@ serve(async (req: Request) => {
       // Lembrete de agendamento cancelado/reagendado não deve ser enviado
       if (msg.template_key?.startsWith('appointment_reminder')) {
         if (!appt || !['scheduled', 'confirmed'].includes(appt.status)) {
-          await supabase.from('outbound_message_queue')
-            .update({ status: 'cancelled', error_message: `Appointment ${appt ? 'status is \'' + appt.status + '\'' : 'not found'} — reminder skipped` }).eq('id', msg.id);
+          await finalizeMessage(msg, 'cancelled', `Appointment ${appt ? 'status is \'' + appt.status + '\'' : 'not found'} — reminder skipped`);
           return;
         }
       }
 
       // NPS só se o agendamento ainda está 'completed'
       if (msg.message_type === 'nps_survey' && appt && appt.status !== 'completed') {
-        await supabase.from('outbound_message_queue')
-          .update({ status: 'cancelled', error_message: `Appointment status is '${appt.status}', NPS cancelled` }).eq('id', msg.id);
+        await finalizeMessage(msg, 'cancelled', `Appointment status is '${appt.status}', NPS cancelled`);
         return;
       }
 
@@ -355,8 +370,7 @@ serve(async (req: Request) => {
         if (blockedForAutomation) {
           const fallback = await pickFallbackChannel('nps');
           if (!fallback) {
-            await supabase.from('outbound_message_queue')
-              .update({ status: 'cancelled', error_message: `NPS disabled for channel '${ch}' in channel matrix` }).eq('id', msg.id);
+            await finalizeMessage(msg, 'cancelled', `NPS disabled for channel '${ch}' in channel matrix`);
             return;
           }
           msg.notification_channel = fallback.channel;
@@ -374,8 +388,7 @@ serve(async (req: Request) => {
         // E-6 (2026-08-02): mesma rede de segurança do guard de NPS acima.
         const blockedForAutomation = ch === 'instagram' || ch === 'facebook' || (row !== undefined && row?.no_show !== true);
         if (blockedForAutomation) {
-          await supabase.from('outbound_message_queue')
-            .update({ status: 'cancelled', error_message: `Reminders disabled for channel '${ch}' in channel matrix` }).eq('id', msg.id);
+          await finalizeMessage(msg, 'cancelled', `Reminders disabled for channel '${ch}' in channel matrix`);
           return;
         }
       }
@@ -386,8 +399,7 @@ serve(async (req: Request) => {
       if (msg.reference_type === 'crm_journey' && RECOVERY_TEMPLATE_KEYS.includes(msg.template_key)) {
         const fallback = await pickFallbackChannel('recovery');
         if (!fallback) {
-          await supabase.from('outbound_message_queue')
-            .update({ status: 'cancelled', error_message: 'Recovery automation disabled in channel matrix' }).eq('id', msg.id);
+          await finalizeMessage(msg, 'cancelled', 'Recovery automation disabled in channel matrix');
           return;
         }
         msg.notification_channel = fallback.channel;
@@ -398,7 +410,7 @@ serve(async (req: Request) => {
         // Pular reminder se já confirmado
         if ((msg.message_type === 'reminder_24h' || msg.message_type === 'reminder_2h')
             && appt?.confirmation_status === 'confirmed') {
-          await supabase.from('outbound_message_queue').update({ status: 'cancelled' }).eq('id', msg.id);
+          await finalizeMessage(msg, 'cancelled', null);
           return;
         }
 
@@ -427,8 +439,7 @@ serve(async (req: Request) => {
 
         // Template inexistente nunca deve chegar ao paciente
         if (text.startsWith('[Template')) {
-          await supabase.from('outbound_message_queue')
-            .update({ status: 'failed', error_message: `Template '${msg.template_key}' not found — message blocked` }).eq('id', msg.id);
+          await finalizeMessage(msg, 'failed', `Template '${msg.template_key}' not found — message blocked`);
           return;
         }
 
@@ -592,9 +603,9 @@ serve(async (req: Request) => {
         }
         // ════════════════════════════════════════════════════════════════════
 
-        // Sucesso — marca individualmente (seguro contra reenvio em crash)
-        await supabase.from('outbound_message_queue')
-          .update({ status: 'sent', sent_at: new Date().toISOString() }).eq('id', msg.id);
+        // Sucesso — marca individualmente (seguro contra reenvio em crash) e
+        // arquiva no pgmq (sai da fila viva).
+        await finalizeMessage(msg, 'sent', null, { sent_at: new Date().toISOString() });
 
         // F2 — o paciente frequentemente responde apenas "confirmed" ao
         // lembrete. Sem registrar a mensagem e sua consulta de referência, a
@@ -663,7 +674,7 @@ serve(async (req: Request) => {
         console.error(`[process-outbound] Error msg ${msg.id}:`, e.message);
 
         let finalError   = e.message;
-        let finalStatus  = 'pending';
+        let finalStatus: 'pending' | 'failed' = 'pending';
         const newAttempts = (msg.attempts || 0) + 1;
 
         if (e instanceof MetaSocialError) {
@@ -682,19 +693,25 @@ serve(async (req: Request) => {
 
         if (finalStatus === 'pending' && newAttempts >= 3) finalStatus = 'failed';
 
-        // Backoff: falha transitória (provedor fora do ar) não deve consumir as 3
-        // tentativas em 3 minutos seguidos. Empurra scheduled_at para dar tempo do
-        // provedor se recuperar, em vez de tentar de novo no próximo minuto.
-        const backoffMinutes = newAttempts === 1 ? 5 : 15;
-        const retryAt = new Date(Date.now() + backoffMinutes * 60 * 1000).toISOString();
+        if (finalStatus === 'failed') {
+          await finalizeMessage(msg, 'failed', finalError, { attempts: newAttempts });
+          return;
+        }
 
-        await supabase.from('outbound_message_queue').update({
-          status:        finalStatus === 'pending' ? (newAttempts >= 3 ? 'failed' : 'pending') : finalStatus,
-          attempts:      newAttempts,
-          error_message: finalError,
-          claimed_at:    null,
-          ...(finalStatus === 'pending' ? { scheduled_at: retryAt } : {}),
-        }).eq('id', msg.id);
+        // Backoff: falha transitória (provedor fora do ar) não deve consumir as 3
+        // tentativas em 3 minutos seguidos. Empurra a visibilidade da mensagem no
+        // pgmq (não o scheduled_at do registro — a mensagem continua na fila
+        // viva, só invisível até o horário do backoff, quando pgmq a devolve
+        // sozinho, sem reaper manual).
+        const backoffMinutes = newAttempts === 1 ? 5 : 15;
+        const retryAt = new Date(Date.now() + backoffMinutes * 60 * 1000);
+
+        await supabase.from('outbound_reminder_registry')
+          .update({ attempts: newAttempts, error_message: finalError }).eq('id', msg.id);
+        await supabase.rpc('outbound_release_for_retry', {
+          p_msg_id: msg.msg_id,
+          p_retry_at: retryAt.toISOString(),
+        });
       }
     });
 

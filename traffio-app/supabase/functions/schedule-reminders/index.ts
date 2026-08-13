@@ -14,7 +14,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { corsHeaders } from "../_shared/cors.ts";
-import { getSafeScheduledTime, getUTCOffsetString } from "../_shared/tenantTime.ts";
+import { getSafeScheduledTime, getUTCOffsetString, isAppointmentAnchoredOffset, isReminderTargetStillEligible } from "../_shared/tenantTime.ts";
 import { resolveEligibleChannels, type ChannelInfo as ResolvedChannelInfo } from "../_shared/channelResolver.ts";
 
 console.log("schedule-reminders v4.1 (canal padrão do tenant + multi-timezone) initialized");
@@ -296,9 +296,11 @@ serve(async (req: Request) => {
                     let targetTime = apptTimestamp + (offsetMinutes * 60 * 1000);
                     let type = `reminder_custom_${offsetMinutes}`;
 
-                    if (targetTime < now.getTime()) return;
+                    if (!isReminderTargetStillEligible(targetTime, now.getTime())) return;
 
-                    const scheduledTime = getSafeScheduledTime(new Date(targetTime), type, timezone);
+                    const scheduledTime = getSafeScheduledTime(new Date(targetTime), type, timezone, {
+                        anchoredToAppointment: isAppointmentAnchoredOffset(offsetMinutes),
+                    });
 
                     // Cada offset custom gera um template_key único para não colidir
                     // no índice (tenant_id, patient_phone, template_key, reference_id).
@@ -354,9 +356,14 @@ serve(async (req: Request) => {
             } else {
                 // Fallback to legacy scheduling logic if custom_reminders is not present
                 const addMessage = (type: string, targetAt: number, stageKey?: string) => {
-                    if (targetAt < now.getTime()) return;
+                    if (!isReminderTargetStillEligible(targetAt, now.getTime())) return;
 
-                    const scheduledTime = getSafeScheduledTime(new Date(targetAt), type, timezone);
+                    // Offset real derivado do próprio alvo (negativo = antes da
+                    // consulta): o legado "2h" é ancorado; "24h"/"48h" não são.
+                    const offsetMinutes = Math.round((targetAt - apptTimestamp) / 60000);
+                    const scheduledTime = getSafeScheduledTime(new Date(targetAt), type, timezone, {
+                        anchoredToAppointment: isAppointmentAnchoredOffset(offsetMinutes),
+                    });
 
                     for (const channelInfo of channelsInfo) {
                         // Vídeos de lembrete: apenas para WhatsApp
@@ -409,23 +416,19 @@ serve(async (req: Request) => {
             }
 
             if (queueBatch.length > 0) {
-                // onConflict deve casar com idx_outbound_queue_unique_msg:
-                // (tenant_id, patient_phone, message_type, reference_id, notification_channel).
-                // Inclui notification_channel para permitir fan-out multi-canal
-                // (ex.: WhatsApp + E-mail ambos ligados) sem que a 2ª linha seja
-                // descartada por colidir com a 1ª — bug corrigido em 2026-07-08.
-                const { error: upsertErr } = await supabase
-                    .from("outbound_message_queue")
-                    .upsert(queueBatch, {
-                        onConflict:       "tenant_id,patient_phone,message_type,reference_id,notification_channel",
-                        ignoreDuplicates: true,
-                    });
+                // outbound_enqueue_message_batch (pgmq): cada item passa pelo
+                // mesmo dedup de sempre (mesmo índice único, agora como
+                // UNIQUE constraint em outbound_reminder_registry) e vira uma
+                // chamada pgmq.send() com o scheduled_at exato — a fila
+                // pgmq cuida da entrega, sem reaper/claim escrito à mão.
+                const { data: createdCount, error: rpcErr } = await supabase
+                    .rpc("outbound_enqueue_message_batch", { p_items: queueBatch });
 
-                if (upsertErr) {
-                    console.error(`[schedule-reminders] Upsert failed for Appt ${appt.id}:`, upsertErr.message);
+                if (rpcErr) {
+                    console.error(`[schedule-reminders] Enqueue batch failed for Appt ${appt.id}:`, rpcErr.message);
                 } else {
-                    console.log(`[schedule-reminders] ${queueBatch.length} reminders queued | Appt ${appt.id} | channels: ${channelsInfo.map(c => c.channel).join(", ")} | tz: ${timezone}`);
-                    enqueuedCount += queueBatch.length;
+                    console.log(`[schedule-reminders] ${createdCount}/${queueBatch.length} reminders queued | Appt ${appt.id} | channels: ${channelsInfo.map(c => c.channel).join(", ")} | tz: ${timezone}`);
+                    enqueuedCount += createdCount ?? 0;
                 }
             }
 
@@ -433,20 +436,16 @@ serve(async (req: Request) => {
             // Remove quaisquer lembretes pendentes deste agendamento que NÃO constem
             // no lote válido recém-calculado (cobre alterações de configuração,
             // desativações e transição do modelo legado 'reminder_24h' para o novo 'reminder_custom_%').
+            // outbound_cancel_stale_reminders opera LINHA POR LINHA (pgmq.delete de
+            // um msg_id por vez, nunca um DELETE de tabela inteira) e nunca toca
+            // lembrete com scheduled_at <= now() — era exatamente a falta desses
+            // dois cuidados que apagava lembretes vencendo no minuto do envio.
             const validTypes = Array.from(new Set(queueBatch.map((item: any) => item.message_type)));
-            let cleanupQuery = supabase
-                .from("outbound_message_queue")
-                .delete()
-                .eq("reference_id", appt.id)
-                .eq("reference_type", "appointment")
-                .eq("status", "pending")
-                .like("message_type", "reminder_%");
-
-            if (validTypes.length > 0) {
-                cleanupQuery = cleanupQuery.not("message_type", "in", `(${validTypes.join(",")})`);
-            }
-
-            const { error: cleanupErr } = await cleanupQuery;
+            const { error: cleanupErr } = await supabase.rpc("outbound_cancel_stale_reminders", {
+                p_reference_id:   appt.id,
+                p_reference_type: "appointment",
+                p_valid_types:    validTypes,
+            });
             if (cleanupErr) {
                 console.error(`[schedule-reminders] Cleanup failed for Appt ${appt.id}:`, cleanupErr.message);
             }
@@ -512,33 +511,27 @@ serve(async (req: Request) => {
                 return "pt";
             })();
 
-            const { error: npsErr } = await supabase
-                .from("outbound_message_queue")
-                .upsert({
-                    tenant_id:            appt.tenant_id,
-                    patient_phone:        patientData.phone,
-                    message_type:         "nps_survey",
-                    template_key:         "nps_survey",
-                    template_vars:        {
-                        patient_name: patientData.full_name || "Paciente",
-                        clinic_name:  clinicName,
-                        locale,
-                    },
-                    scheduled_at:         scheduledTime,
-                    reference_id:         appt.id,
-                    reference_type:       "appointment",
-                    status:               "pending",
-                    notification_channel: npsChannel.channel,
-                    channel_recipient_id: npsChannel.recipientId,
-                    is_edited:            false,
-                }, {
-                    onConflict:       "tenant_id,patient_phone,message_type,reference_id,notification_channel",
-                    ignoreDuplicates: true,
-                });
+            const { data: npsId, error: npsErr } = await supabase.rpc("outbound_enqueue_message", {
+                p_tenant_id:            appt.tenant_id,
+                p_patient_phone:        patientData.phone,
+                p_message_type:         "nps_survey",
+                p_template_key:         "nps_survey",
+                p_template_vars: {
+                    patient_name: patientData.full_name || "Paciente",
+                    clinic_name:  clinicName,
+                    locale,
+                },
+                p_scheduled_at:         scheduledTime,
+                p_reference_id:         appt.id,
+                p_reference_type:       "appointment",
+                p_notification_channel: npsChannel.channel,
+                p_channel_recipient_id: npsChannel.recipientId,
+                p_is_edited:            false,
+            });
 
             if (npsErr) {
                 console.error(`[schedule-reminders] NPS backfill failed for Appt ${appt.id}:`, npsErr.message);
-            } else {
+            } else if (npsId) {
                 enqueuedCount++;
                 console.log(`[schedule-reminders] NPS backfill | Appt ${appt.id} | ${npsChannel.channel}`);
             }

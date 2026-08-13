@@ -111,13 +111,14 @@ export function usePatientFunnel({ tenantId, dateRange }: UsePatientFunnelOption
         return true;
     };
 
+    // RPC (não UPDATE direto): cada linha cancelada precisa de um
+    // pgmq.delete() correspondente pra não ser reentregue — outbound_cancel_all_pending_for_patient
+    // faz isso linha por linha, coordenado com o registro.
     const cancelAllPendingForPatient = async (phone: string) => {
-        const { error } = await supabase
-            .from('outbound_message_queue')
-            .update({ status: 'cancelled' })
-            .eq('tenant_id', tenantId)
-            .eq('patient_phone', phone)
-            .eq('status', 'pending');
+        const { error } = await supabase.rpc('outbound_cancel_all_pending_for_patient', {
+            p_tenant_id: tenantId,
+            p_patient_phone: phone,
+        });
 
         if (error) throw error;
         return true;

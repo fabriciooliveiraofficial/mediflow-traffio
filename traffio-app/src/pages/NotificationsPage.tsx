@@ -53,13 +53,13 @@ export const NotificationsPage = () => {
 
         const fetchHealth = async () => {
             const [pendingRes, sentRes, failedRes, categoriesRes] = await Promise.all([
-                supabase.from('outbound_message_queue')
+                supabase.from('outbound_reminder_registry')
                     .select('*', { count: 'exact', head: true })
                     .eq('tenant_id', tenant.id).eq('status', 'pending'),
-                supabase.from('outbound_message_queue')
+                supabase.from('outbound_reminder_registry')
                     .select('*', { count: 'exact', head: true })
                     .eq('tenant_id', tenant.id).eq('status', 'sent').gte('sent_at', since24h),
-                supabase.from('outbound_message_queue')
+                supabase.from('outbound_reminder_registry')
                     .select('*', { count: 'exact', head: true })
                     .eq('tenant_id', tenant.id).eq('status', 'failed').gte('created_at', since24h),
                 supabase.rpc('get_automation_hub_stats', { p_tenant_id: tenant.id }),

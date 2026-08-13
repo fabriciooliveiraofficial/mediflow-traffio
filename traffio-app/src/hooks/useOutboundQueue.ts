@@ -55,7 +55,7 @@ export function useOutboundQueue({ tenantId, filters, page = 1, pageSize = 25 }:
             const ps = pageSizeRef.current;
 
             let query = supabase
-                .from('outbound_message_queue')
+                .from('outbound_reminder_registry')
                 .select('*', { count: 'exact' })
                 .eq('tenant_id', tenantId);
 
@@ -108,7 +108,7 @@ export function useOutboundQueue({ tenantId, filters, page = 1, pageSize = 25 }:
             .channel(`outbound_queue_${tenantId}`)
             .on(
                 'postgres_changes',
-                { event: '*', schema: 'public', table: 'outbound_message_queue', filter: `tenant_id=eq.${tenantId}` },
+                { event: '*', schema: 'public', table: 'outbound_reminder_registry', filter: `tenant_id=eq.${tenantId}` },
                 () => fetchQueue()
             )
             .subscribe();
@@ -118,53 +118,36 @@ export function useOutboundQueue({ tenantId, filters, page = 1, pageSize = 25 }:
         };
     }, [tenantId, fetchQueue]);
 
+    // As 4 ações abaixo passaram de UPDATE direto na tabela pra RPCs
+    // (outbound_cancel_message/outbound_edit_message/outbound_retry_message/
+    // outbound_send_now): cada uma precisa coordenar o registro com a fila
+    // pgmq (cancelar/reenviar via pgmq.delete/pgmq.send/pgmq.set_vt) na mesma
+    // transação — um UPDATE puro deixava as duas coisas dessincronizadas.
     const cancel = async (id: string) => {
-        const { error } = await supabase
-            .from('outbound_message_queue')
-            .update({ status: 'cancelled' })
-            .eq('id', id)
-            .eq('tenant_id', tenantId);
+        const { data, error } = await supabase.rpc('outbound_cancel_message', { p_id: id });
         if (error) throw error;
-        return true;
+        return !!data;
     };
 
     const edit = async (id: string, overrideMessage: string) => {
-        const { data: current } = await supabase
-            .from('outbound_message_queue')
-            .select('template_vars')
-            .eq('id', id)
-            .eq('tenant_id', tenantId)
-            .single();
-
-        const newVars = { ...(current?.template_vars || {}), override_message: overrideMessage };
-
-        const { error } = await supabase
-            .from('outbound_message_queue')
-            .update({ template_vars: newVars, is_edited: true })
-            .eq('id', id)
-            .eq('tenant_id', tenantId);
+        const { data, error } = await supabase.rpc('outbound_edit_message', {
+            p_id: id,
+            p_override_message: overrideMessage,
+        });
         if (error) throw error;
-        return true;
+        return !!data;
     };
 
     const retry = async (id: string) => {
-        const { error } = await supabase
-            .from('outbound_message_queue')
-            .update({ status: 'pending', attempts: 0, error_message: null })
-            .eq('id', id)
-            .eq('tenant_id', tenantId);
+        const { data, error } = await supabase.rpc('outbound_retry_message', { p_id: id });
         if (error) throw error;
-        return true;
+        return !!data;
     };
 
     const sendNow = async (id: string) => {
-        const { error } = await supabase
-            .from('outbound_message_queue')
-            .update({ scheduled_at: new Date().toISOString(), status: 'pending' })
-            .eq('id', id)
-            .eq('tenant_id', tenantId);
+        const { data, error } = await supabase.rpc('outbound_send_now', { p_id: id });
         if (error) throw error;
-        return true;
+        return !!data;
     };
 
     return { data, count, isLoading, cancel, edit, retry, sendNow, refetch: fetchQueue };

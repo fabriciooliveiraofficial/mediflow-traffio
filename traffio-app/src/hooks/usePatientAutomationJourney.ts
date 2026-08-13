@@ -30,7 +30,7 @@ export function usePatientAutomationJourney(phone: string, tenantId: string) {
 
             // 2. Fetch Outbound Queue
             const { data: queue } = await supabase
-                .from('outbound_message_queue')
+                .from('outbound_reminder_registry')
                 .select('*')
                 .eq('tenant_id', tenantId)
                 .eq('patient_phone', phone)

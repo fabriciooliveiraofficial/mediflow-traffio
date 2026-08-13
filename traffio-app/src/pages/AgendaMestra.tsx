@@ -912,22 +912,22 @@ export const AgendaMestra: React.FC = () => {
             const tenantInfo = tenants.find(t => t.id === selectedTenant);
 
             // is_edited + override_message: o process-outbound envia o texto exatamente
-            // como está no preview, por qualquer canal (incl. e-mail)
-            const { error } = await supabase.from('outbound_message_queue').insert({
-                tenant_id: selectedTenant,
-                patient_phone: bookingForm.selectedPatient.phone || recipient,
-                message_type: 'booking_confirmed',
-                template_key: 'booking_confirmed',
-                template_vars: {
+            // como está no preview, por qualquer canal (incl. e-mail).
+            // RPC (não insert direto): outbound_reminder_registry só aceita
+            // escrita via RPC — cada mensagem precisa de um pgmq.send()
+            // correspondente na mesma transação, o que um INSERT puro não faz.
+            const { error } = await supabase.rpc('outbound_enqueue_manual', {
+                p_tenant_id: selectedTenant,
+                p_patient_phone: bookingForm.selectedPatient.phone || recipient,
+                p_message_type: 'booking_confirmed',
+                p_template_key: 'booking_confirmed',
+                p_template_vars: {
                     override_message: notificationPreviewText,
                     clinic_name: tenantInfo?.name || '',
                     locale: tenantInfo?.bot_config?.notification_locale || 'pt',
                 },
-                is_edited: true,
-                scheduled_at: new Date().toISOString(),
-                status: 'pending',
-                notification_channel: notificationChannel,
-                channel_recipient_id: recipient.trim()
+                p_notification_channel: notificationChannel,
+                p_channel_recipient_id: recipient.trim(),
             });
 
             if (error) throw error;
