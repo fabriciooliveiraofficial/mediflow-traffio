@@ -23,6 +23,7 @@ import { runCopilot } from "../_shared/copilot.ts";
 import { extractZapiContent, extractCloudApiContent } from "../_shared/inboundParser.ts";
 import { compensateIdempotencyMarker } from "../_shared/webhookIdempotency.ts";
 import { resolveInboundMedia } from "../_shared/inboundMediaDownloader.ts";
+import { getOrCreateChannelIdentity } from "../_shared/identityResolution.ts";
 
 console.log("whatsapp-bot v6 — Inbox Pattern + Dual Provider — Initialized");
 
@@ -124,6 +125,8 @@ async function handleZapi(supabase: any, body: any): Promise<Response> {
     }
     console.warn("[whatsapp-bot] Z-API: Idempotency non-fatal:", idempotencyError.message);
   }
+
+  captureChannelIdentity(supabase, tenant.id, phone, parsed.referral);
 
   // --- HUMAN HANDOFF GUARD ---
   // Se humano está ativamente atendendo, NÃO colocar no inbox do bot.
@@ -276,6 +279,8 @@ async function handleCloudApi(supabase: any, body: any): Promise<Response> {
       continue;
     }
 
+    captureChannelIdentity(supabase, tenant.id, phone, parsed.referral);
+
     // --- HUMAN HANDOFF GUARD ---
     const { data: session } = await supabase
       .from("conversation_sessions")
@@ -387,6 +392,26 @@ function maybeRunCopilot(supabase: any, tenant: any, sessionId: string, phone: s
       clinicName: tenant.name || "",
       botConfig,
     }).catch((e: any) => console.warn(`[whatsapp-bot] copilot background falhou (non-fatal): ${e?.message}`)),
+  );
+}
+
+// =============================================================================
+// Atribuição de anúncio (Dashboard — Leads Feed, 2026-08-13): captura a
+// identidade de canal o mais cedo possível (no webhook, não só quando o nome
+// do paciente é conhecido depois) para não perder o `referral` — a Meta só o
+// inclui na 1ª mensagem de uma conversa iniciada por clique de anúncio.
+// getOrCreateChannelIdentity é idempotente (só grava platformMeta na criação,
+// nunca sobrescreve em mensagens seguintes) — chamar sempre é seguro. Roda em
+// background: nunca deve atrasar nem quebrar o webhook.
+// =============================================================================
+function captureChannelIdentity(supabase: any, tenantId: string, phone: string, referral: any) {
+  runInBackground(
+    getOrCreateChannelIdentity(supabase, {
+      tenantId,
+      channel: "whatsapp",
+      channelUserId: phone,
+      platformMeta: referral ? { referral } : {},
+    }).catch((e: any) => console.warn(`[whatsapp-bot] captura de identidade/referral falhou (non-fatal): ${e?.message}`)),
   );
 }
 

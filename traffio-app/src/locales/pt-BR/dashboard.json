@@ -98,9 +98,8 @@
     "connectGoogleAds": "Conectar Google Ads",
     "performanceSuggestionTitle": "Sugestão de Performance",
     "performanceSuggestionTextEmpty": "Após conectar suas contas, nossa IA analisará o CPL e sugerirá remanejamento de orçamento em tempo real.",
-    "performanceSuggestionTextWithData": "Identificamos que Meta Ads está com CPL 30% menor nesta semana. Recomendamos migrar 15% do orçamento para o Gerenciador de Anúncios.",
-    "viewSimulation": "Ver Simulação",
-    "applyViaAiAgent": "Aplicar via Agente IA"
+    "performanceSuggestionTextReal": "Nos últimos 7 dias, {{platform}} teve CPL {{percent}}% menor entre suas campanhas ativas.",
+    "viewSimulation": "Ver Simulação"
   },
   "campaignTable": {
     "title": "Performance por Campanha",
@@ -115,9 +114,12 @@
     "titleHighlight": "Recente",
     "subtitle": "Leads qualificados aguardando orquestração.",
     "viewFullFunnel": "Ver Funil Completo",
-    "captureSource": "Captura: Form Ads",
-    "timeAgo": "3h atrás",
-    "qualified": "Qualificado",
+    "sourceAd": "via anúncio",
+    "sourceOrganic": "Contato direto",
+    "timeJustNow": "Agora mesmo",
+    "timeMinutesAgo": "{{count}}min atrás",
+    "timeHoursAgo": "{{count}}h atrás",
+    "timeDaysAgo": "{{count}}d atrás",
     "emptyState": "O radar de tráfego está ativo, mas nenhum lead novo foi capturado."
   },
   "manageModal": {

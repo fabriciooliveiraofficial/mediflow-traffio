@@ -28,6 +28,7 @@
 import { assert, assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
 import { executeSchedulingTool, resolvePatientIdentity } from "../../_shared/schedulingTools.ts";
 import { validateAgentReply } from "../../_shared/copilot.ts";
+import { getOrCreateChannelIdentity } from "../../_shared/identityResolution.ts";
 
 const digits = (s: string) => (s || "").replace(/\D/g, "");
 
@@ -109,6 +110,87 @@ function buildMock(opts: {
         },
     };
 }
+
+// ── getOrCreateChannelIdentity: captura de atribuição de anúncio (Dashboard —
+// Leads Feed, 2026-08-13). A Meta só manda `referral` na 1ª mensagem de uma
+// conversa iniciada por clique de anúncio — por isso platform_meta só pode
+// ser gravado na CRIAÇÃO da identidade, nunca sobrescrito depois (senão uma
+// mensagem de anúncio seguida de mensagens orgânicas apagaria a atribuição
+// real). Mock mínimo, dedicado — só rastreia channel_identities. ────────────
+
+function buildChannelIdentityMock() {
+    const rows: any[] = [];
+    let nextId = 1;
+    return {
+        rows,
+        from(table: string) {
+            if (table !== "channel_identities") throw new Error(`unexpected table: ${table}`);
+            return {
+                select: () => ({
+                    eq: (_c1: string, tenantId: string) => ({
+                        eq: (_c2: string, channel: string) => ({
+                            eq: (_c3: string, channelUserId: string) => ({
+                                maybeSingle: async () => ({
+                                    data: rows.find(r => r.tenant_id === tenantId && r.channel === channel && r.channel_user_id === channelUserId) || null,
+                                    error: null,
+                                }),
+                            }),
+                        }),
+                    }),
+                }),
+                insert: (payload: any) => ({
+                    select: () => ({
+                        single: async () => {
+                            const row = { id: `identity-${nextId++}`, patient_id: null, ...payload };
+                            rows.push(row);
+                            return { data: row, error: null };
+                        },
+                    }),
+                }),
+            };
+        },
+    };
+}
+
+Deno.test("getOrCreateChannelIdentity: 1ª mensagem com referral de anúncio — grava platform_meta na criação", async () => {
+    const mock = buildChannelIdentityMock();
+    const referral = { sourceId: "ad-123", sourceType: "ad", sourceUrl: null, ctwaClid: "clid-1", headline: "Avaliação grátis" };
+    const identity = await getOrCreateChannelIdentity(mock as any, {
+        tenantId: "tenant-1", channel: "whatsapp", channelUserId: "5511999999999",
+        platformMeta: { referral },
+    });
+    assertEquals(identity?.platform_meta, { referral });
+    assertEquals(mock.rows.length, 1);
+});
+
+Deno.test("getOrCreateChannelIdentity: mensagens seguintes (identidade já existe) NUNCA sobrescrevem platform_meta", async () => {
+    const mock = buildChannelIdentityMock();
+    const referral = { sourceId: "ad-123", sourceType: "ad", sourceUrl: null, ctwaClid: "clid-1", headline: "Avaliação grátis" };
+
+    // 1ª mensagem: veio de um clique de anúncio.
+    await getOrCreateChannelIdentity(mock as any, {
+        tenantId: "tenant-1", channel: "whatsapp", channelUserId: "5511999999999",
+        platformMeta: { referral },
+    });
+
+    // 2ª mensagem, mesma conversa: orgânica (sem referral) — não pode apagar a atribuição real.
+    const second = await getOrCreateChannelIdentity(mock as any, {
+        tenantId: "tenant-1", channel: "whatsapp", channelUserId: "5511999999999",
+        platformMeta: {},
+    });
+
+    assertEquals(second?.platform_meta, { referral }, "a atribuição da 1ª mensagem tem que sobreviver às mensagens seguintes");
+    assertEquals(mock.rows.length, 1, "não pode criar uma segunda identidade para a mesma conversa");
+});
+
+Deno.test("getOrCreateChannelIdentity: contato orgânico (sem referral) grava platform_meta vazio, sem erro", async () => {
+    const mock = buildChannelIdentityMock();
+    const identity = await getOrCreateChannelIdentity(mock as any, {
+        tenantId: "tenant-1", channel: "instagram", channelUserId: "ig-sender-1",
+        platformMeta: {},
+    });
+    assertEquals(identity?.platform_meta, {});
+});
 
 // ── resolvePatientIdentity: fast path via canal já ligado ──
 

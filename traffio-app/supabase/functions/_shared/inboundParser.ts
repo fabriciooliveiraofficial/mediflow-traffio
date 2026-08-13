@@ -10,6 +10,20 @@
  * texto/rótulo — é ele que carrega o slot_id determinístico ("slot|...").
  */
 
+/**
+ * Atribuição de anúncio (Meta Click-to-WhatsApp/Messenger/Instagram) — a Meta
+ * inclui isto na PRIMEIRA mensagem de uma conversa iniciada por clique de
+ * anúncio. Nunca presente em contato orgânico. Ver _shared/identityResolution.ts
+ * para onde isto é persistido (channel_identities.platform_meta).
+ */
+export interface InboundReferral {
+    sourceId: string | null;
+    sourceType: string | null;
+    sourceUrl: string | null;
+    ctwaClid: string | null;
+    headline: string | null;
+}
+
 export interface InboundContent {
     /** Conteúdo que vai para message_inbox.content (id do interativo quando houver) */
     content: string | null;
@@ -24,6 +38,23 @@ export interface InboundContent {
     fileName: string | null;
     /** Mime type declarado pelo provedor (Fase 2 — Arquivos, 2026-08-13). Só documento tem; null para o resto. */
     mimeType: string | null;
+    /** Atribuição de anúncio (Dashboard — Leads Feed, 2026-08-13). null em contato orgânico. */
+    referral: InboundReferral | null;
+}
+
+/** Lê o objeto `referral` de um payload de webhook — mesmo formato documentado
+ * pela Cloud API; Z-API pode ou não repassar o campo (não confirmado), então
+ * esta função é usada em ambos os parsers e nunca lança nem assume presença. */
+export function extractReferral(source: any): InboundReferral | null {
+    const r = source?.referral;
+    if (!r || typeof r !== "object") return null;
+    return {
+        sourceId: r.source_id || null,
+        sourceType: r.source_type || null,
+        sourceUrl: r.source_url || null,
+        ctwaClid: r.ctwa_clid || null,
+        headline: r.headline || null,
+    };
 }
 
 /**
@@ -40,6 +71,7 @@ export function extractZapiContent(body: any): InboundContent {
             isInteractiveReply: false,
             fileName: null,
             mimeType: null,
+            referral: null,
         };
     }
 
@@ -57,6 +89,7 @@ export function extractZapiContent(body: any): InboundContent {
             isInteractiveReply: true,
             fileName: null,
             mimeType: null,
+            referral: null,
         };
     }
 
@@ -74,6 +107,7 @@ export function extractZapiContent(body: any): InboundContent {
             isInteractiveReply: true,
             fileName: null,
             mimeType: null,
+            referral: null,
         };
     }
 
@@ -92,6 +126,7 @@ export function extractZapiContent(body: any): InboundContent {
             isInteractiveReply: true,
             fileName: null,
             mimeType: null,
+            referral: null,
         };
     }
 
@@ -124,6 +159,9 @@ export function extractZapiContent(body: any): InboundContent {
         isInteractiveReply: false,
         fileName,
         mimeType,
+        // Z-API: não confirmado se repassa o `referral` da Meta — lido de forma
+        // defensiva (extractReferral nunca lança, retorna null se ausente).
+        referral: extractReferral(body),
     };
 }
 
@@ -141,6 +179,7 @@ export function extractCloudApiContent(msg: any): InboundContent {
             isInteractiveReply: false,
             fileName: null,
             mimeType: null,
+            referral: null,
         };
     }
 
@@ -215,5 +254,8 @@ export function extractCloudApiContent(msg: any): InboundContent {
         isInteractiveReply,
         fileName,
         mimeType,
+        // Presente só na 1ª mensagem de uma conversa iniciada por clique de
+        // anúncio Click-to-WhatsApp — nunca lançar, extractReferral trata ausência.
+        referral: extractReferral(msg),
     };
 }

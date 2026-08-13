@@ -21,6 +21,8 @@ import { upsertChannelPreference } from "../_shared/upsertChannelPreference.ts";
 import { getMetaVerifyToken } from "../_shared/masterConfig.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { resolveInboundMedia } from "../_shared/inboundMediaDownloader.ts";
+import { getOrCreateChannelIdentity } from "../_shared/identityResolution.ts";
+import { extractReferral } from "../_shared/inboundParser.ts";
 
 console.log("meta-social-webhook v1 — Instagram DM + Facebook Messenger — Initialized");
 
@@ -228,6 +230,19 @@ async function processMessagingEvent(
     console.log(`[meta-social-webhook] Duplicate message ${messageId} — ignored`);
     return;
   }
+
+  // Atribuição de anúncio (Dashboard — Leads Feed, 2026-08-13): captura a
+  // identidade de canal cedo para não perder `messaging.referral` — a Meta só
+  // inclui isso na 1ª mensagem de uma conversa iniciada por clique de anúncio
+  // (Click-to-Messenger/Instagram). getOrCreateChannelIdentity é idempotente
+  // (só grava platform_meta na criação da identidade) — chamar sempre é
+  // seguro. Best-effort: nunca deve bloquear o webhook.
+  await getOrCreateChannelIdentity(supabase, {
+    tenantId,
+    channel,
+    channelUserId: senderId,
+    platformMeta: (() => { const referral = extractReferral(messaging); return referral ? { referral } : {}; })(),
+  }).catch((e: any) => console.warn(`[meta-social-webhook] captura de identidade/referral falhou (non-fatal): ${e?.message}`));
 
   // 3. Garantir/atualizar conversation_session
   const { data: existingSession } = await supabase

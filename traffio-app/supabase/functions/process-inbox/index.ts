@@ -579,7 +579,10 @@ async function processConversationTurn(
        if (structuredFlowResult.matched) {
          if (structuredFlowResult.status === "failed") {
            console.warn(`[process-inbox] [${phone}] fluxo estruturado falhou — fail-safe para fila humana`);
-           await sessionManager.triggerHumanHandoff(session.id);
+           // kind='soft' (não o default NULL): falha de turno é transitória — sem isso
+           // isHardHandoffSession trata NULL como hard e a conversa nunca mais é
+           // atendida pela IA sozinha, mesmo depois da causa passar (incidente 13/08/2026).
+           await sessionManager.triggerHumanHandoff(session.id, undefined, { reason: "tech", kind: "soft" });
          }
          // 'replied'/'transferred': a própria função já enviou a mensagem e atualizou o estado
          // Onda 5.2 — best-effort, nunca afeta o turno.
@@ -619,7 +622,9 @@ async function processConversationTurn(
          }
          if (autonomousStatus === "failed") {
            console.warn(`[process-inbox] [${phone}] agente autônomo falhou — fail-safe para fila humana`);
-           await sessionManager.triggerHumanHandoff(session.id);
+           // kind='soft' — mesmo motivo do fail-safe do fluxo estruturado acima
+           // (incidente 13/08/2026): NULL vira hard e trava a conversa pra sempre.
+           await sessionManager.triggerHumanHandoff(session.id, undefined, { reason: "tech", kind: "soft" });
          }
          if (autonomousStatus === "infra_failed") {
            // Falha de INFRA do LLM (chave/rede/upstream) — não é culpa desta
@@ -637,10 +642,14 @@ async function processConversationTurn(
          // 'transferred': handoff já feito dentro do agente
        } else {
          console.log(`[process-inbox] [${phone}] Routing message to human queue.`);
+         // kind='soft' (não NULL, como era antes — achado real por trás do incidente
+         // 13/08/2026, mais provável que o fail-safe de :582/:622): NULL faz
+         // isHardHandoffSession tratar como hard, travando a conversa pra sempre —
+         // inclusive quando o motivo é só o dial não ser 'ai_always' (não é falha).
          if (session.omnichannel_status !== "human_active" && session.omnichannel_status !== "queued") {
-           await sessionManager.triggerHumanHandoff(session.id, undefined, { reason: null, kind: null });
+           await sessionManager.triggerHumanHandoff(session.id, undefined, { reason: "tech", kind: "soft" });
          } else if (session.omnichannel_status === "queued" && session.handoff_reason === "tech") {
-           await sessionManager.triggerHumanHandoff(session.id, undefined, { reason: null, kind: null });
+           await sessionManager.triggerHumanHandoff(session.id, undefined, { reason: "tech", kind: "soft" });
          }
        }
      }

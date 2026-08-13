@@ -64,3 +64,19 @@ Deno.test("GUARD: dial nulo/indefinido nunca aciona o agente autônomo", () => {
     assertEquals(isAutonomousAgentTurn(null, { omnichannel_status: "queued", human_handoff: false }), false);
     assertEquals(isAutonomousAgentTurn(undefined, { omnichannel_status: "queued", human_handoff: false }), false);
 });
+
+// ─── Regressão do incidente 13/08/2026 ────────────────────────────────────────
+// isHardHandoffSession trata handoff_kind=NULL como hard (teste da linha 50-52,
+// comportamento correto e intencional da função pura). O bug real não estava
+// na função — estava em process-inbox/index.ts escrevendo esse estado de
+// propósito em dois pontos (`{ reason: null, kind: null }`), gravado em duas
+// correções passadas (30/07 e 31/07, achado via `git log -S`). Como NULL nunca
+// vira 'soft', qualquer conversa que passasse por ali travava para SEMPRE, sem
+// recuperação automática — foi isso que apareceu como "o agente parou
+// completamente". Nenhum chamador de triggerHumanHandoff neste arquivo pode
+// voltar a passar kind=null — só 'soft' (autorrecuperável) ou 'hard' (nomeado).
+Deno.test("GUARD: process-inbox nunca chama triggerHumanHandoff com kind explicitamente null", async () => {
+    const src = await Deno.readTextFile(new URL("../../process-inbox/index.ts", import.meta.url));
+    const offenders = src.match(/triggerHumanHandoff\([^)]*kind:\s*null[^)]*\)/g) || [];
+    assertEquals(offenders, [], `chamada(s) com kind:null encontrada(s) — cria estado de handoff irrecuperável: ${offenders.join(" | ")}`);
+});

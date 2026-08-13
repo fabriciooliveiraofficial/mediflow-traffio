@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
-import { extractZapiContent, extractCloudApiContent } from "../../_shared/inboundParser.ts";
+import { extractZapiContent, extractCloudApiContent, extractReferral } from "../../_shared/inboundParser.ts";
 import { resolveSlotIdByTitle } from "../../_shared/schedulingTools.ts";
 import { resolveTurnLanguage } from "../../_shared/copilot.ts";
 
@@ -212,6 +212,55 @@ Deno.test("inboundParser — Cloud API imagem/áudio nunca têm fileName", () =>
     const parsedImg = extractCloudApiContent({ type: "image", image: { id: "m1" } });
     assertEquals(parsedImg.fileName, null);
     assertEquals(parsedImg.mimeType, null);
+});
+
+// ── Atribuição de anúncio (Dashboard — Leads Feed, 2026-08-13) — a Meta inclui
+// `referral` (source_id/source_type/source_url/ctwa_clid/headline) só na 1ª
+// mensagem de uma conversa iniciada por clique de anúncio. Antes desta fase o
+// campo chegava e era descartado; o Dashboard fabricava a origem do lead
+// (ícone alternando por posição no array, "FORM ADS" fixo). ──────────────────
+
+Deno.test("extractReferral — payload com referral completo", () => {
+    const r = extractReferral({ referral: { source_id: "ad-123", source_type: "ad", source_url: "https://fb.me/x", ctwa_clid: "clid-abc", headline: "Avaliação grátis" } });
+    assertEquals(r, { sourceId: "ad-123", sourceType: "ad", sourceUrl: "https://fb.me/x", ctwaClid: "clid-abc", headline: "Avaliação grátis" });
+});
+
+Deno.test("extractReferral — sem campo referral retorna null (contato orgânico)", () => {
+    assertEquals(extractReferral({ text: { body: "oi" } }), null);
+    assertEquals(extractReferral({}), null);
+    assertEquals(extractReferral(null), null);
+    assertEquals(extractReferral(undefined), null);
+});
+
+Deno.test("extractReferral — referral malformado (não-objeto) nunca lança, retorna null", () => {
+    assertEquals(extractReferral({ referral: "garbage" }), null);
+    assertEquals(extractReferral({ referral: 123 }), null);
+});
+
+Deno.test("inboundParser — Cloud API texto COM referral de anúncio", () => {
+    const msg = {
+        type: "text",
+        text: { body: "Olá, vi o anúncio de vocês" },
+        referral: { source_id: "ad-999", source_type: "ad", ctwa_clid: "clid-xyz", headline: "Implante dentário" },
+    };
+    const parsed = extractCloudApiContent(msg);
+    assertEquals(parsed.content, "Olá, vi o anúncio de vocês");
+    assertEquals(parsed.referral?.sourceId, "ad-999");
+    assertEquals(parsed.referral?.ctwaClid, "clid-xyz");
+    assertEquals(parsed.referral?.headline, "Implante dentário");
+});
+
+Deno.test("inboundParser — Cloud API texto SEM referral (contato direto/orgânico) — referral null", () => {
+    const msg = { type: "text", text: { body: "Quero agendar uma consulta" } };
+    const parsed = extractCloudApiContent(msg);
+    assertEquals(parsed.referral, null);
+});
+
+Deno.test("inboundParser — Z-API não confirmado se repassa referral, mas lê defensivamente se vier no mesmo formato", () => {
+    const withReferral = extractZapiContent({ text: { message: "oi" }, referral: { source_id: "ad-1", source_type: "ad" } });
+    assertEquals(withReferral.referral?.sourceId, "ad-1");
+    const withoutReferral = extractZapiContent({ text: { message: "oi" } });
+    assertEquals(withoutReferral.referral, null);
 });
 
 // ─── Tests for resolveSlotIdByTitle ──────────────────────────────────────────

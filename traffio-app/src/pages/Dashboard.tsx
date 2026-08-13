@@ -28,6 +28,31 @@ import { supabase } from '../lib/supabase';
 import { PageHeader, Button } from '../components/ui';
 
 /**
+ * Ícone real por canal (Leads Feed, 2026-08-13) — antes alternava por posição
+ * no array (`i % 2`), sem relação nenhuma com o canal real do paciente.
+ */
+function channelIcon(channel: string | null | undefined) {
+    switch (channel) {
+        case 'instagram': return <Instagram size={20} className="text-[#E4405F]" />;
+        case 'facebook':  return <Facebook size={20} className="text-[#0081FB]" />;
+        case 'livechat':  return <Globe size={20} className="text-brand-primary" />;
+        case 'whatsapp':
+        default:          return <MessageCircle size={20} className="text-[#25D366]" />;
+    }
+}
+
+/** Tempo relativo real a partir de `created_at` — antes era um texto fixo ("3h ago") igual para todo lead. */
+function formatRelativeTime(dateStr: string | null | undefined, t: (key: string, opts?: any) => string): string {
+    if (!dateStr) return '';
+    const minutes = Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000);
+    if (minutes < 1) return t('leadsFeed.timeJustNow');
+    if (minutes < 60) return t('leadsFeed.timeMinutesAgo', { count: minutes });
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return t('leadsFeed.timeHoursAgo', { count: hours });
+    return t('leadsFeed.timeDaysAgo', { count: Math.floor(hours / 24) });
+}
+
+/**
  * Dashboard — gestão de integração de anúncios (Meta/Google Ads).
  *
  * A partir do reorg de Relatórios (roadmap item 7, 16/07/2026), os KPIs/
@@ -46,6 +71,7 @@ export const Dashboard: React.FC = () => {
 
     const [leads, setLeads] = useState<any[]>([]);
     const [integrations, setIntegrations] = useState<{meta?: boolean, google?: boolean}>({});
+    const [adPerf, setAdPerf] = useState<{ platform: string; spend_cents: number; leads_count: number }[]>([]);
 
     const [manageModal, setManageModal] = useState<{ platform: 'meta' | 'google' } | null>(null);
     const [manageData, setManageData] = useState<any>(null);
@@ -89,7 +115,37 @@ export const Dashboard: React.FC = () => {
                     .eq('tenant_id', tenant.id)
                     .order('created_at', { ascending: false })
                     .limit(4);
-                if (leadData) setLeads(leadData);
+
+                // Atribuição real de canal/anúncio (Leads Feed, 2026-08-13) — antes
+                // o ícone/origem do card eram inventados (posição no array). Busca
+                // a identidade de canal ligada a cada paciente (channel_identities,
+                // já capturada no 1º contato — ver whatsapp-bot/meta-social-webhook)
+                // pra mostrar o canal real e o `referral` de anúncio quando existir.
+                if (leadData && leadData.length > 0) {
+                    const { data: identities } = await supabase
+                        .from('channel_identities')
+                        .select('patient_id, channel, platform_meta')
+                        .eq('tenant_id', tenant.id)
+                        .in('patient_id', leadData.map((l: any) => l.id));
+                    const byPatientId = new Map((identities || []).map((i: any) => [i.patient_id, i]));
+                    setLeads(leadData.map((lead: any) => ({ ...lead, _identity: byPatientId.get(lead.id) || null })));
+                } else if (leadData) {
+                    setLeads(leadData);
+                }
+
+                // Sugestão de performance real (2026-08-13) — antes era um texto fixo
+                // ("Meta Ads tem CPL 30% menor...") igual pra qualquer tenant. Usa o
+                // mesmo dado já sincronizado por sync-ads-performance (ver
+                // MarketingReport.tsx, mesma tabela/colunas) — spend_cents/leads_count
+                // reais dos últimos 7 dias, por plataforma.
+                const sevenDaysAgo = new Date();
+                sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                const { data: perfData } = await supabase
+                    .from('ad_performance_daily')
+                    .select('platform, spend_cents, leads_count')
+                    .eq('tenant_id', tenant.id)
+                    .gte('date', formatter.format(sevenDaysAgo));
+                setAdPerf(perfData || []);
 
             } catch (error) {
                 console.error('Error fetching dashboard data:', error);
@@ -312,8 +368,32 @@ export const Dashboard: React.FC = () => {
         fetchMetaPages();
     }, [fetchDashboardData, fetchMetaPages]);
 
-    // Nenhuma integração conectada ainda — muda a copy do banner de sugestão da IA.
-    const isLiveWithoutData = !integrations.meta && !integrations.google;
+    // Comparação real de CPL entre plataformas (2026-08-13) — só mostra a
+    // sugestão "com dado" quando as DUAS plataformas têm spend real nos
+    // últimos 7 dias; caso contrário cai no texto de estado vazio já
+    // existente (nunca inventa um número quando não há base suficiente).
+    const cplComparison = useMemo(() => {
+        const byPlatform = new Map<string, { spend: number; leads: number }>();
+        for (const row of adPerf) {
+            const cur = byPlatform.get(row.platform) || { spend: 0, leads: 0 };
+            cur.spend += Number(row.spend_cents || 0) / 100;
+            cur.leads += Number(row.leads_count || 0);
+            byPlatform.set(row.platform, cur);
+        }
+        const meta = byPlatform.get('meta');
+        const google = byPlatform.get('google');
+        if (!meta || !google || meta.spend <= 0 || google.spend <= 0) return null;
+
+        const cplMeta = meta.spend / Math.max(meta.leads, 1);
+        const cplGoogle = google.spend / Math.max(google.leads, 1);
+        const [lower, higher, lowerName] = cplMeta <= cplGoogle
+            ? [cplMeta, cplGoogle, 'Meta Ads']
+            : [cplGoogle, cplMeta, 'Google Ads'];
+        if (higher <= 0) return null;
+        const percent = Math.round((1 - lower / higher) * 100);
+        if (percent <= 0) return null;
+        return { platform: lowerName, percent };
+    }, [adPerf]);
 
     return (
         <div className="w-full px-2 space-y-10 pb-20">
@@ -428,13 +508,19 @@ export const Dashboard: React.FC = () => {
                         {t('integrations.performanceSuggestionTitle')}
                     </h5>
                     <p className="text-[12px] text-white/80 font-medium leading-relaxed">
-                        {isLiveWithoutData ?
-                            t('integrations.performanceSuggestionTextEmpty') :
-                            t('integrations.performanceSuggestionTextWithData')
+                        {cplComparison ?
+                            t('integrations.performanceSuggestionTextReal', { platform: cplComparison.platform, percent: cplComparison.percent }) :
+                            t('integrations.performanceSuggestionTextEmpty')
                         }
                     </p>
-                    <button className="px-6 py-3 bg-white text-brand-primary rounded-xl font-black text-[10px] uppercase tracking-tighter hover:bg-ice-50 transition-colors border-none cursor-pointer shadow-lg shadow-brand-primary/20">
-                        {isLiveWithoutData ? t('integrations.viewSimulation') : t('integrations.applyViaAiAgent')}
+                    {/* Sem automação real de realocação de orçamento hoje (só leitura de
+                        performance) — o CTA leva ao relatório de verdade em vez de fingir
+                        uma ação de "aplicar" que não existe. */}
+                    <button
+                        onClick={() => navigate('/dashboard/reports?tab=marketing')}
+                        className="px-6 py-3 bg-white text-brand-primary rounded-xl font-black text-[10px] uppercase tracking-tighter hover:bg-ice-50 transition-colors border-none cursor-pointer shadow-lg shadow-brand-primary/20"
+                    >
+                        {cplComparison ? t('header.viewFullReportButton') : t('integrations.viewSimulation')}
                     </button>
                 </div>
                 <div className="absolute -right-10 -top-10 w-40 h-40 bg-white opacity-10 rounded-full group-hover:scale-110 transition-transform duration-1000"></div>
@@ -461,7 +547,7 @@ export const Dashboard: React.FC = () => {
                         >
                             <div className="flex justify-between items-start">
                                 <div className="w-12 h-12 bg-ice-50 rounded-2xl flex items-center justify-center border border-transparent group-hover:border-brand-primary/20 transition-all ring-4 ring-transparent group-hover:ring-brand-primary/5">
-                                    {i % 2 === 0 ? <Facebook size={20} className="text-[#0081FB]" /> : <Instagram size={20} className="text-[#E4405F]" />}
+                                    {channelIcon(lead._identity?.channel)}
                                 </div>
                                 <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all">
                                     <button className="p-2 bg-ice-50 rounded-xl hover:bg-brand-primary hover:text-white transition-all border-none cursor-pointer"><MousePointer2 size={14} /></button>
@@ -472,15 +558,13 @@ export const Dashboard: React.FC = () => {
                                 <p className="text-[15px] font-black text-graphite-900 tracking-tight">{lead.full_name}</p>
                                 <div className="flex items-center gap-2">
                                     <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
-                                    <p className="text-[10px] text-graphite-400 font-bold uppercase tracking-tighter">{t('leadsFeed.captureSource')}</p>
+                                    <p className="text-[10px] text-graphite-400 font-bold uppercase tracking-tighter">
+                                        {lead._identity?.platform_meta?.referral ? t('leadsFeed.sourceAd') : t('leadsFeed.sourceOrganic')}
+                                    </p>
                                 </div>
                             </div>
                             <div className="pt-4 border-t border-ice-100/50 flex items-center justify-between">
-                                <span className="text-[9px] font-black uppercase text-graphite-400 bg-ice-50 px-2.5 py-1 rounded-full">{t('leadsFeed.timeAgo')}</span>
-                                <div className="flex items-center gap-1 text-brand-primary">
-                                    <TrendingUp size={12} />
-                                    <span className="text-[10px] font-black tracking-tighter">{t('leadsFeed.qualified')}</span>
-                                </div>
+                                <span className="text-[9px] font-black uppercase text-graphite-400 bg-ice-50 px-2.5 py-1 rounded-full">{formatRelativeTime(lead.created_at, t)}</span>
                             </div>
                         </motion.div>
                     )) : (
