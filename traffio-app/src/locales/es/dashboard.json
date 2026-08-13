@@ -114,12 +114,15 @@
     "titleHighlight": "Reciente",
     "subtitle": "Leads calificados en espera de orquestación.",
     "viewFullFunnel": "Ver Funnel Completo",
-    "sourceAd": "vía anuncio",
-    "sourceOrganic": "Contacto directo",
+    "channelLivechat": "Chat en Vivo",
+    "sourceViaAd": "{{channel}} · vía anuncio",
     "timeJustNow": "Justo ahora",
     "timeMinutesAgo": "Hace {{count}}min",
     "timeHoursAgo": "Hace {{count}}h",
     "timeDaysAgo": "Hace {{count}}d",
+    "viewFullProfile": "Ver ficha completa",
+    "copyPhone": "Copiar teléfono",
+    "phoneCopied": "¡Teléfono copiado!",
     "emptyState": "El radar de tráfico está activo, pero no se ha capturado ningún lead nuevo."
   },
   "manageModal": {

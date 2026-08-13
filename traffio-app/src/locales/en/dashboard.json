@@ -114,12 +114,15 @@
     "titleHighlight": "Flow",
     "subtitle": "Qualified leads awaiting orchestration.",
     "viewFullFunnel": "View Full Funnel",
-    "sourceAd": "via ad",
-    "sourceOrganic": "Direct contact",
+    "channelLivechat": "Live Chat",
+    "sourceViaAd": "{{channel}} · via ad",
     "timeJustNow": "Just now",
     "timeMinutesAgo": "{{count}}m ago",
     "timeHoursAgo": "{{count}}h ago",
     "timeDaysAgo": "{{count}}d ago",
+    "viewFullProfile": "View full profile",
+    "copyPhone": "Copy phone number",
+    "phoneCopied": "Phone number copied!",
     "emptyState": "The traffic radar is active, but no new leads have been captured yet."
   },
   "manageModal": {

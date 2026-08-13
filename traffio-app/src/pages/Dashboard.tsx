@@ -5,7 +5,6 @@ import {
     Globe,
     Facebook,
     Instagram,
-    MousePointer2,
     ShieldCheck,
     X,
     Loader2,
@@ -31,6 +30,20 @@ import { PageHeader, Button } from '../components/ui';
  * Ícone real por canal (Leads Feed, 2026-08-13) — antes alternava por posição
  * no array (`i % 2`), sem relação nenhuma com o canal real do paciente.
  */
+/** Nome do canal real (WhatsApp/Instagram/Facebook são nomes de marca, iguais
+ * nos 3 idiomas — só Live Chat é traduzido). Correção 13/08/2026: o rótulo
+ * mostrava só o status de anúncio ("Contato direto"/"via anúncio") sem NUNCA
+ * dizer o canal — usuário reportou "diz Direct Contact, mas é WhatsApp". */
+function channelLabel(channel: string | null | undefined, t: (key: string) => string): string {
+    switch (channel) {
+        case 'instagram': return 'Instagram';
+        case 'facebook':  return 'Facebook';
+        case 'livechat':  return t('leadsFeed.channelLivechat');
+        case 'whatsapp':
+        default:          return 'WhatsApp';
+    }
+}
+
 function channelIcon(channel: string | null | undefined) {
     switch (channel) {
         case 'instagram': return <Instagram size={20} className="text-[#E4405F]" />;
@@ -72,6 +85,7 @@ export const Dashboard: React.FC = () => {
     const [leads, setLeads] = useState<any[]>([]);
     const [integrations, setIntegrations] = useState<{meta?: boolean, google?: boolean}>({});
     const [adPerf, setAdPerf] = useState<{ platform: string; spend_cents: number; leads_count: number }[]>([]);
+    const [openMenuLeadId, setOpenMenuLeadId] = useState<string | null>(null);
 
     const [manageModal, setManageModal] = useState<{ platform: 'meta' | 'google' } | null>(null);
     const [manageData, setManageData] = useState<any>(null);
@@ -543,15 +557,48 @@ export const Dashboard: React.FC = () => {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: i * 0.1 }}
                             key={lead.id}
+                            onClick={() => navigate('/dashboard/patients/' + lead.id)}
                             className="glass p-6 rounded-[32px] flex flex-col gap-4 group cursor-pointer border-none shadow-lg shadow-ice-100/30"
                         >
                             <div className="flex justify-between items-start">
                                 <div className="w-12 h-12 bg-ice-50 rounded-2xl flex items-center justify-center border border-transparent group-hover:border-brand-primary/20 transition-all ring-4 ring-transparent group-hover:ring-brand-primary/5">
                                     {channelIcon(lead._identity?.channel)}
                                 </div>
-                                <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all">
-                                    <button className="p-2 bg-ice-50 rounded-xl hover:bg-brand-primary hover:text-white transition-all border-none cursor-pointer"><MousePointer2 size={14} /></button>
-                                    <button className="p-2 bg-ice-50 rounded-xl hover:bg-brand-primary hover:text-white transition-all border-none cursor-pointer"><MoreVertical size={14} /></button>
+                                {/* Menu real (2026-08-13) — antes eram 2 botões sem onClick, só
+                                    visíveis no hover, com bg-ice-50 quase invisível sobre o card
+                                    .glass. Agora: contraste real (fundo branco + borda, padrão de
+                                    IconButton/WorkQueue.tsx) e opacity-70 em repouso (não 0). */}
+                                <div className="relative opacity-70 group-hover:opacity-100 transition-all">
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setOpenMenuLeadId(openMenuLeadId === lead.id ? null : lead.id); }}
+                                        className="w-8 h-8 rounded-xl bg-white border border-ice-200 flex items-center justify-center text-graphite-400 hover:text-brand-primary transition-all cursor-pointer"
+                                    >
+                                        <MoreVertical size={14} />
+                                    </button>
+                                    {openMenuLeadId === lead.id && (
+                                        <>
+                                            <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setOpenMenuLeadId(null); }} />
+                                            <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl border border-ice-100 shadow-xl z-20 overflow-hidden">
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); setOpenMenuLeadId(null); navigate('/dashboard/patients/' + lead.id); }}
+                                                    className="w-full text-left px-4 py-2.5 text-xs font-bold text-graphite-700 hover:bg-ice-50 border-none bg-transparent cursor-pointer"
+                                                >
+                                                    {t('leadsFeed.viewFullProfile')}
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setOpenMenuLeadId(null);
+                                                        navigator.clipboard.writeText(lead.phone || '');
+                                                        showToast('success', t('leadsFeed.phoneCopied'));
+                                                    }}
+                                                    className="w-full text-left px-4 py-2.5 text-xs font-bold text-graphite-700 hover:bg-ice-50 border-none bg-transparent cursor-pointer"
+                                                >
+                                                    {t('leadsFeed.copyPhone')}
+                                                </button>
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                             <div className="space-y-1">
@@ -559,7 +606,9 @@ export const Dashboard: React.FC = () => {
                                 <div className="flex items-center gap-2">
                                     <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
                                     <p className="text-[10px] text-graphite-400 font-bold uppercase tracking-tighter">
-                                        {lead._identity?.platform_meta?.referral ? t('leadsFeed.sourceAd') : t('leadsFeed.sourceOrganic')}
+                                        {lead._identity?.platform_meta?.referral
+                                            ? t('leadsFeed.sourceViaAd', { channel: channelLabel(lead._identity?.channel, t) })
+                                            : channelLabel(lead._identity?.channel, t)}
                                     </p>
                                 </div>
                             </div>
