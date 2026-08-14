@@ -24,6 +24,8 @@ import { clsx } from 'clsx'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useToast } from '../contexts/ToastContext'
 import { KANBAN_STAGES } from '../lib/kanbanStages'
+import { CRM_STAGES, CRM_STAGE_LABEL_KEYS, type CrmStageId } from '../lib/crmStages'
+import { useCrmJourneyForSession } from '../hooks/useCrmJourneyForSession'
 import { SidebarRegisterView } from '../components/SidebarRegisterView'
 import { SidebarLookupView } from '../components/SidebarLookupView'
 import { SidebarBookingView } from '../components/SidebarBookingView'
@@ -1572,7 +1574,10 @@ interface PatientPanelProps {
   patient: PatientInfo | null
   appointments: Appointment[]
   onClose: () => void
-  onUpdateStage: (stage: string) => void
+  // Estágio real do funil (crm_journeys.stage_id) da jornada por trás desta
+  // conversa — null enquanto ainda carrega ou se a jornada não existe.
+  currentStageId: CrmStageId | null
+  onUpdateStage: (stage: CrmStageId) => void
   onTransferClick: () => void
   onNewPatient: () => void
   onLookupPatient: () => void
@@ -1594,11 +1599,12 @@ interface PatientPanelProps {
 }
 
 function PatientPanel({
-  session, patient, appointments, onClose, onUpdateStage, onTransferClick, isOwned, onNewPatient, onLookupPatient,
+  session, patient, appointments, onClose, currentStageId, onUpdateStage, onTransferClick, isOwned, onNewPatient, onLookupPatient,
   view, onViewChange, onPatientSelected, onUnlink, onViewAppointments, onSendMessage, onSendConfirmation, onReschedule, onResetReschedule, rescheduleData,
   preFill, onPreFillChange, enabledChannels, defaultChannel
 }: PatientPanelProps) {
   const { t } = useTranslation('communications');
+  const { t: tCrm } = useTranslation('crm');
   const { tenant } = useTenant();
   const [waitlistCount, setWaitlistCount] = useState(0);
 
@@ -1969,16 +1975,21 @@ function PatientPanel({
         </div>
       </div>
 
-      {/* Kanban Classification */}
+      {/* Kanban Classification — grava direto no estágio real do funil
+          (crm_journeys.stage_id, via RPC crm_move_stage) em vez de escrever
+          conversation_sessions.kanban_stage direto. O rótulo em português era
+          só um espelho de leitura com perda de informação: 3 estágios reais
+          diferentes (scheduled/showed_up/proposal) colapsavam no mesmo texto,
+          e salvar de novo a partir daqui regredia o estágio real silenciosamente. */}
       <div className="p-4 border-b border-gray-100">
         <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">{t('humanInbox.patientPanel.kanbanClassification')}</p>
         <select
-          value={session.kanban_stage || 'Novos Leads'}
-          onChange={(e) => onUpdateStage(e.target.value)}
+          value={currentStageId || 'new_lead'}
+          onChange={(e) => onUpdateStage(e.target.value as CrmStageId)}
           className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-medium text-gray-800 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
         >
-          {KANBAN_STAGES.map(stage => (
-            <option key={stage} value={stage}>{stage}</option>
+          {CRM_STAGES.map(stage => (
+            <option key={stage} value={stage}>{tCrm(`stages.${CRM_STAGE_LABEL_KEYS[stage]}`)}</option>
           ))}
         </select>
         <p className="text-[10px] text-gray-400 mt-1.5 leading-tight">
@@ -2053,6 +2064,18 @@ export function HumanInboxPage() {
   const [confirmationOptions, setConfirmationOptions] = useState<ConfirmationChannelOption[] | null>(null);
   const [confirmationSending, setConfirmationSending] = useState(false);
   const [headerSlot, setHeaderSlot] = useState<HTMLElement | null>(null);
+
+  // Jornada real do CRM por trás da conversa selecionada — necessária pra
+  // classificar o funil via crm_move_stage() em vez de escrever kanban_stage
+  // direto (o UPDATE direto tinha perda de informação no mapeamento de volta:
+  // scheduled/showed_up/proposal colapsavam no mesmo rótulo em português e
+  // regrediam o estágio real ao salvar de novo).
+  const { journeyId: selectedJourneyId, stageId: selectedStageId } = useCrmJourneyForSession(selected?.id);
+  // Override otimista pro dropdown refletir a escolha na hora, sem esperar o
+  // round-trip; nunca setado em caso de erro, então o valor real (do hook)
+  // volta a aparecer sozinho no próximo render — reversão sem código extra.
+  const [optimisticStageId, setOptimisticStageId] = useState<CrmStageId | null>(null);
+  useEffect(() => { setOptimisticStageId(null); }, [selected?.id]);
 
   useEffect(() => {
     // Attempt to grab the slot immediately and also set up an observer or interval just in case
@@ -3610,14 +3633,29 @@ export function HumanInboxPage() {
               onClose={() => setShowPatientPanel(false)}
               enabledChannels={tenant?.bot_config?.enabled_channels}
               defaultChannel={tenant?.bot_config?.default_notification_channel}
-              onUpdateStage={async (stage: any) => {
-                // Update DB
-                await supabase.from('conversation_sessions').update({ kanban_stage: stage }).eq('id', selected.id);
-                // Update local session immediately
-                setSelected(prev => prev ? { ...prev, kanban_stage: stage } : prev);
-                // Update sessions array to avoid flicker on re-fetch
-                setSessions(prev => prev.map(s => s.id === selected.id ? { ...s, kanban_stage: stage } : s));
-                // Reload list to sync with DB
+              currentStageId={(optimisticStageId ?? selectedStageId) as CrmStageId | null}
+              onUpdateStage={async (stage) => {
+                // Sem jornada resolvida ainda (carregando, ou conversa sem
+                // jornada vinculada) — não há p_journey_id pra mandar no RPC.
+                if (!selectedJourneyId) {
+                  showToast('error', t('humanInbox.patientPanel.stageUpdateNoJourney', { defaultValue: 'Não foi possível identificar a jornada deste paciente.' }));
+                  return;
+                }
+                // Mesma RPC que o Follow-up Kanban já usa pra mover um card —
+                // atualiza crm_journeys.stage_id e espelha em
+                // conversation_sessions.kanban_stage automaticamente (sem
+                // escrita direta, sem perda de informação no mapeamento).
+                const { error } = await supabase.rpc('crm_move_stage', {
+                  p_journey_id: selectedJourneyId,
+                  p_to_stage: stage,
+                  p_actor: 'user',
+                });
+                if (error) {
+                  console.error('[HumanInbox] crm_move_stage failed:', error);
+                  showToast('error', error.message || t('humanInbox.patientPanel.stageUpdateError', { defaultValue: 'Não foi possível atualizar o estágio.' }));
+                  return;
+                }
+                setOptimisticStageId(stage);
                 loadSessions();
               }}
               onTransferClick={() => setShowTransferModal(true)}

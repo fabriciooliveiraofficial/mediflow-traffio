@@ -4,7 +4,8 @@ import { ChevronLeft, Loader2, X, Plus, Thermometer, Tag, Flag, DollarSign, Stic
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
 import { clsx } from 'clsx';
-import { KANBAN_STAGES, STAGE_LABEL_KEYS } from '../lib/kanbanStages';
+import { CRM_STAGES, CRM_STAGE_LABEL_KEYS, type CrmStageId } from '../lib/crmStages';
+import { useCrmJourneyForSession } from '../hooks/useCrmJourneyForSession';
 import { LostReasonModal } from './crm/LostReasonModal';
 
 interface ConversationSession {
@@ -51,8 +52,14 @@ export function SidebarLeadClassifyView({ onBack, session, onUpdate }: SidebarLe
   ];
   const [saving, setSaving] = useState(false);
 
+  // Real funnel stage (crm_journeys.stage_id) — kanban_stage is only a legacy
+  // read mirror now, never written to directly (see useCrmJourneyForSession).
+  const { journeyId, stageId: journeyStageId } = useCrmJourneyForSession(session.id);
+  const [optimisticStageId, setOptimisticStageId] = useState<CrmStageId | null>(null);
+  useEffect(() => { setOptimisticStageId(null); }, [session.id]);
+  const currentStageId: CrmStageId = optimisticStageId ?? (journeyStageId as CrmStageId | null) ?? 'new_lead';
+
   // Form state
-  const [kanbanStage, setKanbanStage] = useState(session.kanban_stage || 'Novos Leads');
   const [temperature, setTemperature] = useState<string>(session.tags?.temperature || '');
   const [priority, setPriority] = useState<string>(session.tags?.priority || 'medium');
   const [labels, setLabels] = useState<string[]>(session.tags?.labels || []);
@@ -82,7 +89,6 @@ export function SidebarLeadClassifyView({ onBack, session, onUpdate }: SidebarLe
           // Skip if the update was triggered by this panel's own save
           if (savingRef.current) return;
           const updated = payload.new as any;
-          if (updated.kanban_stage !== undefined) setKanbanStage(updated.kanban_stage);
           if (updated.tags?.temperature !== undefined) setTemperature(updated.tags.temperature);
           if (updated.tags?.priority !== undefined) setPriority(updated.tags.priority);
           if (updated.tags?.labels !== undefined) setLabels(updated.tags.labels);
@@ -109,7 +115,7 @@ export function SidebarLeadClassifyView({ onBack, session, onUpdate }: SidebarLe
   };
 
   const handleSave = async () => {
-    if (kanbanStage === 'Perdido') {
+    if (currentStageId === 'lost') {
       setShowLostModal(true);
       return;
     }
@@ -145,7 +151,6 @@ export function SidebarLeadClassifyView({ onBack, session, onUpdate }: SidebarLe
       const { error } = await supabase
         .from('conversation_sessions')
         .update({
-          kanban_stage: kanbanStage,
           tags,
           revenue_estimated: revenueNum,
         })
@@ -153,8 +158,22 @@ export function SidebarLeadClassifyView({ onBack, session, onUpdate }: SidebarLe
 
       if (error) throw error;
 
+      // Funnel stage is a separate concern from tags/revenue above — the only
+      // correct way to move it is crm_move_stage(), never a direct kanban_stage
+      // write (that mapping is lossy, see useCrmJourneyForSession).
+      if (journeyId && currentStageId !== journeyStageId) {
+        const { error: stageError } = await supabase.rpc('crm_move_stage', {
+          p_journey_id: journeyId,
+          p_to_stage: currentStageId,
+          p_actor: 'user',
+          p_reason: lostReason ?? null,
+          p_extra: lostNotes ? { lost_notes: lostNotes } : {},
+        });
+        if (stageError) throw stageError;
+        setOptimisticStageId(currentStageId);
+      }
+
       onUpdate({
-        kanban_stage: kanbanStage,
         tags,
         revenue_estimated: revenueNum ?? undefined,
       });
@@ -190,12 +209,12 @@ export function SidebarLeadClassifyView({ onBack, session, onUpdate }: SidebarLe
             <Flag size={11} /> {t('sidebarLeadClassifyView.funnelStageLabel')}
           </label>
           <select
-            value={kanbanStage}
-            onChange={e => setKanbanStage(e.target.value)}
+            value={currentStageId}
+            onChange={e => setOptimisticStageId(e.target.value as CrmStageId)}
             className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
           >
-            {KANBAN_STAGES.map(s => (
-              <option key={s} value={s}>{t(`kanbanStages.${STAGE_LABEL_KEYS[s]}`)}</option>
+            {CRM_STAGES.map(s => (
+              <option key={s} value={s}>{t(`stages.${CRM_STAGE_LABEL_KEYS[s]}`)}</option>
             ))}
           </select>
         </div>
