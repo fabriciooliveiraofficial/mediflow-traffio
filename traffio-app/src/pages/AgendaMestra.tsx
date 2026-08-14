@@ -28,7 +28,8 @@ import {
     Repeat,
     CreditCard,
     Link2,
-    Check
+    Check,
+    CheckCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -38,6 +39,9 @@ import { DEFAULT_BOOKING_CAPTIONS } from '../lib/messageDefaults';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useToast } from '../contexts/ToastContext';
+import { CRM_STAGES, CRM_STAGE_LABEL_KEYS, type CrmStageId } from '../lib/crmStages';
+import { useCrmJourneyForPatient } from '../hooks/useCrmJourneyForPatient';
+import { RecordOutcomeModal } from '../components/crm/RecordOutcomeModal';
 import { useTenant } from '../contexts/TenantContext';
 import { smartSchedulingService } from '../services/smartSchedulingService';
 import { locationService } from '../services/locationService';
@@ -143,6 +147,7 @@ const HOURS = Array.from({ length: TOTAL_HOURS + 1 }, (_, i) => DAY_START + i);
 // ─────────────────────────────────────────────
 export const AgendaMestra: React.FC = () => {
     const { t, i18n } = useTranslation('agenda');
+    const { t: tCrm } = useTranslation('crm');
     const { showToast } = useToast();
     const { tenant, userRole } = useTenant();
     const [selectedTenant, setSelectedTenant] = useState<string | null>(null);
@@ -185,6 +190,8 @@ export const AgendaMestra: React.FC = () => {
     const [editingAppt, setEditingAppt] = useState<any>(null);
     const [editNotes, setEditNotes] = useState('');
     const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
+    const [showOutcomeModal, setShowOutcomeModal] = useState(false);
+    const [optimisticStageId, setOptimisticStageId] = useState<CrmStageId | null>(null);
     const [waitlistOpen, setWaitlistOpen] = useState(false);
     const [waitlistCount, setWaitlistCount] = useState(0);
     const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
@@ -261,6 +268,12 @@ export const AgendaMestra: React.FC = () => {
             setPatientNoShowStats(null);
         }
     }, [editingAppt, selectedTenant]);
+
+    // Estágio real do funil (crm_journeys.stage_id) do paciente do agendamento em edição —
+    // mesma fonte de verdade lida/editada no Inbox e no Follow-up, via crm_move_stage().
+    const { journeyId: editingJourneyId, stageId: editingJourneyStageId } = useCrmJourneyForPatient(editingAppt?.patient_id, selectedTenant);
+    useEffect(() => { setOptimisticStageId(null); }, [editingAppt?.id]);
+    const currentFunnelStageId: CrmStageId = optimisticStageId ?? (editingJourneyStageId as CrmStageId | null) ?? 'new_lead';
 
     const formatDateLabel = (dateStr: string) => {
         const [y, m, d] = dateStr.split('-').map(Number);
@@ -2308,11 +2321,43 @@ export const AgendaMestra: React.FC = () => {
                                                 <Icon size={14} /> {label}
                                             </button>
                                         ))}
+                                        <button onClick={() => setShowOutcomeModal(true)}
+                                            className={cn("col-span-2 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold border cursor-pointer transition-all",
+                                                editingAppt.status === 'completed' ? 'bg-violet-500 text-white border-violet-500' : "bg-white text-graphite-600 border-ice-200 hover:border-ice-300")}>
+                                            <CheckCheck size={14} /> {t('mestra.editModal.statusCompleted')}
+                                        </button>
                                     </div>
-                                    
+
                                     <Button variant="ghost" className="w-full py-2.5 justify-center border border-ice-200 hover:border-ice-300 text-brand-primary font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer" onClick={handleRescheduleClick}>
                                         <Clock size={14} className="shrink-0 text-brand-primary" /> {t('mestra.editModal.reschedule')}
                                     </Button>
+                                </div>
+
+                                <div>
+                                    <label className="text-xs font-black text-graphite-400 uppercase mb-2 block">{t('mestra.editModal.funnelStageLabel')}</label>
+                                    <select
+                                        value={currentFunnelStageId}
+                                        onChange={async (e) => {
+                                            const newStage = e.target.value as CrmStageId;
+                                            if (!editingJourneyId) return;
+                                            const { error } = await supabase.rpc('crm_move_stage', {
+                                                p_journey_id: editingJourneyId,
+                                                p_to_stage: newStage,
+                                                p_actor: 'user',
+                                            });
+                                            if (error) {
+                                                showToast('error', error.message || t('mestra.toasts.genericError', { message: '' }));
+                                                return;
+                                            }
+                                            setOptimisticStageId(newStage);
+                                        }}
+                                        disabled={!editingJourneyId}
+                                        className="w-full bg-ice-50 border border-ice-200 rounded-xl px-4 py-3 text-sm font-medium text-graphite-900 focus:outline-none focus:border-brand-primary transition-colors disabled:opacity-50"
+                                    >
+                                        {CRM_STAGES.map(s => (
+                                            <option key={s} value={s}>{tCrm(`stages.${CRM_STAGE_LABEL_KEYS[s]}`)}</option>
+                                        ))}
+                                    </select>
                                 </div>
 
                                 {editingAppt.slot_type && (
@@ -2387,6 +2432,22 @@ export const AgendaMestra: React.FC = () => {
                     patientName={editingAppt.patients?.full_name || t('mestra.patientFallback')}
                     initialAmount={editingAppt.appointment_types?.price_cents ? (editingAppt.appointment_types.price_cents / 100) : 0}
                     tenantId={selectedTenant || ''}
+                />
+            )}
+            {editingAppt && (
+                <RecordOutcomeModal
+                    isOpen={showOutcomeModal}
+                    appointmentId={editingAppt.id}
+                    dateLabel={`${formatSlot(editingAppt.start_time)} – ${formatSlot(editingAppt.end_time)} · ${formatDateLabel(selectedDateStr)}`}
+                    journeyId={editingJourneyId}
+                    defaultProcedure={editingAppt.appointment_types?.name}
+                    onClose={() => setShowOutcomeModal(false)}
+                    onSaved={() => {
+                        setShowOutcomeModal(false);
+                        setEditingAppt(null);
+                        fetchData();
+                        showToast('success', t('mestra.toasts.statusUpdated'));
+                    }}
                 />
             )}
             {/* ========== GLOBAL SELECTION PREVIEW (ABOVE BACKDROP) ========== */}

@@ -44,6 +44,8 @@
       "statusCheckin": "Check-in",
       "statusCancel": "Cancelar",
       "statusNoshow": "No-Show",
+      "statusCompleted": "Concluído",
+      "funnelStageLabel": "Estágio no Funil (CRM)",
       "slotColonLabel": "Slot:",
       "notesLabel": "Observações",
       "notesPlaceholder": "Observações...",

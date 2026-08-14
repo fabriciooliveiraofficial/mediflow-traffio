@@ -44,6 +44,8 @@
       "statusCheckin": "Check-in",
       "statusCancel": "Cancel",
       "statusNoshow": "No-Show",
+      "statusCompleted": "Completed",
+      "funnelStageLabel": "Funnel Stage (CRM)",
       "slotColonLabel": "Slot:",
       "notesLabel": "Notes",
       "notesPlaceholder": "Notes...",

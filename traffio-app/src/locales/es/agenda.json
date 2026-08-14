@@ -44,6 +44,8 @@
       "statusCheckin": "Check-in",
       "statusCancel": "Cancelar",
       "statusNoshow": "No Asistió",
+      "statusCompleted": "Completado",
+      "funnelStageLabel": "Etapa del Embudo (CRM)",
       "slotColonLabel": "Horario:",
       "notesLabel": "Notas",
       "notesPlaceholder": "Notas...",
