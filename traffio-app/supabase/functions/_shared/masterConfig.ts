@@ -14,6 +14,16 @@ import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 const cache: Record<string, { value: string; expiresAt: number }> = {};
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
 
+/**
+ * Derruba o cache de uma chave imediatamente. Usado quando o consumidor
+ * descobre que o valor cacheado está PODRE (ex.: Anthropic devolveu 401 —
+ * chave revogada/trocada): sem isso, uma chave corrigida no painel Master
+ * só passa a valer depois do TTL de 5min, prolongando o incidente à toa.
+ */
+export function invalidateMasterConfigCache(key: string): void {
+  delete cache[key];
+}
+
 async function getMasterConfig(
   supabase: SupabaseClient,
   key: string,

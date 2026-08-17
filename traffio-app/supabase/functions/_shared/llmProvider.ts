@@ -28,7 +28,7 @@
  * Guardado por teste: `unit_test.ts` → "buildCachedSystemField"/"applyCacheToTools".
  */
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
-import { getAnthropicApiKey } from "./masterConfig.ts";
+import { getAnthropicApiKey, invalidateMasterConfigCache } from "./masterConfig.ts";
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
@@ -279,7 +279,11 @@ export async function claudeChat(supabase: SupabaseClient, req: LlmRequest): Pro
 
         // Chave presente mas rejeitada — falha de INFRA (afeta toda chamada da
         // plataforma até a chave ser corrigida), nunca deste turno específico.
+        // Derruba o cache da chave na hora: quando o operador corrigir no painel
+        // Master, a próxima chamada relê o valor novo do banco imediatamente,
+        // em vez de repetir 401 com a chave podre por até 5min de TTL.
         if (res.status === 401 || res.status === 403) {
+            invalidateMasterConfigCache("ANTHROPIC_API_KEY");
             throw new LlmProviderError(
                 `[llmProvider] ${req.purpose}: Anthropic HTTP ${res.status} (auth) — ${errText.substring(0, 300)}`,
                 "auth",

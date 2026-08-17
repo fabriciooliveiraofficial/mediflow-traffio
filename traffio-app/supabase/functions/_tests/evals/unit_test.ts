@@ -127,6 +127,12 @@ const gapInput = (patch: Partial<Parameters<typeof classifyKnowledgeGap>[0]> = {
 Deno.test("knowledge gap: resposta vazia/rounds esgotados", () => {
     assertEquals(classifyKnowledgeGap(gapInput()).isGap, true);
 });
+// Incidente 17/08/2026: vazio após mera confirmação NÃO é lacuna — é falha
+// técnica (reason 'tech' via isTechFail), senão o loop de lacunas ganha
+// perguntas-lixo tipo "Isso mesmo".
+Deno.test("knowledge gap: resposta vazia sem pergunta real não é lacuna", () => {
+    assertEquals(classifyKnowledgeGap(gapInput({ lastPatientMessage: "Isso mesmo" })).isGap, false);
+});
 Deno.test("knowledge gap: confirmação em português", () => {
     assertEquals(classifyKnowledgeGap(gapInput({ replyText: "Vou verificar com a equipe." })).isGap, true);
 });

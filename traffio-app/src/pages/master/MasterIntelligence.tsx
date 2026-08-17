@@ -39,6 +39,9 @@ export const MasterIntelligence = () => {
     const [usageData, setUsageData] = useState<TenantUsage[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState<string | null>(null);
+    // Último incidente de infra do LLM (gravado pelo circuit breaker em
+    // master_config → LLM_INFRA_ALERT_LAST_DETAIL) — vira banner no topo.
+    const [infraAlert, setInfraAlert] = useState<{ at: string; kind: string; message: string } | null>(null);
     const [stats, setStats] = useState({
         totalTokens: 0,
         avgLatency: 'N/A', // Not tracking latency yet
@@ -60,6 +63,23 @@ export const MasterIntelligence = () => {
                 .select('*');
             if (configError) throw configError;
 
+            // Linhas internas do circuit breaker (LLM_INFRA_ALERT_*) são estado,
+            // não configuração — saem da lista editável; o detalhe vira banner.
+            const detailRow = (configData || []).find(c => c.key === 'LLM_INFRA_ALERT_LAST_DETAIL');
+            if (detailRow?.value) {
+                try {
+                    const parsed = JSON.parse(detailRow.value);
+                    // Só exibe como incidente ATIVO se recente (< 30 min): enquanto a
+                    // falha persistir, o breaker regrava a cada ≤10 min; resolvida, o
+                    // banner expira sozinho.
+                    if (parsed?.at && Date.now() - Date.parse(parsed.at) < 30 * 60 * 1000) {
+                        setInfraAlert(parsed);
+                    } else {
+                        setInfraAlert(null);
+                    }
+                } catch { setInfraAlert(null); }
+            }
+
             // Chaves obrigatórias da stack Claude aparecem no painel mesmo antes
             // de existirem no banco (a linha é criada no primeiro save via upsert)
             const required: MasterConfig[] = [
@@ -67,7 +87,7 @@ export const MasterIntelligence = () => {
                 { key: 'AI_MODEL_AGENT', value: 'claude-sonnet-5', description: 'Modelo do agente conversacional' },
                 { key: 'AI_MODEL_ROUTER', value: 'claude-haiku-4-5-20251001', description: 'Modelo de triagem/extração' },
             ];
-            const merged = [...(configData || [])];
+            const merged = [...(configData || [])].filter(c => !c.key.startsWith('LLM_INFRA_ALERT'));
             for (const req of required) {
                 if (!merged.some(c => c.key === req.key)) merged.push(req);
             }
@@ -163,6 +183,15 @@ export const MasterIntelligence = () => {
         return null;
     };
 
+    // Slots que exigem validação VIVA contra o provedor antes de salvar
+    // (incidente 17/08/2026: chave sk-ant- com formato válido mas revogada
+    // derrubou o agente da plataforma inteira com 401 — só uma chamada real
+    // ao provedor detecta isso, o guard de prefixo não).
+    const LIVE_VALIDATED_KEYS: Record<string, 'anthropic' | 'openai'> = {
+        ANTHROPIC_API_KEY: 'anthropic',
+        OPENAI_API_KEY: 'openai',
+    };
+
     const handleUpdateConfig = async (key: string, value: string) => {
         // Guard de formato (incidente 17/07/2026): uma chave Anthropic (sk-ant-)
         // foi salva no slot OPENAI_API_KEY, deixando a produção na chave antiga
@@ -172,16 +201,42 @@ export const MasterIntelligence = () => {
         if (mismatch) { showToast('error', mismatch); return; }
 
         setSaving(key);
+
+        // Validação viva: rejeita chave revogada/errada NO SAVE, nunca em produção.
+        // Limpar o campo (valor vazio) não valida — é permitido.
+        const provider = LIVE_VALIDATED_KEYS[key];
+        if (provider && trimmed) {
+            try {
+                const { data, error } = await supabase.functions.invoke('validate-ai-key', {
+                    body: { provider, key: trimmed },
+                });
+                if (error) throw new Error(error.message);
+                if (data?.valid === false) {
+                    showToast('error', data.reason || t('intelligence.toasts.keyRejected', { defaultValue: 'O provedor rejeitou esta chave — verifique se ela está ativa.' }));
+                    setSaving(null);
+                    return;
+                }
+                // valid !== false e sem erro → segue pro save. Indeterminado (502)
+                // cai no catch abaixo e bloqueia com mensagem, sem salvar às cegas.
+            } catch (valErr: any) {
+                showToast('error', t('intelligence.toasts.keyValidationFailed', { defaultValue: 'Não foi possível validar a chave com o provedor: {{message}}', message: valErr.message }));
+                setSaving(null);
+                return;
+            }
+        }
+
         try {
-            // upsert: cria a linha na primeira gravação (chaves novas da stack Claude)
+            // upsert: cria a linha na primeira gravação (chaves novas da stack Claude).
+            // Grava o valor TRIMADO — espaço/quebra de linha colados junto com a
+            // chave geram 401 "invalid x-api-key" difícil de diagnosticar.
             const description = configs.find(c => c.key === key)?.description || '';
             const { error } = await supabase
                 .from('master_config')
-                .upsert({ key, value, description, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+                .upsert({ key, value: trimmed, description, updated_at: new Date().toISOString() }, { onConflict: 'key' });
 
             if (error) throw error;
 
-            setConfigs(prev => prev.map(c => c.key === key ? { ...c, value } : c));
+            setConfigs(prev => prev.map(c => c.key === key ? { ...c, value: trimmed } : c));
             showToast('success', t('intelligence.toasts.saveSuccess'));
         } catch (error) {
             showToast('error', t('intelligence.toasts.saveError', { message: (error as any).message }));
@@ -205,6 +260,24 @@ export const MasterIntelligence = () => {
                 </div>
                 <p className="text-slate-500 font-medium text-sm">{t('intelligence.headerSubtitle')}</p>
             </div>
+
+            {/* Alerta de infra do LLM (incidente ativo nos últimos 30 min) */}
+            {infraAlert && (
+                <div className="flex items-start gap-3 p-4 rounded-2xl bg-rose-950/60 border border-rose-700/60">
+                    <AlertCircle className="text-rose-400 shrink-0 mt-0.5" size={20} />
+                    <div className="min-w-0">
+                        <p className="text-sm font-black text-rose-300">
+                            {t('intelligence.infraAlert.title', { defaultValue: 'Falha de infraestrutura do agente de IA detectada' })}
+                            <span className="ml-2 text-[10px] font-bold uppercase tracking-widest bg-rose-900/70 text-rose-300 px-2 py-0.5 rounded-lg">{infraAlert.kind}</span>
+                        </p>
+                        <p className="text-xs text-rose-400/90 font-medium mt-1 break-words">{infraAlert.message}</p>
+                        <p className="text-[10px] text-rose-500/80 font-medium mt-1">
+                            {t('intelligence.infraAlert.hint', { defaultValue: 'Todas as conversas estão caindo na fila humana (soft) até a causa ser corrigida. Se o tipo for "auth" ou "config", verifique a ANTHROPIC_API_KEY abaixo.' })}
+                            {' · '}{new Date(infraAlert.at).toLocaleString()}
+                        </p>
+                    </div>
+                </div>
+            )}
 
             {/* Stats Overview */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

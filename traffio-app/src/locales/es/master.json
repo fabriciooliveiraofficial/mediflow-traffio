@@ -297,7 +297,13 @@
     },
     "toasts": {
       "saveSuccess": "¡Configuración guardada!",
-      "saveError": "Error al guardar: {{message}}"
+      "saveError": "Error al guardar: {{message}}",
+      "keyRejected": "El proveedor rechazó esta clave — verifica que esté activa.",
+      "keyValidationFailed": "No se pudo validar la clave con el proveedor: {{message}}"
+    },
+    "infraAlert": {
+      "title": "Falla de infraestructura del agente de IA detectada",
+      "hint": "Todas las conversaciones están cayendo en la cola humana (soft) hasta corregir la causa. Si el tipo es \"auth\" o \"config\", verifica la ANTHROPIC_API_KEY abajo."
     }
   },
   "knowledge": {

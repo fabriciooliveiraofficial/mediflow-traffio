@@ -100,7 +100,24 @@ async function processEntries(
 
     const { data: page, error: pageErr } = await query;
     if (pageErr || !page) {
-      console.warn(`[meta-social-webhook] No tenant found for ${channel} account/page: ${accountOrPageId}`);
+      // Distinguir "página desconhecida" de "página existe mas foi desativada"
+      // (incidente 17/08/2026: is_active=false derrubou IG+Messenger em silêncio
+      // e o log genérico não dizia o porquê). Página desativada de propósito
+      // continua NÃO fluindo — is_active é intenção do usuário — mas agora o
+      // log grita o motivo real e o que fazer.
+      const inactiveQuery = channel === "instagram"
+        ? supabase.from("tenant_meta_pages").select("tenant_id, page_name, is_active").eq("instagram_account_id", accountOrPageId).maybeSingle()
+        : supabase.from("tenant_meta_pages").select("tenant_id, page_name, is_active").eq("page_id", accountOrPageId).maybeSingle();
+      const { data: inactivePage } = await inactiveQuery;
+
+      if (inactivePage) {
+        console.error(
+          `[meta-social-webhook] ⚠ DROPPING ${channel} message: page "${inactivePage.page_name}" (${accountOrPageId}) ` +
+          `exists but is_active=false — reconecte/reative a página na UI de canais para voltar a receber mensagens`
+        );
+      } else {
+        console.warn(`[meta-social-webhook] No tenant found for ${channel} account/page: ${accountOrPageId}`);
+      }
       continue;
     }
 

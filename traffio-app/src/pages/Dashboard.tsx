@@ -333,13 +333,12 @@ export const Dashboard: React.FC = () => {
             .eq('tenant_id', tenant.id)
             .eq('platform', platform);
 
-        if (platform === 'meta') {
-            await supabase
-                .from('tenant_meta_pages')
-                .update({ is_active: false })
-                .eq('tenant_id', tenant.id);
-            fetchMetaPages();
-        }
+        // NÃO desativar tenant_meta_pages aqui: Meta Ads (auth-meta) e
+        // mensagens IG/Messenger (auth-meta-messaging) são produtos separados.
+        // Este bloco derrubava TODOS os canais de mensagem Meta ao desconectar
+        // anúncios — causa raiz do incidente 17/08/2026 (mensagens de pacientes
+        // descartadas em silêncio por 15 dias). Desconectar mensagens tem ação
+        // própria e deliberada: disconnectMetaPage (por página).
 
         setIntegrations(prev => ({ ...prev, [platform]: false }));
         showToast('success', t('toasts.disconnectedSuccess'));

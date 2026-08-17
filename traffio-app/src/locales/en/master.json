@@ -297,7 +297,13 @@
     },
     "toasts": {
       "saveSuccess": "Settings saved!",
-      "saveError": "Error saving: {{message}}"
+      "saveError": "Error saving: {{message}}",
+      "keyRejected": "The provider rejected this key — make sure it is active.",
+      "keyValidationFailed": "Could not validate the key with the provider: {{message}}"
+    },
+    "infraAlert": {
+      "title": "AI agent infrastructure failure detected",
+      "hint": "All conversations are falling back to the human queue (soft) until the cause is fixed. If the kind is \"auth\" or \"config\", check the ANTHROPIC_API_KEY below."
     }
   },
   "knowledge": {

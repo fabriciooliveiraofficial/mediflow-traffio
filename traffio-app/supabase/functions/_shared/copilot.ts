@@ -12,7 +12,7 @@
  */
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { claudeChat, claudeJson, isLlmInfraFailure, type LlmTool } from "./llmProvider.ts";
-import { shouldRaiseLlmInfraAlert } from "./llmCircuitBreaker.ts";
+import { shouldRaiseLlmInfraAlert, recordLlmInfraAlertDetail } from "./llmCircuitBreaker.ts";
 import { type HandoffReason, type HandoffKind } from "./sessionManager.ts";
 import { getAiModelAgent, getAiModelRouter, getRagEnabled, getRagMinKbEntries } from "./masterConfig.ts";
 import { embedText } from "./embeddings.ts";
@@ -794,6 +794,17 @@ const MAX_TOOL_ROUNDS = 4;
 // 2026-07-16, out=600 cravado no teto de 600).
 const AGENT_MAX_TOKENS = 1500;
 
+// Incidente 17/08/2026 (Instagram): o turno terminou com horários JÁ buscados
+// (lastSlots preenchido) e resposta vazia — e o paciente foi transferido com os
+// slots na mão. Oferta determinística de último recurso: texto fixo sem citar
+// horário nenhum (os horários vão nos BOTÕES via buildSlotInteractive, o mesmo
+// caminho do fluxo normal — a Camada 1 não tem o que reprovar no texto).
+const SLOT_FALLBACK_MSG: Record<ConversationLanguage, string> = {
+    pt: "Encontrei opções de agenda para você 😊 É só escolher uma das alternativas abaixo!",
+    en: "I found some openings for you 😊 Just pick one of the options below!",
+    es: "¡Encontré opciones de agenda para ti! 😊 Solo elige una de las alternativas abajo.",
+};
+
 const LANG_NAME = CONVERSATION_LANGUAGE_NAMES;
 
 // ── Camada 1: validadores de runtime ─────────────────────────────────────────
@@ -948,7 +959,13 @@ export function classifyKnowledgeGap(input: {
         || flags.explicitHumanRequest || flags.priceInsistence) return { isGap: false, question: null };
     if (input.transferReason && NON_GAP_REASON_PATTERN.test(input.transferReason)) return { isGap: false, question: null };
     if (SENSITIVE_OR_NON_GAP_QUESTION_PATTERN.test(input.lastPatientMessage)) return { isGap: false, question: null };
-    const isGap = (!input.replyText.trim() && !input.transferReason)
+    // Incidente 17/08/2026: resposta vazia após "Isso mesmo" (mera confirmação)
+    // era rotulada de knowledge_gap — rótulo errado (é falha técnica → 'tech'
+    // via isTechFail) e pergunta-lixo gravada no loop de lacunas. Vazio só é
+    // lacuna quando a última mensagem do paciente PARECE uma pergunta.
+    const looksLikeQuestion = /\?|(?:^|\s)(?:qual|quais|quando|onde|como|quanto|por ?qu[eê]|o que|what|when|where|how|which|why|do you|can you|qu[eé]|cu[aá]l|cu[aá]ndo|d[oó]nde|c[oó]mo|cu[aá]nto)\b/i
+        .test(input.lastPatientMessage);
+    const isGap = (!input.replyText.trim() && !input.transferReason && looksLikeQuestion)
         || Boolean(input.transferReason && KNOWLEDGE_REASON_PATTERN.test(input.transferReason))
         || CONFIRMATION_FOLLOW_UP_PATTERN.test(input.replyText);
     if (!isGap) return { isGap: false, question: null };
@@ -1873,6 +1890,11 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
 
                 toolsCalledSet.add(call.name);
                 const outcome = await executeSchedulingTool(supabase, tenantId, searchPhone, session.platform_display_name, call, lastPatientMessage, turnLanguage, context, channel);
+                // Observabilidade (incidente 17/08/2026): sem esta linha, um turno que
+                // queima os rounds em cascata de erros de ferramenta (ex.: agendar →
+                // patient_info_incomplete → atualizar → agendar de novo) é indiagnosticável
+                // pelos logs — só se via o sintoma (resposta vazia), nunca a causa.
+                console.log(`[agent] [${phone}] tool ${call.name} → ${outcome.data?.error ?? (outcome.data?.success === false ? "fail" : "ok")}`);
                 // E-4 (2026-08-02): correção de calibragem do E-3. A checagem
                 // original disparava em QUALQUER `error`, inclusive estados
                 // normais do fluxo (falta dado, pediu confirmação, telefone
@@ -1934,18 +1956,23 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
         // sabe (em produção isso virava handoff desnecessário no meio do fechamento).
         const hasResponderCall = reply.toolCalls.some(t => t.name === "responder_paciente");
         if (!reply.text.trim() && !hasResponderCall && reply.toolCalls.length > 0 && !transferReason && !cancelRequested) {
-            console.warn(`[agent] [${phone}] rounds esgotados sem texto — verbalização final sem ferramentas`);
+            console.warn(`[agent] [${phone}] rounds esgotados sem texto — verbalização final forçada via responder_paciente`);
             convo.push({ role: "assistant", content: reply.rawContent });
             convo.push({
                 role: "user",
                 content: reply.toolCalls.map(call => ({
                     type: "tool_result",
                     tool_use_id: call.id,
-                    content: JSON.stringify({ error: "tool_budget_exhausted", note: "Do not call more tools. Write the message to the patient now using what you already know from previous tool results. Reply in the PATIENT'S language." }),
+                    content: JSON.stringify({ error: "tool_budget_exhausted", note: "Do not call data tools again. Call responder_paciente NOW with the patient-facing message, using what you already know from previous tool results. Reply in the PATIENT'S language." }),
                 })),
             });
+            // toolChoice FORÇANDO responder_paciente, nunca {type:"none"} (incidente
+            // 17/08/2026): o contrato treina o modelo a responder SÓ via a ferramenta
+            // responder_paciente — proibir todas as ferramentas o deixava sem via de
+            // saída e ele emitia turno VAZIO (out=1 token, visto 2x em produção),
+            // derrubando a conversa em handoff com os horários já na mão.
             reply = await agentChat(supabase, {
-                tenantId, purpose: "agent_reply", model: agentModel, tools, toolChoice: { type: "none" }, cacheTools: true,
+                tenantId, purpose: "agent_reply", model: agentModel, tools, toolChoice: { type: "tool", name: "responder_paciente" }, cacheTools: true,
                 system: systemPrompt.text, cacheableSystemPrefix: systemPrompt.cachePrefix, messages: convo,
             });
             tokensIn += reply.usage.inputTokens; tokensOut += reply.usage.outputTokens;
@@ -1957,7 +1984,7 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
         // Extração de bolhas via contrato responder_paciente ou texto simples
         const responderCall = reply.toolCalls.find(t => t.name === "responder_paciente");
         let bubbles = responderCall ? composeBubbles(responderCall.input as StructuredReply) : composeBubbles(reply.text);
-        const text = bubbles.join("\n\n");
+        let text = bubbles.join("\n\n");
 
         // Cancelar-e-regenerar: mensagem nova durante a geração → a resposta
         // nasceu velha. Descarta; o chamador devolve o batch para a fila e o
@@ -1975,6 +2002,56 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             console.log(`[agent] [${phone}] resposta descartada — ${newerPending} msg(s) nova(s) durante a geração`);
             await emitTrace({ turn_language: turnLanguage, bubbles: bubbles.length, handoff_reason: "deferred_newer_message" });
             return "defer";
+        }
+
+        // ── Anti-beco, 2ª camada (incidente 17/08/2026, Instagram) ─────────────
+        // A "verbalização final" acima ainda pode voltar VAZIA (visto em produção:
+        // out=1 token depois de 4 rounds de ferramentas) — e resposta vazia caía
+        // direto em handoff, com os horários já buscados na mão. Duas camadas
+        // antes de desistir: (1) um único retry de resgate com instrução
+        // explícita; (2) se ainda vier vazio mas ver_disponibilidade devolveu
+        // horários neste turno, oferece os slots deterministicamente (zero LLM).
+        // A transferência passa a ser o último recurso de verdade.
+        if (bubbles.length === 0 && !transferReason && !cancelRequested && !deletionRequested && !bookingConfirmed) {
+            console.warn(`[agent] [${phone}] resposta vazia após o loop — retry de resgate antes de transferir`);
+            try {
+                const nudge = "Your previous reply was EMPTY and nothing was delivered to the patient. Call responder_paciente NOW with the patient-facing message (short, in the PATIENT'S language), using what you already know from the tool results of this turn. Do not call data tools.";
+                // O assistant turn precisa de conteúdo válido (bloco de texto vazio é
+                // rejeitado pela API) e todo tool_use pendente precisa do seu
+                // tool_result no user turn seguinte — senão é HTTP 400 (visto em
+                // produção 26/07).
+                const rawBlocks: any[] = Array.isArray(reply.rawContent) ? reply.rawContent : [];
+                const usableBlocks = rawBlocks.filter((b: any) => (b.type === "text" && b.text?.trim()) || b.type === "tool_use");
+                convo.push({ role: "assistant", content: usableBlocks.length ? usableBlocks : [{ type: "text", text: "…" }] });
+                const pendingToolUses = usableBlocks.filter((b: any) => b.type === "tool_use");
+                convo.push({
+                    role: "user",
+                    content: pendingToolUses.length
+                        ? [
+                            ...pendingToolUses.map((b: any) => ({ type: "tool_result", tool_use_id: b.id, content: JSON.stringify({ error: "tool_budget_exhausted", note: nudge }) })),
+                            { type: "text", text: nudge },
+                        ]
+                        : nudge,
+                });
+                // toolChoice FORÇANDO responder_paciente (mesmo motivo da verbalização
+                // final acima): com {type:"none"} o modelo emitia turno vazio de novo.
+                reply = await agentChat(supabase, {
+                    tenantId, purpose: "agent_reply", model: agentModel, tools, toolChoice: { type: "tool", name: "responder_paciente" }, cacheTools: true,
+                    system: systemPrompt.text, cacheableSystemPrefix: systemPrompt.cachePrefix, messages: convo,
+                });
+                tokensIn += reply.usage.inputTokens; tokensOut += reply.usage.outputTokens;
+                const salvageResponder = reply.toolCalls.find(t => t.name === "responder_paciente");
+                bubbles = salvageResponder ? composeBubbles(salvageResponder.input as StructuredReply) : composeBubbles(reply.text);
+                text = bubbles.join("\n\n");
+            } catch (salvageErr: any) {
+                console.warn(`[agent] [${phone}] retry de resgate falhou (non-fatal): ${salvageErr?.message}`);
+            }
+
+            if (bubbles.length === 0 && lastSlots?.length) {
+                console.warn(`[agent] [${phone}] resgate ainda vazio — oferta determinística de ${lastSlots.length} horário(s)`);
+                bubbles = [SLOT_FALLBACK_MSG[language] || SLOT_FALLBACK_MSG.pt];
+                text = bubbles[0];
+            }
         }
 
         // Persistência do contexto (ficha + temperatura + idioma + slots pendentes)
@@ -2237,7 +2314,12 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             // UM alerta por incidente (cooldown no circuit breaker), não um por
             // conversa — ver llmCircuitBreaker.ts. É este console.error que o
             // operador deve monitorar/alarmar, não a contagem de "falha hard" no Inbox.
-            console.error(`[agent] 🚨 ALERTA DE INFRA DO LLM (${(err as any)?.kind ?? "desconhecido"}): ${err?.message} — verificar chave/config em Master → Intelligence`);
+            const kind = (err as any)?.kind ?? "desconhecido";
+            console.error(`[agent] 🚨 ALERTA DE INFRA DO LLM (${kind}): ${err?.message} — verificar chave/config em Master → Intelligence`);
+            // Persiste o detalhe pro banner do painel Master (incidente 17/08/2026:
+            // o alerta só no log passou despercebido; o operador viu conversas
+            // travadas, não "chave inválida").
+            await recordLlmInfraAlertDetail(supabase, kind, String(err?.message ?? ""));
         }
         await emitTrace({ handoff_reason: "exception", violations: [String(err?.message || "erro desconhecido")] });
         return infraFailure ? "infra_failed" : "failed";
