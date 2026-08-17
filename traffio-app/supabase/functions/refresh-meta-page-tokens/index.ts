@@ -22,6 +22,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { corsHeaders } from "../_shared/cors.ts";
+import { getMetaClientId, getMetaClientSecret } from "../_shared/masterConfig.ts";
 
 interface PageCheckResult {
   page_id: string;
@@ -33,6 +34,8 @@ interface PageCheckResult {
   error_message: string | null;
   /** true quando a inscrição do webhook foi (re)confirmada nesta execução */
   resubscribed: boolean;
+  /** Diagnóstico (17/08/2026): apps inscritos NESTA página e com quais campos — GET /{page_id}/subscribed_apps */
+  subscribed_apps?: unknown;
 }
 
 serve(async (req: Request) => {
@@ -115,6 +118,20 @@ serve(async (req: Request) => {
             }
           }
 
+          // Diagnóstico (incidente Messenger 17/08/2026): a verdade da Meta sobre
+          // quais apps estão inscritos nesta página e com QUAIS campos — o POST
+          // de (re)subscribe acima pode retornar success sem o campo `messages`
+          // realmente ativo para o app certo.
+          try {
+            const subsRes = await fetch(
+              `https://graph.facebook.com/v21.0/${page.page_id}/subscribed_apps?access_token=${page.page_access_token}`
+            );
+            const subsData = await subsRes.json();
+            result.subscribed_apps = subsData.data ?? subsData;
+          } catch (subsErr: any) {
+            result.subscribed_apps = { error: subsErr.message };
+          }
+
           await supabase
             .from("tenant_meta_pages")
             .update({ last_refreshed_at: new Date().toISOString() })
@@ -128,10 +145,33 @@ serve(async (req: Request) => {
       results.push(result);
     }
 
+    // Diagnóstico app-level (incidente Messenger 17/08/2026): a configuração de
+    // webhook do APP — objetos (page/instagram), callback e campos — via
+    // GET /{app_id}/subscriptions com app access token (app_id|app_secret).
+    // É AQUI que "funcionava e parou" aparece: se o objeto `page` sumiu/ficou
+    // inativo, a Meta para de entregar Messenger mesmo com a página inscrita.
+    let appSubscriptions: unknown = null;
+    try {
+      const appId = await getMetaClientId(supabase);
+      const appSecret = await getMetaClientSecret(supabase);
+      if (appId && appSecret) {
+        const appSubsRes = await fetch(
+          `https://graph.facebook.com/v21.0/${appId}/subscriptions?access_token=${appId}|${appSecret}`
+        );
+        const appSubsData = await appSubsRes.json();
+        appSubscriptions = appSubsData.data ?? appSubsData;
+      } else {
+        appSubscriptions = { error: "META_CLIENT_ID/SECRET não configurados no master_config" };
+      }
+    } catch (appErr: any) {
+      appSubscriptions = { error: appErr.message };
+    }
+
     const summary = {
       validated: results.filter((r) => r.token_ok).length,
       invalid:   results.filter((r) => !r.token_ok).length,
       pages:     results,
+      app_webhook_subscriptions: appSubscriptions,
     };
     console.log("[refresh-meta-page-tokens] Done:", JSON.stringify({ validated: summary.validated, invalid: summary.invalid }));
     return new Response(JSON.stringify(summary), { headers: corsHeaders });
