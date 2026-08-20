@@ -115,6 +115,7 @@
     },
     "instagramComments": {
       "buttonLabel": "Comentarios",
+      "syncNow": "Sincronizar ahora",
       "drawerTitle": "Comentarios de Instagram",
       "drawerSubtitle": "Responde a los comentarios de las publicaciones de la clínica sin salir del panel.",
       "empty": "No hay comentarios pendientes.",

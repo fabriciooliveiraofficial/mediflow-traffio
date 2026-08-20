@@ -235,6 +235,13 @@ serve(async (req: Request) => {
               console.log(`[auth-meta] ✓ Saved page "${page.name}"${ig ? ` + IG @${ig.username}` : ""}`);
               
               // 🚀 NOVO: Inscrever a página no Webhook do App para receber mensagens
+              // NOTA (2026-08-20): "comments" NÃO é um valor aceito neste endpoint
+              // (/{page-id}/subscribed_apps) — a API rejeita com erro #100 (param
+              // subscribed_fields inválido, "comments" não está na lista). Tentar
+              // assinar via /{ig-account-id}/subscribed_apps?subscribed_fields=comments
+              // também falha, com erro #3 "Application does not have the capability
+              // to make this API call" — investigar junto ao suporte da Meta antes
+              // de tentar de novo.
               try {
                 const subRes = await fetch(
                   `https://graph.facebook.com/v21.0/${page.id}/subscribed_apps?subscribed_fields=messages,messaging_postbacks,standby&access_token=${page.access_token}`,

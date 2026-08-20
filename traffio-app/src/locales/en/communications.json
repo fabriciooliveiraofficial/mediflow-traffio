@@ -115,6 +115,7 @@
     },
     "instagramComments": {
       "buttonLabel": "Comments",
+      "syncNow": "Sync now",
       "drawerTitle": "Instagram Comments",
       "drawerSubtitle": "Reply to comments on the clinic's posts without leaving the panel.",
       "empty": "No pending comments.",

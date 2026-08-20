@@ -36,6 +36,11 @@ export const instagramCommentsService = {
     return count ?? 0;
   },
 
+  /** Dispara o polling manual (fallback enquanto o webhook em tempo real está bloqueado pela Meta). */
+  async syncNow(): Promise<void> {
+    await supabase.functions.invoke('sync-instagram-comments', { body: {} });
+  },
+
   async reply(params: { tenantId: string; commentId: string; text: string; userId: string }): Promise<void> {
     const { data, error } = await supabase.functions.invoke('reply-instagram-comment', {
       body: {

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { X, Instagram, Loader2, Send, MessageCircle } from 'lucide-react';
+import { X, Instagram, Loader2, Send, MessageCircle, RefreshCw } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../contexts/ToastContext';
 import { instagramCommentsService, type InstagramComment } from '../../services/instagramCommentsService';
@@ -21,6 +21,7 @@ export function InstagramCommentsDrawer({ tenantId, isOpen, onClose }: Instagram
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
@@ -39,9 +40,21 @@ export function InstagramCommentsDrawer({ tenantId, isOpen, onClose }: Instagram
     }
   }, [tenantId, showToast]);
 
+  const handleSync = useCallback(async () => {
+    setSyncing(true);
+    try {
+      await instagramCommentsService.syncNow();
+      await load();
+    } catch (err: any) {
+      showToast('error', err.message);
+    } finally {
+      setSyncing(false);
+    }
+  }, [load, showToast]);
+
   useEffect(() => {
-    if (isOpen) load();
-  }, [isOpen, load]);
+    if (isOpen) handleSync();
+  }, [isOpen, handleSync]);
 
   const handleReply = async (comment: InstagramComment) => {
     const text = (replyDrafts[comment.id] ?? '').trim();
@@ -82,16 +95,26 @@ export function InstagramCommentsDrawer({ tenantId, isOpen, onClose }: Instagram
               <p className="text-[11px] text-slate-500">{t('humanInbox.instagramComments.drawerSubtitle')}</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-white/60 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer shrink-0"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              title={t('humanInbox.instagramComments.syncNow')}
+              className="p-1.5 rounded-lg hover:bg-white/60 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer disabled:opacity-40"
+            >
+              <RefreshCw className={syncing ? 'w-4 h-4 animate-spin' : 'w-4 h-4'} />
+            </button>
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg hover:bg-white/60 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
-          {loading ? (
+          {loading || syncing ? (
             <div className="flex items-center justify-center py-10 text-slate-400">
               <Loader2 className="w-5 h-5 animate-spin" />
             </div>
