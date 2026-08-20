@@ -137,6 +137,18 @@ async function processEntries(
       }
     }
 
+    // Comentários públicos em posts da Página do Facebook (permissão
+    // pages_manage_engagement) — chegam como entry.changes[field="feed"] com
+    // value.item === "comment"; o campo "feed" cobre vários tipos de evento
+    // (posts, reações, etc.), por isso o filtro extra.
+    if (channel === "facebook") {
+      for (const change of entry.changes ?? []) {
+        if (change.field === "feed" && change.value?.item === "comment" && change.value?.verb === "add") {
+          await processFacebookCommentEvent(supabase, tenantId, accountOrPageId, change.value);
+        }
+      }
+    }
+
     // ── Handover Protocol: a Página nasce com "Page Inbox" como Primary Receiver.
     // Enquanto não assumirmos o controle da conversa, a Meta entrega os eventos
     // pelo canal `standby` em vez de `messaging`. Processamos a mensagem do mesmo
@@ -431,6 +443,58 @@ async function processCommentEvent(
     console.error(`[meta-social-webhook] Failed to insert instagram_comments:`, error.message);
   } else {
     console.log(`[meta-social-webhook] ✓ Queued Instagram comment ${commentId} from @${value.from?.username ?? value.from?.id ?? "?"}`);
+  }
+}
+
+/**
+ * Processa um comentário recebido em um post da Página do Facebook
+ * (pages_manage_engagement). Mesmo raciocínio do Instagram: não é DM 1:1,
+ * cada comentário é isolado — vai para facebook_comments (fila própria).
+ */
+async function processFacebookCommentEvent(
+  supabase: any,
+  tenantId: string,
+  pageId: string,
+  value: any
+): Promise<void> {
+  const commentId = value?.comment_id;
+  if (!commentId) return;
+
+  // Ignorar o eco da nossa própria resposta (evita loop de "novo comentário").
+  if (value.sender_id && value.sender_id === pageId) {
+    console.log(`[meta-social-webhook] Ignored own Facebook comment echo ${commentId}`);
+    return;
+  }
+
+  const { data: already } = await supabase
+    .from("facebook_comments")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("comment_id", commentId)
+    .maybeSingle();
+
+  if (already) {
+    console.log(`[meta-social-webhook] Duplicate Facebook comment ${commentId} — ignored`);
+    return;
+  }
+
+  const { error } = await supabase.from("facebook_comments").insert({
+    tenant_id:         tenantId,
+    comment_id:        commentId,
+    post_id:           value.post_id ?? null,
+    parent_comment_id: value.parent_id ?? null,
+    page_id:           pageId,
+    from_id:           value.sender_id ?? value.from?.id ?? null,
+    from_name:         value.sender_name ?? value.from?.name ?? null,
+    text:              value.message ?? "",
+    status:            "pending",
+    received_at:       new Date().toISOString(),
+  });
+
+  if (error) {
+    console.error(`[meta-social-webhook] Failed to insert facebook_comments:`, error.message);
+  } else {
+    console.log(`[meta-social-webhook] ✓ Queued Facebook comment ${commentId} from ${value.sender_name ?? value.sender_id ?? "?"}`);
   }
 }
 

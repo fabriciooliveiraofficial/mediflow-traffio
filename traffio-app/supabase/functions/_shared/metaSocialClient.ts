@@ -398,6 +398,67 @@ export class MetaSocialClient {
   }
 
   /**
+   * Responde publicamente a um comentário de post da Página do Facebook.
+   * POST /{comment-id}/comments — a Página vira autora do comentário-resposta.
+   * https://developers.facebook.com/docs/pages-api/comments-mentions/
+   * @param pageToken   Page Access Token da Página do Facebook
+   * @param commentId   ID do comentário do Facebook a responder
+   * @param text        Texto da resposta pública
+   */
+  static async replyToFacebookComment(
+    pageToken: string,
+    commentId: string,
+    text: string
+  ): Promise<{ id: string }> {
+    const res = await fetch(`${GRAPH_API}/${commentId}/comments?access_token=${pageToken}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: text }),
+    });
+    const data = await res.json();
+
+    if (data.error) {
+      throw new MetaSocialError(data.error.code, data.error.message, "facebook");
+    }
+
+    return { id: data.id };
+  }
+
+  /**
+   * Envia uma resposta PRIVADA (Private Reply) a quem comentou um post da
+   * Página do Facebook. POST /{page-id}/messages com recipient.comment_id —
+   * mesmo conceito da versão Instagram, endpoint próprio. Só 1 envio por
+   * comentário, janela de 7 dias.
+   * https://developers.facebook.com/docs/messenger-platform/discovery/private-replies
+   * @param pageToken   Page Access Token da Página do Facebook
+   * @param pageId      ID numérico da Página do Facebook
+   * @param commentId   ID do comentário que originou o gatilho
+   * @param text        Texto da mensagem privada
+   */
+  static async sendPrivateReplyToFacebookComment(
+    pageToken: string,
+    pageId: string,
+    commentId: string,
+    text: string
+  ): Promise<{ messageId: string; recipientId: string }> {
+    const res = await fetch(`${GRAPH_API}/${pageId}/messages?access_token=${pageToken}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipient: { comment_id: commentId },
+        message: { text },
+      }),
+    });
+    const data = await res.json();
+
+    if (data.error) {
+      throw new MetaSocialError(data.error.code, data.error.message, "facebook");
+    }
+
+    return { messageId: data.message_id, recipientId: data.recipient_id };
+  }
+
+  /**
    * Verifica se um token de página ainda é válido.
    * Retorna true se válido, false se revogado.
    */

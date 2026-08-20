@@ -441,3 +441,15 @@ verify_jwt = false
 [functions.ai-reply-instagram-comments]
 enabled = true
 verify_jwt = false
+
+[functions.sync-facebook-comments]
+enabled = true
+verify_jwt = false
+
+[functions.reply-facebook-comment]
+enabled = true
+verify_jwt = false
+
+[functions.ai-reply-facebook-comments]
+enabled = true
+verify_jwt = false

@@ -1,12 +1,12 @@
 import { supabase } from '../lib/supabase';
 
-export interface InstagramComment {
+export interface FacebookComment {
   id: string;
   tenant_id: string;
   comment_id: string;
-  media_id: string | null;
+  post_id: string | null;
   from_id: string | null;
-  from_username: string | null;
+  from_name: string | null;
   text: string | null;
   status: 'pending' | 'replied' | 'ignored';
   reply_text: string | null;
@@ -16,10 +16,10 @@ export interface InstagramComment {
   received_at: string;
 }
 
-export const instagramCommentsService = {
-  async list(tenantId: string): Promise<InstagramComment[]> {
+export const facebookCommentsService = {
+  async list(tenantId: string): Promise<FacebookComment[]> {
     const { data, error } = await supabase
-      .from('instagram_comments')
+      .from('facebook_comments')
       .select('*')
       .eq('tenant_id', tenantId)
       .order('received_at', { ascending: false })
@@ -30,7 +30,7 @@ export const instagramCommentsService = {
 
   async countPending(tenantId: string): Promise<number> {
     const { count, error } = await supabase
-      .from('instagram_comments')
+      .from('facebook_comments')
       .select('id', { count: 'exact', head: true })
       .eq('tenant_id', tenantId)
       .eq('status', 'pending');
@@ -38,13 +38,12 @@ export const instagramCommentsService = {
     return count ?? 0;
   },
 
-  /** Dispara o polling manual (fallback enquanto o webhook em tempo real está bloqueado pela Meta). */
   async syncNow(): Promise<void> {
-    await supabase.functions.invoke('sync-instagram-comments', { body: {} });
+    await supabase.functions.invoke('sync-facebook-comments', { body: {} });
   },
 
   async reply(params: { tenantId: string; commentId: string; text: string; userId: string }): Promise<void> {
-    const { data, error } = await supabase.functions.invoke('reply-instagram-comment', {
+    const { data, error } = await supabase.functions.invoke('reply-facebook-comment', {
       body: {
         tenant_id: params.tenantId,
         comment_id: params.commentId,

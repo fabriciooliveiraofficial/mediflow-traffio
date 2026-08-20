@@ -41,8 +41,8 @@ import { ChannelPreferenceSelector } from '../components/channel/ChannelPreferen
 import { ConfirmationChannelModal, type ConfirmationChannelId, type ConfirmationChannelOption } from '../components/channel/ConfirmationChannelModal'
 import { salesScriptService, type SalesScript } from '../services/salesScriptService'
 import { ScriptManagerDrawer } from '../components/ScriptManagerDrawer'
-import { InstagramCommentsInboxPanel } from '../components/inbox/InstagramCommentsInboxPanel'
-import { instagramCommentsService } from '../services/instagramCommentsService'
+import { SocialCommentsInboxPanel } from '../components/inbox/SocialCommentsInboxPanel'
+import { socialCommentsService } from '../services/socialCommentsService'
 import { useTenant } from '../contexts/TenantContext'
 
 // ─────────────────────────────────────────────
@@ -2170,7 +2170,7 @@ export function HumanInboxPage() {
   const refreshPendingCommentsCount = useCallback(async () => {
     if (!tenantId) return
     try {
-      const count = await instagramCommentsService.countPending(tenantId)
+      const count = await socialCommentsService.countPending(tenantId)
       setPendingCommentsCount(count)
     } catch (err) {
       console.error('Failed to load pending Instagram comments count', err)
@@ -3304,7 +3304,7 @@ export function HumanInboxPage() {
       )}
 
       {channelFilter === 'instagram_comment' ? (
-        <InstagramCommentsInboxPanel tenantId={tenantId || ''} />
+        <SocialCommentsInboxPanel tenantId={tenantId || ''} />
       ) : (
       <>
       {/* ══════════════════════════════════════════
