@@ -71,6 +71,7 @@ serve(async (req: Request) => {
         "business_management",
         "instagram_manage_comments",
         "pages_manage_engagement",
+        "pages_read_user_content",
         "public_profile"
       );
     }
@@ -223,6 +224,7 @@ serve(async (req: Request) => {
                     "pages_read_engagement",
                     "instagram_manage_comments",
                     "pages_manage_engagement",
+                    "pages_read_user_content",
                     "public_profile"
                   ],
                   updated_at: new Date().toISOString(),

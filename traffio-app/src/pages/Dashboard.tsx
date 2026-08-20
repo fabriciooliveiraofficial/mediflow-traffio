@@ -453,6 +453,20 @@ export const Dashboard: React.FC = () => {
                     <p className="text-[11px] text-graphite-400 leading-relaxed font-medium mb-6">
                         {t('integrations.metaDescription')}
                     </p>
+                    {integrations.meta && metaPages[0]?.instagram_username && (
+                        <div className="flex items-center gap-2 px-3 py-2 mb-4 bg-pink-50 text-[#E4405F] rounded-2xl w-fit">
+                            {metaPages[0].instagram_profile_picture_url ? (
+                                <img
+                                    src={metaPages[0].instagram_profile_picture_url}
+                                    alt={metaPages[0].instagram_username}
+                                    className="w-6 h-6 rounded-full object-cover border border-pink-200"
+                                />
+                            ) : (
+                                <Instagram size={14} />
+                            )}
+                            <span className="text-[11px] font-black">@{metaPages[0].instagram_username}</span>
+                        </div>
+                    )}
                     <button
                         onClick={() => integrations.meta ? openManageModal('meta') : handleConnect('meta', 'ads,messaging')}
                         className={clsx(
