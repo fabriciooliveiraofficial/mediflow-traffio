@@ -59,7 +59,20 @@ export function SocialCommentsInboxPanel({ tenantId }: SocialCommentsInboxPanelP
     }
   }, [load, showToast]);
 
-  useEffect(() => { handleSync(); }, [handleSync]);
+  // Ao abrir a aba: exibe o que já está no banco IMEDIATAMENTE (o cron de 1min
+  // já mantém isso atualizado em segundo plano) — não espera a Meta responder
+  // pra pintar a tela. A sincronização roda em paralelo, sem bloquear, e só
+  // atualiza a lista silenciosamente quando terminar (sem re-exibir spinner
+  // de carregamento cheio, pra não piscar a tela already-populated).
+  useEffect(() => {
+    if (!tenantId) return;
+    load();
+    socialCommentsService.syncNow()
+      .then(() => socialCommentsService.list(tenantId))
+      .then(setComments)
+      .catch(err => console.error('[SocialCommentsInboxPanel] background sync failed:', err));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenantId]);
 
   // Realtime — novo comentário aparece sozinho, sem precisar de ação do usuário
   useEffect(() => {
