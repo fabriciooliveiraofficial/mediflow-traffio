@@ -437,3 +437,7 @@ verify_jwt = false
 [functions.sync-instagram-comments]
 enabled = true
 verify_jwt = false
+
+[functions.ai-reply-instagram-comments]
+enabled = true
+verify_jwt = false

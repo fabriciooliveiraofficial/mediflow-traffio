@@ -363,6 +363,41 @@ export class MetaSocialClient {
   }
 
   /**
+   * Envia uma resposta PRIVADA (Private Reply oficial da Meta) a quem comentou
+   * um post do Instagram. Diferente de sendInstagramMessage: usa o endpoint
+   * /{ig-account-id}/messages com recipient.comment_id (não recipient.id), não
+   * abre uma "conversa" contínua — é um disparo único por comentário, dentro
+   * de uma janela de 7 dias, sem exigir troca de mensagem prévia. Documentação:
+   * https://developers.facebook.com/docs/instagram-platform/private-replies/
+   * @param pageToken   Page Access Token da página FB conectada ao Instagram
+   * @param igAccountId ID numérico da conta Instagram Business do tenant
+   * @param commentId   ID do comentário que originou o gatilho
+   * @param text        Texto da mensagem privada
+   */
+  static async sendPrivateReplyToComment(
+    pageToken: string,
+    igAccountId: string,
+    commentId: string,
+    text: string
+  ): Promise<{ messageId: string; recipientId: string }> {
+    const res = await fetch(`${GRAPH_API}/${igAccountId}/messages?access_token=${pageToken}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipient: { comment_id: commentId },
+        message: { text },
+      }),
+    });
+    const data = await res.json();
+
+    if (data.error) {
+      throw new MetaSocialError(data.error.code, data.error.message, "instagram");
+    }
+
+    return { messageId: data.message_id, recipientId: data.recipient_id };
+  }
+
+  /**
    * Verifica se um token de página ainda é válido.
    * Retorna true se válido, false se revogado.
    */
