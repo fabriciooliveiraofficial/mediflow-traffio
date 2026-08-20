@@ -9,9 +9,9 @@
  * Configurar no painel Meta Developers:
  *   App → Webhooks → Callback URL: {SUPABASE_URL}/functions/v1/meta-social-webhook
  *   Verify Token: valor do secret META_VERIFY_TOKEN
- *   Subscriptions: messages, messaging_postbacks (para Instagram e Pages)
+ *   Subscriptions: messages, messaging_postbacks (para Instagram e Pages), comments (Instagram)
  *
- * body.object === "instagram" → Instagram DM
+ * body.object === "instagram" → Instagram DM (entry.messaging) e comentários (entry.changes, field "comments")
  * body.object === "page"      → Facebook Messenger
  */
 
@@ -125,6 +125,16 @@ async function processEntries(
 
     for (const messaging of entry.messaging ?? []) {
       await processMessagingEvent(supabase, tenantId, channel, messaging, page.page_access_token ?? null);
+    }
+
+    // Comentários públicos em posts do Instagram (permissão instagram_manage_comments) —
+    // chegam como entry.changes[field="comments"], nunca como entry.messaging (não é DM).
+    if (channel === "instagram") {
+      for (const change of entry.changes ?? []) {
+        if (change.field === "comments") {
+          await processCommentEvent(supabase, tenantId, accountOrPageId, change.value ?? {});
+        }
+      }
     }
 
     // ── Handover Protocol: a Página nasce com "Page Inbox" como Primary Receiver.
@@ -367,6 +377,60 @@ async function processMessagingEvent(
     console.error(`[meta-social-webhook] Failed to insert into message_inbox:`, inboxErr.message);
   } else {
     console.log(`[meta-social-webhook] ✓ [${channel}] Queued message ${messageId} from ${senderId}`);
+  }
+}
+
+/**
+ * Processa um comentário recebido em um post do Instagram (instagram_manage_comments).
+ * Não é uma DM 1:1 — cada comentário é uma unidade isolada associada a um
+ * comment_id/media_id, por isso vai para instagram_comments (fila própria),
+ * não para message_inbox/conversation_sessions.
+ */
+async function processCommentEvent(
+  supabase: any,
+  tenantId: string,
+  igAccountId: string,
+  value: any
+): Promise<void> {
+  const commentId = value?.id;
+  if (!commentId) return;
+
+  // Ignorar o eco da nossa própria resposta (a Meta reenvia o webhook quando
+  // a própria página comenta, o que criaria um loop infinito de "novo comentário").
+  if (value.from?.id && value.from.id === igAccountId) {
+    console.log(`[meta-social-webhook] Ignored own comment echo ${commentId}`);
+    return;
+  }
+
+  const { data: already } = await supabase
+    .from("instagram_comments")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("comment_id", commentId)
+    .maybeSingle();
+
+  if (already) {
+    console.log(`[meta-social-webhook] Duplicate comment ${commentId} — ignored`);
+    return;
+  }
+
+  const { error } = await supabase.from("instagram_comments").insert({
+    tenant_id:         tenantId,
+    comment_id:        commentId,
+    media_id:          value.media?.id ?? null,
+    parent_comment_id: value.parent_id ?? null,
+    ig_account_id:     igAccountId,
+    from_id:           value.from?.id ?? null,
+    from_username:     value.from?.username ?? null,
+    text:              value.text ?? "",
+    status:            "pending",
+    received_at:       new Date().toISOString(),
+  });
+
+  if (error) {
+    console.error(`[meta-social-webhook] Failed to insert instagram_comments:`, error.message);
+  } else {
+    console.log(`[meta-social-webhook] ✓ Queued Instagram comment ${commentId} from @${value.from?.username ?? value.from?.id ?? "?"}`);
   }
 }
 

@@ -429,3 +429,7 @@ verify_jwt = true
 [functions.meta-social-webhook]
 enabled = true
 verify_jwt = false
+
+[functions.reply-instagram-comment]
+enabled = true
+verify_jwt = false

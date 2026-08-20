@@ -113,6 +113,22 @@
       "instagramDirect": "Instagram Direct",
       "facebookMessenger": "Facebook Messenger"
     },
+    "instagramComments": {
+      "buttonLabel": "Comments",
+      "drawerTitle": "Instagram Comments",
+      "drawerSubtitle": "Reply to comments on the clinic's posts without leaving the panel.",
+      "empty": "No pending comments.",
+      "loading": "Loading comments...",
+      "pendingSection": "Pending",
+      "repliedSection": "Replied",
+      "replyPlaceholder": "Write a public reply...",
+      "replyButton": "Reply",
+      "repliedBadge": "Replied",
+      "toasts": {
+        "sent": "Reply published on Instagram",
+        "error": "Failed to reply: {{message}}"
+      }
+    },
     "channelModal": {
       "title": "Send confirmation via which channel?",
       "subtitle": "The appointment is confirmed. Choose the channel to deliver the confirmation message to the patient.",

@@ -41,6 +41,8 @@ import { ChannelPreferenceSelector } from '../components/channel/ChannelPreferen
 import { ConfirmationChannelModal, type ConfirmationChannelId, type ConfirmationChannelOption } from '../components/channel/ConfirmationChannelModal'
 import { salesScriptService, type SalesScript } from '../services/salesScriptService'
 import { ScriptManagerDrawer } from '../components/ScriptManagerDrawer'
+import { InstagramCommentsDrawer } from '../components/inbox/InstagramCommentsDrawer'
+import { instagramCommentsService } from '../services/instagramCommentsService'
 import { useTenant } from '../contexts/TenantContext'
 
 // ─────────────────────────────────────────────
@@ -2052,6 +2054,12 @@ export function HumanInboxPage() {
   const [bookingPreFill, setBookingPreFill] = useState<any | null>(null);
   const [channelFilter, setChannelFilter] = useState<'all' | 'whatsapp' | 'livechat' | 'instagram' | 'facebook' | 'sms'>('all');
 
+  // ── Drawer de comentários do Instagram (instagram_manage_comments) — fila
+  // separada de conversation_sessions (comentário público não é DM 1:1),
+  // ver instagramCommentsService.
+  const [showCommentsDrawer, setShowCommentsDrawer] = useState(false)
+  const [pendingCommentsCount, setPendingCommentsCount] = useState(0)
+
   // ── Drawer de debug do agente (Onda 5.3) — trace de agent_turn_events,
   // visível só para super_admin. Ajuda a reconstruir "por que este turno
   // terminou assim" sem depender de logs de console.
@@ -2157,6 +2165,19 @@ export function HumanInboxPage() {
     const intervalId = setInterval(updateTimer, 1000)
     return () => clearInterval(intervalId)
   }, [selected?.id, isMetaChannel, lastUserMessageTime])
+
+  // ── Contador de comentários pendentes do Instagram (badge do botão) ──
+  const refreshPendingCommentsCount = useCallback(async () => {
+    if (!tenantId) return
+    try {
+      const count = await instagramCommentsService.countPending(tenantId)
+      setPendingCommentsCount(count)
+    } catch (err) {
+      console.error('Failed to load pending Instagram comments count', err)
+    }
+  }, [tenantId])
+
+  useEffect(() => { refreshPendingCommentsCount() }, [refreshPendingCommentsCount])
 
   // ── Handlers ──────────────────────────────────
   const markAsRead = useCallback(async (sessionId: string) => {
@@ -3198,6 +3219,19 @@ export function HumanInboxPage() {
                   </span>
                 </button>
             </div>
+
+            <button
+              onClick={() => setShowCommentsDrawer(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-ice-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all font-bold text-xs cursor-pointer shrink-0"
+            >
+              <MessageCircle className="w-3.5 h-3.5" />
+              <span className="hidden lg:inline">{t('humanInbox.instagramComments.buttonLabel')}</span>
+              {pendingCommentsCount > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full text-[9px] font-extrabold bg-gradient-to-r from-purple-600 to-pink-500 text-white">
+                  {pendingCommentsCount}
+                </span>
+              )}
+            </button>
           </div>
 
           {/* Right: Dropdown for Kanban Stages */}
@@ -3945,6 +3979,12 @@ export function HumanInboxPage() {
         initialEditingId={editingScriptId}
         onClose={() => setIsScriptManagerOpen(false)}
         onScriptsUpdated={setSalesScripts}
+      />
+
+      <InstagramCommentsDrawer
+        tenantId={tenantId || ''}
+        isOpen={showCommentsDrawer}
+        onClose={() => { setShowCommentsDrawer(false); refreshPendingCommentsCount(); }}
       />
 
       {/* Seletor de canal da mensagem de confirmação de agendamento */}

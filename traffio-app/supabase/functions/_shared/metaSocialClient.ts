@@ -335,6 +335,34 @@ export class MetaSocialClient {
   }
 
   /**
+   * Responde publicamente a um comentário de post do Instagram.
+   * Endpoint diferente do envio de DM (POST /{comment-id}/replies em vez de
+   * /me/messages) — não existe conceito de janela de 24h para comentário
+   * público, então não há fallback de messaging_type aqui.
+   * @param pageToken   Page Access Token da página FB conectada ao Instagram
+   * @param commentId   ID do comentário do Instagram a responder
+   * @param text        Texto da resposta pública
+   */
+  static async replyToInstagramComment(
+    pageToken: string,
+    commentId: string,
+    text: string
+  ): Promise<{ id: string }> {
+    const res = await fetch(`${GRAPH_API}/${commentId}/replies?access_token=${pageToken}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: text }),
+    });
+    const data = await res.json();
+
+    if (data.error) {
+      throw new MetaSocialError(data.error.code, data.error.message, "instagram");
+    }
+
+    return { id: data.id };
+  }
+
+  /**
    * Verifica se um token de página ainda é válido.
    * Retorna true se válido, false se revogado.
    */
