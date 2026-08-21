@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { PhoneOff, Mic, MicOff, PauseCircle, PlayCircle, PhoneForwarded } from 'lucide-react';
 import type { ActiveCall } from '../../hooks/useTelnyxWebRTC';
 import { logPlatformClient } from '../../lib/logger';
+import { useBusyGuard } from '../../hooks/useBusyGuard';
 
 interface Props {
   call:         ActiveCall;
@@ -19,6 +20,10 @@ export function ActiveCallView({ call, isMuted, isOnHold, onHangup, onToggleMute
   const [elapsed, setElapsed]         = useState(0);
   const [showTransfer, setShowTransfer] = useState(false);
   const [transferNum, setTransferNum]   = useState('');
+
+  // Ligação em andamento (este componente só existe montado nesse estado) —
+  // nunca recarregar a página sozinho enquanto isso for true.
+  useBusyGuard('active-call', true);
 
   useEffect(() => {
     const interval = setInterval(() => {

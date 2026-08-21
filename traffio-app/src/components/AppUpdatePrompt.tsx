@@ -4,72 +4,51 @@ import { RefreshCw } from 'lucide-react';
 import { useAppUpdate } from '../hooks/useAppUpdate';
 import { useAuth } from '../contexts/AuthContext';
 
+/**
+ * Atualizações são aplicadas sozinhas assim que for seguro (sem campo de
+ * texto focado, sem ligação em andamento — ver useAppUpdate.ts). Este
+ * componente só aparece enquanto uma atualização estiver "adiada" esperando
+ * esse momento seguro — não bloqueia a tela, e o único botão é pra quem
+ * quiser aplicar na hora por conta própria.
+ */
 export const AppUpdatePrompt = () => {
     const { t } = useTranslation('common');
     const { session } = useAuth();
-    const { updateAvailable, updating, applyUpdate, skipUpdate } = useAppUpdate();
+    const { updateDeferred, updating, applyUpdate } = useAppUpdate();
 
     return (
         <AnimatePresence>
-            {session && updateAvailable && (
+            {session && updateDeferred && (
                 <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0, transition: { duration: 0.15 } }}
-                    className="fixed inset-0 z-[1200] flex items-center justify-center bg-graphite-900/40 backdrop-blur-sm p-4"
-                    role="dialog"
-                    aria-modal="true"
-                    aria-labelledby="app-update-title"
+                    initial={{ opacity: 0, y: 12, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 12, scale: 0.96, transition: { duration: 0.15 } }}
+                    className="fixed bottom-6 right-6 z-[1200] max-w-xs w-full bg-white rounded-2xl shadow-2xl border border-ice-100 p-4"
+                    role="status"
                 >
-                    <motion.div
-                        initial={{ scale: 0.94, opacity: 0, y: 12 }}
-                        animate={{ scale: 1, opacity: 1, y: 0 }}
-                        exit={{ scale: 0.94, opacity: 0, y: 12, transition: { duration: 0.15 } }}
-                        className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-ice-100 p-6"
-                    >
-                        <div className="flex items-start gap-4">
-                            <div className="w-12 h-12 rounded-2xl bg-brand-primary/10 text-brand-primary flex items-center justify-center shrink-0">
-                                <RefreshCw size={22} className={updating ? 'animate-spin' : ''} />
-                            </div>
-                            <div>
-                                <p className="text-[10px] font-black text-brand-primary uppercase tracking-widest mb-1">
-                                    {t('appUpdate.eyebrow')}
-                                </p>
-                                <h2 id="app-update-title" className="text-xl font-black text-graphite-900 tracking-tight leading-tight">
-                                    {t('appUpdate.title')}
-                                </h2>
-                                <p className="mt-2 text-sm font-medium text-graphite-500 leading-relaxed">
-                                    {t('appUpdate.description')}
-                                </p>
-                            </div>
+                    <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-brand-primary/10 text-brand-primary flex items-center justify-center shrink-0">
+                            <RefreshCw size={18} className={updating ? 'animate-spin' : ''} />
                         </div>
-
-                        <div className="mt-5 rounded-2xl bg-ice-50 border border-ice-100 px-4 py-3">
-                            <p className="text-xs font-bold text-graphite-500 leading-relaxed">
-                                {t('appUpdate.cacheNote')}
+                        <div className="min-w-0">
+                            <p className="text-sm font-black text-graphite-900 leading-tight">
+                                {t('appUpdate.title')}
+                            </p>
+                            <p className="mt-1 text-xs font-medium text-graphite-500 leading-relaxed">
+                                {t('appUpdate.deferredDescription')}
                             </p>
                         </div>
+                    </div>
 
-                        <div className="mt-6 flex gap-3">
-                            <button
-                                type="button"
-                                onClick={skipUpdate}
-                                disabled={updating}
-                                className="flex-1 py-3 rounded-2xl font-bold text-graphite-700 bg-white hover:bg-ice-50 border border-ice-200 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {t('appUpdate.skip')}
-                            </button>
-                            <button
-                                type="button"
-                                onClick={applyUpdate}
-                                disabled={updating}
-                                className="flex-[1.4] py-3 rounded-2xl font-bold text-white bg-brand-primary shadow-lg shadow-brand-primary/20 hover:scale-[1.02] active:scale-[0.98] border-none transition-all cursor-pointer disabled:opacity-70 disabled:cursor-wait flex items-center justify-center gap-2"
-                            >
-                                <RefreshCw size={16} className={updating ? 'animate-spin' : ''} />
-                                <span>{updating ? t('appUpdate.updating') : t('appUpdate.update')}</span>
-                            </button>
-                        </div>
-                    </motion.div>
+                    <button
+                        type="button"
+                        onClick={applyUpdate}
+                        disabled={updating}
+                        className="mt-3 w-full py-2.5 rounded-xl font-bold text-sm text-white bg-brand-primary shadow-lg shadow-brand-primary/20 hover:scale-[1.02] active:scale-[0.98] border-none transition-all cursor-pointer disabled:opacity-70 disabled:cursor-wait flex items-center justify-center gap-2"
+                    >
+                        <RefreshCw size={14} className={updating ? 'animate-spin' : ''} />
+                        <span>{updating ? t('appUpdate.updating') : t('appUpdate.update')}</span>
+                    </button>
                 </motion.div>
             )}
         </AnimatePresence>

@@ -105,9 +105,9 @@
     "eyebrow": "Update available",
     "title": "New version ready",
     "description": "An update has been published. Refresh now to apply the latest changes.",
+    "deferredDescription": "Will apply automatically as soon as you're done typing or your call ends.",
     "cacheNote": "The update swaps the service worker, clears app caches, and reloads the platform with cache-busting.",
-    "update": "Update",
-    "skip": "Skip",
+    "update": "Update now",
     "updating": "Updating..."
   },
   "tenantAddressForm": {

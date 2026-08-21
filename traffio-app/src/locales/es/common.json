@@ -105,9 +105,9 @@
     "eyebrow": "Actualizaci\u00f3n disponible",
     "title": "Nueva versi\u00f3n lista",
     "description": "Se public\u00f3 una actualizaci\u00f3n. Actualiza ahora para aplicar los cambios m\u00e1s recientes.",
+    "deferredDescription": "Se aplicar\u00e1 sola en cuanto termines de escribir o la llamada finalice.",
     "cacheNote": "La actualizaci\u00f3n cambia el service worker, limpia las cach\u00e9s de la app y recarga la plataforma con cache-bust.",
-    "update": "Actualizar",
-    "skip": "Omitir",
+    "update": "Actualizar ahora",
     "updating": "Actualizando..."
   },
   "tenantAddressForm": {
