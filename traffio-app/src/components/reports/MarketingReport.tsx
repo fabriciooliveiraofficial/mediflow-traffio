@@ -135,11 +135,33 @@ export function MarketingReport() {
     const [sortKey, setSortKey] = useState<CampaignSortKey>('spend');
     const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
+    const [integrations, setIntegrations] = useState<{ meta: boolean; google: boolean }>({ meta: false, google: false });
     const [rawPerformanceData, setRawPerformanceData] = useState<any[]>([]);
 
     const fetchPerformanceData = useCallback(async () => {
         if (!tenant?.id) return;
         try {
+            // 1. Verificar quais plataformas de anúncios estão ativamente conectadas
+            const { data: intData } = await supabase
+                .from('ad_integrations')
+                .select('platform, status')
+                .eq('tenant_id', tenant.id);
+
+            const activeMeta = intData?.some((i: any) => i.platform === 'meta' && i.status === 'active') ?? false;
+            const activeGoogle = intData?.some((i: any) => i.platform === 'google' && i.status === 'active') ?? false;
+            const currentIntegrations = { meta: activeMeta, google: activeGoogle };
+            setIntegrations(currentIntegrations);
+
+            // Se nenhuma plataforma estiver conectada, não exibe nenhum resultado
+            if (!activeMeta && !activeGoogle) {
+                setRawPerformanceData([]);
+                return;
+            }
+
+            const activePlatformList: string[] = [];
+            if (activeMeta) activePlatformList.push('meta');
+            if (activeGoogle) activePlatformList.push('google');
+
             const tz = tenant?.timezone || 'America/Sao_Paulo';
             const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: tz });
 
@@ -152,6 +174,7 @@ export function MarketingReport() {
                 .from('ad_performance_daily')
                 .select('*')
                 .eq('tenant_id', tenant.id)
+                .in('platform', activePlatformList)
                 .gte('date', ninetyDaysAgoStr)
                 .order('date', { ascending: true });
 
@@ -168,6 +191,7 @@ export function MarketingReport() {
     // Fetch adicional sob-demanda quando o período personalizado ultrapassa a janela padrão de 90 dias
     useEffect(() => {
         if (!tenant?.id || period !== 'custom' || !customRange?.from) return;
+        if (!integrations.meta && !integrations.google) return;
 
         const tz = tenant?.timezone || 'America/Sao_Paulo';
         const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: tz });
@@ -178,11 +202,16 @@ export function MarketingReport() {
 
         if (customRange.from >= ninetyDaysAgoStr) return;
 
+        const activePlatformList: string[] = [];
+        if (integrations.meta) activePlatformList.push('meta');
+        if (integrations.google) activePlatformList.push('google');
+
         (async () => {
             const { data: extraData } = await supabase
                 .from('ad_performance_daily')
                 .select('*')
                 .eq('tenant_id', tenant.id)
+                .in('platform', activePlatformList)
                 .gte('date', customRange.from)
                 .lt('date', ninetyDaysAgoStr)
                 .order('date', { ascending: true });
@@ -198,7 +227,7 @@ export function MarketingReport() {
                 });
             }
         })();
-    }, [tenant?.id, tenant?.timezone, period, customRange?.from]);
+    }, [tenant?.id, tenant?.timezone, period, customRange?.from, integrations]);
 
     // ── Período selecionado → range de datas (YYYY-MM-DD) ──────────────────
     const dateRange = useMemo(() => {
@@ -226,24 +255,34 @@ export function MarketingReport() {
 
     // ── Dados filtrados por período + plataforma + campanha ─────────────────
     const filteredData = useMemo(() => {
+        if (!integrations.meta && !integrations.google) return [];
         return rawPerformanceData.filter((row: any) => {
+            // Só aceita registros de plataformas conectadas
+            if (row.platform === 'meta' && !integrations.meta) return false;
+            if (row.platform === 'google' && !integrations.google) return false;
+            if (row.platform !== 'meta' && row.platform !== 'google') return false;
+
             if (row.date < dateRange.from || row.date > dateRange.to) return false;
             if (activeTab !== 'all' && row.platform !== activeTab) return false;
             if (selectedCampaign !== 'all' && (row.campaign_name || 'Sem nome') !== selectedCampaign) return false;
             return true;
         });
-    }, [rawPerformanceData, dateRange, activeTab, selectedCampaign]);
+    }, [rawPerformanceData, dateRange, activeTab, selectedCampaign, integrations]);
 
     // ── Opções do filtro de campanha (respeita período + plataforma) ────────
     const campaignOptions = useMemo(() => {
+        if (!integrations.meta && !integrations.google) return [];
         const names = new Set<string>();
         rawPerformanceData.forEach((row: any) => {
+            if (row.platform === 'meta' && !integrations.meta) return;
+            if (row.platform === 'google' && !integrations.google) return;
+            if (row.platform !== 'meta' && row.platform !== 'google') return;
             if (row.date < dateRange.from || row.date > dateRange.to) return;
             if (activeTab !== 'all' && row.platform !== activeTab) return;
             names.add(row.campaign_name || 'Sem nome');
         });
         return Array.from(names).sort();
-    }, [rawPerformanceData, dateRange, activeTab]);
+    }, [rawPerformanceData, dateRange, activeTab, integrations]);
 
     // Reseta o filtro de campanha se a opção selecionada deixar de existir (ex: troca de plataforma)
     useEffect(() => {
@@ -489,7 +528,8 @@ export function MarketingReport() {
         XLSX.writeFile(wb, `analytics-pro-${getTenantTodayString(tenant?.timezone)}.xlsx`);
     };
 
-    const isLiveWithoutData = rawPerformanceData.length === 0;
+    const hasAnyIntegration = integrations.meta || integrations.google;
+    const isLiveWithoutData = !hasAnyIntegration || rawPerformanceData.length === 0;
     const hasFilteredData = chartData.length > 0;
     const selectedChartMetricLabel = CHART_METRICS.find(m => m.key === chartMetric)?.label || t('chartMetrics.leads');
 

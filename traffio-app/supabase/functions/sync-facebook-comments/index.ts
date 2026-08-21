@@ -55,8 +55,12 @@ async function syncCommentsForPage(
   pageId: string,
   pageToken: string
 ): Promise<number> {
+  // filter=stream (em vez do padrão implícito da API, que é "toplevel") é
+  // obrigatório aqui — testado em produção: sem ele a Graph API omite boa
+  // parte dos comentários de topo de um post real (12 existentes, só 5
+  // retornados sem o filtro), não é só sobre incluir respostas aninhadas.
   const postsRes = await fetch(
-    `${GRAPH_API}/${pageId}/posts?fields=id,comments.limit(50){id,message,from,created_time,parent}&limit=15&access_token=${pageToken}`
+    `${GRAPH_API}/${pageId}/posts?fields=id,comments.filter(stream).limit(50){id,message,from,created_time,parent}&limit=15&access_token=${pageToken}`
   );
   const postsData = await postsRes.json();
   if (postsData.error) {

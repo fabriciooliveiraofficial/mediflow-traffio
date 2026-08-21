@@ -85,8 +85,7 @@ serve(async (req: Request) => {
       // Case A: Meta Ads
       if (platform === "meta") {
         if (isMetaPlaceholder) {
-          console.warn(`Meta App ID is placeholder. Generating demo data for tenant: ${tenant_id}`);
-          await generateDemoData(supabaseAdmin, tenant_id, "meta", timezone);
+          console.warn(`Meta App ID is placeholder. Skipping sync for tenant: ${tenant_id}`);
           continue;
         }
 
@@ -235,8 +234,7 @@ serve(async (req: Request) => {
       // Case B: Google Ads
       if (platform === "google") {
         if (isGooglePlaceholder) {
-          console.warn(`Google Client ID is placeholder. Generating demo data for tenant: ${tenant_id}`);
-          await generateDemoData(supabaseAdmin, tenant_id, "google", timezone);
+          console.warn(`Google Client ID is placeholder. Skipping sync for tenant: ${tenant_id}`);
           continue;
         }
 
@@ -426,59 +424,4 @@ async function updateIntegrationSettings(
     .update({ settings: newSettings, updated_at: new Date().toISOString() })
     .eq("tenant_id", tenantId)
     .eq("platform", platform);
-}
-
-// Helper to generate demonstration data for dashboard preview (2 campanhas por plataforma, últimos 7 dias + hoje)
-async function generateDemoData(supabaseAdmin: any, tenantId: string, platform: "meta" | "google", timezone: string) {
-  const campaigns = platform === "meta"
-    ? [
-        { id: "demo_meta_implantes", name: "Campanha — Implantes" },
-        { id: "demo_meta_clareamento", name: "Campanha — Clareamento Dental" },
-      ]
-    : [
-        { id: "demo_google_ortodontia", name: "Pesquisa — Ortodontia" },
-        { id: "demo_google_avaliacao", name: "Pesquisa — Avaliação Gratuita" },
-      ];
-
-  // Seed last 7 days + today of performance, per campaign
-  for (let i = 7; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const dateStr = getLocalDateStr(d, timezone);
-
-    for (const campaign of campaigns) {
-      let spendCents, conversions, impressions, clicks, revenueCents;
-
-      if (platform === "meta") {
-        spendCents = Math.round((20 + Math.random() * 20) * 100); // R$ 20 - R$ 40 por campanha
-        conversions = Math.round(1 + Math.random() * 3); // 1 - 4 conversões
-        impressions = Math.round(800 + Math.random() * 1000);
-        clicks = Math.round(40 + Math.random() * 60);
-        revenueCents = conversions * 15000; // R$ 150 por conversão
-      } else {
-        spendCents = Math.round((25 + Math.random() * 25) * 100); // R$ 25 - R$ 50 por campanha
-        conversions = Math.round(1 + Math.random() * 2); // 1 - 3 conversões
-        impressions = Math.round(500 + Math.random() * 700);
-        clicks = Math.round(25 + Math.random() * 45);
-        revenueCents = conversions * 20000; // R$ 200 por conversão
-      }
-
-      await supabaseAdmin
-        .from("ad_performance_daily")
-        .upsert({
-          tenant_id: tenantId,
-          platform,
-          date: dateStr,
-          ad_account_id: `demo_${platform}_account`,
-          campaign_id: campaign.id,
-          campaign_name: campaign.name,
-          spend_cents: spendCents,
-          revenue_cents: revenueCents,
-          leads_count: conversions,
-          conversion_count: conversions,
-          impressions,
-          clicks,
-        }, { onConflict: "tenant_id,platform,date,campaign_id" });
-    }
-  }
 }

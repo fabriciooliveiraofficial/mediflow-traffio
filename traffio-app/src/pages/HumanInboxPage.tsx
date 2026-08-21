@@ -2177,7 +2177,28 @@ export function HumanInboxPage() {
     }
   }, [tenantId])
 
-  useEffect(() => { refreshPendingCommentsCount() }, [refreshPendingCommentsCount])
+  useEffect(() => {
+    refreshPendingCommentsCount()
+
+    if (!tenantId) return
+
+    // Badge era só carregado uma vez ao montar (comentário do Facebook
+    // "sumia" até a página ser recarregada, mesmo já estando no banco).
+    // Agora ouve Realtime nas duas tabelas + faz polling de 60s como rede de
+    // segurança, mesmo padrão do SocialCommentsInboxPanel.
+    const channel = supabase
+      .channel(`comments-badge:${tenantId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'instagram_comments', filter: `tenant_id=eq.${tenantId}` }, () => refreshPendingCommentsCount())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'facebook_comments', filter: `tenant_id=eq.${tenantId}` }, () => refreshPendingCommentsCount())
+      .subscribe()
+
+    const pollId = setInterval(refreshPendingCommentsCount, 60000)
+
+    return () => {
+      supabase.removeChannel(channel)
+      clearInterval(pollId)
+    }
+  }, [refreshPendingCommentsCount, tenantId])
 
   // ── Handlers ──────────────────────────────────
   const markAsRead = useCallback(async (sessionId: string) => {
