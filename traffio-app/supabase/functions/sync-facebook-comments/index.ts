@@ -67,8 +67,13 @@ async function syncCommentsForPage(
   let newCount = 0;
   for (const post of postsData.data ?? []) {
     for (const comment of post.comments?.data ?? []) {
-      // Ignora o eco da nossa própria resposta (comentário feito pela própria Página)
-      if (comment.from?.id === pageId) continue;
+      // Ignora só o ECO real: nossas respostas são publicadas via
+      // POST /{comment_id}/comments, ou seja, sempre ficam ANINHADAS (têm
+      // `parent`). Um comentário de TOPO autorado pela Página é conteúdo
+      // legítimo — é o que acontece quando um admin comenta no próprio post
+      // (o Facebook publica "como a Página" por padrão) — e precisa aparecer
+      // no inbox. Filtrar por `from.id === pageId` sozinho derrubava esses.
+      if (comment.from?.id === pageId && comment.parent?.id) continue;
 
       const { data: already } = await supabase
         .from("facebook_comments")
