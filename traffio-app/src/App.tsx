@@ -134,7 +134,7 @@ function TenantApp() {
   return (
     <>
       {kicked && <SessionKickedModal onLogout={handleKickedLogout} />}
-      <DashboardLayout>
+      <DashboardLayout deactivateCurrentSession={deactivateCurrentSession}>
       <SubscriptionGuard>
         <AnimatePresence mode="wait">
           <motion.div

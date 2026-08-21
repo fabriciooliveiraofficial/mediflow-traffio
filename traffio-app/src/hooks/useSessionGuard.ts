@@ -26,6 +26,12 @@ function getDeviceLabel(): string {
 }
 
 let isLoggingOutGlobal = false;
+// Lock em escopo de módulo (não por instância do hook): impede que duas
+// montagens simultâneas do hook para o mesmo token disputem o mesmo canal
+// Realtime `session_kick:<token>` — o Supabase reaproveita o canal pelo nome,
+// e chamar `.on()` numa segunda instância já `joined`/`joining` lança exceção
+// e pode deixar essa segunda instância sem heartbeat/realtime ativo.
+const registeredTokens = new Set<string>();
 
 export function useSessionGuard() {
     const { session, user } = useAuth();
@@ -108,7 +114,15 @@ export function useSessionGuard() {
 
         const registerAndStartHeartbeat = async () => {
             if (registrationAttempted.current) return;
+            if (registeredTokens.has(token)) {
+                // Outra instância do hook já está registrando/registrada para este
+                // token (ex: montagem duplicada em componentes aninhados) — não
+                // disputa o mesmo canal Realtime.
+                registrationAttempted.current = true;
+                return;
+            }
             registrationAttempted.current = true;
+            registeredTokens.add(token);
 
             try {
                 // 1. Registra a sessão atual no banco de dados
@@ -181,6 +195,7 @@ export function useSessionGuard() {
             } catch (err) {
                 console.error('[SessionGuard] Erro crítico no registro de sessão:', err);
                 registrationAttempted.current = false;
+                registeredTokens.delete(token);
             }
         };
 
@@ -202,6 +217,7 @@ export function useSessionGuard() {
             if (channel) {
                 supabase.removeChannel(channel);
             }
+            registeredTokens.delete(token);
         };
     }, [user, tenant?.id, getSessionToken, checkValidity]);
 

@@ -74,7 +74,10 @@ export function SocialCommentsInboxPanel({ tenantId }: SocialCommentsInboxPanelP
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId]);
 
-  // Realtime — novo comentário aparece sozinho, sem precisar de ação do usuário
+  // Realtime — novo comentário aparece sozinho, sem precisar de ação do usuário.
+  // Polling de 60s como rede de segurança: se o realtime cair (ex: tabela cair
+  // fora da publication de novo, rede instável), a tela ainda se atualiza sozinha
+  // em vez de ficar presa até a próxima ação manual do usuário.
   useEffect(() => {
     if (!tenantId) return;
     const channel = supabase
@@ -82,7 +85,11 @@ export function SocialCommentsInboxPanel({ tenantId }: SocialCommentsInboxPanelP
       .on('postgres_changes', { event: '*', schema: 'public', table: 'instagram_comments', filter: `tenant_id=eq.${tenantId}` }, () => load())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'facebook_comments', filter: `tenant_id=eq.${tenantId}` }, () => load())
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    const pollId = setInterval(load, 60000);
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(pollId);
+    };
   }, [tenantId, load]);
 
   const selected = comments.find(c => c.id === selectedId) ?? null;

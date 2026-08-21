@@ -38,7 +38,6 @@ import { useTranslation } from 'react-i18next'
 import { useTenant } from '../contexts/TenantContext'
 import { useAuth } from '../contexts/AuthContext'
 import { usePermissions, PERMISSION_MAP } from '../hooks/usePermissions'
-import { useSessionGuard } from '../hooks/useSessionGuard'
 import { Activity } from 'lucide-react'
 import { TenantClock } from '../components/ui/TenantClock'
 
@@ -113,14 +112,14 @@ interface HandoffAlert {
     arrivedAt: string
 }
 
-export const DashboardLayout = ({ children }: {
+export const DashboardLayout = ({ children, deactivateCurrentSession }: {
     children: React.ReactNode,
+    deactivateCurrentSession: () => Promise<void>,
 }) => {
     const { t } = useTranslation('common')
     const { tenant, loading: isTenantLoading, userRole } = useTenant()
     const { user: authUser } = useAuth()
     const { can } = usePermissions()
-    const { deactivateCurrentSession } = useSessionGuard()
     const location = useLocation()
     const activeScreen = location.pathname.split('/')[2] || 'today'
     const [isSidebarOpen, setIsSidebarOpen] = useState(true)
