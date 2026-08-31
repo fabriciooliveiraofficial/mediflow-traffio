@@ -41,3 +41,9 @@ supabase_status.json
 supabase_status.txt
 supabase_status.*
 
+# Large media (demo/review videos etc.) — never commit, GitHub rejects >100MB
+*.mp4
+*.mov
+*.avi
+*.mkv
+
