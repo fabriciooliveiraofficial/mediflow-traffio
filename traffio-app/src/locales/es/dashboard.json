@@ -158,7 +158,9 @@
       "ads_read": "Lectura de Rendimiento de Anuncios",
       "pages_manage_ads": "Gestión de Anuncios de Página",
       "instagram_manage_comments": "Gestión de Comentarios",
-      "public_profile": "Perfil Público Básico"
+      "public_profile": "Perfil Público Básico",
+      "pages_read_user_content": "Lectura de Contenido del Usuario",
+      "pages_manage_engagement": "Gestión de Interacción"
     }
   },
   "metaConnectModal": {

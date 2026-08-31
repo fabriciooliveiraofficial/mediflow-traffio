@@ -89,6 +89,7 @@ export const LoginPage = () => {
                                 className="w-full bg-ice-50 border border-ice-200 rounded-xl pl-12 pr-4 py-3.5 text-sm font-bold text-graphite-900 focus:outline-none focus:border-brand-primary transition-all"
                                 placeholder={t('login.emailPlaceholder')}
                                 required
+                                autoComplete="username"
                             />
                         </div>
                     </div>
@@ -113,6 +114,7 @@ export const LoginPage = () => {
                                 className="w-full bg-ice-50 border border-ice-200 rounded-xl pl-12 pr-12 py-3.5 text-sm font-bold text-graphite-900 focus:outline-none focus:border-brand-primary transition-all"
                                 placeholder={t('login.passwordPlaceholder')}
                                 required
+                                autoComplete="current-password"
                             />
                             <button
                                 type="button"

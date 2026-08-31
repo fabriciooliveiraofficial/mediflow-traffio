@@ -201,6 +201,7 @@ serve(async (req: Request) => {
 
           for (const page of pages) {
             const ig = page.instagram_business_account ?? null;
+            console.log(`[auth-meta] Page "${page.name}" instagram_business_account raw:`, JSON.stringify(ig));
 
             const { error: upsertErr } = await supabaseAdmin
               .from("tenant_meta_pages")

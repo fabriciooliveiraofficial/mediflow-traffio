@@ -158,7 +158,9 @@
       "ads_read": "Read Ad Performance",
       "pages_manage_ads": "Manage Page Ads",
       "instagram_manage_comments": "Manage Comments",
-      "public_profile": "Basic Public Profile"
+      "public_profile": "Basic Public Profile",
+      "pages_read_user_content": "Read User Content",
+      "pages_manage_engagement": "Manage Engagement"
     }
   },
   "metaConnectModal": {
