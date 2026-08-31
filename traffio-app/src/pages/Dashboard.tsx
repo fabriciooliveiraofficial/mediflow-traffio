@@ -655,7 +655,7 @@ export const Dashboard: React.FC = () => {
                             initial={{ opacity: 0, scale: 0.9, y: 20 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                            className="relative w-full max-w-md bg-white rounded-[32px] border border-ice-100 shadow-2xl p-8 space-y-6"
+                            className="relative w-full max-w-5xl max-h-[97vh] bg-white rounded-[32px] border border-ice-100 shadow-2xl p-6 space-y-4 overflow-y-auto"
                         >
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
@@ -668,17 +668,17 @@ export const Dashboard: React.FC = () => {
                                             : <Globe className="text-[#34A853]" size={22} />}
                                     </div>
                                     <div>
-                                        <h3 className="text-base font-black text-graphite-900 tracking-tight">
+                                        <h3 className="text-xl font-black text-graphite-900 tracking-tight">
                                             {manageModal.platform === 'meta' ? t('manageModal.metaAdsHub') : t('manageModal.googleAdsHub')}
                                         </h3>
-                                        <span className="text-[10px] font-black text-green-600 uppercase tracking-widest">{t('manageModal.active')}</span>
+                                        <span className="text-sm font-black text-green-600 uppercase tracking-widest">{t('manageModal.active')}</span>
                                     </div>
                                 </div>
                                 <button
                                     onClick={closeManageModal}
                                     className="p-2 rounded-xl hover:bg-ice-50 border-none cursor-pointer transition-colors"
                                 >
-                                    <X size={18} className="text-graphite-400" />
+                                    <X size={20} className="text-graphite-400" />
                                 </button>
                             </div>
 
@@ -687,31 +687,31 @@ export const Dashboard: React.FC = () => {
                                     <Loader2 className="animate-spin text-brand-primary" size={28} />
                                 </div>
                             ) : (
-                                <div className="space-y-5 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                                <div className="space-y-4">
                                     {manageModal.platform === 'meta' && (
-                                        <div className="space-y-6">
+                                        <div className="space-y-4">
                                             {/* Conta de Anúncios */}
-                                            <div className="space-y-3">
+                                            <div className="space-y-2">
                                                 <div className="flex items-center gap-2">
-                                                    <div className="w-6 h-6 rounded-lg bg-blue-50 text-[#0081FB] flex items-center justify-center">
-                                                        <Target size={14} />
+                                                    <div className="w-7 h-7 rounded-lg bg-blue-50 text-[#0081FB] flex items-center justify-center">
+                                                        <Target size={16} />
                                                     </div>
-                                                    <h4 className="text-sm font-black text-graphite-900 tracking-tight">{t('manageModal.adAccountLabel')}</h4>
+                                                    <h4 className="text-base font-black text-graphite-900 tracking-tight">{t('manageModal.adAccountLabel')}</h4>
                                                 </div>
 
-                                                <div className="bg-ice-50/50 border border-ice-100 rounded-[20px] p-4">
+                                                <div className="bg-ice-50/50 border border-ice-100 rounded-2xl p-3">
                                                     {manageData?.settings?.available_ad_accounts?.length > 1 ? (
                                                         <select
                                                             value={manageData?.settings?.ad_account_id || ''}
                                                             onChange={(e) => handleChangeAdAccount(e.target.value)}
-                                                            className="w-full bg-transparent text-sm font-bold text-graphite-900 border-none cursor-pointer focus:outline-none focus:ring-0"
+                                                            className="w-full bg-transparent text-base font-bold text-graphite-900 border-none cursor-pointer focus:outline-none focus:ring-0"
                                                         >
                                                             {manageData.settings.available_ad_accounts.map((acc: any) => (
                                                                 <option key={acc.id} value={acc.id}>{acc.name} ({acc.id})</option>
                                                             ))}
                                                         </select>
                                                     ) : (
-                                                        <p className="text-sm font-bold text-graphite-900">
+                                                        <p className="text-base font-bold text-graphite-900">
                                                             {manageData?.settings?.ad_account_id || t('manageModal.noAccountLinked')}
                                                         </p>
                                                     )}
@@ -719,51 +719,51 @@ export const Dashboard: React.FC = () => {
                                             </div>
 
                                             {/* Canais de Mensagem */}
-                                            <div className="space-y-3">
+                                            <div className="space-y-2">
                                                 <div className="flex items-center gap-2">
-                                                    <div className="w-6 h-6 rounded-lg bg-pink-50 text-pink-500 flex items-center justify-center">
-                                                        <MessageCircle size={14} />
+                                                    <div className="w-7 h-7 rounded-lg bg-pink-50 text-pink-500 flex items-center justify-center">
+                                                        <MessageCircle size={16} />
                                                     </div>
-                                                    <h4 className="text-sm font-black text-graphite-900 tracking-tight">{t('manageModal.channelsLabel')}</h4>
+                                                    <h4 className="text-base font-black text-graphite-900 tracking-tight">{t('manageModal.channelsLabel')}</h4>
                                                 </div>
 
                                                 {metaPages.length === 0 ? (
-                                                    <div className="flex items-center gap-3 p-4 rounded-[20px] bg-amber-50/50 border border-amber-100/50">
-                                                        <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
-                                                            <AlertCircle size={16} />
+                                                    <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-50/50 border border-amber-100/50">
+                                                        <div className="w-9 h-9 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                                                            <AlertCircle size={18} />
                                                         </div>
                                                         <div>
-                                                            <p className="text-xs text-amber-900 font-bold">Nenhum canal conectado</p>
-                                                            <p className="text-[10px] text-amber-700/80 font-medium">Reconecte sua conta para selecionar páginas.</p>
+                                                            <p className="text-sm text-amber-900 font-bold">Nenhum canal conectado</p>
+                                                            <p className="text-xs text-amber-700/80 font-medium">Reconecte sua conta para selecionar páginas.</p>
                                                         </div>
                                                     </div>
                                                 ) : (
-                                                    <div className="grid grid-cols-1 gap-3">
+                                                    <div className="grid grid-cols-1 gap-2">
                                                         {metaPages.map((page) => (
-                                                            <div key={page.id} className="p-4 rounded-[20px] bg-ice-50/50 border border-ice-100 space-y-3">
+                                                            <div key={page.id} className="p-4 rounded-2xl bg-ice-50/50 border border-ice-100 space-y-3">
                                                                 <div className="flex items-center justify-between group">
                                                                     <div className="flex items-center gap-3">
-                                                                        <div className="w-10 h-10 rounded-xl bg-blue-50/50 flex items-center justify-center shrink-0 border border-blue-100/50 text-[#0081FB]">
-                                                                            <Facebook size={18} fill="#0081FB" />
+                                                                        <div className="w-11 h-11 rounded-xl bg-blue-50/50 flex items-center justify-center shrink-0 border border-blue-100/50 text-[#0081FB]">
+                                                                            <Facebook size={20} fill="#0081FB" />
                                                                         </div>
                                                                         <div>
-                                                                            <p className="text-xs font-black text-graphite-900 leading-tight">{page.page_name}</p>
-                                                                            <div className="flex flex-wrap gap-1.5 mt-1.5">
-                                                                                <div className="flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-[#0081FB] rounded-lg text-[9px] font-black uppercase tracking-wider">
-                                                                                    <Facebook size={10} fill="#0081FB" />
+                                                                            <p className="text-base font-black text-graphite-900 leading-tight">{page.page_name}</p>
+                                                                            <div className="flex flex-wrap gap-2 mt-1.5">
+                                                                                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-[#0081FB] rounded-lg text-xs font-black uppercase tracking-wider">
+                                                                                    <Facebook size={12} fill="#0081FB" />
                                                                                     <span>Messenger</span>
                                                                                 </div>
                                                                                 {page.instagram_username && (
-                                                                                    <div className="flex flex-col gap-1.5">
-                                                                                        <div className="flex items-center gap-2 px-2 py-1.5 bg-pink-50 text-[#E4405F] rounded-lg text-[10px] font-black uppercase tracking-wider w-fit">
+                                                                                    <div className="flex flex-col gap-1">
+                                                                                        <div className="flex items-center gap-2 px-2.5 py-1.5 bg-pink-50 text-[#E4405F] rounded-lg text-xs font-black uppercase tracking-wider w-fit">
                                                                                             {page.instagram_profile_picture_url ? (
-                                                                                                <img src={page.instagram_profile_picture_url} alt={page.instagram_username} className="w-5 h-5 rounded-full object-cover border border-pink-200" />
+                                                                                                <img src={page.instagram_profile_picture_url} alt={page.instagram_username} className="w-6 h-6 rounded-full object-cover border border-pink-200" />
                                                                                             ) : (
-                                                                                                <Instagram size={12} />
+                                                                                                <Instagram size={14} />
                                                                                             )}
                                                                                             <span>Instagram (@{page.instagram_username})</span>
                                                                                         </div>
-                                                                                        <p className="text-[9px] font-medium text-pink-600/80 leading-tight max-w-[250px]">
+                                                                                        <p className="text-[11px] font-medium text-pink-600/80 leading-snug max-w-[420px]">
                                                                                             We use instagram_business_basic to display the connected clinic's avatar and username here.
                                                                                         </p>
                                                                                     </div>
@@ -773,8 +773,8 @@ export const Dashboard: React.FC = () => {
                                                                     </div>
                                                                     <div className="flex items-center gap-3">
                                                                         <div className="flex items-center gap-1.5">
-                                                                            <div className={clsx("w-1.5 h-1.5 rounded-full", page.is_active ? "bg-green-500" : "bg-red-500")}></div>
-                                                                            <span className={clsx("text-[9px] font-black uppercase tracking-widest", page.is_active ? "text-green-600" : "text-red-600")}>
+                                                                            <div className={clsx("w-2 h-2 rounded-full", page.is_active ? "bg-green-500" : "bg-red-500")}></div>
+                                                                            <span className={clsx("text-xs font-black uppercase tracking-widest", page.is_active ? "text-green-600" : "text-red-600")}>
                                                                                 {page.is_active ? t('manageModal.active') : 'Inativo'}
                                                                             </span>
                                                                         </div>
@@ -784,22 +784,22 @@ export const Dashboard: React.FC = () => {
                                                                             className="p-1.5 text-graphite-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all border-none cursor-pointer"
                                                                             title={tSettings('clinics.metaDisconnectTitle')}
                                                                         >
-                                                                            <Unlink size={14} />
+                                                                            <Unlink size={16} />
                                                                         </button>
                                                                     </div>
                                                                 </div>
 
-                                                                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-ice-100/50 text-[10px] text-graphite-400 font-medium">
+                                                                <div className="grid grid-cols-2 gap-2 pt-2.5 border-t border-ice-100/50 text-xs text-graphite-400 font-medium">
                                                                     {page.page_category && (
                                                                         <div>
                                                                             <span className="block font-black text-graphite-500 uppercase tracking-wider">{t('manageModal.categoryLabel')}</span>
-                                                                            <span className="block text-graphite-600 mt-0.5">{page.page_category}</span>
+                                                                            <span className="block text-sm text-graphite-600 mt-0.5">{page.page_category}</span>
                                                                         </div>
                                                                     )}
                                                                     {page.last_refreshed_at && (
                                                                         <div>
                                                                             <span className="block font-black text-graphite-500 uppercase tracking-wider">{t('manageModal.tokenRefreshed')}</span>
-                                                                            <span className="block text-graphite-600 mt-0.5">{formatDateTime(page.last_refreshed_at)}</span>
+                                                                            <span className="block text-sm text-graphite-600 mt-0.5">{formatDateTime(page.last_refreshed_at)}</span>
                                                                         </div>
                                                                     )}
                                                                 </div>
@@ -810,28 +810,28 @@ export const Dashboard: React.FC = () => {
                                             </div>
 
                                             {/* Permissões Concedidas */}
-                                            <div className="space-y-3">
+                                            <div className="space-y-2">
                                                 <div className="flex items-center gap-2">
-                                                    <div className="w-6 h-6 rounded-lg bg-green-50 text-green-600 flex items-center justify-center">
-                                                        <ShieldCheck size={14} />
+                                                    <div className="w-7 h-7 rounded-lg bg-green-50 text-green-600 flex items-center justify-center">
+                                                        <ShieldCheck size={16} />
                                                     </div>
-                                                    <h4 className="text-sm font-black text-graphite-900 tracking-tight">{t('manageModal.permissionsLabel')}</h4>
+                                                    <h4 className="text-base font-black text-graphite-900 tracking-tight">{t('manageModal.permissionsLabel')}</h4>
                                                 </div>
 
                                                 {metaScopes.length === 0 ? (
-                                                    <p className="text-xs text-graphite-400 font-medium leading-relaxed bg-ice-50/50 border border-ice-100 rounded-[20px] p-4">
+                                                    <p className="text-sm text-graphite-400 font-medium leading-relaxed bg-ice-50/50 border border-ice-100 rounded-2xl p-4">
                                                         {t('manageModal.noPermissions')}
                                                     </p>
                                                 ) : (
-                                                    <div className="grid grid-cols-1 gap-2 bg-ice-50/50 border border-ice-100 rounded-[20px] p-4">
+                                                    <div className="grid grid-cols-3 gap-2 bg-ice-50/50 border border-ice-100 rounded-2xl p-3">
                                                         {metaScopes.map((scope) => (
-                                                            <div key={scope} className="flex items-center gap-2 px-3 py-2 bg-white border border-ice-100 rounded-xl text-graphite-700 shadow-sm">
-                                                                <ShieldCheck size={14} className="shrink-0 text-green-500" />
-                                                                <div className="flex flex-col">
-                                                                    <span className="text-[10px] font-black text-graphite-900 tracking-tight">
-                                                                        {t(`manageModal.scopes.${scope}`)}
+                                                            <div key={scope} className="flex items-center gap-2 px-2.5 py-1.5 bg-white border border-ice-100 rounded-xl text-graphite-700 shadow-sm">
+                                                                <ShieldCheck size={18} className="shrink-0 text-green-500" />
+                                                                <div className="flex flex-col min-w-0">
+                                                                    <span className="text-sm font-black text-graphite-900 tracking-tight truncate">
+                                                                        {t(`manageModal.scopes.${scope}`, { defaultValue: scope })}
                                                                     </span>
-                                                                    <span className="text-[9px] text-graphite-400 font-medium tracking-tight">
+                                                                    <span className="text-[11px] text-graphite-400 font-medium tracking-tight truncate">
                                                                         {scope}
                                                                     </span>
                                                                 </div>
@@ -874,8 +874,8 @@ export const Dashboard: React.FC = () => {
                                         </div>
                                     )}
 
-                                    <div className="space-y-2 border-t border-ice-100/50 pt-3">
-                                        <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest">{t('manageModal.lastSyncLabel')}</p>
+                                    <div className="flex items-center justify-between border-t border-ice-100/50 pt-3">
+                                        <p className="text-xs font-black text-graphite-400 uppercase tracking-widest">{t('manageModal.lastSyncLabel')}</p>
                                         <p className="text-sm font-bold text-graphite-900">
                                             {manageData?.settings?.last_sync_at
                                                 ? formatDateTime(manageData.settings.last_sync_at)
@@ -884,20 +884,20 @@ export const Dashboard: React.FC = () => {
                                     </div>
 
                                     {manageData?.settings?.last_sync_error && (
-                                        <div className="p-4 bg-red-50 rounded-2xl flex items-start gap-3">
+                                        <div className="p-3 bg-red-50 rounded-2xl flex items-start gap-3">
                                             <AlertCircle size={18} className="text-red-500 mt-0.5 shrink-0" />
-                                            <p className="text-xs font-bold text-red-600 leading-relaxed">
+                                            <p className="text-sm font-bold text-red-600 leading-relaxed">
                                                 {manageData.settings.last_sync_error}
                                             </p>
                                         </div>
                                     )}
 
-                                    <div className="flex flex-col gap-3 pt-2">
+                                    <div className="flex flex-col sm:flex-row gap-2">
                                         <button
                                             onClick={handleSyncNow}
-                                            className="w-full py-3.5 bg-brand-primary text-white rounded-2xl font-black text-xs flex items-center justify-center gap-2 border-none cursor-pointer hover:translate-y-[-1px] transition-all"
+                                            className="flex-1 py-3 bg-brand-primary text-white rounded-2xl font-black text-sm flex items-center justify-center gap-2 border-none cursor-pointer hover:translate-y-[-1px] transition-all"
                                         >
-                                            <RefreshCw size={14} />
+                                            <RefreshCw size={16} />
                                             {t('manageModal.syncNow')}
                                         </button>
                                         {manageModal.platform === 'meta' && (
@@ -906,17 +906,17 @@ export const Dashboard: React.FC = () => {
                                                     handleConnect('meta', 'ads,messaging');
                                                     closeManageModal();
                                                 }}
-                                                className="w-full py-3.5 bg-ice-50 hover:bg-ice-100 text-graphite-600 rounded-2xl font-black text-xs flex items-center justify-center gap-2 border-none cursor-pointer transition-all"
+                                                className="flex-1 py-3 bg-ice-50 hover:bg-ice-100 text-graphite-600 rounded-2xl font-black text-sm flex items-center justify-center gap-2 border-none cursor-pointer transition-all"
                                             >
-                                                <RefreshCw size={14} />
+                                                <RefreshCw size={16} />
                                                 Reconectar Conta Meta
                                             </button>
                                         )}
                                         <button
                                             onClick={() => handleDisconnect(manageModal.platform)}
-                                            className="w-full py-3.5 bg-red-50 text-red-600 rounded-2xl font-black text-xs flex items-center justify-center gap-2 border-none cursor-pointer hover:bg-red-100 transition-all"
+                                            className="flex-1 py-3 bg-red-50 text-red-600 rounded-2xl font-black text-sm flex items-center justify-center gap-2 border-none cursor-pointer hover:bg-red-100 transition-all"
                                         >
-                                            <Unlink size={14} />
+                                            <Unlink size={16} />
                                             {t('manageModal.disconnect')}
                                         </button>
                                     </div>
