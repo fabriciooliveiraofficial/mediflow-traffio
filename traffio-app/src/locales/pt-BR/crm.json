@@ -11,15 +11,15 @@
     "perdido": "Perdido"
   },
   "stages": {
-    "newLead": "Novo Lead",
-    "inContact": "Em Contato",
+    "newLead": "Novo",
+    "inContact": "Em conversa",
     "scheduled": "Agendado",
-    "showedUp": "Compareceu",
-    "proposal": "Proposta",
+    "showedUp": "Veio",
+    "proposal": "Orçamento",
     "recovery": "Recuperação",
-    "recallDue": "Recall",
-    "won": "Ganho",
-    "lost": "Perdido"
+    "recallDue": "Retorno",
+    "won": "Fechado",
+    "lost": "Arquivado"
   },
   "leads": {
     "title": "CRM Leads",
@@ -49,13 +49,15 @@
   },
   "followUp": {
     "title": "Centro de Follow-up",
-    "subtitle": "Fila de trabalho priorizada e pipeline em tempo real.",
+    "subtitle": "Quem precisa de você hoje e onde cada paciente está no caminho.",
     "daysFilter": "{{count}} dias",
     "dashboardToggle": "Dashboard",
     "searchPlaceholder": "Buscar nome, telefone, @...",
     "views": {
       "queue": "Fila de Trabalho",
-      "pipeline": "Pipeline"
+      "pipeline": "Funil",
+      "today": "Hoje",
+      "results": "Resultados"
     },
     "emptyColumn": "Vazio",
     "activityLabel": "Atividade",
@@ -119,7 +121,8 @@
     },
     "toasts": {
       "moveError": "Não foi possível mover o card."
-    }
+    },
+    "periodLabel": "Período"
   },
   "performanceStats": {
     "kpis": {
@@ -205,6 +208,12 @@
       "noteAdded": "Nota Adicionada",
       "automationFired": "Automação Disparada",
       "automationStopped": "Automação Interrompida",
+      "appointmentRescheduled": "Consulta Reagendada",
+      "syncBlocked": "Status não atualizou",
+      "syncBlockedDetail": "Não foi possível mover para {{stage}} automaticamente. Revise este contato.",
+      "proposalSent": "Orçamento Enviado",
+      "proposalApproved": "Orçamento Aprovado",
+      "proposalLost": "Orçamento Perdido",
       "genericEvent": "Evento Registrado"
     },
     "outcome": {
@@ -438,6 +447,101 @@
       "createFailed": "Falha ao cadastrar",
       "duplicateCpf": "Já existe um paciente cadastrado com este CPF.",
       "duplicateEmail": "Já existe um paciente cadastrado com este e-mail."
+    }
+  },
+  "today": {
+    "funnel": {
+      "label": "Funil de pacientes",
+      "last30": "30 dias",
+      "offPath": "Fora do caminho principal: {{stage}}"
+    },
+    "groups": {
+      "now": "Responder agora",
+      "today": "Ainda hoje",
+      "ok": "Em dia"
+    },
+    "show": "Mostrar",
+    "hide": "Ocultar",
+    "reason": {
+      "blocked": "Status não atualizou — revise",
+      "waitingReply": "Esperando resposta há {{time}}",
+      "staleReply": "Sem resposta há {{time}}",
+      "noShow": "Faltou — remarcar",
+      "recallDue": "Hora do retorno",
+      "cameNoProposal": "Veio há {{time}} e ainda não tem orçamento",
+      "proposalWaiting": "Orçamento sem resposta há {{time}}",
+      "newNoReply": "Novo contato há {{time}}, ninguém respondeu",
+      "talkingQuiet": "Conversa parada há {{time}}",
+      "confirmAppointment": "Confirmar a consulta de {{date}}",
+      "returnsAt": "Retomar em {{date}}",
+      "appointmentAt": "Consulta em {{date}}",
+      "upToDate": "Em dia"
+    },
+    "actions": {
+      "reply": "Responder",
+      "reschedule": "Remarcar",
+      "proposal": "Enviar orçamento",
+      "confirm": "Confirmar",
+      "review": "Revisar",
+      "open": "Ver ficha"
+    },
+    "menu": {
+      "label": "Mais ações para {{name}}",
+      "conversation": "Abrir conversa",
+      "message": "Enviar mensagem",
+      "book": "Agendar consulta",
+      "snooze": "Adiar 24 h",
+      "done": "Marcar como resolvido",
+      "open": "Ver ficha"
+    },
+    "badges": {
+      "confirmed": "Confirmado",
+      "noShows": "Faltou {{count}}x"
+    },
+    "channel": {
+      "whatsapp": "WhatsApp",
+      "instagram": "Instagram",
+      "facebook": "Messenger",
+      "livechat": "Chat do site",
+      "sms": "SMS",
+      "phone": "Ligação",
+      "walk_in": "Recepção"
+    },
+    "unnamed": "Contato do {{channel}} · final {{last4}}",
+    "unnamedNoPhone": "Contato do {{channel}}",
+    "lastEvent": {
+      "no_show": "Faltou à consulta",
+      "appointment_created": "Consulta marcada",
+      "appointment_rescheduled": "Consulta reagendada",
+      "appointment_cancelled": "Cancelou a consulta",
+      "appointment_confirmed": "Confirmou a consulta",
+      "checked_in": "Chegou à clínica",
+      "appointment_completed": "Consulta realizada",
+      "proposal_sent": "Orçamento enviado",
+      "proposal_approved": "Orçamento aprovado",
+      "proposal_lost": "Orçamento perdido",
+      "sale_recorded": "Pagamento recebido",
+      "sync_blocked": "Status não atualizou",
+      "journey_created": "Entrou como novo contato"
+    },
+    "nextStep": "Próximo passo",
+    "filteredBy": "Mostrando só: {{stage}}",
+    "clearFilter": "Ver todos",
+    "empty": "Nenhum contato aberto",
+    "allClear": "Tudo em dia — ninguém esperando por você agora.",
+    "messageModal": {
+      "title": "Mensagem rápida",
+      "placeholder": "Escreva a mensagem para o paciente...",
+      "hint": "Sai pelo canal preferido do contato em até 1 minuto, dentro do horário de envio da clínica.",
+      "send": "Enviar",
+      "cancel": "Cancelar"
+    },
+    "toasts": {
+      "snoozed": "Adiado por 24 horas.",
+      "done": "Marcado como resolvido.",
+      "messageSent": "Mensagem na fila de envio.",
+      "messageDelayed": "Fora do horário de envio da clínica ({{start}}–{{end}}). A mensagem sai às {{time}} (horário da clínica).",
+      "messageError": "Não foi possível enviar a mensagem."
     }
   }
 }

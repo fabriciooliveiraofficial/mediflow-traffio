@@ -11,15 +11,15 @@
     "perdido": "Lost"
   },
   "stages": {
-    "newLead": "New Lead",
-    "inContact": "In Contact",
+    "newLead": "New",
+    "inContact": "Talking",
     "scheduled": "Scheduled",
-    "showedUp": "Showed Up",
+    "showedUp": "Came in",
     "proposal": "Proposal",
     "recovery": "Recovery",
-    "recallDue": "Recall",
-    "won": "Won",
-    "lost": "Lost"
+    "recallDue": "Return due",
+    "won": "Closed",
+    "lost": "Archived"
   },
   "leads": {
     "title": "CRM Leads",
@@ -49,13 +49,15 @@
   },
   "followUp": {
     "title": "Follow-up Center",
-    "subtitle": "Prioritized work queue and real-time pipeline.",
+    "subtitle": "Who needs you today and where each patient is in the journey.",
     "daysFilter": "{{count}} days",
     "dashboardToggle": "Dashboard",
     "searchPlaceholder": "Search name, phone, @...",
     "views": {
       "queue": "Work Queue",
-      "pipeline": "Pipeline"
+      "pipeline": "Funnel",
+      "today": "Today",
+      "results": "Results"
     },
     "emptyColumn": "Empty",
     "activityLabel": "Activity",
@@ -119,7 +121,8 @@
     },
     "toasts": {
       "moveError": "Could not move the card."
-    }
+    },
+    "periodLabel": "Period"
   },
   "performanceStats": {
     "kpis": {
@@ -205,6 +208,12 @@
       "noteAdded": "Note Added",
       "automationFired": "Automation Fired",
       "automationStopped": "Automation Stopped",
+      "appointmentRescheduled": "Appointment Rescheduled",
+      "syncBlocked": "Status not updated",
+      "syncBlockedDetail": "Could not move to {{stage}} automatically. Please review this contact.",
+      "proposalSent": "Proposal Sent",
+      "proposalApproved": "Proposal Approved",
+      "proposalLost": "Proposal Lost",
       "genericEvent": "Event Recorded"
     },
     "outcome": {
@@ -438,6 +447,101 @@
       "createFailed": "Failed to register",
       "duplicateCpf": "A patient with this CPF/Document is already registered.",
       "duplicateEmail": "A patient with this email is already registered."
+    }
+  },
+  "today": {
+    "funnel": {
+      "label": "Patient funnel",
+      "last30": "30 days",
+      "offPath": "Off the main path: {{stage}}"
+    },
+    "groups": {
+      "now": "Reply now",
+      "today": "Later today",
+      "ok": "Up to date"
+    },
+    "show": "Show",
+    "hide": "Hide",
+    "reason": {
+      "blocked": "Status did not update — review",
+      "waitingReply": "Waiting for a reply for {{time}}",
+      "staleReply": "No reply for {{time}}",
+      "noShow": "Missed the appointment — reschedule",
+      "recallDue": "Time for a return visit",
+      "cameNoProposal": "Came in {{time}} ago, no proposal yet",
+      "proposalWaiting": "Proposal unanswered for {{time}}",
+      "newNoReply": "New contact {{time}} ago, nobody replied",
+      "talkingQuiet": "Conversation idle for {{time}}",
+      "confirmAppointment": "Confirm the appointment on {{date}}",
+      "returnsAt": "Follow up on {{date}}",
+      "appointmentAt": "Appointment on {{date}}",
+      "upToDate": "Up to date"
+    },
+    "actions": {
+      "reply": "Reply",
+      "reschedule": "Reschedule",
+      "proposal": "Send proposal",
+      "confirm": "Confirm",
+      "review": "Review",
+      "open": "View profile"
+    },
+    "menu": {
+      "label": "More actions for {{name}}",
+      "conversation": "Open conversation",
+      "message": "Send message",
+      "book": "Book appointment",
+      "snooze": "Snooze 24 h",
+      "done": "Mark as resolved",
+      "open": "View profile"
+    },
+    "badges": {
+      "confirmed": "Confirmed",
+      "noShows": "Missed {{count}}x"
+    },
+    "channel": {
+      "whatsapp": "WhatsApp",
+      "instagram": "Instagram",
+      "facebook": "Messenger",
+      "livechat": "Website chat",
+      "sms": "SMS",
+      "phone": "Phone call",
+      "walk_in": "Front desk"
+    },
+    "unnamed": "{{channel}} contact · ends in {{last4}}",
+    "unnamedNoPhone": "{{channel}} contact",
+    "lastEvent": {
+      "no_show": "Missed the appointment",
+      "appointment_created": "Appointment booked",
+      "appointment_rescheduled": "Appointment rescheduled",
+      "appointment_cancelled": "Cancelled the appointment",
+      "appointment_confirmed": "Confirmed the appointment",
+      "checked_in": "Arrived at the clinic",
+      "appointment_completed": "Appointment completed",
+      "proposal_sent": "Proposal sent",
+      "proposal_approved": "Proposal approved",
+      "proposal_lost": "Proposal lost",
+      "sale_recorded": "Payment received",
+      "sync_blocked": "Status did not update",
+      "journey_created": "Joined as a new contact"
+    },
+    "nextStep": "Next step",
+    "filteredBy": "Showing only: {{stage}}",
+    "clearFilter": "Show all",
+    "empty": "No open contacts",
+    "allClear": "All caught up — nobody is waiting on you right now.",
+    "messageModal": {
+      "title": "Quick message",
+      "placeholder": "Write the message to the patient...",
+      "hint": "Sent through the contact's preferred channel within 1 minute, inside the clinic's sending hours.",
+      "send": "Send",
+      "cancel": "Cancel"
+    },
+    "toasts": {
+      "snoozed": "Snoozed for 24 hours.",
+      "done": "Marked as resolved.",
+      "messageSent": "Message queued.",
+      "messageDelayed": "Outside the clinic's sending hours ({{start}}–{{end}}). The message goes out at {{time}} (clinic time).",
+      "messageError": "Could not send the message."
     }
   }
 }

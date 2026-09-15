@@ -80,6 +80,7 @@ export const BillingPage = () => {
         const isUpgrade = isPlanUpgrade(planId, targetPlanId)
             || (targetPlanId === planId && tenant?.billing_cycle === 'monthly' && billingCycle === 'annual');
         const isTrialing = tenant?.subscription_status === 'trial';
+        const targetPlanName = t(`plans.${targetPlanId}.name`);
 
         // Confirmação antes de mudanças com efeito financeiro
         if (!isTrialing) {
@@ -87,7 +88,6 @@ export const BillingPage = () => {
                 ? new Date(tenant.subscription_renews_at).toLocaleDateString(getIntlLocale(i18n.language))
                 : t('billingPage.confirm.nextRenewalFallback');
             const cycleLabel = billingCycle === 'annual' ? t('billingPage.confirm.cycleAnnual') : t('billingPage.confirm.cycleMonthly');
-            const targetPlanName = t(`plans.${targetPlanId}.name`);
             const msg = isUpgrade
                 ? t('billingPage.confirm.upgradeMessage', { plan: targetPlanName, cycle: cycleLabel })
                 : t('billingPage.confirm.downgradeMessage', { plan: targetPlanName, cycle: cycleLabel, renewsAt });

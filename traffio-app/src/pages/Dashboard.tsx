@@ -454,17 +454,17 @@ export const Dashboard: React.FC = () => {
                         {t('integrations.metaDescription')}
                     </p>
                     {integrations.meta && metaPages[0]?.instagram_username && (
-                        <div className="flex items-center gap-2 px-3 py-2 mb-4 bg-pink-50 text-[#E4405F] rounded-2xl w-fit">
+                        <div className="flex items-center gap-3 px-4 py-3 mb-4 bg-pink-50 text-[#E4405F] rounded-2xl w-fit">
                             {metaPages[0].instagram_profile_picture_url ? (
                                 <img
                                     src={metaPages[0].instagram_profile_picture_url}
                                     alt={metaPages[0].instagram_username}
-                                    className="w-6 h-6 rounded-full object-cover border border-pink-200"
+                                    className="w-12 h-12 rounded-full object-cover border-2 border-pink-200"
                                 />
                             ) : (
-                                <Instagram size={14} />
+                                <Instagram size={24} />
                             )}
-                            <span className="text-[11px] font-black">@{metaPages[0].instagram_username}</span>
+                            <span className="text-lg font-black">@{metaPages[0].instagram_username}</span>
                         </div>
                     )}
                     <button
@@ -655,7 +655,7 @@ export const Dashboard: React.FC = () => {
                             initial={{ opacity: 0, scale: 0.9, y: 20 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                            className="relative w-full max-w-5xl max-h-[97vh] bg-white rounded-[32px] border border-ice-100 shadow-2xl p-6 space-y-4 overflow-y-auto"
+                            className="relative w-full max-w-5xl max-h-[98vh] bg-white rounded-[32px] border border-ice-100 shadow-2xl p-6 space-y-3 overflow-y-auto"
                         >
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
@@ -755,11 +755,11 @@ export const Dashboard: React.FC = () => {
                                                                                 </div>
                                                                                 {page.instagram_username && (
                                                                                     <div className="flex flex-col gap-1">
-                                                                                        <div className="flex items-center gap-2 px-2.5 py-1.5 bg-pink-50 text-[#E4405F] rounded-lg text-xs font-black uppercase tracking-wider w-fit">
+                                                                                        <div className="flex items-center gap-2 px-3 py-2 bg-pink-50 text-[#E4405F] rounded-lg text-sm font-black uppercase tracking-wider w-fit">
                                                                                             {page.instagram_profile_picture_url ? (
-                                                                                                <img src={page.instagram_profile_picture_url} alt={page.instagram_username} className="w-6 h-6 rounded-full object-cover border border-pink-200" />
+                                                                                                <img src={page.instagram_profile_picture_url} alt={page.instagram_username} className="w-9 h-9 rounded-full object-cover border-2 border-pink-200" />
                                                                                             ) : (
-                                                                                                <Instagram size={14} />
+                                                                                                <Instagram size={20} />
                                                                                             )}
                                                                                             <span>Instagram (@{page.instagram_username})</span>
                                                                                         </div>

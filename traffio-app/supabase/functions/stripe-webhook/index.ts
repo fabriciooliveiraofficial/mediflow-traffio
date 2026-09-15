@@ -40,6 +40,22 @@ const STRIPE_STATUS_MAP: Record<string, SubStatus> = {
   paused:             "suspended",
 };
 
+// A partir da versão "Basil" (2025-03-31) o Stripe removeu current_period_start/
+// current_period_end do nível raiz do Subscription, movendo para dentro de
+// items.data[]. O endpoint de webhook deste projeto está pinado numa versão
+// posterior a essa mudança (não dá pra criar um novo endpoint numa versão mais
+// antiga pelo painel), então os payloads brutos de evento não têm mais os
+// campos no nível raiz. Helpers abaixo leem de onde quer que estejam —
+// funcionam tanto com payloads antigos quanto novos.
+function getPeriodEnd(subscription: Stripe.Subscription): number {
+  const sub = subscription as any;
+  return sub.current_period_end ?? sub.items?.data?.[0]?.current_period_end;
+}
+function getPeriodStart(subscription: Stripe.Subscription): number {
+  const sub = subscription as any;
+  return sub.current_period_start ?? sub.items?.data?.[0]?.current_period_start;
+}
+
 serve(async (req: Request) => {
   const stripeKey     = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
   const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET") ?? "";
@@ -156,7 +172,7 @@ serve(async (req: Request) => {
           const trialEndsAt = subscription.trial_end
             ? new Date(subscription.trial_end * 1000).toISOString()
             : null;
-          const renewsAt = new Date(subscription.current_period_end * 1000).toISOString();
+          const renewsAt = new Date(getPeriodEnd(subscription) * 1000).toISOString();
 
           await supabase
             .from("tenants")
@@ -190,7 +206,7 @@ serve(async (req: Request) => {
         if (!tenant) break;
 
         let newStatus = STRIPE_STATUS_MAP[subscription.status] ?? "suspended";
-        const renewsAt  = new Date(subscription.current_period_end * 1000).toISOString();
+        const renewsAt  = new Date(getPeriodEnd(subscription) * 1000).toISOString();
 
         // Extensão administrativa vigente: não deixar um retry de cobrança
         // (past_due/unpaid/incomplete) rebaixar o tenant para 'suspended'.
@@ -214,7 +230,7 @@ serve(async (req: Request) => {
           updates.card_on_file  = true;
           if (!tenant.subscription_started_at) {
             updates.subscription_started_at = new Date(
-              subscription.current_period_start * 1000
+              getPeriodStart(subscription) * 1000
             ).toISOString();
           }
         }
@@ -458,8 +474,8 @@ async function activateSubscription(
   billingCycle: BillingCycle,
   subscription: Stripe.Subscription
 ) {
-  const renewsAt = new Date(subscription.current_period_end * 1000).toISOString();
-  const startedAt = new Date(subscription.current_period_start * 1000).toISOString();
+  const renewsAt = new Date(getPeriodEnd(subscription) * 1000).toISOString();
+  const startedAt = new Date(getPeriodStart(subscription) * 1000).toISOString();
 
   await supabase
     .from("tenants")

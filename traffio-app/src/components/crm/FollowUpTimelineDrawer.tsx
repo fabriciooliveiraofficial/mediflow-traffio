@@ -17,10 +17,21 @@ import { useTenant } from '../../contexts/TenantContext';
 import { useToast } from '../../contexts/ToastContext';
 import { CRM_STAGE_LABEL_KEYS, type CrmStageId } from '../../lib/crmStages';
 import { RecordOutcomeModal } from './RecordOutcomeModal';
+import { JourneyProgress } from './FunnelStrip';
+import type { CountryCode } from '../../lib/i18n/countryFormats';
+
+export interface JourneyNextStep {
+    label: string;
+    description: string;
+    run?: () => void;
+}
 
 interface FollowUpTimelineDrawerProps {
     journey: any;
     onClose: () => void;
+    /** Nome já resolvido pela tela (evita número cru quando não há nome). */
+    name?: string;
+    nextStep?: JourneyNextStep;
 }
 
 interface OutcomeModal {
@@ -36,7 +47,7 @@ interface MergeCandidate {
     stage_id: string;
 }
 
-export function FollowUpTimelineDrawer({ journey, onClose }: FollowUpTimelineDrawerProps) {
+export function FollowUpTimelineDrawer({ journey, onClose, name, nextStep }: FollowUpTimelineDrawerProps) {
     const { t } = useTranslation('crm');
     const { tenant } = useTenant();
     const { formatDate } = useLocaleFormat();
@@ -54,7 +65,8 @@ export function FollowUpTimelineDrawer({ journey, onClose }: FollowUpTimelineDra
     const [merging, setMerging] = useState(false);
 
     const phone = journey.lead_phone || journey.patients?.phone || journey.conversation_sessions?.patient_phone || '';
-    const displayName = journey.patients?.full_name
+    const displayName = name
+        || journey.patients?.full_name
         || (journey.crm_journey_identities || []).find((i: any) => i.display_name)?.display_name
         || journey.conversation_sessions?.platform_display_name
         || journey.conversation_sessions?.context?.visitor_name
@@ -145,7 +157,13 @@ export function FollowUpTimelineDrawer({ journey, onClose }: FollowUpTimelineDra
         switch (type) {
             case 'journey_created':        return <Play className="w-4 h-4 text-brand-primary" />;
             case 'appointment_created':
+            case 'appointment_rescheduled':
             case 'appointment_confirmed':   return <Calendar className="w-4 h-4 text-blue-500" />;
+            case 'sync_blocked':             return <AlertCircle className="w-4 h-4 text-red-500" />;
+            case 'proposal_sent':            return <StickyNote className="w-4 h-4 text-indigo-500" />;
+            case 'proposal_approved':
+            case 'sale_recorded':            return <CheckCircle2 className="w-4 h-4 text-emerald-500" />;
+            case 'proposal_lost':            return <XCircle className="w-4 h-4 text-graphite-400" />;
             case 'checked_in':               return <CheckCircle2 className="w-4 h-4 text-emerald-500" />;
             case 'appointment_completed':    return <CheckCircle2 className="w-4 h-4 text-emerald-500" />;
             case 'appointment_cancelled':    return <XCircle className="w-4 h-4 text-red-500" />;
@@ -164,7 +182,13 @@ export function FollowUpTimelineDrawer({ journey, onClose }: FollowUpTimelineDra
             case 'journey_created':      return 'bg-brand-primary/10 border-brand-primary/20';
             case 'checked_in':
             case 'appointment_completed': return 'bg-emerald-50 border-emerald-100';
-            case 'appointment_cancelled': return 'bg-red-50 border-red-100';
+            case 'appointment_cancelled':
+            case 'sync_blocked':          return 'bg-red-50 border-red-100';
+            case 'appointment_rescheduled': return 'bg-blue-50 border-blue-100';
+            case 'proposal_sent':         return 'bg-indigo-50 border-indigo-100';
+            case 'proposal_approved':
+            case 'sale_recorded':         return 'bg-emerald-50 border-emerald-100';
+            case 'proposal_lost':         return 'bg-ice-50 border-ice-200';
             case 'no_show':               return 'bg-orange-50 border-orange-100';
             case 'appointment_created':
             case 'appointment_confirmed': return 'bg-blue-50 border-blue-100';
@@ -220,6 +244,21 @@ export function FollowUpTimelineDrawer({ journey, onClose }: FollowUpTimelineDra
                                 {t('timeline.merge.action', { defaultValue: 'Mesclar' })}
                             </Button>
                         </div>
+                    </div>
+
+                    <div className="px-6 py-4 border-b border-ice-100 bg-white flex flex-col gap-4 shrink-0">
+                        <JourneyProgress stage={journey.stage_id as CrmStageId} />
+                        {nextStep && (
+                            <div className="flex flex-wrap items-center gap-3 p-4 rounded-2xl bg-ice-50 border border-ice-100">
+                                <div className="min-w-0 flex-1 basis-40">
+                                    <p className="text-[10px] font-black uppercase tracking-wider text-graphite-400">{t('today.nextStep')}</p>
+                                    <p className="text-sm font-bold text-graphite-800 mt-0.5">{nextStep.description}</p>
+                                </div>
+                                {nextStep.run && (
+                                    <Button size="sm" onClick={nextStep.run} className="hover:scale-100">{nextStep.label}</Button>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-6 bg-white custom-scrollbar relative">

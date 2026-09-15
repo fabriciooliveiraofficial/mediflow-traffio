@@ -7,7 +7,9 @@ import {
   Search, TrendingUp, Activity, Save, X, Clock, AlertTriangle,
   ListTodo, Columns3,
 } from 'lucide-react';
-import { formatPhone, phoneFlag } from '../lib/formatPhone';
+import { clsx } from 'clsx';
+import { formatPhone } from '../lib/formatPhone';
+import type { CountryCode } from '../lib/i18n/countryFormats';
 import { useTenant } from '../contexts/TenantContext';
 import { useLocaleFormat } from '../hooks/useLocaleFormat';
 import { useFollowUpMetrics } from '../hooks/useFollowUpMetrics';
@@ -20,8 +22,23 @@ import {
 import { useTranslation } from 'react-i18next';
 import { Badge, Button, IconButton, EmptyState, PageHeader } from '../components/ui';
 import { FollowUpTimelineDrawer } from '../components/crm/FollowUpTimelineDrawer';
-import { WorkQueue } from '../components/crm/WorkQueue';
+import { TodayQueue, type JourneyChannel } from '../components/crm/TodayQueue';
+import { FunnelStrip } from '../components/crm/FunnelStrip';
 import { LostReasonModal } from '../components/crm/LostReasonModal';
+import { classifyJourney, shortElapsed, type JourneyActivity } from '../lib/followUpToday';
+import type { JourneyNextStep } from '../components/crm/FollowUpTimelineDrawer';
+
+type FollowUpView = 'today' | 'pipeline' | 'results';
+const VIEW_STORAGE_KEY = 'traffio.followup.view';
+
+function readStoredView(): FollowUpView {
+  try {
+    const v = localStorage.getItem(VIEW_STORAGE_KEY);
+    return v === 'pipeline' || v === 'results' ? v : 'today';
+  } catch {
+    return 'today';
+  }
+}
 
 export interface CrmJourneyIdentity {
   channel: 'whatsapp' | 'instagram' | 'facebook' | 'livechat' | 'sms' | 'phone';
@@ -65,9 +82,15 @@ export function FollowUpBoard() {
   const [journeys, setJourneys] = useState<CrmJourney[]>([]);
   const [loading, setLoading] = useState(true);
   const [days, setDays] = useState(30);
-  const [showMetrics, setShowMetrics] = useState(false);
-  const [view, setView] = useState<'queue' | 'pipeline'>('queue');
+  const [view, setViewState] = useState<FollowUpView>(readStoredView);
   const [search, setSearch] = useState('');
+  const [stageFilter, setStageFilter] = useState<CrmStageId | null>(null);
+  const [activity, setActivity] = useState<Record<string, JourneyActivity>>({});
+
+  const setView = (v: FollowUpView) => {
+    setViewState(v);
+    try { localStorage.setItem(VIEW_STORAGE_KEY, v); } catch { /* preferência só local */ }
+  };
 
   const [saleModal, setSaleModal] = useState<{ id: string; procedure: string; value: string } | null>(null);
   const [lostModal, setLostModal] = useState<{ id: string; name?: string } | null>(null);
@@ -98,15 +121,32 @@ export function FollowUpBoard() {
   const loadBoard = async () => {
     if (!tenant?.id) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from('crm_journeys')
-      .select('*, patients(full_name, phone), conversation_sessions(channel, context, patient_phone, platform_display_name), crm_journey_identities(channel, identifier, display_name)')
-      .eq('tenant_id', tenant.id)
-      .order('last_event_at', { ascending: false })
-      .limit(1000);
+    const [{ data, error }, { data: act, error: actError }] = await Promise.all([
+      supabase
+        .from('crm_journeys')
+        .select('*, patients(full_name, phone), conversation_sessions(channel, context, patient_phone, platform_display_name), crm_journey_identities(channel, identifier, display_name)')
+        .eq('tenant_id', tenant.id)
+        .order('last_event_at', { ascending: false })
+        .limit(1000),
+      supabase.rpc('crm_journey_latest_activity', { p_tenant_id: tenant.id }),
+    ]);
 
     if (error) console.error('[FollowUpBoard] load error:', error);
+    if (actError) console.error('[FollowUpBoard] activity error:', actError);
     setJourneys((data as any) || []);
+
+    const map: Record<string, JourneyActivity> = {};
+    for (const row of (act as any[]) || []) {
+      map[row.out_journey_id] = {
+        lastType: row.out_last_type,
+        lastPreview: row.out_last_preview,
+        lastActor: row.out_last_actor,
+        lastAt: row.out_last_at,
+        patientMsgAt: row.out_patient_msg_at,
+        teamMsgAt: row.out_team_msg_at,
+      };
+    }
+    setActivity(map);
     setLoading(false);
   };
 
@@ -129,8 +169,24 @@ export function FollowUpBoard() {
           : t('followUp.channelFallback.web')
       );
     }
+    // Sem nome: "Contato do WhatsApp · final 7006" em vez do número cru
     const phone = j.lead_phone || j.patients?.phone || j.conversation_sessions?.patient_phone || '';
-    return `${phoneFlag(phone, tenant?.country as CountryCode)} ${formatPhone(phone, tenant?.country as CountryCode)}`;
+    const digits = phone.replace(/\D/g, '');
+    const channelLabel = t(`today.channel.${primaryChannel(j)}`);
+    return digits.length >= 4
+      ? t('today.unnamed', { channel: channelLabel, last4: digits.slice(-4) })
+      : t('today.unnamedNoPhone', { channel: channelLabel });
+  };
+
+  // Canal principal do card — define a bolinha colorida no avatar
+  const primaryChannel = (j: CrmJourney): JourneyChannel => {
+    const session = j.conversation_sessions?.channel;
+    if (session && ['whatsapp', 'instagram', 'facebook', 'livechat', 'sms', 'phone'].includes(session)) {
+      return session as JourneyChannel;
+    }
+    const identity = (j.crm_journey_identities || [])[0]?.channel;
+    if (identity) return identity as JourneyChannel;
+    return j.origin === 'walk_in' ? 'walk_in' : 'whatsapp';
   };
 
   // Subtítulo: telefone quando houver; senão o rótulo do canal principal
@@ -179,6 +235,31 @@ export function FollowUpBoard() {
 
   const openBooking = (_j: CrmJourney) => {
     navigate('/dashboard/agenda');
+  };
+
+  const openProposals = (_j: CrmJourney) => {
+    navigate('/dashboard/proposals');
+  };
+
+  // Números da faixa do funil (Fechado conta só os últimos 30 dias)
+  const funnelCounts = useMemo(() => {
+    const counts: Partial<Record<CrmStageId, number>> = {};
+    const since = Date.now() - 30 * 86_400_000;
+    for (const j of filteredJourneys) {
+      if (j.stage_id === 'lost') continue;
+      if (j.stage_id === 'won' && new Date(j.stage_entered_at).getTime() < since) continue;
+      counts[j.stage_id] = (counts[j.stage_id] ?? 0) + 1;
+    }
+    return counts;
+  }, [filteredJourneys]);
+
+  // No Funil, clicar numa etapa da faixa rola até a coluna
+  const handleFunnelSelect = (stage: CrmStageId | null) => {
+    if (view === 'pipeline') {
+      if (stage) document.getElementById(`pipeline-col-${stage}`)?.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' });
+      return;
+    }
+    setStageFilter(stage);
   };
 
   // Patch otimista: a linha reage no mesmo instante do clique, sem esperar
@@ -314,6 +395,21 @@ export function FollowUpBoard() {
     setLostModal(null);
   };
 
+  // Próximo passo sugerido na ficha — mesma regra da lista Hoje
+  const nextStepFor = (j: CrmJourney): JourneyNextStep => {
+    const c = classifyJourney(j, activity[j.id], Date.now());
+    const description = t(`today.reason.${c.reason.key}`, {
+      time: shortElapsed(c.reason.since, Date.now()),
+      date: c.reason.at ? formatDateTime(c.reason.at) : '',
+    });
+    const run = c.action === 'reply' || c.action === 'confirm'
+      ? (j.session_id ? () => openConversation(j) : undefined)
+      : c.action === 'reschedule' ? () => openBooking(j)
+      : c.action === 'proposal' ? () => openProposals(j)
+      : undefined;
+    return { label: t(`today.actions.${c.action}`), description, run };
+  };
+
   if (loading && journeys.length === 0) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-120px)] bg-white rounded-2xl border border-ice-200">
@@ -324,85 +420,92 @@ export function FollowUpBoard() {
 
   return (
     <div className="h-[calc(100vh-120px)] bg-ice-50/50 rounded-2xl flex flex-col shadow-float overflow-hidden">
-      {/* Header */}
-      <div className="px-6 py-4 bg-white border-b border-ice-200 shrink-0">
+      {/* Cabeçalho: título, busca e UMA fileira de abas */}
+      <div className="px-6 pt-5 bg-white border-b border-ice-100 shrink-0 flex flex-col gap-4">
         <PageHeader
           icon={TrendingUp}
           title={t('followUp.title')}
           subtitle={t('followUp.subtitle')}
           actions={
-            <>
-              {/* Busca unificada */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-graphite-400" />
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder={t('followUp.searchPlaceholder')}
-                  className="w-56 bg-ice-50 border border-ice-200 rounded-xl pl-9 pr-3 py-2 text-xs font-medium focus:ring-2 focus:ring-brand-primary focus:border-transparent outline-none transition-all"
-                />
-              </div>
-
-              {/* Alternância Fila / Pipeline */}
-              <div className="flex bg-ice-100 p-1 rounded-xl border border-ice-200">
-                <button
-                  onClick={() => setView('queue')}
-                  className={`flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                    view === 'queue' ? 'bg-white text-brand-primary shadow-sm' : 'text-graphite-500 hover:text-graphite-800'
-                  }`}
-                >
-                  <ListTodo className="w-3.5 h-3.5" />
-                  {t('followUp.views.queue')}
-                </button>
-                <button
-                  onClick={() => setView('pipeline')}
-                  className={`flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                    view === 'pipeline' ? 'bg-white text-brand-primary shadow-sm' : 'text-graphite-500 hover:text-graphite-800'
-                  }`}
-                >
-                  <Columns3 className="w-3.5 h-3.5" />
-                  {t('followUp.views.pipeline')}
-                </button>
-              </div>
-
-              {showMetrics && (
-                <div className="flex bg-ice-100 p-1 rounded-xl border border-ice-200">
-                  {[7, 30, 90].map(d => (
-                    <button
-                      key={d}
-                      onClick={() => setDays(d)}
-                      className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                        days === d ? 'bg-white text-brand-primary shadow-sm' : 'text-graphite-500 hover:text-graphite-800'
-                      }`}
-                    >
-                      {t('followUp.daysFilter', { count: d })}
-                    </button>
-                  ))}
-                </div>
-              )}
-              <Button variant={showMetrics ? 'secondary' : 'ghost'} onClick={() => setShowMetrics(!showMetrics)}>
-                <Activity className="w-4 h-4" />
-                {t('followUp.dashboardToggle')}
-              </Button>
-            </>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-graphite-400" />
+              <label htmlFor="followup-search" className="sr-only">{t('followUp.searchPlaceholder')}</label>
+              <input
+                id="followup-search"
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t('followUp.searchPlaceholder')}
+                className="w-64 max-w-full bg-ice-50 border border-ice-100 rounded-2xl pl-9 pr-3 py-2.5 text-sm font-medium focus:ring-2 focus:ring-brand-primary focus:border-transparent outline-none transition-all"
+              />
+            </div>
           }
         />
+
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <nav className="flex gap-6" role="tablist" aria-label={t('followUp.title')}>
+            {([
+              { key: 'today', icon: ListTodo, label: t('followUp.views.today') },
+              { key: 'pipeline', icon: Columns3, label: t('followUp.views.pipeline') },
+              { key: 'results', icon: Activity, label: t('followUp.views.results') },
+            ] as { key: FollowUpView; icon: typeof ListTodo; label: string }[]).map(tab => (
+              <button
+                key={tab.key}
+                type="button"
+                role="tab"
+                aria-selected={view === tab.key}
+                onClick={() => setView(tab.key)}
+                className={clsx(
+                  'flex items-center gap-2 pb-3 -mb-px text-sm font-black border-0 border-b-2 bg-transparent cursor-pointer transition-colors',
+                  view === tab.key ? 'border-brand-primary text-graphite-900' : 'border-transparent text-graphite-400 hover:text-graphite-700',
+                )}
+              >
+                <tab.icon className="w-4 h-4" />
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+
+          {view === 'results' && (
+            <div className="flex gap-1.5 pb-2.5" role="group" aria-label={t('followUp.periodLabel')}>
+              {[7, 30, 90].map(d => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setDays(d)}
+                  aria-pressed={days === d}
+                  className={clsx(
+                    'px-3 py-1 text-xs font-bold rounded-xl border cursor-pointer transition-colors',
+                    days === d ? 'bg-brand-primary border-brand-primary text-white' : 'bg-white border-ice-200 text-graphite-500 hover:bg-ice-50',
+                  )}
+                >
+                  {t('followUp.daysFilter', { count: d })}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-        {showMetrics && <PerformanceStats metrics={metrics} isLoading={loadingMetrics} />}
+      <div className="flex-1 overflow-y-auto p-6 custom-scrollbar flex flex-col gap-6">
+        {view !== 'results' && (
+          <FunnelStrip counts={funnelCounts} selected={view === 'today' ? stageFilter : null} onSelect={handleFunnelSelect} />
+        )}
 
-        {/* Fila de Trabalho — a superfície operável (padrão) */}
-        {view === 'queue' && (
-          <WorkQueue
+        {view === 'results' && <PerformanceStats metrics={metrics} isLoading={loadingMetrics} />}
+
+        {view === 'today' && (
+          <TodayQueue
             journeys={filteredJourneys}
+            activity={activity}
+            stageFilter={stageFilter}
+            onClearFilter={() => setStageFilter(null)}
             displayName={displayName}
-            displaySubtitle={displaySubtitle}
-            journeyChannels={journeyChannels}
+            primaryChannel={primaryChannel}
             onOpenJourney={setSelectedJourney}
             onOpenConversation={openConversation}
             onBook={openBooking}
+            onProposal={openProposals}
             onPatch={patchJourney}
             onRefresh={() => { loadBoard(); refetchMetrics(); }}
           />
@@ -422,6 +525,7 @@ export function FollowUpBoard() {
             return (
               <div
                 key={stage}
+                id={`pipeline-col-${stage}`}
                 className="w-80 shrink-0 h-full flex flex-col bg-ice-100/50 rounded-2xl overflow-hidden border border-ice-200/60"
                 onDragOver={handleDragOver}
                 onDrop={(e) => handleDrop(e, stage)}
@@ -563,7 +667,12 @@ export function FollowUpBoard() {
 
       {/* Timeline Drawer */}
       {selectedJourney && (
-        <FollowUpTimelineDrawer journey={selectedJourney} onClose={() => setSelectedJourney(null)} />
+        <FollowUpTimelineDrawer
+          journey={selectedJourney}
+          name={displayName(selectedJourney)}
+          nextStep={nextStepFor(selectedJourney)}
+          onClose={() => setSelectedJourney(null)}
+        />
       )}
     </div>
   );

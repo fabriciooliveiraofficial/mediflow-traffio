@@ -48,20 +48,24 @@ export function formatPhone(raw: string | null | undefined, fallbackCountry?: Co
 export function phoneFlag(raw: string | null | undefined, fallbackCountry?: CountryCode): string {
     if (!raw) return '';
     const digits = raw.replace(/\D/g, '');
-    
-    // First try it exactly as given if it has a +
-    let region = raw.startsWith('+') ? regionFromE164(raw) : null;
-    
-    // If not found and we have a fallback, see if parsing it with the fallback works
-    if (!region && fallbackCountry) {
-        const parsed = parsePhoneNumberFromString(raw, getCountry(fallbackCountry).phone.region as never);
-        if (parsed) region = parsed.country ?? null;
+
+    if (raw.startsWith('+')) return regionFlag(regionFromE164(raw));
+
+    // Números salvos sem "+" quase sempre já trazem o código do país (ex.: 5541...).
+    // O país da clínica só vale quando o número NÃO é válido como internacional —
+    // antes ele vencia sempre e um número brasileiro aparecia com a bandeira da
+    // Nova Zelândia numa clínica NZ.
+    try {
+        const intl = parsePhoneNumberFromString(`+${digits}`);
+        if (intl?.isValid()) return regionFlag(intl.country ?? null);
+
+        if (fallbackCountry) {
+            const local = parsePhoneNumberFromString(raw, getCountry(fallbackCountry).phone.region as never);
+            if (local?.isValid()) return regionFlag(local.country ?? null);
+        }
+    } catch {
+        // cai no genérico abaixo
     }
-    
-    // Last resort, assume it contains the calling code
-    if (!region) {
-        region = regionFromE164(`+${digits}`);
-    }
-    
-    return regionFlag(region);
+
+    return regionFlag(null);
 }

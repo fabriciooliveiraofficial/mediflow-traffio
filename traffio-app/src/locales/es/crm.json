@@ -11,15 +11,15 @@
     "perdido": "Perdido"
   },
   "stages": {
-    "newLead": "Nuevo Lead",
-    "inContact": "En Contacto",
+    "newLead": "Nuevo",
+    "inContact": "En conversación",
     "scheduled": "Agendado",
-    "showedUp": "Asistió",
-    "proposal": "Propuesta",
+    "showedUp": "Vino",
+    "proposal": "Presupuesto",
     "recovery": "Recuperación",
-    "recallDue": "Recall",
-    "won": "Ganado",
-    "lost": "Perdido"
+    "recallDue": "Retorno",
+    "won": "Cerrado",
+    "lost": "Archivado"
   },
   "leads": {
     "title": "Leads del CRM",
@@ -49,13 +49,15 @@
   },
   "followUp": {
     "title": "Centro de Follow-up",
-    "subtitle": "Cola de trabajo priorizada y pipeline en tiempo real.",
+    "subtitle": "Quién te necesita hoy y en qué etapa está cada paciente.",
     "daysFilter": "{{count}} días",
     "dashboardToggle": "Panel",
     "searchPlaceholder": "Buscar nombre, teléfono, @...",
     "views": {
       "queue": "Cola de Trabajo",
-      "pipeline": "Pipeline"
+      "pipeline": "Embudo",
+      "today": "Hoy",
+      "results": "Resultados"
     },
     "emptyColumn": "Vacío",
     "activityLabel": "Actividad",
@@ -119,7 +121,8 @@
     },
     "toasts": {
       "moveError": "No se pudo mover la tarjeta."
-    }
+    },
+    "periodLabel": "Período"
   },
   "performanceStats": {
     "kpis": {
@@ -205,6 +208,12 @@
       "noteAdded": "Nota Agregada",
       "automationFired": "Automatización Disparada",
       "automationStopped": "Automatización Detenida",
+      "appointmentRescheduled": "Cita Reprogramada",
+      "syncBlocked": "Estado no actualizado",
+      "syncBlockedDetail": "No fue posible mover a {{stage}} automáticamente. Revise este contacto.",
+      "proposalSent": "Presupuesto Enviado",
+      "proposalApproved": "Presupuesto Aprobado",
+      "proposalLost": "Presupuesto Perdido",
       "genericEvent": "Evento Registrado"
     },
     "outcome": {
@@ -438,6 +447,101 @@
       "createFailed": "Error al registrar",
       "duplicateCpf": "Ya existe un paciente registrado con este CPF/Documento.",
       "duplicateEmail": "Ya existe un paciente registrado con este correo electrónico."
+    }
+  },
+  "today": {
+    "funnel": {
+      "label": "Embudo de pacientes",
+      "last30": "30 días",
+      "offPath": "Fuera del camino principal: {{stage}}"
+    },
+    "groups": {
+      "now": "Responder ahora",
+      "today": "Más tarde hoy",
+      "ok": "Al día"
+    },
+    "show": "Mostrar",
+    "hide": "Ocultar",
+    "reason": {
+      "blocked": "El estado no se actualizó — revise",
+      "waitingReply": "Esperando respuesta hace {{time}}",
+      "staleReply": "Sin respuesta hace {{time}}",
+      "noShow": "Faltó — reprogramar",
+      "recallDue": "Hora del retorno",
+      "cameNoProposal": "Vino hace {{time}} y aún no tiene presupuesto",
+      "proposalWaiting": "Presupuesto sin respuesta hace {{time}}",
+      "newNoReply": "Contacto nuevo hace {{time}}, nadie respondió",
+      "talkingQuiet": "Conversación detenida hace {{time}}",
+      "confirmAppointment": "Confirmar la cita del {{date}}",
+      "returnsAt": "Retomar el {{date}}",
+      "appointmentAt": "Cita el {{date}}",
+      "upToDate": "Al día"
+    },
+    "actions": {
+      "reply": "Responder",
+      "reschedule": "Reprogramar",
+      "proposal": "Enviar presupuesto",
+      "confirm": "Confirmar",
+      "review": "Revisar",
+      "open": "Ver ficha"
+    },
+    "menu": {
+      "label": "Más acciones para {{name}}",
+      "conversation": "Abrir conversación",
+      "message": "Enviar mensaje",
+      "book": "Agendar cita",
+      "snooze": "Posponer 24 h",
+      "done": "Marcar como resuelto",
+      "open": "Ver ficha"
+    },
+    "badges": {
+      "confirmed": "Confirmado",
+      "noShows": "Faltó {{count}}x"
+    },
+    "channel": {
+      "whatsapp": "WhatsApp",
+      "instagram": "Instagram",
+      "facebook": "Messenger",
+      "livechat": "Chat del sitio",
+      "sms": "SMS",
+      "phone": "Llamada",
+      "walk_in": "Recepción"
+    },
+    "unnamed": "Contacto de {{channel}} · termina en {{last4}}",
+    "unnamedNoPhone": "Contacto de {{channel}}",
+    "lastEvent": {
+      "no_show": "Faltó a la cita",
+      "appointment_created": "Cita agendada",
+      "appointment_rescheduled": "Cita reprogramada",
+      "appointment_cancelled": "Canceló la cita",
+      "appointment_confirmed": "Confirmó la cita",
+      "checked_in": "Llegó a la clínica",
+      "appointment_completed": "Cita realizada",
+      "proposal_sent": "Presupuesto enviado",
+      "proposal_approved": "Presupuesto aprobado",
+      "proposal_lost": "Presupuesto perdido",
+      "sale_recorded": "Pago recibido",
+      "sync_blocked": "El estado no se actualizó",
+      "journey_created": "Entró como contacto nuevo"
+    },
+    "nextStep": "Próximo paso",
+    "filteredBy": "Mostrando solo: {{stage}}",
+    "clearFilter": "Ver todos",
+    "empty": "Ningún contacto abierto",
+    "allClear": "Todo al día — nadie te está esperando ahora.",
+    "messageModal": {
+      "title": "Mensaje rápido",
+      "placeholder": "Escriba el mensaje para el paciente...",
+      "hint": "Sale por el canal preferido del contacto en hasta 1 minuto, dentro del horario de envío de la clínica.",
+      "send": "Enviar",
+      "cancel": "Cancelar"
+    },
+    "toasts": {
+      "snoozed": "Pospuesto por 24 horas.",
+      "done": "Marcado como resuelto.",
+      "messageSent": "Mensaje en cola de envío.",
+      "messageDelayed": "Fuera del horario de envío de la clínica ({{start}}–{{end}}). El mensaje sale a las {{time}} (hora de la clínica).",
+      "messageError": "No fue posible enviar el mensaje."
     }
   }
 }

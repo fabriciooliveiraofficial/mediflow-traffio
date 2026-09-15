@@ -2,9 +2,9 @@
  * ProposalService — módulo Orçamentos (commercial_proposals).
  *
  * Pipeline comercial: draft → sent → viewed → approved → paid/lost.
- * Sincroniza automaticamente o funil de CRM via crm_move_stage() — nunca
- * UPDATE direto em crm_journeys. Falha do CRM é sempre best-effort: nunca
- * bloqueia uma ação comercial (enviar/aprovar/perder).
+ * O funil de CRM é movido pelo banco (gatilho tr_crm_commercial_proposals) a
+ * cada mudança de status — inclusive pagamento pelo link do Stripe. Este
+ * serviço não move cards: só grava o status do orçamento.
  *
  * total_cents (proposta e itens) são mantidos por trigger/generated column no
  * banco — nunca escrever esses campos diretamente pela aplicação.
@@ -177,40 +177,6 @@ export const ProposalService = {
         if (error) throw error;
     },
 
-    // ── Funil de CRM (best-effort — nunca bloqueia o pipeline comercial) ────────
-
-    async _ensureJourney(tenantId: string, patientId: string, phone?: string | null): Promise<string | null> {
-        try {
-            const { data, error } = await supabase.rpc('crm_ensure_journey', {
-                p_tenant_id: tenantId,
-                p_patient_id: patientId,
-                p_lead_phone: phone || null,
-                p_session_id: null,
-                p_origin: 'manual',
-            });
-            if (error) throw error;
-            return data as string;
-        } catch (e) {
-            console.error('[ProposalService] crm_ensure_journey falhou (best-effort):', e);
-            return null;
-        }
-    },
-
-    async _moveCrmStage(journeyId: string | null, toStage: 'proposal' | 'won' | 'lost', reason?: string): Promise<void> {
-        if (!journeyId) return;
-        try {
-            const { error } = await supabase.rpc('crm_move_stage', {
-                p_journey_id: journeyId,
-                p_to_stage: toStage,
-                p_actor: 'user',
-                p_reason: reason || null,
-            });
-            if (error) throw error;
-        } catch (e) {
-            console.error(`[ProposalService] crm_move_stage(${toStage}) falhou (best-effort):`, e);
-        }
-    },
-
     // ── Disponibilidade de canal (por paciente, sem depender de uma sessão selecionada) ──
 
     resolveChannelAvailability(tenant: { sms_enabled?: boolean; telnyx_enabled?: boolean } | null, patient: ProposalPatient): ProposalChannelOption[] {
@@ -291,12 +257,9 @@ export const ProposalService = {
             await invoke({ session_id: sessionId, target_channel: 'email' });
         }
 
-        const journeyId = proposal.crm_journey_id ?? await this._ensureJourney(ctx.tenantId, patient.id, phone || null);
-        await this._moveCrmStage(journeyId, 'proposal', 'Orçamento enviado');
-
         const { error } = await supabase
             .from('commercial_proposals')
-            .update({ status: 'sent', sent_at: new Date().toISOString(), crm_journey_id: journeyId })
+            .update({ status: 'sent', sent_at: new Date().toISOString() })
             .eq('id', proposalId);
         if (error) throw error;
     },
@@ -325,10 +288,7 @@ export const ProposalService = {
             .single();
         if (error) throw error;
         if (!data) throw new Error('Este orçamento já foi atualizado por outra pessoa — recarregue e tente novamente.');
-
-        const proposal = data as CommercialProposal;
-        await this._moveCrmStage(proposal.crm_journey_id, 'won', 'Orçamento aprovado');
-        return proposal;
+        return data as CommercialProposal;
     },
 
     async markLost(id: string, reason: LostReason, _ctx: { tenantId: string; userId: string }): Promise<CommercialProposal> {
@@ -341,10 +301,7 @@ export const ProposalService = {
             .single();
         if (error) throw error;
         if (!data) throw new Error('Este orçamento já foi atualizado por outra pessoa — recarregue e tente novamente.');
-
-        const proposal = data as CommercialProposal;
-        await this._moveCrmStage(proposal.crm_journey_id, 'lost', reason);
-        return proposal;
+        return data as CommercialProposal;
     },
 
     // ── Integração com Financeiro (livro-caixa) ─────────────────────────────────

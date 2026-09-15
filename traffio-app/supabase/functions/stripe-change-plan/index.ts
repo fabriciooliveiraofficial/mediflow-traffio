@@ -29,6 +29,14 @@ type BillingCycle = "monthly" | "annual";
 
 const PLAN_RANK: Record<PlanId, number> = { essencial: 0, clinica: 1, rede: 2 };
 
+// A partir da versão "Basil" (2025-03-31) o Stripe removeu current_period_end
+// do nível raiz do Subscription, movendo para dentro de items.data[]. Lê de
+// onde quer que esteja — funciona com respostas antigas e novas da API.
+function getPeriodEnd(subscription: Stripe.Subscription): number {
+  const sub = subscription as any;
+  return sub.current_period_end ?? sub.items?.data?.[0]?.current_period_end;
+}
+
 const PRICE_ENV_MAP: Record<PlanId, Record<BillingCycle, string>> = {
   essencial: {
     monthly: "STRIPE_PRICE_ESSENCIAL_MONTHLY",
@@ -187,7 +195,7 @@ serve(async (req: Request) => {
     }
 
     // ── 5c. Downgrade: agendado para o fim do período já pago ─────────────────
-    const periodEnd = subscription.current_period_end;
+    const periodEnd = getPeriodEnd(subscription);
 
     const schedule = await stripe.subscriptionSchedules.create({
       from_subscription: subscription.id,
