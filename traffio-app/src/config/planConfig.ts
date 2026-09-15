@@ -41,6 +41,12 @@ export interface PlanConfig {
     maxLocations: number | null;
     maxWhatsappNumbers: number;
     maxStorageGb: number;
+    /**
+     * Conversas de IA incluídas por mês (docs/PLANO_MONETIZACAO_IA_2026-09.md).
+     * 1 conversa = R$1,55 de custo real de IA; acima disso, pacotes (AI_PACKAGES).
+     * Espelho de plans.ai_conversations_included no banco.
+     */
+    aiConversationsIncluded: number;
     features: PlanFeatures;
     highlightFeatures: string[];
     icon: typeof Star;
@@ -54,12 +60,13 @@ export const PLANS: Record<PlanId, PlanConfig> = {
         id: 'essencial',
         name: 'Essencial',
         description: 'Ideal para profissional autônomo e consultório solo.',
-        monthlyPrice: 197,
-        annualMonthlyPrice: 158,
+        monthlyPrice: 297,
+        annualMonthlyPrice: 272,
         maxProfessionals: 2,
         maxLocations: 1,
         maxWhatsappNumbers: 1,
         maxStorageGb: 5,
+        aiConversationsIncluded: 0,
         features: {
             agenda: true,
             prontuario: true,
@@ -97,12 +104,13 @@ export const PLANS: Record<PlanId, PlanConfig> = {
         id: 'clinica',
         name: 'Clínica',
         description: 'Para clínicas em crescimento com múltiplos profissionais.',
-        monthlyPrice: 397,
-        annualMonthlyPrice: 318,
+        monthlyPrice: 547,
+        annualMonthlyPrice: 497,
         maxProfessionals: 10,
         maxLocations: 3,
         maxWhatsappNumbers: 1,
         maxStorageGb: 30,
+        aiConversationsIncluded: 60,
         features: {
             agenda: true,
             prontuario: true,
@@ -130,6 +138,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
             'Hub financeiro (Asaas, Pagar.me, Dr. Cash)',
             'Todos os módulos de especialidade',
             'DICOM viewer (radiografias)',
+            '60 conversas de IA por mês',
             'Suporte prioritário por chat',
         ],
         icon: Zap,
@@ -141,12 +150,13 @@ export const PLANS: Record<PlanId, PlanConfig> = {
         id: 'rede',
         name: 'Rede',
         description: 'Para redes e franquias com múltiplas unidades.',
-        monthlyPrice: 897,
-        annualMonthlyPrice: 718,
+        monthlyPrice: 997,
+        annualMonthlyPrice: 917,
         maxProfessionals: null,
         maxLocations: null,
-        maxWhatsappNumbers: 3,
+        maxWhatsappNumbers: 1,
         maxStorageGb: 200,
+        aiConversationsIncluded: 150,
         features: {
             agenda: true,
             prontuario: true,
@@ -168,7 +178,8 @@ export const PLANS: Record<PlanId, PlanConfig> = {
         highlightFeatures: [
             'Profissionais ilimitados',
             'Unidades ilimitadas',
-            '3 números WhatsApp inclusos',
+            '150 conversas de IA por mês',
+            '1 número WhatsApp incluso (+R$ 229/mês por adicional)',
             'Master Dashboard (visão da rede)',
             'Analytics cross-unidade',
             'Faturamento consolidado',
@@ -186,7 +197,24 @@ export const PLANS: Record<PlanId, PlanConfig> = {
 
 export const PLAN_ORDER: PlanId[] = ['essencial', 'clinica', 'rede'];
 
-export const WHATSAPP_EXTRA_NUMBER_PRICE = 129;
+// Cada número WhatsApp além do 1º incluso = 1 instância Z-API paga pela Traffio
+// (R$ ~100/mês). R$ 229 = 35% de margem após Stripe + imposto. Espelho de
+// plans.extra_whatsapp_number_price.
+export const WHATSAPP_EXTRA_NUMBER_PRICE = 229;
+
+/** Conversas de IA por mês durante o trial (master_config AI_TRIAL_CONVERSATIONS). */
+export const AI_TRIAL_CONVERSATIONS = 20;
+
+/**
+ * Pacotes avulsos de conversas de IA — espelho da tabela ai_packages (o preço
+ * cobrado vem SEMPRE do banco, isto é só para exibição). Piso de R$3,50/conversa.
+ */
+export interface AiPackage { id: string; units: number; priceBrl: number; }
+export const AI_PACKAGES: AiPackage[] = [
+    { id: 'ai_50',  units: 50,  priceBrl: 199 },
+    { id: 'ai_150', units: 150, priceBrl: 549 },
+    { id: 'ai_500', units: 500, priceBrl: 1790 },
+];
 
 /** Retorna se planA é superior a planB */
 export function isPlanUpgrade(from: PlanId, to: PlanId): boolean {

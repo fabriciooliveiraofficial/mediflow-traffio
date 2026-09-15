@@ -25,6 +25,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { corsHeaders } from "../_shared/cors.ts";
 import { claudeChat } from "../_shared/llmProvider.ts";
+import { checkAiAllowed, notifyAiPaused } from "../_shared/aiBudget.ts";
 import { getAiModelAgent } from "../_shared/masterConfig.ts";
 import { MetaSocialClient } from "../_shared/metaSocialClient.ts";
 
@@ -81,6 +82,15 @@ serve(async (req: Request) => {
         .limit(10);
 
       if (pendingErr || !pending?.length) continue;
+
+      // Gate econômico: sem franquia/créditos, o comentário fica 'pending' e é
+      // respondido quando houver orçamento (ou por um humano pelo painel).
+      const aiGate = await checkAiAllowed(supabase, tenant.id);
+      if (!aiGate.allowed) {
+        console.warn(`[ai-reply-instagram-comments] tenant ${tenant.id} bloqueado pelo orçamento de IA (${aiGate.reason}) — ${pending.length} comentário(s) aguardam`);
+        await notifyAiPaused(supabase, tenant.id, aiGate.reason, aiGate.status);
+        continue;
+      }
 
       const { data: metaPage } = await supabase
         .from("tenant_meta_pages")

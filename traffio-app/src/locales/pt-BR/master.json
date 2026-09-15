@@ -140,6 +140,10 @@
     "headerTitle": "Financeiro & Consumo",
     "headerSubtitle": "Gestão de assinaturas, lucros de comunicações e saldos de carteiras.",
     "fixedExchange": "Câmbio Fixo: R$ 5.50",
+    "syncCatalog": "Sincronizar catálogo Stripe",
+    "syncCatalogTitle": "Cria/atualiza no Stripe os preços dos planos (mensal e anual) e do número WhatsApp adicional a partir da tabela de planos",
+    "syncCatalogDone": "Catálogo sincronizado: {{created}} preço(s) criado(s), {{kept}} mantido(s).",
+    "syncCatalogError": "Erro ao sincronizar o catálogo: {{message}}",
     "kpis": {
       "mrr": "MRR (Software)",
       "recharged": "Créditos Recarregados",

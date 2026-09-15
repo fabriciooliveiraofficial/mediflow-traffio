@@ -86,7 +86,8 @@
       "price_insistence": "Insistência em preço",
       "jailbreak": "Tentativa de manipulação",
       "cancel": "Pedido de cancelamento",
-      "reconciliation": "Remarcação pendente"
+      "reconciliation": "Remarcação pendente",
+      "ai_budget": "IA pausada (franquia/teto)"
     },
     "handoffKinds": {
       "soft": "Soft",

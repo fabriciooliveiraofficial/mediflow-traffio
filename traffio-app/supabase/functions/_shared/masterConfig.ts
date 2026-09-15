@@ -120,6 +120,49 @@ export async function getAiModelRouter(supabase: SupabaseClient): Promise<string
   return getMasterConfig(supabase, "AI_MODEL_ROUTER", "claude-haiku-4-5-20251001");
 }
 
+// ─── Economia da IA (docs/PLANO_MONETIZACAO_IA_2026-09.md) ───────────────────
+// Parâmetros editáveis no painel master (nunca em secret: o operador precisa
+// mudar câmbio/limites sem redeploy). Valor ausente/inválido → default seguro.
+
+function parsePositiveNumber(raw: string, fallback: number): number {
+  const n = Number(raw.replace(",", "."));
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+/** Câmbio USD→BRL aplicado ao custo de cada chamada de LLM (já com IOF). */
+export async function getAiUsdBrlRate(supabase: SupabaseClient): Promise<number> {
+  return parsePositiveNumber(await getMasterConfig(supabase, "AI_USD_BRL_RATE", "5.69", false), 5.69);
+}
+
+/** Máximo de respostas do agente ao mesmo telefone em 1h; 0 desliga o limite. */
+export async function getAiPhoneTurnsPerHour(supabase: SupabaseClient): Promise<number> {
+  const n = Number.parseInt(await getMasterConfig(supabase, "AI_PHONE_TURNS_PER_HOUR", "40", false), 10);
+  return Number.isFinite(n) && n >= 0 ? n : 40;
+}
+
+/**
+ * Override opcional da tabela de preço por MTok (USD), como JSON:
+ * {"claude-sonnet-5":{"input":2,"output":10}}. Permite acompanhar um reajuste
+ * da Anthropic sem deploy; ausente/inválido → tabela do llmProvider.
+ */
+export async function getAiPricePerMtokOverride(
+  supabase: SupabaseClient,
+): Promise<Record<string, { input: number; output: number }> | null> {
+  const raw = await getMasterConfig(supabase, "AI_PRICE_PER_MTOK_JSON", "", false);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    const out: Record<string, { input: number; output: number }> = {};
+    for (const [model, p] of Object.entries(parsed as Record<string, any>)) {
+      if (Number.isFinite(p?.input) && Number.isFinite(p?.output)) out[model] = { input: p.input, output: p.output };
+    }
+    return Object.keys(out).length ? out : null;
+  } catch {
+    return null;
+  }
+}
+
 // ─── RAG / embeddings ────────────────────────────────────────────────────────
 
 export async function getOpenAiApiKey(supabase: SupabaseClient): Promise<string> {

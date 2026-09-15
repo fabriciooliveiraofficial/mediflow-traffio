@@ -113,7 +113,7 @@
       "feature2": "Lembretes automáticos",
       "feature3": "Prontuário digital",
       "feature4": "Portal do paciente",
-      "plan": "Plano Essencial — R$ 197/mês"
+      "plan": "Plano Essencial — R$ 297/mês"
     },
     "clinicaMedica": {
       "title": "Clínica Médica",
@@ -122,7 +122,7 @@
       "feature2": "Inbox WhatsApp",
       "feature3": "CRM + pipeline",
       "feature4": "Hub financeiro",
-      "plan": "Plano Clínica — R$ 397/mês"
+      "plan": "Plano Clínica — R$ 547/mês"
     },
     "odontologia": {
       "title": "Odontologia",
@@ -131,7 +131,7 @@
       "feature2": "Orçamentos de tratamento",
       "feature3": "DICOM (radiografias)",
       "feature4": "Parcelas via Dr. Cash",
-      "plan": "Plano Clínica — R$ 397/mês"
+      "plan": "Plano Clínica — R$ 547/mês"
     },
     "nutricao": {
       "title": "Nutrição e Wellness",
@@ -140,7 +140,7 @@
       "feature2": "Composição corporal",
       "feature3": "Evolução de peso",
       "feature4": "Planos alimentares",
-      "plan": "Plano Essencial — R$ 197/mês"
+      "plan": "Plano Essencial — R$ 297/mês"
     },
     "psicologia": {
       "title": "Psicologia e Saúde Mental",
@@ -149,7 +149,7 @@
       "feature2": "Agendamento recorrente",
       "feature3": "Confirmação automática",
       "feature4": "Portal do paciente",
-      "plan": "Plano Essencial — R$ 197/mês"
+      "plan": "Plano Essencial — R$ 297/mês"
     },
     "redes": {
       "title": "Redes e Franquias",
@@ -158,7 +158,7 @@
       "feature2": "Faturamento consolidado",
       "feature3": "Analytics da rede",
       "feature4": "API + webhooks",
-      "plan": "Plano Rede — R$ 897/mês"
+      "plan": "Plano Rede — R$ 997/mês"
     },
     "startTrial": "Começar trial grátis",
     "testimonial": {

@@ -26,6 +26,7 @@
         "Hub financeiro (Asaas, Pagar.me, Dr. Cash)",
         "Todos os módulos de especialidade",
         "DICOM viewer (radiografias)",
+        "60 conversas de IA por mês (atendimento automático 24h)",
         "Suporte prioritário por chat"
       ]
     },
@@ -35,7 +36,8 @@
       "features": [
         "Profissionais ilimitados",
         "Unidades ilimitadas",
-        "3 números WhatsApp inclusos",
+        "150 conversas de IA por mês",
+        "1 número WhatsApp incluso (adicionais a R$ 229/mês)",
         "Master Dashboard (visão da rede)",
         "Analytics cross-unidade",
         "Faturamento consolidado",
@@ -120,13 +122,37 @@
     "cycleToggle": {
       "monthly": "Mensal",
       "annual": "Anual",
-      "discountBadge": "-20%"
+      "discountBadge": "1 mês grátis"
     },
     "planCard": {
       "currentBadge": "Seu Plano",
       "perMonth": "/mês",
       "billedAnnually": "cobrado {{price}}/ano",
       "extraWhatsappNumber": "+{{price}}/mês por número WhatsApp adicional"
+    },
+    "aiUsage": {
+      "title": "Conversas de IA",
+      "subtitle": "Atendimento automático 24h no WhatsApp, Instagram e Messenger. Cada conversa atendida pela IA consome 1 da franquia; os pacotes não expiram.",
+      "included": "{{count}} incluídas no plano",
+      "includedTrial": "{{count}} incluídas no trial",
+      "noneIncluded": "Seu plano não inclui conversas de IA — compre um pacote para ativar o atendimento automático.",
+      "used": "{{used}} de {{total}} usadas este mês",
+      "credits": "{{count}} de pacotes",
+      "remaining_one": "{{count}} conversa disponível",
+      "remaining_other": "{{count}} conversas disponíveis",
+      "resets": "A franquia do plano renova em {{date}}.",
+      "paused": {
+        "quota_exhausted": "IA pausada: as conversas do mês acabaram. Novas mensagens estão indo para a fila humana — compre um pacote para reativar agora.",
+        "daily_cap": "IA pausada até amanhã: o teto diário de segurança foi atingido. As mensagens estão indo para a fila humana.",
+        "subscription_inactive": "IA pausada: assinatura inativa ou trial encerrado. Regularize a assinatura para reativar."
+      },
+      "packagesTitle": "Precisa de mais conversas?",
+      "packageUnits": "{{count}} conversas",
+      "packagePerUnit": "{{price}} por conversa",
+      "buy": "Comprar",
+      "purchaseSuccess": "Pacote comprado! Os créditos já estão disponíveis.",
+      "purchaseError": "Erro ao iniciar a compra: {{message}}",
+      "loadError": "Não foi possível carregar o uso de IA."
     },
     "cta": {
       "currentPlan": "Plano atual",

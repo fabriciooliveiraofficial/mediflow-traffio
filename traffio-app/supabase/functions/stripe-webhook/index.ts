@@ -152,6 +152,33 @@ serve(async (req: Request) => {
           break;
         }
 
+        // Pacote de conversas de IA (docs/PLANO_MONETIZACAO_IA_2026-09.md):
+        // credita na carteira de IA via RPC idempotente (reentrega do evento
+        // pelo Stripe não duplica o crédito — chave = id da checkout session).
+        if (session.mode === "payment" && session.metadata?.type === "ai_package") {
+          const tenantId = session.metadata?.tenant_id;
+          const units = Number(session.metadata?.units ?? "0");
+          const packageId = session.metadata?.package_id ?? "";
+          if (!tenantId || !Number.isFinite(units) || units <= 0) {
+            console.warn("[stripe-webhook] checkout.session.completed de ai_package sem tenant_id/units");
+            break;
+          }
+          const { data: balance, error: creditErr } = await supabase.rpc("ai_credit_apply", {
+            p_tenant: tenantId,
+            p_units: units,
+            p_type: "purchase",
+            p_description: `Pacote de ${units} conversas de IA (${packageId})`,
+            p_reference_type: "stripe_checkout",
+            p_reference_id: session.id,
+          });
+          if (creditErr) {
+            console.error(`[stripe-webhook] ai_credit_apply falhou para tenant ${tenantId}: ${creditErr.message}`);
+          } else {
+            console.log(`[stripe-webhook] +${units} conversas de IA creditadas ao tenant ${tenantId} (saldo ${balance})`);
+          }
+          break;
+        }
+
         if (session.mode !== "subscription") break;
 
         const tenantId     = session.metadata?.tenant_id;

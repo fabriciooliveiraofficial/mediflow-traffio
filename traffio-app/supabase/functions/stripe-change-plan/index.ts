@@ -23,6 +23,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import Stripe from "https://esm.sh/stripe@14.21.0?target=deno";
 import { corsHeaders } from "../_shared/cors.ts";
+import { resolveStripePriceId } from "../_shared/stripeCatalog.ts";
 
 type PlanId = "essencial" | "clinica" | "rede";
 type BillingCycle = "monthly" | "annual";
@@ -123,7 +124,8 @@ serve(async (req: Request) => {
       return json({ needs_checkout: true });
     }
 
-    const newPriceId = Deno.env.get(PRICE_ENV_MAP[newPlanId][newCycle]);
+    // master_config (stripe-sync-catalog) > secret — mesma regra do checkout.
+    const newPriceId = await resolveStripePriceId(supabase, PRICE_ENV_MAP[newPlanId][newCycle]);
     if (!newPriceId) {
       return json({ error: `Price não configurado: ${PRICE_ENV_MAP[newPlanId][newCycle]}` }, 500);
     }

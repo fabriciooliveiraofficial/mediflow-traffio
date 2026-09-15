@@ -28,15 +28,18 @@
  * Guardado por teste: `unit_test.ts` → "buildCachedSystemField"/"applyCacheToTools".
  */
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
-import { getAnthropicApiKey, invalidateMasterConfigCache } from "./masterConfig.ts";
+import { getAnthropicApiKey, invalidateMasterConfigCache, getAiUsdBrlRate, getAiPricePerMtokOverride } from "./masterConfig.ts";
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
 
 // Preço por MTok (USD, input/output) — usado só para custo ESTIMADO no dashboard.
 // Modelos fora da tabela caem no preço do Sonnet (estimativa conservadora).
+// Sonnet 5: US$2/10 é o preço definitivo (o reajuste para 3/15 previsto para
+// 01/09/2026 foi cancelado pela Anthropic). Até 15/09/2026 esta tabela dizia
+// 3/15 e inflava o custo de IA do painel master em 50%.
 const PRICE_PER_MTOK: Record<string, { input: number; output: number }> = {
-    "claude-sonnet-5": { input: 3, output: 15 },
+    "claude-sonnet-5": { input: 2, output: 10 },
     "claude-opus-4-8": { input: 5, output: 25 },
     "claude-haiku-4-5-20251001": { input: 1, output: 5 },
 };
@@ -347,7 +350,15 @@ export async function claudeChat(supabase: SupabaseClient, req: LlmRequest): Pro
     // Colunas conforme o schema REAL de ai_usage_logs (tokens_input/tokens_output/
     // cost_api_cents/price_tenant_cents/model/context) — validado em produção 07/2026.
     try {
-        const price = PRICE_PER_MTOK[req.model] ?? PRICE_PER_MTOK["claude-sonnet-5"];
+        // Câmbio e (opcionalmente) a tabela de preço vêm do painel master
+        // (AI_USD_BRL_RATE / AI_PRICE_PER_MTOK_JSON): reajuste da Anthropic ou
+        // do dólar não pode depender de deploy. cost_brl_cents alimenta a
+        // franquia de IA do tenant (trigger ai_usage_debit_credits).
+        const [usdBrlRate, priceOverride] = await Promise.all([
+            getAiUsdBrlRate(supabase),
+            getAiPricePerMtokOverride(supabase),
+        ]);
+        const price = priceOverride?.[req.model] ?? PRICE_PER_MTOK[req.model] ?? PRICE_PER_MTOK["claude-sonnet-5"];
         // Cache (TTL padrão 5min, único usado aqui): escrita = 1.25x o input
         // normal, leitura = 0.1x — sem isso o custo estimado subestimaria o
         // gasto real da Anthropic sempre que o cache escrever ou ler.
@@ -364,6 +375,7 @@ export async function claudeChat(supabase: SupabaseClient, req: LlmRequest): Pro
             tokens_input: usage.inputTokens,
             tokens_output: usage.outputTokens,
             cost_api_cents: costCents,
+            cost_brl_cents: costCents * usdBrlRate,
             // Convenção de markup da plataforma (ver _shared/pricing.ts): preço ao tenant = 2× o custo
             price_tenant_cents: costCents * 2,
             context: req.purpose,

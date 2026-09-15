@@ -33,6 +33,7 @@ import { classifyImage, pickVisionEligibleImage } from "../_shared/imageClassifi
 import { classifyDocument, pickEligibleDocument, MAX_DOC_BYTES_FOR_AI } from "../_shared/documentClassifier.ts";
 import { extractDocumentText } from "../_shared/officeExtractor.ts";
 import { getAiModelRouter } from "../_shared/masterConfig.ts";
+import { checkAiAllowed, notifyAiPaused } from "../_shared/aiBudget.ts";
 
 // How long to wait after the last message before processing (ms).
 // Gives the patient time to finish typing multiple messages.
@@ -288,9 +289,28 @@ async function processConversationTurn(
       const activeAgent = botConfig.active_agent ?? (botConfig.enabled ? "ai_assistant" : "human");
       const isHardHandoff = isHardHandoffSession(session);
       let autonomousStatus: string | null = null;
+
+      // Gate econômico (docs/PLANO_MONETIZACAO_IA_2026-09.md): ANTES de qualquer
+      // gasto de IA neste turno, confere franquia/créditos/teto diário do tenant
+      // e o rate limit por telefone. Bloqueado → o turno corre como se o dial
+      // fosse 'human': nenhum LLM em nenhuma etapa (classificadores de mídia,
+      // agente autônomo, copiloto) e a conversa vai à fila humana (soft, reason
+      // 'ai_budget' — a IA volta sozinha quando houver orçamento). Só consulta
+      // quando algum dial de IA está ligado; com 'human' não custa nada.
+      const aiConfigured = ["ai_always", "ai_assistant", "flow_bot", "copilot"].includes(activeAgent);
+      const aiGate = aiConfigured
+        ? await checkAiAllowed(supabase, tenantId, { phone })
+        : { allowed: true, reason: "ok" as const, status: null };
+      const aiBlocked = !aiGate.allowed;
+      if (aiBlocked) {
+        console.warn(`[process-inbox] [${phone}] IA bloqueada pelo orçamento (${aiGate.reason}) — turno segue para a fila humana`);
+        await notifyAiPaused(supabase, tenantId, aiGate.reason, aiGate.status);
+      }
+
       const aiWillRespond =
         ["ai_always", "ai_assistant", "flow_bot"].includes(activeAgent) &&
-        !isHardHandoff;
+        !isHardHandoff &&
+        !aiBlocked;
 
       if (aiWillRespond) {
         const newestArrival = Math.max(...messages.map((m: any) => new Date(m.received_at).getTime()));
@@ -411,7 +431,7 @@ async function processConversationTurn(
          // como elegível — segue o caminho de hoje (Camada 3 + fila humana,
          // ou só o texto da legenda se houver). Só imagem administrativa
          // (documento) passa a ser mostrada à IA.
-         if (msgType === "image") {
+         if (msgType === "image" && !aiBlocked) {
            const routerModel = await getAiModelRouter(supabase);
            const category = await classifyImage(supabase, tenantId, msg.media_url, routerModel);
            console.log(`[process-inbox] [${phone}] Imagem classificada: ${category}`);
@@ -428,7 +448,7 @@ async function processConversationTurn(
          // nativamente; sem extração bem-sucedida, documentClassifier já
          // recusa sozinho (defesa em profundidade), mas evitamos a chamada
          // de LLM em vão quando já sabemos que não há texto.
-         if (msgType === "document") {
+         if (msgType === "document" && !aiBlocked) {
            const isPdf = msg.mime_type === "application/pdf" || /\.pdf$/i.test(msg.file_name || "");
            let extractedText: string | null = null;
            if (!isPdf && msg.media_url) {
@@ -590,7 +610,7 @@ async function processConversationTurn(
            tenant_id: tenantId, session_id: session.id, phone, route: "structured_flow",
            latency_ms: Date.now() - structuredFlowStartedAt2,
          });
-       } else if (isAutonomousAgentTurn(activeAgent, session)) {
+       } else if (!aiBlocked && isAutonomousAgentTurn(activeAgent, session)) {
          // ⚠️ CAMINHO CRÍTICO DE RECEITA — o AI Agent atende (ver
          // isAutonomousAgentTurn em sessionManager.ts + testes-guarda em
          // _tests/evals/agent_attendance_guard_test.ts). Estamos no ramo
@@ -641,15 +661,25 @@ async function processConversationTurn(
          // 'replied': paciente respondido, sessão continua com a IA
          // 'transferred': handoff já feito dentro do agente
        } else {
-         console.log(`[process-inbox] [${phone}] Routing message to human queue.`);
+         console.log(`[process-inbox] [${phone}] Routing message to human queue${aiBlocked ? ` (IA bloqueada: ${aiGate.reason})` : ""}.`);
          // kind='soft' (não NULL, como era antes — achado real por trás do incidente
          // 13/08/2026, mais provável que o fail-safe de :582/:622): NULL faz
          // isHardHandoffSession tratar como hard, travando a conversa pra sempre —
          // inclusive quando o motivo é só o dial não ser 'ai_always' (não é falha).
+         // 'ai_budget' quando foi o gate econômico que desviou: o atendente vê o
+         // motivo real no inbox e a IA retoma sozinha quando houver orçamento.
+         const queueReason = aiBlocked ? "ai_budget" : "tech";
          if (session.omnichannel_status !== "human_active" && session.omnichannel_status !== "queued") {
-           await sessionManager.triggerHumanHandoff(session.id, undefined, { reason: "tech", kind: "soft" });
-         } else if (session.omnichannel_status === "queued" && session.handoff_reason === "tech") {
-           await sessionManager.triggerHumanHandoff(session.id, undefined, { reason: "tech", kind: "soft" });
+           await sessionManager.triggerHumanHandoff(session.id, undefined, { reason: queueReason, kind: "soft" });
+         } else if (session.omnichannel_status === "queued" && (session.handoff_reason === "tech" || session.handoff_reason === "ai_budget")) {
+           await sessionManager.triggerHumanHandoff(session.id, undefined, { reason: queueReason, kind: "soft" });
+         }
+         if (aiBlocked) {
+           // Onda 5.2 — trace do turno desviado pelo orçamento (visível no master).
+           await logAgentTurnEvent(supabase, {
+             tenant_id: tenantId, session_id: session.id, phone, route: "human",
+             handoff_reason: "ai_budget", handoff_kind: "soft",
+           });
          }
        }
      }
@@ -672,7 +702,7 @@ async function processConversationTurn(
      // rascunhos. Se a IA autônoma respondeu com sucesso neste turno (replied),
      // o copiloto não roda para evitar rascunhos obsoletos e desperdício de LLM.
      const humanHolds = isHardHandoffSession(session);
-     if (!structuredFlowResult.matched && autonomousStatus !== "replied" && (activeAgent === "copilot" || (activeAgent === "ai_always" && humanHolds))) {
+     if (!aiBlocked && !structuredFlowResult.matched && autonomousStatus !== "replied" && (activeAgent === "copilot" || (activeAgent === "ai_always" && humanHolds))) {
        await runCopilot(supabase, {
          tenantId,
          sessionId: session.id,

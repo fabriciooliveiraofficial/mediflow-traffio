@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Shield, Check, AlertTriangle, Clock, Loader2, CalendarClock } from 'lucide-react';
+import { AiUsageCard } from '../components/billing/AiUsageCard';
 import { useTranslation } from 'react-i18next';
 import { useTenant } from '../contexts/TenantContext';
 import { usePlan } from '../hooks/usePlan';
@@ -31,6 +32,19 @@ export const BillingPage = () => {
     const [loadingPlan, setLoadingPlan] = useState<PlanId | null>(null);
     const [loadingPortal, setLoadingPortal] = useState(false);
     const [scheduledChange, setScheduledChange] = useState<{ planName: string; date: string } | null>(null);
+
+    // Volta do checkout de pacote de IA (stripe-create-ai-package-checkout)
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('ai_package') === 'success') {
+            showToast('success', t('billingPage.aiUsage.purchaseSuccess'));
+            params.delete('ai_package');
+            params.delete('session_id');
+            const qs = params.toString();
+            window.history.replaceState({}, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Abre o Stripe Billing Portal — atualizar cartão, ver faturas e CANCELAR
     async function handleManageBilling() {
@@ -258,6 +272,9 @@ export const BillingPage = () => {
                 </div>
             )}
 
+            {/* Franquia de conversas de IA + pacotes */}
+            <AiUsageCard />
+
             {/* Toggle ciclo de cobrança */}
             <div className="flex justify-center">
                 <div className="inline-flex items-center bg-ice-100 rounded-2xl p-1 gap-1">
@@ -367,7 +384,8 @@ export const BillingPage = () => {
                                         <span className="text-sm text-graphite-600 font-medium">{feature}</span>
                                     </li>
                                 ))}
-                                {id !== 'essencial' && (
+                                {/* 1 número incluso em todo plano; cada adicional é uma instância Z-API cobrada à parte */}
+                                {(
                                     <li className="flex items-start gap-2.5">
                                         <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${plan.badgeClass}`}>
                                             <Check size={12} />

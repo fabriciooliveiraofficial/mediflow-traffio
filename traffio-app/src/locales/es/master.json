@@ -140,6 +140,10 @@
     "headerTitle": "Finanzas y Consumo",
     "headerSubtitle": "Gestión de suscripciones, ganancias de comunicaciones y saldos de billeteras.",
     "fixedExchange": "Tipo de Cambio Fijo: R$ 5.50",
+    "syncCatalog": "Sincronizar catálogo Stripe",
+    "syncCatalogTitle": "Crea/actualiza en Stripe los precios de los planes (mensual y anual) y del número de WhatsApp adicional a partir de la tabla de planes",
+    "syncCatalogDone": "Catálogo sincronizado: {{created}} precio(s) creado(s), {{kept}} mantenido(s).",
+    "syncCatalogError": "Error al sincronizar el catálogo: {{message}}",
     "kpis": {
       "mrr": "MRR (Software)",
       "recharged": "Créditos Recargados",

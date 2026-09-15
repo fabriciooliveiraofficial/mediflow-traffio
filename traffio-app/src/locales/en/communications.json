@@ -86,7 +86,8 @@
       "price_insistence": "Price inquiry",
       "jailbreak": "Prompt manipulation",
       "cancel": "Cancellation request",
-      "reconciliation": "Pending reschedule"
+      "reconciliation": "Pending reschedule",
+      "ai_budget": "AI paused (quota/cap)"
     },
     "handoffKinds": {
       "soft": "Soft",

@@ -26,6 +26,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import Stripe from "https://esm.sh/stripe@14.21.0?target=deno";
 import { corsHeaders } from "../_shared/cors.ts";
+import { resolveStripePriceId } from "../_shared/stripeCatalog.ts";
 
 type PlanId = "essencial" | "clinica" | "rede";
 type BillingCycle = "monthly" | "annual";
@@ -116,7 +117,9 @@ serve(async (req: Request) => {
 
     // ── 4. Resolver Stripe Price ID ───────────────────────────────────────────
     const priceEnvKey = PRICE_ENV_MAP[planId][billingCycle];
-    const stripePriceId = Deno.env.get(priceEnvKey);
+    // master_config (gravado por stripe-sync-catalog) tem prioridade sobre o
+    // secret: é assim que um reajuste de preço entra em vigor sem redeploy.
+    const stripePriceId = await resolveStripePriceId(supabase, priceEnvKey);
     if (!stripePriceId) {
       return json({ error: `Price não configurado: ${priceEnvKey}` }, 500);
     }

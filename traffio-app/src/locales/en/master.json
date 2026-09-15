@@ -140,6 +140,10 @@
     "headerTitle": "Billing & Usage",
     "headerSubtitle": "Manage subscriptions, communication profits and wallet balances.",
     "fixedExchange": "Fixed Exchange Rate: R$ 5.50",
+    "syncCatalog": "Sync Stripe catalog",
+    "syncCatalogTitle": "Creates/updates the Stripe prices for plans (monthly and annual) and the extra WhatsApp number from the plans table",
+    "syncCatalogDone": "Catalog synced: {{created}} price(s) created, {{kept}} kept.",
+    "syncCatalogError": "Catalog sync failed: {{message}}",
     "kpis": {
       "mrr": "MRR (Software)",
       "recharged": "Recharged Credits",

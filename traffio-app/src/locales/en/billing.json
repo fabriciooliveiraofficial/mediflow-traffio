@@ -26,6 +26,7 @@
         "Financial hub (Asaas, Pagar.me, Dr. Cash)",
         "All specialty modules",
         "DICOM viewer (X-rays)",
+        "60 AI conversations per month (24/7 automated support)",
         "Priority chat support"
       ]
     },
@@ -35,7 +36,8 @@
       "features": [
         "Unlimited professionals",
         "Unlimited locations",
-        "3 WhatsApp numbers included",
+        "150 AI conversations per month",
+        "1 WhatsApp number included (extra numbers R$229/month)",
         "Master Dashboard (network-wide view)",
         "Cross-location analytics",
         "Consolidated billing",
@@ -120,13 +122,37 @@
     "cycleToggle": {
       "monthly": "Monthly",
       "annual": "Annual",
-      "discountBadge": "-20%"
+      "discountBadge": "1 month free"
     },
     "planCard": {
       "currentBadge": "Your Plan",
       "perMonth": "/month",
       "billedAnnually": "billed {{price}}/year",
       "extraWhatsappNumber": "+{{price}}/month per additional WhatsApp number"
+    },
+    "aiUsage": {
+      "title": "AI conversations",
+      "subtitle": "24/7 automated support on WhatsApp, Instagram and Messenger. Each conversation handled by the AI uses 1 from your allowance; packages never expire.",
+      "included": "{{count}} included in your plan",
+      "includedTrial": "{{count}} included in your trial",
+      "noneIncluded": "Your plan doesn't include AI conversations — buy a package to turn on automated support.",
+      "used": "{{used}} of {{total}} used this month",
+      "credits": "{{count}} from packages",
+      "remaining_one": "{{count}} conversation available",
+      "remaining_other": "{{count}} conversations available",
+      "resets": "Your plan allowance renews on {{date}}.",
+      "paused": {
+        "quota_exhausted": "AI paused: this month's conversations are used up. New messages are going to the human queue — buy a package to resume now.",
+        "daily_cap": "AI paused until tomorrow: the daily safety cap was reached. Messages are going to the human queue.",
+        "subscription_inactive": "AI paused: subscription inactive or trial ended. Reactivate your subscription to resume."
+      },
+      "packagesTitle": "Need more conversations?",
+      "packageUnits": "{{count}} conversations",
+      "packagePerUnit": "{{price}} per conversation",
+      "buy": "Buy",
+      "purchaseSuccess": "Package purchased! Your credits are available now.",
+      "purchaseError": "Could not start the purchase: {{message}}",
+      "loadError": "Could not load AI usage."
     },
     "cta": {
       "currentPlan": "Current plan",

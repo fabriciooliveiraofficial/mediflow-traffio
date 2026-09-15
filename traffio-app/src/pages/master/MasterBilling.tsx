@@ -56,6 +56,29 @@ export const MasterBilling = () => {
         } | null;
     } | null>(null);
     const [refreshingBalance, setRefreshingBalance] = useState(false);
+    // Catálogo Stripe (Products/Prices) gerado a partir da tabela `plans` —
+    // docs/PLANO_MONETIZACAO_IA_2026-09.md. Reajuste de preço = editar plans + clicar aqui.
+    const [syncingCatalog, setSyncingCatalog] = useState(false);
+    const [catalogSyncResult, setCatalogSyncResult] = useState<string | null>(null);
+
+    const syncStripeCatalog = async () => {
+        setSyncingCatalog(true);
+        setCatalogSyncResult(null);
+        try {
+            const res = await supabase.functions.invoke('stripe-sync-catalog', { body: {} });
+            if (res.error) throw new Error(res.error.message);
+            if (res.data?.error) throw new Error(res.data.error);
+            const results: Array<{ action: string }> = res.data?.results ?? [];
+            const created = results.filter(r => r.action === 'created').length;
+            const kept = results.filter(r => r.action === 'kept').length;
+            setCatalogSyncResult(t('billing.syncCatalogDone', { created, kept }));
+        } catch (err: any) {
+            console.error('stripe-sync-catalog error:', err);
+            setCatalogSyncResult(t('billing.syncCatalogError', { message: err.message }));
+        } finally {
+            setSyncingCatalog(false);
+        }
+    };
 
     const fetchMasterBalance = async () => {
         setRefreshingBalance(true);
@@ -136,17 +159,19 @@ export const MasterBilling = () => {
     }, []);
 
     const stats = useMemo(() => {
+        // Espelho de src/config/planConfig.ts (tabela aprovada em 15/09/2026);
+        // anual = 1 mês grátis (11/12), não mais -20%.
         const planPrices: Record<string, number> = {
-            essencial: 197,
-            clinica: 397,
-            rede: 897
+            essencial: 297,
+            clinica: 547,
+            rede: 997
         };
-        
+
         let mrr = 0;
         tenants.forEach(tenant => {
             if (tenant.subscription_status === 'active') {
                 const basePrice = planPrices[tenant.plan] || 0;
-                mrr += tenant.billing_cycle === 'annual' ? basePrice * 0.8 : basePrice;
+                mrr += tenant.billing_cycle === 'annual' ? basePrice * 11 / 12 : basePrice;
             }
         });
 
@@ -233,8 +258,24 @@ export const MasterBilling = () => {
                     <h1 className="text-3xl font-black text-white tracking-tight">{t('billing.headerTitle')}</h1>
                     <p className="text-slate-500 font-medium text-sm mt-1">{t('billing.headerSubtitle')}</p>
                 </div>
-                <div className="bg-[#1E293B] border border-slate-700/50 rounded-xl px-4 py-2 flex items-center gap-2 text-slate-300 text-xs font-bold font-mono">
-                    <Activity size={14} className="text-emerald-400" /> {t('billing.fixedExchange')}
+                <div className="flex flex-col items-end gap-2">
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={syncStripeCatalog}
+                            disabled={syncingCatalog}
+                            title={t('billing.syncCatalogTitle')}
+                            className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-xl px-4 py-2 flex items-center gap-2 text-xs font-bold hover:bg-emerald-500/20 transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                            {syncingCatalog ? <Loader2 size={14} className="animate-spin" /> : <CreditCard size={14} />}
+                            {t('billing.syncCatalog')}
+                        </button>
+                        <div className="bg-[#1E293B] border border-slate-700/50 rounded-xl px-4 py-2 flex items-center gap-2 text-slate-300 text-xs font-bold font-mono">
+                            <Activity size={14} className="text-emerald-400" /> {t('billing.fixedExchange')}
+                        </div>
+                    </div>
+                    {catalogSyncResult && (
+                        <p className="text-xs text-slate-400 font-medium">{catalogSyncResult}</p>
+                    )}
                 </div>
             </div>
 
