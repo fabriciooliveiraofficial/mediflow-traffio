@@ -2,44 +2,40 @@
   "plans": {
     "essencial": {
       "name": "Essential",
-      "description": "For practices with up to 2 healthcare professionals.",
+      "description": "For practices with up to 2 professionals. Full platform; AI via packages.",
       "features": [
-        "Up to 2 professionals",
-        "1 location",
-        "Smart scheduling with online booking portal",
-        "Complete electronic health records",
-        "Automatic WhatsApp reminders",
-        "Automatic confirmation and NPS surveys",
-        "1 specialty module",
+        "Full platform: scheduling, inbox, records, CRM and payments",
+        "Up to 2 professionals at 1 location",
+        "Inbox: WhatsApp, Instagram, Messenger and website chat",
+        "Automatic reminders, confirmation and satisfaction survey",
+        "All specialty modules",
+        "Meta ads, payment links and reports",
         "AI patient support via add-on packages (from R$199)",
+        "5 GB for patient files",
         "Email support"
       ]
     },
     "clinica": {
       "name": "Clinic",
-      "description": "For clinics with up to 10 professionals that want to automate patient support.",
+      "description": "For clinics with up to 10 professionals, with AI patient support included.",
       "features": [
+        "Everything in Essential",
+        "60 AI conversations per month included",
         "Up to 10 professionals",
         "Up to 3 locations",
-        "60 AI conversations per month (24/7 automated support)",
-        "Inbox for WhatsApp, Instagram, Messenger and website",
-        "Patient follow-up pipeline (CRM)",
-        "Facebook and Instagram ads connection",
-        "Card payment links (Stripe) and treatment proposals",
-        "All specialty modules",
-        "Financial and marketing reports"
+        "30 GB for patient files",
+        "Extra AI packages whenever you need"
       ]
     },
     "rede": {
       "name": "Network",
       "description": "For clinics with multiple locations and networks.",
       "features": [
+        "Everything in Clinic",
+        "150 AI conversations per month included",
         "Unlimited professionals",
         "Unlimited locations",
-        "150 AI conversations per month",
-        "1 WhatsApp number included (extra numbers R$229/month)",
-        "200 GB for patient files",
-        "Everything in the Clinic plan"
+        "200 GB for patient files"
       ]
     }
   },

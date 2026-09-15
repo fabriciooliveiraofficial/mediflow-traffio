@@ -215,9 +215,15 @@ export const CrmLeads: React.FC = () => {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wide bg-emerald-100 text-emerald-700">
-                                                {t('leads.activeBadge')}
-                                            </span>
+                                            {patient.status === 'active' ? (
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wide bg-emerald-100 text-emerald-700">
+                                                    {t('leads.activeBadge')}
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wide bg-amber-100 text-amber-700">
+                                                    {t('leads.pendingBadge')}
+                                                </span>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-2">

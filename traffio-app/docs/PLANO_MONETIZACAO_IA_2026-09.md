@@ -45,6 +45,27 @@ confirmar), infra rateada R$ 20–54.
 Pacotes (créditos não expiram): 50 → R$ 199 · 150 → R$ 549 · 500 → R$ 1.790.
 Anual = 1 mês grátis (11/12). O desconto de 20% foi abolido.
 
+## 3b. Auditoria de custo marginal (15/09/2026) — o que diferencia os planos
+
+Decisão: os planos **não bloqueiam recursos de software**. Só entra como
+diferença o que tem custo real para a plataforma.
+
+| Recurso | Custo marginal | Tratamento |
+|---|---|---|
+| Caixa de entrada, mídia, WhatsApp oficial (Cloud API repassada) | zero | incluso em todos |
+| CRM, anúncios da Meta, relatório de anúncios, retorno automático | zero | incluso em todos |
+| Links de pagamento (Stripe do cliente), propostas, relatório financeiro | zero | incluso em todos |
+| Lista de espera, visualizador de imagens, módulos de especialidade | zero | incluso em todos |
+| Conversas de IA | R$ 0,61 média / R$ 1,55 teto | 0 / 60 / 150 + pacotes |
+| Número de WhatsApp (instância Z-API) | R$ 100/mês | 1 incluso, extra R$ 229 |
+| Armazenamento | ~R$ 0,12/GB/mês | 5 / 30 / 200 GB |
+| Profissionais / unidades | zero (escada de tamanho) | 2/10/∞ e 1/3/∞ |
+
+Incluir tudo no Essencial não altera a margem (39% normal e estresse), porque
+esses recursos não custam nada. Fonte: `src/config/planComparison.ts`,
+`src/config/planConfig.ts`, tabela `plans.features` (migração
+`20260915120000_plans_features_all_included.sql`).
+
 ## 4. Salvaguardas
 
 1. Gate de orçamento antes de qualquer chamada de IA (`_shared/aiBudget.ts`).

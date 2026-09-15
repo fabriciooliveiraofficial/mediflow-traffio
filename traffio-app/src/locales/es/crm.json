@@ -38,6 +38,7 @@
     "empty": "No se encontró ningún paciente.",
     "noVisits": "Sin visitas",
     "activeBadge": "Activo",
+    "pendingBadge": "Esperando confirmación",
     "editTitle": "Editar",
     "deleteTitle": "Eliminar",
     "detailsTitle": "Detalles",

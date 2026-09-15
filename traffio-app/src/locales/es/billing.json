@@ -2,44 +2,40 @@
   "plans": {
     "essencial": {
       "name": "Esencial",
-      "description": "Para consultorios con hasta 2 profesionales de la salud.",
+      "description": "Para consultorios con hasta 2 profesionales. Plataforma completa; IA por paquete.",
       "features": [
-        "Hasta 2 profesionales",
-        "1 sucursal",
-        "Agenda inteligente con portal de reservas online",
-        "Expediente clínico electrónico completo",
-        "Recordatorios automáticos por WhatsApp",
-        "Confirmación y NPS automáticos",
-        "1 módulo de especialidad",
+        "Plataforma completa: agenda, bandeja de entrada, expediente, CRM y cobros",
+        "Hasta 2 profesionales en 1 sede",
+        "Bandeja: WhatsApp, Instagram, Messenger y chat del sitio",
+        "Recordatorios, confirmación y encuesta de satisfacción automáticos",
+        "Todos los módulos de especialidad",
+        "Anuncios de Meta, links de pago e informes",
         "IA de atención por paquete adicional (desde R$ 199)",
+        "5 GB para archivos de pacientes",
         "Soporte por correo electrónico"
       ]
     },
     "clinica": {
       "name": "Clínica",
-      "description": "Para clínicas con hasta 10 profesionales que quieren automatizar la atención.",
+      "description": "Para clínicas con hasta 10 profesionales, con la IA de atención incluida.",
       "features": [
+        "Todo lo del Esencial",
+        "60 conversaciones de IA al mes incluidas",
         "Hasta 10 profesionales",
         "Hasta 3 sedes",
-        "60 conversaciones de IA al mes (atención automática 24 h)",
-        "Bandeja para WhatsApp, Instagram, Messenger y sitio web",
-        "Embudo de seguimiento de pacientes (CRM)",
-        "Conexión con anuncios de Facebook e Instagram",
-        "Links de pago con tarjeta (Stripe) y propuestas de tratamiento",
-        "Todos los módulos de especialidad",
-        "Informes financiero y de marketing"
+        "30 GB para archivos de pacientes",
+        "Paquetes extra de IA cuando lo necesites"
       ]
     },
     "rede": {
       "name": "Red",
       "description": "Para clínicas con varias sedes y redes.",
       "features": [
+        "Todo lo del Clínica",
+        "150 conversaciones de IA al mes incluidas",
         "Profesionales ilimitados",
         "Sedes ilimitadas",
-        "150 conversaciones de IA al mes",
-        "1 número de WhatsApp incluido (adicionales a R$ 229/mes)",
-        "200 GB para archivos de pacientes",
-        "Todo lo del plan Clínica"
+        "200 GB para archivos de pacientes"
       ]
     }
   },

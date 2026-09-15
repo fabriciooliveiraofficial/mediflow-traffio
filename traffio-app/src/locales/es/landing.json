@@ -10,7 +10,7 @@
     "badge": "Para consultorios y clínicas de salud",
     "titleLine1": "Ningún paciente sin respuesta,",
     "titleHighlight": "incluso fuera del horario",
-    "subtitle": "La IA de Traffio responde en WhatsApp, Instagram, Messenger y el chat de tu sitio, agenda la cita en tu agenda y llama a tu equipo cuando hace falta una persona. Agenda, recordatorios, expediente y cobros en la misma plataforma.",
+    "subtitle": "La IA de Mediflow • Traffio responde en WhatsApp, Instagram, Messenger y el chat de tu sitio, agenda la cita en tu agenda y llama a tu equipo cuando hace falta una persona. Agenda, recordatorios, expediente y cobros en la misma plataforma.",
     "ctaPrimary": "Prueba gratis 14 días",
     "ctaSecondary": "Ver funciones",
     "trustData": "Sin permanencia",
@@ -20,7 +20,7 @@
     "floatingAiValue": "24 horas al día",
     "floatingReminderLabel": "Recordatorios de citas",
     "floatingReminderValue": "Automáticos por WhatsApp",
-    "imageAlt": "Profesional de la salud usando la plataforma Traffio"
+    "imageAlt": "Profesional de la salud usando la plataforma Mediflow • Traffio"
   },
   "features": {
     "badge": "Funciones",
@@ -151,7 +151,7 @@
     "linkPricing": "Planes",
     "companyHeading": "Empresa",
     "linkContact": "Contacto",
-    "copyright": "© 2026 Traffio. Todos los derechos reservados.",
+    "copyright": "© 2026 Mediflow • Traffio. Todos los derechos reservados.",
     "privacy": "Privacidad",
     "terms": "Términos de Uso"
   },
@@ -176,25 +176,25 @@
     "profiles": {
       "essencial": {
         "title": "Consultorio con hasta 2 profesionales",
-        "desc": "Para quien atiende solo o en pareja y quiere la agenda llena y organizada, sin depender todo el tiempo de una recepcionista.",
+        "desc": "Para quien atiende solo o en pareja. Toda la plataforma incluida: agenda, bandeja de entrada, expediente, CRM y cobros. La IA de atención la activas cuando quieras, por paquete.",
         "bullets": [
-          "Agenda en línea: el paciente reserva solo, 24 h",
-          "Recordatorios automáticos por WhatsApp para reducir ausencias",
-          "Expediente electrónico y recetas digitales",
-          "1 módulo de especialidad a elección"
+          "Plataforma completa, sin funciones bloqueadas",
+          "Hasta 2 profesionales en 1 sede",
+          "Recordatorios y confirmaciones automáticas por WhatsApp",
+          "IA de atención por paquete, cuando quieras"
         ],
-        "fit": "Indicado para consultorios con 1 o 2 profesionales de la salud, en una sola sede, que quieren organizar la agenda, reducir ausencias y tener el expediente digital. Las conversaciones con pacientes siguen en el WhatsApp del consultorio; la IA de atención se puede activar en cualquier momento comprando paquetes de conversaciones."
+        "fit": "Indicado para consultorios con 1 o 2 profesionales de la salud, en una sola sede. Incluye todas las funciones de la plataforma. Lo que cambia en los planes mayores es lo que tiene costo: conversaciones de IA incluidas, cantidad de profesionales y sedes, y espacio para archivos."
       },
       "clinica": {
         "title": "Clínica con equipo de hasta 10 profesionales",
-        "desc": "Para clínicas que reciben muchos contactos por WhatsApp y redes sociales y quieren que ningún paciente se quede sin respuesta.",
+        "desc": "Para clínicas con recepción y varios profesionales, que reciben muchos contactos y quieren la IA atendiendo desde el primer día.",
         "bullets": [
           "60 conversaciones de IA al mes incluidas",
-          "Bandeja única para WhatsApp, Instagram y Messenger",
-          "Embudo de seguimiento e integración con anuncios de Meta",
-          "Links de pago y todos los módulos de especialidad"
+          "Hasta 10 profesionales y 3 sedes",
+          "30 GB para archivos de pacientes",
+          "Todo lo que tiene el plan Esencial"
         ],
-        "fit": "Indicado para clínicas con recepción y varios profesionales, en hasta 3 sedes, que invierten en anuncios y necesitan responder rápido, acompañar a cada paciente hasta que agende y cobrar en línea."
+        "fit": "Indicado para clínicas con recepción y varios profesionales, en hasta 3 sedes, que reciben muchos contactos por WhatsApp y redes sociales: la IA ya viene incluida para responder y agendar, y el equipo atiende el resto en la misma bandeja."
       },
       "rede": {
         "title": "Clínicas con varias sedes",
@@ -223,13 +223,13 @@
       "aiExplainIncluded": "La IA responde a tus pacientes en WhatsApp, Instagram, Messenger y el chat de tu sitio a cualquier hora, resuelve dudas con la información de tu clínica y agenda la cita directamente en tu agenda. Cada paciente atendido por la IA cuenta como 1 conversación. Este plan incluye {{count}} conversaciones al mes; si necesitas más, compras paquetes extra que no vencen.",
       "aiExplainPack": "Este plan no incluye conversaciones de IA, pero puedes activar la IA cuando quieras comprando paquetes: {{units}} conversaciones por {{price}}, sin vencimiento. La IA responde a tus pacientes en WhatsApp, Instagram, Messenger y el chat de tu sitio, resuelve dudas y agenda citas sola.",
       "aiExplainSafety": "Sin sorpresas en la factura: cuando se acaban las conversaciones del mes, la IA se pausa y los mensajes nuevos van a tu equipo. Ningún paciente se queda sin respuesta y no se cobra nada que no compres.",
+      "includedTitle": "Lo que incluye el plan {{plan}}",
       "gainsTitle": "Lo que ganas frente al plan {{plan}}",
-      "missingTitle": "Lo que no incluye (disponible en {{plan}})",
+      "missingTitle": "Funciones exclusivas del plan {{plan}}",
       "seePlan": "Ver plan {{plan}}",
       "tableTitle": "Comparación completa",
       "tableSubtitle": "Todas las funciones, con una explicación sencilla de lo que cada una hace por tu clínica o consultorio.",
-      "footnote": "Todos los planes incluyen 1 número de WhatsApp; cada número adicional cuesta {{price}}/mes. Los SMS y las llamadas se cobran por uso, con créditos prepagos.",
-      "orWithPack": "o con paquete de IA"
+      "footnote": "Todos los planes incluyen 1 número de WhatsApp; cada número adicional cuesta {{price}}/mes. Los SMS y las llamadas se cobran por uso, con créditos prepagos."
     }
   },
   "compare": {
@@ -251,7 +251,6 @@
       "support": "Soporte y gestión"
     },
     "values": {
-      "aiPack": "Por paquete",
       "ai60": "60 al mes",
       "ai150": "150 al mes",
       "withPack": "Con paquete",
@@ -262,7 +261,6 @@
       "upTo3": "Hasta 3",
       "oneNumber": "1 incluido",
       "payPerUse": "Pago por uso",
-      "oneModule": "1 a elección",
       "allModules": "Todos",
       "gb5": "5 GB",
       "gb30": "30 GB",

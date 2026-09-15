@@ -10,7 +10,7 @@
     "badge": "For healthcare practices and clinics",
     "titleLine1": "No patient left unanswered,",
     "titleHighlight": "even after hours",
-    "subtitle": "Traffio’s AI replies on WhatsApp, Instagram, Messenger and your website chat, books the appointment into your schedule and calls your team when a person is needed. Scheduling, reminders, records and payments on the same platform.",
+    "subtitle": "Mediflow • Traffio’s AI replies on WhatsApp, Instagram, Messenger and your website chat, books the appointment into your schedule and calls your team when a person is needed. Scheduling, reminders, records and payments on the same platform.",
     "ctaPrimary": "Try free for 14 days",
     "ctaSecondary": "See features",
     "trustData": "No commitment",
@@ -20,7 +20,7 @@
     "floatingAiValue": "24 hours a day",
     "floatingReminderLabel": "Appointment reminders",
     "floatingReminderValue": "Automatic on WhatsApp",
-    "imageAlt": "Healthcare professional using the Traffio platform"
+    "imageAlt": "Healthcare professional using the Mediflow • Traffio platform"
   },
   "features": {
     "badge": "Features",
@@ -151,7 +151,7 @@
     "linkPricing": "Pricing",
     "companyHeading": "Company",
     "linkContact": "Contact",
-    "copyright": "© 2026 Traffio. All rights reserved.",
+    "copyright": "© 2026 Mediflow • Traffio. All rights reserved.",
     "privacy": "Privacy",
     "terms": "Terms of Use"
   },
@@ -176,25 +176,25 @@
     "profiles": {
       "essencial": {
         "title": "Practice with up to 2 professionals",
-        "desc": "For professionals who work alone or in pairs and want a full, organized schedule without relying on a receptionist all the time.",
+        "desc": "For professionals working alone or in pairs. The whole platform is included: scheduling, inbox, records, CRM and payments. Turn on AI patient support whenever you want, by package.",
         "bullets": [
-          "Online booking: patients book on their own, 24/7",
-          "Automatic WhatsApp reminders to reduce no-shows",
-          "Electronic records and digital prescriptions",
-          "1 specialty module of your choice"
+          "Full platform, no locked features",
+          "Up to 2 professionals at 1 location",
+          "Automatic WhatsApp reminders and confirmations",
+          "AI patient support by package, whenever you want"
         ],
-        "fit": "Best for practices with 1 or 2 healthcare professionals at a single location that want an organized schedule, fewer no-shows and digital records. Patient conversations stay on the practice’s WhatsApp; AI patient support can be turned on anytime by buying conversation packages."
+        "fit": "Best for practices with 1 or 2 healthcare professionals at a single location. Includes every platform feature. What changes in the bigger plans is what has a real cost: included AI conversations, number of professionals and locations, and file storage."
       },
       "clinica": {
         "title": "Clinic with a team of up to 10 professionals",
-        "desc": "For clinics that get many contacts on WhatsApp and social media and want no patient left without an answer.",
+        "desc": "For clinics with a front desk and several professionals, that get many contacts and want the AI answering from day one.",
         "bullets": [
           "60 AI conversations per month included",
-          "One inbox for WhatsApp, Instagram and Messenger",
-          "Patient follow-up pipeline and Meta ads integration",
-          "Payment links and all specialty modules"
+          "Up to 10 professionals and 3 locations",
+          "30 GB for patient files",
+          "Everything in the Essential plan"
         ],
-        "fit": "Best for clinics with a front desk and several professionals, at up to 3 locations, that invest in ads and need to reply fast, follow each patient until they book, and take payments online."
+        "fit": "Best for clinics with a front desk and several professionals, at up to 3 locations, that get many contacts on WhatsApp and social media: the AI comes included to reply and book, and the team handles the rest in the same inbox."
       },
       "rede": {
         "title": "Clinics with multiple locations",
@@ -223,13 +223,13 @@
       "aiExplainIncluded": "The AI answers your patients on WhatsApp, Instagram, Messenger and your website chat at any hour, answers questions based on your clinic’s information, and books the appointment straight into your schedule. Each patient handled by the AI counts as 1 conversation. This plan includes {{count}} conversations per month; if you need more, you can buy extra packages that never expire.",
       "aiExplainPack": "This plan doesn’t include AI conversations, but you can turn the AI on whenever you want by buying packages: {{units}} conversations for {{price}}, with no expiration. The AI answers your patients on WhatsApp, Instagram, Messenger and your website chat, answers questions and books appointments on its own.",
       "aiExplainSafety": "No billing surprises: when the month’s conversations run out, the AI pauses and new messages go to your team. No patient is left without an answer, and nothing is charged unless you buy it.",
+      "includedTitle": "What’s included in the {{plan}} plan",
       "gainsTitle": "What you get compared to {{plan}}",
-      "missingTitle": "What’s not included (available in {{plan}})",
+      "missingTitle": "Features exclusive to the {{plan}} plan",
       "seePlan": "See {{plan}} plan",
       "tableTitle": "Full comparison",
       "tableSubtitle": "Every feature, with a plain explanation of what it does for your clinic or practice.",
-      "footnote": "All plans include 1 WhatsApp number; each extra number costs {{price}}/month. SMS and calls are pay-per-use with prepaid credits.",
-      "orWithPack": "or with an AI package"
+      "footnote": "All plans include 1 WhatsApp number; each extra number costs {{price}}/month. SMS and calls are pay-per-use with prepaid credits."
     }
   },
   "compare": {
@@ -251,7 +251,6 @@
       "support": "Support and management"
     },
     "values": {
-      "aiPack": "In packages",
       "ai60": "60 per month",
       "ai150": "150 per month",
       "withPack": "With package",
@@ -262,7 +261,6 @@
       "upTo3": "Up to 3",
       "oneNumber": "1 included",
       "payPerUse": "Pay per use",
-      "oneModule": "1 of your choice",
       "allModules": "All",
       "gb5": "5 GB",
       "gb30": "30 GB",

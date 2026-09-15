@@ -2,44 +2,40 @@
   "plans": {
     "essencial": {
       "name": "Essencial",
-      "description": "Para consultórios com até 2 profissionais da saúde.",
+      "description": "Para consultórios com até 2 profissionais. Plataforma completa; IA por pacote.",
       "features": [
-        "Até 2 profissionais",
-        "1 unidade",
-        "Agenda inteligente com portal online",
-        "Prontuário eletrônico completo",
-        "Lembretes automáticos por WhatsApp",
-        "Confirmação e NPS automáticos",
-        "1 módulo de especialidade",
+        "Plataforma completa: agenda, caixa de entrada, prontuário, CRM e cobranças",
+        "Até 2 profissionais em 1 unidade",
+        "Caixa de entrada: WhatsApp, Instagram, Messenger e chat do site",
+        "Lembretes, confirmação e pesquisa de satisfação automáticos",
+        "Todos os módulos de especialidade",
+        "Anúncios da Meta, links de pagamento e relatórios",
         "IA de atendimento por pacote avulso (a partir de R$ 199)",
+        "5 GB para arquivos dos pacientes",
         "Suporte por e-mail"
       ]
     },
     "clinica": {
       "name": "Clínica",
-      "description": "Para clínicas com até 10 profissionais que querem automatizar o atendimento.",
+      "description": "Para clínicas com até 10 profissionais, com a IA de atendimento já incluída.",
       "features": [
+        "Tudo do Essencial",
+        "60 conversas de IA por mês incluídas",
         "Até 10 profissionais",
         "Até 3 unidades",
-        "60 conversas de IA por mês (atendimento automático 24h)",
-        "Caixa de entrada para WhatsApp, Instagram, Messenger e site",
-        "Funil de acompanhamento de pacientes (CRM)",
-        "Conexão com anúncios do Facebook e Instagram",
-        "Links de pagamento por cartão (Stripe) e propostas de tratamento",
-        "Todos os módulos de especialidade",
-        "Relatórios financeiro e de marketing"
+        "30 GB para arquivos dos pacientes",
+        "Pacotes extras de IA quando precisar"
       ]
     },
     "rede": {
       "name": "Rede",
       "description": "Para clínicas com várias unidades e redes.",
       "features": [
+        "Tudo do Clínica",
+        "150 conversas de IA por mês incluídas",
         "Profissionais ilimitados",
         "Unidades ilimitadas",
-        "150 conversas de IA por mês",
-        "1 número WhatsApp incluso (adicionais a R$ 229/mês)",
-        "200 GB para arquivos dos pacientes",
-        "Tudo o que o plano Clínica tem"
+        "200 GB para arquivos dos pacientes"
       ]
     }
   },

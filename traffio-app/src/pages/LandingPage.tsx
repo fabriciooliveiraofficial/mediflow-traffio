@@ -60,7 +60,7 @@ export const LandingPage = () => {
                         <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-yellow-500 text-[#0D1B2A] flex items-center justify-center shadow-lg shadow-amber-500/30">
                             <Sparkles size={18} strokeWidth={2.5} />
                         </span>
-                        <span className="text-xl font-black text-white tracking-tight">Traffio</span>
+                        <span className="text-xl font-black text-white tracking-tight">Mediflow • Traffio</span>
                     </a>
                     <nav className="hidden md:flex items-center gap-8 text-sm font-bold text-slate-300">
                         <a href="#features"  className="hover:text-amber-400 transition-colors cursor-pointer no-underline" style={{ color: 'inherit' }}>{t('nav.features')}</a>
@@ -545,7 +545,7 @@ export const LandingPage = () => {
                                     <Sparkles size={20} strokeWidth={2.5} />
                                 </span>
                                 <div>
-                                    <p className="text-xl font-black text-white leading-none">Traffio</p>
+                                    <p className="text-xl font-black text-white leading-none">Mediflow • Traffio</p>
                                     <p className="text-xs text-amber-400 font-bold tracking-wider">{t('footer.tagline')}</p>
                                 </div>
                             </div>

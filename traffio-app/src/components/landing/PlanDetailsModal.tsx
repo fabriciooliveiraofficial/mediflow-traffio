@@ -5,7 +5,7 @@ import {
     PLANS, PLAN_ORDER, formatPrice, AI_PACKAGES, WHATSAPP_EXTRA_NUMBER_PRICE,
     type BillingCycle, type PlanId,
 } from '../../config/planConfig';
-import { planGains } from '../../config/planComparison';
+import { planIncluded, planGains, planExclusiveTo } from '../../config/planComparison';
 import { PlanComparisonTable } from './PlanComparisonTable';
 
 interface Props {
@@ -31,8 +31,14 @@ export function PlanDetailsModal({ planId, billingCycle, onChangePlan, onClose, 
     const index = PLAN_ORDER.indexOf(planId);
     const previous = index > 0 ? PLAN_ORDER[index - 1] : null;
     const next = index < PLAN_ORDER.length - 1 ? PLAN_ORDER[index + 1] : null;
-    const gainsOverPrevious = previous ? planGains(previous, planId) : [];
-    const missingVsNext = next ? planGains(planId, next) : [];
+    // Sem plano anterior (Essencial), não há "ganho" a calcular — mostra o que
+    // o plano JÁ inclui. Sem isso, o plano de entrada só exibia a caixa de
+    // "recursos exclusivos dos planos maiores" e parecia não ter nada incluso.
+    const includedGroups = previous ? planGains(previous, planId) : planIncluded(planId);
+    // 'pack' nunca entra aqui (ver planExclusiveTo): quem pode comprar um
+    // pacote de IA não está "sem" o recurso, isso já é explicado no bloco de
+    // IA acima — listar de novo como "de fora" soaria contraditório.
+    const exclusiveGroups = next ? planExclusiveTo(planId, next) : [];
     const smallestPack = AI_PACKAGES[0];
 
     // Esc fecha; trava o scroll da página por trás; foco inicial no diálogo
@@ -164,43 +170,63 @@ export function PlanDetailsModal({ planId, billingCycle, onChangePlan, onClose, 
                         <p className="text-xs text-graphite-500 font-medium leading-relaxed mt-3">{t('guide.modal.aiExplainSafety')}</p>
                     </div>
 
-                    {/* Ganha x fica de fora */}
-                    {(gainsOverPrevious.length > 0 || missingVsNext.length > 0) && (
-                        <div className={`grid grid-cols-1 ${gainsOverPrevious.length > 0 && missingVsNext.length > 0 ? 'md:grid-cols-2' : ''} gap-6`}>
-                            {previous && gainsOverPrevious.length > 0 && (
+                    {/* Incluso x exclusivo de planos maiores */}
+                    {(includedGroups.length > 0 || exclusiveGroups.length > 0) && (
+                        <div className={`grid grid-cols-1 ${includedGroups.length > 0 && exclusiveGroups.length > 0 ? 'md:grid-cols-2' : ''} gap-6`}>
+                            {includedGroups.length > 0 && (
                                 <div className="border border-emerald-100 bg-emerald-50/40 rounded-2xl p-6">
                                     <h3 className="text-sm font-black text-graphite-900 mb-4">
-                                        {t('guide.modal.gainsTitle', { plan: t(`plans.${previous}.name`, { ns: 'billing' }) })}
+                                        {previous
+                                            ? t('guide.modal.gainsTitle', { plan: t(`plans.${previous}.name`, { ns: 'billing' }) })
+                                            : t('guide.modal.includedTitle', { plan: t(`plans.${planId}.name`, { ns: 'billing' }) })}
                                     </h3>
-                                    <ul className="space-y-2.5">
-                                        {gainsOverPrevious.map(r => (
-                                            <li key={r.key} className="flex items-start gap-2.5 text-sm text-graphite-700 font-medium">
-                                                <Check size={16} className="text-emerald-500 shrink-0 mt-0.5" />
-                                                {t(`compare.rows.${r.key}.label`)}
-                                            </li>
+                                    <div className="space-y-4">
+                                        {includedGroups.map(g => (
+                                            <div key={g.sectionKey}>
+                                                <p className="text-[10px] font-black text-emerald-700/70 uppercase tracking-widest mb-1.5">
+                                                    {t(`compare.sections.${g.sectionKey}`)}
+                                                </p>
+                                                <ul className="space-y-2">
+                                                    {g.rows.map(r => (
+                                                        <li key={r.key} className="flex items-start gap-2.5 text-sm text-graphite-700 font-medium">
+                                                            <Check size={15} className="text-emerald-500 shrink-0 mt-0.5" />
+                                                            <span>
+                                                                {t(`compare.rows.${r.key}.label`)}
+                                                                {/* Valor descritivo (ex.: "Até 2", "5 GB") — sem ele, o limite some da lista */}
+                                                                {typeof r.values[planId] === 'object' && (
+                                                                    <span className="text-graphite-400"> · {t(`compare.values.${(r.values[planId] as { text: string }).text}`)}</span>
+                                                                )}
+                                                            </span>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
                                         ))}
-                                    </ul>
+                                    </div>
                                 </div>
                             )}
-                            {next && missingVsNext.length > 0 && (
+                            {next && exclusiveGroups.length > 0 && (
                                 <div className="border border-ice-100 bg-ice-50/60 rounded-2xl p-6">
                                     <h3 className="text-sm font-black text-graphite-900 mb-4">
                                         {t('guide.modal.missingTitle', { plan: t(`plans.${next}.name`, { ns: 'billing' }) })}
                                     </h3>
-                                    <ul className="space-y-2.5">
-                                        {missingVsNext.map(r => (
-                                            <li key={r.key} className="flex items-start gap-2.5 text-sm text-graphite-600 font-medium">
-                                                <Plus size={16} className="text-graphite-400 shrink-0 mt-0.5" />
-                                                <span>
-                                                    {t(`compare.rows.${r.key}.label`)}
-                                                    {/* Recurso de IA que este plano libera comprando pacote */}
-                                                    {r.values[planId] === 'pack' && (
-                                                        <span className="ml-1.5 text-[11px] font-black text-amber-700 whitespace-nowrap">· {t('guide.modal.orWithPack')}</span>
-                                                    )}
-                                                </span>
-                                            </li>
+                                    <div className="space-y-4">
+                                        {exclusiveGroups.map(g => (
+                                            <div key={g.sectionKey}>
+                                                <p className="text-[10px] font-black text-graphite-400 uppercase tracking-widest mb-1.5">
+                                                    {t(`compare.sections.${g.sectionKey}`)}
+                                                </p>
+                                                <ul className="space-y-2">
+                                                    {g.rows.map(r => (
+                                                        <li key={r.key} className="flex items-start gap-2.5 text-sm text-graphite-600 font-medium">
+                                                            <Plus size={15} className="text-graphite-400 shrink-0 mt-0.5" />
+                                                            {t(`compare.rows.${r.key}.label`)}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
                                         ))}
-                                    </ul>
+                                    </div>
                                     <button onClick={() => onChangePlan(next)}
                                         className="mt-5 text-sm font-black text-amber-700 hover:text-amber-800 bg-transparent border-none cursor-pointer p-0 flex items-center gap-1">
                                         {t('guide.modal.seePlan', { plan: t(`plans.${next}.name`, { ns: 'billing' }) })} <ArrowRight size={14} />

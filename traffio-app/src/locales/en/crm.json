@@ -38,6 +38,7 @@
     "empty": "No patient found.",
     "noVisits": "No visits",
     "activeBadge": "Active",
+    "pendingBadge": "Awaiting confirmation",
     "editTitle": "Edit",
     "deleteTitle": "Delete",
     "detailsTitle": "Details",
