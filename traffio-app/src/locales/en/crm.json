@@ -122,7 +122,8 @@
     "toasts": {
       "moveError": "Could not move the card."
     },
-    "periodLabel": "Period"
+    "periodLabel": "Period",
+    "timeInStage": "{{time}} in this stage"
   },
   "performanceStats": {
     "kpis": {
@@ -542,6 +543,75 @@
       "messageSent": "Message queued.",
       "messageDelayed": "Outside the clinic's sending hours ({{start}}–{{end}}). The message goes out at {{time}} (clinic time).",
       "messageError": "Could not send the message."
+    },
+    "emptyFiltered": "Nobody in {{stage}} right now",
+    "bulk": {
+      "selectOne": "Select {{name}}",
+      "selectGroup": "Select all",
+      "unselectGroup": "Unselect all",
+      "selected": "{{count}} selected",
+      "limit": "up to {{max}} at a time",
+      "working": "Applying…",
+      "message": "Send message",
+      "snooze": "Snooze 24 h",
+      "done": "Resolve",
+      "archive": "Archive",
+      "clear": "Clear selection",
+      "recipients": "To {{count}} contact(s) — the same message to each",
+      "result": "{{action}}: {{ok}} of {{total}} done.",
+      "archiveTitle": "Archive {{count}} contact(s)?",
+      "archiveBody": "They leave the Today list and go to the Archived column of the Funnel, with the reason \"No response\". Each history is kept.",
+      "archiveConfirm": "Archive {{count}}"
+    },
+    "cleanup": {
+      "message": "{{count}} contacts with no conversation for more than {{days}} days.",
+      "hint": "They take up room in the list. Review and archive the ones that won't come back — nothing is archived until you confirm.",
+      "dismiss": "Not now",
+      "select": "Select {{count}} to review"
     }
+  },
+  "automations": {
+    "open": "Automations",
+    "title": "Follow-up automations",
+    "close": "Close",
+    "subtitle": "Turn on only what makes sense for your clinic. Changes apply right away.",
+    "sections": {
+      "team": "Reminders for the team",
+      "patient": "Messages to the patient"
+    },
+    "rules": {
+      "newLead": {
+        "before": "If a new contact goes",
+        "after": "without a reply, show it in \"Later today\""
+      },
+      "cameNoProposal": {
+        "before": "If the patient came in and has no proposal within",
+        "after": ", remind the front desk"
+      },
+      "proposal": {
+        "before": "If a proposal goes",
+        "after": "without a reply, remind the team to follow up"
+      },
+      "recovery": "If the patient misses the appointment, send a reschedule invite right away, 2 days and 7 days later",
+      "recall": {
+        "before": "Invite for a return visit",
+        "after": "after the last visit"
+      }
+    },
+    "units": {
+      "hours": "hours",
+      "days": "days"
+    },
+    "hints": {
+      "internal": "Only shows in the team's list. No message is sent to the patient.",
+      "recovery": "Stops on its own when the patient replies, books or pays. Texts live in Notifications.",
+      "recall": "Texts and channel live in Notifications. Never mentions price."
+    },
+    "alsoInNotifications": "also in Notifications",
+    "readOnly": "Only the clinic owner or an admin can change automations.",
+    "onlyOwner": "Only the clinic owner or an admin can change automations.",
+    "saved": "Automation updated.",
+    "invalidNumber": "Use a number between {{min}} and {{max}}.",
+    "footer": "Reminder changes adjust contacts already in the list; manual snoozes don't change."
   }
 }

@@ -122,7 +122,8 @@
     "toasts": {
       "moveError": "No se pudo mover la tarjeta."
     },
-    "periodLabel": "Período"
+    "periodLabel": "Período",
+    "timeInStage": "hace {{time}} en esta etapa"
   },
   "performanceStats": {
     "kpis": {
@@ -542,6 +543,75 @@
       "messageSent": "Mensaje en cola de envío.",
       "messageDelayed": "Fuera del horario de envío de la clínica ({{start}}–{{end}}). El mensaje sale a las {{time}} (hora de la clínica).",
       "messageError": "No fue posible enviar el mensaje."
+    },
+    "emptyFiltered": "Nadie en {{stage}} ahora",
+    "bulk": {
+      "selectOne": "Seleccionar {{name}}",
+      "selectGroup": "Seleccionar todos",
+      "unselectGroup": "Desmarcar todos",
+      "selected": "{{count}} seleccionado(s)",
+      "limit": "hasta {{max}} por vez",
+      "working": "Aplicando…",
+      "message": "Enviar mensaje",
+      "snooze": "Posponer 24 h",
+      "done": "Resolver",
+      "archive": "Archivar",
+      "clear": "Limpiar selección",
+      "recipients": "Para {{count}} contacto(s) — el mismo mensaje para cada uno",
+      "result": "{{action}}: {{ok}} de {{total}} completado(s).",
+      "archiveTitle": "¿Archivar {{count}} contacto(s)?",
+      "archiveBody": "Salen de la lista Hoy y van a la columna Archivado del Embudo, con el motivo \"Sin respuesta\". Se conserva el historial de cada uno.",
+      "archiveConfirm": "Archivar {{count}}"
+    },
+    "cleanup": {
+      "message": "{{count}} contactos sin ninguna conversación hace más de {{days}} días.",
+      "hint": "Ocupan espacio en la lista. Revise y archive los que no volverán — nada se archiva sin su confirmación.",
+      "dismiss": "Ahora no",
+      "select": "Seleccionar {{count}} para revisar"
     }
+  },
+  "automations": {
+    "open": "Automatizaciones",
+    "title": "Automatizaciones del Follow-up",
+    "close": "Cerrar",
+    "subtitle": "Active solo lo que tiene sentido para su clínica. Los cambios valen al instante.",
+    "sections": {
+      "team": "Recordatorios para el equipo",
+      "patient": "Mensajes para el paciente"
+    },
+    "rules": {
+      "newLead": {
+        "before": "Si un contacto nuevo pasa",
+        "after": "sin respuesta, mostrarlo en \"Más tarde hoy\""
+      },
+      "cameNoProposal": {
+        "before": "Si el paciente vino y no tiene presupuesto en",
+        "after": ", recordar a recepción"
+      },
+      "proposal": {
+        "before": "Si un presupuesto pasa",
+        "after": "sin respuesta, recordar al equipo retomarlo"
+      },
+      "recovery": "Si el paciente falta, enviar invitación para reprogramar al momento, 2 días y 7 días después",
+      "recall": {
+        "before": "Invitar al retorno",
+        "after": "después de la última visita"
+      }
+    },
+    "units": {
+      "hours": "horas",
+      "days": "días"
+    },
+    "hints": {
+      "internal": "Solo aparece en la lista del equipo. No se envía ningún mensaje al paciente.",
+      "recovery": "Se detiene sola cuando el paciente responde, agenda o paga. Los textos están en Notificaciones.",
+      "recall": "Los textos y el canal están en Notificaciones. Nunca menciona precios."
+    },
+    "alsoInNotifications": "también en Notificaciones",
+    "readOnly": "Solo el dueño de la clínica o un administrador puede cambiar las automatizaciones.",
+    "onlyOwner": "Solo el dueño de la clínica o un administrador puede cambiar las automatizaciones.",
+    "saved": "Automatización actualizada.",
+    "invalidNumber": "Use un número entre {{min}} y {{max}}.",
+    "footer": "Los cambios en los recordatorios ajustan los contactos que ya están en la lista; los aplazamientos manuales no cambian."
   }
 }

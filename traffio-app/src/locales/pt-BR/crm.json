@@ -122,7 +122,8 @@
     "toasts": {
       "moveError": "Não foi possível mover o card."
     },
-    "periodLabel": "Período"
+    "periodLabel": "Período",
+    "timeInStage": "há {{time}} nesta etapa"
   },
   "performanceStats": {
     "kpis": {
@@ -542,6 +543,75 @@
       "messageSent": "Mensagem na fila de envio.",
       "messageDelayed": "Fora do horário de envio da clínica ({{start}}–{{end}}). A mensagem sai às {{time}} (horário da clínica).",
       "messageError": "Não foi possível enviar a mensagem."
+    },
+    "emptyFiltered": "Ninguém em {{stage}} agora",
+    "bulk": {
+      "selectOne": "Selecionar {{name}}",
+      "selectGroup": "Selecionar todos",
+      "unselectGroup": "Desmarcar todos",
+      "selected": "{{count}} selecionado(s)",
+      "limit": "até {{max}} por vez",
+      "working": "Aplicando…",
+      "message": "Enviar mensagem",
+      "snooze": "Adiar 24 h",
+      "done": "Resolver",
+      "archive": "Arquivar",
+      "clear": "Limpar seleção",
+      "recipients": "Para {{count}} contato(s) — a mesma mensagem para cada um",
+      "result": "{{action}}: {{ok}} de {{total}} concluído(s).",
+      "archiveTitle": "Arquivar {{count}} contato(s)?",
+      "archiveBody": "Eles saem da lista Hoje e vão para a coluna Arquivado do Funil, com o motivo \"Sem resposta\". O histórico de cada um é mantido.",
+      "archiveConfirm": "Arquivar {{count}}"
+    },
+    "cleanup": {
+      "message": "{{count}} contatos sem nenhuma conversa há mais de {{days}} dias.",
+      "hint": "Eles ocupam espaço na lista. Revise e arquive os que não vão voltar — nada é arquivado sem você confirmar.",
+      "dismiss": "Agora não",
+      "select": "Selecionar {{count}} para revisar"
     }
+  },
+  "automations": {
+    "open": "Automações",
+    "title": "Automações do Follow-up",
+    "close": "Fechar",
+    "subtitle": "Ligue só o que faz sentido para a sua clínica. As mudanças valem na hora.",
+    "sections": {
+      "team": "Lembretes para a equipe",
+      "patient": "Mensagens para o paciente"
+    },
+    "rules": {
+      "newLead": {
+        "before": "Se um contato novo ficar",
+        "after": "sem resposta, mostrar em \"Ainda hoje\""
+      },
+      "cameNoProposal": {
+        "before": "Se o paciente veio e não tiver orçamento em",
+        "after": ", lembrar a recepção"
+      },
+      "proposal": {
+        "before": "Se um orçamento ficar",
+        "after": "sem resposta, lembrar a equipe de retomar"
+      },
+      "recovery": "Se o paciente faltar, enviar convite para remarcar na hora, 2 dias e 7 dias depois",
+      "recall": {
+        "before": "Convidar para retorno",
+        "after": "após a última visita"
+      }
+    },
+    "units": {
+      "hours": "horas",
+      "days": "dias"
+    },
+    "hints": {
+      "internal": "Só aparece na lista da equipe. Nenhuma mensagem é enviada ao paciente.",
+      "recovery": "Para sozinha quando o paciente responde, agenda ou paga. Os textos ficam em Notificações.",
+      "recall": "Os textos e o canal ficam em Notificações. Nunca menciona preço."
+    },
+    "alsoInNotifications": "também em Notificações",
+    "readOnly": "Só o dono da clínica ou um administrador pode alterar as automações.",
+    "onlyOwner": "Só o dono da clínica ou um administrador pode alterar as automações.",
+    "saved": "Automação atualizada.",
+    "invalidNumber": "Use um número entre {{min}} e {{max}}.",
+    "footer": "Mudanças nos lembretes ajustam os contatos que já estão na lista; adiamentos feitos à mão não mudam."
   }
 }

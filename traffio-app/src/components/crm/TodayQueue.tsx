@@ -3,6 +3,7 @@ import { clsx } from 'clsx';
 import {
     MoreHorizontal, MessageSquare, Inbox, CalendarPlus, AlarmClock, Check,
     User, FileText, Loader2, Send, X, CheckCircle2, ChevronDown, AlertTriangle,
+    Archive, Sparkles,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
@@ -16,6 +17,10 @@ import {
 } from '../../lib/followUpToday';
 import type { CrmJourney } from '../../pages/FollowUpBoard';
 
+/** Contato parado há mais que isso (sem consulta marcada) entra no aviso de limpeza. */
+const STALE_DAYS = 30;
+const BULK_LIMIT = 50;
+
 export type JourneyChannel = 'whatsapp' | 'instagram' | 'facebook' | 'livechat' | 'sms' | 'phone' | 'walk_in';
 
 interface TodayQueueProps {
@@ -24,6 +29,7 @@ interface TodayQueueProps {
     stageFilter: CrmStageId | null;
     onClearFilter: () => void;
     displayName: (j: CrmJourney) => string;
+    hasRealName: (j: CrmJourney) => boolean;
     primaryChannel: (j: CrmJourney) => JourneyChannel;
     onOpenJourney: (j: CrmJourney) => void;
     onOpenConversation: (j: CrmJourney) => void;
@@ -33,7 +39,7 @@ interface TodayQueueProps {
     onRefresh: () => void;
 }
 
-const CHANNEL_DOT: Record<JourneyChannel, string> = {
+export const CHANNEL_DOT: Record<JourneyChannel, string> = {
     whatsapp: 'bg-emerald-500',
     instagram: 'bg-pink-500',
     facebook: 'bg-blue-600',
@@ -64,7 +70,7 @@ function initials(name: string): string {
  * espera e um único botão com texto; o resto fica no menu "⋯".
  */
 export function TodayQueue({
-    journeys, activity, stageFilter, onClearFilter, displayName, primaryChannel,
+    journeys, activity, stageFilter, onClearFilter, displayName, hasRealName, primaryChannel,
     onOpenJourney, onOpenConversation, onBook, onProposal, onPatch, onRefresh,
 }: TodayQueueProps) {
     const { t } = useTranslation('crm');
@@ -78,6 +84,11 @@ export function TodayQueue({
     const [sending, setSending] = useState(false);
     const [busyId, setBusyId] = useState<string | null>(null);
     const [justHandled, setJustHandled] = useState<string | null>(null);
+    const [selected, setSelected] = useState<Set<string>>(new Set());
+    const [bulkMessage, setBulkMessage] = useState(false);
+    const [archiveConfirm, setArchiveConfirm] = useState(false);
+    const [bulkBusy, setBulkBusy] = useState(false);
+    const [cleanupDismissed, setCleanupDismissed] = useState(false);
 
     const nowMs = Date.now();
 
@@ -94,6 +105,71 @@ export function TodayQueue({
         // nowMs muda a cada render; recalcular só quando os dados mudam é suficiente
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [journeys, activity, stageFilter]);
+
+    // Aviso de limpeza: contatos sem nenhuma conversa há 30+ dias e sem consulta marcada.
+    // Só sugere — nada é arquivado sem confirmação (decisão aprovada em 15/09/2026).
+    const staleIds = useMemo(() => {
+        const limit = Date.now() - STALE_DAYS * 86_400_000;
+        return journeys
+            .filter(j => ['new_lead', 'in_contact', 'recall_due'].includes(j.stage_id))
+            .filter(j => !j.next_appointment_at || new Date(j.next_appointment_at).getTime() < Date.now())
+            .filter(j => new Date(activity[j.id]?.lastAt || j.last_event_at).getTime() < limit)
+            .map(j => j.id);
+    }, [journeys, activity]);
+
+    // Seleção só vale para contatos visíveis (some quando saem da lista)
+    useEffect(() => {
+        const visible = new Set(journeys.map(j => j.id));
+        setSelected(prev => {
+            const next = new Set([...prev].filter(id => visible.has(id)));
+            return next.size === prev.size ? prev : next;
+        });
+    }, [journeys]);
+
+    const toggleSelect = (id: string) => setSelected(prev => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id); else next.add(id);
+        return next;
+    });
+
+    const selectMany = (ids: string[]) => setSelected(prev => {
+        const all = ids.every(id => prev.has(id));
+        const next = new Set(prev);
+        ids.forEach(id => (all ? next.delete(id) : next.add(id)));
+        return next;
+    });
+
+    const selectedJourneys = journeys.filter(j => selected.has(j.id)).slice(0, BULK_LIMIT);
+    const anySelected = selected.size > 0;
+
+    const runBulk = async (label: string, fn: (j: CrmJourney) => Promise<{ error: any }>) => {
+        setBulkBusy(true);
+        let ok = 0;
+        for (const j of selectedJourneys) {
+            const { error } = await fn(j);
+            if (!error) ok++;
+        }
+        setBulkBusy(false);
+        setSelected(new Set());
+        onRefresh();
+        showToast(ok === selectedJourneys.length ? 'success' : 'warning',
+            t('today.bulk.result', { action: label, ok, total: selectedJourneys.length }));
+    };
+
+    const bulkSnooze = () => {
+        const nextAt = new Date(Date.now() + 24 * 3600_000).toISOString();
+        return runBulk(t('today.bulk.snooze'), async (j) =>
+            supabase.from('crm_journeys').update({ needs_action: false, next_action_at: nextAt }).eq('id', j.id));
+    };
+
+    const bulkDone = () => runBulk(t('today.bulk.done'), async (j) =>
+        supabase.from('crm_journeys').update({ needs_action: false, next_action_at: null }).eq('id', j.id));
+
+    const bulkArchive = async () => {
+        setArchiveConfirm(false);
+        await runBulk(t('today.bulk.archive'), async (j) =>
+            supabase.rpc('crm_move_stage', { p_journey_id: j.id, p_to_stage: 'lost', p_actor: 'user', p_reason: 'no_response' }));
+    };
 
     const flash = (id: string) => {
         setJustHandled(id);
@@ -120,6 +196,15 @@ export function TodayQueue({
     };
 
     const handleSend = async () => {
+        if (bulkMessage) {
+            if (!msgText.trim()) return;
+            const text = msgText.trim();
+            setBulkMessage(false);
+            setMsgText('');
+            await runBulk(t('today.bulk.message'), async (j) =>
+                supabase.rpc('crm_send_manual_message', { p_journey_id: j.id, p_message: text }));
+            return;
+        }
         if (!msgModal || !msgText.trim()) return;
         setSending(true);
         try {
@@ -179,7 +264,9 @@ export function TodayQueue({
     const snippetFor = (j: CrmJourney): string | null => {
         const a = activity[j.id];
         if (!a?.lastType) return null;
-        if (a.lastPreview && ['message_received', 'message_sent'].includes(a.lastType)) return `“${a.lastPreview}”`;
+        if (a.lastPreview && ['message_received', 'message_sent'].includes(a.lastType)) {
+            return `“${a.lastPreview.trim().replace(/^["“”']+|["“”']+$/g, '')}”`;
+        }
         const label = t(`today.lastEvent.${a.lastType}`, { defaultValue: '' });
         if (!label) return null;
         return a.lastPreview ? `${label} · ${a.lastPreview}` : label;
@@ -193,7 +280,7 @@ export function TodayQueue({
         const ActionIcon = ACTION_ICON[c.action];
         const snippet = snippetFor(j);
         const busy = busyId === j.id;
-        const ini = initials(name);
+        const ini = hasRealName(j) ? initials(name) : '';
 
         return (
             <li
@@ -206,7 +293,21 @@ export function TodayQueue({
                         : 'border-ice-100',
                 )}
             >
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-3 p-4">
+                <div className="group flex flex-wrap items-center gap-x-4 gap-y-3 p-4">
+                    <label
+                        className={clsx(
+                            'shrink-0 flex items-center justify-center w-6 h-6 -ml-1 cursor-pointer transition-opacity',
+                            anySelected || selected.has(j.id) ? 'opacity-100' : 'opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus-within:opacity-100',
+                        )}
+                    >
+                        <input
+                            type="checkbox"
+                            checked={selected.has(j.id)}
+                            onChange={() => toggleSelect(j.id)}
+                            aria-label={t('today.bulk.selectOne', { name })}
+                            className="w-4 h-4 rounded accent-brand-primary cursor-pointer"
+                        />
+                    </label>
                     <button
                         type="button"
                         onClick={() => onOpenJourney(j)}
@@ -230,8 +331,8 @@ export function TodayQueue({
                                 )}
                             </span>
                             {snippet && <span className="text-[13px] text-graphite-500 truncate">{snippet}</span>}
-                            <span className="flex items-center gap-2 text-xs font-bold min-w-0">
-                                <span className={clsx('truncate', c.group === 'now' ? 'text-accent-error' : c.group === 'today' ? 'text-accent-warning' : 'text-graphite-400')}>
+                            <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs font-bold min-w-0">
+                                <span className={clsx('sm:truncate', c.group === 'now' ? 'text-accent-error' : c.group === 'today' ? 'text-accent-warning' : 'text-graphite-400')}>
                                     {reasonText(c)}
                                 </span>
                                 <span className="text-graphite-300" aria-hidden="true">·</span>
@@ -272,17 +373,30 @@ export function TodayQueue({
         );
     };
 
-    const header = (group: TodayGroup, count: number) => (
-        <h3 className="flex items-center gap-2.5 text-xs font-black uppercase tracking-wider">
-            <span className={clsx('w-2 h-2 rounded-full',
-                group === 'now' ? 'bg-accent-error' : group === 'today' ? 'bg-accent-warning' : 'bg-graphite-300')} />
-            <span className={group === 'now' ? 'text-accent-error' : group === 'today' ? 'text-accent-warning' : 'text-graphite-400'}>
-                {t(`today.groups.${group}`)}
-            </span>
-            <span className="text-graphite-400 font-bold tabular-nums">{count}</span>
-            <span className="flex-1 h-px bg-ice-200" />
-        </h3>
-    );
+    const header = (group: TodayGroup, count: number) => {
+        const ids = groups[group].map(x => x.j.id);
+        const allOn = ids.length > 0 && ids.every(id => selected.has(id));
+        return (
+            <div className="flex items-center gap-2.5">
+                <h3 className="flex items-center gap-2.5 text-xs font-black uppercase tracking-wider m-0">
+                    <span className={clsx('w-2 h-2 rounded-full',
+                        group === 'now' ? 'bg-accent-error' : group === 'today' ? 'bg-accent-warning' : 'bg-graphite-300')} />
+                    <span className={group === 'now' ? 'text-accent-error' : group === 'today' ? 'text-accent-warning' : 'text-graphite-400'}>
+                        {t(`today.groups.${group}`)}
+                    </span>
+                    <span className="text-graphite-400 font-bold tabular-nums">{count}</span>
+                </h3>
+                <span className="flex-1 h-px bg-ice-200" />
+                <button
+                    type="button"
+                    onClick={() => selectMany(ids)}
+                    className="text-[11px] font-bold text-graphite-500 hover:text-brand-primary bg-transparent border-none cursor-pointer"
+                >
+                    {allOn ? t('today.bulk.unselectGroup') : t('today.bulk.selectGroup')}
+                </button>
+            </div>
+        );
+    };
 
     return (
         <div className="flex flex-col gap-6">
@@ -295,8 +409,49 @@ export function TodayQueue({
                 </div>
             )}
 
+            {!cleanupDismissed && staleIds.length >= 3 && !stageFilter && (
+                <div className="flex flex-wrap items-center gap-3 p-4 rounded-2xl bg-accent-warning/10 border border-accent-warning/20">
+                    <Sparkles className="w-5 h-5 text-accent-warning shrink-0" />
+                    <p className="flex-1 basis-60 text-sm font-bold text-graphite-800 m-0">
+                        {t('today.cleanup.message', { count: staleIds.length, days: STALE_DAYS })}
+                        <span className="block text-xs font-medium text-graphite-500 mt-0.5">{t('today.cleanup.hint')}</span>
+                    </p>
+                    <div className="flex gap-2">
+                        <Button size="sm" variant="ghost" onClick={() => setCleanupDismissed(true)}>{t('today.cleanup.dismiss')}</Button>
+                        <Button size="sm" className="hover:scale-100" onClick={() => setSelected(new Set(staleIds.slice(0, BULK_LIMIT)))}>
+                            {t('today.cleanup.select', { count: Math.min(staleIds.length, BULK_LIMIT) })}
+                        </Button>
+                    </div>
+                </div>
+            )}
+
+            {anySelected && (
+                <div className="sticky top-0 z-20 flex flex-wrap items-center gap-2 p-3 rounded-2xl bg-graphite-900 text-white shadow-2xl">
+                    <span className="text-sm font-black px-2">
+                        {t('today.bulk.selected', { count: selected.size })}
+                        {selected.size > BULK_LIMIT && <span className="font-medium text-white/60"> · {t('today.bulk.limit', { max: BULK_LIMIT })}</span>}
+                    </span>
+                    <span className="flex-1" />
+                    {bulkBusy ? (
+                        <span className="flex items-center gap-2 text-sm font-bold px-3"><Loader2 className="w-4 h-4 animate-spin" /> {t('today.bulk.working')}</span>
+                    ) : (
+                        <>
+                            <button type="button" onClick={() => { setMsgText(''); setBulkMessage(true); }} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/20 border-none text-white cursor-pointer"><Send className="w-3.5 h-3.5" />{t('today.bulk.message')}</button>
+                            <button type="button" onClick={bulkSnooze} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/20 border-none text-white cursor-pointer"><AlarmClock className="w-3.5 h-3.5" />{t('today.bulk.snooze')}</button>
+                            <button type="button" onClick={bulkDone} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/20 border-none text-white cursor-pointer"><CheckCircle2 className="w-3.5 h-3.5" />{t('today.bulk.done')}</button>
+                            <button type="button" onClick={() => setArchiveConfirm(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-accent-error hover:bg-accent-error/90 border-none text-white cursor-pointer"><Archive className="w-3.5 h-3.5" />{t('today.bulk.archive')}</button>
+                            <button type="button" onClick={() => setSelected(new Set())} aria-label={t('today.bulk.clear')} className="flex items-center justify-center w-8 h-8 rounded-xl bg-transparent hover:bg-white/10 border-none text-white cursor-pointer"><X className="w-4 h-4" /></button>
+                        </>
+                    )}
+                </div>
+            )}
+
             {total === 0 ? (
-                <EmptyState icon={CheckCircle2} label={t('today.empty')} className="bg-white" />
+                <EmptyState
+                    icon={CheckCircle2}
+                    label={stageFilter ? t('today.emptyFiltered', { stage: t(`stages.${CRM_STAGE_LABEL_KEYS[stageFilter]}`) }) : t('today.empty')}
+                    className="bg-white"
+                />
             ) : (
                 <>
                     {groups.now.length === 0 && groups.today.length === 0 && (
@@ -344,15 +499,17 @@ export function TodayQueue({
                 </>
             )}
 
-            {msgModal && (
+            {(msgModal || bulkMessage) && (
                 <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true">
                     <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
                         <div className="p-6 border-b border-ice-100 flex items-center justify-between gap-3">
                             <div className="min-w-0">
                                 <h3 className="text-lg font-black text-graphite-900">{t('today.messageModal.title')}</h3>
-                                <p className="text-xs text-graphite-500 font-medium truncate">{displayName(msgModal)}</p>
+                                <p className="text-xs text-graphite-500 font-medium truncate">
+                                    {bulkMessage ? t('today.bulk.recipients', { count: selectedJourneys.length }) : msgModal && displayName(msgModal)}
+                                </p>
                             </div>
-                            <IconButton onClick={() => setMsgModal(null)} aria-label={t('today.messageModal.cancel')}><X className="w-5 h-5" /></IconButton>
+                            <IconButton onClick={() => { setMsgModal(null); setBulkMessage(false); }} aria-label={t('today.messageModal.cancel')}><X className="w-5 h-5" /></IconButton>
                         </div>
                         <div className="p-6">
                             <label htmlFor="today-quick-message" className="sr-only">{t('today.messageModal.title')}</label>
@@ -368,10 +525,26 @@ export function TodayQueue({
                             <p className="text-[11px] font-medium text-graphite-400 mt-2">{t('today.messageModal.hint')}</p>
                         </div>
                         <div className="p-6 bg-ice-50 rounded-b-3xl flex gap-3">
-                            <Button variant="ghost" className="flex-1" onClick={() => setMsgModal(null)}>{t('today.messageModal.cancel')}</Button>
+                            <Button variant="ghost" className="flex-1" onClick={() => { setMsgModal(null); setBulkMessage(false); }}>{t('today.messageModal.cancel')}</Button>
                             <Button className="flex-1" disabled={!msgText.trim() || sending} onClick={handleSend}>
                                 {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                                 {t('today.messageModal.send')}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {archiveConfirm && (
+                <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" role="alertdialog" aria-modal="true" aria-labelledby="archive-title">
+                    <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
+                        <div className="p-6 flex flex-col gap-2">
+                            <h3 id="archive-title" className="text-lg font-black text-graphite-900 m-0">{t('today.bulk.archiveTitle', { count: selectedJourneys.length })}</h3>
+                            <p className="text-sm text-graphite-500 m-0">{t('today.bulk.archiveBody')}</p>
+                        </div>
+                        <div className="p-6 bg-ice-50 rounded-b-3xl flex gap-3">
+                            <Button variant="ghost" className="flex-1" onClick={() => setArchiveConfirm(false)}>{t('today.messageModal.cancel')}</Button>
+                            <Button variant="danger" className="flex-1 hover:scale-100" onClick={bulkArchive}>
+                                <Archive className="w-4 h-4" /> {t('today.bulk.archiveConfirm', { count: selectedJourneys.length })}
                             </Button>
                         </div>
                     </div>

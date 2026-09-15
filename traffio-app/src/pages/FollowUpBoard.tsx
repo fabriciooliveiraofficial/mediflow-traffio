@@ -5,11 +5,9 @@ import {
   User, Loader2,
   DollarSign,
   Search, TrendingUp, Activity, Save, X, Clock, AlertTriangle,
-  ListTodo, Columns3,
+  ListTodo, Columns3, Zap,
 } from 'lucide-react';
 import { clsx } from 'clsx';
-import { formatPhone } from '../lib/formatPhone';
-import type { CountryCode } from '../lib/i18n/countryFormats';
 import { useTenant } from '../contexts/TenantContext';
 import { useLocaleFormat } from '../hooks/useLocaleFormat';
 import { useFollowUpMetrics } from '../hooks/useFollowUpMetrics';
@@ -22,7 +20,8 @@ import {
 import { useTranslation } from 'react-i18next';
 import { Badge, Button, IconButton, EmptyState, PageHeader } from '../components/ui';
 import { FollowUpTimelineDrawer } from '../components/crm/FollowUpTimelineDrawer';
-import { TodayQueue, type JourneyChannel } from '../components/crm/TodayQueue';
+import { TodayQueue, CHANNEL_DOT, type JourneyChannel } from '../components/crm/TodayQueue';
+import { FollowUpAutomationsPanel } from '../components/crm/FollowUpAutomationsPanel';
 import { FunnelStrip } from '../components/crm/FunnelStrip';
 import { LostReasonModal } from '../components/crm/LostReasonModal';
 import { classifyJourney, shortElapsed, type JourneyActivity } from '../lib/followUpToday';
@@ -86,6 +85,7 @@ export function FollowUpBoard() {
   const [search, setSearch] = useState('');
   const [stageFilter, setStageFilter] = useState<CrmStageId | null>(null);
   const [activity, setActivity] = useState<Record<string, JourneyActivity>>({});
+  const [automationsOpen, setAutomationsOpen] = useState(false);
 
   const setView = (v: FollowUpView) => {
     setViewState(v);
@@ -153,22 +153,19 @@ export function FollowUpBoard() {
   // Resolução de nome em cascata (padrão identity resolution):
   // cadastro do paciente → nome real capturado em qualquer identidade de canal
   // → platform_display_name da sessão → context legado → genérico (último recurso)
-  const displayName = (j: CrmJourney) => {
+  // Nome de verdade (cadastro, identidade de canal ou perfil); null quando não há
+  const realName = (j: CrmJourney): string | null => {
     if (j.patients?.full_name) return j.patients.full_name;
-
     const identityName = (j.crm_journey_identities || []).find(i => i.display_name)?.display_name;
     if (identityName) return identityName;
     if (j.conversation_sessions?.platform_display_name) return j.conversation_sessions.platform_display_name;
+    const ctx = j.conversation_sessions?.context;
+    return ctx?.visitor_name || ctx?.username || ctx?.name || null;
+  };
 
-    const channel = j.conversation_sessions?.channel;
-    if (channel && ['instagram', 'facebook', 'livechat'].includes(channel)) {
-      const ctx = j.conversation_sessions?.context;
-      return ctx?.visitor_name || ctx?.username || ctx?.name || (
-        channel === 'instagram' ? t('followUp.channelFallback.instagram')
-          : channel === 'facebook' ? t('followUp.channelFallback.facebook')
-          : t('followUp.channelFallback.web')
-      );
-    }
+  const displayName = (j: CrmJourney) => {
+    const name = realName(j);
+    if (name) return name;
     // Sem nome: "Contato do WhatsApp · final 7006" em vez do número cru
     const phone = j.lead_phone || j.patients?.phone || j.conversation_sessions?.patient_phone || '';
     const digits = phone.replace(/\D/g, '');
@@ -187,27 +184,6 @@ export function FollowUpBoard() {
     const identity = (j.crm_journey_identities || [])[0]?.channel;
     if (identity) return identity as JourneyChannel;
     return j.origin === 'walk_in' ? 'walk_in' : 'whatsapp';
-  };
-
-  // Subtítulo: telefone quando houver; senão o rótulo do canal principal
-  const displaySubtitle = (j: CrmJourney) => {
-    const phoneIdentity = (j.crm_journey_identities || []).find(i => i.channel === 'whatsapp' || i.channel === 'sms' || i.channel === 'phone');
-    const phone = j.patients?.phone || phoneIdentity?.identifier
-      || (j.conversation_sessions?.channel === 'whatsapp' || !j.conversation_sessions?.channel ? j.lead_phone : null);
-    if (phone) return formatPhone(phone, tenant?.country as CountryCode);
-
-    const channel = j.conversation_sessions?.channel;
-    if (channel === 'instagram') return t('followUp.channelLabel.instagram', { username: j.conversation_sessions?.context?.username || t('followUp.directFallback') });
-    if (channel === 'facebook') return t('followUp.channelLabel.facebook');
-    if (channel === 'livechat') return t('followUp.channelLabel.livechat');
-    return formatPhone(j.lead_phone || '', tenant?.country as CountryCode);
-  };
-
-  // Canais conectados ao card (deduplica por canal para os chips)
-  const journeyChannels = (j: CrmJourney): string[] => {
-    const set = new Set<string>((j.crm_journey_identities || []).map(i => i.channel));
-    if (j.conversation_sessions?.channel) set.add(j.conversation_sessions.channel);
-    return [...set];
   };
 
   // Busca unificada: nome resolvido, telefone e identidades de qualquer canal
@@ -427,6 +403,11 @@ export function FollowUpBoard() {
           title={t('followUp.title')}
           subtitle={t('followUp.subtitle')}
           actions={
+            <div className="flex flex-wrap items-center gap-2">
+            <Button variant="ghost" onClick={() => setAutomationsOpen(true)}>
+              <Zap className="w-4 h-4" />
+              {t('automations.open')}
+            </Button>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-graphite-400" />
               <label htmlFor="followup-search" className="sr-only">{t('followUp.searchPlaceholder')}</label>
@@ -438,6 +419,7 @@ export function FollowUpBoard() {
                 placeholder={t('followUp.searchPlaceholder')}
                 className="w-64 max-w-full bg-ice-50 border border-ice-100 rounded-2xl pl-9 pr-3 py-2.5 text-sm font-medium focus:ring-2 focus:ring-brand-primary focus:border-transparent outline-none transition-all"
               />
+            </div>
             </div>
           }
         />
@@ -501,6 +483,7 @@ export function FollowUpBoard() {
             stageFilter={stageFilter}
             onClearFilter={() => setStageFilter(null)}
             displayName={displayName}
+            hasRealName={(j) => !!realName(j)}
             primaryChannel={primaryChannel}
             onOpenJourney={setSelectedJourney}
             onOpenConversation={openConversation}
@@ -548,55 +531,40 @@ export function FollowUpBoard() {
                       onDragStart={(e) => handleDragStart(e, j.id)}
                       onDragEnd={handleDragEnd}
                       onClick={() => setSelectedJourney(j)}
-                      className="group bg-white p-4 rounded-2xl shadow-float border border-ice-100 cursor-grab active:cursor-grabbing hover:border-brand-primary/40 hover:-translate-y-0.5 transition-all duration-300 animate-in fade-in slide-in-from-bottom-2"
+                      className="bg-white p-4 rounded-2xl shadow-sm border border-ice-100 cursor-grab active:cursor-grabbing hover:border-brand-primary/40 transition-colors"
                     >
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shrink-0 shadow-inner group-hover:scale-110 transition-transform duration-300">
-                            <User className="w-5 h-5 text-white" />
+                      {(() => {
+                        const act = activity[j.id];
+                        const snippet = act?.lastPreview && ['message_received', 'message_sent'].includes(act.lastType || '')
+                          ? `“${act.lastPreview.trim().replace(/^["“”']+|["“”']+$/g, '')}”`
+                          : j.procedure_name;
+                        const name = displayName(j);
+                        return (
+                          <div className="flex flex-col gap-2.5">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <span className="relative shrink-0 w-9 h-9 rounded-full bg-ice-100 flex items-center justify-center">
+                                <User className="w-4 h-4 text-graphite-400" />
+                                <span className={clsx('absolute -right-0.5 -bottom-0.5 w-3 h-3 rounded-full border-2 border-white', CHANNEL_DOT[primaryChannel(j)])} />
+                              </span>
+                              <p className="text-sm font-black text-graphite-900 truncate m-0">{name}</p>
+                            </div>
+                            {snippet && <p className="text-xs text-graphite-500 line-clamp-2 m-0">{snippet}</p>}
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {j.revenue_estimated > 0 && (
+                                <Badge accent="success" size="sm"><DollarSign className="w-3 h-3" />{j.revenue_estimated.toLocaleString('pt-BR')}</Badge>
+                              )}
+                              {j.next_appointment_status === 'confirmed' && <Badge accent="success" size="sm">{t('today.badges.confirmed')}</Badge>}
+                              {j.no_show_count > 0 && (
+                                <Badge accent="error" size="sm"><AlertTriangle className="w-3 h-3" />{t('today.badges.noShows', { count: j.no_show_count })}</Badge>
+                              )}
+                              <span className="ml-auto flex items-center gap-1 text-[11px] font-bold text-graphite-400">
+                                <Clock className="w-3 h-3" />
+                                {t('followUp.timeInStage', { time: shortElapsed(j.stage_entered_at, Date.now()) })}
+                              </span>
+                            </div>
                           </div>
-                          <div className="overflow-hidden">
-                            <p className="text-xs font-black text-graphite-900 truncate tracking-tight">{displayName(j)}</p>
-                            <p className="text-[10px] text-graphite-400 font-bold uppercase tracking-widest mt-0.5">{displaySubtitle(j)}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {(() => {
-                          const channels = journeyChannels(j);
-                          // Chips de canal: sempre para canais sociais; WhatsApp só
-                          // quando o card tem mais de um canal conectado (evita ruído)
-                          return channels
-                            .filter(c => channels.length > 1 || !['whatsapp', 'phone', 'sms'].includes(c))
-                            .map(c => (
-                              <Badge key={c} accent="info" size="sm">{t(`followUp.channelChip.${c}`, { defaultValue: c })}</Badge>
-                            ));
-                        })()}
-                        {j.revenue_estimated > 0 && (
-                          <Badge accent="success" size="sm"><DollarSign className="w-3 h-3" />R$ {j.revenue_estimated.toLocaleString('pt-BR')}</Badge>
-                        )}
-                        {j.procedure_name && <Badge accent="indigo" size="sm">{j.procedure_name}</Badge>}
-                        {j.appointments_count > 1 && (
-                          <Badge accent="neutral" size="sm">{t('followUp.appointmentsBadge', { count: j.appointments_count })}</Badge>
-                        )}
-                        {j.next_appointment_status === 'confirmed' && (
-                          <Badge accent="success" size="sm">Consulta Confirmada</Badge>
-                        )}
-                        {j.no_show_count > 0 && (
-                          <Badge accent="error" size="sm"><AlertTriangle className="w-3 h-3" />No-show ({j.no_show_count})</Badge>
-                        )}
-                        {j.origin === 'walk_in' && <Badge accent="purple" size="sm">{t('followUp.originBadge.walkIn')}</Badge>}
-                        {j.origin === 'recall' && <Badge accent="purple" size="sm">{t('followUp.originBadge.recall')}</Badge>}
-                      </div>
-
-                      <div className="flex items-center justify-between mt-5 pt-4 border-t border-ice-50">
-                        <div className="flex items-center gap-1.5">
-                          <Clock className="w-3 h-3 text-ice-200" />
-                          <span className="text-[9px] font-black text-graphite-400 uppercase tracking-widest">{t('followUp.firstContact')}</span>
-                        </div>
-                        <Badge accent="neutral" variant="tag" size="sm">{formatDateTime(j.created_at)}</Badge>
-                      </div>
+                        );
+                      })()}
                     </div>
                   ))}
 
@@ -655,6 +623,14 @@ export function FollowUpBoard() {
             </div>
           </div>
         </div>
+      )}
+
+      {automationsOpen && tenant?.id && (
+        <FollowUpAutomationsPanel
+          tenantId={tenant.id}
+          onClose={() => setAutomationsOpen(false)}
+          onSaved={() => { loadBoard(); refetchMetrics(); }}
+        />
       )}
 
       {/* Lost Reason Modal */}
