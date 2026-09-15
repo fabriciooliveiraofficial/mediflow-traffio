@@ -52,7 +52,6 @@
       "close": "Fechar",
       "save": "Salvar",
       "reschedule": "Reagendar",
-      "receivePayment": "Receber Pagamento",
       "deleteAppointment": "Excluir Agendamento"
     },
     "confirmDelete": {
@@ -105,11 +104,8 @@
     "syncingAgendas": "Sincronizando agendas...",
     "confirmAppointment": "Confirmar Agendamento",
     "successTitle": "Agendado com Sucesso!",
-    "successText": "O horário foi reservado. Agora você pode enviar o link de pagamento para o paciente confirmar.",
-    "paymentLinkLabel": "Link de Pagamento Gerado",
-    "copyMessage": "Copiar Mensagem",
+    "successText": "O horário foi reservado na agenda.",
     "close": "Fechar",
-    "clipboardMessage": "Olá {{name}}, aqui está o seu link para confirmação do agendamento: {{link}}",
     "errors": {
       "slotTaken": "Este horário já foi preenchido por outro atendente. Por favor, escolha outro horário.",
       "unknown": "Erro desconhecido ao realizar agendamento.",
@@ -200,14 +196,12 @@
     },
     "successTitle": "Agendado com Sucesso!",
     "successSubtitle": "O link de pagamento já está pronto.",
-    "paymentLinkLabel": "Link de Pagamento (Asaas)",
     "backToService": "Voltar para o Atendimento",
     "confirmAppointment": "Confirmar Agendamento",
     "professionalFallback": "Profissional",
     "toasts": {
       "skippingToDate": "Pulando para {{date}}",
       "noOtherSlotsAvailable": "Nenhum outro horário disponível nos próximos dias.",
-      "linkCopied": "Link copiado para a área de transferência",
       "rescheduleCompleted": "Reagendamento concluído!",
       "bookingCompleted": "Agendamento realizado!"
     },
@@ -282,38 +276,6 @@
       "checkin": "Olá {{name}}! 😊 Aqui está o link para a sua sala de espera virtual da consulta do dia {{date}}: {{link}}",
       "reminder": "Olá {{name}}! 😊 Lembrando da sua consulta com {{doctor}} no dia {{date}} às {{time}}. Nos vemos lá! 💙",
       "paymentLink": "Olá {{name}}! 😊 Aqui está o seu link para pagamento/confirmação da consulta: {{link}}"
-    }
-  },
-  "checkoutModal": {
-    "title": "Receber Pagamento",
-    "patientLabel": "Paciente:",
-    "amountToReceiveLabel": "Valor a Receber",
-    "creditCard": {
-      "title": "Cartão de Crédito",
-      "subtitle": "Até 21x Parcelado"
-    },
-    "financing": {
-      "title": "Financiamento",
-      "subtitle": "Até 24x sem Cartão"
-    },
-    "installmentsLabel": "Número de Parcelas",
-    "installmentValue": "{{count}}x de {{amount}}",
-    "generatePaymentLink": "Gerar Link de Pagamento",
-    "sendDrCashStudy": "Enviar Estudo Dr. Cash",
-    "operationStarted": "Operação Iniciada!",
-    "successCreditCard": "Aguardando o paciente processar o pagamento no cartão via link.",
-    "successFinancing": "O paciente recebeu o link da proposta no celular para análise de crédito.",
-    "closeWindow": "Fechar Janela",
-    "securityBadge": {
-      "environment": "Ambiente Seguro PCI-DSS",
-      "encryption": "Criptografia SSL"
-    },
-    "toasts": {
-      "financingSent": "Proposta de financiamento enviada com sucesso!",
-      "checkoutStarted": "Checkout Pagar.me iniciado!"
-    },
-    "errors": {
-      "paymentFailed": "Erro ao processar pagamento."
     }
   },
   "waitlistDrawer": {

@@ -126,17 +126,45 @@
     },
     "method": {
       "title": "Como você quer fornecer as informações?",
-      "url": { "title": "Colar link do site", "description": "Buscamos o texto público do site com segurança." },
-      "text": { "title": "Colar texto", "description": "Use conteúdo copiado do Instagram, documentos ou anotações." },
-      "file": { "title": "Enviar arquivo (.txt/.md)", "description": "O arquivo é lido localmente e enviado como texto." },
-      "interview": { "title": "Entrevista guiada", "description": "Responda um campo vazio de cada vez, em seu ritmo." }
+      "url": {
+        "title": "Colar link do site",
+        "description": "Buscamos o texto público do site com segurança."
+      },
+      "text": {
+        "title": "Colar texto",
+        "description": "Use conteúdo copiado do Instagram, documentos ou anotações."
+      },
+      "file": {
+        "title": "Enviar arquivo (.txt/.md)",
+        "description": "O arquivo é lido localmente e enviado como texto."
+      },
+      "interview": {
+        "title": "Entrevista guiada",
+        "description": "Responda um campo vazio de cada vez, em seu ritmo."
+      }
     },
     "input": {
-      "url": { "title": "Link do site", "description": "Informe uma página pública da clínica. Sites internos e arquivos não são aceitos." },
-      "pasted_text": { "title": "Texto da clínica", "description": "Cole somente o conteúdo que deseja analisar.", "placeholder": "Cole aqui horários, endereço, políticas e outras informações..." },
-      "file": { "title": "Arquivo de texto", "description": "Formatos aceitos: .txt e .md.", "select": "Selecionar arquivo", "hint": ".txt ou .md, até 300 KB" }
+      "url": {
+        "title": "Link do site",
+        "description": "Informe uma página pública da clínica. Sites internos e arquivos não são aceitos."
+      },
+      "pasted_text": {
+        "title": "Texto da clínica",
+        "description": "Cole somente o conteúdo que deseja analisar.",
+        "placeholder": "Cole aqui horários, endereço, políticas e outras informações..."
+      },
+      "file": {
+        "title": "Arquivo de texto",
+        "description": "Formatos aceitos: .txt e .md.",
+        "select": "Selecionar arquivo",
+        "hint": ".txt ou .md, até 300 KB"
+      }
     },
-    "clarity": { "high": "Alta clareza", "medium": "Revisar", "low": "Baixa clareza" },
+    "clarity": {
+      "high": "Alta clareza",
+      "medium": "Revisar",
+      "low": "Baixa clareza"
+    },
     "review": {
       "title": "Revise antes de aprovar",
       "description": "Confira e edite cada valor. Somente itens aprovados entram no conhecimento ativo.",
@@ -175,7 +203,10 @@
     "subtitle": "Dúvidas reais que o agente não conseguiu responder. Transforme-as em conhecimento permanente.",
     "loadError": "Não foi possível carregar as perguntas sem resposta.",
     "retry": "Tentar novamente",
-    "empty": { "title": "Nenhuma lacuna — seu agente está bem informado", "description": "Novas dúvidas factuais aparecerão aqui automaticamente." },
+    "empty": {
+      "title": "Nenhuma lacuna — seu agente está bem informado",
+      "description": "Novas dúvidas factuais aparecerão aqui automaticamente."
+    },
     "meta": "{{count}} ocorrência(s) · última em {{date}}",
     "factLabel": "Onde salvar esta resposta",
     "newFaq": "Novo fato livre (FAQ)",
@@ -184,7 +215,12 @@
     "dismiss": "Dispensar",
     "cancel": "Cancelar",
     "save": "Salvar resposta",
-    "toasts": { "answered": "Resposta adicionada ao conhecimento do agente.", "dismissed": "Pergunta dispensada.", "saveError": "Não foi possível salvar a resposta.", "dismissError": "Não foi possível dispensar a pergunta." }
+    "toasts": {
+      "answered": "Resposta adicionada ao conhecimento do agente.",
+      "dismissed": "Pergunta dispensada.",
+      "saveError": "Não foi possível salvar a resposta.",
+      "dismissError": "Não foi possível dispensar a pergunta."
+    }
   },
   "header": {
     "title": "Configurações",
@@ -280,7 +316,6 @@
     "brandColorSectionTitle": "Cor da Marca",
     "integrationsSectionTitle": "Integrações",
     "zapiInstanceLabel": "Z-API Instance ID",
-    "asaasApiKeyLabel": "Asaas API Key",
     "metaMessagingSectionTitle": "Mensagens — Instagram DM & Facebook Messenger",
     "metaConnecting": "Conectando...",
     "metaConnectPages": "Conectar Páginas",

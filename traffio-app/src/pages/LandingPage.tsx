@@ -2,130 +2,65 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
-    Activity, ShieldCheck, Zap, MessageCircle, ChevronRight, Globe,
-    BarChart3, Users, Check, X, Minus, Calendar, FileText,
-    CreditCard, TrendingUp, Smartphone, Building2, Stethoscope,
-    Brain, Leaf, Smile, Dumbbell, ArrowRight, Star, Clock,
-    Bell, Inbox, ScanLine, PieChart, Lock, BadgeCheck,
+    ShieldCheck, Zap, MessageCircle, ChevronRight, Globe,
+    Users, Check, Calendar, FileText,
+    CreditCard, TrendingUp, Smartphone, Building2,
+    ArrowRight, Sparkles,
+    Bell, PieChart, Lock, BadgeCheck, User,
 } from 'lucide-react';
-import { PLANS, PLAN_ORDER, formatPrice, type BillingCycle, type PlanId } from '../config/planConfig';
+import { PLANS, PLAN_ORDER, formatPrice, AI_PACKAGES, type BillingCycle, type PlanId } from '../config/planConfig';
+import { PlanComparisonTable } from '../components/landing/PlanComparisonTable';
+import { PlanDetailsModal } from '../components/landing/PlanDetailsModal';
+
+// Perfis da seção Soluções: por TAMANHO e rotina, nunca por especialidade —
+// um card "Médico Autônomo" fazia nutricionista/psicólogo/dentista achar que o
+// plano não servia para ele. Especialidades aparecem juntas, como universais.
+const PROFILE_ICONS: Record<PlanId, typeof User> = { essencial: User, clinica: Users, rede: Building2 };
+const SPECIALTY_KEYS = ['dentistry', 'medicine', 'nutrition', 'psychology', 'physio', 'speech', 'aesthetics', 'therapies'] as const;
+
+// t(..., { returnObjects: true }) devolve a própria chave (string) enquanto o
+// namespace não carregou ou se a chave faltar num idioma — .map direto nisso
+// derrubava a landing inteira no ErrorBoundary.
+const asList = (value: unknown): string[] => (Array.isArray(value) ? value : []);
 
 export const LandingPage = () => {
     const { t } = useTranslation(['landing', 'billing']);
     const navigate = useNavigate();
     const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
+    const [detailsPlan, setDetailsPlan] = useState<PlanId | null>(null);
 
-    const SOLUTIONS = [
-        {
-            icon: Stethoscope,
-            bg: 'bg-brand-primary/10', color: 'text-brand-primary',
-            title: t('solutions.medicoAutonomo.title'),
-            desc: t('solutions.medicoAutonomo.desc'),
-            features: [t('solutions.medicoAutonomo.feature1'), t('solutions.medicoAutonomo.feature2'), t('solutions.medicoAutonomo.feature3'), t('solutions.medicoAutonomo.feature4')],
-            plan: t('solutions.medicoAutonomo.plan'),
-        },
-        {
-            icon: Users,
-            bg: 'bg-indigo-50', color: 'text-indigo-500',
-            title: t('solutions.clinicaMedica.title'),
-            desc: t('solutions.clinicaMedica.desc'),
-            features: [t('solutions.clinicaMedica.feature1'), t('solutions.clinicaMedica.feature2'), t('solutions.clinicaMedica.feature3'), t('solutions.clinicaMedica.feature4')],
-            plan: t('solutions.clinicaMedica.plan'),
-        },
-        {
-            icon: Smile,
-            bg: 'bg-sky-50', color: 'text-sky-500',
-            title: t('solutions.odontologia.title'),
-            desc: t('solutions.odontologia.desc'),
-            features: [t('solutions.odontologia.feature1'), t('solutions.odontologia.feature2'), t('solutions.odontologia.feature3'), t('solutions.odontologia.feature4')],
-            plan: t('solutions.odontologia.plan'),
-        },
-        {
-            icon: Leaf,
-            bg: 'bg-emerald-50', color: 'text-emerald-600',
-            title: t('solutions.nutricao.title'),
-            desc: t('solutions.nutricao.desc'),
-            features: [t('solutions.nutricao.feature1'), t('solutions.nutricao.feature2'), t('solutions.nutricao.feature3'), t('solutions.nutricao.feature4')],
-            plan: t('solutions.nutricao.plan'),
-        },
-        {
-            icon: Brain,
-            bg: 'bg-violet-50', color: 'text-violet-500',
-            title: t('solutions.psicologia.title'),
-            desc: t('solutions.psicologia.desc'),
-            features: [t('solutions.psicologia.feature1'), t('solutions.psicologia.feature2'), t('solutions.psicologia.feature3'), t('solutions.psicologia.feature4')],
-            plan: t('solutions.psicologia.plan'),
-        },
-        {
-            icon: Building2,
-            bg: 'bg-amber-50', color: 'text-amber-500',
-            title: t('solutions.redes.title'),
-            desc: t('solutions.redes.desc'),
-            features: [t('solutions.redes.feature1'), t('solutions.redes.feature2'), t('solutions.redes.feature3'), t('solutions.redes.feature4')],
-            plan: t('solutions.redes.plan'),
-        },
-    ];
+    const startPlan = (id: PlanId) => {
+        if (id === 'rede') {
+            window.location.href = 'mailto:contato@traffio.com.br?subject=Plano Rede';
+            return;
+        }
+        navigate(`/register?plan=${id}&cycle=${billingCycle}`);
+    };
 
-    const COMPARISON_ROWS: CompRow[] = [
-        { type: 'header', label: t('pricing.comparison.sectionAgenda'), values: { essencial: null, clinica: null, rede: null } },
-        { type: 'row', label: t('pricing.comparison.rowAgendaDragDrop'), values: { essencial: true, clinica: true, rede: true } },
-        { type: 'row', label: t('pricing.comparison.rowOnlineBooking'), values: { essencial: true, clinica: true, rede: true } },
-        { type: 'row', label: t('pricing.comparison.rowCheckin'), values: { essencial: true, clinica: true, rede: true } },
-        { type: 'row', label: t('pricing.comparison.rowProfessionals'), values: { essencial: t('pricing.comparison.valUpTo2'), clinica: t('pricing.comparison.valUpTo10'), rede: t('pricing.comparison.valUnlimited') } },
-        { type: 'row', label: t('pricing.comparison.rowLocations'), values: { essencial: t('pricing.comparison.val1'), clinica: t('pricing.comparison.valUpTo3'), rede: t('pricing.comparison.valUnlimited') } },
-        { type: 'row', label: t('pricing.comparison.rowWaitlist'), values: { essencial: false, clinica: true, rede: true } },
-
-        { type: 'header', label: t('pricing.comparison.sectionProntuario'), values: { essencial: null, clinica: null, rede: null } },
-        { type: 'row', label: t('pricing.comparison.rowProntuarioCompleto'), values: { essencial: true, clinica: true, rede: true } },
-        { type: 'row', label: t('pricing.comparison.rowUploadExams'), values: { essencial: true, clinica: true, rede: true } },
-        { type: 'row', label: t('pricing.comparison.rowPrescriptions'), values: { essencial: true, clinica: true, rede: true } },
-        { type: 'row', label: t('pricing.comparison.rowAiTerms'), values: { essencial: false, clinica: true, rede: true } },
-        { type: 'row', label: t('pricing.comparison.rowStorage'), values: { essencial: t('pricing.comparison.val5gb'), clinica: t('pricing.comparison.val30gb'), rede: t('pricing.comparison.val200gb') } },
-
-        { type: 'header', label: t('pricing.comparison.sectionWhatsapp'), values: { essencial: null, clinica: null, rede: null } },
-        { type: 'row', label: t('pricing.comparison.rowWhatsappOwn'), values: { essencial: true, clinica: true, rede: true } },
-        { type: 'row', label: t('pricing.comparison.rowReminders'), values: { essencial: true, clinica: true, rede: true } },
-        { type: 'row', label: t('pricing.comparison.rowConfirmationNps'), values: { essencial: true, clinica: true, rede: true } },
-        { type: 'row', label: t('pricing.comparison.rowInbox'), values: { essencial: false, clinica: true, rede: true } },
-        { type: 'row', label: t('pricing.comparison.rowMedia'), values: { essencial: false, clinica: true, rede: true } },
-        { type: 'row', label: t('pricing.comparison.rowWhatsappNumbers'), values: { essencial: t('pricing.comparison.val1'), clinica: t('pricing.comparison.val1'), rede: t('pricing.comparison.val3') } },
-
-        { type: 'header', label: t('pricing.comparison.sectionCrm'), values: { essencial: null, clinica: null, rede: null } },
-        { type: 'row', label: t('pricing.comparison.rowPatientLeadMgmt'), values: { essencial: true, clinica: true, rede: true } },
-        { type: 'row', label: t('pricing.comparison.rowKanbanPipeline'), values: { essencial: false, clinica: true, rede: true } },
-        { type: 'row', label: t('pricing.comparison.rowAdsIntegration'), values: { essencial: false, clinica: true, rede: true } },
-        { type: 'row', label: t('pricing.comparison.rowRoasDashboard'), values: { essencial: false, clinica: true, rede: true } },
-
-        { type: 'header', label: t('pricing.comparison.sectionFinanceiro'), values: { essencial: null, clinica: null, rede: null } },
-        { type: 'row', label: t('pricing.comparison.rowManualBilling'), values: { essencial: true, clinica: true, rede: true } },
-        { type: 'row', label: t('pricing.comparison.rowAsaas'), values: { essencial: false, clinica: true, rede: true } },
-        { type: 'row', label: t('pricing.comparison.rowPagarme'), values: { essencial: false, clinica: true, rede: true } },
-        { type: 'row', label: t('pricing.comparison.rowDrCash'), values: { essencial: false, clinica: true, rede: true } },
-        { type: 'row', label: t('pricing.comparison.rowConsolidatedRevenue'), values: { essencial: false, clinica: false, rede: true } },
-
-        { type: 'header', label: t('pricing.comparison.sectionModules'), values: { essencial: null, clinica: null, rede: null } },
-        { type: 'row', label: t('pricing.comparison.rowModulesAvailable'), values: { essencial: t('pricing.comparison.val1modulo'), clinica: t('pricing.comparison.valAll'), rede: t('pricing.comparison.valAll') } },
-        { type: 'row', label: t('pricing.comparison.rowOdontogramaDicom'), values: { essencial: false, clinica: true, rede: true } },
-        { type: 'row', label: t('pricing.comparison.rowAnthropometric'), values: { essencial: false, clinica: true, rede: true } },
-
-        { type: 'header', label: t('pricing.comparison.sectionManagement'), values: { essencial: null, clinica: null, rede: null } },
-        { type: 'row', label: t('pricing.comparison.rowMasterDashboard'), values: { essencial: false, clinica: false, rede: true } },
-        { type: 'row', label: t('pricing.comparison.rowApiWebhooks'), values: { essencial: false, clinica: false, rede: true } },
-        { type: 'row', label: t('pricing.comparison.rowEmailSupport'), values: { essencial: true, clinica: true, rede: true } },
-        { type: 'row', label: t('pricing.comparison.rowChatSupport'), values: { essencial: false, clinica: true, rede: true } },
-        { type: 'row', label: t('pricing.comparison.rowOnboarding'), values: { essencial: false, clinica: false, rede: true } },
-        { type: 'row', label: t('pricing.comparison.rowSuccessManager'), values: { essencial: false, clinica: false, rede: true } },
-        { type: 'row', label: t('pricing.comparison.rowSlaUptime'), values: { essencial: false, clinica: false, rede: true } },
-    ];
 
     return (
         <div className="min-h-screen bg-white">
 
             {/* ── Nav ─────────────────────────────────────────────── */}
             <header className="fixed top-0 left-0 right-0 z-50 bg-[#0D1B2A]/95 backdrop-blur-md border-b border-white/5 shadow-lg shadow-black/20">
-                <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-                    <a href="#" className="flex items-center">
-                        <img src="/logo_dark.png" alt="Traffio Odonto Marketing" className="h-16 w-auto object-contain" />
+                {/* Celular: sem menu hambúrguer, os links de seção sumiam e não dava
+                    para chegar em Planos. Linha compacta só abaixo de md. */}
+                <nav className="md:hidden flex items-center justify-center gap-6 py-2 text-xs font-bold text-slate-300 border-b border-white/5">
+                    <a href="#features"  className="no-underline" style={{ color: 'inherit' }}>{t('nav.features')}</a>
+                    <a href="#solutions" className="no-underline" style={{ color: 'inherit' }}>{t('nav.solutions')}</a>
+                    <a href="#pricing"   className="no-underline" style={{ color: 'inherit' }}>{t('nav.pricing')}</a>
+                    <button onClick={() => navigate('/login')} className="bg-transparent border-none p-0 text-xs font-bold cursor-pointer" style={{ color: 'inherit' }}>{t('nav.login')}</button>
+                </nav>
+                <div className="max-w-7xl mx-auto px-6 h-16 md:h-20 flex items-center justify-between">
+                    {/* Marca em texto: o PNG do logo traz um dente dourado e "ODONTO •
+                        MARKETING" gravados na imagem — nicha em odontologia, contra a
+                        decisão de atender qualquer especialidade (15/09/2026). Até haver
+                        um logo novo, a landing usa este wordmark neutro. */}
+                    <a href="#" className="flex items-center gap-2.5 no-underline">
+                        <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-yellow-500 text-[#0D1B2A] flex items-center justify-center shadow-lg shadow-amber-500/30">
+                            <Sparkles size={18} strokeWidth={2.5} />
+                        </span>
+                        <span className="text-xl font-black text-white tracking-tight">Traffio</span>
                     </a>
                     <nav className="hidden md:flex items-center gap-8 text-sm font-bold text-slate-300">
                         <a href="#features"  className="hover:text-amber-400 transition-colors cursor-pointer no-underline" style={{ color: 'inherit' }}>{t('nav.features')}</a>
@@ -153,8 +88,10 @@ export const LandingPage = () => {
                             <Zap size={14} className="fill-amber-500" />
                             {t('hero.badge')}
                         </div>
-                        <h1 className="text-5xl md:text-7xl font-black text-graphite-900 leading-[1.1] tracking-tight">
-                            {t('hero.titleLine1')}<br className="hidden md:block" />
+                        <h1 className="text-4xl sm:text-5xl md:text-6xl font-black text-graphite-900 leading-[1.1] tracking-tight">
+                            {/* Espaço explícito: sem ele, no celular (onde o <br> some) as duas
+                                partes do título colavam ("prontuáriocom IA"). */}
+                            {t('hero.titleLine1')}{' '}<br className="hidden md:block" />
                             <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-yellow-400">
                                 {t('hero.titleHighlight')}
                             </span>
@@ -173,8 +110,8 @@ export const LandingPage = () => {
                                 {t('hero.ctaSecondary')}
                             </a>
                         </div>
-                        <div className="flex items-center gap-4 text-sm font-medium text-graphite-400 pt-4">
-                            <span className="flex items-center gap-1"><ShieldCheck size={16} className="text-emerald-500" /> {t('hero.trustLgpd')}</span>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm font-medium text-graphite-400 pt-4">
+                            <span className="flex items-center gap-1"><ShieldCheck size={16} className="text-emerald-500" /> {t('hero.trustData')}</span>
                             <span className="flex items-center gap-1"><Globe size={16} className="text-amber-500" /> {t('hero.trustCloud')}</span>
                             <span className="flex items-center gap-1"><BadgeCheck size={16} className="text-amber-500" /> {t('hero.trustTrial')}</span>
                         </div>
@@ -182,25 +119,27 @@ export const LandingPage = () => {
                     <div className="relative animate-in fade-in slide-in-from-right-8 duration-1000 delay-200">
                         <div className="absolute -inset-4 bg-gradient-to-tr from-brand-primary/20 to-brand-secondary/20 rounded-[40px] blur-3xl opacity-50" />
                         <img
-                            src="https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80"
+                            src="https://images.unsplash.com/photo-1631217868264-e5b90bb7e133?ixlib=rb-4.0.3&auto=format&fit=crop&w=1600&q=80"
                             alt={t('hero.imageAlt')}
                             className="relative rounded-[32px] shadow-2xl border-4 border-white transform rotate-2 hover:rotate-0 transition-transform duration-500"
                         />
-                        <div className="absolute -bottom-10 -left-10 bg-white p-5 rounded-2xl shadow-xl border border-ice-100 animate-bounce delay-700 duration-[3000ms]">
+                        {/* Selos descritivos de recurso — nunca números de resultado: a
+                            plataforma ainda não tem clientes, qualquer métrica seria inventada. */}
+                        <div className="absolute -bottom-8 left-2 sm:-left-10 bg-white p-5 rounded-2xl shadow-xl border border-ice-100">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-600"><BarChart3 size={20} /></div>
+                                <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center text-amber-600"><Sparkles size={20} /></div>
                                 <div>
-                                    <p className="text-xs font-bold text-graphite-400 uppercase">{t('hero.floatingBillingLabel')}</p>
-                                    <p className="text-xl font-black text-graphite-900">+127%</p>
+                                    <p className="text-xs font-bold text-graphite-400 uppercase">{t('hero.floatingAiLabel')}</p>
+                                    <p className="text-base font-black text-graphite-900">{t('hero.floatingAiValue')}</p>
                                 </div>
                             </div>
                         </div>
-                        <div className="absolute -top-6 -right-6 bg-white p-4 rounded-2xl shadow-xl border border-ice-100">
+                        <div className="absolute -top-6 right-2 sm:-right-6 bg-white p-4 rounded-2xl shadow-xl border border-ice-100">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-violet-100 rounded-xl flex items-center justify-center text-violet-600"><Bell size={20} /></div>
                                 <div>
-                                    <p className="text-xs font-bold text-graphite-400">{t('hero.floatingNoShowLabel')}</p>
-                                    <p className="text-sm font-black text-graphite-900">-62%</p>
+                                    <p className="text-xs font-bold text-graphite-400">{t('hero.floatingReminderLabel')}</p>
+                                    <p className="text-sm font-black text-graphite-900">{t('hero.floatingReminderValue')}</p>
                                 </div>
                             </div>
                         </div>
@@ -208,17 +147,20 @@ export const LandingPage = () => {
                 </div>
             </section>
 
-            {/* ── Stats Bar ─────────────────────────────────────────── */}
+            {/* ── Faixa de fatos do produto ─────────────────────────────
+                Só características verificáveis da plataforma. Métricas de resultado
+                (redução de faltas, faturamento) ficam fora até existirem clientes
+                reais medidos. */}
             <section className="py-12 bg-[#0D1B2A]">
                 <div className="max-w-7xl mx-auto px-6">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-                        {[
-                            { value: '-62%', label: t('stats.noShowLabel'), sub: t('stats.noShowSub') },
-                            { value: '+127%', label: t('stats.revenueLabel'), sub: t('stats.revenueSub') },
-                            { value: '3×', label: t('stats.conversionLabel'), sub: t('stats.conversionSub') },
-                            { value: '14 dias', label: t('stats.trialLabel'), sub: t('stats.trialSub') },
-                        ].map(s => (
-                            <div key={s.value}>
+                        {(['ai', 'channels', 'languages', 'trial'] as const).map(key => ({
+                            key,
+                            value: t(`facts.${key}.value`),
+                            label: t(`facts.${key}.label`),
+                            sub: t(`facts.${key}.sub`),
+                        })).map(s => (
+                            <div key={s.key}>
                                 <p className="text-4xl font-black text-amber-400 mb-1">{s.value}</p>
                                 <p className="text-sm font-black text-white">{s.label}</p>
                                 <p className="text-xs text-slate-400 font-medium mt-0.5">{s.sub}</p>
@@ -269,7 +211,28 @@ export const LandingPage = () => {
                         reverse={false}
                     />
 
-                    {/* Feature 2 — WhatsApp */}
+                    {/* Feature 2 — Atendimento com IA */}
+                    <FeatureBlock
+                        badge={t('features.ai.badge')}
+                        icon={Sparkles}
+                        iconBg="bg-amber-50"
+                        iconColor="text-amber-600"
+                        title={t('features.ai.title')}
+                        description={t('features.ai.description')}
+                        items={[
+                            t('features.ai.item1'),
+                            t('features.ai.item2'),
+                            t('features.ai.item3'),
+                            t('features.ai.item4'),
+                            t('features.ai.item5'),
+                            t('features.ai.item6'),
+                        ]}
+                        image="https://images.unsplash.com/photo-1512428559087-560fa5ceab42?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80"
+                        imageAlt={t('features.ai.imageAlt')}
+                        reverse={true}
+                    />
+
+                    {/* Feature 3 — Caixa de entrada e comunicação */}
                     <FeatureBlock
                         badge={t('features.whatsapp.badge')}
                         icon={MessageCircle}
@@ -287,10 +250,10 @@ export const LandingPage = () => {
                         ]}
                         image="https://images.unsplash.com/photo-1611746872915-64382b5c76da?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80"
                         imageAlt={t('features.whatsapp.imageAlt')}
-                        reverse={true}
+                        reverse={false}
                     />
 
-                    {/* Feature 3 — Prontuário */}
+                    {/* Feature 4 — Prontuário */}
                     <FeatureBlock
                         badge={t('features.prontuario.badge')}
                         icon={FileText}
@@ -306,12 +269,12 @@ export const LandingPage = () => {
                             t('features.prontuario.item5'),
                             t('features.prontuario.item6'),
                         ]}
-                        image="https://images.unsplash.com/photo-1584820927498-cfe5211fd8bf?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80"
+                        image="https://images.unsplash.com/photo-1666214280557-f1b5022eb634?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80"
                         imageAlt={t('features.prontuario.imageAlt')}
-                        reverse={false}
+                        reverse={true}
                     />
 
-                    {/* Feature 4 — Financeiro */}
+                    {/* Feature 5 — Financeiro */}
                     <FeatureBlock
                         badge={t('features.financeiro.badge')}
                         icon={CreditCard}
@@ -329,10 +292,10 @@ export const LandingPage = () => {
                         ]}
                         image="https://images.unsplash.com/photo-1563013544-824ae1b704d3?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80"
                         imageAlt={t('features.financeiro.imageAlt')}
-                        reverse={true}
+                        reverse={false}
                     />
 
-                    {/* Feature 5 — CRM + Marketing */}
+                    {/* Feature 6 — CRM + Marketing */}
                     <FeatureBlock
                         badge={t('features.crm.badge')}
                         icon={TrendingUp}
@@ -350,7 +313,7 @@ export const LandingPage = () => {
                         ]}
                         image="https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80"
                         imageAlt={t('features.crm.imageAlt')}
-                        reverse={false}
+                        reverse={true}
                     />
 
                     {/* Cards de recursos adicionais */}
@@ -358,10 +321,10 @@ export const LandingPage = () => {
                         <h3 className="text-2xl font-black text-graphite-900 text-center mb-10">{t('features.more.title')}</h3>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                             {[
-                                { icon: Smartphone, bg: 'bg-violet-50', color: 'text-violet-500', title: t('features.more.portal.title'), desc: t('features.more.portal.desc') },
-                                { icon: ScanLine,   bg: 'bg-sky-50',    color: 'text-sky-500',    title: t('features.more.dicom.title'), desc: t('features.more.dicom.desc') },
-                                { icon: PieChart,   bg: 'bg-emerald-50',color: 'text-emerald-600', title: t('features.more.reports.title'), desc: t('features.more.reports.desc') },
-                                { icon: Lock,       bg: 'bg-graphite-100', color: 'text-graphite-700', title: t('features.more.lgpd.title'), desc: t('features.more.lgpd.desc') },
+                                { icon: Smartphone,    bg: 'bg-violet-50',    color: 'text-violet-500',   title: t('features.more.portal.title'),  desc: t('features.more.portal.desc') },
+                                { icon: MessageCircle, bg: 'bg-sky-50',       color: 'text-sky-500',      title: t('features.more.sms.title'),     desc: t('features.more.sms.desc') },
+                                { icon: PieChart,      bg: 'bg-emerald-50',   color: 'text-emerald-600',  title: t('features.more.reports.title'), desc: t('features.more.reports.desc') },
+                                { icon: Lock,          bg: 'bg-graphite-100', color: 'text-graphite-700', title: t('features.more.security.title'), desc: t('features.more.security.desc') },
                             ].map(c => (
                                 <div key={c.title} className="bg-white border border-ice-100 rounded-[24px] p-7 hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
                                     <div className={`w-12 h-12 ${c.bg} ${c.color} rounded-xl flex items-center justify-center mb-4`}>
@@ -396,48 +359,64 @@ export const LandingPage = () => {
                         </p>
                     </div>
 
-                    {/* Solution cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
-                        {SOLUTIONS.map(sol => (
-                            <SolutionCard key={sol.title} sol={sol} onStart={() => navigate('/register')} />
+                    {/* Especialidades — todas atendidas pela mesma plataforma */}
+                    <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
+                        <span className="text-sm font-black text-graphite-500 mr-1">{t('guide.worksFor')}</span>
+                        {SPECIALTY_KEYS.map(key => (
+                            <span key={key} className="px-3 py-1.5 bg-white border border-ice-100 rounded-full text-xs font-bold text-graphite-700">
+                                {t(`guide.specialties.${key}`)}
+                            </span>
                         ))}
                     </div>
+                    <p className="text-center text-sm text-graphite-500 font-medium mb-14 max-w-2xl mx-auto leading-relaxed">{t('guide.modulesNote')}</p>
 
-                    {/* Testemunho / social proof */}
-                    <div className="bg-white rounded-[32px] p-10 border border-ice-100 shadow-sm">
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 items-center">
-                            <div className="lg:col-span-2 space-y-4">
-                                <div className="flex gap-1">
-                                    {[...Array(5)].map((_, i) => (
-                                        <Star key={i} size={18} className="text-amber-400 fill-amber-400" />
-                                    ))}
-                                </div>
-                                <blockquote className="text-xl font-bold text-graphite-800 leading-relaxed">
-                                    "{t('solutions.testimonial.quote')}"
-                                </blockquote>
-                                <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 bg-brand-primary/10 rounded-full flex items-center justify-center text-brand-primary font-black text-lg">D</div>
-                                    <div>
-                                        <p className="font-black text-graphite-900">{t('solutions.testimonial.authorName')}</p>
-                                        <p className="text-sm text-graphite-500 font-medium">{t('solutions.testimonial.authorRole')}</p>
+                    {/* Perfis por tamanho de consultório/clínica → abrem o detalhe do plano */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
+                        {PLAN_ORDER.map(id => {
+                            const plan = PLANS[id];
+                            const ProfileIcon = PROFILE_ICONS[id];
+                            const isPopular = id === 'clinica';
+                            return (
+                                <button key={id} type="button" onClick={() => setDetailsPlan(id)}
+                                    className={`group text-left bg-white rounded-3xl p-8 flex flex-col transition-all duration-300 cursor-pointer hover:-translate-y-1 hover:shadow-xl border-2 ${isPopular ? 'border-amber-300 shadow-lg shadow-amber-400/10' : 'border-ice-100 hover:border-amber-200'}`}>
+                                    <div className="flex items-center justify-between mb-5">
+                                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${plan.badgeClass}`}>
+                                            <ProfileIcon size={26} />
+                                        </div>
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-graphite-500 bg-ice-100 px-3 py-1 rounded-full">
+                                            {t('guide.planLabel', { plan: t(`plans.${id}.name`, { ns: 'billing' }) })}
+                                        </span>
                                     </div>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                {[
-                                    { label: t('solutions.testimonial.metricNoShow'), value: '-61%' },
-                                    { label: t('solutions.testimonial.metricConversion'), value: '+3×' },
-                                    { label: t('solutions.testimonial.metricTime'), value: '-4h/sem' },
-                                    { label: t('solutions.testimonial.metricRevenue'), value: '+R$ 8k/mês' },
-                                ].map(m => (
-                                    <div key={m.label} className="bg-ice-50 rounded-2xl p-4 text-center">
-                                        <p className="text-2xl font-black text-brand-primary">{m.value}</p>
-                                        <p className="text-xs font-bold text-graphite-500 mt-1">{m.label}</p>
+                                    <h3 className="text-xl font-black text-graphite-900 mb-2">{t(`guide.profiles.${id}.title`)}</h3>
+                                    <p className="text-sm text-graphite-500 font-medium leading-relaxed mb-5">{t(`guide.profiles.${id}.desc`)}</p>
+                                    <ul className="space-y-2.5 mb-6 flex-1">
+                                        {asList(t(`guide.profiles.${id}.bullets`, { returnObjects: true })).map(b => (
+                                            <li key={b} className="flex items-start gap-2 text-sm text-graphite-700 font-medium">
+                                                <Check size={15} className="text-emerald-500 shrink-0 mt-0.5" /> {b}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                    <div className="flex items-start gap-2 bg-amber-50 rounded-2xl px-4 py-3 mb-6">
+                                        <Sparkles size={15} className="text-amber-500 shrink-0 mt-0.5" />
+                                        <span className="text-xs font-bold text-amber-800 leading-relaxed">
+                                            {plan.aiConversationsIncluded > 0
+                                                ? t('guide.aiIncluded', { count: plan.aiConversationsIncluded })
+                                                : t('guide.aiPack', { price: formatPrice(AI_PACKAGES[0].priceBrl) })}
+                                        </span>
                                     </div>
-                                ))}
-                            </div>
-                        </div>
+                                    <div className="border-t border-ice-100 pt-5 flex items-center justify-between gap-3">
+                                        <p className="text-sm font-black text-graphite-900">
+                                            {formatPrice(plan.monthlyPrice)}<span className="text-graphite-400 font-medium">{t('pricing.perMonth')}</span>
+                                        </p>
+                                        <span className="text-sm font-black text-amber-700 flex items-center gap-1 group-hover:gap-2 transition-all">
+                                            {t('guide.seeDetails')} <ArrowRight size={14} />
+                                        </span>
+                                    </div>
+                                </button>
+                            );
+                        })}
                     </div>
+
                 </div>
             </section>
 
@@ -469,7 +448,7 @@ export const LandingPage = () => {
                             <button onClick={() => setBillingCycle('annual')}
                                 className={`px-6 py-2.5 rounded-xl text-sm font-black transition-all flex items-center gap-2 border-none cursor-pointer ${billingCycle === 'annual' ? 'bg-white text-graphite-900 shadow-sm' : 'text-graphite-500 hover:text-graphite-700 bg-transparent'}`}>
                                 {t('pricing.toggleAnnual')}
-                                <span className="text-[10px] font-black bg-emerald-500 text-white px-2 py-0.5 rounded-full">-20%</span>
+                                <span className="text-[10px] font-black bg-emerald-500 text-white px-2 py-0.5 rounded-full">{t('billingPage.cycleToggle.discountBadge', { ns: 'billing' })}</span>
                             </button>
                         </div>
                     </div>
@@ -502,7 +481,7 @@ export const LandingPage = () => {
                                         ? <p className="text-xs text-emerald-600 font-black mb-6">{t('pricing.billedAnnually', { total: formatPrice(price * 12), savings: formatPrice((plan.monthlyPrice - price) * 12) })}</p>
                                         : <div className="mb-6" />}
                                     <ul className="space-y-3 flex-1 mb-8">
-                                        {(t(`plans.${id}.features`, { ns: 'billing', returnObjects: true }) as string[]).map(f => (
+                                        {asList(t(`plans.${id}.features`, { ns: 'billing', returnObjects: true })).map(f => (
                                             <li key={f} className="flex items-start gap-2.5">
                                                 <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${plan.badgeClass}`}>
                                                     <Check size={11} />
@@ -511,9 +490,13 @@ export const LandingPage = () => {
                                             </li>
                                         ))}
                                     </ul>
-                                    <button onClick={() => navigate(`/register?plan=${id}&cycle=${billingCycle}`)}
+                                    <button onClick={() => startPlan(id)}
                                         className={`w-full py-4 rounded-2xl font-black text-sm transition-all border-none cursor-pointer ${isPopular ? 'bg-gradient-to-r from-amber-500 to-yellow-400 text-white shadow-lg shadow-amber-500/30 hover:scale-[1.02] active:scale-[0.98]' : id === 'rede' ? 'bg-[#0D1B2A] text-white hover:scale-[1.02] active:scale-[0.98]' : 'bg-ice-100 text-graphite-700 hover:bg-amber-50 hover:text-amber-700'}`}>
                                         {id === 'rede' ? t('pricing.talkToSales') : t('pricing.startTrial14')}
+                                    </button>
+                                    <button onClick={() => setDetailsPlan(id)}
+                                        className="w-full mt-3 py-2.5 rounded-xl text-sm font-black text-graphite-600 hover:text-amber-700 bg-transparent border border-ice-200 hover:border-amber-200 cursor-pointer transition-colors">
+                                        {t('guide.seeEverything')}
                                     </button>
                                     <p className="text-center text-xs text-graphite-400 font-medium mt-3">
                                         {id === 'rede' ? t('pricing.assistedOnboarding') : t('pricing.freeTrialCancelAnytime')}
@@ -523,41 +506,12 @@ export const LandingPage = () => {
                         })}
                     </div>
 
-                    {/* Comparison table */}
-                    <div className="overflow-x-auto rounded-[32px] border border-ice-100 shadow-sm">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="border-b border-ice-100">
-                                    <th className="text-left p-6 font-black text-graphite-900 w-2/5 bg-ice-50/50">{t('pricing.comparisonResourceHeader')}</th>
-                                    {PLAN_ORDER.map(id => {
-                                        const plan = PLANS[id];
-                                        const Icon = plan.icon;
-                                        return (
-                                            <th key={id} className={`p-6 text-center font-black ${id === 'clinica' ? 'bg-brand-primary/5 text-brand-primary' : 'text-graphite-700 bg-ice-50/50'}`}>
-                                                <div className="flex flex-col items-center gap-1"><Icon size={18} />{t(`plans.${id}.name`, { ns: 'billing' })}</div>
-                                            </th>
-                                        );
-                                    })}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {COMPARISON_ROWS.map((row, i) => (
-                                    row.type === 'header'
-                                        ? <tr key={i} className="bg-ice-50/80"><td colSpan={4} className="px-6 py-3 font-black text-xs text-graphite-400 uppercase tracking-widest">{row.label}</td></tr>
-                                        : (
-                                            <tr key={i} className="border-t border-ice-100 hover:bg-ice-50/50 transition-colors">
-                                                <td className="px-6 py-4 font-medium text-graphite-700">{row.label}</td>
-                                                {PLAN_ORDER.map(id => (
-                                                    <td key={id} className={`px-6 py-4 text-center ${id === 'clinica' ? 'bg-brand-primary/[0.02]' : ''}`}>
-                                                        <CellValue value={row.values[id]} />
-                                                    </td>
-                                                ))}
-                                            </tr>
-                                        )
-                                ))}
-                            </tbody>
-                        </table>
+                    {/* Tabela comparativa completa */}
+                    <div className="text-center max-w-2xl mx-auto mb-8">
+                        <h3 className="text-3xl font-black text-graphite-900 tracking-tight mb-3">{t('compare.title')}</h3>
+                        <p className="text-graphite-500 font-medium">{t('compare.subtitle')}</p>
                     </div>
+                    <PlanComparisonTable />
 
                     <div className="text-center mt-12">
                         <p className="text-graphite-500 font-medium mb-4">
@@ -571,13 +525,25 @@ export const LandingPage = () => {
                 </div>
             </section>
 
+            {detailsPlan && (
+                <PlanDetailsModal
+                    planId={detailsPlan}
+                    billingCycle={billingCycle}
+                    onChangePlan={setDetailsPlan}
+                    onClose={() => setDetailsPlan(null)}
+                    onStart={startPlan}
+                />
+            )}
+
             {/* ── Footer ─────────────────────────────────────────────── */}
             <footer className="bg-[#0D1B2A] py-16 px-6">
                 <div className="max-w-7xl mx-auto">
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-12">
                         <div className="md:col-span-2 space-y-4">
                             <div className="flex items-center gap-3">
-                                <img src="/favicon.png" alt="Traffio" className="h-12 w-12 rounded-xl" />
+                                <span className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-400 to-yellow-500 text-[#0D1B2A] flex items-center justify-center">
+                                    <Sparkles size={20} strokeWidth={2.5} />
+                                </span>
                                 <div>
                                     <p className="text-xl font-black text-white leading-none">Traffio</p>
                                     <p className="text-xs text-amber-400 font-bold tracking-wider">{t('footer.tagline')}</p>
@@ -587,10 +553,11 @@ export const LandingPage = () => {
                                 {t('footer.description')}
                             </p>
                             <div className="flex items-center gap-3 text-xs text-slate-500 font-medium pt-2">
-                                <ShieldCheck size={14} className="text-emerald-400" /> {t('footer.lgpdCompliant')}
+                                <ShieldCheck size={14} className="text-emerald-400" /> {t('footer.dataIsolation')}
                                 <Globe size={14} className="text-amber-400" /> {t('footer.cloud100')}
                             </div>
                         </div>
+                        {/* Só links que levam a algum lugar real: seções da página, contato e páginas legais */}
                         <div className="space-y-4">
                             <h4 className="text-white font-black text-sm uppercase tracking-wider">{t('footer.platformHeading')}</h4>
                             <ul className="space-y-2">
@@ -598,7 +565,6 @@ export const LandingPage = () => {
                                     { key: 'features', label: t('footer.linkFeatures') },
                                     { key: 'solutions', label: t('footer.linkSolutions') },
                                     { key: 'pricing', label: t('footer.linkPricing') },
-                                    { key: 'security', label: t('footer.linkSecurity') },
                                 ].map(l => (
                                     <li key={l.key}><a href={`#${l.key}`} className="text-graphite-400 text-sm font-medium hover:text-white transition-colors no-underline" style={{ color: 'inherit' }}>{l.label}</a></li>
                                 ))}
@@ -607,19 +573,14 @@ export const LandingPage = () => {
                         <div className="space-y-4">
                             <h4 className="text-white font-black text-sm uppercase tracking-wider">{t('footer.companyHeading')}</h4>
                             <ul className="space-y-2">
-                                {[t('footer.linkAbout'), t('footer.linkBlog'), t('footer.linkContact'), t('footer.linkSupport')].map(l => (
-                                    <li key={l}><span className="text-graphite-400 text-sm font-medium hover:text-white transition-colors cursor-pointer">{l}</span></li>
-                                ))}
+                                <li><a href="mailto:contato@traffio.com.br" className="text-graphite-400 text-sm font-medium hover:text-white transition-colors no-underline" style={{ color: 'inherit' }}>{t('footer.linkContact')}</a></li>
+                                <li><button onClick={() => navigate('/privacidade')} className="text-graphite-400 text-sm font-medium hover:text-white transition-colors bg-transparent border-none p-0 cursor-pointer">{t('footer.privacy')}</button></li>
+                                <li><button onClick={() => navigate('/termos')} className="text-graphite-400 text-sm font-medium hover:text-white transition-colors bg-transparent border-none p-0 cursor-pointer">{t('footer.terms')}</button></li>
                             </ul>
                         </div>
                     </div>
                     <div className="border-t border-slate-800 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
                         <p className="text-slate-500 text-sm font-medium">{t('footer.copyright')}</p>
-                        <div className="flex gap-6 text-xs text-slate-500 font-medium">
-                            <span onClick={() => navigate('/privacidade')} className="cursor-pointer hover:text-graphite-300 transition-colors">{t('footer.privacy')}</span>
-                            <span onClick={() => navigate('/termos')} className="cursor-pointer hover:text-graphite-300 transition-colors">{t('footer.terms')}</span>
-                            <span className="cursor-pointer hover:text-graphite-300 transition-colors">{t('footer.cookies')}</span>
-                        </div>
                     </div>
                 </div>
             </footer>
@@ -665,51 +626,3 @@ function FeatureBlock({ badge, icon: Icon, iconBg, iconColor, title, description
     );
 }
 
-// ── Soluções por especialidade ─────────────────────────────────────────────
-
-type Solution = {
-    icon: any; bg: string; color: string;
-    title: string; desc: string; features: string[]; plan: string;
-};
-
-function SolutionCard({ sol, onStart }: { sol: Solution; onStart: () => void }) {
-    const { t } = useTranslation('landing');
-    const Icon = sol.icon;
-    return (
-        <div className="bg-white rounded-[28px] border border-ice-100 p-8 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col">
-            <div className={`w-14 h-14 ${sol.bg} ${sol.color} rounded-2xl flex items-center justify-center mb-5`}>
-                <Icon size={26} />
-            </div>
-            <h3 className="text-xl font-black text-graphite-900 mb-3">{sol.title}</h3>
-            <p className="text-sm text-graphite-500 font-medium leading-relaxed mb-5 flex-1">{sol.desc}</p>
-            <ul className="space-y-2 mb-6">
-                {sol.features.map(f => (
-                    <li key={f} className="flex items-center gap-2 text-sm text-graphite-600 font-medium">
-                        <Check size={14} className={sol.color} />
-                        {f}
-                    </li>
-                ))}
-            </ul>
-            <div className="border-t border-ice-100 pt-5">
-                <p className="text-xs font-black text-graphite-400 mb-3">{sol.plan}</p>
-                <button onClick={onStart}
-                    className={`w-full py-3 rounded-xl text-sm font-black transition-all border-none cursor-pointer flex items-center justify-center gap-2 ${sol.bg} ${sol.color} hover:opacity-80`}>
-                    {t('solutions.startTrial')}
-                    <ArrowRight size={14} />
-                </button>
-            </div>
-        </div>
-    );
-}
-
-// ── Tabela de comparação ───────────────────────────────────────────────────
-
-type CellVal = boolean | string | null;
-interface CompRow { type: 'row' | 'header'; label: string; values: Record<PlanId, CellVal>; }
-
-function CellValue({ value }: { value: CellVal }) {
-    if (value === true)  return <Check size={18} className="text-emerald-500 mx-auto" />;
-    if (value === false) return <X     size={16} className="text-graphite-300 mx-auto" />;
-    if (value === null)  return <Minus size={14} className="text-graphite-200 mx-auto" />;
-    return <span className="font-bold text-graphite-700 text-xs">{value}</span>;
-}

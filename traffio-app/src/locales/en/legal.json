@@ -41,9 +41,18 @@
         "title": "Information We Collect",
         "intro": "We collect the following categories of information necessary to provide our services:",
         "items": [
-          { "label": "Registration and Account Information:", "text": "Full name, email, phone number, CPF/CNPJ (Brazilian taxpayer ID), clinic name, specialties, access credentials, and billing information." },
-          { "label": "Clinical and Patient Data (as Operator):", "text": "Appointment schedules, patient records (name, email, mobile phone, date of birth), dental care histories, and medical/dental charts that you choose to enter into the platform." },
-          { "label": "Third-Party Integration Data:", "text": "Access tokens and analytics data when you integrate your Traffio account with Google Ads, Meta Ads (Facebook/Instagram Ads), the WhatsApp API, or payment gateways." }
+          {
+            "label": "Registration and Account Information:",
+            "text": "Full name, email, phone number, CPF/CNPJ (Brazilian taxpayer ID), clinic name, specialties, access credentials, and billing information."
+          },
+          {
+            "label": "Clinical and Patient Data (as Operator):",
+            "text": "Appointment schedules, patient records (name, email, mobile phone, date of birth), dental care histories, and medical/dental charts that you choose to enter into the platform."
+          },
+          {
+            "label": "Third-Party Integration Data:",
+            "text": "Access tokens and analytics data when you integrate your Traffio account with Google Ads, Meta Ads (Facebook/Instagram Ads), the WhatsApp API, or payment gateways."
+          }
         ]
       },
       "googleAdsIntegration": {
@@ -108,9 +117,18 @@
         "title": "How We Share Data",
         "intro": "We **do not sell or rent** the personal data of our customers or their patients. We share information with third parties only under the following circumstances:",
         "items": [
-          { "label": "Infrastructure and Service Providers:", "text": "Cloud hosting providers (Supabase, AWS), payment gateways (Pagar.me, Asaas, Dr. Cash), and messaging services (WhatsApp API, transactional email), only to the extent strictly necessary to perform the service." },
-          { "label": "Legal Obligation:", "text": "To comply with court orders, applicable laws, or regulations of competent authorities." },
-          { "label": "With Your Consent:", "text": "When you explicitly authorize the transfer of data to another platform through custom API keys." }
+          {
+            "label": "Infrastructure and Service Providers:",
+            "text": "Cloud hosting and database providers (Supabase, Cloudflare), payment processing (Stripe), messaging (Meta — WhatsApp, Instagram and Messenger; Z-API; Telnyx for SMS and calls; transactional email) and artificial intelligence (Anthropic for patient support and OpenAI for audio transcription), only to the extent strictly necessary to provide the service."
+          },
+          {
+            "label": "Legal Obligation:",
+            "text": "To comply with court orders, applicable laws, or regulations of competent authorities."
+          },
+          {
+            "label": "With Your Consent:",
+            "text": "When you explicitly authorize the transfer of data to another platform through custom API keys."
+          }
         ]
       },
       "dataSecurity": {
@@ -198,18 +216,36 @@
           "suffix": ". By using these integrations:"
         },
         "items": [
-          { "label": "Access Authorization:", "text": "You authorize Traffio to access and import analytics data from your advertising account (costs, clicks, impressions, etc.) for the sole purpose of consolidation in your Traffio dashboard." },
-          { "label": "User Responsibility:", "text": "You acknowledge that all ad campaigns, budgets, charges, and policies are your sole responsibility and are billed directly by the respective platforms (Google LLC and Meta Platforms, Inc.). Traffio has no control over invoices or budgets from these providers." },
-          { "label": "Google Limited Use:", "text": "We state that the use of data obtained from any Google API is subject to strict usage restrictions and fully complies with the Google API Services User Data Policy, and is not used for any purpose other than providing Traffio's internal reports." }
+          {
+            "label": "Access Authorization:",
+            "text": "You authorize Traffio to access and import analytics data from your advertising account (costs, clicks, impressions, etc.) for the sole purpose of consolidation in your Traffio dashboard."
+          },
+          {
+            "label": "User Responsibility:",
+            "text": "You acknowledge that all ad campaigns, budgets, charges, and policies are your sole responsibility and are billed directly by the respective platforms (Google LLC and Meta Platforms, Inc.). Traffio has no control over invoices or budgets from these providers."
+          },
+          {
+            "label": "Google Limited Use:",
+            "text": "We state that the use of data obtained from any Google API is subject to strict usage restrictions and fully complies with the Google API Services User Data Policy, and is not used for any purpose other than providing Traffio's internal reports."
+          }
         ]
       },
       "billing": {
         "title": "Subscription, Billing, and Price Adjustments",
         "intro": "Access to the Traffio platform is billed periodically (monthly or annually, depending on your chosen plan).",
         "items": [
-          { "label": "Trial Period:", "text": "We offer 14 days of free trial access with no commitment. If you do not cancel before this period ends, automatic billing will begin on the registered payment method." },
-          { "label": "Cancellation:", "text": "You may cancel your subscription at any time through the system's billing page. There are no penalties or minimum commitment period. Upon cancellation, the service will remain active until the end of the period already paid for." },
-          { "label": "Non-Payment:", "text": "Failure to pay will automatically suspend access to the platform within 5 days of the unpaid due date." }
+          {
+            "label": "Trial Period:",
+            "text": "We offer 14 days of free trial access with no commitment. If you do not cancel before this period ends, automatic billing will begin on the registered payment method."
+          },
+          {
+            "label": "Cancellation:",
+            "text": "You may cancel your subscription at any time through the system's billing page. There are no penalties or minimum commitment period. Upon cancellation, the service will remain active until the end of the period already paid for."
+          },
+          {
+            "label": "Non-Payment:",
+            "text": "Failure to pay will automatically suspend access to the platform within 5 days of the unpaid due date."
+          }
         ]
       },
       "liabilityLimitation": {

@@ -45,7 +45,6 @@ import { RecordOutcomeModal } from '../components/crm/RecordOutcomeModal';
 import { useTenant } from '../contexts/TenantContext';
 import { smartSchedulingService } from '../services/smartSchedulingService';
 import { locationService } from '../services/locationService';
-import { CheckoutModal } from '../components/CheckoutModal';
 import { WaitlistDrawer } from '../components/WaitlistDrawer';
 import type { SmartSlot, BookAppointmentPayload } from '../services/smartSchedulingService';
 import { formatSlot as formatSlotI18n } from '../lib/i18n/formatDateTime';
@@ -189,7 +188,6 @@ export const AgendaMestra: React.FC = () => {
     // Edit modal
     const [editingAppt, setEditingAppt] = useState<any>(null);
     const [editNotes, setEditNotes] = useState('');
-    const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
     const [showOutcomeModal, setShowOutcomeModal] = useState(false);
     const [optimisticStageId, setOptimisticStageId] = useState<CrmStageId | null>(null);
     const [waitlistOpen, setWaitlistOpen] = useState(false);
@@ -2383,10 +2381,6 @@ export const AgendaMestra: React.FC = () => {
                                     </Button>
                                 </div>
 
-                                <Button variant="success" className="w-full py-4 justify-center font-black" onClick={() => setIsCheckoutModalOpen(true)}>
-                                    <Wallet size={18} /> {t('mestra.editModal.receivePayment')}
-                                </Button>
-
                                 <Button variant="dangerGhost" size="sm" className="w-full justify-center" onClick={() => setConfirmDelete(editingAppt.id)}>
                                     {t('mestra.editModal.deleteAppointment')}
                                 </Button>
@@ -2424,16 +2418,6 @@ export const AgendaMestra: React.FC = () => {
                 onCountChange={setWaitlistCount}
             />
 
-            {editingAppt && (
-                <CheckoutModal
-                    isOpen={isCheckoutModalOpen}
-                    onClose={() => setIsCheckoutModalOpen(false)}
-                    patientId={editingAppt.patient_id}
-                    patientName={editingAppt.patients?.full_name || t('mestra.patientFallback')}
-                    initialAmount={editingAppt.appointment_types?.price_cents ? (editingAppt.appointment_types.price_cents / 100) : 0}
-                    tenantId={selectedTenant || ''}
-                />
-            )}
             {editingAppt && (
                 <RecordOutcomeModal
                     isOpen={showOutcomeModal}

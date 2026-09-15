@@ -52,7 +52,6 @@
       "close": "Close",
       "save": "Save",
       "reschedule": "Reschedule",
-      "receivePayment": "Receive Payment",
       "deleteAppointment": "Delete Appointment"
     },
     "confirmDelete": {
@@ -105,11 +104,8 @@
     "syncingAgendas": "Syncing schedules...",
     "confirmAppointment": "Confirm Appointment",
     "successTitle": "Booked Successfully!",
-    "successText": "The time slot has been reserved. You can now send the payment link for the patient to confirm.",
-    "paymentLinkLabel": "Payment Link Generated",
-    "copyMessage": "Copy Message",
+    "successText": "The time slot has been booked in the schedule.",
     "close": "Close",
-    "clipboardMessage": "Hello {{name}}, here is your link to confirm your appointment: {{link}}",
     "errors": {
       "slotTaken": "This time slot has already been taken by another staff member. Please choose another time.",
       "unknown": "Unknown error while booking the appointment.",
@@ -200,14 +196,12 @@
     },
     "successTitle": "Booked Successfully!",
     "successSubtitle": "The payment link is now ready.",
-    "paymentLinkLabel": "Payment Link (Asaas)",
     "backToService": "Back to Service",
     "confirmAppointment": "Confirm Appointment",
     "professionalFallback": "Professional",
     "toasts": {
       "skippingToDate": "Skipping to {{date}}",
       "noOtherSlotsAvailable": "No other time slots available in the coming days.",
-      "linkCopied": "Link copied to clipboard",
       "rescheduleCompleted": "Rescheduling completed!",
       "bookingCompleted": "Appointment booked!"
     },
@@ -282,38 +276,6 @@
       "checkin": "Hello {{name}}! 😊 Here is the link to your virtual waiting room for your appointment on {{date}}: {{link}}",
       "reminder": "Hello {{name}}! 😊 Just a reminder about your appointment with {{doctor}} on {{date}} at {{time}}. See you there! 💙",
       "paymentLink": "Hello {{name}}! 😊 Here is your link for payment/confirmation of the appointment: {{link}}"
-    }
-  },
-  "checkoutModal": {
-    "title": "Receive Payment",
-    "patientLabel": "Patient:",
-    "amountToReceiveLabel": "Amount to Receive",
-    "creditCard": {
-      "title": "Credit Card",
-      "subtitle": "Up to 21 Installments"
-    },
-    "financing": {
-      "title": "Financing",
-      "subtitle": "Up to 24 Installments without a Card"
-    },
-    "installmentsLabel": "Number of Installments",
-    "installmentValue": "{{count}}x {{amount}}",
-    "generatePaymentLink": "Generate Payment Link",
-    "sendDrCashStudy": "Send Dr. Cash Study",
-    "operationStarted": "Operation Started!",
-    "successCreditCard": "Waiting for the patient to process the card payment via the link.",
-    "successFinancing": "The patient received the proposal link on their phone for credit analysis.",
-    "closeWindow": "Close Window",
-    "securityBadge": {
-      "environment": "PCI-DSS Secure Environment",
-      "encryption": "SSL Encryption"
-    },
-    "toasts": {
-      "financingSent": "Financing proposal sent successfully!",
-      "checkoutStarted": "Pagar.me Checkout started!"
-    },
-    "errors": {
-      "paymentFailed": "Error processing payment."
     }
   },
   "waitlistDrawer": {

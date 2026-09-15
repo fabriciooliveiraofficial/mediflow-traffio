@@ -119,39 +119,94 @@
     "addMore": "Agregar más contenido",
     "analyze": "Analizar",
     "analyzing": "Analizando...",
-    "entry": { "title": "Complete la ficha más rápido", "description": "Use el sitio, texto, un archivo o una entrevista guiada. Nada se publica sin su aprobación.", "button": "Completar con IA" },
+    "entry": {
+      "title": "Complete la ficha más rápido",
+      "description": "Use el sitio, texto, un archivo o una entrevista guiada. Nada se publica sin su aprobación.",
+      "button": "Completar con IA"
+    },
     "method": {
       "title": "¿Cómo desea proporcionar la información?",
-      "url": { "title": "Pegar enlace del sitio", "description": "Obtenemos de forma segura el texto público del sitio." },
-      "text": { "title": "Pegar texto", "description": "Use contenido copiado de Instagram, documentos o notas." },
-      "file": { "title": "Enviar archivo (.txt/.md)", "description": "El archivo se lee localmente y se envía como texto." },
-      "interview": { "title": "Entrevista guiada", "description": "Responda un campo vacío a la vez, a su ritmo." }
+      "url": {
+        "title": "Pegar enlace del sitio",
+        "description": "Obtenemos de forma segura el texto público del sitio."
+      },
+      "text": {
+        "title": "Pegar texto",
+        "description": "Use contenido copiado de Instagram, documentos o notas."
+      },
+      "file": {
+        "title": "Enviar archivo (.txt/.md)",
+        "description": "El archivo se lee localmente y se envía como texto."
+      },
+      "interview": {
+        "title": "Entrevista guiada",
+        "description": "Responda un campo vacío a la vez, a su ritmo."
+      }
     },
     "input": {
-      "url": { "title": "Enlace del sitio", "description": "Informe una página pública de la clínica. No se aceptan sitios internos ni archivos." },
-      "pasted_text": { "title": "Texto de la clínica", "description": "Pegue solo el contenido que desea analizar.", "placeholder": "Pegue aquí horarios, dirección, políticas y otra información..." },
-      "file": { "title": "Archivo de texto", "description": "Formatos aceptados: .txt y .md.", "select": "Seleccionar archivo", "hint": ".txt o .md, hasta 300 KB" }
+      "url": {
+        "title": "Enlace del sitio",
+        "description": "Informe una página pública de la clínica. No se aceptan sitios internos ni archivos."
+      },
+      "pasted_text": {
+        "title": "Texto de la clínica",
+        "description": "Pegue solo el contenido que desea analizar.",
+        "placeholder": "Pegue aquí horarios, dirección, políticas y otra información..."
+      },
+      "file": {
+        "title": "Archivo de texto",
+        "description": "Formatos aceptados: .txt y .md.",
+        "select": "Seleccionar archivo",
+        "hint": ".txt o .md, hasta 300 KB"
+      }
     },
-    "clarity": { "high": "Alta claridad", "medium": "Revisar", "low": "Baja claridad" },
+    "clarity": {
+      "high": "Alta claridad",
+      "medium": "Revisar",
+      "low": "Baja claridad"
+    },
     "review": {
-      "title": "Revise antes de aprobar", "description": "Compruebe y edite cada valor. Solo los elementos aprobados pasan al conocimiento activo.",
-      "canonicalFact": "Campo de la ficha canónica", "freeKnowledge": "Conocimiento complementario", "titleLabel": "Título del conocimiento", "source": "Origen",
-      "approve": "Aprobar", "editApprove": "Editar y aprobar", "discard": "Descartar", "approveHigh": "Aprobar {{count}} de alta claridad", "flaggedSuspicious": "Revisar con atención",
-      "itemError": "No se pudo completar este elemento. Revise el valor e inténtelo de nuevo.", "empty": "No hay sugerencias pendientes de revisión."
+      "title": "Revise antes de aprobar",
+      "description": "Compruebe y edite cada valor. Solo los elementos aprobados pasan al conocimiento activo.",
+      "canonicalFact": "Campo de la ficha canónica",
+      "freeKnowledge": "Conocimiento complementario",
+      "titleLabel": "Título del conocimiento",
+      "source": "Origen",
+      "approve": "Aprobar",
+      "editApprove": "Editar y aprobar",
+      "discard": "Descartar",
+      "approveHigh": "Aprobar {{count}} de alta claridad",
+      "flaggedSuspicious": "Revisar con atención",
+      "itemError": "No se pudo completar este elemento. Revise el valor e inténtelo de nuevo.",
+      "empty": "No hay sugerencias pendientes de revisión."
     },
     "interview": {
-      "progress": "Pregunta {{current}} de {{total}}", "answered": "{{count}} respondida(s)", "previous": "Anterior", "next": "Siguiente", "skip": "Omitir",
-      "createSuggestions": "Crear {{count}} sugerencia(s)", "completeTitle": "Ficha completa", "noEmptyFacts": "No hay campos vacíos para preguntar.",
+      "progress": "Pregunta {{current}} de {{total}}",
+      "answered": "{{count}} respondida(s)",
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "skip": "Omitir",
+      "createSuggestions": "Crear {{count}} sugerencia(s)",
+      "completeTitle": "Ficha completa",
+      "noEmptyFacts": "No hay campos vacíos para preguntar.",
       "saveError": "No se pudieron crear las sugerencias. Ninguna respuesta fue activada."
     },
-    "errors": { "load": "No se pudieron cargar la ficha y las sugerencias.", "analyze": "El análisis falló. No se guardó ninguna sugerencia parcial.", "file": "Elija un archivo .txt o .md de hasta 300 KB.", "fileRead": "No se pudo leer este archivo." }
+    "errors": {
+      "load": "No se pudieron cargar la ficha y las sugerencias.",
+      "analyze": "El análisis falló. No se guardó ninguna sugerencia parcial.",
+      "file": "Elija un archivo .txt o .md de hasta 300 KB.",
+      "fileRead": "No se pudo leer este archivo."
+    }
   },
   "knowledgeGaps": {
     "title": "Preguntas sin respuesta ({{count}})",
     "subtitle": "Preguntas reales que el agente no pudo responder. Conviértelas en conocimiento permanente.",
     "loadError": "No se pudieron cargar las preguntas sin respuesta.",
     "retry": "Intentar de nuevo",
-    "empty": { "title": "Sin lagunas — tu agente está bien informado", "description": "Las nuevas preguntas factuales aparecerán aquí automáticamente." },
+    "empty": {
+      "title": "Sin lagunas — tu agente está bien informado",
+      "description": "Las nuevas preguntas factuales aparecerán aquí automáticamente."
+    },
     "meta": "{{count}} incidencia(s) · última el {{date}}",
     "factLabel": "Dónde guardar esta respuesta",
     "newFaq": "Nuevo dato libre (FAQ)",
@@ -160,7 +215,12 @@
     "dismiss": "Descartar",
     "cancel": "Cancelar",
     "save": "Guardar respuesta",
-    "toasts": { "answered": "Respuesta añadida al conocimiento del agente.", "dismissed": "Pregunta descartada.", "saveError": "No se pudo guardar la respuesta.", "dismissError": "No se pudo descartar la pregunta." }
+    "toasts": {
+      "answered": "Respuesta añadida al conocimiento del agente.",
+      "dismissed": "Pregunta descartada.",
+      "saveError": "No se pudo guardar la respuesta.",
+      "dismissError": "No se pudo descartar la pregunta."
+    }
   },
   "header": {
     "title": "Configuración",
@@ -256,7 +316,6 @@
     "brandColorSectionTitle": "Color de la Marca",
     "integrationsSectionTitle": "Integraciones",
     "zapiInstanceLabel": "ID de Instancia Z-API",
-    "asaasApiKeyLabel": "Clave de API de Asaas",
     "metaMessagingSectionTitle": "Mensajes — Instagram DM y Facebook Messenger",
     "metaConnecting": "Conectando...",
     "metaConnectPages": "Conectar Páginas",

@@ -18,7 +18,6 @@ import {
     Calculator,
     Scan,
     Apple,
-    Wallet,
     ExternalLink,
     Eye,
     Pencil,
@@ -38,7 +37,6 @@ import { ViewPrescriptionModal } from '../components/ViewPrescriptionModal';
 import { Odontogram } from '../components/dental/Odontogram';
 import { NewDentalBudgetModal } from '../components/dental/NewDentalBudgetModal';
 import { AnthropometryForm } from '../components/nutrition/AnthropometryForm';
-import { CheckoutModal } from '../components/CheckoutModal';
 import { DocumentPreviewModal } from '../components/shared/DocumentPreviewModal';
 import { VoidReasonModal } from '../components/shared/VoidReasonModal';
 import { dentalService } from '../services/dentalService';
@@ -75,14 +73,12 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
     const [isExamModalOpen, setIsExamModalOpen] = useState(false);
     const [isViewPrescriptionOpen, setIsViewPrescriptionOpen] = useState(false);
     const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
-    const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
     const [previewDoc, setPreviewDoc] = useState<any>(null);
     const [dentalBudgets, setDentalBudgets] = useState<any[]>([]);
     const [selectedPrescription, setSelectedPrescription] = useState<any>(null);
     const [explainTerm, setExplainTerm] = useState<string | null>(null);
     const [prescriptions, setPrescriptions] = useState<any[]>([]);
     const [exams, setExams] = useState<any[]>([]);
-    const [financingProposals, setFinancingProposals] = useState<any[]>([]);
     const [historyLoading, setHistoryLoading] = useState(true);
     const [medicalRecords, setMedicalRecords] = useState<any[]>([]);
     const [medicalRecordsLoading, setMedicalRecordsLoading] = useState(true);
@@ -193,15 +189,6 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
                 .order('created_at', { ascending: false });
 
             setExams(examsData || []);
-
-            // Fetch Financing Proposals
-            const { data: financingData } = await supabase
-                .from('financing_proposals')
-                .select('*')
-                .eq('patient_id', patientId)
-                .order('created_at', { ascending: false });
-
-            setFinancingProposals(financingData || []);
 
             if (tenant?.specialty?.includes('dental')) {
                 const budgets = await dentalService.getBudgets(patientId);
@@ -359,13 +346,6 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
                 </button>
 
                 <div className="flex items-center gap-3">
-                    <button
-                        onClick={() => setIsCheckoutModalOpen(true)}
-                        className="flex items-center gap-2 bg-emerald-500 text-white px-5 py-2.5 rounded-xl font-bold shadow-md shadow-emerald-500/20 hover:scale-105 transition-transform border-none cursor-pointer"
-                    >
-                        <Wallet size={18} />
-                        <span>{t('patientDetails.newFinancingProposal')}</span>
-                    </button>
                     <button
                         onClick={() => setIsRecordModalOpen(true)}
                         className="flex items-center gap-2 bg-brand-primary text-white px-5 py-2.5 rounded-xl font-bold shadow-md shadow-brand-primary/20 hover:scale-105 transition-transform border-none cursor-pointer"
@@ -914,69 +894,6 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
                         </div>
                     </div>
 
-                    {/* Financiamento Status */}
-                    <div className="bg-white rounded-2xl border border-ice-200 overflow-hidden shadow-sm">
-                        <div className="p-5 border-b border-ice-100 flex items-center justify-between bg-ice-50/30">
-                            <div className="flex items-center gap-2">
-                                <Wallet size={18} className="text-emerald-500" />
-                                <h4 className="font-black text-xs text-graphite-900 uppercase tracking-wider">{t('patientDetails.sidebar.financingTitle')}</h4>
-                            </div>
-                        </div>
-                        <div className="p-4">
-                            {historyLoading ? (
-                                <div className="h-12 bg-ice-50 animate-pulse rounded-lg" />
-                            ) : financingProposals.length === 0 ? (
-                                <div className="p-4 text-center border-2 border-dashed border-ice-100 rounded-xl">
-                                    <p className="text-[10px] text-graphite-400 font-bold mb-3 uppercase tracking-tight">{t('patientDetails.sidebar.financingEmpty')}</p>
-                                    <button
-                                        onClick={() => setIsCheckoutModalOpen(true)}
-                                        className="text-[10px] font-black text-brand-primary bg-brand-primary/5 px-4 py-2 rounded-lg hover:bg-brand-primary hover:text-white transition-all border-none cursor-pointer"
-                                    >
-                                        {t('patientDetails.sidebar.financingViewOptions')}
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    {financingProposals.map((prop) => (
-                                        <div key={prop.id} className="p-4 rounded-xl border border-ice-100 bg-white shadow-sm relative overflow-hidden group">
-                                            <div className={`absolute left-0 top-0 w-1 h-full ${
-                                                prop.status === 'APPROVED' ? 'bg-emerald-500' :
-                                                prop.status === 'SIGNED' ? 'bg-brand-primary' :
-                                                'bg-amber-400'
-                                            }`} />
-                                            
-                                            <div className="flex justify-between items-start mb-2">
-                                                <div>
-                                                    <p className="text-xs font-black text-graphite-900">{prop.installments}x {formatMoney(prop.amount)}</p>
-                                                    <p className="text-[9px] font-bold text-graphite-400 uppercase tracking-widest">{prop.provider}</p>
-                                                </div>
-                                                <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${
-                                                    prop.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-600' :
-                                                    prop.status === 'SIGNED' ? 'bg-emerald-500 text-white' :
-                                                    prop.status === 'PENDING' ? 'bg-amber-50 text-amber-600' :
-                                                    'bg-ice-100 text-graphite-400'
-                                                }`}>
-                                                    {prop.status}
-                                                </span>
-                                            </div>
-
-                                            {prop.external_link && prop.status === 'PENDING' && (
-                                                <a 
-                                                    href={prop.external_link} 
-                                                    target="_blank" 
-                                                    rel="noopener noreferrer"
-                                                    className="block w-full text-center py-2 bg-emerald-500 text-white rounded-lg text-[10px] font-black hover:bg-emerald-600 transition-all no-underline"
-                                                >
-                                                    {t('patientDetails.sidebar.resendSignatureLink')}
-                                                </a>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
                     {/* Exames */}
                     <div className="bg-white rounded-2xl border border-ice-200 overflow-hidden shadow-sm">
                         <div className="p-5 border-b border-ice-100 flex items-center justify-between bg-ice-50/30">
@@ -1124,15 +1041,6 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({ patientId, onBac
                 onClose={() => setIsBudgetModalOpen(false)}
                 onSuccess={() => { fetchHistoryData(); }}
                 patientId={patientId}
-            />
-
-            <CheckoutModal 
-                isOpen={isCheckoutModalOpen}
-                onClose={() => { setIsCheckoutModalOpen(false); fetchHistoryData(); }}
-                patientId={patientId}
-                patientName={patient.full_name}
-                initialAmount={dentalBudgets[0]?.total_amount || financingProposals[0]?.amount || 0}
-                tenantId={tenant?.id || ''}
             />
 
             <DocumentPreviewModal

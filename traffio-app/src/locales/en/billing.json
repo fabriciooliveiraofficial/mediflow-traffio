@@ -2,7 +2,7 @@
   "plans": {
     "essencial": {
       "name": "Essential",
-      "description": "Ideal for solo professionals and independent practices.",
+      "description": "For practices with up to 2 healthcare professionals.",
       "features": [
         "Up to 2 professionals",
         "1 location",
@@ -11,40 +11,35 @@
         "Automatic WhatsApp reminders",
         "Automatic confirmation and NPS surveys",
         "1 specialty module",
+        "AI patient support via add-on packages (from R$199)",
         "Email support"
       ]
     },
     "clinica": {
       "name": "Clinic",
-      "description": "For growing clinics with multiple professionals.",
+      "description": "For clinics with up to 10 professionals that want to automate patient support.",
       "features": [
         "Up to 10 professionals",
         "Up to 3 locations",
-        "WhatsApp inbox with human support",
-        "CRM with follow-up kanban",
-        "Meta Ads + Google Ads integration",
-        "Financial hub (Asaas, Pagar.me, Dr. Cash)",
-        "All specialty modules",
-        "DICOM viewer (X-rays)",
         "60 AI conversations per month (24/7 automated support)",
-        "Priority chat support"
+        "Inbox for WhatsApp, Instagram, Messenger and website",
+        "Patient follow-up pipeline (CRM)",
+        "Facebook and Instagram ads connection",
+        "Card payment links (Stripe) and treatment proposals",
+        "All specialty modules",
+        "Financial and marketing reports"
       ]
     },
     "rede": {
       "name": "Network",
-      "description": "For networks and franchises with multiple locations.",
+      "description": "For clinics with multiple locations and networks.",
       "features": [
         "Unlimited professionals",
         "Unlimited locations",
         "150 AI conversations per month",
         "1 WhatsApp number included (extra numbers R$229/month)",
-        "Master Dashboard (network-wide view)",
-        "Cross-location analytics",
-        "Consolidated billing",
-        "Dedicated API and webhooks",
-        "Assisted onboarding and migration",
-        "Dedicated success manager",
-        "99.9% uptime SLA"
+        "200 GB for patient files",
+        "Everything in the Clinic plan"
       ]
     }
   },
@@ -268,7 +263,6 @@
         "card_machine": "Card machine",
         "bank_transfer": "Bank transfer",
         "insurance": "Insurance",
-        "financing": "Financing",
         "check": "Check",
         "other": "Other"
       },
@@ -280,20 +274,5 @@
   "paymentPolling": {
     "title": "Confirming payment...",
     "message": "We're receiving confirmation from Stripe and unlocking your access. This should only take a few seconds."
-  },
-  "pagarmeCallback": {
-    "connecting": "Connecting your Pagar.me account...",
-    "authorizationFailed": "Authorization was canceled or failed.",
-    "connectionFailedToast": "Failed to connect with Pagar.me.",
-    "tenantNotIdentified": "Context error: Tenant not identified.",
-    "successRedirecting": "Account connected successfully! Redirecting...",
-    "connectedToast": "Pagar.me connected successfully!",
-    "tokenExchangeError": "Error exchanging token with Pagar.me. Please try again.",
-    "internalErrorToast": "Internal integration error.",
-    "titleLoading": "Almost there...",
-    "titleSuccess": "All Set!",
-    "titleError": "Oops! Something went wrong",
-    "sslEncrypted": "SSL Encrypted Connection",
-    "backToSettings": "Back to Settings"
   }
 }

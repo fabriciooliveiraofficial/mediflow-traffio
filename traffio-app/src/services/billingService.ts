@@ -199,31 +199,28 @@ export const BillingService = {
     },
 
     async getDetailedAnalytics(tenantId: string) {
-        const [billingRes, proposalsRes] = await Promise.all([
-            supabase.from('billing_records').select('payment_method, amount_cents').eq('tenant_id', tenantId),
-            supabase.from('financing_proposals').select('status, amount').eq('tenant_id', tenantId)
-        ]);
+        // Só formas de pagamento reais registradas em billing_records. O antigo
+        // bloco de financiamento (Dr. Cash, tabela financing_proposals) foi
+        // removido em 15/09/2026: a integração nunca funcionou (endpoint simulado).
+        const { data } = await supabase
+            .from('billing_records')
+            .select('payment_method, amount_cents')
+            .eq('tenant_id', tenantId);
 
-        const billing = billingRes.data || [];
-        const proposals = proposalsRes.data || [];
+        const billing = data || [];
+        const cardMethods = ['credit_card', 'card_machine', 'stripe'];
 
-        // Mix Distribution
         const mix = {
             pix: billing.filter(b => b.payment_method === 'pix').reduce((s, b) => s + b.amount_cents, 0),
-            card: billing.filter(b => ['credit_card', 'card_machine', 'stripe'].includes(b.payment_method || '')).reduce((s, b) => s + b.amount_cents, 0),
-            financing: proposals.filter(p => p.status === 'signed').reduce((s, p) => s + (p.amount * 100), 0),
-            others: billing.filter(b => !['pix', 'credit_card', 'card_machine', 'stripe'].includes(b.payment_method || '')).reduce((s, b) => s + b.amount_cents, 0)
+            card: billing.filter(b => cardMethods.includes(b.payment_method || '')).reduce((s, b) => s + b.amount_cents, 0),
+            others: billing.filter(b => !['pix', ...cardMethods].includes(b.payment_method || '')).reduce((s, b) => s + b.amount_cents, 0)
         };
 
-        const totalProposals = proposals.length;
-        const approvedProposals = proposals.filter(p => ['approved', 'signed'].includes(p.status)).length;
-        const approvalRate = totalProposals > 0 ? (approvedProposals / totalProposals) * 100 : 0;
-
+        const totalCents = mix.pix + mix.card + mix.others;
         return {
             mix,
-            approvalRate,
-            totalFinancingVolume: mix.financing,
-            activeProposals: proposals.filter(p => p.status === 'pending').length
+            avgTicketCents: billing.length > 0 ? totalCents / billing.length : 0,
+            cardSharePct: totalCents > 0 ? (mix.card / totalCents) * 100 : 0,
         };
     }
 };

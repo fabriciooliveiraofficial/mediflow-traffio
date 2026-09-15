@@ -2,7 +2,7 @@
   "plans": {
     "essencial": {
       "name": "Esencial",
-      "description": "Ideal para profesionales independientes y consultorios individuales.",
+      "description": "Para consultorios con hasta 2 profesionales de la salud.",
       "features": [
         "Hasta 2 profesionales",
         "1 sucursal",
@@ -11,40 +11,35 @@
         "Recordatorios automáticos por WhatsApp",
         "Confirmación y NPS automáticos",
         "1 módulo de especialidad",
+        "IA de atención por paquete adicional (desde R$ 199)",
         "Soporte por correo electrónico"
       ]
     },
     "clinica": {
       "name": "Clínica",
-      "description": "Para clínicas en crecimiento con múltiples profesionales.",
+      "description": "Para clínicas con hasta 10 profesionales que quieren automatizar la atención.",
       "features": [
         "Hasta 10 profesionales",
-        "Hasta 3 sucursales",
-        "Bandeja de WhatsApp con atención humana",
-        "CRM con kanban de seguimiento",
-        "Integración con Meta Ads + Google Ads",
-        "Hub financiero (Asaas, Pagar.me, Dr. Cash)",
+        "Hasta 3 sedes",
+        "60 conversaciones de IA al mes (atención automática 24 h)",
+        "Bandeja para WhatsApp, Instagram, Messenger y sitio web",
+        "Embudo de seguimiento de pacientes (CRM)",
+        "Conexión con anuncios de Facebook e Instagram",
+        "Links de pago con tarjeta (Stripe) y propuestas de tratamiento",
         "Todos los módulos de especialidad",
-        "Visor DICOM (radiografías)",
-        "60 conversaciones de IA por mes (atención automática 24h)",
-        "Soporte prioritario por chat"
+        "Informes financiero y de marketing"
       ]
     },
     "rede": {
       "name": "Red",
-      "description": "Para redes y franquicias con múltiples sucursales.",
+      "description": "Para clínicas con varias sedes y redes.",
       "features": [
         "Profesionales ilimitados",
-        "Sucursales ilimitadas",
-        "150 conversaciones de IA por mes",
+        "Sedes ilimitadas",
+        "150 conversaciones de IA al mes",
         "1 número de WhatsApp incluido (adicionales a R$ 229/mes)",
-        "Master Dashboard (visión de la red)",
-        "Analytics entre sucursales",
-        "Facturación consolidada",
-        "API dedicada y webhooks",
-        "Incorporación asistida y migración",
-        "Gerente de éxito dedicado",
-        "SLA de actividad del 99.9%"
+        "200 GB para archivos de pacientes",
+        "Todo lo del plan Clínica"
       ]
     }
   },
@@ -268,7 +263,6 @@
         "card_machine": "Terminal de tarjeta",
         "bank_transfer": "Transferencia bancaria",
         "insurance": "Seguro médico",
-        "financing": "Financiamiento",
         "check": "Cheque",
         "other": "Otro"
       },
@@ -280,20 +274,5 @@
   "paymentPolling": {
     "title": "Confirmando pago...",
     "message": "Estamos recibiendo la confirmación de Stripe y habilitando tu acceso. Esto debería tardar solo unos segundos."
-  },
-  "pagarmeCallback": {
-    "connecting": "Conectando tu cuenta de Pagar.me...",
-    "authorizationFailed": "La autorización fue cancelada o falló.",
-    "connectionFailedToast": "Falló la conexión con Pagar.me.",
-    "tenantNotIdentified": "Error de contexto: Tenant no identificado.",
-    "successRedirecting": "¡Cuenta conectada con éxito! Redirigiendo...",
-    "connectedToast": "¡Pagar.me conectado con éxito!",
-    "tokenExchangeError": "Error al intercambiar el token con Pagar.me. Inténtalo de nuevo.",
-    "internalErrorToast": "Error interno en la integración.",
-    "titleLoading": "Casi listo...",
-    "titleSuccess": "¡Todo Listo!",
-    "titleError": "¡Ups! Algo salió mal",
-    "sslEncrypted": "Conexión Cifrada SSL",
-    "backToSettings": "Volver a Configuración"
   }
 }

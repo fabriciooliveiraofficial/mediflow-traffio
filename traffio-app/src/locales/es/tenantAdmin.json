@@ -276,21 +276,14 @@
       "billings": "Cobros"
     },
     "analytics": {
-      "sectionTitle": "Conversión de Procedimientos",
-      "sectionSubtitle": "Rendimiento Dr. Cash y Pagar.me",
-      "highApproval": "Alta Aprobación",
-      "approvalRateLabel": "Tasa de Aprobación Dr. Cash",
-      "financingVolumeLabel": "Volumen de Crédito Firmado",
-      "avgTicketLabel": "Ticket Promedio (Hub Híbrido)",
-      "mixChartTitle": "Mezcla de Cobro",
+      "sectionTitle": "Formas de Pago",
+      "sectionSubtitle": "División de los cobros registrados",
+      "avgTicketLabel": "Ticket Promedio",
+      "mixChartTitle": "Cobros por Forma de Pago",
       "mixPix": "Pix",
-      "mixCard": "Tarjeta (Pagar.me)",
-      "mixFinancing": "Financiamiento (Dr. Cash)",
+      "mixCard": "Tarjeta",
       "mixOthers": "Otros",
-      "pipelineTitle": "Estado del Pipeline Dr. Cash",
-      "activeProposalsLabel": "Propuestas en Análisis",
-      "conversionOptimizedTitle": "Conversión Optimizada",
-      "conversionOptimizedDescription": "El uso del Hub Híbrido aumentó el ticket promedio en comparación con los pagos tradicionales presenciales."
+      "cardShareLabel": "Participación de la Tarjeta"
     },
     "transactions": {
       "title": "Cobros",
@@ -502,8 +495,24 @@
       "aiAlwaysHint": "La IA responde a los pacientes en segundos, 24/7, agenda y reagenda con horarios reales, y transfiere a tu equipo cuando es necesario (solicitud del paciente, duda clínica, precio, cancelaciones). Puedes tomar cualquier conversación en cualquier momento — y apagarla aquí cuando quieras. Recuerda guardar.",
       "hoursTitle": "Horario del equipo (cancelaciones en este horario van directo a un asistente)",
       "hoursTimezoneHint": "Zona horaria del tenant: {{timezone}} ({{offset}}) — definida en Configuración",
-      "dayLetters": { "0": "D", "1": "L", "2": "M", "3": "X", "4": "J", "5": "V", "6": "S" },
-      "dayNames": { "0": "Domingo", "1": "Lunes", "2": "Martes", "3": "Miércoles", "4": "Jueves", "5": "Viernes", "6": "Sábado" },
+      "dayLetters": {
+        "0": "D",
+        "1": "L",
+        "2": "M",
+        "3": "X",
+        "4": "J",
+        "5": "V",
+        "6": "S"
+      },
+      "dayNames": {
+        "0": "Domingo",
+        "1": "Lunes",
+        "2": "Martes",
+        "3": "Miércoles",
+        "4": "Jueves",
+        "5": "Viernes",
+        "6": "Sábado"
+      },
       "readiness": {
         "title": "Faltan datos para que la IA atienda bien",
         "subtitle": "Complete lo mínimo abajo en la base de conocimiento — sin eso, el agente cae en \"voy a confirmar con el equipo\" desde la primera pregunta.",

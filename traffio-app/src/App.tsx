@@ -2,7 +2,6 @@ import { useState, useEffect, lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Routes, Route, Navigate, useSearchParams, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { DashboardLayout } from './layouts/DashboardLayout'
-import { PagarmeCallback } from './pages/PagarmeCallback'
 import { PreCheckin } from './pages/patient/PreCheckin'
 
 // Lazy-loaded patient routes to prevent mobile devices from loading the entire admin bundle
@@ -211,7 +210,6 @@ function AppRoutes() {
             <Route path="/register/payment" element={<RegisterPaymentPage />} />
             <Route path="/invite/:token" element={<AcceptInvitePage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-            <Route path="/pagarme-callback" element={<PagarmeCallback />} />
             <Route path="/l/:code" element={<LinkRedirectPage />} />
             <Route path="/privacidade" element={<PrivacyPolicy />} />
             <Route path="/termos" element={<TermsOfService />} />

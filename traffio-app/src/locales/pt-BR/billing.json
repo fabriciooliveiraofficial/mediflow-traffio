@@ -2,7 +2,7 @@
   "plans": {
     "essencial": {
       "name": "Essencial",
-      "description": "Ideal para profissional autônomo e consultório solo.",
+      "description": "Para consultórios com até 2 profissionais da saúde.",
       "features": [
         "Até 2 profissionais",
         "1 unidade",
@@ -11,40 +11,35 @@
         "Lembretes automáticos por WhatsApp",
         "Confirmação e NPS automáticos",
         "1 módulo de especialidade",
+        "IA de atendimento por pacote avulso (a partir de R$ 199)",
         "Suporte por e-mail"
       ]
     },
     "clinica": {
       "name": "Clínica",
-      "description": "Para clínicas em crescimento com múltiplos profissionais.",
+      "description": "Para clínicas com até 10 profissionais que querem automatizar o atendimento.",
       "features": [
         "Até 10 profissionais",
         "Até 3 unidades",
-        "Inbox WhatsApp com atendimento humano",
-        "CRM com kanban de follow-up",
-        "Integração Meta Ads + Google Ads",
-        "Hub financeiro (Asaas, Pagar.me, Dr. Cash)",
-        "Todos os módulos de especialidade",
-        "DICOM viewer (radiografias)",
         "60 conversas de IA por mês (atendimento automático 24h)",
-        "Suporte prioritário por chat"
+        "Caixa de entrada para WhatsApp, Instagram, Messenger e site",
+        "Funil de acompanhamento de pacientes (CRM)",
+        "Conexão com anúncios do Facebook e Instagram",
+        "Links de pagamento por cartão (Stripe) e propostas de tratamento",
+        "Todos os módulos de especialidade",
+        "Relatórios financeiro e de marketing"
       ]
     },
     "rede": {
       "name": "Rede",
-      "description": "Para redes e franquias com múltiplas unidades.",
+      "description": "Para clínicas com várias unidades e redes.",
       "features": [
         "Profissionais ilimitados",
         "Unidades ilimitadas",
         "150 conversas de IA por mês",
         "1 número WhatsApp incluso (adicionais a R$ 229/mês)",
-        "Master Dashboard (visão da rede)",
-        "Analytics cross-unidade",
-        "Faturamento consolidado",
-        "API dedicada e webhooks",
-        "Onboarding assistido e migração",
-        "Gerente de sucesso dedicado",
-        "SLA de uptime 99.9%"
+        "200 GB para arquivos dos pacientes",
+        "Tudo o que o plano Clínica tem"
       ]
     }
   },
@@ -268,7 +263,6 @@
         "card_machine": "Maquininha de cartão",
         "bank_transfer": "Transferência / Pix",
         "insurance": "Convênio / Seguro",
-        "financing": "Financiamento",
         "check": "Cheque",
         "other": "Outro"
       },
@@ -280,20 +274,5 @@
   "paymentPolling": {
     "title": "Confirmando pagamento...",
     "message": "Estamos recebendo a confirmação do Stripe e liberando seu acesso. Isso deve levar apenas alguns segundos."
-  },
-  "pagarmeCallback": {
-    "connecting": "Conectando sua conta Pagar.me...",
-    "authorizationFailed": "A autorização foi cancelada ou falhou.",
-    "connectionFailedToast": "Falha na conexão com Pagar.me.",
-    "tenantNotIdentified": "Erro de contexto: Tenant não identificado.",
-    "successRedirecting": "Conta conectada com sucesso! Redirecionando...",
-    "connectedToast": "Pagar.me conectado com sucesso!",
-    "tokenExchangeError": "Erro ao trocar token com o Pagar.me. Tente novamente.",
-    "internalErrorToast": "Erro interno na integração.",
-    "titleLoading": "Quase lá...",
-    "titleSuccess": "Tudo Pronto!",
-    "titleError": "Ops! Algo deu errado",
-    "sslEncrypted": "Conexão Criptografada SSL",
-    "backToSettings": "Voltar para Configurações"
   }
 }

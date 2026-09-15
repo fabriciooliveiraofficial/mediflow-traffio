@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { User, Stethoscope, CheckCircle2, ChevronRight, Loader2, Copy, Check, ChevronLeft, MapPin, X, CreditCard, Link2, MessageSquare, Calendar } from 'lucide-react';
+import { User, Stethoscope, CheckCircle2, ChevronRight, Loader2, Check, ChevronLeft, MapPin, X, CreditCard, Link2, MessageSquare, Calendar } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useTenant } from '../contexts/TenantContext';
 import { useToast } from '../contexts/ToastContext';
@@ -56,8 +56,6 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
     const [selectedService, setSelectedService] = useState<any | null>(null);
     const [selectedDate, setSelectedDate] = useState<string>('');
     const [selectedSlot, setSelectedSlot] = useState<any | null>(null);
-    const [paymentLink, setPaymentLink] = useState<string | null>(null);
-    const [copied, setCopied] = useState(false);
     const [locations, setLocations] = useState<any[]>([]);
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [nowMin, setNowMin] = useState(new Date().getHours() * 60 + new Date().getMinutes());
@@ -641,10 +639,11 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
             }
 
             const baseUrl = window.location.origin;
-            const payLink = `https://checkout.traffio.com/pay/${bookingId}`;
+            // O antigo "link de pagamento" (checkout.traffio.com/pay/...) apontava para um
+            // domínio que não existe — removido na auditoria de 15/09/2026. Link de
+            // pagamento real só pelo Stripe, a partir de uma proposta aprovada.
             const checkinLink = `${baseUrl}/checkin?apt=${bookingId}&loc=${selectedLocation}`;
-            
-            setPaymentLink(payLink);
+
             setStep(5);
             showToast('success', rescheduleFrom ? t('sidebarBookingView.toasts.rescheduleCompleted') : t('sidebarBookingView.toasts.bookingCompleted'));
 
@@ -716,15 +715,6 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
             showToast('error', err.message);
         } finally {
             setLoading(false);
-        }
-    };
-
-    const handleCopy = () => {
-        if (paymentLink) {
-            navigator.clipboard.writeText(paymentLink);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-            showToast('success', t('sidebarBookingView.toasts.linkCopied'));
         }
     };
 
@@ -1199,19 +1189,6 @@ export function SidebarBookingView({ onBack, patientId, patientName, onSendMessa
                         <div>
                             <h3 className="text-lg font-bold text-gray-900">{t('sidebarBookingView.successTitle')}</h3>
                             <p className="text-xs text-gray-500 mt-1">{t('sidebarBookingView.successSubtitle')}</p>
-                        </div>
-
-                        <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
-                            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">{t('sidebarBookingView.paymentLinkLabel')}</p>
-                            <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl p-2">
-                                <span className="text-[10px] text-gray-400 truncate flex-1">{paymentLink}</span>
-                                <button 
-                                    onClick={handleCopy}
-                                    className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors cursor-pointer border-0"
-                                >
-                                    {copied ? <Check size={14} /> : <Copy size={14} />}
-                                </button>
-                            </div>
                         </div>
 
                         <button

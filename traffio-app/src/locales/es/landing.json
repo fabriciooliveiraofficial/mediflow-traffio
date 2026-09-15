@@ -1,175 +1,127 @@
 {
   "nav": {
     "features": "Funciones",
-    "solutions": "Soluciones",
+    "solutions": "Para quién es",
     "pricing": "Planes",
     "login": "Iniciar Sesión",
-    "register": "Empezar Ahora"
+    "register": "Prueba gratis"
   },
   "hero": {
-    "badge": "La Nueva Era del Marketing Odontológico",
-    "titleLine1": "Marketing Odontológico",
-    "titleHighlight": "que convierte",
-    "subtitle": "La plataforma completa para clínicas dentales. Agenda inteligente, expediente digital, WhatsApp, CRM con Meta Ads y centro financiero — todo integrado.",
-    "ctaPrimary": "Crear Cuenta Gratis",
-    "ctaSecondary": "Ver Funciones",
-    "trustLgpd": "Cumple con LGPD",
-    "trustCloud": "100% en la Nube",
+    "badge": "Para consultorios y clínicas de salud",
+    "titleLine1": "Ningún paciente sin respuesta,",
+    "titleHighlight": "incluso fuera del horario",
+    "subtitle": "La IA de Traffio responde en WhatsApp, Instagram, Messenger y el chat de tu sitio, agenda la cita en tu agenda y llama a tu equipo cuando hace falta una persona. Agenda, recordatorios, expediente y cobros en la misma plataforma.",
+    "ctaPrimary": "Prueba gratis 14 días",
+    "ctaSecondary": "Ver funciones",
+    "trustData": "Sin permanencia",
+    "trustCloud": "Sin instalar nada",
     "trustTrial": "14 días gratis",
-    "floatingBillingLabel": "Facturación",
-    "floatingNoShowLabel": "Ausencia evitada",
-    "imageAlt": "Plataforma Traffio"
-  },
-  "stats": {
-    "noShowLabel": "Reducción de ausencias",
-    "noShowSub": "con recordatorios automáticos",
-    "revenueLabel": "Aumento de ingresos",
-    "revenueSub": "promedio entre clientes",
-    "conversionLabel": "Más conversiones",
-    "conversionSub": "vía CRM + WhatsApp",
-    "trialLabel": "Prueba gratuita",
-    "trialSub": "cancela cuando quieras"
+    "floatingAiLabel": "Atención con IA",
+    "floatingAiValue": "24 horas al día",
+    "floatingReminderLabel": "Recordatorios de citas",
+    "floatingReminderValue": "Automáticos por WhatsApp",
+    "imageAlt": "Profesional de la salud usando la plataforma Traffio"
   },
   "features": {
     "badge": "Funciones",
-    "title": "Todo lo que tu clínica necesita",
-    "subtitle": "Una plataforma completa, sin necesidad de contratar sistemas separados para cada función.",
+    "title": "Lo que encuentras en la plataforma",
+    "subtitle": "Agenda, atención, expediente y cobros: lo que tu equipo usa todos los días, en una sola plataforma.",
     "agenda": {
       "badge": "Agenda",
-      "title": "Agenda inteligente que trabaja por ti",
-      "description": "Visualiza a todos los profesionales en una sola pantalla, mueve citas con arrastrar y soltar, y deja que los pacientes agenden en línea las 24 horas del día, sin necesidad de llamadas.",
-      "item1": "Agenda visual con arrastrar y soltar",
-      "item2": "Agendamiento en línea a través del portal del paciente",
-      "item3": "Múltiples profesionales y sedes en la misma pantalla",
-      "item4": "Check-in digital y sala de espera virtual",
-      "item5": "Lista de espera automática",
-      "item6": "Prevención inteligente de doble reserva",
+      "title": "Agenda organizada y reservas en línea 24 h",
+      "description": "Mira la agenda de todos los profesionales y sedes y deja que el paciente reserve solo, por el portal o por tu sitio web.",
+      "item1": "Agenda de todos los profesionales y sedes",
+      "item2": "Reservas en línea por el portal del paciente",
+      "item3": "Botón de reservas para poner en tu sitio web",
+      "item4": "Check-in desde el celular y sala de espera con posición en la fila",
+      "item5": "Lista de espera con aviso cuando se libera un lugar",
+      "item6": "Bloqueo automático de horarios duplicados",
       "imageAlt": "Agenda de la clínica"
     },
+    "ai": {
+      "badge": "Atención con IA",
+      "title": "Una IA que atiende, resuelve dudas y agenda citas",
+      "description": "La IA responde a cada paciente al instante, con la información que registras sobre tu clínica, y deriva al equipo cuando el tema necesita una persona.",
+      "item1": "Responde 24 h en WhatsApp, Instagram, Messenger y el chat del sitio",
+      "item2": "Revisa los horarios libres y agenda la cita en tu agenda",
+      "item3": "Entiende audios, fotos de documentos y PDF enviados por el paciente",
+      "item4": "Responde comentarios en tus publicaciones de Instagram y Facebook",
+      "item5": "Deriva al equipo en dudas clínicas, reclamos o cuando el paciente lo pide",
+      "item6": "No informa precios por mensaje y sigue las reglas de tu clínica",
+      "imageAlt": "Conversación de paciente atendida por la IA"
+    },
     "whatsapp": {
-      "badge": "WhatsApp",
-      "title": "Comunicación centralizada en WhatsApp",
-      "description": "Conecta el número del consultorio a la plataforma y gestiona todas las conversaciones con pacientes en una bandeja centralizada. Los recordatorios automáticos reducen las ausencias sin esfuerzo del equipo.",
-      "item1": "Recordatorios automáticos 48h, 24h y 2h antes de la cita",
-      "item2": "Confirmación y encuesta de satisfacción (NPS) automáticas",
-      "item3": "Bandeja humana con kanban de conversaciones",
-      "item4": "Envío de imágenes, videos y documentos",
-      "item5": "Respuestas rápidas y etiquetas para organizar conversaciones",
-      "item6": "SLA de tiempo de respuesta visible para el equipo",
-      "imageAlt": "WhatsApp de la clínica"
+      "badge": "Bandeja de entrada",
+      "title": "Todas las conversaciones del equipo en una pantalla",
+      "description": "Conecta el WhatsApp que tu consultorio ya usa, además de Instagram, Messenger y el chat del sitio. Tu equipo atiende todo en el mismo lugar y los recordatorios salen solos.",
+      "item1": "WhatsApp, Instagram, Messenger y chat del sitio en una sola pantalla",
+      "item2": "Recordatorios automáticos 48 h, 24 h y 2 h antes de la cita (configurables)",
+      "item3": "Confirmación de asistencia y encuesta de satisfacción (NPS)",
+      "item4": "Envío de fotos, videos, audios y documentos",
+      "item5": "Respuestas guardadas y etiquetas de prioridad en las conversaciones",
+      "item6": "Copiloto: la IA sugiere respuestas a tu equipo",
+      "imageAlt": "Bandeja de entrada de la clínica"
     },
     "prontuario": {
       "badge": "Expediente",
-      "title": "Expediente electrónico completo y multiespecialidad",
-      "description": "Registra evoluciones, recetas y exámenes en una línea de tiempo clínica visual. Soporta múltiples especialidades — odontología, nutrición, medicina general — todo en un solo lugar.",
-      "item1": "Línea de tiempo clínica con historial completo",
-      "item2": "Evoluciones, recetas y prescripciones digitales",
-      "item3": "Carga y visualización de exámenes y documentos",
-      "item4": "Odontograma digital con procedimientos por cara dental",
-      "item5": "Visor DICOM para radiografías",
-      "item6": "Evaluación antropométrica para nutrición",
+      "title": "Expediente electrónico con el historial completo",
+      "description": "Registra evoluciones y recetas y guarda exámenes y documentos en una línea de tiempo por paciente. Sirve para cualquier especialidad de la salud.",
+      "item1": "Línea de tiempo con el historial de cada paciente",
+      "item2": "Evoluciones y recetas digitales",
+      "item3": "Exámenes, fotos y documentos guardados en el expediente",
+      "item4": "Odontograma por cara del diente y presupuestos (odontología)",
+      "item5": "Evaluación antropométrica y plan alimenticio (nutrición)",
+      "item6": "Visor de imágenes de exámenes con zoom y brillo",
       "imageAlt": "Expediente electrónico"
     },
     "financeiro": {
       "badge": "Finanzas",
-      "title": "Centro de pagos con 3 pasarelas integradas",
-      "description": "Recibe pagos vía PIX, recibo bancario, tarjeta de crédito o financiamiento — todo dentro de la plataforma. Los webhooks automáticos actualizan el estado de la cita al confirmarse el pago.",
-      "item1": "Asaas: PIX instantáneo, recibo bancario y tarjeta",
-      "item2": "Pagar.me: tarjeta de crédito en cuotas",
-      "item3": "Dr. Cash: financiamiento sin tarjeta en hasta 24 cuotas",
-      "item4": "Modal de pago integrado durante la atención",
-      "item5": "Confirmación automática de la cita al pagar",
-      "item6": "Panel financiero con KPIs en tiempo real",
-      "imageAlt": "Centro financiero"
+      "title": "Cobros y pagos organizados",
+      "description": "Conecta tu cuenta Stripe para enviar links de pago con tarjeta. Los demás cobros los registras en la caja, y todo aparece en el informe financiero.",
+      "item1": "Links de pago con tarjeta, con tu cuenta Stripe",
+      "item2": "Link generado desde la propuesta aprobada, listo para enviar al paciente",
+      "item3": "Cobro marcado como pagado automáticamente al confirmarse el pago",
+      "item4": "Registro de efectivo, terminal de tarjeta, Pix, transferencia y convenio",
+      "item5": "Propuestas de tratamiento enviadas al paciente",
+      "item6": "Informe financiero: total, cobrado y por cobrar",
+      "imageAlt": "Finanzas de la clínica"
     },
     "crm": {
-      "badge": "CRM y Marketing",
-      "title": "CRM + integración con Meta y Google Ads",
-      "description": "Gestiona el pipeline de leads con un kanban de seguimiento y ve en tiempo real de dónde vinieron tus pacientes — Facebook, Instagram o Google. Toma decisiones de marketing con datos reales.",
-      "item1": "Kanban de seguimiento con etapas configurables",
-      "item2": "Estimación de ingresos por conversación",
-      "item3": "Integración con Meta Ads (Facebook + Instagram)",
-      "item4": "Integración con Google Ads",
-      "item5": "Panel de ROAS, CPL y tasa de conversión",
-      "item6": "Captura automática de leads por formulario de anuncio",
-      "imageAlt": "CRM y marketing"
+      "badge": "Captación de pacientes",
+      "title": "Acompaña a cada paciente, del contacto a la cita",
+      "description": "Mira en qué etapa está cada interesado, sabe de qué anuncio vino y trae de vuelta a quien no regresa hace meses.",
+      "item1": "Embudo de seguimiento del primer contacto a la cita",
+      "item2": "Etapas actualizadas automáticamente por la agenda y la atención",
+      "item3": "Conexión con anuncios de Facebook e Instagram (Meta Ads)",
+      "item4": "Origen de cada paciente: de qué anuncio vino",
+      "item5": "Informe de inversión, contactos y costo por contacto",
+      "item6": "Mensajes de regreso para pacientes que no vuelven hace meses",
+      "imageAlt": "Embudo de pacientes"
     },
     "more": {
-      "title": "Y mucho más",
-      "portal": { "title": "Portal del Paciente", "desc": "Agendamiento en línea, historial y perfil — todo accesible desde el celular." },
-      "dicom": { "title": "DICOM e Imágenes", "desc": "Visor de radiografías y exámenes de imagen directamente en el expediente." },
-      "reports": { "title": "Reportes", "desc": "Análisis de ocupación, ingresos y desempeño con exportación." },
-      "lgpd": { "title": "LGPD y Seguridad", "desc": "Datos encriptados, RLS por cliente y cumplimiento total con la LGPD." }
+      "title": "También incluido",
+      "portal": {
+        "title": "Portal del paciente",
+        "desc": "El paciente agenda citas y sigue sus reservas desde el celular."
+      },
+      "sms": {
+        "title": "SMS y llamadas",
+        "desc": "Envía SMS y haz llamadas desde la plataforma, pagando solo lo que uses."
+      },
+      "reports": {
+        "title": "Informes",
+        "desc": "Informes financiero y de marketing para seguir tu clínica."
+      },
+      "security": {
+        "title": "Seguridad de los datos",
+        "desc": "Datos de cada clínica aislados, acceso por perfil de usuario y conexión cifrada."
+      }
     }
   },
   "solutions": {
     "badge": "Soluciones",
-    "title": "Hecho para tu especialidad",
-    "subtitle": "La misma plataforma, configurada para cada tipo de clínica. Sin módulos extra, sin costo adicional.",
-    "medicoAutonomo": {
-      "title": "Médico Independiente",
-      "desc": "Consultorio individual con agenda en línea, expediente y WhatsApp automático. Funciona sin recepcionista las 24 horas del día.",
-      "feature1": "Agenda en línea 24/7",
-      "feature2": "Recordatorios automáticos",
-      "feature3": "Expediente digital",
-      "feature4": "Portal del paciente",
-      "plan": "Plan Esencial — R$297/mes"
-    },
-    "clinicaMedica": {
-      "title": "Clínica Médica",
-      "desc": "Múltiples profesionales, CRM de pacientes y centro financiero integrado en una sola plataforma.",
-      "feature1": "Hasta 10 profesionales",
-      "feature2": "Bandeja de WhatsApp",
-      "feature3": "CRM + pipeline",
-      "feature4": "Centro financiero",
-      "plan": "Plan Clínica — R$547/mes"
-    },
-    "odontologia": {
-      "title": "Odontología",
-      "desc": "Odontograma digital, presupuestos, visor DICOM y control de tratamientos por paciente.",
-      "feature1": "Odontograma digital",
-      "feature2": "Presupuestos de tratamiento",
-      "feature3": "DICOM (radiografías)",
-      "feature4": "Cuotas vía Dr. Cash",
-      "plan": "Plan Clínica — R$547/mes"
-    },
-    "nutricao": {
-      "title": "Nutrición y Bienestar",
-      "desc": "Evaluación antropométrica, composición corporal y planes alimenticios integrados al expediente.",
-      "feature1": "Evaluación antropométrica",
-      "feature2": "Composición corporal",
-      "feature3": "Evolución de peso",
-      "feature4": "Planes alimenticios",
-      "plan": "Plan Esencial — R$297/mes"
-    },
-    "psicologia": {
-      "title": "Psicología y Salud Mental",
-      "desc": "Expediente adaptado, prescripciones digitales y agendamiento recurrente para terapias semanales.",
-      "feature1": "Expediente adaptado",
-      "feature2": "Agendamiento recurrente",
-      "feature3": "Confirmación automática",
-      "feature4": "Portal del paciente",
-      "plan": "Plan Esencial — R$297/mes"
-    },
-    "redes": {
-      "title": "Redes y Franquicias",
-      "desc": "Panel Maestro con visión centralizada de todas las sedes, facturación consolidada y API dedicada.",
-      "feature1": "Visión entre sedes",
-      "feature2": "Facturación consolidada",
-      "feature3": "Analítica de la red",
-      "feature4": "API + webhooks",
-      "plan": "Plan Red — R$997/mes"
-    },
-    "startTrial": "Comenzar prueba gratuita",
-    "testimonial": {
-      "quote": "Antes usábamos tres sistemas diferentes. Con Traffio, el equipo agenda, atiende por WhatsApp y cierra el pago en la misma pantalla. Redujimos las ausencias en más del 60% en el primer mes.",
-      "authorName": "Dra. Camila Souza",
-      "authorRole": "Clínica Dental · São Paulo",
-      "metricNoShow": "Reducción de ausencias",
-      "metricConversion": "Conversión de leads",
-      "metricTime": "Tiempo en la agenda",
-      "metricRevenue": "Facturación"
-    }
+    "title": "Para consultorios y clínicas de cualquier especialidad",
+    "subtitle": "Lo que cambia entre los planes es el tamaño de tu equipo y cuánto de la atención quieres automatizar. Haz clic en un perfil para ver todo lo que incluye."
   },
   "pricing": {
     "badge": "Planes y Precios",
@@ -182,87 +134,311 @@
     "mostPopular": "Más Popular",
     "talkToSales": "Hablar con ventas",
     "startTrial14": "Comenzar prueba de 14 días",
-    "assistedOnboarding": "Implementación asistida incluida",
+    "assistedOnboarding": "Activación combinada con nuestro equipo",
     "freeTrialCancelAnytime": "14 días gratis · cancela cuando quieras",
-    "comparisonResourceHeader": "Función",
     "questionsPrefix": "¿Dudas?",
     "talkToTeam": "Habla con nuestro equipo",
-    "allPlansTrial": "Todos los planes incluyen 14 días de prueba gratuita · Sin permanencia · Cancela cuando quieras",
-    "comparison": {
-      "sectionAgenda": "Agenda y Atención",
-      "rowAgendaDragDrop": "Agenda inteligente (arrastrar y soltar)",
-      "rowOnlineBooking": "Agendamiento en línea 24/7",
-      "rowCheckin": "Check-in digital y sala de espera",
-      "rowProfessionals": "Profesionales de la salud",
-      "rowLocations": "Sedes / ubicaciones",
-      "rowWaitlist": "Lista de espera",
-      "sectionProntuario": "Expediente",
-      "rowProntuarioCompleto": "Expediente electrónico completo",
-      "rowUploadExams": "Carga de exámenes y documentos",
-      "rowPrescriptions": "Recetas y prescripciones digitales",
-      "rowAiTerms": "Explicación de términos médicos por IA",
-      "rowStorage": "Almacenamiento",
-      "sectionWhatsapp": "WhatsApp y Comunicación",
-      "rowWhatsappOwn": "Conexión de WhatsApp propia (Z-API)",
-      "rowReminders": "Recordatorios automáticos (48h, 24h, 2h)",
-      "rowConfirmationNps": "Confirmación y NPS automáticos",
-      "rowInbox": "Bandeja humana (kanban de conversaciones)",
-      "rowMedia": "Envío de contenido multimedia (imagen, video, audio)",
-      "rowWhatsappNumbers": "Números de WhatsApp incluidos",
-      "sectionCrm": "CRM y Marketing",
-      "rowPatientLeadMgmt": "Registro y gestión de pacientes/leads",
-      "rowKanbanPipeline": "Kanban de seguimiento (pipeline)",
-      "rowAdsIntegration": "Integración con Meta Ads + Google Ads",
-      "rowRoasDashboard": "Panel de ROAS y conversión",
-      "sectionFinanceiro": "Finanzas y Pagos",
-      "rowManualBilling": "Control manual de cobros",
-      "rowAsaas": "Asaas (PIX automático, recibo bancario, tarjeta)",
-      "rowPagarme": "Pagar.me (tarjeta de crédito)",
-      "rowDrCash": "Dr. Cash (financiamiento)",
-      "rowConsolidatedRevenue": "Facturación consolidada de la red",
-      "sectionModules": "Módulos de Especialidad",
-      "rowModulesAvailable": "Módulos disponibles",
-      "rowOdontogramaDicom": "Odontograma digital + DICOM",
-      "rowAnthropometric": "Evaluación antropométrica (nutrición)",
-      "sectionManagement": "Gestión y Soporte",
-      "rowMasterDashboard": "Panel Maestro (visión de la red)",
-      "rowApiWebhooks": "API dedicada y webhooks",
-      "rowEmailSupport": "Soporte por correo electrónico",
-      "rowChatSupport": "Soporte por chat (horario comercial)",
-      "rowOnboarding": "Incorporación asistida + migración",
-      "rowSuccessManager": "Gerente de éxito dedicado",
-      "rowSlaUptime": "SLA de disponibilidad del 99.9%",
-      "valUpTo2": "Hasta 2",
-      "valUpTo10": "Hasta 10",
-      "valUnlimited": "Ilimitado",
-      "val1": "1",
-      "valUpTo3": "Hasta 3",
-      "val5gb": "5 GB",
-      "val30gb": "30 GB",
-      "val200gb": "200 GB",
-      "val3": "3",
-      "val1modulo": "1 módulo",
-      "valAll": "Todos"
-    }
+    "allPlansTrial": "Todos los planes incluyen 14 días de prueba gratuita · Sin permanencia · Cancela cuando quieras"
   },
   "footer": {
-    "tagline": "ODONTOLOGÍA • MARKETING",
-    "description": "La plataforma completa para clínicas dentales que buscan crecimiento y máxima eficiencia.",
-    "lgpdCompliant": "Cumple con LGPD",
-    "cloud100": "100% en la Nube",
+    "tagline": "PLATAFORMA PARA CLÍNICAS",
+    "description": "Plataforma de atención, agenda y expediente con IA para consultorios y clínicas de salud.",
+    "dataIsolation": "Datos aislados por clínica",
+    "cloud100": "100% en la nube",
     "platformHeading": "Plataforma",
     "linkFeatures": "Funciones",
-    "linkSolutions": "Soluciones",
+    "linkSolutions": "Para quién es",
     "linkPricing": "Planes",
-    "linkSecurity": "Seguridad",
     "companyHeading": "Empresa",
-    "linkAbout": "Acerca de",
-    "linkBlog": "Blog",
     "linkContact": "Contacto",
-    "linkSupport": "Soporte",
-    "copyright": "© 2026 Traffio Odontología Marketing. Todos los derechos reservados.",
+    "copyright": "© 2026 Traffio. Todos los derechos reservados.",
     "privacy": "Privacidad",
-    "terms": "Términos de Uso",
-    "cookies": "Cookies"
+    "terms": "Términos de Uso"
+  },
+  "guide": {
+    "worksFor": "Funciona para:",
+    "specialties": {
+      "dentistry": "Odontología",
+      "medicine": "Medicina",
+      "nutrition": "Nutrición",
+      "psychology": "Psicología",
+      "physio": "Fisioterapia",
+      "speech": "Fonoaudiología",
+      "aesthetics": "Estética",
+      "therapies": "Terapias"
+    },
+    "modulesNote": "Sirve para cualquier profesional de la salud. Módulos listos: odontología (odontograma y presupuestos) y nutrición (evaluación antropométrica y plan alimenticio).",
+    "planLabel": "Plan {{plan}}",
+    "seeDetails": "Ver qué incluye",
+    "seeEverything": "Ver todo lo que incluye",
+    "aiIncluded": "{{count}} conversaciones al mes atendidas por la IA, 24 h",
+    "aiPack": "IA de atención disponible por paquete, desde {{price}}",
+    "profiles": {
+      "essencial": {
+        "title": "Consultorio con hasta 2 profesionales",
+        "desc": "Para quien atiende solo o en pareja y quiere la agenda llena y organizada, sin depender todo el tiempo de una recepcionista.",
+        "bullets": [
+          "Agenda en línea: el paciente reserva solo, 24 h",
+          "Recordatorios automáticos por WhatsApp para reducir ausencias",
+          "Expediente electrónico y recetas digitales",
+          "1 módulo de especialidad a elección"
+        ],
+        "fit": "Indicado para consultorios con 1 o 2 profesionales de la salud, en una sola sede, que quieren organizar la agenda, reducir ausencias y tener el expediente digital. Las conversaciones con pacientes siguen en el WhatsApp del consultorio; la IA de atención se puede activar en cualquier momento comprando paquetes de conversaciones."
+      },
+      "clinica": {
+        "title": "Clínica con equipo de hasta 10 profesionales",
+        "desc": "Para clínicas que reciben muchos contactos por WhatsApp y redes sociales y quieren que ningún paciente se quede sin respuesta.",
+        "bullets": [
+          "60 conversaciones de IA al mes incluidas",
+          "Bandeja única para WhatsApp, Instagram y Messenger",
+          "Embudo de seguimiento e integración con anuncios de Meta",
+          "Links de pago y todos los módulos de especialidad"
+        ],
+        "fit": "Indicado para clínicas con recepción y varios profesionales, en hasta 3 sedes, que invierten en anuncios y necesitan responder rápido, acompañar a cada paciente hasta que agende y cobrar en línea."
+      },
+      "rede": {
+        "title": "Clínicas con varias sedes",
+        "desc": "Para grupos y redes que necesitan profesionales y sedes sin límite y más conversaciones de IA.",
+        "bullets": [
+          "150 conversaciones de IA al mes incluidas",
+          "Profesionales y sedes ilimitados",
+          "200 GB para archivos de pacientes",
+          "Todo lo del plan Clínica"
+        ],
+        "fit": "Indicado para redes y grupos de clínicas con varias sedes o equipos grandes, que necesitan profesionales y sedes sin límite, más espacio para archivos y mayor volumen de atención por IA."
+      }
+    },
+    "modal": {
+      "eyebrow": "Detalles del plan",
+      "close": "Cerrar",
+      "highlightAi": "Conversaciones de IA",
+      "highlightProfessionals": "Profesionales",
+      "highlightLocations": "Sedes",
+      "aiPerMonth": "{{count}} al mes",
+      "aiByPack": "Por paquete, desde {{price}}",
+      "upTo": "Hasta {{count}}",
+      "annualNote": "Plan anual: {{total}} al año, con 1 mes gratis",
+      "monthlyNote": "Plan mensual, sin permanencia",
+      "aiExplainTitle": "Cómo funcionan las conversaciones de IA",
+      "aiExplainIncluded": "La IA responde a tus pacientes en WhatsApp, Instagram, Messenger y el chat de tu sitio a cualquier hora, resuelve dudas con la información de tu clínica y agenda la cita directamente en tu agenda. Cada paciente atendido por la IA cuenta como 1 conversación. Este plan incluye {{count}} conversaciones al mes; si necesitas más, compras paquetes extra que no vencen.",
+      "aiExplainPack": "Este plan no incluye conversaciones de IA, pero puedes activar la IA cuando quieras comprando paquetes: {{units}} conversaciones por {{price}}, sin vencimiento. La IA responde a tus pacientes en WhatsApp, Instagram, Messenger y el chat de tu sitio, resuelve dudas y agenda citas sola.",
+      "aiExplainSafety": "Sin sorpresas en la factura: cuando se acaban las conversaciones del mes, la IA se pausa y los mensajes nuevos van a tu equipo. Ningún paciente se queda sin respuesta y no se cobra nada que no compres.",
+      "gainsTitle": "Lo que ganas frente al plan {{plan}}",
+      "missingTitle": "Lo que no incluye (disponible en {{plan}})",
+      "seePlan": "Ver plan {{plan}}",
+      "tableTitle": "Comparación completa",
+      "tableSubtitle": "Todas las funciones, con una explicación sencilla de lo que cada una hace por tu clínica o consultorio.",
+      "footnote": "Todos los planes incluyen 1 número de WhatsApp; cada número adicional cuesta {{price}}/mes. Los SMS y las llamadas se cobran por uso, con créditos prepagos.",
+      "orWithPack": "o con paquete de IA"
+    }
+  },
+  "compare": {
+    "title": "Compara todas las funciones",
+    "subtitle": "Mira exactamente qué incluye cada plan, con una explicación sencilla de cada función.",
+    "resourceHeader": "Función",
+    "legend": {
+      "included": "Incluido",
+      "notIncluded": "No incluido",
+      "pack": "Disponible con paquete de conversaciones de IA"
+    },
+    "sections": {
+      "ai": "Atención con Inteligencia Artificial",
+      "agenda": "Agenda y reservas en línea",
+      "communication": "WhatsApp y comunicación con pacientes",
+      "records": "Expediente y especialidades",
+      "marketing": "Captación de pacientes y marketing",
+      "finance": "Finanzas y pagos",
+      "support": "Soporte y gestión"
+    },
+    "values": {
+      "aiPack": "Por paquete",
+      "ai60": "60 al mes",
+      "ai150": "150 al mes",
+      "withPack": "Con paquete",
+      "upTo2": "Hasta 2",
+      "upTo10": "Hasta 10",
+      "unlimited": "Ilimitado",
+      "one": "1",
+      "upTo3": "Hasta 3",
+      "oneNumber": "1 incluido",
+      "payPerUse": "Pago por uso",
+      "oneModule": "1 a elección",
+      "allModules": "Todos",
+      "gb5": "5 GB",
+      "gb30": "30 GB",
+      "gb200": "200 GB"
+    },
+    "rows": {
+      "aiConversations": {
+        "label": "Conversaciones atendidas por la IA",
+        "desc": "Cada paciente atendido por la IA cuenta como 1 conversación. ¿Necesitas más? Compra paquetes extra que no vencen."
+      },
+      "aiChannels": {
+        "label": "La IA responde 24 h en WhatsApp, Instagram, Messenger y el chat del sitio",
+        "desc": "Tus pacientes reciben respuesta al instante, incluso de noche, fines de semana y feriados."
+      },
+      "aiScheduling": {
+        "label": "La IA agenda citas sola",
+        "desc": "La IA revisa los horarios libres y agenda la cita directamente en tu agenda, sin que nadie del equipo intervenga."
+      },
+      "aiMedia": {
+        "label": "La IA entiende audios, fotos de documentos y PDF",
+        "desc": "El paciente puede enviar un audio o la foto de un documento y la IA lo entiende. Las imágenes clínicas siempre van a tu equipo."
+      },
+      "aiComments": {
+        "label": "Respuesta automática a comentarios en Instagram y Facebook",
+        "desc": "Quien comenta en tus publicaciones recibe respuesta y una invitación a conversar y agendar."
+      },
+      "aiCopilot": {
+        "label": "Copiloto: la IA sugiere respuestas a tu equipo",
+        "desc": "Cuando la recepción atiende la conversación, la IA escribe un borrador de respuesta para agilizar."
+      },
+      "aiKnowledge": {
+        "label": "IA entrenada con la información de tu clínica",
+        "desc": "Servicios, horarios, convenios y reglas de tu clínica. La IA no informa precios por mensaje y deriva al equipo lo que no sabe responder."
+      },
+      "agenda": {
+        "label": "Agenda de todos los profesionales en una pantalla",
+        "desc": "Mira la agenda del equipo y de todas las sedes de una vez."
+      },
+      "onlineBooking": {
+        "label": "Reservas en línea por el portal del paciente",
+        "desc": "El paciente elige el horario y reserva solo desde el celular, a cualquier hora."
+      },
+      "siteWidget": {
+        "label": "Botón de reservas en tu sitio web",
+        "desc": "Pon la agenda en tu sitio y convierte visitas en citas agendadas."
+      },
+      "checkin": {
+        "label": "Check-in digital y sala de espera",
+        "desc": "El paciente confirma su llegada desde el celular y la recepción sigue la fila en tiempo real."
+      },
+      "waitlist": {
+        "label": "Lista de espera",
+        "desc": "Cuando se cancela un horario, quien está en la lista recibe aviso para ocupar el lugar."
+      },
+      "professionals": {
+        "label": "Profesionales de la salud",
+        "desc": "Cuántos profesionales pueden tener agenda en la plataforma."
+      },
+      "locations": {
+        "label": "Sedes",
+        "desc": "Cuántas direcciones de atención puedes registrar."
+      },
+      "whatsappNumbers": {
+        "label": "Números de WhatsApp",
+        "desc": "Usa el número que tu consultorio ya tiene. Cada número adicional cuesta R$ 229/mes."
+      },
+      "reminders": {
+        "label": "Recordatorios automáticos de citas",
+        "desc": "El paciente recibe recordatorios por WhatsApp antes de la cita, lo que reduce ausencias."
+      },
+      "confirmationNps": {
+        "label": "Confirmación de asistencia y encuesta de satisfacción",
+        "desc": "El paciente confirma o reprograma por WhatsApp y, después de la cita, evalúa la atención."
+      },
+      "inbox": {
+        "label": "Bandeja de entrada del equipo",
+        "desc": "WhatsApp, Instagram, Messenger y el chat del sitio en una sola pantalla, con varios agentes a la vez."
+      },
+      "media": {
+        "label": "Envío de fotos, videos, audios y documentos",
+        "desc": "Tu equipo envía indicaciones y documentos al paciente desde la plataforma."
+      },
+      "officialApi": {
+        "label": "WhatsApp oficial de Meta",
+        "desc": "Conexión por la API oficial de WhatsApp, con botones de respuesta rápida para el paciente."
+      },
+      "smsVoice": {
+        "label": "SMS y llamadas",
+        "desc": "Envía SMS y haz llamadas desde la plataforma, pagando solo lo que uses con créditos prepagos."
+      },
+      "records": {
+        "label": "Expediente electrónico",
+        "desc": "Historial completo de cada paciente: evoluciones, notas y atenciones en una línea de tiempo."
+      },
+      "exams": {
+        "label": "Exámenes y documentos del paciente",
+        "desc": "Guarda exámenes, fotos y documentos en el expediente, sin papel."
+      },
+      "prescriptions": {
+        "label": "Recetas y prescripciones digitales",
+        "desc": "Emite recetas y prescripciones directamente desde el expediente."
+      },
+      "modules": {
+        "label": "Módulos de especialidad",
+        "desc": "Herramientas de tu área, como odontograma y presupuestos (odontología) o evaluación antropométrica y plan alimenticio (nutrición)."
+      },
+      "storage": {
+        "label": "Espacio para archivos",
+        "desc": "Espacio para exámenes, fotos y documentos de los pacientes."
+      },
+      "patients": {
+        "label": "Registro de pacientes y contactos",
+        "desc": "Todos los pacientes e interesados organizados en un solo lugar."
+      },
+      "followup": {
+        "label": "Embudo de seguimiento de pacientes (CRM)",
+        "desc": "Mira en qué etapa está cada interesado, del primer contacto a la cita, y no pierdas a nadie en el camino."
+      },
+      "metaAds": {
+        "label": "Integración con anuncios de Facebook e Instagram",
+        "desc": "Sabe de qué anuncio vino cada paciente y recibe los contactos de los formularios automáticamente."
+      },
+      "cashier": {
+        "label": "Control de cobros",
+        "desc": "Registra pagos en efectivo, terminal de tarjeta, Pix, transferencia y convenio."
+      },
+      "paymentLinks": {
+        "label": "Links de pago con tarjeta",
+        "desc": "Conecta tu cuenta Stripe y envía un link para que el paciente pague con tarjeta; el cobro se marca como pagado solo."
+      },
+      "emailSupport": {
+        "label": "Soporte por correo electrónico",
+        "desc": "Resuelve dudas con nuestro equipo en contato@traffio.com.br."
+      },
+      "imageViewer": {
+        "label": "Visor de imágenes de exámenes",
+        "desc": "Abre radiografías y fotos (JPG o PNG) en el expediente, con zoom y ajuste de brillo."
+      },
+      "adsReport": {
+        "label": "Informe de anuncios",
+        "desc": "Mira cuánto se invirtió, cuántos contactos llegaron y el costo de cada contacto."
+      },
+      "recall": {
+        "label": "Mensajes de regreso automáticos",
+        "desc": "Los pacientes que no vuelven hace meses reciben un mensaje invitando a agendar."
+      },
+      "proposals": {
+        "label": "Propuestas de tratamiento",
+        "desc": "Arma la propuesta con los procedimientos y envíala al paciente por el canal que prefiera."
+      },
+      "financeReport": {
+        "label": "Informe financiero",
+        "desc": "Total cobrado, recibido y por cobrar, dividido por forma de pago."
+      }
+    }
+  },
+  "facts": {
+    "ai": {
+      "value": "24 h",
+      "label": "Atención con IA",
+      "sub": "incluso de noche y fines de semana"
+    },
+    "channels": {
+      "value": "4 canales",
+      "label": "En una sola bandeja",
+      "sub": "WhatsApp, Instagram, Messenger y sitio web"
+    },
+    "languages": {
+      "value": "3 idiomas",
+      "label": "Portugués, inglés y español",
+      "sub": "la IA responde en el idioma del paciente"
+    },
+    "trial": {
+      "value": "14 días",
+      "label": "Prueba gratis",
+      "sub": "cancela cuando quieras"
+    }
   }
 }

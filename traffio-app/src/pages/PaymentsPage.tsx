@@ -3,7 +3,7 @@
  *
  * Decisão de produto: a plataforma integra um único gateway online (Stripe,
  * via Stripe Connect Standard) porque opera globalmente. Todos os demais
- * meios (maquininha, dinheiro, transferência, financiamento local) são
+ * meios (maquininha, dinheiro, transferência, convênio) são
  * registrados manualmente no Financeiro — aqui o tenant apenas configura
  * quais aceita. Links de pagamento só existem com charges_enabled.
  */
@@ -15,7 +15,6 @@ import {
     ExternalLink,
     Banknote,
     Landmark,
-    HandCoins,
     FileText,
     Wallet,
     CircleDollarSign,
@@ -39,7 +38,6 @@ const MANUAL_METHODS = [
     { id: 'card_machine', icon: CreditCard },
     { id: 'bank_transfer', icon: Landmark },
     { id: 'insurance', icon: Shield },
-    { id: 'financing', icon: HandCoins },
     { id: 'check', icon: FileText },
     { id: 'other', icon: Wallet },
 ] as const;

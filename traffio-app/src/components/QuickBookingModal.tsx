@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, User, MapPin, Stethoscope, CheckCircle2, ChevronRight, Loader2, CreditCard, Copy, Check } from 'lucide-react';
+import { X, Calendar, User, MapPin, Stethoscope, CheckCircle2, ChevronRight, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useTenant } from '../contexts/TenantContext';
 import { useToast } from '../contexts/ToastContext';
@@ -34,8 +34,6 @@ export const QuickBookingModal: React.FC<QuickBookingModalProps> = ({ isOpen, on
     const [selectedLocation, setSelectedLocation] = useState<string>('');
     const [selectedService, setSelectedService] = useState<any>(null);
     const [selectedSlot, setSelectedSlot] = useState<any>(null);
-    const [paymentLink, setPaymentLink] = useState<string | null>(null);
-    const [copied, setCopied] = useState(false);
 
     // 1. Initial Load
     useEffect(() => {
@@ -173,7 +171,8 @@ export const QuickBookingModal: React.FC<QuickBookingModalProps> = ({ isOpen, on
                 }
 
                 showToast('success', t('quickBooking.toasts.success'));
-                setPaymentLink(`https://checkout.traffio.com/pay/${res.appointment_id}`);
+                // Sem "link de pagamento" aqui: o antigo apontava para um domínio
+                // inexistente (checkout.traffio.com) — removido em 15/09/2026.
                 setStep(4);
             } else {
                 throw new Error(t('quickBooking.errors.invalidResponse'));
@@ -185,13 +184,6 @@ export const QuickBookingModal: React.FC<QuickBookingModalProps> = ({ isOpen, on
         } finally {
             setLoading(false);
         }
-    };
-
-    const copyToClipboard = () => {
-        if (!paymentLink) return;
-        navigator.clipboard.writeText(t('quickBooking.clipboardMessage', { name: patientName, link: paymentLink }));
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
     };
 
     return (
@@ -361,24 +353,9 @@ export const QuickBookingModal: React.FC<QuickBookingModalProps> = ({ isOpen, on
                                             <p className="text-sm text-graphite-400 max-w-sm">{t('quickBooking.successText')}</p>
                                         </div>
 
-                                        <div className="w-full bg-ice-50 p-6 rounded-3xl border border-ice-100 space-y-4">
-                                            <label className="text-[10px] font-black text-graphite-400 uppercase tracking-widest text-center block">{t('quickBooking.paymentLinkLabel')}</label>
-                                            <div className="flex items-center gap-3 bg-white p-3 rounded-2xl border border-ice-200">
-                                                <CreditCard className="text-brand-primary shrink-0" size={20} />
-                                                <p className="text-xs font-bold text-graphite-900 truncate flex-1">{paymentLink}</p>
-                                                <button onClick={copyToClipboard} className={clsx("p-2 rounded-xl transition-all", copied ? "bg-emerald-500 text-white" : "bg-ice-50 text-graphite-400 hover:text-brand-primary")}>
-                                                    {copied ? <Check size={18} /> : <Copy size={18} />}
-                                                </button>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <button onClick={copyToClipboard} className="flex-1 py-3 bg-white text-graphite-700 border border-ice-200 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-ice-50 transition-colors">
-                                                    {t('quickBooking.copyMessage')}
-                                                </button>
-                                                <button onClick={onClose} className="flex-1 py-3 bg-brand-primary text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-brand-primary/90 transition-colors shadow-lg shadow-brand-primary/20">
-                                                    {t('quickBooking.close')}
-                                                </button>
-                                            </div>
-                                        </div>
+                                        <button onClick={onClose} className="w-full py-3 bg-brand-primary text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-brand-primary/90 transition-colors shadow-lg shadow-brand-primary/20">
+                                            {t('quickBooking.close')}
+                                        </button>
                                     </div>
                                 )}
                             </div>
