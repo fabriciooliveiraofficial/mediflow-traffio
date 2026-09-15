@@ -87,7 +87,8 @@
       "jailbreak": "Prompt manipulation",
       "cancel": "Cancellation request",
       "reconciliation": "Pending reschedule",
-      "ai_budget": "AI paused (quota/cap)"
+      "ai_budget": "AI paused (quota/cap)",
+      "manual": "Manual handling"
     },
     "handoffKinds": {
       "soft": "Soft",

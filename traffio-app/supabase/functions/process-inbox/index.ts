@@ -431,7 +431,9 @@ async function processConversationTurn(
          // como elegível — segue o caminho de hoje (Camada 3 + fila humana,
          // ou só o texto da legenda se houver). Só imagem administrativa
          // (documento) passa a ser mostrada à IA.
-         if (msgType === "image" && !aiBlocked) {
+         // aiConfigured: com o dial em 'human' nenhuma IA vai ver a imagem — a
+         // classificação (Haiku, paga) seria gasto à toa (achado 15/09/2026).
+         if (msgType === "image" && aiConfigured && !aiBlocked) {
            const routerModel = await getAiModelRouter(supabase);
            const category = await classifyImage(supabase, tenantId, msg.media_url, routerModel);
            console.log(`[process-inbox] [${phone}] Imagem classificada: ${category}`);
@@ -448,7 +450,7 @@ async function processConversationTurn(
          // nativamente; sem extração bem-sucedida, documentClassifier já
          // recusa sozinho (defesa em profundidade), mas evitamos a chamada
          // de LLM em vão quando já sabemos que não há texto.
-         if (msgType === "document" && !aiBlocked) {
+         if (msgType === "document" && aiConfigured && !aiBlocked) {
            const isPdf = msg.mime_type === "application/pdf" || /\.pdf$/i.test(msg.file_name || "");
            let extractedText: string | null = null;
            if (!isPdf && msg.media_url) {
@@ -664,14 +666,17 @@ async function processConversationTurn(
          console.log(`[process-inbox] [${phone}] Routing message to human queue${aiBlocked ? ` (IA bloqueada: ${aiGate.reason})` : ""}.`);
          // kind='soft' (não NULL, como era antes — achado real por trás do incidente
          // 13/08/2026, mais provável que o fail-safe de :582/:622): NULL faz
-         // isHardHandoffSession tratar como hard, travando a conversa pra sempre —
-         // inclusive quando o motivo é só o dial não ser 'ai_always' (não é falha).
-         // 'ai_budget' quando foi o gate econômico que desviou: o atendente vê o
-         // motivo real no inbox e a IA retoma sozinha quando houver orçamento.
-         const queueReason = aiBlocked ? "ai_budget" : "tech";
+         // isHardHandoffSession tratar como hard, travando a conversa pra sempre.
+         // 'manual' = o dial do tenant simplesmente não é 'ai_always' — não é falha
+         // (até 15/09/2026 gravava 'tech' e o inbox mostrava "Falha no sistema" em
+         // TODA conversa de tenant em modo humano). 'ai_budget' quando foi o gate
+         // econômico que desviou: o atendente vê o motivo real e a IA retoma sozinha.
+         const queueReason = aiBlocked ? "ai_budget" : "manual";
          if (session.omnichannel_status !== "human_active" && session.omnichannel_status !== "queued") {
            await sessionManager.triggerHumanHandoff(session.id, undefined, { reason: queueReason, kind: "soft" });
-         } else if (session.omnichannel_status === "queued" && (session.handoff_reason === "tech" || session.handoff_reason === "ai_budget")) {
+         } else if (session.omnichannel_status === "queued" && (session.handoff_reason === "manual" || session.handoff_reason === "tech" || session.handoff_reason === "ai_budget")) {
+           // 'tech' incluído de propósito: sessões rotuladas pelo código antigo
+           // migram para 'manual' na próxima mensagem, sem mexer no banco.
            await sessionManager.triggerHumanHandoff(session.id, undefined, { reason: queueReason, kind: "soft" });
          }
          if (aiBlocked) {

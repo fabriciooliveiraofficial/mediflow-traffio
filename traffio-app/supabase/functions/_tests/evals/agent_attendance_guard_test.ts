@@ -80,3 +80,21 @@ Deno.test("GUARD: process-inbox nunca chama triggerHumanHandoff com kind explici
     const offenders = src.match(/triggerHumanHandoff\([^)]*kind:\s*null[^)]*\)/g) || [];
     assertEquals(offenders, [], `chamada(s) com kind:null encontrada(s) — cria estado de handoff irrecuperável: ${offenders.join(" | ")}`);
 });
+
+// ─── Rótulo do modo humano (15/09/2026) ───────────────────────────────────────
+// Com o dial em 'human' o ramo "fila humana" gravava reason='tech' só para
+// garantir kind='soft', e o inbox mostrava "Falha no sistema" em TODA conversa
+// de tenant em modo manual (37/39 sessões num tenant real). Não é falha: o
+// motivo é 'manual'. E, sem nenhuma IA ligada, os classificadores de imagem/
+// documento (Haiku, pagos) não podem rodar — ninguém consumiria o resultado.
+Deno.test("GUARD: fila humana por dial grava reason='manual', nunca 'tech'", async () => {
+    const src = await Deno.readTextFile(new URL("../../process-inbox/index.ts", import.meta.url));
+    assertEquals(/const queueReason = aiBlocked \? "ai_budget" : "manual";/.test(src), true, "ramo humano deve usar 'manual'");
+    assertEquals(/const queueReason = [^\n]*"tech"/.test(src), false, "'tech' voltou a ser o rótulo do modo humano — vira \"Falha no sistema\" no inbox");
+});
+
+Deno.test("GUARD: classificadores de mídia só rodam com algum dial de IA ligado (aiConfigured)", async () => {
+    const src = await Deno.readTextFile(new URL("../../process-inbox/index.ts", import.meta.url));
+    assertEquals(/msgType === "image" && aiConfigured && !aiBlocked/.test(src), true, "classifyImage sem gate de dial");
+    assertEquals(/msgType === "document" && aiConfigured && !aiBlocked/.test(src), true, "classifyDocument sem gate de dial");
+});

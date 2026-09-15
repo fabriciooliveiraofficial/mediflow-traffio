@@ -87,7 +87,8 @@
       "jailbreak": "Intento de manipulación",
       "cancel": "Solicitud de cancelación",
       "reconciliation": "Reagenda pendiente",
-      "ai_budget": "IA pausada (cuota/tope)"
+      "ai_budget": "IA pausada (cuota/tope)",
+      "manual": "Atención manual"
     },
     "handoffKinds": {
       "soft": "Soft",

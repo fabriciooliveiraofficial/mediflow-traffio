@@ -2,7 +2,7 @@ import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 
 export type HandoffKind = "soft" | "hard";
 export type HandoffReason =
-    | "knowledge_gap" | "media" | "tech" | "ai_budget"                     // soft (ai_budget = franquia/teto de IA do tenant)
+    | "knowledge_gap" | "media" | "tech" | "ai_budget" | "manual"          // soft (ai_budget = franquia/teto; manual = dial do tenant em 'human', não é falha)
     | "human_request" | "clinical" | "emergency" | "complaint"
     | "price_insistence" | "jailbreak" | "cancel" | "reconciliation"
     | "data_deletion";                                                     // hard
