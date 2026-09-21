@@ -97,6 +97,10 @@ async function runConversation(s: ConversationScenario): Promise<ConversationRun
             instructions: "",
             knowledgePacket: buildScenarioKnowledgePacket(s),
             todayStr: "2026-07-15",
+            // Relógio de um tenant em Pacific/Auckland, de madrugada: os cenários de tempo
+            // dependem de o agente usar ESTE "agora", não o do servidor nem o do Brasil.
+            nowHHMM: "05:47",
+            timezone: "Pacific/Auckland",
             stageGuidance: s.stage ? STAGE_GUIDANCE[s.stage] ?? null : null,
             languageHint: turnLanguage,
             patientSnapshot: s.withAppointment

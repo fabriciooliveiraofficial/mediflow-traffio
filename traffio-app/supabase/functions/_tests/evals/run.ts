@@ -61,6 +61,10 @@ async function runScenario(s: EvalScenario): Promise<RunResult> {
         instructions: "",
         knowledgePacket: buildScenarioKnowledgePacket(s),
         todayStr: "2026-07-15",
+        // Relógio de um tenant em Pacific/Auckland, de madrugada: os cenários de tempo
+        // dependem de o agente usar ESTE "agora", não o do servidor nem o do Brasil.
+        nowHHMM: "05:47",
+        timezone: "Pacific/Auckland",
         stageGuidance: s.stage ? STAGE_GUIDANCE[s.stage] ?? null : null,
         languageHint: s.language ?? null,
         // Espelha buildPatientSnapshot de produção (fonte da verdade sobre agendamentos)
@@ -116,6 +120,12 @@ function check(s: EvalScenario, r: RunResult): string[] {
         }
         const invented = times.filter(t => !allowed.has(t));
         if (invented.length) failures.push(`horários inventados: ${invented.join(", ")}`);
+    }
+
+    if (e.toolInputIncludes) {
+        const { tool, text } = e.toolInputIncludes;
+        const inputs = r.toolInputs.filter(t => t.name === tool).map(t => t.input);
+        if (!inputs.some(i => i.includes(text))) failures.push(`nenhuma chamada de ${tool} contém "${text}" no input: ${JSON.stringify(inputs)}`);
     }
 
     for (const tool of e.toolsCalled || []) {
@@ -179,6 +189,7 @@ for (const scenario of selected) {
             passed++;
             console.log(`✅ ${scenario.name}`);
             console.log(`   tools=[${result.toolsCalled.join(", ")}] transfer=${result.transferred} rounds=${result.rounds}`);
+            if (Deno.env.get("EVAL_VERBOSE")) console.log(`   resposta: ${JSON.stringify(result.text)}`);
         } else {
             failedNames.push(scenario.name);
             console.log(`❌ ${scenario.name}`);

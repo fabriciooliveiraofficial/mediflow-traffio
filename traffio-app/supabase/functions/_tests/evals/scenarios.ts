@@ -55,12 +55,65 @@ export interface EvalScenario {
         transfer?: boolean;
         /** Transferência é aceitável mas não obrigatória (não falha em nenhum caso) */
         transferOk?: boolean;
+        /** O input de alguma chamada desta ferramenta deve conter este texto (ex.: data convertida de "amanhã") */
+        toolInputIncludes?: { tool: string; text: string };
         /** O input de alguma chamada de `agendar` deve conter esta substring (ex.: nome do terceiro) */
         agendarInputIncludes?: string;
     };
 }
 
 export const SCENARIOS: EvalScenario[] = [
+    {
+        // Relógio do tenant: 2026-07-15 (quarta), 05:47, Pacific/Auckland. A clínica abre às 8h.
+        name: "relogio_aberto_agora — 05:47 no fuso da clínica: não afirma que está aberta, diz quando abre",
+        language: "en",
+        history: [{ role: "user", content: "Hi! Are you open right now? What time is it over there?" }],
+        expect: {
+            transfer: false,
+            noPrice: true,
+            textIncludesAny: ["5:47", "05:47", "8", "open at", "opens", "not open", "closed"],
+            textExcludesAll: ["we're open right now", "we are open right now", "yes, we're open", "yes, we are open", "we're open now"],
+        },
+    },
+    {
+        name: "relogio_amanha_vira_data — 'amanhã de manhã' é convertido para a data certa do relógio da clínica ao consultar a agenda",
+        registeredAs: "Fabricio Teste",
+        history: [{ role: "user", content: "Oi! Quero marcar uma limpeza para amanhã de manhã" }],
+        expect: {
+            transfer: false,
+            toolsCalled: ["ver_disponibilidade"],
+            toolInputIncludes: { tool: "ver_disponibilidade", text: "2026-07-16" },
+            noInventedTimes: true,
+        },
+    },
+    {
+        name: "relogio_dia_da_semana — 'sexta que vem' vira a data certa pela tabela do relógio",
+        registeredAs: "Fabricio Teste",
+        history: [{ role: "user", content: "Oi! Consigo uma limpeza na sexta-feira de manhã?" }],
+        expect: {
+            transfer: false,
+            toolsCalled: ["ver_disponibilidade"],
+            toolInputIncludes: { tool: "ver_disponibilidade", text: "2026-07-17" },
+        },
+    },
+    {
+        // Incidente 2026-09-22: clínica excluiu paciente + agendamento no painel; a
+        // confirmação antiga seguia no histórico e o agente afirmou "you're already
+        // booked tomorrow". Sem ficha no banco, NADA do histórico vale.
+        name: "sessao_velha_sem_cadastro — confirmação antiga no histórico, paciente excluído: não afirma agendamento que não existe",
+        language: "en",
+        patientSnapshotOverride: null,
+        history: [
+            { role: "assistant", content: "Hi Fabricio! Your appointment has been successfully booked! Date: 07/16/2026 — Time: 08:30 am — Professional: Dr. Ana Souza. See you soon!" },
+            { role: "user", content: "hi, just saw your ad. need more information about dental implant" },
+        ],
+        expect: {
+            transfer: false,
+            noPrice: true,
+            toolsNotCalled: ["agendar", "remarcar"],
+            textExcludesAll: ["already booked", "you're booked", "you are booked", "your appointment", "07/16", "08:30", "tomorrow"],
+        },
+    },
     {
         name: "conhecimento_global — pergunta sobre implante foca na pessoa, não no jargão técnico",
         globalKnowledgePacket: "CONHECIMENTO GERAL DE ODONTOLOGIA (informativo):\n## Dental implants [fonte:global#implant_overview]\nA dental implant is commonly made of titanium and is placed in the jawbone to replace the root of a missing tooth. The dentist evaluates the case and defines the plan.",

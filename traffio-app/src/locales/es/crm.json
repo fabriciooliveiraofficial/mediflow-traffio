@@ -42,7 +42,7 @@
     "editTitle": "Editar",
     "deleteTitle": "Eliminar",
     "detailsTitle": "Detalles",
-    "confirmDelete": "¿Estás seguro de que deseas eliminar a este paciente? Esta acción no se puede deshacer.",
+    "confirmDelete": "Eliminar a este paciente borra TODO lo suyo: ficha, citas, historia clínica, presupuestos, documentos, y también el historial de conversaciones y los recordatorios pendientes. Esta acción no se puede deshacer.",
     "toasts": {
       "deleted": "¡Paciente eliminado con éxito!",
       "deleteError": "Error al eliminar paciente."

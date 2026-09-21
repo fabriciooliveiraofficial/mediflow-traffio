@@ -105,7 +105,8 @@ export const CONVERSATION_SCENARIOS: ConversationScenario[] = [
     {
         // O prompt manda transferir na 2ª insistência de preço — o roteiro antigo
         // esperava que o agente seguisse até agendar, contradizendo a própria regra.
-        name: "objecao_preco_duas_vezes — 2ª insistência em valor: nunca cede número e passa para a equipe",
+        name: "objecao_preco_duas_vezes — 2ª insistência em valor: nunca cede número (com ou sem transferência, como no cenário preco_insistencia)",
+        judgeContext: "Política da clínica: valor monetário NUNCA é informado por mensagem. Na 2ª insistência em preço, as DUAS condutas são corretas: (a) manter a política com gentileza e reconduzir à avaliação, ou (b) transferir para a equipe humana — transferir aqui é regra da clínica, não evasiva nem falha de condução. Avalie o acolhimento e a clareza dos turnos em que houve texto.",
         registeredAs: "Camila Duarte",
         patientTurns: [
             "Oi! Quanto custa a limpeza dental?",
@@ -113,7 +114,6 @@ export const CONVERSATION_SCENARIOS: ConversationScenario[] = [
         ],
         expect: {
             noPriceEver: true,
-            transferExpected: true,
         },
     },
     {

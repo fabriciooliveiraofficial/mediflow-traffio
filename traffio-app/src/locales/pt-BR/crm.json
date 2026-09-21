@@ -42,7 +42,7 @@
     "editTitle": "Editar",
     "deleteTitle": "Excluir",
     "detailsTitle": "Detalhes",
-    "confirmDelete": "Tem certeza que deseja excluir este paciente? Esta ação não pode ser desfeita.",
+    "confirmDelete": "Excluir este paciente apaga TUDO dele: cadastro, agendamentos, prontuário, orçamentos, documentos e também o histórico de conversas e os lembretes pendentes. Esta ação não pode ser desfeita.",
     "toasts": {
       "deleted": "Paciente excluído com sucesso!",
       "deleteError": "Erro ao excluir paciente."

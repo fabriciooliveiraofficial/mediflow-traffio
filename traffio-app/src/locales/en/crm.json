@@ -42,7 +42,7 @@
     "editTitle": "Edit",
     "deleteTitle": "Delete",
     "detailsTitle": "Details",
-    "confirmDelete": "Are you sure you want to delete this patient? This action cannot be undone.",
+    "confirmDelete": "Deleting this patient erases EVERYTHING about them: record, appointments, chart, quotes, documents, plus the conversation history and pending reminders. This action cannot be undone.",
     "toasts": {
       "deleted": "Patient deleted successfully!",
       "deleteError": "Error deleting patient."

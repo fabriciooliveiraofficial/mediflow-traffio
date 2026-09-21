@@ -255,6 +255,34 @@ export async function getTenantClock(supabase: SupabaseClient, tenantId: string)
     };
 }
 
+/**
+ * O horário ainda pode ser agendado, no RELÓGIO DO TENANT? (2026-09-22)
+ *
+ * ver_disponibilidade já filtrava passado + antecedência mínima, mas quem
+ * AGENDA não conferia nada — nem agendar/remarcar, nem o clique no botão, nem o
+ * RPC book_appointment (que não tem relógio nenhum). Um botão de horário de
+ * ontem, ou um slot_id velho do histórico, agendava no passado. Em clínica de
+ * fuso distante do servidor (Pacific/Auckland) "passado" só é decidível com o
+ * relógio do tenant. Pura e exportada para teste.
+ */
+export function slotBookability(
+    date: string | null | undefined,
+    time: string | null | undefined,
+    clock: Pick<TenantClock, "today" | "nowHHMM" | "bufferMinutes">,
+): "ok" | "past_date" | "past_time" | "too_soon" | "invalid" {
+    const d = String(date ?? "").substring(0, 10);
+    const t = String(time ?? "").substring(0, 5);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || !/^\d{2}:\d{2}$/.test(t)) return "invalid";
+    if (d < clock.today) return "past_date";
+    if (d > clock.today) return "ok";
+    const mins = (hhmm: string) => Number(hhmm.substring(0, 2)) * 60 + Number(hhmm.substring(3, 5));
+    const slot = mins(t), now = mins(clock.nowHHMM);
+    if (slot <= now) return "past_time";
+    return slot < now + (clock.bufferMinutes || 0) ? "too_soon" : "ok";
+}
+
+const NOT_BOOKABLE_NOTE = "Esse horário não pode mais ser agendado (já passou ou está em cima da hora no relógio da clínica). NÃO diga ao paciente que houve erro: chame ver_disponibilidade de novo e ofereça os horários atuais.";
+
 /** Nunca consultar datas no passado local — o modelo pode enviar uma data velha. */
 export function effectiveFromDate(requested: string | null | undefined, today: string): string {
     return requested && requested >= today ? requested : today;
@@ -1273,6 +1301,9 @@ export async function executeSchedulingTool(
             const referenceError = await validateSchedulingReferences(supabase, tenantId, booking.doctor_id, booking.location_id, booking.type_id);
             if (referenceError) return { data: { success: false, error: referenceError } };
 
+            const bookability = slotBookability(booking.date, booking.start_time, await getTenantClock(supabase, tenantId));
+            if (bookability !== "ok") return { data: { success: false, error: `slot_${bookability}`, note: NOT_BOOKABLE_NOTE } };
+
             // Ficha de quem SERÁ ATENDIDO (terceiros: cria dependente no mesmo telefone)
             const resolved = await resolvePatientIdentity(supabase, tenantId, channel, phone, input.patient_name || null, patientDisplayName);
             if (!resolved.patient) return { data: { success: false, error: resolved.reason === "name_required" ? "patient_not_registered" : "patient_create_failed" } };
@@ -1372,6 +1403,9 @@ export async function executeSchedulingTool(
             if (!patient) return { data: { success: false, error: "patient_not_found" } };
             const referenceError = await validateSchedulingReferences(supabase, tenantId, input.doctor_id, input.location_id, null);
             if (referenceError) return { data: { success: false, error: referenceError } };
+
+            const rebookability = slotBookability(input.date, input.start_time, await getTenantClock(supabase, tenantId));
+            if (rebookability !== "ok") return { data: { success: false, error: `slot_${rebookability}`, note: NOT_BOOKABLE_NOTE } };
 
             // Anti-double-booking primeiro: garante o novo horário antes de liberar o antigo
             const { data: booked, error: bookErr } = await supabase.rpc("book_appointment", {

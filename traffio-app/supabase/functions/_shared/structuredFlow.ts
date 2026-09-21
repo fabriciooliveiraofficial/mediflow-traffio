@@ -36,6 +36,7 @@ import {
     doctorDisplayName,
     validateSchedulingReferences,
     getTenantClock,
+    slotBookability,
     SLOT_TAKEN_MSG,
     SLOT_TAKEN_RETRY_MSG,
     ASK_NAME_TO_BOOK_MSG,
@@ -56,6 +57,12 @@ async function attemptBooking(
     patientId: string,
     slot: Omit<SlotOption, "id" | "title" | "description">,
 ): Promise<{ success: boolean; bookErrMessage?: string }> {
+    // Botão de horário antigo (ontem, ou de minutos atrás já vencidos): o RPC não
+    // tem relógio — quem decide "já passou" é o relógio do tenant. A falha cai no
+    // fluxo normal de reoferta de horários frescos.
+    const bookability = slotBookability(slot.date, slot.time, await getTenantClock(supabase, tenantId));
+    if (bookability !== "ok") return { success: false, bookErrMessage: `slot_${bookability}` };
+
     const { data: booked, error: bookErr } = await supabase.rpc("book_appointment", {
         p_tenant_id: tenantId,
         p_patient_id: patientId,

@@ -1240,7 +1240,7 @@ Deno.test("C3: agendar bloqueia paciente não cadastrado ou com nome 'Paciente W
     const callAgendar = {
         id: "c3",
         name: "agendar",
-        input: { slot_id: "slot|doc-1|loc-1|type-1|2026-07-25|09:00" }
+        input: { slot_id: "slot|doc-1|loc-1|type-1|2099-07-25|09:00" }
     };
     const res = await executeSchedulingTool(mockSupabase as any, "tenant-1", "5511999999999", "Maria", callAgendar as any, "Sim, confirma para mim por favor!");
     assertEquals(res.data.success, false);
@@ -1377,7 +1377,7 @@ Deno.test("C3: agendar bloqueia nome de 1 palavra ('Sofia') — passava no guard
     const mockSupabase = createMockSupabase({
         patient: { id: "pat-1", full_name: "Sofia", phone: "5511999999999" },
     });
-    const callAgendar = { id: "c3b", name: "agendar", input: { slot_id: "slot|doc-1|loc-1|type-1|2026-07-25|09:00" } };
+    const callAgendar = { id: "c3b", name: "agendar", input: { slot_id: "slot|doc-1|loc-1|type-1|2099-07-25|09:00" } };
     const res = await executeSchedulingTool(mockSupabase as any, "tenant-1", "5511999999999", "Maria", callAgendar as any, "Sim, confirma para mim por favor!");
     assertEquals(res.data.success, false);
     assertEquals(res.data.error, "patient_not_registered");
@@ -1389,7 +1389,7 @@ Deno.test("C3: agendar bloqueia nome de 1 palavra ('Sofia') — passava no guard
 
 const CONFLICT_RPC_ALTERNATIVES = {
     data: [{
-        date: "2026-07-25",
+        date: "2099-07-25",
         location_id: "loc-1",
         location_name: "Centro",
         slots: [
@@ -1402,7 +1402,7 @@ const CONFLICT_RPC_ALTERNATIVES = {
 };
 
 const CONFLICT_RPC_NO_ALTERNATIVES = {
-    data: [{ date: "2026-07-25", location_id: "loc-1", location_name: "Centro", slots: [{ time: "09:00", available: false }] }],
+    data: [{ date: "2099-07-25", location_id: "loc-1", location_name: "Centro", slots: [{ time: "09:00", available: false }] }],
     error: null,
 };
 
@@ -1415,7 +1415,7 @@ Deno.test("E4: agendar com conflito real (outro paciente) e alternativas dispon�
         },
     });
     // type_id vazio no slot_id → parseSlotClick devolve type_id: null (duração default 30min)
-    const callAgendar = { id: "c4a", name: "agendar", input: { slot_id: "slot|doc-1|loc-1||2026-07-25|09:00" } };
+    const callAgendar = { id: "c4a", name: "agendar", input: { slot_id: "slot|doc-1|loc-1||2099-07-25|09:00" } };
     const res = await executeSchedulingTool(mockSupabase as any, "tenant-1", "5511999999999", "Fabricio", callAgendar as any, "Sim, confirma para mim por favor!");
     assertEquals(res.data.success, false);
     assertEquals(res.data.reason, "SLOT_CONFLICT");
@@ -1433,7 +1433,7 @@ Deno.test("E4: agendar com conflito real e ZERO alternativas — devolve o resul
             find_next_available_dates: CONFLICT_RPC_NO_ALTERNATIVES,
         },
     });
-    const callAgendar = { id: "c4b", name: "agendar", input: { slot_id: "slot|doc-1|loc-1||2026-07-25|09:00" } };
+    const callAgendar = { id: "c4b", name: "agendar", input: { slot_id: "slot|doc-1|loc-1||2099-07-25|09:00" } };
     const res = await executeSchedulingTool(mockSupabase as any, "tenant-1", "5511999999999", "Fabricio", callAgendar as any, "Sim, confirma para mim por favor!");
     assertEquals(res.data.success, false);
     assertEquals(res.data.reason, "SLOT_CONFLICT");
@@ -1451,7 +1451,7 @@ Deno.test("E4: remarcar com conflito real e alternativas disponíveis — mesmo 
     });
     const callRemarcar = {
         id: "c4c", name: "remarcar",
-        input: { appointment_id: "appt-1", doctor_id: "doc-1", location_id: "loc-1", date: "2026-07-25", start_time: "09:00" },
+        input: { appointment_id: "appt-1", doctor_id: "doc-1", location_id: "loc-1", date: "2099-07-25", start_time: "09:00" },
     };
     const res = await executeSchedulingTool(mockSupabase as any, "tenant-1", "5511999999999", "Fabricio", callRemarcar as any, "Sim, confirma para mim por favor!");
     assertEquals(res.data.success, false);
@@ -2441,6 +2441,20 @@ Deno.test("hasUnansweredRegistrationAsk: paciente ignora o pedido de nome e faz 
     assert(buildFlowStateHint({}, {}, history)?.includes("PROIBIDO pedir"));
     // Cadastro já confirmado: o assunto acabou, a dica some.
     assert(!buildFlowStateHint({ registration_confirmed: true }, {}, history)?.includes("PROIBIDO pedir"));
+});
+
+Deno.test("hasUnansweredRegistrationAsk: pedido feito 2 turnos atrás continua em aberto enquanto o paciente só pergunta (eval 2026-09-22)", () => {
+    const history = [
+        { role: "user", content: "Oi, vocês fazem clareamento?" },
+        { role: "assistant", content: "Fazemos sim! Me diz seu nome completo?" },
+        { role: "user", content: "e tem estacionamento aí?" },
+        { role: "assistant", content: "Tem sim, gratuito! Ficou alguma outra dúvida?" },
+        { role: "user", content: "qual o endereço de vocês?" },
+    ];
+    assertEquals(hasUnansweredRegistrationAsk(history), true);
+    // Assim que ele responde, ou pede horário, o estado some.
+    assertEquals(hasUnansweredRegistrationAsk([...history, { role: "assistant", content: "Av. Central, 100." }, { role: "user", content: "ah, meu nome é Bruno Tavares" }]), false);
+    assertEquals(hasUnansweredRegistrationAsk([...history, { role: "assistant", content: "Av. Central, 100." }, { role: "user", content: "tem horário amanhã?" }]), false);
 });
 
 Deno.test("hasUnansweredRegistrationAsk: resposta ao pedido (nome curto, 'me chamo', e-mail, confirmação) → false", () => {

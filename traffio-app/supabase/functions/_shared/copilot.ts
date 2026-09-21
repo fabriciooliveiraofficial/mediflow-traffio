@@ -24,6 +24,8 @@ import {
     buildSlotInteractive,
     isWithinBusinessHours,
     todayInTz,
+    nowInTz,
+    getTenantClock,
     getRelativeDayLabel,
     AFTER_HOURS_CANCEL_MSG,
     plausiblePersonName,
@@ -678,11 +680,14 @@ export async function runCopilot(supabase: SupabaseClient, params: CopilotParams
         // A triagem precede o rascunho: o idioma do turno nunca pode depender
         // apenas de memória antiga ou da detecção implícita do modelo redator.
         const searchPhone = context.visitor_phone || phone;
+        // Relógio do tenant (fonte única: tenants.timezone) — o rascunho precisa do
+        // mesmo "agora" que o agente autônomo e as ferramentas de agenda usam.
+        const copilotClock = await getTenantClock(supabase, tenantId);
         const [routerModel, agentModel, journeyStage, patientSnapshot] = await Promise.all([
             getAiModelRouter(supabase),
             getAiModelAgent(supabase),
             fetchStageGuidance(supabase, sessionId),
-            buildPatientSnapshot(supabase, tenantId, searchPhone, null),
+            buildPatientSnapshot(supabase, tenantId, searchPhone, copilotClock.timezone),
         ]);
         const personality = botConfig?.personality || "acolhedor";
         const instructions = botConfig?.global_instructions || "";
@@ -715,6 +720,7 @@ export async function runCopilot(supabase: SupabaseClient, params: CopilotParams
                 knowledgePacket ? `### CONTEXTO DA CLÍNICA (única fonte de fatos permitida):\n${knowledgePacket}` : "",
             ].filter(Boolean).join("\n");
             const draftDynamicParts = [
+                buildClinicClockBlock(copilotClock.today, copilotClock.nowHHMM, copilotClock.timezone),
                 stageGuidance ? `### CONTEXTO DA JORNADA DESTE PACIENTE (ajusta a abordagem, nunca a política de preço):\n${stageGuidance}` : "",
                 `⚠️ IDIOMA OBRIGATÓRIO DESTE TURNO: escreva a sugestão 100% em ${CONVERSATION_LANGUAGE_NAMES[language]}. Esta classificação já foi concluída para a última mensagem do paciente; não troque de idioma por causa do histórico ou de retornos internos.`,
                 patientSnapshot ? `### PACIENTE NO SISTEMA (fonte da VERDADE — vale mais que a memória da conversa):\n${patientSnapshot}\nPara "confirmar/quando é minha consulta": responda com o dado acima; nunca diga que "está sendo finalizado" se o agendamento já existe, nem invente eventos de sistema.` : "",
@@ -1261,6 +1267,8 @@ export interface AgentReplyValidationOptions {
     patientLastMessage?: string;
     /** buildPatientSnapshot output only; do not use untrusted transcript text here. */
     appointmentEvidence?: string | null;
+    /** Data de hoje no fuso do tenant — habilita a checagem de "hoje/amanhã" contra a data citada. */
+    todayStr?: string | null;
     /** E-3 (2026-07-31): alguma ferramenta de dados falhou/foi bloqueada NESTE turno — combina com PROMISE_PATTERN para pegar promessa sem execução. */
     toolCallFailedThisTurn?: boolean;
     /**
@@ -1320,6 +1328,9 @@ export function validateAgentReply(text: string, opts: AgentReplyValidationOptio
     if (PRICE_LEAK_PATTERN.test(text)) violations.push("preço citado na mensagem (POLÍTICA DE PREÇO)");
 
     // P-15/P-16/P-17 (Onda 3): tom hostil, festivo em contexto sensível, ou culpa por falta/atraso
+    const wrongDay = hasWrongRelativeDay(text, opts.todayStr);
+    if (wrongDay) violations.push(wrongDay);
+
     const insensitiveTone = hasInsensitiveTone(text, opts.patientLastMessage || "");
     if (insensitiveTone) violations.push(insensitiveTone);
     // `evidence` inclui transcript para validar horários, mas texto do paciente
@@ -1591,7 +1602,11 @@ export async function buildPatientSnapshot(
 
     if (!patients?.length) return null;
 
-    const todayStr = todayInTz(timezone || undefined);
+    // Fuso SEMPRE do tenant. O copiloto chamava isto com `null` e os rótulos
+    // hoje/amanhã/ontem (e o corte futuro × passado) saíam em America/Sao_Paulo
+    // para uma clínica em Pacific/Auckland (achado na auditoria de 2026-09-22).
+    const effectiveTz = timezone || (await getTenantClock(supabase, tenantId)).timezone;
+    const todayStr = todayInTz(effectiveTz);
 
     // Futuro + histórico EM PARALELO (eram 2 round-trips em série dentro do
     // bloco que segura o 1º token do modelo).
@@ -1701,6 +1716,120 @@ export function detectCommercialSolicitation(args: {
     return null;
 }
 
+// ── Relógio da clínica (incidente 2026-09-22, tenant em Pacific/Auckland) ─────
+// O prompt dizia só "Data de hoje: 2026-09-22" e o agente respondeu "you're
+// booked tomorrow, 09/22/2026": com a data CERTA em mãos, ele deduziu o rótulo
+// relativo a partir de uma confirmação antiga no histórico (que não tem data de
+// envio). Modelo não faz conta de calendário com confiabilidade — então a
+// tabela hoje/amanhã/ontem vem PRONTA, calculada no fuso do tenant, e o rótulo
+// errado é barrado por validador (hasWrongRelativeDay).
+const WEEKDAYS_PT = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"];
+
+function addDaysIso(iso: string, days: number): string {
+    const [y, m, d] = iso.split("-").map(Number);
+    return new Date(Date.UTC(y, m - 1, d + days)).toISOString().split("T")[0];
+}
+
+function weekdayPt(iso: string): string {
+    const [y, m, d] = iso.split("-").map(Number);
+    return WEEKDAYS_PT[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+}
+
+/** Bloco de tempo do prompt. Puro: tudo deriva de todayStr (já no fuso do tenant). */
+export function buildClinicClockBlock(todayStr: string, nowHHMM?: string | null, timezone?: string | null): string {
+    const day = (offset: number) => { const iso = addDaysIso(todayStr, offset); return `${iso} (${weekdayPt(iso)})`; };
+    const upcoming = [2, 3, 4, 5, 6, 7].map(day).join(", ");
+    return [
+        `### RELÓGIO DA CLÍNICA${timezone ? ` (fuso ${timezone})` : ""} — ÚNICA referência de tempo. Ignore qualquer outra noção de "agora" (inclusive a sua).`,
+        `AGORA: ${weekdayPt(todayStr)}, ${todayStr}${nowHHMM ? `, ${nowHHMM}` : ""}`,
+        `ontem = ${day(-1)} | HOJE = ${day(0)} | AMANHÃ = ${day(1)}`,
+        `próximos dias: ${upcoming}`,
+        `- Antes de dizer "hoje", "amanhã", "ontem" (em qualquer idioma), CONFIRA a data nesta tabela. Se a data não for a de HOJE/AMANHÃ/ontem acima, diga o dia da semana + a data — nunca um rótulo relativo.`,
+        `- Mensagens antigas do histórico falam do "hoje" DELAS: um "amanhã" dito ontem não é amanhã. Reinterprete toda data do histórico por esta tabela.`,
+        `- Use esta tabela também para converter "amanhã", "sexta", "semana que vem" em datas ao chamar ferramentas.`,
+    ].join("\n");
+}
+
+/**
+ * Transcript com marcadores de tempo: recent_messages guarda `timestamp`, mas
+ * o transcript o descartava — para o modelo, uma confirmação de anteontem e a
+ * mensagem de agora eram o mesmo "momento". Insere um separador quando há
+ * intervalo ≥ 3h entre mensagens. Pura e exportada para teste.
+ */
+export function buildDatedTranscript(
+    history: { role: string; content: string; timestamp?: string | null }[],
+    now: Date = new Date(),
+): string {
+    const GAP_MS = 3 * 60 * 60 * 1000;
+    const lines: string[] = [];
+    let prev: number | null = null;
+    const ago = (ms: number) => {
+        const h = Math.round(ms / 3_600_000);
+        return h < 48 ? `${h}h` : `${Math.round(h / 24)} dias`;
+    };
+    for (const m of history) {
+        const ts = m.timestamp ? Date.parse(m.timestamp) : NaN;
+        if (Number.isFinite(ts)) {
+            if (prev === null && now.getTime() - ts >= GAP_MS) {
+                lines.push(`[— conversa anterior, de ${ago(now.getTime() - ts)} atrás —]`);
+            } else if (prev !== null && ts - prev >= GAP_MS) {
+                lines.push(`[— ${ago(ts - prev)} depois${now.getTime() - ts < GAP_MS ? " — CONVERSA ATUAL" : ""} —]`);
+            }
+            prev = ts;
+        }
+        lines.push(`${m.role === "user" ? "PACIENTE" : "CLÍNICA"}: ${m.content}`);
+    }
+    return lines.join("\n");
+}
+
+// Bordas com \p{L} (não ): em JS,  não reconhece "ã"/"ñ" como letra, e
+// "amanhã," nunca casava.
+const RELATIVE_DAY_WORDS: [RegExp, number][] = [
+    [/(?<!\p{L})(today|hoje|hoy)(?!\p{L})/giu, 0],
+    [/(?<!\p{L})(tomorrow|amanh[ãa])(?!\p{L})/giu, 1],
+    // "mañana" também é "manhã" em espanhol: só conta como AMANHÃ sem artigo/preposição de período antes.
+    [/(?<!(?:^|\P{L})(?:la|esta|de)\s)(?<!\p{L})ma[ñn]ana(?!\p{L})/giu, 1],
+    [/(?<!\p{L})(yesterday|ontem|ayer)(?!\p{L})/giu, -1],
+];
+const DATE_NEAR = /(\d{4})-(\d{2})-(\d{2})|\b(\d{1,2})[\/.](\d{1,2})(?:[\/.](\d{2,4}))?\b/g;
+
+/**
+ * Rótulo relativo colado numa data que NÃO corresponde (ex.: "tomorrow,
+ * 09/22/2026" quando 22/09 é HOJE no fuso da clínica). Só olha datas a até 28
+ * caracteres do rótulo; dd/mm e mm/dd são ambos aceitos (a confirmação em
+ * inglês usa mm/dd) — só reprova se NENHUMA leitura bater. Pura, exportada.
+ */
+export function hasWrongRelativeDay(text: string, todayStr: string | null | undefined): string | null {
+    if (!todayStr || !/^\d{4}-\d{2}-\d{2}$/.test(todayStr)) return null;
+    const year = Number(todayStr.substring(0, 4));
+    for (const [wordPattern, offset] of RELATIVE_DAY_WORDS) {
+        for (const w of text.matchAll(wordPattern)) {
+            const start = (w.index ?? 0) + w[0].length;
+            const window = text.substring(start, start + 28);
+            // Janela termina na primeira quebra de frase: "hoje. Dia 25/09 também..." não conta.
+            const scoped = window.split(/[.!?\n]/)[0];
+            DATE_NEAR.lastIndex = 0;
+            const d = DATE_NEAR.exec(scoped);
+            if (!d) continue;
+            const expected = addDaysIso(todayStr, offset);
+            const candidates: string[] = [];
+            if (d[1]) {
+                candidates.push(`${d[1]}-${d[2]}-${d[3]}`);
+            } else {
+                const a = Number(d[4]), b = Number(d[5]);
+                const y = d[6] ? (d[6].length === 2 ? 2000 + Number(d[6]) : Number(d[6])) : year;
+                const iso = (mm: number, dd: number) => `${y}-${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
+                if (b >= 1 && b <= 12 && a >= 1 && a <= 31) candidates.push(iso(b, a)); // dd/mm
+                if (a >= 1 && a <= 12 && b >= 1 && b <= 31) candidates.push(iso(a, b)); // mm/dd
+            }
+            if (candidates.length && !candidates.includes(expected)) {
+                return `rótulo relativo errado: "${w[0]}" junto de ${d[0]}, mas pelo RELÓGIO DA CLÍNICA "${w[0]}" é ${expected}`;
+            }
+        }
+    }
+    return null;
+}
+
 // ── Pedido de cadastro sem resposta (2026-09-21) ─────────────────────────────
 // Achado nos evals de conversa: com o nome desconhecido, o modelo reavalia "sem
 // nome → peça o nome" do zero A CADA turno e repete o pedido 3, 4, 6 vezes
@@ -1753,23 +1882,35 @@ export function needsSoberTone(history: { role: string; content: string }[] | nu
 
 export function hasUnansweredRegistrationAsk(history: { role: string; content: string }[] | null | undefined): boolean {
     const msgs = (history || []).filter(m => m?.content);
-    let lastUserIdx = -1;
-    for (let i = msgs.length - 1; i >= 0; i--) if (msgs[i].role === "user") { lastUserIdx = i; break; }
-    if (lastUserIdx < 1) return false;
-    const lastAssistant = msgs.slice(0, lastUserIdx).reverse().find(m => m.role !== "user");
-    if (!lastAssistant || !REGISTRATION_ASK_PATTERN.test(lastAssistant.content)) return false;
+    if (!msgs.length || msgs[msgs.length - 1].role !== "user") return false;
 
-    const reply = msgs[lastUserIdx].content.trim();
-    if (REGISTRATION_ANSWER_PATTERN.test(reply)) return false;
-    // Quer agendar agora: o dado passou a ser necessário de verdade — a persona
-    // cuida de pedir de novo, de outro jeito e explicando o porquê.
-    if (BOOKING_INTENT_PATTERN.test(reply)) return false;
-    // Só conta como "ignorou o pedido" quando ele devolve OUTRA PERGUNTA. Qualquer
-    // afirmação ("Marina Lopes", "pode ser esse número mesmo") é tratada como
-    // resposta: errar para este lado custa no máximo um pedido repetido; errar
-    // para o outro PROÍBE pedir o dado que falta e trava o cadastro (visto nos
-    // evals: agente sem saída transferiu para humano).
-    return reply.includes("?");
+    // Procura o ÚLTIMO pedido de dado feito pela clínica (janela curta) e confere
+    // TUDO que o paciente disse depois dele. A 1ª versão olhava só a última fala
+    // da clínica: pedido no turno 1, resposta limpa no turno 2 e... o pedido
+    // voltava no turno 3, porque já não era "a última mensagem" (eval 2026-09-22).
+    // Enquanto ele só devolver perguntas, o pedido continua em aberto — sem repetir.
+    const LOOKBACK = 8;
+    let askIdx = -1;
+    for (let i = msgs.length - 2; i >= Math.max(0, msgs.length - 1 - LOOKBACK); i--) {
+        if (msgs[i].role !== "user" && REGISTRATION_ASK_PATTERN.test(msgs[i].content)) { askIdx = i; break; }
+    }
+    if (askIdx < 0) return false;
+
+    const repliesSince = msgs.slice(askIdx + 1).filter(m => m.role === "user").map(m => m.content.trim());
+    if (!repliesSince.length) return false;
+    for (const reply of repliesSince) {
+        if (REGISTRATION_ANSWER_PATTERN.test(reply)) return false;
+        // Quer agendar agora: o dado passou a ser necessário de verdade — a persona
+        // cuida de pedir de novo, de outro jeito e explicando o porquê.
+        if (BOOKING_INTENT_PATTERN.test(reply)) return false;
+        // Só conta como "ignorou o pedido" quando ele devolve OUTRA PERGUNTA. Qualquer
+        // afirmação ("Marina Lopes", "pode ser esse número mesmo") é tratada como
+        // resposta: errar para este lado custa no máximo um pedido repetido; errar
+        // para o outro PROÍBE pedir o dado que falta e trava o cadastro (visto nos
+        // evals: agente sem saída transferiu para humano).
+        if (!reply.includes("?")) return false;
+    }
+    return true;
 }
 
 // ── Camada 2: máquina de estados do agendamento ──────────────────────────────
@@ -1785,7 +1926,7 @@ export function buildFlowStateHint(
 
     if (!context?.registration_confirmed && !context?.pending_booking_slot && hasUnansweredRegistrationAsk(history)) {
         parts.push(
-            "Na sua ÚLTIMA mensagem você JÁ pediu um dado de cadastro e o paciente NÃO respondeu — ele seguiu " +
+            "Você JÁ pediu um dado de cadastro nesta conversa e o paciente NÃO respondeu — desde então ele só seguiu " +
             "tirando dúvidas: está explorando, ainda não está pronto para cadastro. NESTE TURNO é PROIBIDO pedir " +
             "nome, sobrenome, telefone ou e-mail. Responda a dúvida dele por inteiro e feche com um próximo passo " +
             "DIFERENTE: uma pergunta sobre o que ele busca ou o que o incomoda, ou um gancho de valor ligado ao que " +
@@ -1913,6 +2054,9 @@ export function buildAutonomousSystemPrompt(opts: {
     instructions: string;
     knowledgePacket: string;
     todayStr: string;
+    /** Hora local (HH:MM) e fuso do tenant — alimentam o RELÓGIO DA CLÍNICA. */
+    nowHHMM?: string | null;
+    timezone?: string | null;
     /** Idioma detectado da conversa (context.language) — âncora anti-deriva pós-ferramenta */
     languageHint?: string | null;
     /** IA consciente de jornada (roadmap item 6) — ajusta abordagem por estágio do CRM, nunca a política de preço */
@@ -1959,14 +2103,18 @@ export function buildAutonomousSystemPrompt(opts: {
         opts.accessibleMode ? "### MODO ACESSÍVEL (E-22): o paciente pediu linguagem simples/tem dificuldade de leitura — use frases curtas, uma pergunta por mensagem, e ofereça opções numeradas quando houver escolha." : "",
         opts.stageGuidance ? `### CONTEXTO DA JORNADA DESTE PACIENTE (ajusta a abordagem, nunca a política de preço):\n${opts.stageGuidance}` : "",
         opts.flowStateHint ? `### ESTADO DO FLUXO DE AGENDAMENTO (continue DESTE ponto, não recomece):\n${opts.flowStateHint}` : "",
-        opts.patientSnapshot ? `### PACIENTE NO SISTEMA (fonte da VERDADE — vale mais que a memória da conversa):\n${opts.patientSnapshot}\nPara "confirmar/quando é minha consulta": responda com o dado acima. Se acima diz que existe agendamento, ele EXISTE — confirme-o; nunca diga que falhou ou que o horário ficou indisponível.` : "",
+        // Incidente 2026-09-22: paciente e agendamento EXCLUÍDOS no painel, e o agente
+        // afirmou "you're already booked" — sem ficha o bloco abaixo não existia, e
+        // a única "verdade" que sobrava era a confirmação antiga no histórico.
+        !opts.patientSnapshot ? "### PACIENTE NO SISTEMA (fonte da VERDADE — vale mais que a memória da conversa):\nNENHUM cadastro e NENHUM agendamento existem no sistema para este contato AGORA. Se o histórico da conversa mostrar cadastro, confirmação de agendamento, data ou horário marcados, isso NÃO EXISTE MAIS (foi cancelado ou removido pela clínica): nunca afirme que a pessoa está agendada, nunca cite aquela data/horário como válidos, e não a trate por um nome que só aparece no histórico sem confirmar. Comece o atendimento do zero, com naturalidade — sem mencionar que algo foi apagado." : "",
+        opts.patientSnapshot ? `### PACIENTE NO SISTEMA (fonte da VERDADE — vale mais que a memória da conversa):\n${opts.patientSnapshot}\nPara "confirmar/quando é minha consulta": responda com o dado acima. Se o histórico citar um agendamento que NÃO está na lista acima, ele não existe mais (cancelado/removido) — não o afirme. Se acima diz que existe agendamento, ele EXISTE — confirme-o; nunca diga que falhou ou que o horário ficou indisponível.` : "",
         opts.visitorName ? `### VISITOR DATA (from initial form):\nThe patient has already identified as "${opts.visitorName}"${opts.visitorEmail ? `, email "${opts.visitorEmail}"` : ""}${opts.visitorPhone ? `, phone "${opts.visitorPhone}"` : ""}. Address them by this name and DO NOT ask for name, phone or email again, as these are already provided.` : "",
         opts.channel && opts.channel !== "whatsapp"
             ? (opts.channel === "livechat" && opts.visitorName
                 ? `### OMNICHANNEL (LIVECHAT): O paciente está conversando via Live Chat e seus dados de cadastro (nome, telefone, e-mail) JÁ FORAM COLETADOS no formulário inicial. NUNCA solicite nome, telefone ou e-mail do paciente.`
                 : `### OMNICHANNEL (${opts.channel.toUpperCase()}): O paciente está conversando via ${opts.channel.toUpperCase()}. Para localizar ou criar o cadastro na clínica, solicite o número de telefone (com DDD) e o e-mail do paciente (ex: "Para localizarmos ou criarmos o seu cadastro aqui na clínica, por favor, me informe o seu número de telefone e o seu e-mail"). JAMAIS pergunte especificamente por "WhatsApp" e NUNCA diga que os dados são para enviar "alertas", "avisos" ou "mensagens" — a única finalidade informada deve ser o cadastro.`)
             : `### CANAL WHATSAPP: O paciente já está conversando pelo WhatsApp (número ${opts.patientPhone || "desconhecido"}). Para completar o cadastro, você DEVE confirmar expressamente se ele deseja usar ESSE número no cadastro E solicitar o e-mail de forma sutil (ex: "estou vendo que você fala do número ${opts.patientPhone || ""}, posso confirmar este para o seu cadastro? E qual seria o seu melhor e-mail?"). NUNCA assuma que o número está confirmado sem perguntar ao paciente. NUNCA mencione que a coleta é para enviar "alertas", "avisos" ou "notificações".`,
-        `Data de hoje: ${opts.todayStr} (fuso da clínica). Use-a para converter datas relativas ("amanhã", "semana que vem") ao chamar ferramentas.`,
+        buildClinicClockBlock(opts.todayStr, opts.nowHHMM, opts.timezone),
         languageHint
             ? `IDIOMA JÁ DETECTADO NESTA CONVERSA: ${LANG_NAME[languageHint]}. Mantenha esse idioma em TODAS as mensagens, inclusive após usar ferramentas (os retornos internos das ferramentas NÃO definem o idioma da resposta).`
             : "",
@@ -2079,9 +2227,7 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
         // intercepta isso ANTES de runAutonomousAgent ser chamado, para qualquer dial
         // (não só ai_always). Ver process-inbox/index.ts.
 
-        const transcript = history
-            .map((m: any) => `${m.role === "user" ? "PACIENTE" : "CLÍNICA"}: ${m.content}`)
-            .join("\n");
+        const transcript = buildDatedTranscript(history as any[]);
 
         const searchPhone = context.visitor_phone || phone;
         const [routerModel, agentModel, knowledgePacket, journeyStage, patientSnapshot] = await Promise.all([
@@ -2094,6 +2240,22 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
         const personality = botConfig?.personality || "acolhedor";
         const instructions = botConfig?.global_instructions || "";
 
+        // Autocura de sessão velha (incidente 2026-09-22): a clínica excluiu o
+        // paciente/agendamento no painel, mas a sessão seguia com
+        // registration_confirmed=true e a ficha de intake antiga — o agente pulava o
+        // cadastro de um paciente que não existe e "lembrava" de um horário apagado.
+        // Sem ficha no banco, todo estado derivado de ficha é inválido.
+        if (!patientSnapshot && (context.registration_confirmed || context.pending_booking_slot || context.pending_slots?.length || Object.keys(knownIntake).length)) {
+            console.warn(`[agent] [${phone}] sessão com estado de cadastro/agendamento mas SEM paciente no banco — zerando estado derivado`);
+            delete context.registration_confirmed;
+            delete context.pending_booking_slot;
+            delete context.pending_booking_slot_at;
+            delete context.pending_slots;
+            delete context.pending_slot_titles;
+            for (const k of Object.keys(knownIntake)) delete (knownIntake as any)[k];
+            context.intake = knownIntake;
+        }
+
         const isSoftHandoffQueued = session.omnichannel_status === "queued" && session.handoff_kind === "soft";
 
         const systemPrompt = buildAutonomousSystemPrompt({
@@ -2102,6 +2264,8 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             instructions,
             knowledgePacket,
             todayStr: todayInTz(timezone || undefined),
+            nowHHMM: nowInTz(timezone || undefined),
+            timezone: timezone || null,
             languageHint: turnLanguageIsConfident ? turnLanguage : null,
             stageGuidance: journeyStage.guidance,
             flowStateHint: buildFlowStateHint(context, knownIntake, history),
@@ -2559,7 +2723,7 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
                 evidence,
                 policyEvidence: knowledgePacket,
                 patientLastMessage: lastPatientMessage,
-                appointmentEvidence: patientSnapshot,
+                appointmentEvidence: patientSnapshot, todayStr: todayInTz(timezone || undefined),
                 toolCallFailedThisTurn,
                 hadImage: !!params.currentTurnImage,
                 hadDocument: !!params.currentTurnDocument,
@@ -2618,7 +2782,7 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
                         evidence,
                         policyEvidence: knowledgePacket,
                         patientLastMessage: lastPatientMessage,
-                        appointmentEvidence: patientSnapshot,
+                        appointmentEvidence: patientSnapshot, todayStr: todayInTz(timezone || undefined),
                         toolCallFailedThisTurn,
                         hadImage: !!params.currentTurnImage,
                 hadDocument: !!params.currentTurnDocument,
