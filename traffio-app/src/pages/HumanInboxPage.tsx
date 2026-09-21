@@ -16,7 +16,7 @@ import {
   UserPlus, UserMinus, Users, Building2, Tag, CalendarSearch, DollarSign,
   Mic, Paperclip, Camera, Smile, Play, Pause,
   FileText, Download, Reply, Pencil, Copy, Forward, Trash2, Zap, ArrowRight, Instagram, Facebook, ChevronDown, ArrowLeft, Settings, Plus,
-  MessageSquare, Sparkles, Bug
+  MessageSquare, Sparkles, Bug, ShieldCheck
 } from 'lucide-react'
 import data from '@emoji-mart/data'
 import Picker from '@emoji-mart/react'
@@ -42,6 +42,7 @@ import { ConfirmationChannelModal, type ConfirmationChannelId, type Confirmation
 import { salesScriptService, type SalesScript } from '../services/salesScriptService'
 import { ScriptManagerDrawer } from '../components/ScriptManagerDrawer'
 import { SocialCommentsInboxPanel } from '../components/inbox/SocialCommentsInboxPanel'
+import { FilteredInboundPanel } from '../components/inbox/FilteredInboundPanel'
 import { socialCommentsService } from '../services/socialCommentsService'
 import { useTenant } from '../contexts/TenantContext'
 
@@ -2052,7 +2053,8 @@ export function HumanInboxPage() {
   const [stageDropdownOpen, setStageDropdownOpen] = useState(false)
   const [rescheduleData, setRescheduleData] = useState<any | null>(null);
   const [bookingPreFill, setBookingPreFill] = useState<any | null>(null);
-  const [channelFilter, setChannelFilter] = useState<'all' | 'whatsapp' | 'livechat' | 'instagram' | 'facebook' | 'sms' | 'instagram_comment'>('all');
+  const [channelFilter, setChannelFilter] = useState<'all' | 'whatsapp' | 'livechat' | 'instagram' | 'facebook' | 'sms' | 'instagram_comment' | 'filtered'>('all');
+  const [filteredCount, setFilteredCount] = useState(0);
 
   // ── Aba de comentários do Instagram (instagram_manage_comments) — fila
   // separada de conversation_sessions (comentário público não é DM 1:1),
@@ -2165,6 +2167,19 @@ export function HumanInboxPage() {
     const intervalId = setInterval(updateTimer, 1000)
     return () => clearInterval(intervalId)
   }, [selected?.id, isMetaChannel, lastUserMessageTime])
+
+  // ── Contador da aba "Filtrados" (anti-spam dos canais Meta) ──
+  // Carga única ao montar: o painel atualiza o número quando é aberto. O badge
+  // existe para o atendente notar que ALGO foi filtrado e poder conferir.
+  useEffect(() => {
+    if (!tenantId) return
+    Promise.all([
+      supabase.from('filtered_inbound').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).is('restored_at', null),
+      supabase.from('instagram_comments').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).not('filter_verdict', 'is', null),
+      supabase.from('facebook_comments').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).not('filter_verdict', 'is', null),
+    ]).then(results => setFilteredCount(results.reduce((n, r) => n + (r.count ?? 0), 0)))
+      .catch(err => console.error('Failed to load filtered inbound count', err))
+  }, [tenantId])
 
   // ── Contador de comentários pendentes do Instagram (badge do botão) ──
   const refreshPendingCommentsCount = useCallback(async () => {
@@ -3258,6 +3273,26 @@ export function HumanInboxPage() {
                     </span>
                   )}
                 </button>
+               <button
+                  onClick={() => { setChannelFilter('filtered'); setSelected(null); }}
+                  className={clsx(
+                    "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer",
+                    channelFilter === 'filtered'
+                      ? "bg-slate-700 text-white shadow-sm border border-slate-600"
+                      : "text-slate-500 hover:text-slate-900 hover:bg-slate-200/50"
+                  )}
+                >
+                  <ShieldCheck className="w-3 h-3" />
+                  {t('humanInbox.filtered.buttonLabel')}
+                  {filteredCount > 0 && (
+                    <span className={clsx(
+                      "px-1.5 py-0.5 rounded-full text-[9px] font-extrabold transition-all",
+                      channelFilter === 'filtered' ? "bg-white/20 text-white" : "bg-slate-200/50 text-slate-500"
+                    )}>
+                      {filteredCount}
+                    </span>
+                  )}
+                </button>
             </div>
           </div>
 
@@ -3324,7 +3359,9 @@ export function HumanInboxPage() {
         headerSlot
       )}
 
-      {channelFilter === 'instagram_comment' ? (
+      {channelFilter === 'filtered' ? (
+        <FilteredInboundPanel tenantId={tenantId || ''} onCountChange={setFilteredCount} />
+      ) : channelFilter === 'instagram_comment' ? (
         <SocialCommentsInboxPanel tenantId={tenantId || ''} />
       ) : (
       <>

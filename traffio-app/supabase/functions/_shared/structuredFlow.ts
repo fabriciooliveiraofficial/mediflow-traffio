@@ -28,6 +28,7 @@ import {
     resolveSlotIdByTitle,
     resolvePatientIdentity,
     plausiblePersonName,
+    isThirdPartyBooking,
     bookingGradeName,
     fetchAvailableSlots,
     buildSlotInteractive,
@@ -496,7 +497,9 @@ export async function tryStructuredFlow(supabase: SupabaseClient, params: Struct
             const forWhom = context?.intake?.for_whom;
             const resolved = await resolvePatientIdentity(
                 supabase, tenantId, channel, searchPhone,
-                plausiblePersonName(forWhom) ? forWhom : null,
+                // Guard também AQUI: sessões já contaminadas antes do fix (e qualquer
+                // triagem futura que erre) não podem criar paciente fantasma no clique.
+                isThirdPartyBooking(forWhom, history.filter((m: any) => m.role === "user").map((m: any) => m.content)) ? forWhom : null,
                 session.platform_display_name);
 
             // E2 (2026-07-24): sem nome de AGENDAMENTO (nome completo) confirmado,

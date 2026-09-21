@@ -347,6 +347,25 @@
         "cancel": "Cancel",
         "confirm": "Confirm"
       }
+    },
+    "filtered": {
+      "buttonLabel": "Filtered",
+      "title": "Filtered by anti-spam",
+      "subtitle": "Instagram and Facebook messages and comments identified as spam or sales pitches. They got no reply and never reached the service queue.",
+      "refresh": "Refresh",
+      "emptyTitle": "Nothing filtered",
+      "emptyHint": "When the filter holds back spam or a sales pitch, it shows up here — and you can release it with one click.",
+      "kindDm": "Direct message",
+      "kindComment": "Comment",
+      "verdictSpam": "Spam",
+      "verdictVendor": "Sales pitch",
+      "reasonLabel": "Reason:",
+      "notSpam": "Not spam",
+      "toasts": {
+        "restoredDm": "Released. The conversation is back in service and this contact will no longer be filtered.",
+        "restoredComment": "Released. The comment is back in the queue and this profile will no longer be filtered.",
+        "error": "Failed to release: {{message}}"
+      }
     }
   },
   "scriptEditorForm": {

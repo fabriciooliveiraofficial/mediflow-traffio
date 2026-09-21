@@ -1488,6 +1488,32 @@ export function plausiblePersonName(s: string | null | undefined): boolean {
     return /^[\p{L}][\p{L}\s'.-]+$/u.test(t);
 }
 
+// ── Terceiro de verdade (incidente 2026-09-21) ───────────────────────────────
+// A triagem (Haiku) devolveu intake.for_whom = "bottom side one missing tooth"
+// — a resposta do paciente a "qual dente incomoda?". plausiblePersonName aceita
+// qualquer sequência de letras, então o CLIQUE no horário tratou a frase como
+// nome de um dependente: criou uma 2ª ficha com esse "nome" no mesmo telefone,
+// agendou nela, e a confirmação saiu "Hi bottom!". O agente tinha cadastrado
+// "Fabricio Santos" corretamente minutos antes.
+//
+// Regra: for_whom só vale como TERCEIRO com evidência DETERMINÍSTICA na fala do
+// paciente — um marcador de terceiro (parentesco, "se chama", "her name is").
+// Errar para o lado conservador agenda na ficha do titular (corrigível em um
+// clique pela recepção); errar para o outro lado cria paciente fantasma e
+// manda confirmação com nome errado.
+const NON_NAME_VOCABULARY = /\b(dente|dentes|tooth|teeth|diente|dientes|boca|mouth|gengiva|gum|gums|lado|side|bottom|top|upper|lower|cima|baixo|superior|inferior|esquerd[oa]|direit[oa]|left|right|front|back|frente|fundo|missing|faltando|falta|quebr\w+|broken|dor|pain|dolor|doendo|implant\w*|limpeza|cleaning|limpieza|clareamento|whitening|canal|aparelho|braces|pr[oó]tese|consulta|avalia[cç][aã]o|evaluation|appointment|one|two|um|uma|dois|duas|uno|dos|the|and|com|sem|para|for|with|meu|minha|my|eu|me|myself|mim|mesmo|mesma|yo|mi)\b/i;
+const THIRD_PARTY_MARKER = /\b(filh[oa]s?|esposa|esposo|marido|mulher|m[aã]e|pai|irm[aã]o?|av[oóô]|tio|tia|sobrinh[oa]|net[oa]|namorad[oa]|noiv[oa]|sogr[oa]|cunhad[oa]|amig[oa]|crian[cç]a|beb[eê]|son|daughter|wife|husband|mother|mom|mum|father|dad|brother|sister|kid|child|boyfriend|girlfriend|partner|friend|grandm\w+|grandf\w+|hij[oa]s?|madre|mam[aá]|padre|pap[aá]|herman[oa]|abuel[oa]|novi[oa]|amig[oa]|ni[ñn][oa]|se chama|chama-se|nome del[ea]|(?:her|his|their) name|named|se llama|su nombre)\b/i;
+
+export function isThirdPartyBooking(
+    forWhom: string | null | undefined,
+    patientMessages: (string | null | undefined)[],
+): boolean {
+    const name = (forWhom || "").trim();
+    if (!plausiblePersonName(name)) return false;
+    if (name.split(/\s+/).length > 6 || NON_NAME_VOCABULARY.test(name)) return false;
+    return patientMessages.some(m => m && THIRD_PARTY_MARKER.test(m));
+}
+
 /**
  * Nome "grau de agendamento": além de parecer um nome próprio, precisa ter
  * nome + sobrenome (≥2 palavras). Usado SÓ nos guards de AGENDAMENTO — na

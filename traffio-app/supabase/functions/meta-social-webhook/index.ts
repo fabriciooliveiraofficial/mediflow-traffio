@@ -20,6 +20,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { upsertChannelPreference } from "../_shared/upsertChannelPreference.ts";
 import { getMetaVerifyToken } from "../_shared/masterConfig.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { screenInbound } from "../_shared/inboundSpamFilter.ts";
 import { resolveInboundMedia } from "../_shared/inboundMediaDownloader.ts";
 import { getOrCreateChannelIdentity } from "../_shared/identityResolution.ts";
 import { extractReferral } from "../_shared/inboundParser.ts";
@@ -250,6 +251,39 @@ async function processMessagingEvent(
   if (!senderId || !text) return;
 
   console.log(`[meta-social-webhook] ${channel} | sender: ${senderId} | tenant: ${tenantId} | text: "${text.substring(0, 50)}"${mediaUrl ? ` | media: ${messageType}` : ''}`);
+
+  // 0. Filtro anti-spam (2026-09-21) — ANTES de qualquer efeito colateral:
+  // mensagem filtrada não cria sessão, card no CRM, preferência de canal nem
+  // entra na fila do agente. Fica em filtered_inbound (aba "Filtrados" do
+  // Inbox), restaurável em 1 clique. Fail-open: erro no filtro = segue normal.
+  {
+    const { data: knownSession } = await supabase
+      .from("conversation_sessions")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("patient_phone", senderId)
+      .maybeSingle();
+    const screen = await screenInbound(supabase, {
+      tenantId,
+      platform: channel,
+      senderId,
+      text: rawText,
+      knownContact: Boolean(knownSession),
+      fromAdReferral: Boolean(extractReferral(messaging)),
+    });
+    if (screen.action === "filter") {
+      console.log(`[meta-social-webhook] ${channel} | ${senderId} FILTRADO (${screen.verdict}/${screen.layer}): ${screen.reason}`);
+      const senderName = await fetchProfileName(channel, senderId, pageAccessToken);
+      const { error: filterErr } = await supabase.from("filtered_inbound").upsert({
+        tenant_id: tenantId, channel, sender_id: senderId, sender_name: senderName,
+        message_id: messageId, content: text, message_type: messageType, media_url: mediaUrl, caption,
+        verdict: screen.verdict, reason: screen.reason, layer: screen.layer,
+      }, { onConflict: "tenant_id,message_id", ignoreDuplicates: true });
+      // Se não conseguiu nem guardar o filtrado, NÃO descarta: segue o fluxo normal.
+      if (!filterErr) return;
+      console.warn(`[meta-social-webhook] falha ao gravar filtered_inbound — seguindo fluxo normal: ${filterErr.message}`);
+    }
+  }
 
   // 1. Salvar preferência de canal com o ID da plataforma
   await upsertChannelPreference(supabase, tenantId, senderId, {

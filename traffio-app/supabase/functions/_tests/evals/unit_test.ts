@@ -2458,3 +2458,23 @@ Deno.test("hasUnansweredRegistrationAsk: paciente pede horários → false (o da
     // Sem pedido anterior da clínica, não há estado nenhum.
     assertEquals(hasUnansweredRegistrationAsk([{ role: "user", content: "vocês abrem sábado?" }]), false);
 });
+
+// ── Incidente 2026-09-21: "Hi bottom!" — for_whom da triagem virou paciente fantasma ──
+import { isThirdPartyBooking } from "../../_shared/schedulingTools.ts";
+
+Deno.test("isThirdPartyBooking: resposta sobre o dente NUNCA vira nome de terceiro (caso real de produção)", () => {
+    const convo = ["Hi, I want to know about implants", "bottom side one missing tooth", "Fabricio Santos", "yes"];
+    assertEquals(isThirdPartyBooking("bottom side one missing tooth", convo), false);
+    // Mesmo um nome de verdade: sem marcador de terceiro na conversa, é o próprio titular.
+    assertEquals(isThirdPartyBooking("Fabricio Santos", convo), false);
+    assertEquals(isThirdPartyBooking("dente de baixo do lado esquerdo", ["dente de baixo do lado esquerdo"]), false);
+    assertEquals(isThirdPartyBooking(null, convo), false);
+});
+
+Deno.test("isThirdPartyBooking: terceiro legítimo (parentesco ou 'se chama' na fala do paciente) continua funcionando em pt/en/es", () => {
+    assertEquals(isThirdPartyBooking("Sofia Prado", ["Oi! Quero marcar uma limpeza para minha filha, ela se chama Sofia Prado"]), true);
+    assertEquals(isThirdPartyBooking("Liam Carter", ["I'd like to book a cleaning for my son", "Liam Carter"]), true);
+    assertEquals(isThirdPartyBooking("Lucía Gómez", ["quiero una cita para mi hija Lucía Gómez"]), true);
+    // Marcador presente, mas o "nome" é vocabulário clínico → continua barrado.
+    assertEquals(isThirdPartyBooking("missing tooth", ["it's for my son, he has a missing tooth"]), false);
+});

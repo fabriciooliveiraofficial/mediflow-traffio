@@ -11,6 +11,7 @@
  * mensagens (log + fila humana) jamais depende do copiloto.
  */
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { ruleVerdict, isSuspicious, hasPatientSignal, recordSenderVerdict } from "./inboundSpamFilter.ts";
 import { claudeChat, claudeJson, isLlmInfraFailure, type LlmTool } from "./llmProvider.ts";
 import { shouldRaiseLlmInfraAlert, recordLlmInfraAlertDetail } from "./llmCircuitBreaker.ts";
 import { type HandoffReason, type HandoffKind } from "./sessionManager.ts";
@@ -26,6 +27,7 @@ import {
     getRelativeDayLabel,
     AFTER_HOURS_CANCEL_MSG,
     plausiblePersonName,
+    isThirdPartyBooking,
     buildLocationBlock,
     dispatchBookingConfirmation,
     type SlotOption,
@@ -48,6 +50,8 @@ interface TriageResult {
     /** Raw model output. Normalize before it reaches context, prompts or routing. */
     language?: string;
     intake: Record<string, unknown>;
+    /** Camada 3 do filtro anti-spam: quem escreve está VENDENDO algo para a clínica. */
+    commercial_solicitation?: boolean;
 }
 
 /** The only language values persisted in a conversation context. */
@@ -181,10 +185,12 @@ export function resolveConversationLanguage(
 const TRIAGE_SYSTEM_PROMPT = [
     "Você classifica conversas de pacientes de uma clínica e extrai dados objetivos.",
     "Responda APENAS com JSON válido, sem comentários, neste formato:",
-    '{"temperature":"hot|warm|cold","language":"pt|en|es","intake":{"procedure":string|null,"for_whom":string|null,"preferred_window":string|null,"doctor_pref":string|null}}',
+    '{"temperature":"hot|warm|cold","language":"pt|en|es","intake":{"procedure":string|null,"for_whom":string|null,"preferred_window":string|null,"doctor_pref":string|null},"commercial_solicitation":boolean}',
     "language é obrigatoriamente o idioma da resposta DESTE turno: pt, en ou es em minúsculas. Dê prioridade à última mensagem do paciente; uma mudança explícita de idioma vence o histórico. Em respostas curtas como 'confirmed' ou 'ok', use o idioma evidente da mensagem e do último texto da clínica, nunca invente outro idioma.",
     "temperature: hot = quer agendar/comprar agora; warm = interessado explorando; cold = sem intenção clara.",
     "intake: extraia SOMENTE o que o paciente disse explicitamente; use null para o que não foi dito.",
+    "for_whom: SOMENTE quando a consulta é para OUTRA pessoa que não quem escreve (filho, cônjuge, parente, amigo) — aí é o NOME dessa pessoa, ou null se o nome ainda não foi dito. Se a consulta é para quem está escrevendo, for_whom é SEMPRE null. NUNCA coloque aqui sintoma, dente, região da boca, procedimento nem qualquer resposta a outra pergunta.",
+    "commercial_solicitation: true SOMENTE quando quem escreve está claramente OFERECENDO produto ou serviço PARA a clínica (marketing, site, tráfego pago, software, equipamento, parceria comercial, freelancer, representante) ou é golpe/spam evidente. Paciente, lead, elogio, reclamação, dúvida, candidato a emprego ou qualquer caso ambíguo = false.",
 ].join("\n");
 
 const MAX_HISTORY_TURNS = 12;
@@ -1671,6 +1677,30 @@ export async function buildPatientSnapshot(
     return lines.join("\n");
 }
 
+/**
+ * Camada 3 do filtro anti-spam — decide se a conversa virou abordagem
+ * comercial. Conservadora por construção: exige o sinal da triagem E uma
+ * corroboração determinística no texto, e QUALQUER traço de paciente (ficha,
+ * procedimento, agendamento em curso, vocabulário odontológico sem regra de
+ * vendedor) veta. Devolve o motivo, ou null. Pura e exportada para teste.
+ */
+export function detectCommercialSolicitation(args: {
+    triageFlag: boolean;
+    patientTexts: string[];
+    hasPatientRecord: boolean;
+    hasProcedure: boolean;
+    hasBookingState: boolean;
+}): string | null {
+    if (!args.triageFlag || args.hasPatientRecord || args.hasProcedure || args.hasBookingState) return null;
+    const joined = args.patientTexts.join("\n");
+    const rule = ruleVerdict(joined);
+    if (rule) return rule.reason;
+    // Sem regra forte: só sinal fraco (link, "parceria", "nossa agência") e
+    // nenhum vocabulário de paciente em toda a conversa.
+    if (isSuspicious(joined) && !hasPatientSignal(joined)) return "sinais comerciais sem nenhum assunto de paciente";
+    return null;
+}
+
 // ── Pedido de cadastro sem resposta (2026-09-21) ─────────────────────────────
 // Achado nos evals de conversa: com o nome desconhecido, o modelo reavalia "sem
 // nome → peça o nome" do zero A CADA turno e repete o pedido 3, 4, 6 vezes
@@ -2094,9 +2124,11 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             system: [
                 "Você classifica conversas de pacientes de uma clínica e extrai dados objetivos.",
                 "Responda APENAS com JSON válido, sem comentários, neste formato:",
-                '{"temperature":"hot|warm|cold","language":"pt|en|es","intake":{"procedure":string|null,"for_whom":string|null,"preferred_window":string|null,"doctor_pref":string|null}}',
+                '{"temperature":"hot|warm|cold","language":"pt|en|es","intake":{"procedure":string|null,"for_whom":string|null,"preferred_window":string|null,"doctor_pref":string|null},"commercial_solicitation":boolean}',
                 "temperature: hot = quer agendar/comprar agora; warm = interessado explorando; cold = sem intenção clara.",
                 "intake: extraia SOMENTE o que o paciente disse explicitamente; use null para o que não foi dito.",
+                "for_whom: SOMENTE quando a consulta é para OUTRA pessoa que não quem escreve (filho, cônjuge, parente, amigo) — aí é o NOME dessa pessoa, ou null se o nome ainda não foi dito. Se a consulta é para quem está escrevendo, for_whom é SEMPRE null. NUNCA coloque aqui sintoma, dente, região da boca, procedimento nem qualquer resposta a outra pergunta.",
+    "commercial_solicitation: true SOMENTE quando quem escreve está claramente OFERECENDO produto ou serviço PARA a clínica (marketing, site, tráfego pago, software, equipamento, parceria comercial, freelancer, representante) ou é golpe/spam evidente. Paciente, lead, elogio, reclamação, dúvida, candidato a emprego ou qualquer caso ambíguo = false.",
             ].join("\n"),
             messages: [{ role: "user", content: `Ficha já conhecida: ${JSON.stringify(knownIntake)}\n\nConversa:\n${transcript}` }],
         });
@@ -2307,6 +2339,43 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
             return "defer";
         }
 
+        // ── Filtro anti-spam, Camada 3 (2026-09-21) ────────────────────────────
+        // O vendedor que passou pelo filtro de entrada ("oi, tudo bem?") se revela
+        // no 2º/3º turno. A triagem (que já roda em paralelo — custo zero) sinaliza;
+        // o código só age com corroboração determinística e SEM nenhum sinal de
+        // paciente. Decisão de produto: silêncio — a resposta gerada é descartada,
+        // a sessão fecha e o remetente entra na reputação (próximas mensagens
+        // morrem no webhook). Reversível pela aba "Filtrados" do Inbox.
+        if (channel === "instagram" || channel === "facebook") {
+            const patientTexts = (history as any[]).filter(m => m.role === "user").map(m => String(m.content || ""));
+            const solicitation = detectCommercialSolicitation({
+                triageFlag: triage?.commercial_solicitation === true,
+                patientTexts,
+                hasPatientRecord: Boolean(patientSnapshot),
+                hasProcedure: Boolean((knownIntake as any)?.procedure || (triage?.intake as any)?.procedure),
+                hasBookingState: bookingConfirmed || Boolean(context.pending_slots?.length) || Boolean(context.pending_booking_slot),
+            });
+            if (solicitation) {
+                console.warn(`[agent] [${phone}] abordagem comercial detectada (${solicitation}) — silêncio + reputação + sessão fechada`);
+                await recordSenderVerdict(supabase, {
+                    platform: channel, senderId: phone, verdict: "vendor",
+                    reason: `triagem: ${solicitation}`, source: "triage", tenantId,
+                });
+                await supabase.from("filtered_inbound").upsert({
+                    tenant_id: tenantId, channel, sender_id: phone,
+                    sender_name: (session as any).platform_display_name ?? null,
+                    message_id: `triage_${sessionId}_${Date.now()}`,
+                    content: patientTexts.slice(-3).join("\n").substring(0, 2000) || "[sem texto]",
+                    verdict: "vendor", reason: `triagem: ${solicitation}`, layer: "triage",
+                }, { onConflict: "tenant_id,message_id", ignoreDuplicates: true });
+                await supabase.from("conversation_sessions")
+                    .update({ omnichannel_status: "closed", human_handoff: false })
+                    .eq("id", sessionId);
+                await emitTrace({ turn_language: turnLanguage, bubbles: 0, handoff_reason: "spam_filter" });
+                return "replied";
+            }
+        }
+
         // ── Anti-beco, 2ª camada (incidente 17/08/2026, Instagram) ─────────────
         // A "verbalização final" acima ainda pode voltar VAZIA (visto em produção:
         // out=1 token depois de 4 rounds de ferramentas) — e resposta vazia caía
@@ -2359,6 +2428,15 @@ export async function runAutonomousAgent(supabase: SupabaseClient, params: Auton
 
         // Persistência do contexto (ficha + temperatura + idioma + slots pendentes)
         const mergedIntake: any = { ...knownIntake, ...pruneNulls(triage?.intake) };
+        // Incidente 2026-09-21: for_whom vindo da triagem só persiste com evidência
+        // determinística de terceiro na fala do paciente (ver isThirdPartyBooking).
+        if (mergedIntake.for_whom && !isThirdPartyBooking(
+            mergedIntake.for_whom,
+            (history as any[]).filter(m => m.role === "user").map(m => m.content),
+        )) {
+            console.warn(`[copilot] [${phone}] for_whom descartado (sem evidência de terceiro): "${String(mergedIntake.for_whom).substring(0, 60)}"`);
+            delete mergedIntake.for_whom;
+        }
         // P2 (2026-07-24): agendou neste turno → zera o intake de agendamento para
         // a intenção NÃO vazar para a próxima ("quero agendar" depois de um implante
         // não pode reusar procedure=implante). O nome do paciente fica na ficha

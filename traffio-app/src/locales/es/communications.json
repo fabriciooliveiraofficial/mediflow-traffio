@@ -347,6 +347,25 @@
         "cancel": "Cancelar",
         "confirm": "Confirmar"
       }
+    },
+    "filtered": {
+      "buttonLabel": "Filtrados",
+      "title": "Filtrados por el anti-spam",
+      "subtitle": "Mensajes y comentarios de Instagram y Facebook identificados como spam u oferta comercial. No recibieron respuesta ni llegaron a la cola de atención.",
+      "refresh": "Actualizar",
+      "emptyTitle": "Nada filtrado",
+      "emptyHint": "Cuando el filtro retenga un spam o una oferta comercial, aparecerá aquí — y podrás liberarlo con un clic.",
+      "kindDm": "Mensaje directo",
+      "kindComment": "Comentario",
+      "verdictSpam": "Spam",
+      "verdictVendor": "Oferta comercial",
+      "reasonLabel": "Motivo:",
+      "notSpam": "No es spam",
+      "toasts": {
+        "restoredDm": "Liberado. La conversación volvió a la atención y este contacto ya no será filtrado.",
+        "restoredComment": "Liberado. El comentario volvió a la cola y este perfil ya no será filtrado.",
+        "error": "Error al liberar: {{message}}"
+      }
     }
   },
   "scriptEditorForm": {

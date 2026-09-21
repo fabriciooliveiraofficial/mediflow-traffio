@@ -26,7 +26,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { corsHeaders } from "../_shared/cors.ts";
 import { claudeChat } from "../_shared/llmProvider.ts";
 import { checkAiAllowed, notifyAiPaused } from "../_shared/aiBudget.ts";
-import { getAiModelAgent } from "../_shared/masterConfig.ts";
+import { getAiModelAgent, getAiModelRouter } from "../_shared/masterConfig.ts";
+import { screenInbound } from "../_shared/inboundSpamFilter.ts";
 import { MetaSocialClient } from "../_shared/metaSocialClient.ts";
 
 const DRAFT_TOOL = {
@@ -70,12 +71,13 @@ serve(async (req: Request) => {
     }
 
     const agentModel = await getAiModelAgent(supabase);
+    const routerModel = await getAiModelRouter(supabase);
     let totalReplied = 0;
 
     for (const tenant of tenants) {
       const { data: pending, error: pendingErr } = await supabase
         .from("instagram_comments")
-        .select("id, comment_id, ig_account_id, from_username, text")
+        .select("id, comment_id, ig_account_id, from_username, text, from_id")
         .eq("tenant_id", tenant.id)
         .eq("status", "pending")
         .order("received_at", { ascending: true })
@@ -105,7 +107,27 @@ serve(async (req: Request) => {
 
       for (const comment of pending) {
         try {
-          const replied = await replyToComment(supabase, tenant, comment, metaPage.page_access_token, agentModel);
+          // Filtro anti-spam (2026-09-21): spam/fornecedor NÃO recebe resposta
+          // pública nem DM — fica 'ignored' com o motivo, visível na aba
+          // "Filtrados" do Inbox e restaurável. Fail-open dentro de screenInbound.
+          const c = comment as any;
+          const screen = await screenInbound(supabase, {
+            tenantId: tenant.id,
+            platform: "instagram",
+            senderId: c.from_id || `name:${c.from_username ?? "unknown"}`,
+            text: c.text ?? "",
+            aiConfigured: true,
+          });
+          if (screen.action === "filter") {
+            await supabase.from("instagram_comments")
+              .update({ status: "ignored", filter_verdict: screen.verdict, filter_reason: screen.reason })
+              .eq("id", comment.id);
+            console.log(`[ai-reply-instagram-comments] comentário ${comment.comment_id} FILTRADO (${screen.verdict}/${screen.layer}): ${screen.reason}`);
+            continue;
+          }
+          // Comentário só de emoji/reação não precisa do modelo principal.
+          const engagementOnly = !/\p{L}{4,}/u.test(c.text ?? "");
+          const replied = await replyToComment(supabase, tenant, comment, metaPage.page_access_token, engagementOnly ? routerModel : agentModel);
           if (replied) totalReplied++;
         } catch (err: any) {
           console.error(`[ai-reply-instagram-comments] Failed for comment ${comment.comment_id}:`, err.message);
