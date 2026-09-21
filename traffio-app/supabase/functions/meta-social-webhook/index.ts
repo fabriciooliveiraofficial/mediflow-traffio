@@ -389,6 +389,32 @@ async function processMessagingEvent(
     console.error(`[meta-social-webhook] Failed to insert into message_inbox:`, inboxErr.message);
   } else {
     console.log(`[meta-social-webhook] ✓ [${channel}] Queued message ${messageId} from ${senderId}`);
+    triggerInboxProcessing();
+  }
+}
+
+// Latência: mesmo push do whatsapp-bot — sem ele, Instagram/Messenger só eram
+// processados no tick do cron (até 60s). O process-inbox cuida do debounce e
+// do próprio re-disparo; invocações concorrentes são inofensivas (lease-lock).
+function triggerInboxProcessing() {
+  const url = Deno.env.get("SUPABASE_URL");
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !key) return;
+
+  const task = (async () => {
+    await new Promise((r) => setTimeout(r, 1500));
+    await fetch(`${url}/functions/v1/process-inbox`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: "{}",
+    }).catch((e) => console.warn("[meta-social-webhook] push trigger failed (cron cobre):", e?.message));
+  })();
+
+  try {
+    // @ts-ignore
+    EdgeRuntime.waitUntil(task);
+  } catch {
+    /* fire-and-forget */
   }
 }
 

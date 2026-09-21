@@ -105,8 +105,15 @@ async function runConversation(s: ConversationScenario): Promise<ConversationRun
                     "AGENDAMENTOS ATIVOS (estado REAL do sistema agora):",
                     `- ${MOCK_APPOINTMENT.date} às ${MOCK_APPOINTMENT.start_time} — ${MOCK_APPOINTMENT.appointment_types.name} com ${MOCK_APPOINTMENT.doctors.full_name} (${MOCK_APPOINTMENT.status})`,
                 ].join("\n")
-                : null,
-            flowStateHint: s.intake ? buildFlowStateHint({}, s.intake) : null,
+                : (s.registeredAs
+                    ? [
+                        `Paciente cadastrado: ${s.registeredAs}`,
+                        "FICHA DE CADASTRO (dados reais — use para personalizar o atendimento; NUNCA recite a ficha de volta nem cite dado que o paciente não trouxe à conversa):",
+                        "- e-mail: já consta no cadastro (não peça de novo)",
+                        "AGENDAMENTOS ATIVOS: nenhum agendamento futuro no sistema.",
+                    ].join("\n")
+                    : null),
+            flowStateHint: buildFlowStateHint(s.registeredAs ? { registration_confirmed: true } : {}, s.intake ?? {}, history),
             accessibleMode: shouldUseAccessibleMode(patientMsg),
         });
 
@@ -294,7 +301,7 @@ async function judgeConversation(s: ConversationScenario, r: ConversationRunResu
     return claudeJson<JudgeResult>(stubSupabase, {
         tenantId: "eval", purpose: `eval_judge:${s.name.split(" ")[0]}`, model: JUDGE_MODEL,
         maxTokens: 400, system: JUDGE_SYSTEM,
-        messages: [{ role: "user", content: `Cenário: ${s.name}\n\n${transcript}` }],
+        messages: [{ role: "user", content: `Cenário: ${s.name}\n${s.judgeContext ? `Conduta esperada neste cenário: ${s.judgeContext}\n` : ""}\n${transcript}` }],
     });
 }
 
@@ -330,7 +337,12 @@ console.log(`\n═══ Evals multi-turno — modelo: ${MODEL} — ${CONVERSATI
 let passed = 0;
 const failedNames: string[] = [];
 
-for (const scenario of CONVERSATION_SCENARIOS) {
+// EVAL_ONLY="trecho1,trecho2" roda só os cenários cujo nome contém um dos trechos
+// (iterar num ajuste sem pagar a suíte inteira). O gate de deploy é a suíte COMPLETA.
+const onlyFilter = (Deno.env.get("EVAL_ONLY") ?? "").split(",").map(x => x.trim()).filter(Boolean);
+const selected = onlyFilter.length ? CONVERSATION_SCENARIOS.filter(x => onlyFilter.some(f => x.name.includes(f))) : CONVERSATION_SCENARIOS;
+if (onlyFilter.length) console.log(`⚠️  EVAL_ONLY ativo — ${selected.length}/${CONVERSATION_SCENARIOS.length} cenários (não vale como gate de deploy)\n`);
+for (const scenario of selected) {
     try {
         const result = await runConversation(scenario);
         const behaviorFailures = check(scenario, result);
@@ -354,7 +366,7 @@ for (const scenario of CONVERSATION_SCENARIOS) {
     }
 }
 
-console.log(`\n═══ Resultado: ${passed}/${CONVERSATION_SCENARIOS.length} ═══`);
+console.log(`\n═══ Resultado: ${passed}/${selected.length} ═══`);
 if (failedNames.length) {
     console.log(`Reprovadas: ${failedNames.join(" | ")}`);
     console.log("🔴 NÃO SUBA para tenant real com a suíte vermelha.");

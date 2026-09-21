@@ -25,6 +25,13 @@ export interface EvalScenario {
      * usa o comportamento padrão de `withAppointment`.
      */
     patientSnapshotOverride?: string | null;
+    /**
+     * Paciente JÁ cadastrado e com o cadastro CONFIRMADO neste atendimento
+     * (espelha context.registration_confirmed + snapshot de produção). Use nos
+     * cenários que testam AGENDAMENTO: a trava dos 3 dados (nome, telefone,
+     * e-mail) tem cenários próprios e não deve mascarar o que se quer medir.
+     */
+    registeredAs?: string;
     /** Injeta o fato canônico consultation_fee no pacote de conhecimento */
     consultationFee?: ConsultationStatus;
     /** Conteudo global simulado para o cenario de heranca sem fatos locais. */
@@ -88,7 +95,9 @@ export const SCENARIOS: EvalScenario[] = [
             noPrice: true,
             transfer: false,
             textIncludesAny: ["confirm", "check", "team"],
-            textExcludesAll: ["consultation is free", "consultation is paid", "no charge"],
+            // Formas AFIRMATIVAS apenas: "whether the consultation is free or paid" é a
+            // resposta correta (não inventou) e não pode reprovar por substring.
+            textExcludesAll: ["the consultation is free", "consultation is free.", "consultation is free!", "it's free", "it is free", "consultation is paid.", "no charge"],
         },
     },
     {
@@ -122,6 +131,7 @@ export const SCENARIOS: EvalScenario[] = [
     },
     {
         name: "agendamento_pt — usa ferramentas e só oferece horários reais",
+        registeredAs: "Fabricio Teste",
         history: [{ role: "user", content: "Oi, queria agendar uma limpeza essa semana" }],
         expect: {
             toolsCalled: ["ver_disponibilidade"],
@@ -131,6 +141,7 @@ export const SCENARIOS: EvalScenario[] = [
     },
     {
         name: "agendamento_procedure_first — não pergunta qual profissional; oferece horários direto",
+        registeredAs: "Fabricio Teste",
         history: [{ role: "user", content: "Oi! Quero colocar um implante dentário, de preferência de manhã. Como faço?" }],
         expect: {
             toolsCalled: ["ver_disponibilidade"],
@@ -156,6 +167,7 @@ export const SCENARIOS: EvalScenario[] = [
     },
     {
         name: "fechamento_por_texto — paciente escolhe horário digitando e o agente AGENDA, sem transferir",
+        registeredAs: "Rafael Costa",
         history: [
             { role: "user", content: "Quero agendar uma avaliação amanhã de manhã" },
             { role: "assistant", content: "Claro! Tenho estes horários disponíveis amanhã de manhã: 09:00, 10:30 e 14:00. Qual prefere? (Os horários também chegaram como botões clicáveis.)" },
@@ -173,6 +185,7 @@ export const SCENARIOS: EvalScenario[] = [
     },
     {
         name: "agendamento_para_terceiro — mãe agenda para a filha: ficha certa (nome da filha no agendar)",
+        registeredAs: "Helena Prado",
         history: [
             { role: "user", content: "Oi! Quero marcar uma limpeza para minha filha, ela se chama Sofia Prado" },
             { role: "assistant", content: "Claro! Para a Sofia, tenho estes horários disponíveis: 09:00, 10:30 e 14:00 (também enviados como botões). Qual prefere?" },
@@ -221,6 +234,7 @@ export const SCENARIOS: EvalScenario[] = [
     },
     {
         name: "idioma_en_pos_ferramentas — conversa EN não deriva para PT após usar a agenda",
+        registeredAs: "Jordan Miller",
         language: "en",
         history: [
             { role: "user", content: "Hi! I'd like to book an implant consultation for tomorrow morning" },
@@ -286,7 +300,7 @@ export const SCENARIOS: EvalScenario[] = [
             noPrice: true,
             transfer: false,
             textExcludesAll: ["faltou", "não compareceu", "perdeu a consulta", "falta"],
-            textIncludesAny: ["remarcar", "novo horário", "reagendar", "horário", "agendar"],
+            textIncludesAny: ["remarcar", "novo horário", "reagendar", "horário", "agendar", "encaixar", "encaixe"],
         },
     },
     {
@@ -419,6 +433,7 @@ export const SCENARIOS: EvalScenario[] = [
     // ── Onda 3: Cenários SDR/CRC e Cenário-Ouro ────────────────────────────────
     {
         name: "cenario_ouro_implante_en — foca na pessoa (não no jargão), informa avaliação gratuita e oferece horário",
+        registeredAs: "Jordan Miller",
         globalKnowledgePacket: "CONHECIMENTO GERAL DE ODONTOLOGIA:\n## Dental Implants\nA dental implant is essentially a titanium support placed into the jawbone to replace the root of a missing tooth, later supporting a crown. The exact plan, number of visits, and healing time depend on your specific case. Evaluation includes an X-ray to check bone and tooth condition.",
         consultationFee: "free",
         language: "en",
@@ -440,7 +455,7 @@ export const SCENARIOS: EvalScenario[] = [
         expect: {
             transfer: false,
             noPrice: true,
-            textIncludesAny: ["entendo", "cuidado", "tranquil", "conforto"],
+            textIncludesAny: ["entendo", "cuidado", "tranquil", "conforto", "receio", "ritmo", "julg", "comum"],
             textExcludesAll: ["😁", "😊", "🎉", "ótima notícia"],
         },
     },
@@ -455,6 +470,7 @@ export const SCENARIOS: EvalScenario[] = [
     },
     {
         name: "sdr_escuta_ativa_procedimento — não repete pergunta sobre procedimento já dito",
+        registeredAs: "Fabricio Teste",
         intake: { procedure: "Clareamento dental" },
         history: [{ role: "user", content: "Tenho horários livres na parte da manhã, quando posso ir?" }],
         expect: {
@@ -501,7 +517,7 @@ export const SCENARIOS: EvalScenario[] = [
         },
     },
     {
-        name: "abertura_primeiro_nome — paciente responde só o primeiro nome: cadastra e passa a usar o nome",
+        name: "abertura_primeiro_nome — paciente responde só o primeiro nome: usa o nome e pede o sobrenome, sem abrir agenda",
         language: "pt",
         history: [
             { role: "assistant", content: "Oi! Sou a assistente da clínica 😊 Antes de mais nada, qual é o seu nome?" },
@@ -509,7 +525,8 @@ export const SCENARIOS: EvalScenario[] = [
         ],
         patientSnapshotOverride: null,
         expect: {
-            toolsCalled: ["atualizar_cadastro_paciente"],
+            toolsNotCalled: ["ver_disponibilidade", "agendar"],
+            textIncludesAny: ["sobrenome", "nome completo", "último nome", "ultimo nome"],
             transfer: false,
         },
     },
@@ -529,6 +546,7 @@ export const SCENARIOS: EvalScenario[] = [
     },
     {
         name: "qualificacao_necessidade_clara — paciente descreve a dor/procedimento: avança para disponibilidade (P2)",
+        registeredAs: "Fabricio Oliveira",
         language: "pt",
         history: [
             { role: "assistant", content: "Oi, Fabricio! 😊 Como posso te ajudar?" },

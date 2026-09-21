@@ -194,7 +194,10 @@ export class OutboxDispatcher {
                 mediaUrl = undefined; // consume it
             }
 
-            const typingDelayMs = Math.min(2200, Math.max(800, bubble.length * 35));
+            // Latência conversacional: a 1ª bolha sai IMEDIATAMENTE — o paciente já
+            // esperou a geração da resposta; "digitando…" artificial em cima disso
+            // é atraso puro. Só as bolhas seguintes simulam digitação (ritmo humano).
+            const typingDelayMs = i === 0 ? 0 : Math.min(1500, Math.max(500, bubble.length * 20));
 
             try {
                 await this.sendNow(tenant, phone, payload, typingDelayMs, undefined, category, channel);
@@ -235,7 +238,7 @@ export class OutboxDispatcher {
             }
 
             if (i < bubbles.length - 1) {
-                const interBubbleDelay = Math.min(1500, Math.max(600, bubble.length * 20));
+                const interBubbleDelay = Math.min(900, Math.max(350, bubble.length * 10));
                 await new Promise((resolve) => setTimeout(resolve, interBubbleDelay));
             }
         }

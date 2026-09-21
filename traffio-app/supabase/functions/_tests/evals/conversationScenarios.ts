@@ -15,6 +15,16 @@ export interface ConversationScenario {
     stage?: CrmStageId;
     availabilityFails?: boolean;
     withAppointment?: boolean;
+    /** Conduta esperada, entregue ao juiz de tom: sem isso ele só vê o NOME do
+     *  cenário e pode punir exatamente o comportamento que o roteiro pede. */
+    judgeContext?: string;
+    /**
+     * Paciente JÁ cadastrado e com o cadastro CONFIRMADO neste atendimento
+     * (espelha context.registration_confirmed + snapshot de produção). Use nos
+     * cenários que testam AGENDAMENTO: a trava dos 3 dados (nome, telefone,
+     * e-mail) tem cenários próprios e não deve mascarar o que se quer medir.
+     */
+    registeredAs?: string;
     consultationFee?: ConsultationStatus;
     globalKnowledgePacket?: string;
     intake?: { procedure?: string | null; for_whom?: string | null; preferred_window?: string | null; doctor_pref?: string | null };
@@ -56,6 +66,7 @@ const IMPLANT_KNOWLEDGE = "CONHECIMENTO GERAL DE ODONTOLOGIA:\n## Dental Implant
 export const CONVERSATION_SCENARIOS: ConversationScenario[] = [
     {
         name: "en_full_booking — 4 perguntas em inglês, depois escolhe horário por texto e fecha 100% em inglês",
+        registeredAs: "Jordan Miller",
         language: "en",
         consultationFee: "free",
         globalKnowledgePacket: IMPLANT_KNOWLEDGE,
@@ -64,7 +75,7 @@ export const CONVERSATION_SCENARIOS: ConversationScenario[] = [
             "Is there a fee for the evaluation?",
             "Where are you located?",
             "Great, I'd like to book — what times do you have this week?",
-            "the 9am one works for me, my name is Jordan Miller",
+            "the 9am one works for me",
         ],
         expect: {
             toolsCalledEver: ["ver_disponibilidade", "agendar"],
@@ -72,13 +83,13 @@ export const CONVERSATION_SCENARIOS: ConversationScenario[] = [
             noPriceEver: true,
             noInventedTimesEver: true,
             finalLanguage: "en",
-            patientNameCapturedInAnyTool: "Jordan",
             // Foco na pessoa: ao falar de implante, não despejar o jargão da base de conhecimento.
             textExcludesAllEver: ["titanium", "jawbone"],
         },
     },
     {
         name: "troca_idioma_turno3 — paciente muda de inglês para espanhol no turno 3 e o agente acompanha",
+        registeredAs: "Jordan Miller",
         language: "en",
         patientTurns: [
             "Hi! I need a dental cleaning, do you have availability this week?",
@@ -92,21 +103,80 @@ export const CONVERSATION_SCENARIOS: ConversationScenario[] = [
         },
     },
     {
-        name: "objecao_preco_duas_vezes — pergunta preço 2x e depois concorda em agendar sem nunca receber valor",
+        // O prompt manda transferir na 2ª insistência de preço — o roteiro antigo
+        // esperava que o agente seguisse até agendar, contradizendo a própria regra.
+        name: "objecao_preco_duas_vezes — 2ª insistência em valor: nunca cede número e passa para a equipe",
+        registeredAs: "Camila Duarte",
         patientTurns: [
             "Oi! Quanto custa a limpeza dental?",
             "entendi, mas me dá uma ideia, é mais de 300 reais?",
-            "tudo bem, pode ver os horários pra essa semana então",
-            "pode marcar o das 10:30, meu nome é Camila Duarte",
         ],
         expect: {
             noPriceEver: true,
+            transferExpected: true,
+        },
+    },
+    {
+        name: "objecao_preco_depois_agenda — pergunta preço, aceita a explicação e agenda sem nunca receber valor",
+        registeredAs: "Camila Duarte",
+        patientTurns: [
+            "Oi! Quanto custa a limpeza dental?",
+            "entendi, faz sentido. pode ver os horários de manhã pra essa semana então?",
+            "pode marcar o das 10:30",
+        ],
+        expect: {
+            noPriceEver: true,
+            noInventedTimesEver: true,
+            transferNotExpected: true,
             toolsCalledEver: ["ver_disponibilidade", "agendar"],
-            patientNameCapturedInAnyTool: "Camila",
+        },
+    },
+    {
+        // A trava do cadastro testada como ela acontece de verdade: paciente novo
+        // que COOPERA. Mede se os 3 dados são colhidos como conversa, não formulário.
+        name: "cadastro_paciente_novo_fluxo_natural — colhe nome, telefone e e-mail como conversa e só então abre a agenda",
+        patientTurns: [
+            "Oi! Queria fazer uma limpeza, de preferência de manhã",
+            "Marina Lopes",
+            "pode ser esse número mesmo",
+            "marina.lopes@example.com",
+            "isso, de manhã essa semana",
+            "pode ser o das 9:00",
+        ],
+        expect: {
+            toolsCalledEver: ["atualizar_cadastro_paciente", "ver_disponibilidade"],
+            patientNameCapturedInAnyTool: "Marina",
+            transferNotExpected: true,
+            noPriceEver: true,
+            noInventedTimesEver: true,
+            noRepeatedQuestion: true,
+        },
+    },
+    {
+        // O loop que o juiz de tom reprovou (2026-09-21): paciente ignora o pedido
+        // de nome e segue perguntando. O agente RESPONDE as dúvidas, não repete o
+        // mesmo pedido turno após turno, não abre a agenda sem cadastro.
+        name: "cadastro_paciente_desvia — paciente ignora o pedido de nome e segue perguntando: clínica responde tudo, sem loop de pedido",
+        judgeContext: "Quem ignora o pedido de nome é o PACIENTE (ele só quer tirar dúvidas). A conduta correta da clínica é responder cada dúvida por inteiro e NÃO repetir o pedido de nome (nem a mesma pergunta) em turnos seguidos — não insistir é acerto, não é condução fraca. O cadastro só acontece quando o paciente informa o nome. Avalie se as respostas são acolhedoras, substanciais e conectadas entre si.",
+        patientTurns: [
+            "Oi, vocês fazem clareamento?",
+            "e tem estacionamento aí?",
+            "qual o endereço de vocês?",
+            "vocês abrem sábado?",
+            "ah, meu nome é Bruno Tavares",
+        ],
+        expect: {
+            toolsNotCalledEver: ["ver_disponibilidade", "agendar"],
+            toolsCalledEver: ["atualizar_cadastro_paciente"],
+            patientNameCapturedInAnyTool: "Bruno",
+            transferNotExpected: true,
+            noPriceEver: true,
+            noRepeatedQuestion: true,
         },
     },
     {
         name: "conversa_12_turnos_sem_repetir — ficha extensa não repete pergunta já respondida em 12 turnos",
+        registeredAs: "Diego Ramos",
         patientTurns: [
             "Oi! Queria fazer uma limpeza dental.",
             "de preferência de manhã, se tiver horário",
@@ -119,11 +189,10 @@ export const CONVERSATION_SCENARIOS: ConversationScenario[] = [
             "posso ir em qualquer unidade de vocês?",
             "ok, então pode ver os horários de manhã pra essa semana",
             "prefiro o mais cedo possível entre esses",
-            "pode marcar, meu nome é Diego Ramos",
+            "pode marcar",
         ],
         expect: {
             toolsCalledEver: ["ver_disponibilidade", "agendar"],
-            patientNameCapturedInAnyTool: "Diego",
             noRepeatedQuestion: true,
             textExcludesAllEver: ["qual procedimento", "qual tratamento", "o que você gostaria de agendar", "manhã ou tarde você prefere"],
         },

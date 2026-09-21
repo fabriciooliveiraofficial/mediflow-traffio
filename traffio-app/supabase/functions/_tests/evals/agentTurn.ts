@@ -113,11 +113,20 @@ export async function runAgentTurn(opts: AgentTurnOptions): Promise<AgentTurnRes
         const nonResponderCalls = reply.toolCalls.filter(t => t.name !== "responder_paciente");
         convo.push({
             role: "user",
-            content: nonResponderCalls.map(call => ({
-                type: "tool_result",
-                tool_use_id: call.id,
-                content: JSON.stringify(mockExecuteTool(call, mockOptions).data),
-            })),
+            content: [
+                ...nonResponderCalls.map(call => ({
+                    type: "tool_result",
+                    tool_use_id: call.id,
+                    content: JSON.stringify(mockExecuteTool(call, mockOptions).data),
+                })),
+                // Espelha produção: responder_paciente chamado JUNTO com ferramenta de
+                // dados também exige tool_result (sem ele a Anthropic devolve HTTP 400).
+                ...reply.toolCalls.filter(t => t.name === "responder_paciente").map(call => ({
+                    type: "tool_result",
+                    tool_use_id: call.id,
+                    content: JSON.stringify({ error: "ignored_for_now", note: "Ferramenta ignorada porque outras ferramentas de dados foram chamadas. Avalie os resultados delas e chame responder_paciente novamente no próximo turno." }),
+                })),
+            ],
         });
 
         reply = await claudeChat(stubSupabase, {

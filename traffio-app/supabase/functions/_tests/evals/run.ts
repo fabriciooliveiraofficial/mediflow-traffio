@@ -42,6 +42,17 @@ function buildScenarioKnowledgePacket(s: EvalScenario): string {
 
 type RunResult = AgentTurnResult;
 
+/** Snapshot de um paciente da casa, no formato de buildPatientSnapshot. */
+function registeredSnapshot(fullName?: string): string | null {
+    if (!fullName) return null;
+    return [
+        `Paciente cadastrado: ${fullName}`,
+        "FICHA DE CADASTRO (dados reais — use para personalizar o atendimento; NUNCA recite a ficha de volta nem cite dado que o paciente não trouxe à conversa):",
+        "- e-mail: já consta no cadastro (não peça de novo)",
+        "AGENDAMENTOS ATIVOS: nenhum agendamento futuro no sistema.",
+    ].join("\n");
+}
+
 async function runScenario(s: EvalScenario): Promise<RunResult> {
     const lastPatientMessage = [...s.history].reverse().find(m => m.role === "user")?.content || "";
     const { text: system, cachePrefix: systemCachePrefix } = buildAutonomousSystemPrompt({
@@ -61,10 +72,10 @@ async function runScenario(s: EvalScenario): Promise<RunResult> {
                     "AGENDAMENTOS ATIVOS (estado REAL do sistema agora):",
                     `- ${MOCK_APPOINTMENT.date} às ${MOCK_APPOINTMENT.start_time} — ${MOCK_APPOINTMENT.appointment_types.name} com ${MOCK_APPOINTMENT.doctors.full_name} (${MOCK_APPOINTMENT.status})`,
                 ].join("\n")
-                : null),
+                : registeredSnapshot(s.registeredAs)),
         // E-10/E-12 (Onda 3): espelha o buildFlowStateHint de produção — ficha já
         // conhecida entre turnos não deve ser perguntada de novo
-        flowStateHint: s.intake ? buildFlowStateHint({}, s.intake) : null,
+        flowStateHint: buildFlowStateHint(s.registeredAs ? { registration_confirmed: true } : {}, s.intake ?? {}, s.history),
         // E-22 (Onda 3): mesmo gatilho de produção — só ativa quando o paciente pede
         accessibleMode: shouldUseAccessibleMode(lastPatientMessage),
     });
@@ -155,7 +166,12 @@ console.log(`\n═══ Evals do agente autônomo — modelo: ${MODEL} — ${SC
 let passed = 0;
 const failedNames: string[] = [];
 
-for (const scenario of SCENARIOS) {
+// EVAL_ONLY="trecho1,trecho2" roda só os cenários cujo nome contém um dos trechos
+// (iterar num ajuste sem pagar a suíte inteira). O gate de deploy é a suíte COMPLETA.
+const onlyFilter = (Deno.env.get("EVAL_ONLY") ?? "").split(",").map(x => x.trim()).filter(Boolean);
+const selected = onlyFilter.length ? SCENARIOS.filter(x => onlyFilter.some(f => x.name.includes(f))) : SCENARIOS;
+if (onlyFilter.length) console.log(`⚠️  EVAL_ONLY ativo — ${selected.length}/${SCENARIOS.length} cenários (não vale como gate de deploy)\n`);
+for (const scenario of selected) {
     try {
         const result = await runScenario(scenario);
         const failures = check(scenario, result);
@@ -175,7 +191,7 @@ for (const scenario of SCENARIOS) {
     }
 }
 
-console.log(`\n═══ Resultado: ${passed}/${SCENARIOS.length} ═══`);
+console.log(`\n═══ Resultado: ${passed}/${selected.length} ═══`);
 if (failedNames.length) {
     console.log(`Reprovados: ${failedNames.join(" | ")}`);
     console.log("🔴 NÃO SUBA para tenant real com a suíte vermelha.");

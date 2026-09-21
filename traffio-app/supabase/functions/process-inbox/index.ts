@@ -43,7 +43,55 @@ const DEBOUNCE_MS = 1200;
 // responder: pacientes reais fragmentam o pensamento em várias mensagens com
 // pausas de 3–5s; a IA só deve gerar resposta após silêncio real. O fluxo
 // humano continua no debounce curto (latência importa para o atendente).
-const AI_DEBOUNCE_MS = 10_000;
+//
+// Latência conversacional (2026-09-21): o valor antigo (10s fixos) somado ao
+// cron de 60s dava 10–70s de espera em FILA antes de a IA sequer ser chamada —
+// o push de 1,5s do webhook nunca vencia o gate e só o cron resgatava o turno.
+// Agora o silêncio exigido é ADAPTATIVO (pensamento completo libera rápido,
+// fragmento espera a continuação) e o adiamento agenda o próprio re-disparo
+// (scheduleDebounceWakeup) — o cron volta a ser só vassoura de segurança.
+// Ajustáveis sem novo deploy via Supabase Secrets.
+const AI_DEBOUNCE_MS = Number(Deno.env.get("INBOX_AI_DEBOUNCE_MS")) || 3_500;
+const AI_DEBOUNCE_FRAGMENT_MS = Number(Deno.env.get("INBOX_AI_DEBOUNCE_FRAGMENT_MS")) || 6_000;
+
+// Fragmento = mensagem curta sem cara de pensamento concluído ("oi", "bom dia",
+// "queria saber"): o paciente quase sempre manda a continuação em seguida.
+// Pergunta, frase pontuada ou texto mais longo já é um turno completo.
+function aiDebounceFor(lastContent: string | null | undefined): number {
+  const text = String(lastContent ?? "").trim();
+  if (!text) return AI_DEBOUNCE_MS; // mídia sem legenda
+  const complete = /[?.!…]$/.test(text) || text.split(/\s+/).length > 4;
+  return complete ? AI_DEBOUNCE_MS : AI_DEBOUNCE_FRAGMENT_MS;
+}
+
+// Um re-disparo agendado por conversa neste isolate — rajada de N mensagens
+// gera N pushes, mas só um wake-up pendente por vez.
+const scheduledWakeups = new Set<string>();
+
+function scheduleDebounceWakeup(key: string, delayMs: number) {
+  if (scheduledWakeups.has(key)) return;
+  const url = Deno.env.get("SUPABASE_URL");
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !serviceKey) return;
+  scheduledWakeups.add(key);
+
+  const task = (async () => {
+    await new Promise((r) => setTimeout(r, delayMs));
+    scheduledWakeups.delete(key);
+    await fetch(`${url}/functions/v1/process-inbox`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" },
+      body: "{}",
+    }).catch((e) => console.warn("[process-inbox] debounce wake-up failed (cron cobre):", e?.message));
+  })();
+
+  try {
+    // @ts-ignore
+    EdgeRuntime.waitUntil(task);
+  } catch {
+    /* fire-and-forget */
+  }
+}
 
 // Item 2 do hardening de carga (docs/DIAGNOSTICO_CONCORRENCIA_AGENTE.md):
 // conversas distintas (tenant, phone) já vêm sem contenção entre si (cada
@@ -314,11 +362,16 @@ async function processConversationTurn(
 
       if (aiWillRespond) {
         const newestArrival = Math.max(...messages.map((m: any) => new Date(m.received_at).getTime()));
-        if (Date.now() - newestArrival < AI_DEBOUNCE_MS) {
-          // Paciente ainda pode estar digitando — devolve o batch para a fila;
-          // o próximo ciclo do cron reprocessa com a rajada completa fundida.
-          console.log(`[process-inbox] [${phone}] AI debounce: last msg ${Date.now() - newestArrival}ms ago (< ${AI_DEBOUNCE_MS}ms) — deferring`);
+        const debounceMs = aiDebounceFor(messages[messages.length - 1]?.content);
+        const silenceMs = Date.now() - newestArrival;
+        if (silenceMs < debounceMs) {
+          // Paciente ainda pode estar digitando — devolve o batch para a fila e
+          // agenda o re-disparo para o instante exato em que o silêncio vence
+          // (+ folga do DEBOUNCE_MS do claim). Sem isto o turno só voltava no
+          // próximo tick do cron (até 60s).
+          console.log(`[process-inbox] [${phone}] AI debounce: last msg ${silenceMs}ms ago (< ${debounceMs}ms) — deferring + wake-up`);
           await markMessages(supabase, messageIds, "pending");
+          scheduleDebounceWakeup(`${tenantId}:${phone}`, debounceMs - silenceMs + 250);
           return;
         }
       }

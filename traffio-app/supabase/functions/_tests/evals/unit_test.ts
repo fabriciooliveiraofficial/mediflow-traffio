@@ -2334,3 +2334,127 @@ Deno.test("validateAgentReply: leitura administrativa de documento (sem termo cl
     });
     assertEquals(v.filter((item) => item.includes("clínico sobre imagem/arquivo")), []);
 });
+
+// ── 2026-09-21: o agente conhece a EQUIPE e a FICHA do paciente ──────────────
+import { buildTeamSection, buildPatientRecordLines } from "../../_shared/copilot.ts";
+
+Deno.test("buildTeamSection: nome, especialidade, serviços e roteiro do profissional entram; sem equipe → null", () => {
+    assertEquals(buildTeamSection([]), null);
+    const section = buildTeamSection([{
+        full_name: "Dra. Ana Souza",
+        specialty: "Implantodontia",
+        doctor_services: [{ appointment_types: { name: "Avaliação de implante" } }],
+        bot_profile: {
+            pitch: "Atendimento calmo para quem tem receio de cirurgia",
+            selling_points: ["Planejamento digital", ""],
+            objection_scripts: { preco: "O valor exato só sai na avaliação", tempo: "", urgencia: "" },
+            faq: [{ q: "Dói?", a: "A equipe cuida do seu conforto em cada etapa" }],
+        },
+    }])!;
+    assert(section.includes("[fonte:doctors]"));
+    assert(section.includes("Dra. Ana Souza — Implantodontia"));
+    assert(section.includes("realiza: Avaliação de implante"));
+    assert(section.includes("objeção de preço"));
+    assert(section.includes("dúvida comum: Dói?"));
+});
+
+Deno.test("buildTeamSection: campo livre com valor monetário NUNCA entra no prompt (política de preço)", () => {
+    const section = buildTeamSection([{
+        full_name: "Dr. Bruno Lima",
+        specialty: "Ortodontia",
+        bot_profile: {
+            pitch: "Aparelho a partir de R$ 199 por mês",
+            selling_points: ["Parcelamos em 12x de 250,00", "Alinhadores discretos"],
+            objection_scripts: { preco: "Custa 3000 reais mas vale a pena" },
+        },
+    }])!;
+    assert(section.includes("Dr. Bruno Lima — Ortodontia"));
+    assert(section.includes("Alinhadores discretos"));
+    assert(!/R\$|199|250,00|3000/.test(section), section);
+});
+
+Deno.test("buildPatientRecordLines: idade, aniversário, convênio e e-mail (sem expor o e-mail nem notas)", () => {
+    const lines = buildPatientRecordLines({
+        created_at: "2024-03-10T12:00:00Z",
+        birth_date: "1984-09-21",
+        type: "insurance",
+        insurance_provider: "Amil Dental",
+        email: "paciente@example.com",
+        notes: "observação interna da equipe",
+    }, "2026-09-21").join("\n");
+    assert(lines.includes("desde: 2024-03-10"));
+    assert(lines.includes("idade: 42 anos"));
+    assert(lines.includes("É HOJE"));
+    assert(lines.includes("convênio (Amil Dental)"));
+    assert(lines.includes("já consta no cadastro"));
+    assert(!lines.includes("paciente@example.com"));
+    assert(!lines.includes("observação interna"));
+});
+
+Deno.test("buildPatientRecordLines: aniversário ainda não chegou no ano → idade não arredonda para cima; ficha vazia → sem seção", () => {
+    const lines = buildPatientRecordLines({ birth_date: "1990-12-25" }, "2026-09-21").join("\n");
+    assert(lines.includes("idade: 35 anos"));
+    assert(!lines.includes("É HOJE"));
+    assertEquals(buildPatientRecordLines({}, "2026-09-21"), []);
+});
+
+// ── 2026-09-21: pedido de cadastro sem resposta vira ESTADO, não loop ────────
+import { hasUnansweredRegistrationAsk, needsSoberTone, asksForClinicalGuarantee, ignoredQuestion } from "../../_shared/copilot.ts";
+
+Deno.test("ignoredQuestion: pergunta da clínica ignorada por outra pergunta do paciente é nomeada no prompt; resposta+pergunta não dispara", () => {
+    const h = [
+        { role: "assistant", content: "Fazemos sim! Você está pensando no clareamento para alguma ocasião especial?" },
+        { role: "user", content: "e tem estacionamento aí?" },
+    ];
+    assertEquals(ignoredQuestion(h), "Você está pensando no clareamento para alguma ocasião especial?");
+    assert(buildFlowStateHint({}, {}, h)?.includes("ocasião especial"));
+    assertEquals(ignoredQuestion([h[0], { role: "user", content: "sim, é pro meu casamento. tem estacionamento?" }]), null);
+    assertEquals(ignoredQuestion([h[0], { role: "user", content: "é pro meu casamento" }]), null);
+    assertEquals(ignoredQuestion([{ role: "assistant", content: "Temos estacionamento gratuito." }, { role: "user", content: "e o endereço?" }]), null);
+});
+
+Deno.test("asksForClinicalGuarantee: pedido de garantia vira dica para não ecoar as palavras (nem negando)", () => {
+    const h = [{ role: "user", content: "Mas me garante que o implante vai ficar perfeito e que é 100% sem dor?" }];
+    assertEquals(asksForClinicalGuarantee(h), true);
+    assert(buildFlowStateHint({}, {}, h)?.includes("GARANTIA"));
+    assertEquals(asksForClinicalGuarantee([{ role: "user", content: "can you guarantee it won't hurt?" }]), true);
+    assertEquals(asksForClinicalGuarantee([{ role: "user", content: "Oi, vocês fazem implante?" }]), false);
+});
+
+Deno.test("needsSoberTone: medo/dor/urgência/reclamação na ÚLTIMA mensagem do paciente → dica de zero emoji; conversa leve → nada", () => {
+    const fear = [{ role: "user", content: "Oi, preciso tratar um dente mas tenho pavor de dentista" }];
+    assertEquals(needsSoberTone(fear), true);
+    assert(buildFlowStateHint({}, {}, fear)?.includes("ZERO emoji"));
+    assertEquals(needsSoberTone([{ role: "user", content: "my tooth is bleeding, it's an emergency" }]), true);
+    assertEquals(needsSoberTone([{ role: "user", content: "Oi! Queria clarear os dentes 😄" }]), false);
+    // Só a ÚLTIMA mensagem conta: o medo do início não silencia a conversa inteira.
+    assertEquals(needsSoberTone([...fear, { role: "assistant", content: "Entendo." }, { role: "user", content: "que bom, fiquei mais tranquilo! pode ver horário?" }]), false);
+});
+
+Deno.test("hasUnansweredRegistrationAsk: paciente ignora o pedido de nome e faz outra pergunta → true (e vira instrução do turno)", () => {
+    const history = [
+        { role: "user", content: "Oi, vocês fazem clareamento?" },
+        { role: "assistant", content: "Fazemos sim! Pra eu te atender direitinho, me diz seu nome completo?" },
+        { role: "user", content: "e tem estacionamento aí?" },
+    ];
+    assertEquals(hasUnansweredRegistrationAsk(history), true);
+    assert(buildFlowStateHint({}, {}, history)?.includes("PROIBIDO pedir"));
+    // Cadastro já confirmado: o assunto acabou, a dica some.
+    assert(!buildFlowStateHint({ registration_confirmed: true }, {}, history)?.includes("PROIBIDO pedir"));
+});
+
+Deno.test("hasUnansweredRegistrationAsk: resposta ao pedido (nome curto, 'me chamo', e-mail, confirmação) → false", () => {
+    const ask = { role: "assistant", content: "Qual o seu nome completo?" };
+    for (const reply of ["Marina Lopes", "me chamo Bruno Tavares e queria saber do clareamento", "marina@example.com", "pode ser esse mesmo", "pode ser esse número mesmo que estou usando"]) {
+        assertEquals(hasUnansweredRegistrationAsk([ask, { role: "user", content: reply }]), false, reply);
+    }
+});
+
+Deno.test("hasUnansweredRegistrationAsk: paciente pede horários → false (o dado passou a ser necessário; a persona pede de outro jeito)", () => {
+    assertEquals(hasUnansweredRegistrationAsk([
+        { role: "assistant", content: "Me passa seu nome completo?" },
+        { role: "user", content: "tem horário pra essa semana de manhã?" },
+    ]), false);
+    // Sem pedido anterior da clínica, não há estado nenhum.
+    assertEquals(hasUnansweredRegistrationAsk([{ role: "user", content: "vocês abrem sábado?" }]), false);
+});

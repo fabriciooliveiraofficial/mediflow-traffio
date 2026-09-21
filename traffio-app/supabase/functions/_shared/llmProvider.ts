@@ -240,6 +240,7 @@ export async function claudeChat(supabase: SupabaseClient, req: LlmRequest): Pro
     if (req.toolChoice) body.tool_choice = req.toolChoice;
     if (req.temperature !== undefined) body.temperature = req.temperature;
 
+    const LLM_FETCH_TIMEOUT_MS = 60_000;
     const started = Date.now();
     let res: Response | null = null;
     let rateLimitRetries = 0;
@@ -258,6 +259,9 @@ export async function claudeChat(supabase: SupabaseClient, req: LlmRequest): Pro
                     "anthropic-version": ANTHROPIC_VERSION,
                 },
                 body: JSON.stringify(body),
+                // Sem teto, uma conexão pendurada segurava o turno (e o lease da
+                // conversa) até o wall-limit do edge. Chamada saudável: 4–6s.
+                signal: AbortSignal.timeout(LLM_FETCH_TIMEOUT_MS),
             });
         } catch (networkErr: any) {
             // fetch nunca completou (DNS, timeout, conexão recusada) — infra, não turno.
